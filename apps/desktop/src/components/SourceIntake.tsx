@@ -34,6 +34,7 @@ interface SourceIntakeDialogProps {
   request: SourceIntakeRequest;
   close: () => void;
   onAdded?: () => Promise<unknown>;
+  returnFocus?: () => HTMLElement | null;
   openEvidence?: (evidenceId: string) => void;
   hostTools?: HostToolStatus[] | undefined;
   hostToolActions?: HostToolActions;
@@ -79,6 +80,7 @@ function SourceIntakeSession({
   request,
   close,
   onAdded,
+  returnFocus,
   openEvidence,
   hostTools = [],
   hostToolActions,
@@ -270,6 +272,7 @@ function SourceIntakeSession({
       }}
     >
       <DialogContent
+        finalFocus={saved && returnFocus ? () => returnFocus() ?? false : undefined}
         showCloseButton={false}
         className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
         aria-describedby="source-intake-description"

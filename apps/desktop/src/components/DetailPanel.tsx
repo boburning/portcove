@@ -357,6 +357,7 @@ export function DetailPanel(props: DetailPanelProps) {
       className="detail-panel @container/detail relative w-full min-w-0 motion-reduce:[animation:none]"
       aria-labelledby="port-detail-title"
       data-detail-workspace
+      data-detail-port-id={port.id}
     >
       <Button
         data-focusable

@@ -2,6 +2,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type {
@@ -183,6 +184,40 @@ describe("source intake dialog", () => {
     expect(button("Return to game")!.disabled).toBe(false);
     expect(button("Copy into Portcove")).toBeUndefined();
     expect(button("Use current location")).toBeUndefined();
+  });
+
+  it("returns focus to the current same-game action when saving replaces its opener", async () => {
+    prepareImport();
+    function RepairFixture() {
+      const [open, setOpen] = useState(false);
+      const [ready, setReady] = useState(false);
+      return (
+        <>
+          {ready ? (
+            <button id="current-game-action">Play</button>
+          ) : (
+            <button onClick={() => setOpen(true)}>Locate game files</button>
+          )}
+          {open && (
+            <SourceIntakeDialog
+              request={request(["D:/Game.z64"])}
+              close={() => setOpen(false)}
+              onAdded={async () => setReady(true)}
+              returnFocus={() => document.getElementById("current-game-action")}
+            />
+          )}
+        </>
+      );
+    }
+    await root.rerender(<RepairFixture />);
+    await page.getByRole("button", { name: "Locate game files" }).click();
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(button("Locate game files")).toBeUndefined();
+    await page.getByRole("button", { name: "Return to game" }).click();
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(document.getElementById("current-game-action")),
+    );
   });
 
   it("keeps a genuine import failure separate from a refresh failure", async () => {

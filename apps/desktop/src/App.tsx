@@ -664,6 +664,16 @@ function Workspace({
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
+        returnFocus={() => {
+          const detail = [...document.querySelectorAll<HTMLElement>("[data-detail-port-id]")].find(
+            (element) => element.dataset.detailPortId === sourceIntake.portId,
+          );
+          return (
+            detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
+            detail?.querySelector<HTMLButtonElement>(".detail-back") ??
+            null
+          );
+        }}
         openEvidence={(evidenceId) => {
           void operations.perform(
             "open source evidence",
