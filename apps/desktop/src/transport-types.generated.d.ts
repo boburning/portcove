@@ -1769,6 +1769,8 @@ export interface OutputExternalRuntimePreview {
 }
 export interface SharedPreferencesReview {
   binding: AcceptedSharedPreferencesBinding;
+  local_fallback_path: string;
+  local_fallback_present: boolean;
   present: boolean;
 }
 export interface OutputExternalRuntimeRemovalPreview {

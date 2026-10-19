@@ -1174,13 +1174,21 @@
           "binding": {
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
           "present": {
             "type": "boolean"
           }
         },
         "required": [
           "binding",
-          "present"
+          "present",
+          "local_fallback_path",
+          "local_fallback_present"
         ],
         "type": "object"
       }
