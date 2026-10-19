@@ -18,6 +18,7 @@ import {
 import {
   catalogSetupPresentation,
   installedCardInputPresentation,
+  portActionPresentation,
 } from "../features/port-actions/port-action-presentation";
 import type { PortDefinition, PortStatus } from "../types";
 import { observedUpdateCandidate } from "../features/browsing/update-query-context";
@@ -26,6 +27,7 @@ import {
   filterPorts,
   platformLabel,
   portReadiness,
+  hasUnconfirmedLaunchInput,
   releaseChannelPresentation,
   type Filter,
   type CatalogSort,
@@ -648,7 +650,11 @@ function ContinueCard({
   details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
-  const launchable = status.readiness?.launchable === true;
+  const launchable =
+    status.readiness?.launchable === true &&
+    status.readiness.blockers.length === 0 &&
+    !portActionPresentation(status, "launch").blocked;
+  const trial = hasUnconfirmedLaunchInput(status, port);
   return (
     <section
       className="continue-card mb-[13px] grid min-h-[92px] grid-cols-[72px_minmax(0,_1fr)_auto] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)] max-[65rem]:grid-cols-[4.25rem_minmax(0,_1fr)]"
@@ -672,6 +678,9 @@ function ContinueCard({
               : `External version ${status.external_runtime?.version}`}
           </p>
         )}
+        {trial && (
+          <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
+        )}
       </div>
       <div className="continue-actions flex gap-2 max-[65rem]:col-span-full max-[65rem]:justify-end">
         <Button
@@ -693,7 +702,13 @@ function ContinueCard({
           }
         >
           <Icon glyph={Gamepad2} />
-          {launchable ? "Play again" : "Review launch"}
+          {launchable
+            ? status.readiness?.pending_setup
+              ? "Start setup"
+              : trial
+                ? "Try launch"
+                : "Play again"
+            : "Review launch"}
         </Button>
       </div>
     </section>
@@ -709,9 +724,7 @@ function LibrarySummary({ overview }: { overview: LibraryOverview }) {
       <strong className="text-pc-foreground">{overview.installed} in library</strong>
       <span className="inline-flex items-center gap-1 text-[var(--color-success-text-raised)]">
         <Icon glyph={CheckCircle2} size="sm" />
-        {overview.ready === overview.installed
-          ? "All ready to play"
-          : `${overview.ready} ready to play`}
+        {overview.ready === overview.installed ? "All can launch" : `${overview.ready} can launch`}
       </span>
       {overview.needsSetup > 0 && (
         <span className="inline-flex items-center gap-1 text-pc-warning-foreground">
@@ -761,7 +774,7 @@ function PortCard({
   const setupDescriptionId = useId();
   const resolveCardPresentation = () => {
     const input = installedCardInputPresentation(status);
-    const originalState = readinessPresentation(readiness, view, status);
+    const originalState = readinessPresentation(readiness, view, status, port);
     const state = input ? { ...originalState, label: input.label } : originalState;
     const setup =
       view === "catalog" && !status?.active && !status?.external_runtime
@@ -1075,12 +1088,19 @@ function PortCardStatus({
           >
             Details
           </Button>
-          {status?.readiness?.launchable === true && onLaunch && (
-            <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
-              <Icon glyph={Gamepad2} size="sm" />
-              Play
-            </Button>
-          )}
+          {status?.readiness?.launchable === true &&
+            status.readiness.blockers.length === 0 &&
+            !portActionPresentation(status, "launch").blocked &&
+            onLaunch && (
+              <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch(port.id)}>
+                <Icon glyph={Gamepad2} size="sm" />
+                {status.readiness.pending_setup
+                  ? "Start setup"
+                  : hasUnconfirmedLaunchInput(status, port)
+                    ? "Try launch"
+                    : "Play"}
+              </Button>
+            )}
           <Menu.Root>
             <Menu.Trigger
               render={
@@ -1150,7 +1170,19 @@ function filterLabel(filter: Filter) {
   return releaseChannelPresentation(filter).label;
 }
 
-function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
+function readinessPresentation(
+  readiness: PortReadiness,
+  view: View,
+  status?: PortStatus,
+  port?: PortDefinition,
+) {
+  if (
+    (status?.active || status?.external_runtime) &&
+    portActionPresentation(status, "launch").blocked
+  )
+    return { label: "Launch needs review", action: "View details", tone: "setup" } as const;
+  if ((readiness === "ready" || readiness === "staged") && hasUnconfirmedLaunchInput(status, port))
+    return { label: "Compatibility unconfirmed", action: "View details", tone: "setup" } as const;
   if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {
       label: catalogSetupPresentation(status).label,

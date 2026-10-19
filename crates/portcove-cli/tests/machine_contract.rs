@@ -1668,7 +1668,7 @@ fn source_relink_requires_a_current_plan_and_preserves_registered_content() {
     let library = temporary.path().join("library");
     let original = temporary.path().join("original.z64");
     let relocated = temporary.path().join("relocated.z64");
-    std::fs::write(&original, b"synthetic source fixture").unwrap();
+    std::fs::write(&original, b"\x80\x37\x12\x40synthetic source fixture").unwrap();
     std::fs::copy(&original, &relocated).unwrap();
     let added = portcove(
         &library,
@@ -1734,7 +1734,7 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("library");
     let source = temporary.path().join("selected.z64");
-    std::fs::write(&source, b"synthetic source fixture").unwrap();
+    std::fs::write(&source, b"\x80\x37\x12\x40synthetic source fixture").unwrap();
     let added = portcove(
         &library,
         &[
@@ -2408,7 +2408,7 @@ fn capabilities_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let capabilities = human_stdout(&portcove(root.path(), &["capabilities"])).to_owned();
     assert!(capabilities.starts_with("Portcove "));
-    assert!(capabilities.contains(" capabilities\nSchema: 69"));
+    assert!(capabilities.contains(" capabilities\nSchema: 70"));
     assert!(capabilities.contains("\nOperation event schema: 3"));
 }
 

@@ -8,6 +8,83 @@ namespace Portcove.ReferenceClient
         ChooseSource, ChooseBios, ValidateSources, RegisterExternal, Install, FinishSetup, Play, ReviewProblem
     }
 
+    // Descriptive Core claims only; these helpers never grant an operation.
+    internal static class SourceInputAssessment
+    {
+        internal static void Validate(object readiness, long schema)
+        {
+            if (readiness == null) return;
+            object launchable, declaredBlockers;
+            if (Json.TryField(readiness, "launchable", out launchable) && launchable is bool && (bool)launchable
+                && Json.TryField(readiness, "blockers", out declaredBlockers) && Json.Array(declaredBlockers).Length != 0)
+                throw new InvalidOperationException("Launch readiness contradicts its blockers.");
+            foreach (var role in new[] { "source", "bios" })
+            {
+                var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
+                if (assessment == null) continue; // Missing legacy evidence remains unknown.
+                if (schema < 70) throw new InvalidOperationException("Source assessments require API schema 70.");
+                var health = Json.Text(assessment, "health");
+                if (!new[] { "unregistered", "not_checked", "not_baselined", "current", "missing", "unreadable", "changed" }.Contains(health))
+                    throw new InvalidOperationException("Unknown source assessment health.");
+                var recordedHealth = Json.OptionalText(readiness, role);
+                if (recordedHealth != null && recordedHealth != health)
+                    throw new InvalidOperationException("Source assessment and byte health disagree.");
+                var classification = Json.Field(assessment, "classification");
+                var identityState = Json.Text(classification, "state");
+                if (!new[] { "not_evaluated", "unrecognized", "recognized", "ambiguous" }.Contains(identityState))
+                    throw new InvalidOperationException("Unknown source classification.");
+                if (identityState == "recognized")
+                    foreach (var field in new[] { "game_id", "variant_id", "representation_id" })
+                        if (string.IsNullOrWhiteSpace(Json.Text(Json.Field(classification, "identity"), field)))
+                            throw new InvalidOperationException("Incomplete source identity.");
+                var contract = Json.Field(assessment, "contract");
+                var contractState = Json.Text(contract, "state");
+                if (!new[] { "not_evaluated", "unreviewed_for_release", "supported", "recognized_not_listed", "known_incompatible", "informational" }.Contains(contractState))
+                    throw new InvalidOperationException("Unknown source contract result.");
+                if (new[] { "supported", "recognized_not_listed", "known_incompatible", "informational" }.Contains(contractState)
+                    && string.IsNullOrWhiteSpace(Json.Text(contract, "contract_id")))
+                    throw new InvalidOperationException("Source contract identity is missing.");
+                var admission = Json.Field(assessment, "admission");
+                var admissionState = Json.Text(admission, "state");
+                if (!new[] { "not_evaluated", "admitted", "rejected" }.Contains(admissionState))
+                    throw new InvalidOperationException("Unknown source admission result.");
+                if (admissionState == "admitted" && !new[] { "exact_identity", "structural_checks", "informational_consent", "upstream_validator" }.Contains(Json.Text(admission, "mode")))
+                    throw new InvalidOperationException("Unknown source admission mode.");
+                if (admissionState == "rejected" && !new[] { "missing", "unreadable", "changed", "known_mismatch", "ambiguous_identity", "missing_tool", "check_failed", "consent_required" }.Contains(Json.Text(admission, "reason")))
+                    throw new InvalidOperationException("Unknown source rejection reason.");
+                if (KnownFailure(readiness, role) && Json.Boolean(readiness, "launchable"))
+                    throw new InvalidOperationException("Launch readiness contradicts a known input failure.");
+            }
+            object blockers;
+            if (schema < 70 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
+                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 70.");
+        }
+
+        internal static bool Confirmed(object readiness, string profile, string role)
+        {
+            if (profile == null) return true;
+            var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
+            if (assessment == null) return false;
+            var classification = Json.Field(assessment, "classification");
+            var admission = Json.Field(assessment, "admission");
+            return Json.Text(assessment, "health") == "current"
+                && Json.Text(classification, "state") == "recognized"
+                && Json.Text(Json.Field(classification, "identity"), "game_id") == profile
+                && Json.Text(Json.Field(assessment, "contract"), "state") == "supported"
+                && Json.Text(admission, "state") == "admitted" && Json.Text(admission, "mode") == "exact_identity";
+        }
+
+        internal static bool KnownFailure(object readiness, string role)
+        {
+            var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
+            if (assessment == null || Json.Text(assessment, "health") != "current") return false;
+            var contract = Json.Text(Json.Field(assessment, "contract"), "state");
+            var admission = Json.Field(assessment, "admission");
+            return new[] { "recognized_not_listed", "known_incompatible" }.Contains(contract)
+                || (Json.Text(admission, "state") == "rejected" && new[] { "known_mismatch", "ambiguous_identity", "check_failed" }.Contains(Json.Text(admission, "reason")));
+        }
+    }
+
     // A presentation decision over core status. The selected action still rechecks
     // authority through the ordinary CLI or Playnite launch controller.
     internal sealed class GuidedSetup
@@ -15,7 +92,7 @@ namespace Portcove.ReferenceClient
         private static readonly string[] KnownBlockers =
         {
             "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
-            "unreadable_bios", "changed_bios", "missing_runtime", "preparation_required",
+            "unreadable_bios", "changed_bios", "incompatible_bios", "missing_runtime", "preparation_required",
             "invalid_installation"
         };
 
@@ -35,13 +112,15 @@ namespace Portcove.ReferenceClient
             if (blockers.Any(value => value == null || !KnownBlockers.Contains(value)))
                 return Step(GuidedStepKind.ReviewProblem, "Review readiness",
                     "Portcove returned an unknown readiness blocker. Refresh with a compatible CLI before managing this game.");
+            if (blockers.Length != 0 && Json.Boolean(readiness, "launchable"))
+                return Step(GuidedStepKind.ReviewProblem, "Refresh readiness", "The reported launch state and requirements disagree. Refresh before launching.");
             object requiredExtension;
             Json.TryField(readiness, "required_source_extension", out requiredExtension);
             var extension = requiredExtension as string;
             if ((requiredExtension != null && (extension == null || extension.Length == 0 ||
                 extension.Length > 16 || extension.Any(character => !((character >= 'a' && character <= 'z') ||
                     (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9'))) || sourceProfile == null)) ||
-                (blockers.Contains("incompatible_source") && (extension == null || Json.Boolean(readiness, "launchable"))))
+                (blockers.Contains("incompatible_source") && ((extension == null && !SourceInputAssessment.KnownFailure(readiness, "source")) || Json.Boolean(readiness, "launchable"))))
                 return Step(GuidedStepKind.ReviewProblem, "Review source requirement",
                     "Portcove returned an invalid source representation requirement. Refresh with a compatible CLI before registering files.");
             var actions = PortActions.Read(status);
@@ -71,15 +150,21 @@ namespace Portcove.ReferenceClient
             }
             if (installed && Json.Boolean(readiness, "launchable") &&
                 (launch == null || launch.Availability == "allowed"))
-                return Step(GuidedStepKind.Play, "Play",
-                    "Playnite launches the current installation through Portcove. It does not install or update the game.");
+            {
+                object pendingSetup;
+                if (Json.TryField(readiness, "pending_setup", out pendingSetup) && pendingSetup is bool && (bool)pendingSetup)
+                    return Step(GuidedStepKind.Play, "Start setup", "Start the port's first-time setup. Portcove checks the required files again before starting it.");
+                return SourceInputAssessment.Confirmed(readiness, sourceProfile, "source") && SourceInputAssessment.Confirmed(readiness, biosProfile, "bios")
+                    ? Step(GuidedStepKind.Play, "Play", "Playnite launches the current installation through Portcove. It does not install or update the game.")
+                    : Step(GuidedStepKind.Play, "Try launch", "The files are available, but compatibility with the installed version is unconfirmed. Portcove checks them again before launching; setup may still be needed. A clean process exit does not establish gameplay.");
+            }
             if (sourceProfile != null && blockers.Any(value => value == "missing_source" ||
                 value == "unreadable_source" || value == "changed_source" || value == "incompatible_source"))
                 return Step(GuidedStepKind.ChooseSource, "Choose original files…",
                     extension == null ? "Choose your own game file, or use Choose folder below. Portcove will validate it before use." :
                     "Choose your own uncompressed ." + extension + " original game file. Select the file itself rather than a ZIP containing it. Portcove will validate the selected file before registering it; originals remain in place.");
             if (biosProfile != null && blockers.Any(value => value == "missing_bios" ||
-                value == "unreadable_bios" || value == "changed_bios"))
+                value == "unreadable_bios" || value == "changed_bios" || value == "incompatible_bios"))
                 return Step(GuidedStepKind.ChooseBios, "Choose BIOS file…",
                     "Choose your own BIOS file. Portcove will validate it before use.");
             if (external && !installed && !reviewedExternal)

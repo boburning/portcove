@@ -315,7 +315,7 @@ mod tests {
     fn metadata_export_contains_references_but_no_source_bytes_and_never_overwrites() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join("synthetic.z64");
-        let source_bytes = b"synthetic source content is never exported";
+        let source_bytes = b"\x80\x37\x12\x40synthetic source content is never exported\0\0";
         fs::write(&source, source_bytes).unwrap();
         let service =
             PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
@@ -342,7 +342,7 @@ mod tests {
         let bytes = fs::read(&destination).unwrap();
         assert_eq!(hex::encode(Sha256::digest(&bytes)), report.sha256);
         assert!(
-            !String::from_utf8_lossy(&bytes).contains(std::str::from_utf8(source_bytes).unwrap())
+            !String::from_utf8_lossy(&bytes).contains("synthetic source content is never exported")
         );
         let parsed: LibraryMetadata = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(
