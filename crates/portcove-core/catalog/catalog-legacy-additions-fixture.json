@@ -33,7 +33,9 @@
     "sonic-the-hedgehog-genesis-jue-rev00",
     "dark-forces-pc-dark-gob",
     "sonic-the-hedgehog-2-genesis-world-reva",
-    "sonic-3-and-knuckles-genesis-usa-lockon"
+    "sonic-3-and-knuckles-genesis-usa-lockon",
+    "yoshis-cookie-nes-usa",
+    "dr-mario-nes-japan-usa-rev1"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -70,6 +72,8 @@
     "sonic-the-hedgehog-recomp",
     "the-force-engine-dark-forces",
     "sonic-the-hedgehog-2-recomp",
-    "sonic-3-and-knuckles-recomp"
+    "sonic-3-and-knuckles-recomp",
+    "yoshis-cookie-recomp",
+    "dr-mario-nes-recomp"
   ]
 }

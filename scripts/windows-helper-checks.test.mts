@@ -191,16 +191,21 @@ void test(
     const script = `
 $ErrorActionPreference='Stop'
 Add-Type -TypeDefinition ([IO.File]::ReadAllText('${helper}'))
+Add-Type -TypeDefinition 'public static class StorageLookupFixture { public static System.Action Prepare(System.Action record,bool fail) { return ()=>{record();if(fail)throw new System.ComponentModel.Win32Exception(1314,"inert lookup refusal");}; } }'
 function New-Paths {
  [PortcoveReviewContainer+StorageObservation[]]@(0..4|ForEach-Object {[PortcoveReviewContainer+StorageObservation]@{Path="C:\\inert\\directory$_";Sddl='O:SYD:(A;;FA;;;SY)'}})
 }
 function Invoke-Case([string]$kind) {
- $script:entered=0;$script:verified=0;$script:observed=0;$script:reverted=0
+ $script:prepared=0;$script:entered=0;$script:verified=0;$script:observed=0;$script:reverted=0
  $paths=New-Paths
  if($kind -eq 'bad-path'){$paths[0].Path='relative'}
  if($kind -eq 'oversized'){$paths[0].Sddl='x'*4097}
  if($kind -eq 'descriptor'){$paths[0].DescriptorError=5;$paths[0].Sddl=$null}
  $script:kind=$kind
+ $prepare=[StorageLookupFixture]::Prepare([Action]{
+  if($script:entered -or $script:verified -or $script:observed){throw 'lookup entered reviewer scope'}
+  $script:prepared++
+ },($kind -eq 'prepare-failed'))
  $result=[PortcoveReviewContainer]::CheckStorage($paths,[Func[bool]]{$script:entered++;$script:kind -ne 'enter-failed'},[Func[bool]]{$script:verified++;$script:kind -ne 'identity'},[Action[PortcoveReviewContainer+StorageObservation[]]]{param($rows)
   $script:observed++
   if($script:kind -eq 'throw'){throw 'inert metadata failure'}
@@ -208,18 +213,21 @@ function Invoke-Case([string]$kind) {
   if($script:kind -eq 'denied'){$rows[2].Attributes=$null;$rows[2].MetadataError=5}
   if($script:kind -eq 'unknown'){$rows[2].Attributes=$null}
   if($script:kind -eq 'file'){$rows[2].Attributes=128}
- },[Func[bool]]{$script:reverted++;$script:kind -ne 'revert-failed'})
+ },[Func[bool]]{$script:reverted++;$script:kind -ne 'revert-failed'},$prepare)
  if($result.Passed -ne ($kind -eq 'pass')){throw "incorrect acceptance: $kind"}
- $expectedEnter=if($kind -in @('bad-path','oversized')){0}else{1}
- $expectedRevert=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
- $expectedVerify=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
- $expectedObserve=if($kind -in @('bad-path','oversized','enter-failed','identity')){0}else{1}
+ $expectedPrepare=if($kind -in @('bad-path','oversized')){0}else{1}
+ $expectedEnter=if($kind -in @('bad-path','oversized','prepare-failed')){0}else{1}
+ $expectedRevert=if($kind -in @('bad-path','oversized','prepare-failed','enter-failed')){0}else{1}
+ $expectedVerify=if($kind -in @('bad-path','oversized','prepare-failed','enter-failed')){0}else{1}
+ $expectedObserve=if($kind -in @('bad-path','oversized','prepare-failed','enter-failed','identity')){0}else{1}
+ if($script:prepared -ne $expectedPrepare){throw 'broker preparation count differs'}
  if($script:entered -ne $expectedEnter -or $script:verified -ne $expectedVerify -or $script:reverted -ne $expectedRevert -or $script:observed -ne $expectedObserve){throw "incorrect ownership flow: $kind"}
  if($kind -eq 'denied' -and $result.Paths[2].MetadataError -ne 5){throw 'native refusal lost'}
  if($kind -eq 'revert-failed' -and $result.Reverted){throw 'failed revert described as complete'}
+ if($kind -eq 'prepare-failed' -and $result.NativeErrorCode -ne 1314){throw 'native error code lost'}
 }
-foreach($kind in @('pass','bad-path','oversized','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed')){Invoke-Case $kind}
-@{cases=11;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
+foreach($kind in @('pass','bad-path','oversized','prepare-failed','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed')){Invoke-Case $kind}
+@{cases=12;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
 `;
     const output = execFileSync(
       "pwsh.exe",
@@ -233,7 +241,7 @@ foreach($kind in @('pass','bad-path','oversized','enter-failed','identity','desc
       ],
       { encoding: "utf8", windowsHide: true, timeout: 20000 },
     );
-    assert.deepEqual(JSON.parse(output), { cases: 11, native_processes: 0, storage_operations: 0 });
+    assert.deepEqual(JSON.parse(output), { cases: 12, native_processes: 0, storage_operations: 0 });
   },
 );
 
@@ -261,13 +269,13 @@ if($functions.Count -ne 1){throw 'production capture helper missing'}
 Invoke-Expression $functions[0].Extent.Text
 $root='${root.replaceAll("'", "''")}'
 $null=New-Item -ItemType Directory -Path (Join-Path $root 'capture')
-$process=[pscustomobject]@{TreeEmpty=$true;ForcedTermination=$true;ReviewerResumed=$false;ExitCode=$null;Storage=[pscustomobject]@{Passed=$false;IdentityVerified=$true;Reverted=$true;BypassTraverseEnabled=$false;Error=$null;Paths=@(0..4|ForEach-Object {[pscustomobject]@{Path="C:\\inert\\directory$_";Sddl=('x'*800);Attributes=$null;MetadataError=5;DescriptorError=0}})}}
+$process=[pscustomobject]@{TreeEmpty=$true;ForcedTermination=$true;ReviewerResumed=$false;ExitCode=$null;Storage=[pscustomobject]@{Passed=$false;IdentityVerified=$true;Reverted=$true;BypassTraverseEnabled=$false;Error='inert refusal';NativeErrorCode=1314;Paths=@(0..4|ForEach-Object {[pscustomobject]@{Path="C:\\inert\\directory$_";Sddl=('x'*800);Attributes=$null;MetadataError=5;DescriptorError=0}})}}
 $summary=Write-StoragePreflightCapture $root $process
 if(-not $summary.TreeEmpty -or -not $summary.ForcedTermination -or $summary.ReviewerResumed -or $summary.Storage.Passed -or -not $summary.Storage.Reverted){throw 'refusal/teardown state lost'}
 $capturePath=Join-Path $root 'capture/storage-preflight.json'
 if((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $summary.Storage.CaptureSha256){throw 'capture hash differs'}
 $capture=Get-Content -Raw -LiteralPath $capturePath|ConvertFrom-Json
-if($capture.preflight.Paths.Count -ne 5 -or $capture.preflight.Paths[0].Sddl.Length -ne 800 -or $summary.Storage.Paths[0].PSObject.Properties.Name -contains 'Sddl'){throw 'descriptor evidence/summary scope wrong'}
+if($capture.preflight.Paths.Count -ne 5 -or $capture.preflight.Paths[0].Sddl.Length -ne 800 -or $summary.Storage.Paths[0].PSObject.Properties.Name -contains 'Sddl' -or $capture.preflight.NativeErrorCode -ne 1314 -or $summary.Storage.NativeErrorCode -ne 1314){throw 'descriptor/error evidence/summary scope wrong'}
 $isolation=@{process=$summary;profile_deleted=$true;cleanup_errors=@()}|ConvertTo-Json -Depth 7
 if([Text.Encoding]::UTF8.GetByteCount($isolation) -ge 16384){throw 'recovery receipt exceeds helper bound'}
 $hash=(Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash

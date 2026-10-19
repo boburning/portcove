@@ -716,6 +716,44 @@
         "reviewed_at": "2026-10-18",
         "claim": "Unique full-file 4194304-byte original maps to SHA-1 cfbf98c36c776677290a872547ac47c53d2761d6; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Raw big-endian original, unchanged byte-identical copy.",
         "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Sega%20-%20Mega%20Drive%20-%20Genesis.dat"
+      },
+      {
+        "id": "yoshis-cookie-recomp-1-1-0-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/YoshisCookieRecomp",
+        "authority_ref": "1f24c8b73d8835beaa35fce2f1e7d9b07324b343",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins selected v1.1.0 original-input compatibility. Exact source identity is independently enforced by Core; package selection is not gameplay or native acceptance.",
+        "immutable_url": "https://github.com/mstan/YoshisCookieRecomp/blob/1f24c8b73d8835beaa35fce2f1e7d9b07324b343/game.toml",
+        "live_url": "https://github.com/mstan/YoshisCookieRecomp/blob/main/game.toml"
+      },
+      {
+        "id": "yoshis-cookie-nes-usa-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-18",
+        "claim": "Unique full-file 196624-byte original maps to SHA-1 b19b67e59dd6bab7977e24e0052de7b48ae214a4; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Exact full headered NES2 identity; no normalization.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Nintendo%20-%20Nintendo%20Entertainment%20System.dat"
+      },
+      {
+        "id": "dr-mario-nes-recomp-1-3-0-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/DrMarioNesRecomp",
+        "authority_ref": "8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+        "reviewed_at": "2026-10-18",
+        "claim": "Pins selected v1.3.0 original-input compatibility. Exact source identity is independently enforced by Core; package selection is not gameplay or native acceptance.",
+        "immutable_url": "https://github.com/mstan/DrMarioNesRecomp/blob/8d800cab034c08ddf13f7ba7a6f76018fef7ca01/CMakeLists.txt",
+        "live_url": "https://github.com/mstan/DrMarioNesRecomp/blob/main/CMakeLists.txt"
+      },
+      {
+        "id": "dr-mario-nes-japan-usa-rev1-no-intro-byte-identity",
+        "role": "byte_identity",
+        "authority": "libretro/libretro-database No-Intro",
+        "authority_ref": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+        "reviewed_at": "2026-10-18",
+        "claim": "Unique full-file 65552-byte original maps to SHA-1 0f18c2a5760be0647339b0e3cab9183af86fdd8c; ordinary file admission enforces observed SHA-1 without requiring unobserved CRC. Exact full headered NES2 identity; no normalization.",
+        "immutable_url": "https://github.com/libretro/libretro-database/blob/12c21cf79f1e20eff6ac68b80875816c717d0a7a/metadat/no-intro/Nintendo%20-%20Nintendo%20Entertainment%20System.dat"
       }
     ],
     "identities": [
@@ -6062,6 +6100,90 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "yoshis-cookie-nes-usa",
+        "label": "Yoshi's Cookie (USA), exact full NES2 original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Yoshi's Cookie",
+            "region": "USA",
+            "revision": "NES2 headered",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "full-headered-nes2",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "b19b67e59dd6bab7977e24e0052de7b48ae214a4",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "yoshis-cookie-recomp-1-1-0-source-contract",
+                  "yoshis-cookie-nes-usa-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "yoshis-cookie-recomp-1-1-0-source-contract",
+              "yoshis-cookie-nes-usa-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "dr-mario-nes-japan-usa-rev1",
+        "label": "Dr. Mario (Japan/USA) Rev 1 NES2 headered full headered NES2 original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "Dr. Mario",
+            "region": "Japan/USA",
+            "revision": "Rev 1 NES2 headered",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "full-headered-nes2",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "0f18c2a5760be0647339b0e3cab9183af86fdd8c",
+                    "sha256": null,
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "dr-mario-nes-recomp-1-3-0-source-contract",
+                  "dr-mario-nes-japan-usa-rev1-no-intro-byte-identity"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "dr-mario-nes-recomp-1-3-0-source-contract",
+              "dr-mario-nes-japan-usa-rev1-no-intro-byte-identity"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -8812,6 +8934,62 @@
           {
             "upstream_ref": "v0.5.3",
             "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "yoshis-cookie-recomp-game-source",
+        "port_id": "yoshis-cookie-recomp",
+        "role": "game",
+        "profile_id": "yoshis-cookie-nes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "yoshis-cookie-recomp-1-1-0-source-contract",
+          "yoshis-cookie-nes-usa-no-intro-byte-identity"
+        ],
+        "authority_ref": "1f24c8b73d8835beaa35fce2f1e7d9b07324b343",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/YoshisCookieRecomp/blob/1f24c8b73d8835beaa35fce2f1e7d9b07324b343/game.toml",
+        "live_review_url": "https://github.com/mstan/YoshisCookieRecomp/blob/main/game.toml",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.1.0",
+            "artifact_sha256": "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "dr-mario-nes-recomp-game-source",
+        "port_id": "dr-mario-nes-recomp",
+        "role": "game",
+        "profile_id": "dr-mario-nes-japan-usa-rev1",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "dr-mario-nes-recomp-1-3-0-source-contract",
+          "dr-mario-nes-japan-usa-rev1-no-intro-byte-identity"
+        ],
+        "authority_ref": "8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+        "reviewed_at": "2026-10-18",
+        "immutable_review_url": "https://github.com/mstan/DrMarioNesRecomp/blob/8d800cab034c08ddf13f7ba7a6f76018fef7ca01/CMakeLists.txt",
+        "live_review_url": "https://github.com/mstan/DrMarioNesRecomp/blob/main/CMakeLists.txt",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v1.3.0",
+            "artifact_sha256": "80e9606b0795bf09cadc57cd5ac97ff292f35436011800a406060f3a1a86ae5f"
           }
         ],
         "aliases": [],
@@ -17859,6 +18037,134 @@
       "launch_arguments": [
         "--no-launcher",
         "game.bin"
+      ]
+    },
+    {
+      "id": "yoshis-cookie-recomp",
+      "name": "YoshisCookieRecomp",
+      "summary": "Native Yoshi's Cookie recompilation built from the exact original with a pinned Windows recipe.",
+      "project_url": "https://github.com/mstan/YoshisCookieRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/YoshisCookieRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "YoshisCookieRecomp-windows-x64.zip"
+          ]
+        },
+        "managed_build": {
+          "windows-x86-64": "yoshis-cookie-nes-cycle-v1.1.0"
+        }
+      },
+      "source_profile": "yoshis-cookie-nes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "YoshisCookieRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "yoshis-cookie-nes-usa",
+            "label": "Yoshi's Cookie (USA), exact full NES2 original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Register the unchanged exact USA full NES2 original. Core authenticates pinned source/toolchain inputs and builds the fixed v1.1.0 Windows runtime privately. Keep the original header unchanged. Core preserves config.ini, config.ini.tmp, saves/ and root cyc_shot_*.png screenshots. Keep debug.ini absent: it enables an unqualified local TCP interface and is refused before launch. Actual private Core install, verification, old-reader refusal, two startup/ordinary-close/restart cycles, current-release no-change, config backup/restore and consent-bound owned removal passed with the recorded qualification CLI. Another release requires a reviewed compatible recipe; no previous version or successful rollback is qualified. Installed Desktop, protected production delivery, gameplay/save-load, audio/controllers and other platforms remain unqualified. See the owning qualification record for exact evidence scopes."
+      },
+      "launch_environment": {
+        "NESRECOMP_NO_LAUNCHER": "1"
+      },
+      "launch_arguments": [
+        "game.nes"
+      ],
+      "persistent_paths": [
+        "config.ini",
+        "config.ini.tmp",
+        "saves"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "cyc_shot_",
+          "suffix": ".png"
+        }
+      ]
+    },
+    {
+      "id": "dr-mario-nes-recomp",
+      "name": "Dr. Mario NES Recomp",
+      "summary": "Native Dr. Mario recompilation with a fixed original-driven Windows build.",
+      "project_url": "https://github.com/mstan/DrMarioNesRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "github",
+        "repository": "mstan/DrMarioNesRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "DrMarioRecomp-usa-windows-x64.zip"
+          ]
+        },
+        "managed_build": {
+          "windows-x86-64": "dr-mario-nes-cycle-v1.3.0-usa"
+        }
+      },
+      "source_profile": "dr-mario-nes-japan-usa-rev1",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DrMarioRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "dr-mario-nes-japan-usa-rev1",
+            "label": "Dr. Mario (Japan/USA) Rev 1 NES2 headered full headered NES2 original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Register the unchanged exact full Japan/USA Rev1 NES2 original. Core authenticates pinned source/toolchain inputs and builds the fixed USA v1.3.0 Windows runtime privately. Keep the original header unchanged. Core preserves config.ini, config.ini.tmp, saves/ and root cyc_shot_*.png screenshots. Keep debug.ini absent: it enables an unqualified local TCP interface and is refused before launch. Actual private Core install, verification, strict older-reader refusal, two startup/ordinary-close/restart cycles, current-release no-change, config backup/restore and consent-bound owned removal passed with the recorded qualification CLI. Another release requires a reviewed compatible recipe; no previous version or successful rollback is qualified. Installed Desktop, protected production delivery, gameplay/save-load, audio/controllers and other platforms remain unqualified. See the owning qualification record for exact evidence scopes."
+      },
+      "launch_environment": {
+        "NESRECOMP_NO_LAUNCHER": "1"
+      },
+      "launch_arguments": [
+        "game.nes"
+      ],
+      "persistent_paths": [
+        "config.ini",
+        "config.ini.tmp",
+        "saves"
+      ],
+      "persistent_file_patterns": [
+        {
+          "prefix": "cyc_shot_",
+          "suffix": ".png"
+        }
       ]
     }
   ]

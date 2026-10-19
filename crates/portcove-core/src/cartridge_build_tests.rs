@@ -42,6 +42,164 @@ pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
     (port, profile)
 }
 
+fn dr_mario_fixture() -> (PortDefinition, SourceProfile) {
+    let (mut port, mut profile) = fixture_port();
+    port.id = "dr-mario-nes-recomp".into();
+    port.source_profile = Some("dr-mario-nes-japan-usa-rev1".into());
+    port.release.repository = "mstan/DrMarioNesRecomp".into();
+    port.release.managed_build = BTreeMap::from([(
+        Platform::WindowsX86_64,
+        CartridgeBuildRecipe::DrMarioNesCycle130Usa,
+    )]);
+    port.executable_hints =
+        BTreeMap::from([(Platform::WindowsX86_64, vec!["DrMarioRecomp.exe".into()])]);
+    profile.id = "dr-mario-nes-japan-usa-rev1".into();
+    profile.accepted_sha1 = vec!["0f18c2a5760be0647339b0e3cab9183af86fdd8c".into()];
+    (port, profile)
+}
+
+#[test]
+fn dr_mario_recipe_binds_its_own_source_executable_and_retained_contract() {
+    let (port, profile) = dr_mario_fixture();
+    validate_port(&port, &profile).unwrap();
+    let (yoshi, yoshi_profile) = fixture_port();
+    assert!(validate_port(&port, &yoshi_profile).is_err());
+    assert!(validate_port(&yoshi, &profile).is_err());
+    let mut wrong = port.clone();
+    wrong.executable_hints = yoshi.executable_hints;
+    assert!(validate_port(&wrong, &profile).is_err());
+    let document = crate::CatalogDocument {
+        schema_version: 1,
+        source_catalog: None,
+        source_profiles: vec![profile],
+        ports: vec![port],
+    };
+    let catalog = crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+    let retained =
+        crate::installed_contract::InstalledContract::capture(&catalog, "dr-mario-nes-recomp")
+            .unwrap();
+    let restored: crate::installed_contract::InstalledContract =
+        serde_json::from_slice(&serde_json::to_vec(&retained).unwrap()).unwrap();
+    let decoded = restored.catalog("dr-mario-nes-recomp").unwrap();
+    assert_eq!(
+        serde_json::to_value(decoded.port("dr-mario-nes-recomp").unwrap()).unwrap(),
+        serde_json::to_value(catalog.port("dr-mario-nes-recomp").unwrap()).unwrap()
+    );
+    crate::test_fixture::indexed_catalog(&catalog, "dr-mario-nes-recomp");
+    assert_eq!(
+        CartridgeBuildRecipe::DrMarioNesCycle130Usa.minimum_template_version(),
+        7
+    );
+    assert_eq!(
+        CartridgeBuildRecipe::YoshisCookieNesCycle110.minimum_template_version(),
+        6
+    );
+}
+
+#[test]
+fn dr_mario_generated_identity_and_92_object_graph_refuse_yoshi_or_changed_inputs() {
+    let temporary = tempfile::tempdir().unwrap();
+    let cycle = temporary.path().join("cycle-DrMarioRecomp");
+    let generated = cycle.join("0123456789abcdef0123").join("generated");
+    fs::create_dir_all(&generated).unwrap();
+    let source_manifest = "set(CYC_PROJECT_ROM_SHA256\n  [=[5f4849329f0ece227a3c7d6a63c0ecb6c9a1edee424e70e7bc6fa4bfda4a82d8]=]\n)\nset(CYC_PROJECT_LAUNCHER_SHA256\n  [=[d2fbe8b10f762099d320016ddfd4d2961a591fe6dfaaab2efbeb77282264d06a]=]\n)\n";
+    fs::write(cycle.join("sources.cmake"), source_manifest).unwrap();
+    let dispatch = "const uint32_t cyc_native_cart_hash = 0x7422B8F0u;\nconst uint32_t cyc_native_prg_hash = 0x8F8C755Eu;\n";
+    let dispatch_path = generated.join("game_cyc.c");
+    fs::write(&dispatch_path, dispatch).unwrap();
+    let recipe = CartridgeBuildRecipe::DrMarioNesCycle130Usa;
+    generated_identity(temporary.path(), recipe).unwrap();
+    for changed in [
+        dispatch.replace("7422B8F0", "DCEE267B"),
+        dispatch.replace("8F8C755E", "F586F909"),
+    ] {
+        fs::write(&dispatch_path, changed).unwrap();
+        assert!(generated_identity(temporary.path(), recipe).is_err());
+    }
+    fs::write(&dispatch_path, dispatch).unwrap();
+    fs::write(
+        cycle.join("sources.cmake"),
+        source_manifest.replace("5f484932", "00000000"),
+    )
+    .unwrap();
+    assert!(generated_identity(temporary.path(), recipe).is_err());
+    fs::write(cycle.join("sources.cmake"), source_manifest).unwrap();
+    fs::create_dir(temporary.path().join("CMakeFiles")).unwrap();
+    fs::write(
+        temporary.path().join("CMakeFiles/rules.ninja"),
+        "inert compiler rules; never executed",
+    )
+    .unwrap();
+    let graph = temporary.path().join("build.ninja");
+    // Counts are independent measurements, not generated from RecipeFacts.
+    for count in [91, 92, 93] {
+        let objects: String = (0..count).map(|i|format!("build CMakeFiles/DrMarioRecomp.dir/object{i}.c.obj: C_COMPILER__DrMarioRecomp_unscanned_Release source{i}.c\n")).collect();
+        fs::write(&graph, format!("include CMakeFiles/rules.ninja\n{objects}")).unwrap();
+        assert_eq!(
+            CompilePlan::read(temporary.path(), recipe).is_ok(),
+            count == 92
+        );
+        assert!(
+            CompilePlan::read(
+                temporary.path(),
+                CartridgeBuildRecipe::YoshisCookieNesCycle110
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn dr_mario_build_input_cannot_reuse_yoshi_or_a_changed_asset() {
+    let recipe = CartridgeBuildRecipe::DrMarioNesCycle130Usa;
+    let preparation = CartridgeBuildPreparation {
+        recipe,
+        source: SourceRecord {
+            profile_id: "dr-mario-nes-japan-usa-rev1".into(),
+            path: PathBuf::from("not-supplied.nes"),
+            sha256: "5f4849329f0ece227a3c7d6a63c0ecb6c9a1edee424e70e7bc6fa4bfda4a82d8".into(),
+            size: 65552,
+            storage_sha256: "5f4849329f0ece227a3c7d6a63c0ecb6c9a1edee424e70e7bc6fa4bfda4a82d8"
+                .into(),
+            storage_size: 65552,
+            updated_at: 0,
+            observed_identity: None,
+        },
+        worker_test_latch: None,
+    };
+    let accepted = ResolvedRelease {
+        version: "v1.3.0".into(), channel: crate::ReleaseChannel::Stable, published_at: None,
+        asset: ReleaseAsset { name: "DrMarioRecomp-usa-windows-x64.zip".into(), url: "https://github.com/mstan/DrMarioNesRecomp/releases/download/v1.3.0/DrMarioRecomp-usa-windows-x64.zip".into(), size: 3_709_949, sha256: "80e9606b0795bf09cadc57cd5ac97ff292f35436011800a406060f3a1a86ae5f".into() },
+    };
+    preparation.verify_release(&accepted).unwrap();
+    for change in 0..5 {
+        let mut changed = accepted.clone();
+        match change {
+            0 => changed.version = "v1.1.0".into(),
+            1 => changed.channel = crate::ReleaseChannel::Beta,
+            2 => changed.asset.name = "YoshisCookieRecomp-windows-x64.zip".into(),
+            3 => changed.asset.size += 1,
+            _ => {
+                changed.asset.sha256 =
+                    "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947".into()
+            }
+        }
+        let error = preparation.verify_release(&changed).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            error.message,
+            "cartridge build requires its exact reviewed release input"
+        );
+    }
+    let primary = "80e9606b0795bf09cadc57cd5ac97ff292f35436011800a406060f3a1a86ae5f";
+    assert_ne!(
+        recipe.storage_identity(primary).unwrap(),
+        CartridgeBuildRecipe::YoshisCookieNesCycle110
+            .storage_identity(primary)
+            .unwrap()
+    );
+}
+
 #[test]
 fn fixed_recipe_refuses_different_executable_source_or_persistence() {
     let (port, profile) = fixture_port();
@@ -74,6 +232,54 @@ fn fixed_recipe_refuses_different_executable_source_or_persistence() {
             validate_port(&modified, &source).is_err(),
             "change {change} must refuse"
         );
+    }
+}
+
+#[test]
+fn fixed_build_input_refuses_a_changed_release_without_preparing_output() {
+    let temporary = tempfile::tempdir().unwrap();
+    // This tests only the release-input boundary. No cartridge is supplied or
+    // admitted; the independently pinned upstream tuple is not read from code.
+    let preparation = CartridgeBuildPreparation {
+        recipe: CartridgeBuildRecipe::YoshisCookieNesCycle110,
+        source: SourceRecord {
+            profile_id: "yoshis-cookie-nes-usa".into(),
+            path: temporary.path().join("not-supplied.nes"),
+            sha256: ORIGINAL_SHA256.into(),
+            size: ORIGINAL_SIZE,
+            storage_sha256: ORIGINAL_SHA256.into(),
+            storage_size: ORIGINAL_SIZE,
+            updated_at: 0,
+            observed_identity: None,
+        },
+        worker_test_latch: None,
+    };
+    let accepted = ResolvedRelease {
+        version: "v1.1.0".into(),
+        channel: crate::ReleaseChannel::Stable,
+        published_at: Some("2026-10-05T06:06:13Z".into()),
+        asset: ReleaseAsset {
+            name: "YoshisCookieRecomp-windows-x64.zip".into(),
+            url: "https://github.com/mstan/YoshisCookieRecomp/releases/download/v1.1.0/YoshisCookieRecomp-windows-x64.zip".into(),
+            size: 3_919_022,
+            sha256: "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947".into(),
+        },
+    };
+    preparation.verify_release(&accepted).unwrap();
+    let mut changed = vec![accepted.clone(); 5];
+    changed[0].version = "v1.2.0".into();
+    changed[1].channel = crate::ReleaseChannel::Beta;
+    changed[2].asset.name = "DrMarioRecomp-windows-x64.zip".into();
+    changed[3].asset.size += 1;
+    changed[4].asset.sha256 = "0".repeat(64);
+    for release in changed {
+        let error = preparation.verify_release(&release).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            error.message,
+            "cartridge build requires its exact reviewed release input"
+        );
+        assert_eq!(fs::read_dir(temporary.path()).unwrap().count(), 0);
     }
 }
 
@@ -138,17 +344,24 @@ fn generated_identity_refuses_wrong_source_cart_prg_and_ambiguous_outputs() {
     let dispatch = "const uint32_t cyc_native_cart_hash = 0xDCEE267Bu;\nconst uint32_t cyc_native_prg_hash = 0xF586F909u;\n";
     fs::write(root.join("sources.cmake"), &manifest).unwrap();
     fs::write(generated.join("game_cyc.c"), dispatch).unwrap();
-    generated_identity(temporary.path()).unwrap();
+    generated_identity(
+        temporary.path(),
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+    )
+    .unwrap();
     for bad in [
         dispatch.replace("DCEE267B", "00000000"),
         dispatch.replace("F586F909", "00000000"),
     ] {
         fs::write(generated.join("game_cyc.c"), bad).unwrap();
         assert!(
-            generated_identity(temporary.path())
-                .unwrap_err()
-                .message
-                .contains("cartridge or PRG")
+            generated_identity(
+                temporary.path(),
+                CartridgeBuildRecipe::YoshisCookieNesCycle110
+            )
+            .unwrap_err()
+            .message
+            .contains("cartridge or PRG")
         );
     }
     fs::write(generated.join("game_cyc.c"), dispatch).unwrap();
@@ -158,18 +371,24 @@ fn generated_identity_refuses_wrong_source_cart_prg_and_ambiguous_outputs() {
     )
     .unwrap();
     assert!(
-        generated_identity(temporary.path())
-            .unwrap_err()
-            .message
-            .contains("original identity")
+        generated_identity(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .unwrap_err()
+        .message
+        .contains("original identity")
     );
     fs::write(root.join("sources.cmake"), manifest).unwrap();
     fs::create_dir(root.join("abcdef0123456789abcd")).unwrap();
     assert!(
-        generated_identity(temporary.path())
-            .unwrap_err()
-            .message
-            .contains("ambiguous")
+        generated_identity(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .unwrap_err()
+        .message
+        .contains("ambiguous")
     );
 }
 
@@ -203,7 +422,11 @@ fn host_configuration_uses_the_authenticated_tool_paths_and_config_directories()
         vec![],
         inventory(&tool, &|| Ok(())).unwrap(),
     ];
-    let inputs = BuildInputs { roots, identities };
+    let inputs = BuildInputs {
+        recipe: CartridgeBuildRecipe::YoshisCookieNesCycle110,
+        roots,
+        identities,
+    };
     let arguments = configure_arguments(
         &inputs,
         &inputs.roots[1].join("recompiler"),
@@ -277,6 +500,12 @@ fn cartridge_storage_identity_cannot_reuse_downloaded_artifact_root() {
     let key = CartridgeBuildRecipe::YoshisCookieNesCycle110
         .storage_identity(primary)
         .unwrap();
+    // Independently reconstructed from the prior actual build receipt before
+    // extracting recipe facts. Preserve the existing serialized tuple exactly.
+    assert_eq!(
+        key,
+        "c8244ea817b868583391a4978c92b09135afdb88976030c6e2f28e267a37bc13"
+    );
     assert_eq!(key.len(), 64);
     assert_ne!(key, primary);
     assert_ne!(
@@ -294,10 +523,14 @@ fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe
     fs::create_dir(temporary.path().join("CMakeFiles")).unwrap();
     let rules = temporary.path().join("CMakeFiles/rules.ninja");
     fs::write(&rules, b"inert rules fixture; never executed").unwrap();
-    let objects: String = (0..COMPILE_OBJECTS).map(|i| format!("build CMakeFiles/YoshisCookieRecomp.dir/object{i}.c.obj: C_COMPILER__YoshisCookieRecomp_unscanned_Release source{i}.c\n")).collect();
+    let objects: String = (0..101).map(|i| format!("build CMakeFiles/YoshisCookieRecomp.dir/object{i}.c.obj: C_COMPILER__YoshisCookieRecomp_unscanned_Release source{i}.c\n")).collect();
     let manifest = format!("include CMakeFiles/rules.ninja\n{objects}");
     fs::write(&graph, &manifest).unwrap();
-    let plan = CompilePlan::read(temporary.path()).unwrap();
+    let plan = CompilePlan::read(
+        temporary.path(),
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+    )
+    .unwrap();
     assert_eq!(plan.object_targets.len(), 101);
     assert_eq!(
         plan.object_targets.chunks(OBJECTS_PER_INVOCATION).count(),
@@ -334,17 +567,34 @@ fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe
         ),
     ] {
         fs::write(&graph, bad).unwrap();
-        assert!(CompilePlan::read(temporary.path()).is_err());
+        assert!(
+            CompilePlan::read(
+                temporary.path(),
+                CartridgeBuildRecipe::YoshisCookieNesCycle110
+            )
+            .is_err()
+        );
         assert!(plan.require_unchanged(temporary.path()).is_err());
     }
     fs::write(&graph, &manifest).unwrap();
-    assert_eq!(CompilePlan::read(temporary.path()).unwrap(), plan);
+    assert_eq!(
+        CompilePlan::read(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .unwrap(),
+        plan
+    );
     fs::write(
         &graph,
         manifest.replace("object0.c.obj", "E_/private$ root/object$ 0.c.obj"),
     )
     .unwrap();
-    let spaced = CompilePlan::read(temporary.path()).unwrap();
+    let spaced = CompilePlan::read(
+        temporary.path(),
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+    )
+    .unwrap();
     assert_eq!(
         spaced.object_targets[0],
         "CMakeFiles/YoshisCookieRecomp.dir/E_/private root/object 0.c.obj"
@@ -353,10 +603,22 @@ fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe
     fs::write(&rules, b"changed compiler rule fixture").unwrap();
     assert!(plan.require_unchanged(temporary.path()).is_err());
     fs::write(&rules, b"include another.ninja\n").unwrap();
-    assert!(CompilePlan::read(temporary.path()).is_err());
+    assert!(
+        CompilePlan::read(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .is_err()
+    );
     fs::write(&rules, b"inert rules fixture; never executed").unwrap();
     fs::write(&graph, format!("{manifest}include additional.ninja\n")).unwrap();
-    assert!(CompilePlan::read(temporary.path()).is_err());
+    assert!(
+        CompilePlan::read(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -395,11 +657,12 @@ fn runtime_imports_accept_reviewed_windows_names_but_refuse_unsafe_or_unknown_de
     let parsed = validate_imports(&output).unwrap();
     assert_eq!(parsed.len(), names.len());
     assert!(parsed.contains(&"ws2_32.dll".to_owned()));
+    let drive_rooted_import = ["C:", "WS2_32.dll"].join("\\");
     for bad in [
         "",
         " ",
         "../WS2_32.dll",
-        "C:\\WS2_32.dll",
+        drive_rooted_import.as_str(),
         "WS2_32 .dll",
         "arbitrary.dll",
         "WS2_32.dll\nName: ws2_32.DLL",

@@ -70,7 +70,11 @@ impl InstallQualification {
         match (self.native_build_recipe, &self.native_build_preparation) {
             (Some(recipe), Some(preparation)) if recipe == preparation.recipe && !other_builder => {
                 preparation.verify_release(release)?;
-                crate::cartridge_build::verify_original(&preparation.source, &|| Ok(()))
+                crate::cartridge_build::verify_original(
+                    preparation.recipe,
+                    &preparation.source,
+                    &|| Ok(()),
+                )
             }
             (None, None) => Ok(()),
             _ => Err(PortcoveError::verification(
@@ -834,12 +838,7 @@ impl Installer {
                 }))
                 .build()
                 .map_err(|error| PortcoveError::network(error.to_string()))?;
-            for archive in [
-                crate::cartridge_build::GAME,
-                crate::cartridge_build::ENGINE,
-                crate::cartridge_build::UI,
-                crate::cartridge_build::TOOLCHAIN,
-            ] {
+            for archive in preparation.recipe.archives() {
                 let unpacked = work.join(archive.name.trim_end_matches(".zip"));
                 fs::create_dir(&unpacked)?;
                 // These identities/transports are fixed by the client-owned recipe;

@@ -138,7 +138,18 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port
+        let version = if let Some(version) = port
+            .release
+            .managed_build
+            .values()
+            .map(|recipe| match recipe {
+                crate::CartridgeBuildRecipe::YoshisCookieNesCycle110 => 6,
+                crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
+            })
+            .max()
+        {
+            version
+        } else if port
             .release
             .user_prepared
             .values()

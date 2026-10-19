@@ -4,11 +4,72 @@ use policy::refresh::{DefinitionRefreshDisposition, refresh_fixture};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+fn request_leaf(url: &Url) -> Option<&str> {
+    url.path_segments()?.next_back()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RefreshTarget {
+    LaunchCompanion,
+    CandidateIndex,
+}
+
+impl RefreshTarget {
+    fn matches(self, url: &Url) -> bool {
+        request_leaf(url).is_some_and(|leaf| match self {
+            Self::LaunchCompanion => leaf.ends_with(".launch.json"),
+            Self::CandidateIndex => leaf == "index.json",
+        })
+    }
+}
+
+#[test]
+fn refresh_targets_match_url_leaves_independently_of_query_and_fragment() {
+    for (relative, candidate, companion) in [
+        ("index.json", true, false),
+        ("targets/digest.index.json", false, false),
+        ("targets/index.json?download=1#receipt", true, false),
+        ("targets/index.json/child", false, false),
+        ("targets/index.json/", false, false),
+        ("targets/port.launch.json", false, true),
+        (
+            "targets/digest.port.launch.json?download=1#receipt",
+            false,
+            true,
+        ),
+        ("targets/port.launch.json/child", false, false),
+        ("targets/port.launch.json.bak", false, false),
+        (
+            "targets/other.json?file=index.json#port.launch.json",
+            false,
+            false,
+        ),
+    ] {
+        let url = Url::parse("https://definitions.invalid/")
+            .unwrap()
+            .join(relative)
+            .unwrap();
+        assert_eq!(
+            RefreshTarget::CandidateIndex.matches(&url),
+            candidate,
+            "{url}"
+        );
+        assert_eq!(
+            RefreshTarget::LaunchCompanion.matches(&url),
+            companion,
+            "{url}"
+        );
+    }
+    let opaque = Url::parse("data:text/plain,index.json").unwrap();
+    assert!(!RefreshTarget::CandidateIndex.matches(&opaque));
+    assert!(!RefreshTarget::LaunchCompanion.matches(&opaque));
+}
+
 #[derive(Debug, Clone, Default)]
 struct ObservedTransport {
-    requests: Arc<Mutex<Vec<String>>>,
+    requests: Arc<Mutex<Vec<Url>>>,
     refuse_candidate: bool,
-    suspended: Option<(String, Arc<tokio::sync::Notify>, Arc<AtomicUsize>)>,
+    suspended: Option<(RefreshTarget, Arc<tokio::sync::Notify>, Arc<AtomicUsize>)>,
 }
 
 struct PendingFetch(Arc<AtomicUsize>);
@@ -25,16 +86,16 @@ impl tough::Transport for ObservedTransport {
         &self,
         url: Url,
     ) -> std::result::Result<tough::TransportStream, tough::TransportError> {
-        self.requests.lock().unwrap().push(url.to_string());
-        if let Some((needle, started, active)) = &self.suspended
-            && url.path().contains(needle)
+        self.requests.lock().unwrap().push(url.clone());
+        if let Some((target, started, active)) = &self.suspended
+            && target.matches(&url)
         {
             active.fetch_add(1, Ordering::SeqCst);
             let _pending = PendingFetch(active.clone());
             started.notify_one();
             std::future::pending::<()>().await;
         }
-        let url = if self.refuse_candidate && url.path().ends_with("/index.json") {
+        let url = if self.refuse_candidate && RefreshTarget::CandidateIndex.matches(&url) {
             url.join("absent-candidate-fixture").unwrap()
         } else {
             url
@@ -196,7 +257,7 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
             .lock()
             .unwrap()
             .iter()
-            .filter(|url| url.ends_with("/timestamp.json"))
+            .filter(|url| request_leaf(url) == Some("timestamp.json"))
             .count(),
         1
     );
@@ -277,16 +338,19 @@ async fn ordinary_refresh_uses_one_authenticated_snapshot_and_exact_retry_preser
 
 #[tokio::test]
 async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admission() {
-    for needle in [".launch.json", "/index.json"] {
+    for target in [
+        RefreshTarget::LaunchCompanion,
+        RefreshTarget::CandidateIndex,
+    ] {
         let fixture = authority_provisioning::separated_fixture();
         let key = Key::new(fixture._directory.path());
         let mut document = ordinary_managed(1);
-        if needle == ".launch.json" {
+        if target == RefreshTarget::LaunchCompanion {
             document["policy_schema"] = 3.into();
             document["decision"]["scoped_launch_checks"] = 1.into();
         }
         let root = publish_ordinary(&fixture, &key, 1, &document).await;
-        if needle == ".launch.json" {
+        if target == RefreshTarget::LaunchCompanion {
             let mut targets = ordinary_targets();
             targets.push((
                 format!("policy/official/{ID}.json"),
@@ -315,7 +379,7 @@ async fn ordinary_refresh_cancels_suspended_companion_and_candidate_without_admi
         let active = Arc::new(AtomicUsize::new(0));
         let events = Arc::new(Mutex::new(Vec::<crate::OperationEvent>::new()));
         let transport = ObservedTransport {
-            suspended: Some((needle.into(), started.clone(), active.clone())),
+            suspended: Some((target, started.clone(), active.clone())),
             ..ObservedTransport::default()
         };
         let source = source(&fixture);
@@ -408,7 +472,7 @@ async fn ordinary_refresh_persists_revocation_without_fetching_a_candidate() {
             .lock()
             .unwrap()
             .iter()
-            .any(|url| url.ends_with("/index.json"))
+            .any(|url| RefreshTarget::CandidateIndex.matches(url))
     );
     let status: String = library.connection().unwrap().query_row("SELECT status FROM definition_publisher_policy WHERE namespace='official' AND stable_id=?1", [ID], |row| row.get(0)).unwrap();
     assert_eq!(status, "revoked");
