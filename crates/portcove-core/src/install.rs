@@ -42,6 +42,7 @@ struct AssetAcquisition<'a> {
 
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
+    strict_staged_source: bool,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
     native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
@@ -152,6 +153,7 @@ impl InstallQualification {
             )));
         }
         Ok(Self {
+            strict_staged_source: port.adapter == AdapterKind::StagedSourcePortable,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             native_build_preparation: None,
             acquisition: None,
@@ -1123,7 +1125,7 @@ impl Installer {
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
-        self.verify_with_metadata(install, &[], &[])
+        self.verify_with_metadata(install, &[], &[], false)
     }
 
     /// Read small immutable metadata only through the registered manifest identity.
@@ -1177,6 +1179,7 @@ impl Installer {
             install,
             &qualification.generated_metadata_paths(install)?,
             &qualification.current_mutable_paths(install)?,
+            qualification.strict_staged_source,
         )
     }
 
@@ -1210,12 +1213,22 @@ impl Installer {
         install: &InstallRecord,
         generated_metadata: &[String],
         current_mutable_paths: &[String],
+        staged_fallback: bool,
     ) -> Result<VerificationReport> {
         let manifest = verified_manifest(install)?;
+        let strict_staged = staged_source_integrity(&manifest, install, staged_fallback)?;
+        let staged_candidates = if strict_staged {
+            Some(staged_install_files(&install.path)?)
+        } else {
+            None
+        };
         let mut failures = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
+            if strict_staged {
+                require_staged_path(&install.path, &candidate)?;
+            }
             if !is_regular_file_without_symlink(&candidate) {
                 failures.push(format!("missing: {}", file.path));
                 continue;
@@ -1234,7 +1247,11 @@ impl Installer {
             .iter()
             .map(|file| file.path.as_str())
             .collect::<std::collections::BTreeSet<_>>();
-        for candidate in walk_files(&install.path)? {
+        let candidates = match staged_candidates {
+            Some(files) => files,
+            None => walk_files(&install.path)?,
+        };
+        for candidate in candidates {
             let relative = manifest_relative(&install.path, &candidate)?;
             if relative == ".portcove-manifest.json"
                 || relative == ".portcove-launched"
@@ -1364,6 +1381,17 @@ impl Installer {
             &manifest,
             crate::definition_repository::publisher_policy::CuratedArtifactOperation::LocalUse,
         )?;
+        if staged_source_integrity(&manifest, install, qualification.strict_staged_source)? {
+            let report = self.verify_managed(install, qualification)?;
+            if !report.valid {
+                return Err(PortcoveError::verification(format!(
+                    "immutable staged-source install integrity failed for {}",
+                    install.port_id,
+                ))
+                .detail("install_id", &install.id)
+                .detail("failures", report.failures.join(", ")));
+            }
+        }
         let mut current_mutable = qualification.current_mutable_paths(install)?;
         current_mutable.extend(qualification.generated_metadata_paths(install)?);
         let mut failures = Vec::new();
@@ -2306,6 +2334,91 @@ fn manifest_relative(root: &Path, path: &Path) -> Result<String> {
     Ok(value.replace('\\', "/"))
 }
 
+fn staged_source_integrity(
+    manifest: &InstallManifest,
+    install: &InstallRecord,
+    fallback: bool,
+) -> Result<bool> {
+    match &manifest.retained_contract {
+        Some(contract) => Ok(contract
+            .catalog(&install.port_id)?
+            .port(&install.port_id)?
+            .adapter
+            == AdapterKind::StagedSourcePortable),
+        None => Ok(fallback),
+    }
+}
+
+fn refuse_staged_redirect(path: &Path, metadata: &fs::Metadata) -> Result<()> {
+    #[cfg(windows)]
+    let redirected = {
+        use std::os::windows::fs::MetadataExt;
+        metadata.file_attributes()
+            & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT
+            != 0
+    };
+    #[cfg(not(windows))]
+    let redirected = metadata.file_type().is_symlink();
+    if redirected
+        || metadata.file_type().is_symlink()
+        || (!metadata.is_file() && !metadata.is_dir())
+    {
+        return Err(PortcoveError::verification(
+            "staged-source install contains a redirect or unsafe object",
+        )
+        .detail("path", path.display().to_string()));
+    }
+    Ok(())
+}
+
+fn require_staged_path(root: &Path, path: &Path) -> Result<()> {
+    for candidate in path
+        .ancestors()
+        .take_while(|candidate| candidate.starts_with(root))
+    {
+        match fs::symlink_metadata(candidate) {
+            Ok(metadata) => refuse_staged_redirect(candidate, &metadata)?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    Ok(())
+}
+
+/// Unlike the legacy inventory walker, this never skips a redirected member.
+/// Bound directories as well as files, and feed this one inventory to verification.
+fn staged_install_files(root: &Path) -> Result<Vec<PathBuf>> {
+    require_staged_path(root, root)?;
+    let mut pending = vec![(root.to_owned(), 0_usize)];
+    let mut files = Vec::new();
+    let mut entries = 0_usize;
+    while let Some((directory, depth)) = pending.pop() {
+        if depth > 64 {
+            return Err(PortcoveError::verification(
+                "staged-source install exceeds traversal depth",
+            ));
+        }
+        require_staged_path(root, &directory)?;
+        for entry in fs::read_dir(&directory)? {
+            entries += 1;
+            if entries > 100_000 {
+                return Err(PortcoveError::verification(
+                    "staged-source install exceeds entry budget",
+                ));
+            }
+            let path = entry?.path();
+            let metadata = fs::symlink_metadata(&path)?;
+            refuse_staged_redirect(&path, &metadata)?;
+            if metadata.is_dir() {
+                pending.push((path, depth + 1));
+            } else {
+                files.push(path);
+            }
+        }
+    }
+    Ok(files)
+}
+
 fn is_regular_file_without_symlink(path: &Path) -> bool {
     fs::symlink_metadata(path)
         .is_ok_and(|metadata| metadata.is_file() && !metadata.file_type().is_symlink())
@@ -2974,6 +3087,96 @@ mod tests {
                 selected_executable,
             },
         )
+    }
+
+    fn staged_integrity_fixture() -> (
+        tempfile::TempDir,
+        Installer,
+        InstallRecord,
+        InstallQualification,
+        PathBuf,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let manifest = root
+            .join("mods/preloaded/packages/megaman-x2.enhancement.widescreen/1.0.0/manifest.toml");
+        fs::create_dir_all(manifest.parent().unwrap()).unwrap();
+        fs::write(
+            root.join("MegaManX2SNESRecomp.exe"),
+            b"inert executable fixture",
+        )
+        .unwrap();
+        fs::write(&manifest, b"reviewed").unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let qualification = InstallQualification::from_catalog(
+            &catalog,
+            "mega-man-x2-snes-recomp",
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        (temporary, installer, install, qualification, manifest)
+    }
+
+    #[test]
+    fn staged_integrity_checks_nested_noncritical_members_and_unknown_files() {
+        let (_temporary, installer, install, qualification, target) = staged_integrity_fixture();
+        let manifest = verified_manifest(&install).unwrap();
+        let member = manifest
+            .files
+            .iter()
+            .find(|file| file.path.ends_with("manifest.toml"))
+            .unwrap();
+        assert!(
+            !member.critical,
+            "exercise already retained noncritical identity"
+        );
+        installer.verify_critical(&install, &qualification).unwrap();
+        // Declared persistent/runtime output remains outside immutable identity.
+        fs::write(install.path.join("config.ini"), b"player settings").unwrap();
+        fs::write(install.path.join("last_run_report.json"), b"runtime output").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        for replacement in [
+            Some(b"tampered".as_slice()),
+            Some(b"short".as_slice()),
+            None,
+        ] {
+            match replacement {
+                Some(bytes) => fs::write(&target, bytes).unwrap(),
+                None => fs::remove_file(&target).unwrap(),
+            }
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            // Neither an unrelated current projection nor additive mutability
+            // can turn the retained immutable member into an unchecked file.
+            let mut changed = InstallQualification::test("MegaManX2SNESRecomp.exe");
+            changed.runtime_mutable_paths.push(member.path.clone());
+            assert!(installer.verify_critical(&install, &changed).is_err());
+            fs::write(&target, b"reviewed").unwrap();
+        }
+        let unexpected = target.parent().unwrap().join("unexpected.toml");
+        fs::write(&unexpected, b"unreviewed selector").unwrap();
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        fs::remove_file(unexpected).unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn staged_integrity_refuses_unknown_links_and_identical_redirected_parents() {
+        let (temporary, installer, install, qualification, target) = staged_integrity_fixture();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        fs::write(outside.join("manifest.toml"), b"reviewed").unwrap();
+        let unknown = target.parent().unwrap().join("unknown-link");
+        std::os::unix::fs::symlink(outside.join("manifest.toml"), &unknown).unwrap();
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        fs::remove_file(unknown).unwrap();
+        let parent = target.parent().unwrap();
+        fs::remove_file(&target).unwrap();
+        fs::remove_dir(parent).unwrap();
+        std::os::unix::fs::symlink(&outside, parent).unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"reviewed");
+        assert!(installer.verify_critical(&install, &qualification).is_err());
     }
 
     struct FailOnce {

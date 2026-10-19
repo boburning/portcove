@@ -8,17 +8,17 @@ delivery and optional gameplay remain separate.
 
 ## Exact selections
 
-| Fact | Super Metroid #164 | Mega Man X2 #165 |
-| --- | --- | --- |
-| Upstream | `mstan/SuperMetroidRecomp` | `mstan/MegaManX2Recomp` |
-| Release / asset | `v0.3.12` / `651733446` | `v0.1.4` / `654443273` |
-| Game commit | `494df8541eb4dbd4bacf7eba08c53b52d9fba5ac` | `c62a096873fd6b98f197bb06b0b6929432de1bc3` |
-| Framework pin | `2562bcf48036f4819b503908a8066a2fb8266b6c` | `f68aa0fe8edae75cbc7d4b9473c71687b45ce702` |
-| UI pin | `cac2b8f4aaa5d1061c6b8f2c3ed7e73c46b0400e` | `0546fbcb0126bb14bf88d2128b4fe8a4229570a3` |
-| ZIP | `supermetroid-0.3.12-windows-x64.zip` | `MegaManX2SNESRecomp-windows-x64-v0.1.4.zip` |
-| ZIP bytes | 13,802,349 | 13,043,789 |
-| ZIP SHA256 | `2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9` | `17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07` |
-| Executable | `SuperMetroidSNESRecomp.exe` | `MegaManX2SNESRecomp.exe` |
+| Fact              | Super Metroid #164                                                 | Mega Man X2 #165                                                   |
+| ----------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| Upstream          | `mstan/SuperMetroidRecomp`                                         | `mstan/MegaManX2Recomp`                                            |
+| Release / asset   | `v0.3.12` / `651733446`                                            | `v0.1.4` / `654443273`                                             |
+| Game commit       | `494df8541eb4dbd4bacf7eba08c53b52d9fba5ac`                         | `c62a096873fd6b98f197bb06b0b6929432de1bc3`                         |
+| Framework pin     | `2562bcf48036f4819b503908a8066a2fb8266b6c`                         | `f68aa0fe8edae75cbc7d4b9473c71687b45ce702`                         |
+| UI pin            | `cac2b8f4aaa5d1061c6b8f2c3ed7e73c46b0400e`                         | `0546fbcb0126bb14bf88d2128b4fe8a4229570a3`                         |
+| ZIP               | `supermetroid-0.3.12-windows-x64.zip`                              | `MegaManX2SNESRecomp-windows-x64-v0.1.4.zip`                       |
+| ZIP bytes         | 13,802,349                                                         | 13,043,789                                                         |
+| ZIP SHA256        | `2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9` | `17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07` |
+| Executable        | `SuperMetroidSNESRecomp.exe`                                       | `MegaManX2SNESRecomp.exe`                                          |
 | Executable SHA256 | `826b9d463c0efed168da55f53f3f4bcdb5eaabd0ed93d052e09bf6383194f57a` | `48f4fecb98226ddb4ab190a8afd8b5b58cdd6be6ec2e7ea37cd414c65f2d5a36` |
 
 Complete upstream release inventories contain 17 and six releases respectively.
@@ -37,10 +37,10 @@ The exact headerless originals match each pinned `rom_identity.txt` and one
 independent No-Intro record at `libretro/libretro-database`
 `12c21cf79f1e20eff6ac68b80875816c717d0a7a`:
 
-| Original | Bytes | SHA1 | SHA256 | CRC32 |
-| --- | --- | --- | --- | --- |
+| Original                           | Bytes     | SHA1                                       | SHA256                                                             | CRC32      |
+| ---------------------------------- | --------- | ------------------------------------------ | ------------------------------------------------------------------ | ---------- |
 | Super Metroid (Japan, USA) (En,Ja) | 3,145,728 | `da957f0d63d14cb441d215462904c4fa8519c613` | `12b77c4bc9c1832cee8881244659065ee1d84c70c3d29e6eaf92e6798cc2ca72` | `d63ed5f8` |
-| Mega Man X2 (USA) | 1,572,864 | `637079014421563283cded6aeaa0604597b2e33c` | `f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed` | `947b0355` |
+| Mega Man X2 (USA)                  | 1,572,864 | `637079014421563283cded6aeaa0604597b2e33c` | `f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed` | `947b0355` |
 
 Bounded extraction creates exclusive regular single-link working copies while
 preserving and rehashing the original NAS archives. No normalization, header
@@ -118,8 +118,26 @@ Later presentation/admission changes do not relabel these actual artifacts.
   Windows path error 3, recording a terminal childless request; a narrow harness
   message assertion then stops. Both failures, original bytes, idle-state checks
   and independently reviewed reservation/source restoration remain retained.
-- **Pending:** completion of immutable executable/library/mod-manifest refusal
-  controls, remaining missing-source control, consent-bound owned removal,
+- Super Metroid's source controls and executable tamper refusal pass. Mega Man
+  X2's wrong/missing-original, executable and SDL3 refusals pass. Its immutable
+  built-in mod manifest control fails under CLI `10f3154`: the existing
+  critical-only gate skips this recorded noncritical member and the game starts.
+  Request `6f63d55d-ca77-4024-8c83-b4c189de72fa` reaches the main loop before
+  the 30-second refusal harness times out. This is failed negative evidence.
+- A separately reviewed bounded packet preserves raw outputs, snapshots
+  persistence, uses normal Core interrupted-launch recovery to record Failed
+  with unknown exit code, and establishes zero pending work. It then restores
+  only the authenticated 782-byte manifest preimage; full verification passes,
+  original and retained backup remain unchanged. Only the two exact owned failed
+  reservations are archived after readback. No ordinary-close or refusal success
+  is inferred from that failed request.
+- The candidate repairs managed staged-source launch/maintenance gates through
+  complete immutable verification and bounded no-follow inventory, retaining
+  older manifest identities and existing mutable/generated output rules.
+  The 38 managed-installation fixtures pass, including the nested noncritical
+  selector regression. New-CLI operation evidence remains pending.
+- **Pending:** repaired-CLI mod-manifest refusal and applicable positive launch
+  acceptance, consent-bound owned removal,
   independent final review, exact-head hosted CI, guarded merge and canonical
   issue/Project readback. This candidate is not delivered yet.
 
