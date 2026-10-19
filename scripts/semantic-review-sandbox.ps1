@@ -24,10 +24,10 @@ function Open-ObservationHandoff([string]$Root,[string]$ConfigurationHash,[strin
   try {
     # Retain the same lock even for legacy storage with no observation intent.
     # Preparation cannot archive its marker/attach between this read and launch.
-    if(-not (Test-Path -LiteralPath (Join-Path $Root 'observation-intent.json'))) { return $gate }
-    if(Test-Path -LiteralPath (Join-Path $Root 'observation-recovery-intent.json')) { throw 'observation recovery already claimed; no launch' }
+    if(-not (Test-Path -LiteralPath (Join-Path $Root 'privilege-observation-intent.json'))) { return $gate }
+    if(Test-Path -LiteralPath (Join-Path $Root 'privilege-observation-recovery-intent.json')) { throw 'observation recovery already claimed; no launch' }
     $records=@()
-    foreach($name in @('observation-intent.json','observation-result.json')) {
+    foreach($name in @('privilege-observation-intent.json','privilege-observation-result.json')) {
       $file=Get-Item -LiteralPath (Join-Path $Root $name)
       if($file.Length -gt 8192 -or ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'observation handoff record differs' }
       $records += Get-Content -Raw -LiteralPath $file.FullName|ConvertFrom-Json
@@ -37,8 +37,8 @@ function Open-ObservationHandoff([string]$Root,[string]$ConfigurationHash,[strin
       if($record.schema_version -ne 1 -or $record.owner_sid -ne $OwnerSid -or $record.source_revision -notmatch '^[a-f0-9]{40}$' -or $record.image -ne (Join-Path $Root 'reviewer.vhd') -or $record.configuration_sha256 -ne $ConfigurationHash -or $record.native_helper_sha256 -ne $NativeHash -or $record.launcher_sha256 -ne $LauncherHash -or $record.qualifier_sha256 -ne $QualifierHash -or $record.operator_helper_sha256 -ne $OperatorHash) { throw 'observation source/identity handoff differs' }
     }
     if($ready.ready -ne $true -or $null -ne $ready.provider_error -or $null -ne $ready.readback_error -or $ready.source_revision -ne $intent.source_revision) { throw 'observation preparation is not positively ready' }
-    $archive=Get-Item -LiteralPath (Join-Path $Root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json')
-    if(($archive.Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne '0ab15171c42aa3ce88e410a58768fb329af24e516afb938fcb29da8dc56dc52a') { throw 'original marker archive differs' }
+    $archive=Get-Item -LiteralPath (Join-Path $Root 'reviewer-active.semantic-isolation-MdzaNi.retained.json')
+    if(($archive.Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne '09cf56df3f76d65cf442992a37eab3b5d2338e48c5b11ccba42611053b68edd5') { throw 'original marker archive differs' }
     return $gate
   } catch { $gate.Dispose();throw }
 }
