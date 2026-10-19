@@ -999,3 +999,59 @@ function first<T>(values: readonly T[]): T {
   assert.ok(value !== undefined);
   return value;
 }
+
+void test("packaged AppImage JSON commands retain runtime diagnostics separately", async (t) => {
+  const source = await readFile(
+    new URL("./test-linux-appimage-update.ps1", import.meta.url),
+    "utf8",
+  );
+  const statements = source
+    .split(/\r?\n/u)
+    .filter((line) =>
+      /^\s+\$(?:selectionStderr|packagedSelectionOutput|stageStderr|stageOutput) = /u.test(line),
+    );
+  assert.equal(statements.length, 4);
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-appimage-streams-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  const fixture = path.join(root, "fixture.cjs");
+  await writeFile(
+    fixture,
+    `process.stderr.write("Portcove WebView runtime version: 2.52.6\\n");process.stdout.write(JSON.stringify({mode:process.argv[2],state:"update-available",version:"0.3.0"}));`,
+  );
+  const executable = path.join(root, process.platform === "win32" ? "fixture.cmd" : "fixture.sh");
+  await writeFile(
+    executable,
+    process.platform === "win32"
+      ? `@echo off\r\n"${process.execPath}" "${fixture}" %*\r\n`
+      : `#!/bin/sh\nexec ${quote(process.execPath)} ${quote(fixture)} "$@"\n`,
+    { mode: 0o700 },
+  );
+  const script = path.join(root, "exercise.ps1");
+  await writeFile(
+    script,
+    `$ErrorActionPreference='Stop'
+$state=${quote(root)}
+$stable=${quote(executable)}
+$candidate='unused'
+${statements.slice(0, 2).join("\n")}
+$selectionExit=$LASTEXITCODE
+${statements.slice(2).join("\n")}
+$stageExit=$LASTEXITCODE
+[ordered]@{ selection=($packagedSelectionOutput|ConvertFrom-Json); stage=($stageOutput|ConvertFrom-Json); selection_exit=$selectionExit; stage_exit=$stageExit; selection_stderr=[IO.File]::ReadAllText($selectionStderr); stage_stderr=[IO.File]::ReadAllText($stageStderr) }|ConvertTo-Json -Depth 4
+`,
+  );
+  const result = spawnSync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", script], {
+    encoding: "utf8",
+    timeout: 15_000,
+    windowsHide: true,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const observed = JSON.parse(result.stdout);
+  assert.equal(observed.selection.mode, "--portcove-qualify-update-selection");
+  assert.equal(observed.stage.mode, "--portcove-qualify-update-stage");
+  assert.equal(observed.selection_exit, 0);
+  assert.equal(observed.stage_exit, 0);
+  assert.match(observed.selection_stderr, /Portcove WebView runtime version: 2\.52\.6/u);
+  assert.match(observed.stage_stderr, /Portcove WebView runtime version: 2\.52\.6/u);
+});

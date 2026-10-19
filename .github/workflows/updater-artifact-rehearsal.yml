@@ -172,6 +172,8 @@ jobs:
             work/updater-rehearsal/linux-appimage-qualification/application-update-evidence.json
             work/updater-rehearsal/linux-appimage-qualification/inputs/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/application-update-*.json
+            work/updater-rehearsal/linux-appimage-qualification/state/packaged-selection.stderr.log
+            work/updater-rehearsal/linux-appimage-qualification/state/packaged-stage.stderr.log
             work/updater-rehearsal/linux-appimage-qualification/state/packaged-selection-state/trust/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/update-state/*.json
             work/updater-rehearsal/linux-appimage-qualification/state/library/logs/portcove-desktop.jsonl*
