@@ -4,11 +4,12 @@ import { readFileSync, lstatSync } from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-// Include dirty and untracked inputs: HEAD alone does not identify a candidate.
+// Include every Git-visible regular input: discovery also consumes extensionless
+// files (Dockerfile/CODEOWNERS) and dotfiles. Git-ignored reports/caches stay out.
 export function fallowSource(
   root: string,
   base?: string,
-  { includeAll = false }: { includeAll?: boolean } = {},
+  { includeAll = true }: { includeAll?: boolean } = {},
 ) {
   const git = (...args: string[]) =>
     execFileSync("git", args, { cwd: root, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
@@ -19,6 +20,18 @@ export function fallowSource(
   const mergeBase = target ? git("merge-base", head, target).trim() : null;
   const status = git("status", "--porcelain=v1", "-z", "--untracked-files=all");
   const hash = createHash("sha256").update(head).update(status);
+  hash.update(git("rev-parse", "--is-shallow-repository"));
+  for (const name of ["shallow", "info/exclude"]) {
+    const file = path.resolve(root, git("rev-parse", "--git-path", name).trim());
+    hash.update(name).update("\0");
+    try {
+      if (!lstatSync(file).isFile()) throw new Error(`Nonregular Fallow Git input: ${name}`);
+      hash.update(readFileSync(file));
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") throw error;
+      hash.update("<absent>");
+    }
+  }
   if (includeAll) hash.update(git("ls-files", "--stage", "-z"));
   const inputs = git("ls-files", "-z", "--cached", "--others", "--exclude-standard")
     .split("\0")

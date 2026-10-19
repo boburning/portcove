@@ -246,6 +246,14 @@ the former 2% ceiling does not fail: use group identities, locations and shared
 responsibility to decide whether a refactor helps. Do not impose a substitute
 percentage or treat a new advisory category as a blocking check.
 
+Whole-Desktop qualification also requires the native `--fail-on-parse-error`
+gate to be enforced. A successful process with zero findings cannot qualify
+source the parser could not analyze. Qualification also rejects required-source
+read failures or an unexpectedly empty source scope. The summary displays
+diagnostics at their native report locations; intentional exclusions and unavailable optional
+history, ownership or rankings qualify the corresponding conclusions without
+blocking unrelated static checks.
+
 [PR #1097](https://github.com/boburning/portcove/pull/1097) records a candidate
 crossing the old duplication threshold and a repair before delivery. That is
 evidence of workflow friction; it does not establish that the repaired code was
@@ -304,9 +312,62 @@ context. Reuse a candidate's retained report only while relevant content,
 configuration, base and tool version match. Refresh invalidated analysis.
 To reuse an unchanged brief, run `just fallow-review BASE REPORT_DIRECTORY`;
 the wrapper checks input identity and retained stream hashes before reuse.
+Identity includes every Git-visible regular file, including `.gitignore`,
+`Dockerfile` and `CODEOWNERS`, plus shallow-history and local Git exclusion inputs.
+Ignored reports and caches remain outside the inventory. This deliberately
+conservative inventory may invalidate a report after unrelated repository edits;
+the measured October 19 cost was about 0.7 seconds per fingerprint, versus 0.5
+seconds for the former extension allowlist on the same checkout.
+
+Maintained routes explicitly select non-production, complete package scope,
+syntax-based analysis and the native 5 MB discovery limit. Conflicting inherited
+production/type-aware/size/package-baseline settings are normalized to those
+effective choices; an inherited `FALLOW_DIFF_FILE` is rejected because it would
+silently select a different scope. Native HEAD time supplies the historical
+ranking clock. `PORTCOVE_FALLOW_THREADS` remains supported and bound to identity.
+`FALLOW_COVERAGE` / `health.coverage` and their coverage-root mapping are supported:
+the selected file or V8 directory's contents are hashed before and after analysis,
+as are configured review baselines and auto-discovered local plugin definitions.
+Additional config `extends`, explicit `plugins` or `rulePacks` loaders need an
+input inventory before maintained routes support them; use a native investigation
+for those configurations. Cache locations and normalized presentation/environment
+spellings do not themselves change analysis identity. Old identity metadata needs
+a fresh run. Targeted native commands retain their own explicit input choices.
 `fallow review` always exits zero: its brief is assistance, not a passing gate or
 the independent reviewer. A native walkthrough/judgment response, if used, also
 requires its structured validation result to be read.
+
+The bounded review projection includes focus, structural deltas, consumers outside
+the diff, independent graph slices and supporting graph facts. Counts and
+omissions remain explicit: a path-sorted sample is not the entire affected set,
+co-change is an investigation lead, and independent slices do not mandate
+separate PRs. Static test reach is not executed coverage. Health targets retain
+effort-adjusted efficiency alongside priority, with history and coverage provenance
+shown where available. Missing optional sections remain unavailable, not measured
+empty results. For historical prioritization prefer the selected hosted Fallow
+operation, whose checkout fetches complete history; shallow producers disclose
+their limits rather than fetching history for unrelated work.
+
+### Targeted Fallow investigations
+
+Use the pinned `pnpm exec fallow` with `--threads 2 --format json --quiet --explain`
+under the existing analysis resource admission. Add `--root apps/desktop` for
+Desktop, or **both** `--root . --config .fallow-tooling.json` for tooling consumers;
+the nonstandard tooling filename is not auto-discovered. Retain stdout, stderr,
+exit status and source identity separately in the existing report mechanism.
+
+| Concrete question                                   | Native command after the scope flags                                           | Interpretation                                                                                                                                                                            |
+| --------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What would a consequential refactor affect?         | `inspect FILE` (optionally `--symbol NAME`); `guard FILE`                      | Read dependency, complexity, clone and declared-policy context before editing. Guard covers declared/classified callers only.                                                             |
+| Who consumes an exact TS API or class member?       | `type-aware status`, then `dead-code --type-aware --symbol-impact FILE:EXPORT` | Start best-effort; inspect project selection/completeness and select consumer tsconfigs when necessary. Partial results cannot prove absence. Compiler and typed lint retain their roles. |
+| Which imported APIs need upgrade review?            | `trace --dependency PACKAGE --sites`                                           | Read API/use sites, wrappers and unresolved cases, then dependency release notes and affected tests. Static reach does not prove runtime compatibility.                                   |
+| Does eager source reach explain a startup concern?  | `list --entry-weight`                                                          | Source bytes and import reach are not measured bundle size or startup time.                                                                                                               |
+| Is there a concrete JS/TS trust-boundary candidate? | `security --file FILE`                                                         | Verify source context and runtime/provenance controls; this does not analyze Rust or replace native/security acceptance.                                                                  |
+
+React structure rules, near-miss duplication, measured coverage and mutation
+testing are opt-in investigations. Their findings/scores do not expand Desktop
+acceptance. Do not install hooks, local models, telemetry or a coverage program
+merely to improve an advisory score.
 
 CSS analysis supplies token-drift, duplicate-declaration, selector-complexity and
 unused-style candidates where supported. Verify them against runtime semantic

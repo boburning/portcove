@@ -1,6 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import type {
+  ChangeCouplingReport,
+  FocusMap,
+  ImpactClosureFacts,
+  PartitionFacts,
+  ReviewDeltas,
+  TokenConsumers,
+} from "fallow/types";
 import { summarizeFallow } from "./fallow-summary.mts";
+
+void test("native decision truncation stays distinct from the presentation cap", () => {
+  const summary = summarizeFallow(
+    {
+      kind: "audit-brief",
+      decisions: {
+        decisions: Array.from({ length: 6 }, (_, index) => ({
+          signal_id: `signal-${index}`,
+          anchor_file: "owner.ts",
+          question: "Verify contract",
+        })),
+        truncated: { collapsed: 9, reason: "Native maximum decisions" },
+      },
+    },
+    "brief.json",
+  );
+  assert.match(
+    summary,
+    /provided 6; collapsed by analyzer 9; Native maximum decisions; custom display cap 4/,
+  );
+  assert.match(summary, /2 omitted from Review decisions/);
+  assert.match(
+    summarizeFallow({ kind: "audit-brief" }, "missing.json"),
+    /Review decisions unavailable/,
+  );
+});
 
 void test("combined projection makes checks, duplicate identity and complexity actionable", () => {
   const summary = summarizeFallow(
@@ -413,4 +447,431 @@ void test("critical functions remain visible ahead of noncritical bulk and snipp
   assert.ok(summary.indexOf("critical-owner.ts") < summary.indexOf("large-0.ts"));
   assert.match(summary, /sample const parser = createParser\(\); return parser.read\(\);/);
   assert.match(summary, /5 omitted from Complex functions/);
+});
+
+void test("pinned brief shapes lead with focus and retain exact impact totals beside samples", () => {
+  const focus: FocusMap = {
+    review_here: [
+      {
+        file: "leaf.ts",
+        score: { fan_io: 1, risk_zone: 0, change_shape: 0, total: 1 },
+        label: "review-here",
+        reason: "Local change",
+      },
+      {
+        file: "owner.ts",
+        score: { fan_io: 8, risk_zone: 2, change_shape: 3, total: 13 },
+        label: "review-here",
+        reason: "Shared contract",
+        confidence: ["re-export-indirection"],
+      },
+    ],
+    deprioritized: Array.from({ length: 6 }, (_, index) => ({
+      file: `mechanical-${index}.ts`,
+      score: { fan_io: 0, risk_zone: 0, change_shape: 0, total: 0 },
+      label: "not-prioritized",
+      reason: "Mechanical leaf",
+    })),
+  };
+  const deltas: ReviewDeltas = {
+    boundary_introduced: ["shared->feature"],
+    cycle_introduced: ["a.ts,b.ts"],
+    public_api_added: ["src/index.ts::owner"],
+    dependency_added: ["package.json::new-library"],
+    dependency_major_bumped: ["package.json::existing@1->2"],
+  };
+  const impact: ImpactClosureFacts = {
+    affected_count: 80,
+    affected_not_shown: Array.from(
+      { length: 6 },
+      (_, index) => `first-directory/consumer-${index}.ts`,
+    ),
+    affected_by_dir: [
+      { dir: "quiet", count: 20 },
+      { dir: "heavy", count: 40 },
+      { dir: "other", count: 8 },
+      { dir: "small", count: 5 },
+      { dir: "end", count: 3 },
+      { dir: "final", count: 2 },
+    ],
+    affected_by_dir_omitted: 2,
+    coordination_gap: [
+      {
+        changed_file: "owner.ts",
+        consumer_file: "outside.ts",
+        consumed_symbols: ["renamedOwner"],
+        note: "Syntactic attention pointer",
+      },
+    ],
+    co_change_gap_count: 12,
+    co_change_gap: Array.from({ length: 10 }, (_, index) => ({
+      changed_file: "owner.ts",
+      partner_file: `partner-${index}.ts`,
+      degree: 1 - index / 100,
+      shared_revisions: 20 - index,
+      note: "History lead only",
+    })),
+    search_gap: {
+      total: 1,
+      exports: [
+        {
+          file: "owner.ts",
+          export_name: "owner",
+          line: 4,
+          total: 1,
+          consumers: [
+            {
+              consumer_file: "renamed.ts",
+              line: 8,
+              search_visibility: "renamed",
+              search_as: "localOwner",
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const partition: PartitionFacts = {
+    units: [
+      { module_dir: "definitions", files: ["owner.ts"] },
+      { module_dir: "app", files: ["leaf.ts"] },
+    ],
+    order: ["definitions", "app"],
+    independent_slices: [["definitions"], ["app"]],
+  };
+  const report = {
+    command: "audit-brief",
+    focus,
+    deltas,
+    impact_closure: impact,
+    partition,
+    graph_facts: {
+      exports_added: 1,
+      api_width_delta: 1,
+      boundaries_touched: ["shared", "feature"],
+    },
+    dead_code: { unused_exports: [{ path: "unrelated.ts", export_name: "old" }] },
+  };
+  const before = structuredClone(report);
+  const summary = summarizeFallow(report, "brief.json");
+  for (const expected of [
+    "Focus: review-here 2; deprioritized 6",
+    "owner.ts; review-here; score 13; Shared contract; confidence flags re-export-indirection",
+    "2 omitted from Deprioritized units",
+    "New boundary edges=1",
+    "Public exports added=1",
+    "Dependencies added=1",
+    "Major dependency changes=1",
+    "package.json::existing@1->2",
+    "affected outside diff 80; provided sorted path sample 6; 76 affected paths not shown here (74 absent from analyzer sample)",
+    "sample is not the complete affected set",
+    "6 provided; 2 directories omitted by analyzer",
+    "owner.ts -> outside.ts; symbols renamedOwner",
+    "Co-change leads: total 12; provided 10",
+    "history is not proof that the partner must change",
+    "6 omitted from Co-change gap sample",
+    "owner.ts:4; owner; total 1; renamed.ts:8 renamed as localOwner",
+    "Review partition: units 2; dependency order definitions, app",
+    "Independent slices: 2; import-edge components, not separate-PR advice",
+    "Graph facts: exports added 1; API widening 1 (removed exports not represented)",
+    "Review ownership unavailable",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(summary.indexOf("owner.ts; review-here") < summary.indexOf("leaf.ts; review-here"));
+  assert.ok(summary.indexOf("heavy; 40 files") < summary.indexOf("quiet; 20 files"));
+  assert.ok(summary.indexOf("Focus:") < summary.indexOf("unrelated.ts"));
+  assert.ok(!summary.includes("consumer-4.ts"));
+  assert.deepEqual(report, before);
+  assert.doesNotMatch(summary, /(?:gate passed|quality passed)/i);
+});
+
+void test("analysis diagnostics use actual top-level and nested locations without hiding degradation", () => {
+  const summary = summarizeFallow(
+    {
+      kind: "combined",
+      workspace_diagnostics: [
+        {
+          kind: "excluded-by-default-ignore",
+          path: "generated",
+          message: "Expected generated exclusion",
+        },
+        {
+          kind: "hotspots-skipped",
+          cause: "not-a-repository",
+          path: ".",
+          message: "Run inside a repository",
+          degrades_analysis: true,
+        },
+      ],
+      check: {
+        workspace_diagnostics: [
+          {
+            kind: "plugin-config-unreadable",
+            path: "vite.config.ts",
+            reason: "dynamic-argument",
+            message: "Name the config entries",
+            degrades_analysis: true,
+          },
+        ],
+      },
+      health: {
+        workspace_diagnostics: [
+          {
+            kind: "ownership-unavailable",
+            path: "CODEOWNERS",
+            cause: "codeowners-parse-failed",
+            message: "Fix the owner declaration",
+            degrades_analysis: true,
+          },
+        ],
+      },
+    },
+    "diagnostics.json",
+  );
+  for (const expected of [
+    "Analysis diagnostics (workspace_diagnostics; degrading first): 2",
+    "hotspots-skipped; .; analysis degraded; cause not-a-repository; Run inside a repository",
+    "check.workspace_diagnostics",
+    "reason dynamic-argument; Name the config entries",
+    "health.workspace_diagnostics",
+    "cause codeowners-parse-failed; Fix the owner declaration",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(summary.indexOf("hotspots-skipped") < summary.indexOf("excluded-by-default-ignore"));
+  assert.doesNotMatch(summary, /(?:gate passed|quality passed)/i);
+});
+
+void test("parse and empty-source diagnostics outrank optional limits and review guidance survives global truncation", () => {
+  const report = {
+    command: "audit-brief",
+    workspace_diagnostics: [
+      ...Array.from({ length: 6 }, (_, index) => ({
+        kind: "hotspots-skipped",
+        path: ".",
+        cause: "not-a-repository",
+        message: `Optional history ${index}`,
+        degrades_analysis: true,
+      })),
+      {
+        kind: "source-parse-degraded",
+        path: "broken.ts",
+        message: "Parse syntax failure at source",
+        degrades_analysis: true,
+      },
+      {
+        kind: "no-source-files-analyzed",
+        path: "empty",
+        message: "No source candidates reached analysis",
+        degrades_analysis: true,
+      },
+    ],
+    focus: {
+      review_here: [
+        {
+          file: "focus-owner.ts",
+          score: { total: 12 },
+          label: "review-here",
+          reason: "Review the owning contract",
+        },
+      ],
+      deprioritized: [],
+    },
+    decisions: {
+      decisions: [
+        {
+          signal_id: "public-contract",
+          anchor_file: "decision-owner.ts",
+          anchor_line: 7,
+          category: "public-api",
+          question: "Does the new API belong here?",
+          internal_consumer_count: 3,
+          blast: 14,
+          tradeoff: "Widens the supported surface",
+        },
+      ],
+    },
+    check: Object.fromEntries(
+      Array.from({ length: 80 }, (_, index) => [
+        `unused_category_${index}`,
+        Array.from({ length: 10 }, (_, line) => ({
+          path: `bulk-${index}-${line}.ts`,
+          export_name: "x".repeat(200),
+          line,
+        })),
+      ]),
+    ),
+  };
+  const before = structuredClone(report);
+  const summary = summarizeFallow(report, "large.json");
+  for (const expected of [
+    "source-parse-degraded; broken.ts; analysis degraded; Parse syntax failure at source",
+    "no-source-files-analyzed; empty; analysis degraded; No source candidates reached analysis",
+    "4 omitted from Analysis diagnostics",
+    "focus-owner.ts; review-here; score 12",
+    "Does the new API belong here?",
+    "internal consumers 3; ranking blast 14",
+    "Raw evidence: large.json",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(summary.indexOf("Parse syntax failure") < summary.indexOf("Optional history 0"));
+  assert.ok(summary.indexOf("focus-owner.ts") < summary.indexOf("decision-owner.ts"));
+  assert.ok(summary.indexOf("decision-owner.ts") < summary.indexOf("bulk-0-0.ts"));
+  assert.match(summary, /Findings: \d+; shown: \d+; omitted: [1-9]\d*/);
+  assert.ok(Buffer.byteLength(summary) <= 16 * 1024);
+  assert.deepEqual(report, before);
+});
+
+void test("health distinguishes optional context and estimated coverage from observations", () => {
+  const coupling: ChangeCouplingReport = {
+    since: "12 months",
+    commits_analyzed: 60,
+    commits_skipped: 3,
+    total_pairs: 9,
+    thresholds: {
+      max_files_per_commit: 20,
+      min_revisions: 5,
+      min_shared_revisions: 3,
+      min_degree: 0.5,
+      strong_degree: 0.8,
+    },
+    pairs: [
+      {
+        path_a: "contract.ts",
+        path_b: "configuration.ts",
+        revisions_a: 10,
+        revisions_b: 10,
+        shared_revisions: 9,
+        degree: 0.9,
+        strong: true,
+      },
+    ],
+  };
+  const report = {
+    health: {
+      sections: ["complexity", "hotspots", "change-coupling", "targets"],
+      summary: {
+        files_analyzed: 20,
+        functions_analyzed: 80,
+        functions_above_threshold: 2,
+        severity_critical_count: 0,
+        coverage_model: "estimated",
+        coverage_source_consistency: "mixed",
+      },
+      hotspot_summary: {
+        since: "6 months",
+        min_commits: 5,
+        files_analyzed: 18,
+        files_excluded: 2,
+        shallow_clone: true,
+        clock: { source: "head_commit", epoch_secs: 1792400000, reproducible: true },
+      },
+      findings: [
+        {
+          path: "estimated.ts",
+          name: "read",
+          line: 2,
+          cyclomatic: 25,
+          cognitive: 9,
+          severity: "high",
+          line_count: 30,
+          crap: 29,
+          coverage_source: "estimated_component_inherited",
+          coverage_tier: "high",
+          inherited_from: "View.tsx",
+        },
+        {
+          path: "measured.ts",
+          name: "write",
+          line: 3,
+          cyclomatic: 20,
+          cognitive: 8,
+          severity: "moderate",
+          line_count: 25,
+          crap: 30,
+          coverage_source: "istanbul",
+          coverage_tier: "partial",
+          coverage_pct: 40,
+        },
+      ],
+      targets: [
+        {
+          path: "expensive.ts",
+          priority: 90,
+          efficiency: 30,
+          effort: "high",
+          confidence: "high",
+          recommendation: "Review shared responsibility",
+        },
+        {
+          path: "quick.ts",
+          priority: 50,
+          efficiency: 50,
+          effort: "low",
+          confidence: "high",
+          recommendation: "Reuse existing helper",
+        },
+      ],
+      change_coupling: coupling,
+    },
+  };
+  const before = structuredClone(report);
+  const summary = summarizeFallow(report, "health.json");
+  for (const expected of [
+    "files 20; functions 80; above thresholds 2; critical 0",
+    "model estimated; consistency mixed",
+    "estimated tiers are static evidence, not executed coverage",
+    "hotspots unavailable; targets 2; file scores unavailable",
+    "History/churn: since 6 months; min commits 5; files 18; excluded 2; shallow clone true",
+    "clock head_commit epoch 1792400000 reproducible true",
+    "Health ownership unavailable",
+    "coverage estimated_component_inherited/high inherited from View.tsx",
+    "coverage istanbul/partial 40%",
+    "quick.ts; priority 50; efficiency 50",
+    "expensive.ts; priority 90; efficiency 30",
+    "total pairs 9; supplied 1; since 12 months; commits analyzed/skipped 60/3",
+    "contract.ts <-> configuration.ts; degree 0.9; shared revisions 9; revisions 10/10; strong true",
+    "history leads, not proof both files must change",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(summary.indexOf("quick.ts") < summary.indexOf("expensive.ts"));
+  assert.deepEqual(report, before);
+  const unavailable = summarizeFallow({ health: { summary: {} } }, "missing.json");
+  assert.match(unavailable, /History\/churn unavailable/);
+  assert.match(unavailable, /Hidden change coupling unavailable/);
+  assert.match(unavailable, /targets unavailable/);
+  assert.doesNotMatch(unavailable, /(?:gate failed|gate passed|quality passed)/i);
+});
+
+void test("CSS consumer projection uses located lower bounds and exposes both sample caps", () => {
+  const tokens: TokenConsumers[] = Array.from({ length: 6 }, (_, index) => ({
+    token: `--color-pc-${index}`,
+    namespace: "color",
+    definition_path: "src/styles/tokens.css",
+    definition_line: index + 3,
+    consumer_count: index === 0 ? 0 : index + 5,
+    consumers:
+      index === 0
+        ? []
+        : Array.from({ length: 3 }, (_, line) => ({
+            path: `src/component-${index}.tsx`,
+            line: line + 10,
+            kind: line === 0 ? "theme-var" : "utility",
+          })),
+  }));
+  const before = structuredClone(tokens);
+  const summary = summarizeFallow({ css_analytics: { token_consumers: tokens } }, "css.json");
+  for (const expected of [
+    "CSS token consumer index: 6 tokens",
+    "zero consumers is not deletion proof",
+    "--color-pc-5; namespace color; definition src/styles/tokens.css:8; static lower bound 10; 2 locations shown, 8 known locations not shown",
+    "src/component-5.tsx:10 (theme-var)",
+    "src/component-5.tsx:11 (utility)",
+    "2 omitted from CSS token consumers",
+  ])
+    assert.ok(summary.includes(expected), expected);
+  assert.ok(!summary.includes("component-5.tsx:12"));
+  assert.deepEqual(tokens, before);
+  const zero = summarizeFallow({ css_analytics: { token_consumers: [tokens[0]] } }, "zero.json");
+  assert.match(zero, /static lower bound 0; 0 locations shown, 0 known locations not shown/);
+  assert.match(zero, /zero consumers is not deletion proof/);
 });

@@ -18,12 +18,21 @@ export interface FallowOptions {
   identity?: () => ReturnType<typeof fallowSource>;
   evidenceDirectory?: string;
   jobSummary?: string | null | undefined;
+  environment?: NodeJS.ProcessEnv;
 }
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { resourceEntrypoint } from "./resource-command.mts";
 import { frontendOutputResource } from "./resource-capacity.mts";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, appendFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  appendFileSync,
+  lstatSync,
+  readdirSync,
+  existsSync,
+} from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -36,6 +45,90 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("../node_modules/fallow/bin/fallow", import.meta.url));
 const version = "3.34.1";
 
+// Fixed maintained scopes must not silently inherit a production subset, a line
+// filter, or a different semantic backend. Cache and presentation settings remain
+// independent of evidence identity. Native defaults pin churn's clock to HEAD.
+function analysisEnvironment(environment: NodeJS.ProcessEnv) {
+  if (environment.FALLOW_DIFF_FILE)
+    throw new Error(
+      "FALLOW_DIFF_FILE is incompatible with maintained whole-scope routes; use a targeted native investigation",
+    );
+  const env: NodeJS.ProcessEnv = { ...environment, FALLOW_AGENT_SOURCE: "codex" };
+  for (const name of [
+    "FALLOW_PRODUCTION",
+    "FALLOW_PRODUCTION_DEAD_CODE",
+    "FALLOW_PRODUCTION_HEALTH",
+    "FALLOW_PRODUCTION_DUPES",
+    "FALLOW_PACKAGE_BASELINES",
+    "FALLOW_MAX_FILE_SIZE",
+    "FALLOW_TYPE_AWARE",
+    "FALLOW_TYPE_AWARE_BIN",
+    "FALLOW_TYPE_AWARE_TIMEOUT_SECS",
+    "FALLOW_AUDIT_BASE",
+    "FALLOW_CLOCK_EPOCH",
+  ])
+    delete env[name];
+  return env;
+}
+
+function evidenceIdentity(file: string): { path: string; sha256: string } {
+  const hash = createHash("sha256");
+  const visit = (file: string, relative: string) => {
+    const stat = lstatSync(file);
+    hash.update(relative).update("\0");
+    if (stat.isDirectory()) {
+      hash.update("directory\0");
+      for (const name of readdirSync(file).sort())
+        visit(path.join(file, name), `${relative}/${name}`);
+    } else if (stat.isFile()) hash.update("file\0").update(readFileSync(file)).update("\0");
+    else throw new Error(`Nonregular Fallow external evidence: ${file}`);
+  };
+  visit(file, ".");
+  return { path: file, sha256: hash.digest("hex") };
+}
+
+function effectiveEvidence(mode: string, env: NodeJS.ProcessEnv) {
+  const scopeRoot = mode === "desktop" || mode === "css" ? path.join(root, "apps/desktop") : root;
+  const configPath = path.join(
+    scopeRoot,
+    mode === "desktop" || mode === "css" ? ".fallowrc.json" : ".fallow-tooling.json",
+  );
+  const config: unknown = JSON.parse(readFileSync(configPath, "utf8"));
+  if (!isRecord(config)) throw new Error("Invalid Fallow configuration");
+  // These routes support the maintained local configurations. Additional input
+  // loaders need an explicit inventory before they can establish reusable evidence.
+  for (const name of ["extends", "plugins", "rulePacks"])
+    if (config[name] != null && (!Array.isArray(config[name]) || config[name].length > 0))
+      throw new Error(
+        `Maintained Fallow reuse does not inventory config.${name}; use native analysis until its external inputs are identified`,
+      );
+  const health = isRecord(config.health) ? config.health : {};
+  const coverage = env.FALLOW_COVERAGE || health.coverage;
+  const coverageRoot = env.FALLOW_COVERAGE_ROOT || health.coverageRoot;
+  const audit = isRecord(config.audit) ? config.audit : {};
+  const baselines = (
+    mode === "review" ? ["deadCodeBaseline", "healthBaseline", "dupesBaseline"] : []
+  ).map((name) => {
+    const file = audit[name];
+    return typeof file === "string" && file
+      ? evidenceIdentity(path.resolve(scopeRoot, file))
+      : null;
+  });
+  const plugins = path.join(scopeRoot, ".fallow/plugins");
+  return {
+    coverage:
+      typeof coverage === "string" && coverage
+        ? evidenceIdentity(path.resolve(scopeRoot, coverage))
+        : null,
+    coverage_root:
+      typeof coverageRoot === "string" && coverageRoot
+        ? path.resolve(scopeRoot, coverageRoot)
+        : null,
+    baselines,
+    local_plugins: existsSync(plugins) ? evidenceIdentity(plugins) : null,
+  };
+}
+
 export function fallowArguments(
   mode: string,
   base?: string,
@@ -43,8 +136,20 @@ export function fallowArguments(
 ) {
   if (!/^\d+$/u.test(String(threads)) || Number(threads) < 1 || Number(threads) > 64)
     throw new Error("PORTCOVE_FALLOW_THREADS must be an integer from 1 to 64");
-  const common = ["--threads", String(threads), "--format", "json", "--quiet", "--explain"];
-  if (mode === "desktop") return ["--root", "apps/desktop", ...common];
+  const common = [
+    "--no-production",
+    "--no-package-baselines",
+    "--no-type-aware",
+    "--max-file-size",
+    "5",
+    "--threads",
+    String(threads),
+    "--format",
+    "json",
+    "--quiet",
+    "--explain",
+  ];
+  if (mode === "desktop") return ["--root", "apps/desktop", "--fail-on-parse-error", ...common];
   if (mode === "tooling") return ["--root", ".", "--config", ".fallow-tooling.json", ...common];
   if (mode === "css")
     return ["health", "--root", "apps/desktop", "--css", "--report-only", ...common];
@@ -120,10 +225,13 @@ export function runFallow({
   identity = () => fallowSource(root, base),
   evidenceDirectory = path.join(root, "work/fallow-reports", `${mode}-${randomUUID()}`),
   jobSummary = process.env.GITHUB_STEP_SUMMARY,
+  environment = process.env,
 }: FallowOptions = {}) {
-  const args = fallowArguments(mode, base);
+  const env = analysisEnvironment(environment);
+  const args = fallowArguments(mode, base, environment.PORTCOVE_FALLOW_THREADS ?? "2");
   const source = identity();
-  const metadata = { format_version: 1, mode, version, args, source };
+  const inputs = effectiveEvidence(mode, env);
+  const metadata = { format_version: 2, mode, version, args, source, inputs };
   let result: FallowProcessResult;
   if (reuse) {
     result = reuseFallowReport(reuse, metadata);
@@ -133,7 +241,7 @@ export function runFallow({
       encoding: "utf8",
       maxBuffer: 32 * 1024 * 1024,
       windowsHide: true,
-      env: { ...process.env, FALLOW_AGENT_SOURCE: "codex" },
+      env,
     });
   }
   const evidence = retainCommandEvidence(evidenceDirectory, result);
@@ -176,10 +284,13 @@ export function runFallow({
   }
   let assessment;
   try {
-    if (["desktop", "tooling"].includes(mode)) assessment = evaluateFallowReport(report);
+    if (["desktop", "tooling"].includes(mode))
+      assessment = evaluateFallowReport(report, { requireParseGate: mode === "desktop" });
     else validateAdvisory(report, mode);
     if (JSON.stringify(source) !== JSON.stringify(identity()))
       throw new Error("Fallow source changed during analysis; report is stale");
+    if (JSON.stringify(inputs) !== JSON.stringify(effectiveEvidence(mode, env)))
+      throw new Error("Fallow external evidence changed during analysis; report is stale");
   } catch (error) {
     throw fail(`Fallow returned invalid evidence: ${errorMessage(error)}`, error);
   }
