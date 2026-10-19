@@ -90,11 +90,29 @@ pub(crate) fn recover_published_install(
                     .as_ref()
                     .is_some_and(|staged| staged.id == install.id));
         if !already_registered {
-            service.require_ghostship_data_compatibility(
-                &install.port_id,
-                &install.version,
-                status.active.as_ref().map(|active| active.version.as_str()),
-            )?;
+            let mut inspected = install.clone();
+            if operation.phase == LifecyclePhase::Prepared
+                && !install.path.exists()
+                && payload.is_dir()
+            {
+                inspected.path = payload.clone();
+            }
+            let active_version = status.active.as_ref().map(|active| active.version.as_str());
+            if operation.kind == LifecycleOperationKind::Prepare
+                && operation.phase == LifecyclePhase::Prepared
+                && inspected.path == payload
+                && operation.preparation.as_ref().is_some_and(|plan| {
+                    plan.inputs.options.mode == crate::PreparationMode::Ghostship200Legacy
+                })
+            {
+                service.require_ghostship_staged_preparation_compatibility(
+                    operation,
+                    &inspected,
+                    active_version,
+                )?;
+            } else {
+                service.require_ghostship_install_data_compatibility(&inspected, active_version)?;
+            }
         }
     }
     if operation.phase == LifecyclePhase::Prepared {
@@ -614,9 +632,8 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            service.require_ghostship_data_compatibility(
-                &install.port_id,
-                &install.version,
+            service.require_ghostship_install_data_compatibility(
+                &install,
                 status.active.as_ref().map(|active| active.version.as_str()),
             )?;
             let commit = activation.prepare_commit(service, operation)?;

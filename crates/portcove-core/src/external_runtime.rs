@@ -452,6 +452,31 @@ fn changed_during_inspection() -> PortcoveError {
     PortcoveError::verification("user-prepared runtime changed during inspection")
 }
 
+/// Reuse the stable read-only object checks for one bounded Core-owned member.
+/// Hashing supplies no ownership, preparation provenance or mutation permission.
+pub(crate) fn hash_stable_regular(
+    path: &Path,
+    maximum: u64,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(String, u64)> {
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    let opened = open_object(&canonical, false)?;
+    let size = opened.metadata()?.len();
+    if size > maximum || size > MAX_FILE_BYTES || link_count(&opened)? != 1 {
+        return Err(PortcoveError::verification(
+            "bounded member is oversized or shares a hard-linked file",
+        ));
+    }
+    let inspected = hash_bounded(&canonical, size, checkpoint)?;
+    if file_snapshot(&opened)? != inspected.snapshot
+        || link_count(&open_object(&canonical, false)?)? != 1
+    {
+        return Err(changed_during_inspection());
+    }
+    Ok((inspected.sha256, size))
+}
+
 fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
     crate::path::refuse_symlink_ancestors(path)?;
     let metadata = fs::symlink_metadata(path)?;
@@ -641,6 +666,33 @@ fn object_identity(_file: &fs::File) -> Result<ObjectIdentity> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stable_member_hash_refuses_oversize_links_and_same_size_replacement() {
+        let temporary = tempfile::tempdir().unwrap();
+        let file = temporary.path().join("generated.o2r");
+        fs::write(&file, b"fixture").unwrap();
+        assert_eq!(
+            hash_stable_regular(&file, 7, &|| Ok(())).unwrap(),
+            (hex::encode(Sha256::digest(b"fixture")), 7)
+        );
+        assert!(hash_stable_regular(&file, 6, &|| Ok(())).is_err());
+        let alias = temporary.path().join("alias.o2r");
+        fs::hard_link(&file, &alias).unwrap();
+        assert!(hash_stable_regular(&file, 7, &|| Ok(())).is_err());
+        fs::remove_file(alias).unwrap();
+        let changed = std::cell::Cell::new(false);
+        assert!(
+            hash_stable_regular(&file, 7, &|| {
+                if !changed.replace(true) {
+                    fs::write(&file, b"changed")?;
+                }
+                Ok(())
+            })
+            .is_err()
+        );
+        assert_eq!(fs::read(file).unwrap(), b"changed");
+    }
 
     #[test]
     fn stable_query_metadata_enforces_byte_budget_and_regular_object() {

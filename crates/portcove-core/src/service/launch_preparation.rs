@@ -57,7 +57,7 @@ impl PortcoveService {
         }
         let catalog = self.installed_catalog(active)?;
         let port = catalog.port(&active.port_id)?;
-        self.require_ghostship_data_compatibility(&port.id, &active.version, None)?;
+        self.require_ghostship_install_data_compatibility(active, None)?;
         let qualification = self.installed_mutability_qualification(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         checkpoint()?;
@@ -114,7 +114,7 @@ impl PortcoveService {
             port,
             self.managed_launch_context(catalog.definition_selection(&port.id), active)?,
         )?;
-        if crate::preparation::managed(port) {
+        if crate::preparation::managed_install(port, active) {
             self.validate_preparation_receipt(port, active, source.as_ref())?;
             if !Installer::new(self.library.clone())?
                 .verify_managed(active, &qualification)?
@@ -152,13 +152,15 @@ impl PortcoveService {
             self.collect_user_data_from(port, &active.path)?;
             checkpoint()?;
         }
+        self.prepare_ghostship_legacy_archive(active)?;
+        checkpoint()?;
         self.restore_user_data_to(port, &active.path)?;
         checkpoint()?;
         self.recheck_launch_bios(&catalog, port, active, bios.as_ref(), &checkpoint)?;
         let selected_executable =
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
         checkpoint()?;
-        let spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
+        let mut spec = crate::adapter::standard(port.adapter).prepare_launch_with_executable(
             crate::LaunchSpecRequest {
                 library: &self.library,
                 port,
@@ -170,6 +172,17 @@ impl PortcoveService {
             },
             &checkpoint,
         )?;
+        if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()
+        {
+            return Err(PortcoveError::verification(
+                "prepared legacy launch must use zero added arguments",
+            ));
+        }
+        if active.port_id == "ghostship" && active.version == "2.0.0" {
+            // The pinned Windows runtime uses CWD and ignores SHIP_HOME.
+            spec.environment.remove("SHIP_HOME");
+            self.require_ghostship_legacy_runtime_archive(active, &spec.working_directory)?;
+        }
         self.faults.check(LifecycleFaultPoint::SourcePrepared)?;
         checkpoint()?;
         if let Some(source) = &source {

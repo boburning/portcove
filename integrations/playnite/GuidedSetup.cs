@@ -22,7 +22,7 @@ namespace Portcove.ReferenceClient
             {
                 var assessment = Json.OptionalObjectField(readiness, role + "_assessment");
                 if (assessment == null) continue; // Missing legacy evidence remains unknown.
-                if (schema < 68) throw new InvalidOperationException("Source assessments require API schema 68.");
+                if (schema < 69) throw new InvalidOperationException("Source assessments require API schema 69.");
                 var health = Json.Text(assessment, "health");
                 if (!new[] { "unregistered", "not_checked", "not_baselined", "current", "missing", "unreadable", "changed" }.Contains(health))
                     throw new InvalidOperationException("Unknown source assessment health.");
@@ -56,8 +56,8 @@ namespace Portcove.ReferenceClient
                     throw new InvalidOperationException("Launch readiness contradicts a known input failure.");
             }
             object blockers;
-            if (schema < 68 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
-                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 68.");
+            if (schema < 69 && Json.TryField(readiness, "blockers", out blockers) && Json.Array(blockers).Contains("incompatible_bios"))
+                throw new InvalidOperationException("BIOS compatibility guidance requires API schema 69.");
         }
 
         internal static bool Confirmed(object readiness, string profile, string role)
@@ -169,7 +169,7 @@ namespace Portcove.ReferenceClient
                     "Choose your own BIOS file. Portcove will validate it before use.");
             if (external && !installed && !reviewedExternal)
                 return Step(GuidedStepKind.ReviewProblem, "Update Portcove CLI",
-                    "Reviewed external registration requires public API schema 67 and external.review. Update the selected CLI; existing managed Play remains available.");
+                    "Reviewed external registration requires supported public API schema 67 or later and external.review. Update the selected CLI; existing managed Play remains available.");
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
                     "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :

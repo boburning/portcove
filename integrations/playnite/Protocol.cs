@@ -300,7 +300,7 @@ namespace Portcove.ReferenceClient
             var definitions = DefinitionOperations.Read(status);
             var readiness = Json.OptionalObjectField(status, "readiness");
             SourceInputAssessment.Validate(readiness, schema);
-            if (schema < 68 && decisions.Any(value => value.Reason == "incompatible_bios"))
+            if (schema < 69 && decisions.Any(value => value.Reason == "incompatible_bios"))
                 throw new InvalidOperationException("Portcove BIOS compatibility guidance does not match its API schema.");
             object sourceExtension;
             object sourceBlockers;
@@ -679,7 +679,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 68;
+        internal const int Schema = 69;
         private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || (version >= 65 && version <= Schema);
         internal static bool SupportsReviewedExternal(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 67 &&

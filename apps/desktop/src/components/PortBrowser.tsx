@@ -774,7 +774,7 @@ function PortCard({
   const setupDescriptionId = useId();
   const resolveCardPresentation = () => {
     const input = installedCardInputPresentation(status);
-    const originalState = readinessPresentation(readiness, view, status);
+    const originalState = readinessPresentation(readiness, view, status, port);
     const state = input ? { ...originalState, label: input.label } : originalState;
     const setup =
       view === "catalog" && !status?.active && !status?.external_runtime
@@ -1170,13 +1170,18 @@ function filterLabel(filter: Filter) {
   return releaseChannelPresentation(filter).label;
 }
 
-function readinessPresentation(readiness: PortReadiness, view: View, status?: PortStatus) {
+function readinessPresentation(
+  readiness: PortReadiness,
+  view: View,
+  status?: PortStatus,
+  port?: PortDefinition,
+) {
   if (
     (status?.active || status?.external_runtime) &&
     portActionPresentation(status, "launch").blocked
   )
     return { label: "Launch needs review", action: "View details", tone: "setup" } as const;
-  if ((readiness === "ready" || readiness === "staged") && hasUnconfirmedLaunchInput(status))
+  if ((readiness === "ready" || readiness === "staged") && hasUnconfirmedLaunchInput(status, port))
     return { label: "Compatibility unconfirmed", action: "View details", tone: "setup" } as const;
   if (view === "catalog" && !status?.active && !status?.external_runtime)
     return {

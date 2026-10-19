@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 69 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 70 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -386,7 +386,7 @@ internal static class ContractTests
         bad["schema_version"] = 67;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "public reviewed external schema negotiated with actual reader support");
-        bad["schema_version"] = 69;
+        bad["schema_version"] = 70;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond reviewed external decisions rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -480,13 +480,13 @@ internal static class ContractTests
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema68 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled schema69 producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema68 backup producer and actual strict reader consume creation assessment");
+                "compiled schema69 backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema68 backup producer and actual strict reader consume restore assessment");
+                "compiled schema69 backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -654,6 +654,8 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "exact schema and capability enable reviewed external flow");
         capabilities["schema_version"] = 68;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "schema68 preserves the existing reviewed external contract");
+        capabilities["schema_version"] = 69;
+        Check(ProtocolStream.SupportsReviewedExternal(capabilities), "schema69 preserves the existing reviewed external contract");
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {
@@ -677,13 +679,16 @@ internal static class ContractTests
         biosReadiness["bios_assessment"] = biosAssessment;
         var launchDecision = Json.Array(Json.Field(biosStatus, "port_actions")).Select(Json.Object).Single(value => Json.Text(value, "action") == "launch");
         launchDecision["reason"] = "incompatible_bios";
-        PortActions.ValidateStatus(biosStatus, 68);
+        PortActions.ValidateStatus(biosStatus, 69);
         Check(SourceInputAssessment.KnownFailure(biosReadiness, "bios"), "new BIOS incompatibility is consumed as a known input failure");
         biosReadiness["launchable"] = true;
-        Reject(() => PortActions.ValidateStatus(biosStatus, 68), "known input failure cannot advertise launchable");
+        Reject(() => PortActions.ValidateStatus(biosStatus, 69), "known input failure cannot advertise launchable");
         biosReadiness["launchable"] = false;
-        Reject(() => PortActions.ValidateStatus(biosStatus, 67), "schema67 cannot silently carry new BIOS semantics");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 69 })
+        Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 cannot silently carry new BIOS semantics");
+        biosReadiness.Remove("bios_assessment");
+        biosReadiness["blockers"] = new object[0];
+        Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 70 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -824,17 +829,17 @@ internal static class ContractTests
         var inputReadiness = Json.Object(Json.Field(playable, "readiness"));
         inputReadiness["source"] = "current";
         inputReadiness["source_assessment"] = InputAssessmentFixture(Json.Text(catalog, "source_profile"));
-        SourceInputAssessment.Validate(inputReadiness, 68);
+        SourceInputAssessment.Validate(inputReadiness, 69);
         Check(GuidedSetup.Choose(playable, catalog, "", "").Label == "Play", "confirmed current-release input is consumed by the actual guidance");
-        Reject(() => SourceInputAssessment.Validate(inputReadiness, 67), "old schema cannot silently carry input assessments");
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 68), "old schema cannot silently carry input assessments");
         var sourceAssessment = Json.Object(inputReadiness["source_assessment"]);
         sourceAssessment["contract"] = Json.Parse(Json.Print(new { state = "unreviewed_for_release" }));
         Check(GuidedSetup.Choose(playable, catalog, "", "").Label == "Try launch", "unreviewed release does not become a compatibility claim or blanket launch block");
         sourceAssessment["health"] = "changed";
-        Reject(() => SourceInputAssessment.Validate(inputReadiness, 68), "assessment cannot contradict current-byte health");
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 69), "assessment cannot contradict current-byte health");
         sourceAssessment["health"] = "current";
         sourceAssessment["contract"] = Json.Parse(Json.Print(new { state = "future_contract" }));
-        Reject(() => SourceInputAssessment.Validate(inputReadiness, 68), "unknown compatibility is not silently treated as confirmed");
+        Reject(() => SourceInputAssessment.Validate(inputReadiness, 69), "unknown compatibility is not silently treated as confirmed");
         var launchHeld = Json.Parse("{\"active\":{\"version\":\"1\"},\"external_runtime\":null,\"readiness\":{\"launchable\":true,\"pending_setup\":false,\"blockers\":[]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(launchHeld, catalog, "", "").Kind == GuidedStepKind.ReviewProblem,
             "a held core launch cannot be advertised as Play even when readiness is otherwise launchable");

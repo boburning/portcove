@@ -57,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–68/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–69/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -182,9 +182,24 @@ tool and preservation consequences. A stale plan needs renewed review. Source
 registration and install/update are separate observable mutations; a later
 failure does not imply earlier registration was undone.
 
+Schema 69 adds optional release-scoped `source_assessment` and `bios_assessment`
+alongside byte health, and the `incompatible_bios` blocker/action reason. Current
+bytes alone do not confirm compatibility. Missing legacy facts remain unknown;
+when Core permits launch, offer an explained trial rather than declaring the
+input compatible or refusing it. Known input failures remain Core launch gates.
+Process exits and launch counts do not establish gameplay.
+
+Schema 68 adds the closed `ghostship200_legacy` preparation mode, paired only
+with plan/receipt format 2. Unknown modes or mismatched formats require an
+upgrade and renewed review. The reference Playnite client does not invoke
+preparation plan/run/bootstrap; this additive mode does not expand its commands
+or permissions. Reviewed retained-preparation cleanup remains available.
+Its existing launch, lifecycle and reviewed external-runtime decisions remain
+authoritative for the commands it does expose.
+
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–68 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–69 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
