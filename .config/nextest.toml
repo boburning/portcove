@@ -15,6 +15,21 @@ platform = 'x86_64-pc-windows-msvc'
 filter = 'package(portcove-core) & test(/^service::tests::external_ownership_refuses_managed_provider_work_before_resolution$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
+# The second-audit Windows run retained a 30s runtime lifecycle timeout after
+# the first real install, and the two-recipe read-only planning fixture took
+# 27.94s. Keep every install/update/rollback/preservation assertion with finite
+# room for observed shared-host filesystem latency. No retries or product
+# deadlines change.
+[[profile.default.overrides]]
+platform = 'cfg(windows)'
+filter = 'package(portcove-core) & test(/^service::runtime_tests::runtime_only_updates_stage_reuse_and_rollback_with_their_exact_bytes$/)'
+slow-timeout = { period = "5s", terminate-after = 18, grace-period = "0s" }
+
+[[profile.default.overrides]]
+platform = 'cfg(windows)'
+filter = 'package(portcove-core) & test(/^cartridge_build::tests::ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacity_read_only$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # These complete Windows import-preservation fixtures timed out at 30s while
 # still creating their backup. Bounded diagnostics completed at 29.4s and 44.6s.
 # Keep every lifecycle/assertion, two workers and zero retries; give only these

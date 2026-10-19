@@ -1,5 +1,102 @@
 use super::*;
 
+#[cfg(target_os = "windows")]
+struct PlanningRelease(ResolvedRelease);
+
+#[cfg(target_os = "windows")]
+#[async_trait::async_trait]
+impl crate::ReleaseProvider for PlanningRelease {
+    async fn resolve(
+        &self,
+        _: &PortDefinition,
+        _: crate::ReleaseChannel,
+        _: Platform,
+    ) -> Result<ResolvedRelease> {
+        Ok(self.0.clone())
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[tokio::test]
+async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacity_read_only() {
+    for (recipe, (port, profile), total) in [
+        (
+            CartridgeBuildRecipe::YoshisCookieNesCycle110,
+            fixture_port(),
+            230_411_690,
+        ),
+        (
+            CartridgeBuildRecipe::DrMarioNesCycle130Usa,
+            dr_mario_fixture(),
+            230_716_233,
+        ),
+    ] {
+        let facts = recipe.facts();
+        let root = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(root.path()).unwrap();
+        let release = ResolvedRelease {
+            version: facts.release_version.into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: ReleaseAsset {
+                name: facts.asset_name.into(),
+                url: "https://example.invalid/primary.zip".into(),
+                size: facts.asset_size,
+                sha256: facts.asset_sha256.into(),
+            },
+        };
+        let mut service = crate::PortcoveService::with_provider_read_only(
+            library.clone(),
+            std::sync::Arc::new(PlanningRelease(release)),
+        )
+        .unwrap();
+        let catalog = crate::Catalog::from_json(
+            &serde_json::to_string(&crate::CatalogDocument {
+                schema_version: 1,
+                source_catalog: None,
+                source_profiles: vec![profile],
+                ports: vec![port.clone()],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        service.replace_catalog_for_test(catalog);
+        let before = crate::test_fixture::library_file_snapshot(&library);
+        let activities = serde_json::to_value(library.activities(100).unwrap()).unwrap();
+        let _volume = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: 1024 * 1024 * 1024,
+                total_bytes: 10 * 1024 * 1024 * 1024,
+                volume_identity: "fixture-volume".into(),
+            },
+        );
+        let plan = service.plan_install(&port.id, None).await.unwrap();
+        assert_eq!(plan.action, crate::InstallPlanAction::Download);
+        assert_eq!(plan.download_bytes, total);
+        assert_eq!(
+            plan.auxiliary_downloads
+                .iter()
+                .map(|asset| asset.name.as_str())
+                .collect::<Vec<_>>(),
+            recipe
+                .archives()
+                .iter()
+                .map(|archive| archive.name)
+                .collect::<Vec<_>>()
+        );
+        let space = plan.temporary_space.unwrap();
+        assert_eq!(space.required_bytes, 2_147_483_648 + facts.asset_size);
+        assert_eq!(space.path, plan.output_location.effective_output_directory);
+        assert_eq!(space.volume_identity.as_deref(), Some("fixture-volume"));
+        assert_eq!(space.sufficient, Some(false));
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+        assert_eq!(
+            serde_json::to_value(library.activities(100).unwrap()).unwrap(),
+            activities
+        );
+    }
+}
+
 pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
     let mut port = crate::Catalog::embedded()
         .unwrap()

@@ -1056,11 +1056,41 @@ impl PortcoveService {
             .release;
         let action = self.install_plan_action(&status, &release)?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
-        let download_bytes = release.asset.size.saturating_add(
+        let recipe = port.release.managed_build.get(&platform).copied();
+        let auxiliary_downloads =
+            recipe.map_or_else(Vec::new, |recipe| recipe.acquisition_assets());
+        let primary_and_runtime_bytes = release.asset.size.saturating_add(
             bundled_runtime
                 .as_ref()
                 .map_or(0, |runtime| runtime.asset.size),
         );
+        let download_bytes = auxiliary_downloads
+            .iter()
+            .fold(primary_and_runtime_bytes, |total, asset| {
+                total.saturating_add(asset.size)
+            });
+        let output_location = self.output_location(port_id, output_directory)?;
+        let temporary_space = if action == InstallPlanAction::Download {
+            let required_bytes = recipe.map_or(primary_and_runtime_bytes, |recipe| {
+                recipe.temporary_bytes(primary_and_runtime_bytes)
+            });
+            let capacity = crate::output_root::assess_destination(
+                &self.library,
+                port_id,
+                &output_location.effective_output_directory,
+            );
+            Some(crate::InstallSpaceRequirement {
+                path: output_location.effective_output_directory.clone(),
+                required_bytes,
+                available_bytes: capacity.available_bytes,
+                volume_identity: capacity.volume_identity,
+                sufficient: capacity
+                    .available_bytes
+                    .map(|available| available >= required_bytes),
+            })
+        } else {
+            None
+        };
         let source_requirements = self.install_source_requirements(port)?;
         Ok(InstallPlan {
             port_id: port_id.into(),
@@ -1071,8 +1101,10 @@ impl PortcoveService {
             source_requirements,
             bundled_runtime,
             download_bytes,
+            auxiliary_downloads,
+            temporary_space,
             storage: self.library.storage_summary()?,
-            output_location: self.output_location(port_id, output_directory)?,
+            output_location,
         })
     }
 

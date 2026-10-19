@@ -787,6 +787,15 @@ bounded source discovery hashes selected files. It is provisional, carries no
 registration authority, and cannot substitute for the completed report or
 saved-root snapshot. Desktop renders candidates during a scan, then replaces
 them with core's completed snapshot; source import still requires a fresh plan.
+Saved-folder inventory, snapshot reads, scans and add/relink/remove intentions carry
+an originating library generation. Native workers validate that generation when
+acquiring their service; an outgoing lease may finish in its original library,
+while queued stale work refuses instead of resolving a replacement library.
+Desktop discards picker, preflight and review continuations after their originating
+view is disposed. Readable folder inventory remains available when an old scan
+payload is unreadable. An explicit fresh scan reaches Core, which retains sole
+authority to recover corruption or refuse unsupported saved reports.
+
 The current Desktop workspace owns the ephemeral saved-folder scan observer.
 Opening a selected game's details and returning to Settings preserves that
 request's progress, provisional matches and cancellation target, and does not
