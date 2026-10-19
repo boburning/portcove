@@ -80,7 +80,7 @@ export function UpdatePolicyControl({
   );
 }
 
-export function GameUpdateControl({
+function useGameUpdateControl({
   portId,
   generation,
   policy,
@@ -219,6 +219,133 @@ export function GameUpdateControl({
       }
     }
   };
+  return {
+    compact,
+    gameName,
+    reviewScope,
+    busy,
+    perform,
+    activate,
+    setActivate,
+    plan,
+    setPlan,
+    pending,
+    applying,
+    message,
+    setMessage,
+    error,
+    failure,
+    operation,
+    reviewButton,
+    titleId,
+    descriptionId,
+    dismissReview,
+    review,
+    apply,
+  };
+}
+
+export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>[0]) {
+  const {
+    compact,
+    gameName,
+    reviewScope,
+    busy,
+    perform,
+    activate,
+    setActivate,
+    plan,
+    setPlan,
+    pending,
+    applying,
+    message,
+    setMessage,
+    error,
+    failure,
+    operation,
+    reviewButton,
+    titleId,
+    descriptionId,
+    dismissReview,
+    review,
+    apply,
+  } = useGameUpdateControl(props);
+  const renderReviewActions = (plan: GameUpdatePlan) => (
+    <DialogFooter className="mt-4">
+      {installPlanActionLabel(plan.plan.action) ? (
+        gameUpdateActionLabel(plan) ? (
+          <Button
+            data-focusable
+            data-autofocus
+            variant="primary"
+            disabled={busy || pending || !perform}
+            onClick={() => void apply()}
+          >
+            {pending ? (applying ? "Updating…" : "Checking update…") : gameUpdateActionLabel(plan)}
+          </Button>
+        ) : null
+      ) : (
+        <Button
+          data-focusable
+          data-autofocus
+          variant="primary"
+          disabled={busy || pending}
+          onClick={() => void review()}
+        >
+          Review game update again
+        </Button>
+      )}
+      <Button
+        data-focusable
+        variant="outline"
+        hidden={!compact || !gameUpdateActionLabel(plan)}
+        disabled={busy || pending}
+        onClick={() => void review(!plan.activate)}
+      >
+        {plan.activate ? "Review download for later" : "Review install now"}
+      </Button>
+      <Button data-focusable variant="outline" disabled={busy || pending} onClick={dismissReview}>
+        Cancel review
+      </Button>
+    </DialogFooter>
+  );
+  const renderReviewDialog = () =>
+    plan &&
+    reviewScope?.active !== false && (
+      <Dialog
+        open
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !busy && !pending) dismissReview();
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          finalFocus={reviewButton}
+          reviewSize="standard"
+          data-game-update-review
+          aria-describedby={descriptionId}
+        >
+          <DialogTitle id={titleId} className="mb-2 text-xl">
+            {gameName ? `${gameName} update` : "Review game update"}
+          </DialogTitle>
+          <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
+            Confirm the release and what happens to your active version before updating.
+          </DialogDescription>
+          <GameUpdateReview plan={plan} />
+          {operation && (
+            <OperationCancellation
+              key={operation}
+              operationId={operation}
+              label="Cancel game update"
+            />
+          )}
+          {message && <p role="status">{message}</p>}
+          {error && <p role="alert">{error}</p>}
+          {renderReviewActions(plan)}
+        </DialogContent>
+      </Dialog>
+    );
+
   return (
     <section aria-label="Review game update">
       {!compact && <h3>Game update</h3>}
@@ -251,85 +378,8 @@ export function GameUpdateControl({
       >
         {pending ? "Checking update…" : "Review game update"}
       </Button>
-      {plan && reviewScope?.active !== false && (
-        <Dialog
-          open
-          onOpenChange={(nextOpen) => {
-            if (!nextOpen && !busy && !pending) dismissReview();
-          }}
-        >
-          <DialogContent
-            showCloseButton={false}
-            finalFocus={reviewButton}
-            reviewSize="standard"
-            data-game-update-review
-            aria-describedby={descriptionId}
-          >
-            <DialogTitle id={titleId} className="mb-2 text-xl">
-              {gameName ? `${gameName} update` : "Review game update"}
-            </DialogTitle>
-            <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
-              Confirm the release and what happens to your active version before updating.
-            </DialogDescription>
-            <GameUpdateReview plan={plan} />
-            {operation && (
-              <OperationCancellation
-                key={operation}
-                operationId={operation}
-                label="Cancel game update"
-              />
-            )}
-            {message && <p role="status">{message}</p>}
-            {error && <p role="alert">{error}</p>}
-            <DialogFooter className="mt-4">
-              {installPlanActionLabel(plan.plan.action) ? (
-                gameUpdateActionLabel(plan) ? (
-                  <Button
-                    data-focusable
-                    data-autofocus
-                    variant="primary"
-                    disabled={busy || pending || !perform}
-                    onClick={() => void apply()}
-                  >
-                    {pending
-                      ? applying
-                        ? "Updating…"
-                        : "Checking update…"
-                      : gameUpdateActionLabel(plan)}
-                  </Button>
-                ) : null
-              ) : (
-                <Button
-                  data-focusable
-                  data-autofocus
-                  variant="primary"
-                  disabled={busy || pending}
-                  onClick={() => void review()}
-                >
-                  Review game update again
-                </Button>
-              )}
-              <Button
-                data-focusable
-                variant="outline"
-                hidden={!compact || !gameUpdateActionLabel(plan)}
-                disabled={busy || pending}
-                onClick={() => void review(!plan.activate)}
-              >
-                {plan.activate ? "Review download for later" : "Review install now"}
-              </Button>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={busy || pending}
-                onClick={dismissReview}
-              >
-                Cancel review
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {renderReviewDialog()}
+
       {!plan && operation && (
         <OperationCancellation key={operation} operationId={operation} label="Cancel game update" />
       )}

@@ -198,41 +198,39 @@ export function UpdateCenter({
   );
   const failed = outcomes.filter((outcome) => !outcome.ok).length;
   const staged = installed.filter((port) => statuses.get(port.id)?.staged).length;
+  const renderStatistics = () => (
+    <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
+      <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
+      <UpdateStat
+        label={earlierBatch ? "Updates at last check" : "Updates available"}
+        value={
+          installed.length === 0
+            ? "—"
+            : complete
+              ? available
+              : available > 0
+                ? `${available}+`
+                : "Unknown"
+        }
+        icon={Download}
+        accent={available > 0}
+      />
+      <UpdateStat label="Saved for later" value={staged} icon={ShieldCheck} accent={staged > 0} />
+      <UpdateStat
+        label={earlierBatch ? "Failed at last check" : "Failed"}
+        value={earlierBatch && !batchRead?.hasResults ? "Unknown" : failed}
+        icon={AlertTriangle}
+        warning={failed > 0}
+      />
+    </div>
+  );
   return (
     <section className="update-center">
       <div
         className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
         data-focus-group
       >
-        <div className="update-stats grid grid-cols-[repeat(4,minmax(78px,1fr))] gap-2">
-          <UpdateStat label="Installed" value={installed.length} icon={PackageCheck} />
-          <UpdateStat
-            label={earlierBatch ? "Updates at last check" : "Updates available"}
-            value={
-              installed.length === 0
-                ? "—"
-                : complete
-                  ? available
-                  : available > 0
-                    ? `${available}+`
-                    : "Unknown"
-            }
-            icon={Download}
-            accent={available > 0}
-          />
-          <UpdateStat
-            label="Saved for later"
-            value={staged}
-            icon={ShieldCheck}
-            accent={staged > 0}
-          />
-          <UpdateStat
-            label={earlierBatch ? "Failed at last check" : "Failed"}
-            value={earlierBatch && !batchRead?.hasResults ? "Unknown" : failed}
-            icon={AlertTriangle}
-            warning={failed > 0}
-          />
-        </div>
+        {renderStatistics()}
         <UpdateCheckControl
           busy={busy}
           status={batchRead?.status}
@@ -282,6 +280,55 @@ export function UpdateCenter({
             const savedCheck = savedByPort.get(port.id)?.check;
             const state = updateState(status, outcome, savedCheck, earlierBatch);
             const failure = failurePresentation(outcome?.error);
+            const renderActions = () => (
+              <div
+                className="flex flex-wrap items-start justify-end gap-2"
+                aria-label={`Actions for ${gameIdentityLabel(port)}`}
+              >
+                {Boolean(status.staged || effectiveCheck(port.id)?.update_available) && perform && (
+                  <GameUpdateControl
+                    key={JSON.stringify([
+                      generation,
+                      port.id,
+                      status.active?.id,
+                      status.active?.version,
+                      status.active?.artifact.sha256,
+                      status.staged?.id,
+                      status.channel,
+                    ])}
+                    portId={port.id}
+                    generation={generation}
+                    policy={status.update_policy}
+                    busy={Boolean(busy)}
+                    perform={perform}
+                    compact
+                    gameName={gameIdentityLabel(port)}
+                    reviewScope={{
+                      active: reviewingUpdate === port.id,
+                      claim: () => {
+                        updateReviewOwner.current = port.id;
+                        setReviewingUpdate(port.id);
+                      },
+                      current: () => updateReviewOwner.current === port.id,
+                    }}
+                  />
+                )}
+                {onLaunch &&
+                  status.readiness?.launchable &&
+                  !status.readiness.pending_setup &&
+                  status.readiness.blockers.length === 0 &&
+                  !portActionPresentation(status, "launch").blocked && (
+                    <Button
+                      data-focusable
+                      variant="primary"
+                      disabled={Boolean(busy)}
+                      onClick={() => onLaunch(port.id)}
+                    >
+                      {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
+                    </Button>
+                  )}
+              </div>
+            );
             return (
               <div key={port.id} className="grid min-w-0 gap-2">
                 <button
@@ -325,54 +372,7 @@ export function UpdateCenter({
                     {state.label}
                   </span>
                 </button>
-                <div
-                  className="flex flex-wrap items-start justify-end gap-2"
-                  aria-label={`Actions for ${gameIdentityLabel(port)}`}
-                >
-                  {Boolean(status.staged || effectiveCheck(port.id)?.update_available) &&
-                    perform && (
-                      <GameUpdateControl
-                        key={JSON.stringify([
-                          generation,
-                          port.id,
-                          status.active?.id,
-                          status.active?.version,
-                          status.active?.artifact.sha256,
-                          status.staged?.id,
-                          status.channel,
-                        ])}
-                        portId={port.id}
-                        generation={generation}
-                        policy={status.update_policy}
-                        busy={Boolean(busy)}
-                        perform={perform}
-                        compact
-                        gameName={gameIdentityLabel(port)}
-                        reviewScope={{
-                          active: reviewingUpdate === port.id,
-                          claim: () => {
-                            updateReviewOwner.current = port.id;
-                            setReviewingUpdate(port.id);
-                          },
-                          current: () => updateReviewOwner.current === port.id,
-                        }}
-                      />
-                    )}
-                  {onLaunch &&
-                    status.readiness?.launchable &&
-                    !status.readiness.pending_setup &&
-                    status.readiness.blockers.length === 0 &&
-                    !portActionPresentation(status, "launch").blocked && (
-                      <Button
-                        data-focusable
-                        variant="primary"
-                        disabled={Boolean(busy)}
-                        onClick={() => onLaunch(port.id)}
-                      >
-                        {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
-                      </Button>
-                    )}
-                </div>
+                {renderActions()}
                 {outcome?.error && (
                   <section
                     aria-label={`Update check failure for ${port.name}`}

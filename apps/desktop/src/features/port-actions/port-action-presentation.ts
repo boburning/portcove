@@ -151,21 +151,7 @@ function presentAssessment(
   status: PortStatus | undefined,
 ): ActionPresentation {
   const { availability, reason, definition } = assessment;
-  if (
-    availability === "allowed" &&
-    reason === "available" &&
-    (definition == null ||
-      (definition.outcome === "eligible" && definition.reason === "mandatory_checks_passed"))
-  )
-    return { blocked: false };
-  // A newly selected source/BIOS path still needs the existing installation review.
-  if (
-    action === "install" &&
-    availability === "waiting" &&
-    (reason === "missing_source" || reason === "missing_bios") &&
-    definition == null
-  )
-    return { blocked: false };
+  if (assessmentAllowsInputReview(assessment, action)) return { blocked: false };
   if (!["waiting", "held", "not_offered"].includes(availability)) return unavailable(action);
   if (reason === "definition_ineligible")
     return {
@@ -363,4 +349,27 @@ export function installedCardInputPresentation(status: PortStatus | undefined) {
             ? "BIOS file needs review"
             : "Game files need review";
   return { label, reasons };
+}
+
+function assessmentAllowsInputReview(
+  assessment: Assessment,
+  action: Exclude<PresentedAction, "rollback">,
+) {
+  const { availability, reason, definition } = assessment;
+  if (
+    availability === "allowed" &&
+    reason === "available" &&
+    (definition == null ||
+      (definition.outcome === "eligible" && definition.reason === "mandatory_checks_passed"))
+  )
+    return true;
+  // A newly selected source/BIOS path still needs the existing installation review.
+  if (
+    action === "install" &&
+    availability === "waiting" &&
+    (reason === "missing_source" || reason === "missing_bios") &&
+    definition == null
+  )
+    return true;
+  return false;
 }
