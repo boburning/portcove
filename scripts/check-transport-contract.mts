@@ -6,6 +6,59 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { renderTransportSchemas } from "./transport-schemas.mts";
+import { createCiMetrics } from "./ci-metrics.mts";
+
+interface ExportResult {
+  status: number | null;
+  stdout: string | null | undefined;
+  stderr: string | null | undefined;
+  error?: Error;
+}
+type ExportCommand = (args: string[], root: string) => ExportResult;
+const executeExport: ExportCommand = (args, root) =>
+  spawnSync("cargo", args, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+    windowsHide: true,
+  });
+class SchemaExportError extends Error {
+  readonly exitCode: number;
+  constructor(message: string, exitCode = 1) {
+    super(message);
+    this.exitCode = exitCode;
+  }
+}
+const metrics = createCiMetrics();
+function exportPhase<T>(phase: string, operation: () => T): T {
+  const start = performance.now();
+  process.stderr.write(`[transport] ${phase} started\n`);
+  try {
+    const result = metrics.measure(`transport.${phase}`, operation);
+    process.stderr.write(
+      `[transport] ${phase} completed (${Math.round(performance.now() - start)}ms)\n`,
+    );
+    return result;
+  } catch (error) {
+    process.stderr.write(
+      `[transport] ${phase} failed (${Math.round(performance.now() - start)}ms)\n`,
+    );
+    throw error;
+  }
+}
+function checkedExport(args: string[], root: string, execute: ExportCommand) {
+  const command = execute(args, root);
+  if (command.error || command.status !== 0) {
+    const diagnostic = command.stderr || command.stdout;
+    if (diagnostic) process.stderr.write(diagnostic);
+    throw new SchemaExportError(
+      command.error?.message ?? "Schema exporter failed",
+      command.status ?? 1,
+    );
+  }
+  const result: unknown = JSON.parse((command.stdout ?? "").trim());
+  return result;
+}
 
 function capture(match: RegExpMatchArray | undefined, index: number): string {
   const value = match?.[index];
@@ -515,44 +568,35 @@ function shippedFrontendSources(directory: string): string[] {
   return sources;
 }
 
-function exportSchemas(root: string, contract: string) {
-  const command = spawnSync(
-    "cargo",
-    [
-      "run",
-      "--locked",
-      "--quiet",
-      "-p",
-      "portcove-cli",
-      "--",
-      "--json",
-      "schema",
-      "export",
-      "--contract",
-      contract,
-    ],
-    {
-      cwd: root,
-      encoding: "utf8",
-      maxBuffer: 16 * 1024 * 1024,
-      windowsHide: true,
-    },
-  );
-  if (command.status !== 0) {
-    process.stderr.write(command.stderr || command.stdout);
-    process.exit(command.status ?? 1);
-  }
-
-  const envelope: unknown = JSON.parse(command.stdout.trim());
-  if (
-    !isRecord(envelope) ||
-    !envelope.ok ||
-    envelope.command !== "schema.export" ||
-    !isRecord(envelope.data)
-  ) {
-    throw new Error("portcove schema export returned an invalid envelope");
-  }
-  return envelope.data;
+export function exportSchemas(root: string, contract: string, execute = executeExport) {
+  return exportPhase(`core-${contract}`, () => {
+    const envelope = checkedExport(
+      [
+        "run",
+        "--locked",
+        "--quiet",
+        "-p",
+        "portcove-cli",
+        "--",
+        "--json",
+        "schema",
+        "export",
+        "--contract",
+        contract,
+      ],
+      root,
+      execute,
+    );
+    if (
+      !isRecord(envelope) ||
+      !envelope.ok ||
+      envelope.command !== "schema.export" ||
+      !isRecord(envelope.data)
+    ) {
+      throw new Error("portcove schema export returned an invalid envelope");
+    }
+    return envelope.data;
+  });
 }
 
 export function desktopSchemaExporterCommands(platform: string, verifyNative = false) {
@@ -578,25 +622,25 @@ export function checkDesktopExporterParity(headless: unknown, native: unknown) {
     : ["Headless Desktop schemas differ from the compiled native host"];
 }
 
-function exportDesktopSchemas(root: string, verifyNative: boolean) {
-  const results = desktopSchemaExporterCommands(process.platform, verifyNative).map((args) => {
-    const command = spawnSync("cargo", args, {
-      cwd: root,
-      encoding: "utf8",
-      maxBuffer: 16 * 1024 * 1024,
-      windowsHide: true,
-    });
-    if (command.status !== 0) {
-      process.stderr.write(command.stderr || command.stdout);
-      process.exit(command.status ?? 1);
-    }
-    const result: unknown = JSON.parse(command.stdout.trim());
-    if (!isRecord(result)) throw new Error("Desktop exporter returned an invalid envelope");
-    return result;
-  });
+export function exportDesktopSchemas(root: string, verifyNative: boolean, execute = executeExport) {
+  const results = desktopSchemaExporterCommands(process.platform, verifyNative).map((args, index) =>
+    exportPhase(index === 0 ? "desktop-headless" : "desktop-native", () => {
+      const result = checkedExport(args, root, execute);
+      if (
+        !isRecord(result) ||
+        !isRecord(result.input) ||
+        !isRecord(result.output) ||
+        !isRecord(result.events)
+      )
+        throw new Error("Desktop exporter returned an invalid envelope");
+      return result;
+    }),
+  );
   if (results.length === 2) {
-    const failures = checkDesktopExporterParity(results[0], results[1]);
-    if (failures.length) throw new Error(failures.join("\n"));
+    exportPhase("desktop-parity", () => {
+      const failures = checkDesktopExporterParity(results[0], results[1]);
+      if (failures.length) throw new Error(failures.join("\n"));
+    });
     console.log("Headless Desktop contracts match the compiled native host.");
   }
   const result = results[0];
@@ -718,4 +762,12 @@ function main() {
   );
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  try {
+    main();
+  } catch (error) {
+    if (!(error instanceof SchemaExportError)) throw error;
+    console.error(error.message);
+    process.exitCode = error.exitCode;
+  }
+}
