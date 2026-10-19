@@ -133,3 +133,24 @@ it("reveals and focuses the exact loaded recovery activity beyond the short hist
     .toBe("activity-12");
   expect(document.querySelectorAll("[data-activity-id]")).toHaveLength(9);
 });
+
+it("retains a recovery opener when a refresh removes an earlier unrelated item", async () => {
+  const onSelect = vi.fn<(portId: string, originKey?: string) => void>();
+  const retained = item("retained_preparation");
+  const earlier = { ...item("degraded_backup"), operation_id: "earlier-operation" };
+  const props = { ...diagnostics, ports: [port], onSelect };
+  const screen = await render(
+    <RecoveryReview {...props} repair={{ generated_at: 1, items: [earlier, retained] }} />,
+  );
+  const opener = page.getByRole("button", { name: "Review game setup", exact: true });
+  await opener.click();
+  const origin = onSelect.mock.calls[0]?.[1];
+  expect(origin).toBeTypeOf("string");
+  await screen.rerender(
+    <RecoveryReview {...props} repair={{ generated_at: 2, items: [retained] }} />,
+  );
+  await expect.element(opener).toHaveAttribute("data-detail-origin", origin);
+  expect(document.querySelector("details")?.open).toBe(false);
+  await opener.click();
+  expect(onSelect.mock.calls[1]).toEqual(onSelect.mock.calls[0]);
+});

@@ -5,7 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
 import { desktopApi } from "../../api";
-import { workspace } from "./scenarios";
+import { doctor, workspace } from "./scenarios";
 import { sourceProfile } from "../../test-fixtures";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -56,6 +56,59 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("Reset journey");
   expect(document.querySelector("#port-search")).not.toBeNull();
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
+});
+
+it("returns to the exact older recovery activity after opening its game", async () => {
+  const snapshot = workspace("library");
+  snapshot.activities = {
+    ...snapshot.activities,
+    terminal_history_count: 13,
+    records: Array.from({ length: 13 }, (_, index) => ({
+      id: `recovery-history-${index}`,
+      operation: "install",
+      target_kind: "port",
+      target_id: "sample",
+      status: "failed",
+      started_at: 100 - index,
+      finished_at: 101 - index,
+      message: null,
+      failure: null,
+      cancellation: null,
+    })),
+  };
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  vi.spyOn(desktopApi, "doctor").mockResolvedValue({
+    ...doctor,
+    repair: {
+      generated_at: 1,
+      items: [
+        {
+          kind: "partial_operation",
+          port_id: "sample",
+          operation_id: "recovery-history-12",
+          path: "fixture/retained",
+          message: "Retained fixture operation",
+          proposed_action: "Review current state",
+        },
+      ],
+    },
+  });
+  await mount("library");
+  await page.getByRole("button", { name: /^Game updates/ }).click();
+  await page.getByRole("button", { name: "Review activity", exact: true }).click();
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-activity-id"))
+    .toBe("recovery-history-12");
+  const origin = "updates:activity:recovery-history-12:target";
+  const opener = document.querySelector<HTMLButtonElement>(`[data-detail-origin="${origin}"]`);
+  expect(opener).not.toBeNull();
+  await act(async () => opener!.click());
+  await expect
+    .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
+    .toBeVisible();
+  await click("Back to previous workspace");
+  await expect.poll(() => document.activeElement?.getAttribute("data-detail-origin")).toBe(origin);
+  expect(document.querySelector('[data-activity-id="recovery-history-12"]')).not.toBeNull();
 });
 
 it("opens current Settings read surfaces without fixture refusals", async () => {
