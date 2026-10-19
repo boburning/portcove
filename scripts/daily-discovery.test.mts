@@ -96,7 +96,7 @@ void test("bootstrap identity covers the complete statically loaded module closu
   const source = readFileSync(entry, "utf8");
   const declaration = source.match(/const bootstrap = \[([\s\S]*?)\];/u);
   assert.ok(declaration, "bootstrap identity list is present");
-  const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]);
+  const bound = [...declaration[1]!.matchAll(/"([^"]+)"/gu)].map((match) => match[1]!);
   const loaded = new Set<string>();
   function visit(file: URL) {
     const name = path.relative(path.dirname(fileURLToPath(entry)), fileURLToPath(file));
