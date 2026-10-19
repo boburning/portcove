@@ -10,16 +10,18 @@ export function useActionReview<T>({
   apply,
   close,
   failureMessage,
+  retainOnCancel = false,
 }: {
   identity: string;
   load: () => Promise<T>;
   apply: (review: T) => Promise<ReviewOutcome>;
   close: () => void;
   failureMessage: string;
+  retainOnCancel?: boolean;
 }) {
-  const callbacks = useRef({ load, apply, close, failureMessage });
+  const callbacks = useRef({ load, apply, close, failureMessage, retainOnCancel });
   useLayoutEffect(() => {
-    callbacks.current = { load, apply, close, failureMessage };
+    callbacks.current = { load, apply, close, failureMessage, retainOnCancel };
   });
   const requests = useRef(new LatestRequestGeneration());
   const inFlight = useRef<"review" | "apply">(undefined);
@@ -68,8 +70,10 @@ export function useActionReview<T>({
       const result = await callbacks.current.apply(preview);
       if (!requests.current.isCurrent(request)) return;
       if (result === true) callbacks.current.close();
-      else if (result === "cancelled") cancelled = true;
-      else setError(callbacks.current.failureMessage);
+      else if (result === "cancelled") {
+        cancelled = callbacks.current.retainOnCancel;
+        if (!cancelled) callbacks.current.close();
+      } else setError(callbacks.current.failureMessage);
     } catch (value) {
       if (requests.current.isCurrent(request)) setError(value);
     } finally {

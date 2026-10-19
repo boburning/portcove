@@ -212,6 +212,7 @@ function RegisterExternalDialog({
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${port.id}:${path}:${generation}`,
+    retainOnCancel: true,
     load: () => desktopApi.previewExternalRuntime(port.id, path, generation),
     apply: async (preview) => {
       const record = await desktopApi.registerExternalRuntime(
