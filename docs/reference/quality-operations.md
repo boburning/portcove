@@ -224,9 +224,12 @@ Structural heuristics advise: dependency duplication, unmaintained transitive de
 
 ## Fallow scopes and policy
 
-The repository pins Fallow 3.34.0. Use the maintained wrappers so reports retain
+Use the repository-pinned Fallow through the maintained wrappers so reports retain
 their source identity and Portcove's enforcement mapping. Ordinary fast PR CI
 and default focused local checks do not run an exhaustive Fallow scan.
+
+The [October 19 audit and dispositions](fallow-audit-2026-10-19.md) retain original
+finding identities, corrections and source-review limits.
 
 | Command                   | Use and scope                                                                                   | Enforcement                                                                                                     |
 | ------------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |

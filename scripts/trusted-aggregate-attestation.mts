@@ -1,3 +1,4 @@
+import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -43,16 +44,6 @@ function timestamp(value: unknown): asserts value is string {
     throw new Error("aggregate provider timestamp is invalid");
 }
 function same(left: unknown, right: unknown): boolean {
-  const canonical = (value: unknown): unknown => {
-    if (Array.isArray(value)) return value.map(canonical);
-    if (isRecord(value))
-      return Object.fromEntries(
-        Object.keys(value)
-          .sort()
-          .map((key) => [key, canonical(value[key])]),
-      );
-    return value;
-  };
   return JSON.stringify(canonical(left)) === JSON.stringify(canonical(right));
 }
 

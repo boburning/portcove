@@ -1,3 +1,4 @@
+import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
 import type {
   SpawnSyncOptionsWithStringEncoding,
   SpawnSyncOptions,
@@ -298,6 +299,12 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
+    (name): [string, string[]] => [
+      `scripts/release-semantic-${name}.mts`,
+      ["scripts/release-semantic-broker.test.mts"],
+    ],
+  ),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
@@ -558,13 +565,6 @@ const releaseContractTests = Object.freeze([
   "scripts/release-workflow.test.mts",
   "scripts/windows-qualification-session.test.mts",
 ]);
-
-function normalizePath(value: string) {
-  const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//, "");
-  if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
-    throw new Error(`unsafe repository path: ${value}`);
-  return normalized;
-}
 
 export function command(
   id: string,

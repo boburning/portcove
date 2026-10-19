@@ -12,6 +12,17 @@ migrated. Historical coordinator schema-1 replay is unchanged.
 `release-semantic-review.mts` is an inactive serializer, not authenticated runtime
 capture or acceptance. The writer and generic Actions remain excluded issuers.
 
+The held runtime's accepted handoff also requires completed frozen-reader
+observations of the opportunity, publication baseline, accumulated-change
+metadata, and classification/compatibility evidence. Observations must match
+frozen bytes and cover the changed portions with containing-line context in
+both snapshots. Listing, empty output, token reads, truncated search results
+and echoed coverage flags alone cannot establish this prerequisite. Unchanged
+source bytes need no exhaustive read. Delivery of evidence is necessary but
+does not establish sound semantic judgment or grant capture/issuer authority;
+unavailable evidence retains changes-required/refused outcomes. Existing
+production activation and storage holds remain separately owned.
+
 The prepared capacity configuration reader uses `portcove-release-pause` /
 `capacity.json`, verified raw Git objects and two exact-ref reads, with mandatory
 authenticated fresh observer/job guards. The document contains schema version 1,

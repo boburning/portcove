@@ -279,14 +279,7 @@ function sourceTokens(sourceText: string) {
 }
 
 function isDirectInvokeImport(tokens: readonly Token[], index: number) {
-  if (tokens[index + 1]?.value === "as")
-    throw new Error("frontend invoke imports must not be aliased");
-  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
-    if (tokens[cursor]?.value === ";" || tokens[cursor]?.value === "}") return false;
-    if (tokens[cursor]?.value === "{")
-      return tokens[cursor - 1]?.kind === "identifier" && tokens[cursor - 1]?.value === "import";
-  }
-  return false;
+  return isDirectNamedImport(tokens, index, "invoke");
 }
 
 function isDirectNamedImport(tokens: readonly Token[], index: number, name: string) {

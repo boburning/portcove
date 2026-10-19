@@ -2105,6 +2105,16 @@ warning.
 8. Atomically claim the vacant version path without replacement, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`. A late destination remains untouched and blocks recovery until the conflict is explicitly resolved. On Windows, a just-exited process, indexer, or scanner can briefly retain a handle that denies renaming its parent directory; publication waits up to two seconds only for the corresponding access, sharing, or lock errors while rechecking that staging still exists and the destination remains vacant. Persistent errors retain private staging and report the exact operation paths and operating-system code for recovery.
 9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
 
+Launch-critical verification uses complete immutable-file verification when the
+authenticated manifest records a nested executable companion outside the selected
+executable's directory, including historical manifests that did not mark that
+helper critical. Both explicit verification and launch use the existing bounded,
+no-follow inventory in this case. Recorded executable intent and platform-specific
+companion names determine this requirement even when the helper is missing.
+Retained mutable paths and file patterns preserve their original exclusions;
+a newer mutable-path projection cannot excuse changed recorded immutable files
+or unexpected executable companions anywhere in that strict inventory.
+
 Install and adoption startup recovery acquire the recorded journal owner's port
 lock and reread the journal under that lock. Before interpreting any publication
 phase or cleaning a recorded private tree, a present install record must name that
