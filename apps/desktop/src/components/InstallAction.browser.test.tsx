@@ -295,7 +295,7 @@ it("reviews the complete cold download and blocks on Core's larger temporary-spa
       dismiss={vi.fn()}
     />,
   );
-  expect(document.body.textContent).toContain("219.7 MiB");
+  expect(document.body.textContent).toContain("220 MiB");
   expect(document.body.textContent).toContain("2.0 GiB");
   expect(document.body.textContent).toContain("F:/Games/sample");
   expect(document.body.textContent).toContain("Final installed size is unknown");
@@ -320,7 +320,7 @@ it("reviews the complete cold download and blocks on Core's larger temporary-spa
     />,
   );
   expect(document.body.textContent).toContain("Capacity is unknown");
-  expect(button("Install · 219.7 MiB").disabled).toBe(false);
+  expect(button("Install · 220 MiB").disabled).toBe(false);
   await root.rerender(
     <InstallAction
       ready
