@@ -182,6 +182,8 @@ impl crate::application_update_host::InstalledApplicationContextSource
                 error.to_string(),
             )
         })?;
+        crate::runtime_support::check()
+            .map_err(crate::application_update::InstalledApplicationContextError::Unavailable)?;
         windows_nsis_context_for_version(env!("CARGO_PKG_VERSION")).map_err(|error| {
             crate::application_update::InstalledApplicationContextError::Unavailable(
                 error.to_string(),
