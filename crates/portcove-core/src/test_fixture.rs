@@ -99,8 +99,14 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if !port.release.managed_build.is_empty() {
-            6
+        let capability_version = if let Some(minimum) = port
+            .release
+            .managed_build
+            .values()
+            .map(|recipe| recipe.minimum_template_version())
+            .max()
+        {
+            minimum
         } else if port
             .release
             .user_prepared

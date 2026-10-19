@@ -132,14 +132,20 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
-        if !port.release.managed_build.is_empty()
+        if let Some(minimum) = port
+            .release
+            .managed_build
+            .values()
+            .map(|recipe| recipe.minimum_template_version())
+            .max()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable" && requirement.minimum_version >= 6
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= minimum
             })
         {
-            return Err(PortcoveError::verification(
-                "cartridge build recipe requires staged-source capability version 6",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "cartridge build recipe requires staged-source capability version {minimum}",
+            )));
         }
         if port
             .release

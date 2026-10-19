@@ -2757,7 +2757,8 @@
       },
       "CartridgeBuildRecipe": {
         "enum": [
-          "yoshis-cookie-nes-cycle-v1.1.0"
+          "yoshis-cookie-nes-cycle-v1.1.0",
+          "dr-mario-nes-cycle-v1.3.0-usa"
         ],
         "type": "string"
       },
@@ -13991,7 +13992,8 @@
       },
       "CartridgeBuildRecipe": {
         "enum": [
-          "yoshis-cookie-nes-cycle-v1.1.0"
+          "yoshis-cookie-nes-cycle-v1.1.0",
+          "dr-mario-nes-cycle-v1.3.0-usa"
         ],
         "type": "string"
       },
@@ -18188,7 +18190,8 @@
       },
       "CartridgeBuildRecipe": {
         "enum": [
-          "yoshis-cookie-nes-cycle-v1.1.0"
+          "yoshis-cookie-nes-cycle-v1.1.0",
+          "dr-mario-nes-cycle-v1.3.0-usa"
         ],
         "type": "string"
       },
