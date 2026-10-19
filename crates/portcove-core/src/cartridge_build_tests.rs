@@ -236,6 +236,54 @@ fn fixed_recipe_refuses_different_executable_source_or_persistence() {
 }
 
 #[test]
+fn fixed_build_input_refuses_a_changed_release_without_preparing_output() {
+    let temporary = tempfile::tempdir().unwrap();
+    // This tests only the release-input boundary. No cartridge is supplied or
+    // admitted; the independently pinned upstream tuple is not read from code.
+    let preparation = CartridgeBuildPreparation {
+        recipe: CartridgeBuildRecipe::YoshisCookieNesCycle110,
+        source: SourceRecord {
+            profile_id: "yoshis-cookie-nes-usa".into(),
+            path: temporary.path().join("not-supplied.nes"),
+            sha256: ORIGINAL_SHA256.into(),
+            size: ORIGINAL_SIZE,
+            storage_sha256: ORIGINAL_SHA256.into(),
+            storage_size: ORIGINAL_SIZE,
+            updated_at: 0,
+            observed_identity: None,
+        },
+        worker_test_latch: None,
+    };
+    let accepted = ResolvedRelease {
+        version: "v1.1.0".into(),
+        channel: crate::ReleaseChannel::Stable,
+        published_at: Some("2026-10-05T06:06:13Z".into()),
+        asset: ReleaseAsset {
+            name: "YoshisCookieRecomp-windows-x64.zip".into(),
+            url: "https://github.com/mstan/YoshisCookieRecomp/releases/download/v1.1.0/YoshisCookieRecomp-windows-x64.zip".into(),
+            size: 3_919_022,
+            sha256: "3f0b2219479960664312429f464a6c2de2ae155bb112278320e14e94b07bb947".into(),
+        },
+    };
+    preparation.verify_release(&accepted).unwrap();
+    let mut changed = vec![accepted.clone(); 5];
+    changed[0].version = "v1.2.0".into();
+    changed[1].channel = crate::ReleaseChannel::Beta;
+    changed[2].asset.name = "DrMarioRecomp-windows-x64.zip".into();
+    changed[3].asset.size += 1;
+    changed[4].asset.sha256 = "0".repeat(64);
+    for release in changed {
+        let error = preparation.verify_release(&release).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(
+            error.message,
+            "cartridge build requires its exact reviewed release input"
+        );
+        assert_eq!(fs::read_dir(temporary.path()).unwrap().count(), 0);
+    }
+}
+
+#[test]
 fn record_metadata_cannot_bless_different_original_bytes() {
     let temporary = tempfile::tempdir().unwrap();
     let path = temporary.path().join("original.nes");
