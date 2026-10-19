@@ -1,8 +1,8 @@
 export function report({ issues = 0, duplication = 0, critical = 0 } = {}) {
   return {
     kind: "combined",
-    schema_version: 13,
-    version: "3.33.1",
+    schema_version: 14,
+    version: "3.34.0",
     gate_outcomes: {
       "error-severity-findings": { status: "pass", enforced: false },
       "health-findings": { status: "pass", enforced: false },
