@@ -812,6 +812,16 @@
         "claim": "Pins the documented original and private local source-build workflow. Core independently enforces exact source, SDK/toolchain and output contracts. Upstream source identity does not authenticate arbitrary prepared executables or establish actual build, native, gameplay or binary redistribution acceptance.",
         "immutable_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
         "live_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/main/README.md"
+      },
+      {
+        "id": "super-mario-bros-remastered-11-world-subset",
+        "role": "upstream_support",
+        "authority": "JHDev2006/Super-Mario-Bros.-Remastered-Public",
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-10-19",
+        "claim": "Pinned verifier identifies the original using a normalized SHA256 of Base64 text after removing the 16-byte NES header. Independent bounded qualification matched this unchanged 40976-byte World original (whole-file SHA256 0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea, SHA1 33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd) to normalized protocol digest c9b34443c0414f3b91ef496d8cfee9fdd72405d673985afa11fb56732c96152b. This route deliberately accepts that exact whole-file subset; it does not mislabel the upstream normalized digest as a ROM hash.",
+        "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
       }
     ],
     "identities": [
@@ -6408,6 +6418,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "smb1r-world-nes",
+        "label": "Super Mario Bros. (World) exact NES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "world-retail",
+            "title": "Super Mario Bros.",
+            "region": "World",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "ines-file",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
+                    "sha256": "0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-mario-bros-remastered-11-world-subset"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-mario-bros-remastered-11-world-subset"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -9324,6 +9374,33 @@
           {
             "upstream_ref": "source-fe1155dc26ff",
             "artifact_sha256": "3cb01dc15d769defa1a8c3428b1ef5ce50f9c1cc224e3f0347f751841fc84710"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-mario-bros-remastered-game-source",
+        "port_id": "super-mario-bros-remastered",
+        "role": "game",
+        "profile_id": "smb1r-world-nes",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "world-retail"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-mario-bros-remastered-11-world-subset"
+        ],
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.1-stable",
+            "artifact_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
           }
         ],
         "aliases": [],
@@ -19160,6 +19237,60 @@
           "suffix": ".dmp"
         }
       ]
+    },
+    {
+      "id": "super-mario-bros-remastered",
+      "name": "Super Mario Bros. Remastered",
+      "summary": "Use the exact stock Windows runtime with disabled mods and separately reviewed shared game data.",
+      "project_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "1.1-stable",
+            "archive_name": "Windows.zip",
+            "archive_size": 76214255,
+            "archive_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109",
+            "executable": "SMB1R.exe",
+            "immutable_tree_sha256": "a8cb5667881f64dead389d8e8dd821bd4787f2b345156953d645f27412398b6a",
+            "shared_preferences": "smb1r-1.1-stable-windows",
+            "mutable_paths": []
+          }
+        }
+      },
+      "source_profile": "smb1r-world-nes",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SMB1R.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--disable-mods"
+      ],
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "smb1r-world-nes",
+            "label": "Super Mario Bros. (World) exact NES original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Download the exact official 1.1-stable Windows.zip and extract its five unchanged files outside the Portcove library. Do not add portable.txt or mods. Register your recognized World NES original separately. Explicitly review and accept the current Windows account and effective APPDATA/SMB1R shared directory, then manually copy your original there as baserom.nes. Existing settings.cfg must be bounded ordinary data without Godot object/resource constructors. Refresh after manual preparation. Other game copies share originals, settings, saves and custom data; the game can regenerate or trash caches and prune logs. Portcove does not seed, own, migrate, update, back up, restore or delete this shared directory or the prepared runtime. Removal unregisters only. Mods and extra engine/CLI arguments are not offered. Registration is distinct from launch readiness and gameplay observations. This limited route accepts only vanilla BaseAssets. Existing settings must select only BaseAssets. Move custom levels/autosaves, blueprints, custom-character inputs, extra resource packs and Godot loader metadata elsewhere manually before use, preserving their files. Core refuses those executable-bearing inputs without changing them. The route does not offer the optional editor/import workflow or sandbox independent imports while the game runs."
+      }
     }
   ]
 }
