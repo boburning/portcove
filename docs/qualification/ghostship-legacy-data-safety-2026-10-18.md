@@ -129,9 +129,10 @@ recovery validates its owned staging envelope, full retained manifest, source,
 receipt and generated archive before publication; it does not treat a staging
 path as a registered installation or bypass the registered-root guard.
 
-API schema 68 adds the closed mode. Generated CLI/Tauri transport contracts and
-Playnite's supported 65–68 window consume it; existing schema-67 external-route
-cleanup remains supported. This does not make Playnite a bootstrap authority.
+API schema 68 adds the closed mode to the generated CLI/Tauri transport contracts.
+Playnite accepts schema 68 for its existing commands within its supported 65–68
+window; schema-67 external-route cleanup remains supported. Playnite does not
+invoke the new preparation mode.
 
 ### Actual evidence and preserved failures
 
