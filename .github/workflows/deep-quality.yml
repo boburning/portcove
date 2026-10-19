@@ -69,10 +69,12 @@ jobs:
           COMPARISON_BASE: ${{ inputs.comparison_base }}
           PORTCOVE_FALLOW_THREADS: "2"
         run: |
-          if [ "$FALLOW_SCOPE" = review ]; then
-            node scripts/run-fallow.mts review "$COMPARISON_BASE"
+          # Disposable experiment branch only; this change is never merged.
+          if [[ "$COMPARISON_BASE" == judgment:* ]]; then
+            node work/fallow-hosted-walkthrough.mjs
           else
-            node scripts/run-fallow.mts "$FALLOW_SCOPE"
+            node work/fallow-hosted-trials.mjs
+            node work/fallow-hosted-walkthrough.mjs
           fi
       - name: Retain original Fallow reports
         if: always()
