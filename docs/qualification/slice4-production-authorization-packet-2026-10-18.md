@@ -11,6 +11,15 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The owner approved the #2161 retained-image observation. Its single diagnostic
+now has an [actual preflight failure and narrow repair](slice4-storage-preflight-result-2026-10-18.md):
+privilege-name lookup failed before reviewer resume, with positive owned-tree
+and profile teardown. Metadata/startup/authentication remain unobserved in that
+attempt. Matching recovery is included in the existing grant; its observed
+completion must be recorded separately. The changed helper is preparation only,
+with no repeat/native execution grant. Prior preparation statements below are
+historical; no outstanding D1/D2/D3 mechanism decision is reopened.
+
 The [bounded diagnostic result](slice4-bounded-runtime-result-2026-10-18.md)
 records the failed `CODEX_HOME` metadata startup and completed matching recovery.
 Its grant is fulfilled; both images remain detached and retained. The delivered
