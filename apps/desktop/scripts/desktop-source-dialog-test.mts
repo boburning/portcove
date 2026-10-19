@@ -51,7 +51,13 @@ function gameFileRoot(value: unknown): GameFileRoot {
   return required(transportValue("game_file_roots", [value])[0]);
 }
 type SetupInvoke = SelectedSetupContext["invoke"];
-function selectedSetupRead(invoke: SetupInvoke) {
+export async function selectedSetupGeneration(invoke: SetupInvoke) {
+  const response = object(await invoke("get_bootstrap_status"));
+  assert.equal(response.ok, true, JSON.stringify(response.error));
+  return transportValue("desktop_bootstrap_status", response.value).generation;
+}
+
+export function selectedSetupRead(invoke: SetupInvoke, generation: number) {
   function read(
     name: "get_game_file_scan_snapshot",
     args?: Record<string, unknown>,
@@ -64,7 +70,9 @@ function selectedSetupRead(invoke: SetupInvoke) {
   function read(name: "get_statuses", args?: Record<string, unknown>): Promise<PortStatus[]>;
   function read(name: "plan_port", args?: Record<string, unknown>): Promise<InstallPlan>;
   async function read(name: string, args?: Record<string, unknown>): Promise<unknown> {
-    const response = object(await invoke(name, args));
+    const response = object(
+      await invoke(name, name === "get_game_file_scan_snapshot" ? { ...args, generation } : args),
+    );
     assert.equal(response.ok, true, JSON.stringify(response.error));
     switch (name) {
       case "get_game_file_scan_snapshot":
@@ -1270,6 +1278,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
     const owned = fixture.preliminaryJourney;
     assert.ok(owned, "Only the standalone selection supplies the inert disc fixture");
     const command = selectedSetupCommand({ cli, library, output, fixture });
+    const generation = await selectedSetupGeneration(invoke);
     const { button, click } = reviewControls(browser);
     const before = await readFile(owned.before);
     const expectedHash = createHash("sha256").update(before).digest("hex");
@@ -1306,7 +1315,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
           ),
         15_000,
       );
-      const response = object(await invoke("get_game_file_scan_snapshot"));
+      const response = object(await invoke("get_game_file_scan_snapshot", { generation }));
       assert.equal(response.ok, true);
       const snapshot = required(transportValue("game_file_scan_snapshot", response.value));
       const selection = required(snapshot.report.preliminary_selections).find(
@@ -1392,7 +1401,7 @@ async function preliminarySelectedSetupScenario(context: SelectedSetupContext) {
     assert.ok(owned && fixture.preliminarySetupJourney);
     const command = selectedSetupCommand({ cli, library, output, fixture });
     const { button, click } = reviewControls(browser);
-    const read = selectedSetupRead(invoke);
+    const read = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
     const enabled = async (locator: Parameters<WebDriver["findElements"]>[0]) =>
       browser.wait(async () => {
         const matches = await browser.findElements(locator);
@@ -1762,7 +1771,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
     assertOwnedSelectedSetupPath(required(owned.root).path, owned.directory);
     const command = selectedSetupCommand({ cli, library, output, fixture });
     const { button, click } = reviewControls(browser);
-    const nativeRead = selectedSetupRead(invoke);
+    const nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
     const report: SetupReport = {
       scope: "Actual saved hash-batch continuation and fresh source review/cancel",
       limitations: [
@@ -1996,7 +2005,7 @@ export async function selectedSetupScenario({
       .update(await readFile(owned.biosBefore))
       .digest("hex");
     const { button, click } = reviewControls(browser);
-    const nativeRead = selectedSetupRead(invoke);
+    const nativeRead = selectedSetupRead(invoke, await selectedSetupGeneration(invoke));
     const report: SetupReport = {
       scope: "real saved-root scan and UI guarded registration; uninstalled requirements only",
       limitations: [

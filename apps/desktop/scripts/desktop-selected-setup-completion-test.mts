@@ -12,7 +12,10 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
-import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
+import {
+  assertOwnedSelectedSetupPath,
+  selectedSetupGeneration,
+} from "./desktop-source-dialog-test.mts";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
@@ -214,6 +217,7 @@ export async function selectedSetupCompletionScenario({
     const owned = required(fixture.sourceJourney);
     const reviewPort = required(owned.reviewPort);
     const port = fixture.port;
+    let generation = await selectedSetupGeneration(invoke);
     const { button, click } = reviewControls(browser);
     const coreEnvironment = {
       ...process.env,
@@ -260,7 +264,14 @@ export async function selectedSetupCompletionScenario({
         | "plan_port",
       args?: Record<string, unknown>,
     ) {
-      const envelope = object(await invoke(name, args));
+      const envelope = object(
+        await invoke(
+          name,
+          name === "get_game_file_roots" || name === "get_game_file_scan_snapshot"
+            ? { ...args, generation }
+            : args,
+        ),
+      );
       const value = requireSuccess(envelope, "value", JSON.stringify(envelope.error));
       switch (name) {
         case "get_sources":
@@ -1101,6 +1112,7 @@ export async function selectedSetupCompletionScenario({
 
       const rootsBeforeRestart = await read("get_game_file_roots");
       browser = await restartApplication("selected-setup-inputs");
+      generation = await selectedSetupGeneration(invoke);
       const { button: restartButton, click: restartClick } = reviewControls(browser);
       assert.deepEqual(await read("get_sources"), biosSources);
       assert.deepEqual(await read("get_game_file_roots"), rootsBeforeRestart);

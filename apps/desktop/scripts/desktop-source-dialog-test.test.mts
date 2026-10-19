@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { it } from "vite-plus/test";
-import { selectedSetupScanCompleted, sourceProfileLabel } from "./desktop-source-dialog-test.mts";
+import {
+  selectedSetupGeneration,
+  selectedSetupRead,
+  selectedSetupScanCompleted,
+  sourceProfileLabel,
+} from "./desktop-source-dialog-test.mts";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -114,4 +119,28 @@ it("reads the real raw qualification catalog label before Core fills output defa
     assert.equal(path.dirname(output), tmpdir());
     await rm(output, { recursive: true, force: true });
   }
+});
+
+it("binds native saved-scan harness reads to their captured bootstrap generation", async () => {
+  let currentGeneration = 7;
+  const invoke = async (name: string, args?: Record<string, unknown>) => {
+    if (name === "get_bootstrap_status")
+      return {
+        ok: true,
+        value: {
+          ready: true,
+          generation: currentGeneration,
+          library_root: null,
+          selection: null,
+          error: null,
+        },
+      };
+    assert.equal(name, "get_game_file_scan_snapshot");
+    assert.equal(args?.generation, 7, "the old intention must not resolve the new bootstrap");
+    return { ok: false, error: "open library changed" };
+  };
+  const generation = await selectedSetupGeneration(invoke);
+  const read = selectedSetupRead(invoke, generation);
+  currentGeneration = 8;
+  await assert.rejects(read("get_game_file_scan_snapshot"), /open library changed/);
 });
