@@ -8,7 +8,7 @@ import {
 } from "../features/port-actions/port-action-presentation";
 import { pickInstallFolder } from "../file-picker";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
-import type { PortDefinition, PortStatus } from "../types";
+import type { ExternalRuntimePreview, PortDefinition, PortStatus } from "../types";
 import { useActionReview } from "../use-action-review";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
@@ -115,7 +115,9 @@ function ExternalRuntimeContext({
   busy,
   onChanged,
 }: ExternalRuntimeControlProps) {
-  const [review, setReview] = useState<{ kind: "register"; path: string } | { kind: "remove" }>();
+  const [review, setReview] = useState<
+    { kind: "register" | "relink"; path: string } | { kind: "remove" }
+  >();
   const pickerRequests = useRef(new LatestRequestGeneration());
   useLayoutEffect(() => {
     const requests = pickerRequests.current;
@@ -127,11 +129,11 @@ function ExternalRuntimeContext({
   const registered = status?.external_runtime;
   const removal = removalReviewPresentation(status, "remove_external");
   const { registration, canRegister } = externalRegistration(status);
-  const select = async () => {
+  const select = async (kind: "register" | "relink" = "register") => {
     const request = pickerRequests.current.begin();
     const path = await pickInstallFolder("");
     if (pickerRequests.current.isCurrent(request) && typeof path === "string")
-      setReview({ kind: "register", path });
+      setReview({ kind, path });
   };
   return (
     <>
@@ -141,6 +143,14 @@ function ExternalRuntimeContext({
             Portcove uses version {registered.version} in place at <code>{registered.path}</code>.
             It does not copy, update, back up, or delete these files.
           </p>
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={busy}
+            onClick={() => void select("relink")}
+          >
+            Change game folder…
+          </Button>
           <Button
             data-focusable
             variant="outline"
@@ -166,10 +176,11 @@ function ExternalRuntimeContext({
           </Button>
         </div>
       )}
-      {review?.kind === "register" && (
+      {(review?.kind === "register" || review?.kind === "relink") && (
         <RegisterExternalDialog
           key={`${port.id}:${review.path}:${generation}`}
           port={port}
+          mode={review.kind}
           path={review.path}
           generation={generation}
           close={() => setReview(undefined)}
@@ -191,33 +202,42 @@ function ExternalRuntimeContext({
 
 function RegisterExternalDialog({
   port,
+  mode,
   path,
   generation,
   close,
   onChanged,
 }: {
   port: PortDefinition;
+  mode: "register" | "relink";
   path: string;
   generation: number;
   close: () => void;
   onChanged?: (() => void) | undefined;
 }) {
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
-    identity: `${port.id}:${path}:${generation}`,
+    identity: JSON.stringify([mode, port.id, path, generation]),
     retainOnCancel: true,
-    load: async () => {
+    load: async (): Promise<ExternalRuntimePreview & { previous_path?: string }> => {
+      if (mode === "relink") {
+        const relink = await desktopApi.previewExternalRuntimeRelink(port.id, path, generation);
+        if (relink.proposed.shared_preferences)
+          sharedRuntimeDisclosure(relink.proposed.shared_preferences);
+        return {
+          ...relink.proposed,
+          preview_sha256: relink.preview_sha256,
+          previous_path: relink.previous_path,
+        };
+      }
       const value = await desktopApi.previewExternalRuntime(port.id, path, generation);
       if (value.shared_preferences) sharedRuntimeDisclosure(value.shared_preferences);
       return value;
     },
     apply: async (preview) => {
       if (preview.shared_preferences) sharedRuntimeDisclosure(preview.shared_preferences);
-      const record = await desktopApi.registerExternalRuntime(
-        port.id,
-        path,
-        preview.preview_sha256,
-        generation,
-      );
+      const record = await (
+        mode === "relink" ? desktopApi.relinkExternalRuntime : desktopApi.registerExternalRuntime
+      )(port.id, path, preview.preview_sha256, generation);
       if (record) onChanged?.();
       return record ? true : "cancelled";
     },
@@ -233,12 +253,21 @@ function RegisterExternalDialog({
       }}
     >
       <DialogContent showCloseButton={false} aria-describedby="external-register-description">
-        <DialogTitle>Use this {port.name} installation?</DialogTitle>
+        <DialogTitle>
+          {mode === "relink"
+            ? `Change game folder for ${port.name}?`
+            : `Use this ${port.name} installation?`}
+        </DialogTitle>
         <DialogDescription id="external-register-description">
           Portcove will save this location and check the required files before each launch. It will
           not copy, update, back up, or delete the external folder.
         </DialogDescription>
         {pending === "review" && <p role="status">Checking runtime files…</p>}
+        {preview?.previous_path && (
+          <p className="[overflow-wrap:anywhere]">
+            Previous folder: <code>{preview.previous_path}</code>. Its files stay where they are.
+          </p>
+        )}
         {preview && (
           <div
             className="metadata grid grid-cols-[1fr_1fr] gap-[10px]"
@@ -277,7 +306,11 @@ function RegisterExternalDialog({
           )}
           {preview && (
             <Button data-focusable disabled={Boolean(pending)} onClick={() => void execute()}>
-              {pending === "apply" ? "Saving location…" : "Use this installation"}
+              {pending === "apply"
+                ? "Saving location…"
+                : mode === "relink"
+                  ? "Change folder"
+                  : "Use this installation"}
             </Button>
           )}
         </DialogFooter>

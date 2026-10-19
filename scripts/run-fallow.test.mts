@@ -3,6 +3,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { evaluateFallowReport } from "./check-fallow-report.mts";
 import { CommandFailure } from "./report-summary.mts";
 import { isRecord } from "./runtime-values.mts";
 import type { FallowOptions, FallowSpawn } from "./run-fallow.mts";
@@ -25,6 +27,116 @@ import {
 
 // Unit fixtures never publish into the enclosing Actions job's real summary.
 const runFallow = (options: FallowOptions) => runFallowCommand({ jobSummary: null, ...options });
+
+void test("native parser degradation cannot establish whole-Desktop qualification", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-native-parse-"));
+  try {
+    // Maintained test runners place temp directories beneath the checkout. A
+    // separate Git boundary prevents a tiny parser control importing its history.
+    const init = spawnSync("git", ["init", "-b", "main"], { cwd: directory, encoding: "utf8" });
+    assert.equal(init.status, 0, init.stderr);
+    writeFileSync(path.join(directory, "package.json"), '{"private":true,"type":"module"}');
+    writeFileSync(path.join(directory, ".fallowrc.json"), '{"entry":["entry.ts"]}');
+    const spawn: FallowSpawn = (command, args, options) => {
+      const nativeArgs = [...args];
+      nativeArgs[nativeArgs.indexOf("--root") + 1] = directory;
+      if (readFileSync(path.join(directory, "entry.ts"), "utf8").includes("broken")) {
+        const unarmed = spawnSync(
+          command,
+          nativeArgs.filter((arg) => arg !== "--fail-on-parse-error"),
+          { ...options, cwd: directory, timeout: 30_000 },
+        );
+        assert.ifError(unarmed.error);
+        assert.equal(unarmed.status, 0, unarmed.stderr);
+        const report: unknown = JSON.parse(unarmed.stdout);
+        assert.deepEqual(
+          evaluateFallowReport(report).failures,
+          [],
+          "reproduce native opt-in contract",
+        );
+        assert.throws(
+          () => evaluateFallowReport(report, { requireParseGate: true }),
+          /not enforced/,
+        );
+      }
+      return spawnSync(command, nativeArgs, { ...options, cwd: directory, timeout: 30_000 });
+    };
+    for (const state of ["parse-degraded", "unreadable", "valid"]) {
+      writeFileSync(
+        path.join(directory, "entry.ts"),
+        state === "parse-degraded"
+          ? "export const broken = ;"
+          : state === "unreadable"
+            ? Buffer.from([0xff, 0xfe, 0xfd])
+            : 'console.log("valid");',
+      );
+      const result = runFallow({
+        spawn,
+        identity: () => fixtureIdentity(),
+        evidenceDirectory: path.join(directory, state),
+      });
+      assert.equal(result.exitCode, state === "valid" ? 0 : 1, result.text);
+      if (state === "parse-degraded")
+        assert.match(result.text, /enforced Fallow gate failed: parse-error/);
+      else if (state === "unreadable")
+        assert.match(result.text, /required source analysis incomplete: source-read-failure/);
+      else assert.match(result.text, /gate passed/);
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+void test("reuse binds effective options and external coverage bytes, not normalized environment spelling", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "fallow-options-"));
+  const coverage = path.join(directory, "coverage.json");
+  const identity = () => fixtureIdentity();
+  let calls = 0;
+  const spawn: FallowSpawn = (_command, _args, options) => {
+    calls++;
+    assert.equal(options.env?.FALLOW_PRODUCTION, undefined);
+    return { status: 0, stdout: JSON.stringify(report()), stderr: "" };
+  };
+  try {
+    writeFileSync(coverage, "{}");
+    const environment = { FALLOW_COVERAGE: coverage, FALLOW_PRODUCTION: "true" };
+    const first = runFallow({
+      identity,
+      spawn,
+      environment,
+      evidenceDirectory: path.join(directory, "first"),
+    });
+    const reuse = (environment: NodeJS.ProcessEnv) =>
+      runFallow({
+        identity,
+        spawn,
+        environment,
+        reuse: first.evidenceDirectory,
+        evidenceDirectory: path.join(directory, `reuse-${calls}`),
+      });
+    assert.equal(
+      reuse({ ...environment, FALLOW_PRODUCTION: "false", FALLOW_FORMAT: "human" }).exitCode,
+      0,
+    );
+    assert.equal(calls, 1);
+    assert.throws(() => reuse({ ...environment, PORTCOVE_FALLOW_THREADS: "3" }), /reuse refused/);
+    assert.throws(
+      () => reuse({ ...environment, FALLOW_COVERAGE_ROOT: directory }),
+      /reuse refused/,
+    );
+    writeFileSync(coverage, '{"changed":true}');
+    assert.throws(() => reuse(environment), /reuse refused/);
+    writeFileSync(coverage, "{}");
+    const metadata = JSON.parse(
+      readFileSync(path.join(first.evidenceDirectory, "metadata.json"), "utf8"),
+    ) as { stdout: string };
+    writeFileSync(metadata.stdout, "changed retained bytes");
+    assert.throws(() => reuse(environment), /retained bytes changed/);
+    assert.throws(() => reuse({ FALLOW_DIFF_FILE: "filtered.diff" }), /incompatible/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 void test("Fallow child and parse failures retain raw streams with bounded diagnostics", () => {
   const evidenceDirectory = mkdtempSync(path.join(os.tmpdir(), "fallow-error-"));

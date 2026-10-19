@@ -146,7 +146,9 @@ pub use definition_repository::{
     },
 };
 pub use error::{ErrorCode, PortcoveError, Result};
-pub use external_runtime::{ExternalRuntimePreview, ExternalRuntimeRemovalPreview};
+pub use external_runtime::{
+    ExternalRuntimePreview, ExternalRuntimeRelinkPreview, ExternalRuntimeRemovalPreview,
+};
 pub use failure::{
     FailurePresentation, FailureRecoveryTarget, FailureReport, FailureTone, MutationState,
     RecoveryAction, redact_diagnostic_text, redact_diagnostic_value, sensitive_diagnostic_field,
@@ -244,8 +246,9 @@ pub use types::*;
 // Public 69 adds qualified Ghostship legacy snapshot recovery.
 // Public 70 adds release-scoped input assessments and BIOS incompatibility guidance.
 // Public 71 adds descriptive game identity and authored manual setup guidance.
+// Public 72 adds retained-contract external folder relink and its activity operation.
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
-pub const API_SCHEMA_VERSION: u32 = 72;
+pub const API_SCHEMA_VERSION: u32 = 73;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

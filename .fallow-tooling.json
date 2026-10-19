@@ -29,6 +29,7 @@
     "scripts/handoff-evidence.{mjs,mts}",
     "scripts/local-validation.{mjs,mts}",
     "scripts/pr-delivery.{mjs,mts}",
+    "scripts/precommit.mts",
     "scripts/resource-status.{mjs,mts}",
     "scripts/test-duration-reporter.{mjs,mts}",
     "scripts/upstream-observer.{mjs,mts}",

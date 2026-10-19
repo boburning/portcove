@@ -1616,6 +1616,18 @@ TUF roles without executing candidate tooling with production credentials.
 
 ## Library model
 
+External folder relinking reads the retained registration and catalog in one
+observation, binds their exact stored bytes and the fully inspected proposed
+folder to a distinct reviewed authorization, then rechecks under the port lock.
+An immediate transaction refuses a changed row, managed installation or pending
+launch and changes only the external location and validated preference binding.
+It preserves registration identity, timestamps and the original catalog bytes;
+it never re-captures a possibly newer definition. A missing old folder is allowed,
+while its structural and account scope remain binding. New-folder shared consent
+uses the outer relink fingerprint. No external files or saves are moved or adopted.
+Managed planning, installation and updates refuse an extant external registration
+before provider resolution; the UI and adapters do not create another authority.
+
 The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
 read-only provider collection and factual operational checkpoints. It submits
 inert observations through the standalone CLI to core's existing release

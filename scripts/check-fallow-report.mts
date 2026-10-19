@@ -89,9 +89,33 @@ function validateFallowReport(value: unknown) {
   return { totalIssues, criticalCount, duplication, maintainability, outcomes };
 }
 
-export function evaluateFallowReport(value: unknown) {
+export function evaluateFallowReport(value: unknown, { requireParseGate = false } = {}) {
   const report = validateFallowReport(value);
+  const parseGate = report.outcomes.get("parse-error");
+  if (
+    requireParseGate &&
+    (parseGate?.enforced !== true || !["pass", "fail"].includes(parseGate.status))
+  )
+    throw new Error("Incomplete Fallow qualification: native parse-error gate was not enforced");
   const failures = [];
+  if (requireParseGate && isRecord(value)) {
+    // The native parse gate deliberately covers parser diagnostics only. A read
+    // failure (including invalid UTF-8) or an empty required scope cannot qualify
+    // either; optional churn/ownership and intentional exclusions remain advisory.
+    for (const container of [value, value.check, value.health]) {
+      if (!isRecord(container) || container.workspace_diagnostics === undefined) continue;
+      if (!Array.isArray(container.workspace_diagnostics))
+        throw new Error("Invalid Fallow workspace_diagnostics: expected array");
+      for (const diagnostic of container.workspace_diagnostics)
+        if (
+          isRecord(diagnostic) &&
+          ["source-read-failure", "no-source-files-analyzed"].includes(String(diagnostic.kind))
+        )
+          failures.push(
+            `required source analysis incomplete: ${String(diagnostic.kind)} (${typeof diagnostic.path === "string" ? diagnostic.path : "whole scope"})`,
+          );
+    }
+  }
   if (report.totalIssues) failures.push(`${report.totalIssues} dead-code or dependency findings`);
   if (report.criticalCount) {
     failures.push(`${report.criticalCount} critical complexity findings`);
@@ -110,7 +134,7 @@ async function main() {
   const [reportPath] = process.argv.slice(2);
   if (!reportPath) throw new Error("usage: node check-fallow-report.mts <report.json>");
   const report: unknown = JSON.parse(await readFile(reportPath, "utf8"));
-  const assessment = evaluateFallowReport(report);
+  const assessment = evaluateFallowReport(report, { requireParseGate: true });
   if (assessment.failures.length) {
     console.error(`Fallow quality gate failed: ${assessment.failures.join(", ")}`);
     process.exitCode = 1;

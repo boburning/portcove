@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync, renameSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, renameSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -23,6 +23,22 @@ void test("candidate fingerprint detects same-HEAD dirty edits, untracked inputs
       "base",
     );
     const clean = fallowSource(root, "main");
+    for (const name of [".gitignore", "Dockerfile", "CODEOWNERS"]) {
+      writeFileSync(path.join(root, name), "first edit\n");
+      const first = fallowSource(root);
+      writeFileSync(path.join(root, name), "second edit\n");
+      assert.notEqual(first.source_sha256, fallowSource(root).source_sha256, name);
+      rmSync(path.join(root, name));
+    }
+    writeFileSync(path.join(root, ".gitignore"), "work/\n.fallow/\n");
+    const beforeReports = fallowSource(root);
+    // Analyzer output and caches must not invalidate their own input identity.
+    git("config", "core.excludesFile", "");
+    mkdirSync(path.join(root, "work"));
+    writeFileSync(path.join(root, "work/report.json"), "retained output");
+    assert.equal(beforeReports.source_sha256, fallowSource(root).source_sha256);
+    rmSync(path.join(root, "work"), { recursive: true });
+    rmSync(path.join(root, ".gitignore"));
     const allInputs = fallowSource(root, undefined, { includeAll: true });
     writeFileSync(path.join(root, "native.rs"), "fn main() {}\n");
     const nativeInputs = fallowSource(root, undefined, { includeAll: true });

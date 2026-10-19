@@ -35,7 +35,7 @@ The private source copy and its original archive remained unchanged.
 The closed `smb1r-1.1-stable-windows` contract requires this exact five-file
 package, root working directory, no `portable.txt`, no local mutable paths,
 and the fixed `--disable-mods` argument. Extra engine/CLI arguments are refused.
-Staged-source capability version 10 and API schema 72 expose these consequential
+Staged-source capability version 10 and API schema 73 expose these consequential
 semantics; prior contracts retain their meanings. Playnite consumes the account,
 path, no-fallback and separate-consent fields rather than merely accepting them.
 
@@ -80,7 +80,7 @@ Its clean source/build binding is in `smb-core-a6/source-binding-readback-a1.jso
 the original receipt's stale source label is preserved separately.
 The actual private catalog has SHA256
 `d302cde44780cc690248defb389c5b0d29f70ac97647cce6893f1c905e58e72c`.
-These development identities are not protected catalog publication.
+These development identities are not protected catalog publication. The initial SMB producer used API 72 before main independently introduced relinking at API 72. The combined contract uses API 73; the original operation receipts keep their original producer identity.
 
 `smb-registration-a3` exercised original registration, exact runtime preview,
 generic-only/shared-only/stale-preview/changed-location refusal, then explicit

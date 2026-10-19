@@ -219,6 +219,23 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 72 adds `external.relink` and the `relink_external` activity operation.
+Read `external relink-preview PORT_ID PATH`, disclose the previous and proposed
+folders, then submit `external relink PORT_ID PATH --expected-preview SHA256 --yes`.
+The required fingerprint binds the exact retained registration/catalog and the
+new folder inspection. A generic registration confirmation cannot authorize a
+folder change. Shared preferences require `--acknowledge-shared-preferences`
+bound to this outer fingerprint; their accepted account/location cannot transfer.
+Core rechecks under the port lock and updates the location atomically. Failure
+or cancellation before publication leaves the original registration intact.
+Registration ID, timestamp, retained contract and all external files remain.
+The old folder may be missing; the proposed folder must satisfy its retained
+contract even when the current catalog offers managed installation instead.
+This command does not upgrade, copy, adopt, migrate saves or grant managed ownership.
+Managed planning, install and update commands refuse an external registration
+before resolving a release. Remove the registration explicitly before considering
+a separate new managed installation; removal itself does not adopt retained data.
+
 Schema 71 adds optional catalog presentation `original_game_title` and
 `variant_label`. These are descriptive labels: `name` remains the port project's
 name, and `id`, source contracts, installations and launch authority are unchanged.
@@ -1319,9 +1336,9 @@ through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
 
-### Shared-directory external runtimes (API 72)
+### Shared-directory external runtimes (API 73)
 
-API 72 adds the closed `smb1r-1.1-stable-windows` shared-data contract.
+API 73 adds the closed `smb1r-1.1-stable-windows` shared-data contract.
 The registration preview binds the effective APPDATA/SMB1R directory and current
 Windows account. Its `local_fallback_path` is null and
 `local_fallback_present` is false. The existing ReGaiden file contract still

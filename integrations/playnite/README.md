@@ -68,7 +68,7 @@ user's ordinary Playnite library.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–72 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–73 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -90,7 +90,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 or schema-69 or schema-70 or schema-71 or schema-72 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 or schema-66 or schema-67 or schema-68 or schema-69 or schema-70 or schema-71 or schema-72 or schema-73 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).
@@ -106,6 +106,14 @@ from readiness and Play. Playnite Uninstall removes only this reviewed
 registration and verifies the installed route is absent before changing its
 installed state. External files remain. Cancel makes no mutation; Playnite's
 ordinary cancellation dialog must be acknowledged to restore the action.
+
+Schema 72 adds reviewed external folder changes. Management offers **Change
+external game folder…** only when the CLI advertises `external.relink` and the
+game has an external registration. The reader checks the outer review fingerprint,
+file preservation promise, proposed runtime and unchanged registration ID. No
+unregister-first step is used. Runtimes requiring shared-preference acknowledgment
+remain directed to Desktop or the explicit CLI flow; this client does not grant
+that consent implicitly. Existing launch/readiness authority is unchanged.
 
 Schema 71 adds optional original-game titles and variant labels. The personal
 library displays the game first, followed by the project and relevant variant,
@@ -319,7 +327,7 @@ attach original game files, credentials, raw tool output or unreviewed library
 paths. A public-contract failure belongs to Portcove; launcher presentation belongs
 to this extension; upstream game/source qualification keeps its catalog owner.
 
-API 72 adds the SMB1R shared-directory review. The client presents a separate
+API 73 adds the SMB1R shared-directory review. The client presents a separate
 shared-data confirmation, with cache regeneration/trashing and log pruning,
 before ordinary runtime confirmation. Cancellation cannot emit the shared-write
 acknowledgement. Registration readback checks the reviewed account and directory;

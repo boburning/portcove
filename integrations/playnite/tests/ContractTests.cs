@@ -398,8 +398,14 @@ internal static class ContractTests
         bad["schema_version"] = 71;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "display metadata preserves input assessments and legacy recovery");
+        bad["schema_version"] = 72;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "folder relink preserves existing launch authority");
         bad["schema_version"] = 73;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond display metadata rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "shared vanilla runtime preserves existing launch authority");
+        bad["schema_version"] = 74;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond shared vanilla runtime rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -647,6 +653,18 @@ internal static class ContractTests
         var record = Json.Object(Json.Parse(Json.Print(preview)));
         record["id"] = "registration-a"; record["platform"] = "windows-x86-64";
         Check(review.RequireRegistered(record) == "registration-a", "external result checks all reviewed identities");
+        var relink = Json.Parse(Json.Print(new Dictionary<string, object> {
+            { "port_id", "shape-b" }, { "registration_id", "registration-a" },
+            { "previous_path", @"H:\Previous folder" }, { "proposed", preview },
+            { "external_files_will_be_preserved", true }, { "preview_sha256", new string('e', 64) }
+        }));
+        var changedFolder = ExternalRuntimeReview.ReadRelink(relink, "shape-b", folder);
+        Check(changedFolder.Fingerprint == new string('e', 64) && changedFolder.RequireRegistered(record) == "registration-a",
+            "folder relink consumes outer consent identity and retains registration");
+        var replacedRegistration = Json.Object(Json.Parse(Json.Print(record))); replacedRegistration["id"] = "registration-b";
+        Reject(() => changedFolder.RequireRegistered(replacedRegistration), "folder relink cannot replace registration identity");
+        var noPreservation = Json.Object(Json.Parse(Json.Print(relink))); noPreservation["external_files_will_be_preserved"] = false;
+        Reject(() => ExternalRuntimeReview.ReadRelink(noPreservation, "shape-b", folder), "folder relink must preserve external files");
         foreach (var field in new[] { "port_id", "path", "executable", "version", "archive_sha256", "immutable_tree_sha256", "platform", "id" })
         {
             var changed = Json.Object(Json.Parse(Json.Print(record)));
@@ -713,8 +731,20 @@ internal static class ContractTests
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "input assessment schema preserves caller-bound external review");
         capabilities["schema_version"] = 71;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "display metadata preserves caller-bound external review");
-        capabilities["schema_version"] = 72;
+        capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
+        capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
+        foreach (var supportedRelinkSchema in new[] { 72, 73 })
+        {
+            capabilities["schema_version"] = supportedRelinkSchema;
+            Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
+        }
+        foreach (var unsupportedRelinkSchema in new[] { 71, 74 })
+        {
+            capabilities["schema_version"] = unsupportedRelinkSchema;
+            Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
+        }
+
         var representationStatus = Json.Parse(Json.Print(new {
             readiness = new { required_source_extension = "z64", blockers = new[] { "incompatible_source" } },
             port_actions = new[] {

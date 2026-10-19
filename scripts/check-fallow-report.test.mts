@@ -14,6 +14,35 @@ void test("accepts a clean report", () => {
   assert.deepEqual(evaluateFallowReport(report()).failures, []);
 });
 
+void test("optional unavailable history does not invalidate unrelated static qualification", () => {
+  const value = {
+    ...report(),
+    workspace_diagnostics: [
+      {
+        kind: "hotspots-skipped",
+        cause: "not-a-repository",
+        degrades_analysis: true,
+        message: "History unavailable",
+      },
+    ],
+  };
+  assert.deepEqual(evaluateFallowReport(value, { requireParseGate: true }).failures, []);
+});
+
+void test("required-source read failures and empty analysis cannot qualify with a passing parse gate", () => {
+  for (const kind of ["source-read-failure", "no-source-files-analyzed"]) {
+    const value = {
+      ...report(),
+      workspace_diagnostics: [{ kind, path: "entry.ts", degrades_analysis: true }],
+    };
+    assert.match(
+      evaluateFallowReport(value, { requireParseGate: true }).failures.join("\n"),
+      /required source analysis incomplete/,
+    );
+    assert.deepEqual(evaluateFallowReport(value).failures, [], "tooling findings stay advisory");
+  }
+});
+
 void test("future versions and schemas require explicit compatibility review", () => {
   for (const value of [
     { ...report(), version: "3.34.2" },

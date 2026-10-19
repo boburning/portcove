@@ -2,9 +2,81 @@ use crate::{
     DesktopResult, DesktopState, blocking_worker, confirm_destructive, service_at_generation,
 };
 use portcove_core::{
-    ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRemovalPreview, PortcoveError,
+    ExternalRuntimePreview, ExternalRuntimeRecord, ExternalRuntimeRelinkPreview,
+    ExternalRuntimeRemovalPreview, PortcoveError,
 };
 use std::path::PathBuf;
+
+#[tauri::command]
+pub(crate) async fn preview_external_runtime_relink(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    path: PathBuf,
+    generation: u64,
+) -> DesktopResult<ExternalRuntimeRelinkPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .preview_external_runtime_relink(&port_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn relink_external_runtime(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    path: PathBuf,
+    expected_preview: String,
+    generation: u64,
+) -> DesktopResult<Option<ExternalRuntimeRecord>> {
+    let review =
+        preview_external_runtime_relink(state.clone(), port_id.clone(), path.clone(), generation)
+            .await?;
+    if review.preview_sha256 != expected_preview {
+        return Err(PortcoveError::conflict(
+            "external game folder or registration changed after review; inspect it again",
+        )
+        .into());
+    }
+    if let Some(shared) = &review.proposed.shared_preferences {
+        if !confirm_destructive(
+            &app,
+            "Review shared preferences",
+            shared.write_scope_disclosure()?,
+            "Accept shared preferences",
+        )
+        .await
+        {
+            return Ok(None);
+        }
+    }
+    if !confirm_destructive(&app, "Change game folder", format!(
+        "Change {} from {} to {}? All external game files, settings and saves stay where they are. Portcove will verify and launch the replacement folder. It will not copy, update, back up or delete either folder.",
+        review.port_id, review.previous_path.display(), review.proposed.path.display(),
+    ), "Change folder").await { return Ok(None); }
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let authorization = service.authorize_external_runtime_relink(
+            &port_id,
+            &path,
+            &expected_preview,
+            review
+                .proposed
+                .shared_preferences
+                .as_ref()
+                .map(|_| expected_preview.as_str()),
+        )?;
+        service
+            .relink_external_runtime(&port_id, &path, &authorization.token)
+            .map(Some)
+            .map_err(Into::into)
+    })
+    .await
+}
 
 #[tauri::command]
 pub(crate) async fn preview_external_runtime(
