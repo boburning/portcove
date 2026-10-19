@@ -12,7 +12,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
-import { AUDIT_STAGES, fingerprintStage } from "./audit.mts";
+import { AUDIT_STAGES } from "./audit-contract.mts";
+import { fingerprintStage } from "./validation-evidence.mts";
 import { AUDIT_BUNDLE_LIMITS, buildAuditBundle } from "./audit-evidence.mts";
 import { parseAuditArchive } from "./audit-archive.mts";
 import { createGitHubRunner } from "./github-api.mts";

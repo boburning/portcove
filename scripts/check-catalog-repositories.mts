@@ -426,6 +426,15 @@ const resume = {
   "provider-status": "Investigate the observed HTTP status before rechecking.",
 };
 
+function recordOriginalMembership(record: LocationRecord, portId: string, releaseProvider: string) {
+  if (!record.port_ids.includes(portId)) record.port_ids.push(portId);
+  if (!record.release_providers.includes(releaseProvider))
+    record.release_providers.push(releaseProvider);
+  record.original_upstream_port_ids ??= [];
+  if (!record.original_upstream_port_ids.includes(portId))
+    record.original_upstream_port_ids.push(portId);
+}
+
 function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: HealthPort) {
   const releaseProvider = port.release?.provider ?? "github";
   // Changing provider does not remove the declared original upstream.
@@ -458,12 +467,7 @@ function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: H
     if (!records.has(key))
       records.set(key, { provider, repository, port_ids: [], release_providers: [] });
     const record = requiredValue(records.get(key));
-    if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
-    if (!record.release_providers.includes(releaseProvider))
-      record.release_providers.push(releaseProvider);
-    record.original_upstream_port_ids ??= [];
-    if (!record.original_upstream_port_ids.includes(port.id))
-      record.original_upstream_port_ids.push(port.id);
+    recordOriginalMembership(record, port.id, releaseProvider);
   } else if (project) {
     if (
       project.protocol !== "https:" ||
@@ -487,13 +491,17 @@ function inventoryOriginalLocation(records: Map<string, LocationRecord>, port: H
         release_providers: [],
       });
     const record = requiredValue(records.get(key));
-    if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
-    if (!record.release_providers.includes(releaseProvider))
-      record.release_providers.push(releaseProvider);
-    record.original_upstream_port_ids ??= [];
-    if (!record.original_upstream_port_ids.includes(port.id))
-      record.original_upstream_port_ids.push(port.id);
+    recordOriginalMembership(record, port.id, releaseProvider);
   }
+}
+
+function recordHistoricalScope(record: LocationRecord, scope: HistoricalIdentity) {
+  if (
+    !requiredValue(record.historical_artifact_identities).some(
+      (value) => observationHash(value) === observationHash(scope),
+    )
+  )
+    requiredValue(record.historical_artifact_identities).push(scope);
 }
 
 function inventory(catalog: HealthCatalog) {
@@ -623,12 +631,7 @@ function inventory(catalog: HealthCatalog) {
             historical_artifact_identities: [],
           });
         const record = requiredValue(records.get(key));
-        if (
-          !requiredValue(record.historical_artifact_identities).some(
-            (value) => observationHash(value) === observationHash(scope),
-          )
-        )
-          requiredValue(record.historical_artifact_identities).push(scope);
+        recordHistoricalScope(record, scope);
       }
       for (const location of repositories) {
         const key = `${location.provider}:${location.repository}:release:${scope.upstream_ref}`;
@@ -643,12 +646,7 @@ function inventory(catalog: HealthCatalog) {
           });
         const record = requiredValue(records.get(key));
         if (!record.port_ids.includes(port.id)) record.port_ids.push(port.id);
-        if (
-          !requiredValue(record.historical_artifact_identities).some(
-            (value) => observationHash(value) === observationHash(scope),
-          )
-        )
-          requiredValue(record.historical_artifact_identities).push(scope);
+        recordHistoricalScope(record, scope);
       }
     }
   }

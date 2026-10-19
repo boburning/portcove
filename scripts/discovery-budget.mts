@@ -10,7 +10,7 @@ export const discoveryProfiles = {
 } as const;
 export type DiscoveryProfile = keyof typeof discoveryProfiles;
 // Planning headroom, not an atomic reservation or a bound on provider query cost.
-export const discoveryGraphqlPointHeadroom = 10;
+const discoveryGraphqlPointHeadroom = 10;
 interface ProviderQuota {
   resource: string;
   remaining: number;

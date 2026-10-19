@@ -211,7 +211,7 @@ export async function writeGithubOutputs(
   reuse: PostmergeReuseBinding | null = null,
 ) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
-  const { classifyChanges: classifyLocalChanges } = await import("./local-validation.mts");
+  const { classifyChanges: classifyLocalChanges } = await import("./ordinary-validation.mts");
   const selection = classifyLocalChanges(
     plan.changes.flatMap((change) => [
       { ...change, path: change.newPath, status: change.status, previousPath: change.oldPath },

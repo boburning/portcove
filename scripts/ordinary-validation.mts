@@ -1,3 +1,4 @@
+import { normalizeRepositoryPath as normalizePath } from "./repository-path.mts";
 import type {
   SpawnSyncOptionsWithStringEncoding,
   SpawnSyncOptions,
@@ -558,13 +559,6 @@ const releaseContractTests = Object.freeze([
   "scripts/release-workflow.test.mts",
   "scripts/windows-qualification-session.test.mts",
 ]);
-
-function normalizePath(value: string) {
-  const normalized = String(value).replaceAll("\\", "/").replace(/^\.\//, "");
-  if (!normalized || normalized.startsWith("/") || normalized.includes("../"))
-    throw new Error(`unsafe repository path: ${value}`);
-  return normalized;
-}
 
 export function command(
   id: string,

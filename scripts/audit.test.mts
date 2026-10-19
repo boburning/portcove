@@ -272,7 +272,9 @@ void test("candidate coverage constants cannot authorize their own reduced trans
   mkdirSync(path.join(root, ".github/workflows"), { recursive: true });
   for (const filename of [
     "scripts/audit.mts",
+    "scripts/audit-contract.mts",
     "scripts/validation-evidence.mts",
+    "scripts/repository-path.mts",
     "scripts/runtime-values.mts",
     "scripts/select-ci-plan.mts",
     "scripts/nextest-equivalence.mts",

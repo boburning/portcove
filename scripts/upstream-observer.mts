@@ -1,16 +1,6 @@
+import { orderedJsonValue as canonical } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
-
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry: unknown) => canonical(entry));
-  if (isRecord(value))
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, canonical(value[key])]),
-    );
-  return value;
-}
 
 export const observationHash = (value: unknown): string => {
   const serialized = JSON.stringify(canonical(value));
