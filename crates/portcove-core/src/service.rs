@@ -9817,7 +9817,11 @@ fn main() {
         let error = service
             .relink_external_runtime(&record.port_id, &record.path, &authorization.token)
             .unwrap_err();
-        assert!(error.message.contains("pending launch"));
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            error.details["launch_session_id"],
+            "pending-external-relink"
+        );
         assert_eq!(
             serde_json::to_value(
                 service
@@ -10076,7 +10080,8 @@ fn main() {
                 "support_tier": "stable",
                 "channels": ["stable"],
                 "platforms": [platform],
-                "adapter": if runtime.library_user_data || !runtime.required_mutable_files.is_empty() { "staged-source-portable" } else { "n64-recomp-portable" },
+                "adapter": if runtime.library_user_data || !runtime.required_mutable_files.is_empty() || runtime.shared_preferences.is_some() { "staged-source-portable" } else { "n64-recomp-portable" },
+                "launch_arguments": if runtime.shared_preferences.is_some() { vec!["--save-dir", "saves"] } else { vec![] },
                 "user_data_environment": "FIXTURE_USER_DIR",
                 "release": {
                     "provider": "user-prepared",

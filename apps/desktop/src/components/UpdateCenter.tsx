@@ -840,6 +840,7 @@ function activityTarget(
 
 function operationLabel(operation: ActivityOperation) {
   const labels: Record<ActivityOperation, string> = {
+    relink_external: "Change game folder",
     prepare: "Game-data setup",
     launch: "Game launch",
     register_external: "Use an existing installation",

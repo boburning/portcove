@@ -61,7 +61,10 @@ it("changes a retained external folder after its current catalog route becomes m
   const replacement = "C:\\Player\\Moved game";
   vi.mocked(pickInstallFolder).mockResolvedValue(replacement);
   const proposed = {
-    ...record,
+    port_id: record.port_id,
+    version: record.version,
+    archive_sha256: record.archive_sha256,
+    immutable_tree_sha256: record.immutable_tree_sha256,
     path: replacement,
     executable: `${replacement}\\game.exe`,
     immutable_file_count: 17,
@@ -114,7 +117,10 @@ it("keeps folder repair context after native consent cancellation and permits re
     registration_id: record.id,
     previous_path: record.path,
     proposed: {
-      ...record,
+      port_id: record.port_id,
+      version: record.version,
+      archive_sha256: record.archive_sha256,
+      immutable_tree_sha256: record.immutable_tree_sha256,
       path: "C:\\Moved",
       executable: "C:\\Moved\\game.exe",
       immutable_file_count: 17,
