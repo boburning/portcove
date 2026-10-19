@@ -3195,6 +3195,161 @@ mod tests {
         )
     }
 
+    fn nested_executable_integrity_fixture() -> (
+        tempfile::TempDir,
+        Installer,
+        InstallRecord,
+        InstallQualification,
+        PathBuf,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let helpers = root.join("package/libexec/dkr-r");
+        fs::create_dir_all(&helpers).unwrap();
+        fs::write(root.join("package/DKR-R.exe"), b"inert main").unwrap();
+        fs::write(helpers.join("DKR-R-InputHost.exe"), b"reviewed helper").unwrap();
+        fs::write(helpers.join("SDL3.dll"), b"reviewed library").unwrap();
+        fs::write(helpers.join("notice.txt"), b"reviewed notice").unwrap();
+        let qualification = InstallQualification::from_catalog(
+            &crate::Catalog::embedded().unwrap(),
+            "dkr-r",
+            Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (installer, install) = create_test_install(&root, &qualification);
+        (temporary, installer, install, qualification, helpers)
+    }
+
+    #[test]
+    fn nested_executable_integrity_checks_old_noncritical_helpers() {
+        let (_temporary, installer, install, qualification, helpers) =
+            nested_executable_integrity_fixture();
+        let manifest = verified_manifest(&install).unwrap();
+        assert!(
+            manifest
+                .files
+                .iter()
+                .any(|file| { file.path.ends_with("DKR-R-InputHost.exe") && !file.critical })
+        );
+        installer.verify_critical(&install, &qualification).unwrap();
+        for (name, original) in [
+            ("DKR-R-InputHost.exe", b"reviewed helper".as_slice()),
+            ("SDL3.dll", b"reviewed library".as_slice()),
+        ] {
+            let target = helpers.join(name);
+            fs::write(&target, b"changed").unwrap();
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            let mut broadened = qualification.clone();
+            broadened
+                .runtime_mutable_paths
+                .push("package/libexec".into());
+            assert!(installer.verify_critical(&install, &broadened).is_err());
+            fs::remove_file(&target).unwrap();
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            fs::write(&target, original).unwrap();
+        }
+        installer.verify_critical(&install, &qualification).unwrap();
+    }
+
+    #[test]
+    fn nested_executable_integrity_refuses_new_files_but_preserves_retained_mutability() {
+        let (_temporary, installer, install, qualification, helpers) =
+            nested_executable_integrity_fixture();
+        let mutable = install.path.join("dkr-runtime-data");
+        fs::create_dir_all(&mutable).unwrap();
+        fs::write(mutable.join("player-save.bin"), b"player data").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        for name in ["unknown.exe", "unknown.dll", "unknown.txt"] {
+            let target = helpers.join(name);
+            fs::write(&target, b"unadmitted").unwrap();
+            assert!(installer.verify_critical(&install, &qualification).is_err());
+            if name != "unknown.txt" {
+                let mut broadened = qualification.clone();
+                broadened
+                    .runtime_mutable_paths
+                    .push("package/libexec".into());
+                assert!(installer.verify_critical(&install, &broadened).is_err());
+            }
+            fs::remove_file(target).unwrap();
+        }
+        assert_eq!(
+            fs::read(mutable.join("player-save.bin")).unwrap(),
+            b"player data"
+        );
+        installer.verify_critical(&install, &qualification).unwrap();
+    }
+
+    #[cfg(any(windows, unix))]
+    #[test]
+    fn nested_executable_integrity_refuses_identical_redirected_parent() {
+        let (temporary, installer, install, qualification, helpers) =
+            nested_executable_integrity_fixture();
+        let outside = temporary.path().join("outside");
+        fs::create_dir(&outside).unwrap();
+        for name in ["DKR-R-InputHost.exe", "SDL3.dll", "notice.txt"] {
+            fs::copy(helpers.join(name), outside.join(name)).unwrap();
+            fs::remove_file(helpers.join(name)).unwrap();
+        }
+        fs::remove_dir(&helpers).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, &helpers).unwrap();
+        #[cfg(windows)]
+        {
+            for path in [&helpers, &outside] {
+                assert!(
+                    !path
+                        .to_str()
+                        .unwrap()
+                        .contains(['"', '%', '!', '&', '|', '<', '>', '^', '\r', '\n'])
+                );
+            }
+            let mut command = crate::ChildProcessPolicy::native_tool_spec(
+                crate::ChildProcessClass::HostTool,
+                "cmd.exe",
+            )
+            .unwrap();
+            command.raw_arg(format!(
+                "/D /V:OFF /C mklink /J \"{}\" \"{}\"",
+                helpers.display(),
+                outside.display()
+            ));
+            let started = std::time::Instant::now();
+            let result = crate::tool_process::run_tool(
+                &mut command,
+                &|| {
+                    if started.elapsed() >= std::time::Duration::from_secs(2) {
+                        Err(PortcoveError::state(
+                            "nested helper junction fixture exceeded two seconds",
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+                Default::default(),
+            )
+            .unwrap();
+            assert!(
+                result.status.success() && !result.truncated,
+                "{}",
+                result.output
+            );
+        }
+        assert_eq!(
+            fs::read(helpers.join("SDL3.dll")).unwrap(),
+            b"reviewed library"
+        );
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        assert_eq!(
+            fs::read(outside.join("SDL3.dll")).unwrap(),
+            b"reviewed library"
+        );
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 3);
+        #[cfg(windows)]
+        fs::remove_dir(&helpers).unwrap();
+        #[cfg(unix)]
+        fs::remove_file(&helpers).unwrap();
+    }
+
     fn staged_integrity_fixture() -> (
         tempfile::TempDir,
         Installer,
