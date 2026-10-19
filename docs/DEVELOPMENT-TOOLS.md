@@ -114,6 +114,13 @@ progress stream live; redirect only stdout when retaining the final JSON result.
 Use `node scripts/report-summary.mts watch FILE` for its bounded final summary.
 Consume the watch result or retained snapshots; retrieve the identified failed
 job when needed.
+
+For agent delivery sessions, use that watcher rather than repeated snapshot reads.
+Retain raw reports, then use `report-summary` or project the identity, changed
+state and next required action before printing. A collector timeout is an
+observation failure: inspect the bound run before deciding whether execution
+needs repeating. The personal `github-pull-request-delivery` skill provides
+bounded MCP reads and checkpoint helpers when those surfaces are used.
 When a tool returns a running session, consume it with a bounded wait of at most
 60 seconds before the next commentary update. Reuse its final report; do not
 start another watcher or repeatedly fetch unchanged state.
@@ -282,6 +289,13 @@ Node tests, both browser projects and an ordinary production build, once each.
 Package/just/local/audit/CI consumers delegate to this graph. Audit invokes its
 static/runtime groups separately for independent failure accounting.
 
+For quick feedback after editing TypeScript, including tests and native harness
+fixtures, run `node scripts/run-viteplus.mts check <literal-file> ...` before a
+longer behavioral run. This non-rewriting check uses the pinned CLI and existing
+analysis-resource admission. Fix reported issues, then run the focused consumer
+tests; static success does not establish behavior. Local feedback remains
+optional under QUALITY rather than another delivery gate.
+
 CSS starts at `apps/desktop/src/styles/index.css`: Tailwind Preflight and the
 standard cascade layers, one CSS token authority, utility-based shared controls,
 and narrowly owned artwork CSS. Oxfmt class sorting reads that entry. Tailwind
@@ -362,6 +376,13 @@ registration and affected indexed catalog coherence, then runs
 safe fixes while lint-staged's backup and partial-staging isolation remain on.
 Review the resulting diff before committing. Required CI and separate review
 remain independent gates.
+
+Hook installation captures the stable pinned Node executable in an ignored,
+checkout-local launcher. Git hooks and their children use that runtime even when
+an editor's Git environment has no Node on PATH. Re-run `pnpm hooks:enable` with
+the pinned runtime active after installing or moving it; missing or mismatched
+setup refuses the commit with that repair instruction. The installer changes
+neither the generated Vite+ dispatcher nor persistent machine/user PATH.
 
 `node scripts/catalog-staged-check.mts --staged` reads the four current catalog
 inputs from the Git index. It shares the generator's authoring projection and

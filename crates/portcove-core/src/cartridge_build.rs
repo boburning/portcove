@@ -19,6 +19,9 @@ use crate::{
 #[path = "cartridge_build_tests.rs"]
 pub(crate) mod tests;
 
+#[path = "cartridge_source_build.rs"]
+mod source_build;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum CartridgeBuildRecipe {
@@ -26,6 +29,10 @@ pub enum CartridgeBuildRecipe {
     YoshisCookieNesCycle110,
     #[serde(rename = "dr-mario-nes-cycle-v1.3.0-usa")]
     DrMarioNesCycle130Usa,
+    #[serde(rename = "advance-wars-gba-source-cb3facb53b6b-usa-rev1")]
+    AdvanceWarsGbaSourceV1,
+    #[serde(rename = "earthbound-snes-source-fe1155dc26ff-usa")]
+    EarthBoundSnesSourceV1,
 }
 
 #[cfg(test)]
@@ -88,6 +95,14 @@ pub(crate) const TOOLCHAIN: BuildArchive = BuildArchive {
     root: "",
 };
 
+const DR_MARIO_GAME: BuildArchive = BuildArchive {
+    name: "dr-mario-8d800cab034c08ddf13f7ba7a6f76018fef7ca01.zip",
+    url: "https://codeload.github.com/mstan/DrMarioNesRecomp/zip/8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+    size: 5_878_644,
+    sha256: "0865d0235ce43d0f90d6c800bad375f7bc7ba851454ad57a6be9e25c6bacaada",
+    root: "DrMarioNesRecomp-8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
+};
+
 pub(crate) const ORIGINAL_SHA256: &str =
     "ea416fff4a2d207236aa31a7abd2d41f06fe0a53486f485b109ed127be11a45a";
 const ORIGINAL_SHA1: &str = "b19b67e59dd6bab7977e24e0052de7b48ae214a4";
@@ -122,8 +137,8 @@ struct RecipeFacts {
 }
 
 impl CartridgeBuildRecipe {
-    fn facts(self) -> RecipeFacts {
-        match self {
+    fn facts(self) -> Result<RecipeFacts> {
+        Ok(match self {
             Self::YoshisCookieNesCycle110 => RecipeFacts {
                 game: GAME,
                 port_id: "yoshis-cookie-recomp",
@@ -142,13 +157,7 @@ impl CartridgeBuildRecipe {
                 compile_objects: 101,
             },
             Self::DrMarioNesCycle130Usa => RecipeFacts {
-                game: BuildArchive {
-                    name: "dr-mario-8d800cab034c08ddf13f7ba7a6f76018fef7ca01.zip",
-                    url: "https://codeload.github.com/mstan/DrMarioNesRecomp/zip/8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
-                    size: 5_878_644,
-                    sha256: "0865d0235ce43d0f90d6c800bad375f7bc7ba851454ad57a6be9e25c6bacaada",
-                    root: "DrMarioNesRecomp-8d800cab034c08ddf13f7ba7a6f76018fef7ca01",
-                },
+                game: DR_MARIO_GAME,
                 port_id: "dr-mario-nes-recomp",
                 repository: "mstan/DrMarioNesRecomp",
                 target: "DrMarioRecomp",
@@ -164,22 +173,67 @@ impl CartridgeBuildRecipe {
                 prg_identity: "8F8C755E",
                 compile_objects: 92,
             },
-        }
+            Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => {
+                return Err(PortcoveError::state(
+                    "source-only recipe has no NES cycle facts",
+                ));
+            }
+        })
     }
 
     pub(crate) fn archives(self) -> [BuildArchive; 4] {
-        [self.facts().game, ENGINE, UI, TOOLCHAIN]
+        match self {
+            Self::YoshisCookieNesCycle110 => [GAME, ENGINE, UI, TOOLCHAIN],
+            Self::DrMarioNesCycle130Usa => [DR_MARIO_GAME, ENGINE, UI, TOOLCHAIN],
+            Self::AdvanceWarsGbaSourceV1 => {
+                source_build::SourceRecipe::AdvanceWarsUsaRev1.archives()
+            }
+            Self::EarthBoundSnesSourceV1 => source_build::SourceRecipe::EarthBoundUsa.archives(),
+        }
+    }
+
+    fn source_recipe(self) -> Option<source_build::SourceRecipe> {
+        match self {
+            Self::AdvanceWarsGbaSourceV1 => Some(source_build::SourceRecipe::AdvanceWarsUsaRev1),
+            Self::EarthBoundSnesSourceV1 => Some(source_build::SourceRecipe::EarthBoundUsa),
+            Self::YoshisCookieNesCycle110 | Self::DrMarioNesCycle130Usa => None,
+        }
+    }
+
+    pub(crate) fn original_filename(self) -> &'static str {
+        self.source_recipe()
+            .map_or("game.nes", |recipe| recipe.facts().original_filename)
+    }
+
+    pub(crate) fn fixed_launch_arguments_only(self) -> bool {
+        self.source_recipe().is_some()
+    }
+
+    pub(crate) fn require_runtime_environment(self) -> Result<()> {
+        match self.source_recipe() {
+            Some(recipe) => recipe.require_runtime_environment(),
+            None => Ok(()),
+        }
+    }
+
+    pub(crate) fn acquisition_assets(self) -> Vec<ReleaseAsset> {
+        self.archives().map(|archive| archive.asset()).into()
+    }
+
+    pub(crate) fn temporary_bytes(self, primary_bytes: u64) -> u64 {
+        primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
     }
 
     pub(crate) fn minimum_template_version(self) -> u32 {
         match self {
             Self::YoshisCookieNesCycle110 => 6,
             Self::DrMarioNesCycle130Usa => 7,
+            Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => 9,
         }
     }
 
     pub(crate) fn storage_identity(self, primary_sha256: &str) -> Result<String> {
-        let facts = self.facts();
+        let facts = self.facts()?;
         // Preserve the existing tuple's domain, ordering and archive projection.
         // Serializing RecipeFacts here would change retained Yoshi storage identity.
         Ok(digest(&serde_json::to_vec(&(
@@ -207,7 +261,10 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
         .get(&Platform::WindowsX86_64)
         .copied()
         .ok_or_else(|| PortcoveError::verification("cartridge recipe requires Windows x64"))?;
-    let facts = recipe.facts();
+    if let Some(source_recipe) = recipe.source_recipe() {
+        return source_recipe.validate_port(port, profile);
+    }
+    let facts = recipe.facts()?;
     let executable = format!("{}.exe", facts.target);
     let expected_recipe = BTreeMap::from([(Platform::WindowsX86_64, recipe)]);
     let original_identity = profile.accepted_sha1 == [facts.original_sha1]
@@ -280,6 +337,13 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
 }
 
 impl CartridgeBuildPreparation {
+    pub(crate) fn storage_identity(&self, primary_sha256: &str) -> Result<String> {
+        match self.recipe.source_recipe() {
+            Some(recipe) => recipe.storage_identity(primary_sha256, &self.source.sha256),
+            None => self.recipe.storage_identity(primary_sha256),
+        }
+    }
+
     pub(crate) fn new(recipe: CartridgeBuildRecipe, source: SourceRecord) -> Result<Self> {
         verify_original(recipe, &source, &|| Ok(()))?;
         Ok(Self {
@@ -291,7 +355,22 @@ impl CartridgeBuildPreparation {
     }
 
     pub(crate) fn verify_release(&self, release: &ResolvedRelease) -> Result<()> {
-        let facts = self.recipe.facts();
+        if let Some(recipe) = self.recipe.source_recipe() {
+            let asset = recipe.primary_asset();
+            if release.version != recipe.facts().version
+                || release.channel != crate::ReleaseChannel::Stable
+                || release.asset.name != asset.name
+                || release.asset.url != asset.url
+                || release.asset.size != asset.size
+                || release.asset.sha256 != asset.sha256
+            {
+                return Err(PortcoveError::verification(
+                    "source build requires its exact reviewed source archive",
+                ));
+            }
+            return Ok(());
+        }
+        let facts = self.recipe.facts()?;
         if release.version != facts.release_version
             || release.channel != crate::ReleaseChannel::Stable
             || release.asset.name != facts.asset_name
@@ -312,7 +391,10 @@ pub(crate) fn verify_original(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
-    let facts = recipe.facts();
+    if let Some(recipe) = recipe.source_recipe() {
+        return recipe.verify_original(source, checkpoint);
+    }
+    let facts = recipe.facts()?;
     if source.sha256 != facts.original_sha256
         || source.storage_sha256 != facts.original_sha256
         || source.size != facts.original_size
@@ -744,10 +826,36 @@ struct CompilePlan {
 
 impl CompilePlan {
     fn read(build: &Path, recipe: CartridgeBuildRecipe) -> Result<Self> {
-        let facts = recipe.facts();
-        let target_prefix = format!("CMakeFiles/{}.dir/", facts.target);
-        let c_rule = format!("C_COMPILER__{}_unscanned_Release", facts.target);
-        let cxx_rule = format!("CXX_COMPILER__{}_unscanned_Release", facts.target);
+        let facts = recipe.facts()?;
+        Self::read_target(
+            build,
+            facts.target,
+            facts.compile_objects..=facts.compile_objects,
+        )
+    }
+
+    // Callers supply independently reviewed bounds for a fixed recipe. The
+    // graph being inspected never defines its own authorized object count.
+    fn read_target(
+        build: &Path,
+        target: &str,
+        objects: std::ops::RangeInclusive<usize>,
+    ) -> Result<Self> {
+        if target.is_empty()
+            || !target
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_')
+            || *objects.start() == 0
+            || objects.is_empty()
+            || *objects.end() > 20_000
+        {
+            return Err(PortcoveError::verification(
+                "invalid fixed compiler target contract",
+            ));
+        }
+        let target_prefix = format!("CMakeFiles/{target}.dir/");
+        let c_rule = format!("C_COMPILER__{target}_unscanned_Release");
+        let cxx_rule = format!("CXX_COMPILER__{target}_unscanned_Release");
         let bytes = crate::path::read_bounded_regular(&build.join("build.ninja"), 1024 * 1024)?;
         let manifest = std::str::from_utf8(&bytes)
             .map_err(|_| PortcoveError::verification("build graph is not UTF-8"))?;
@@ -790,7 +898,7 @@ impl CompilePlan {
                 || target.len() > 1024
                 || (rule != c_rule && rule != cxx_rule)
                 || !identities.insert(target.to_ascii_lowercase())
-                || object_targets.len() == facts.compile_objects
+                || object_targets.len() == *objects.end()
             {
                 return Err(PortcoveError::verification(
                     "build graph has an undeclared compiler object",
@@ -798,7 +906,7 @@ impl CompilePlan {
             }
             object_targets.push(target);
         }
-        if object_targets.len() != facts.compile_objects {
+        if !objects.contains(&object_targets.len()) {
             return Err(PortcoveError::verification(
                 "build graph compiler object inventory differs",
             ));
@@ -824,7 +932,7 @@ impl CompilePlan {
 }
 
 fn generated_identity(build: &Path, recipe: CartridgeBuildRecipe) -> Result<(String, String)> {
-    let facts = recipe.facts();
+    let facts = recipe.facts()?;
     let root = build.join(format!("cycle-{}", facts.target));
     let manifest = crate::path::read_bounded_regular(&root.join("sources.cmake"), 64 * 1024)?;
     let text = std::str::from_utf8(&manifest)
@@ -925,11 +1033,19 @@ impl BuildSession<'_> {
             phase,
             quiesced,
         )?;
-        validate_imports(&output)
+        if self.inputs.recipe == CartridgeBuildRecipe::EarthBoundSnesSourceV1 {
+            validate_imports_with_crash_reports(&output, true)
+        } else {
+            validate_imports(&output)
+        }
     }
 }
 
 fn validate_imports(output: &str) -> Result<Vec<String>> {
+    validate_imports_with_crash_reports(output, false)
+}
+
+fn validate_imports_with_crash_reports(output: &str, crash_reports: bool) -> Result<Vec<String>> {
     let mut names = std::collections::BTreeSet::new();
     for line in output.lines() {
         if let Some(name) = line.trim().strip_prefix("Name:") {
@@ -983,7 +1099,13 @@ fn validate_imports(output: &str) -> Result<Vec<String>> {
         "api-ms-win-crt-multibyte-l1-1-0.dll",
         "api-ms-win-crt-time-l1-1-0.dll",
     ];
-    if names.is_empty() || names.iter().any(|n| !allowed.contains(&n.as_str())) {
+    // The fixed EarthBound runner links Win32 MiniDumpWriteDump for its
+    // reviewed crash reports. Earlier recipes retain their exact import set.
+    if names.is_empty()
+        || names
+            .iter()
+            .any(|n| !allowed.contains(&n.as_str()) && !(crash_reports && n == "dbghelp.dll"))
+    {
         return Err(PortcoveError::verification(
             "runtime has an unreviewed native dependency",
         ));
@@ -1038,7 +1160,17 @@ fn prepare_install_inner(
     }
     let checkpoint = || operation.checkpoint();
     let recipe = preparation.recipe;
-    let facts = recipe.facts();
+    if let Some(source_recipe) = recipe.source_recipe() {
+        return source_recipe.prepare_install(
+            work,
+            payload,
+            preparation,
+            library,
+            operation,
+            quiesced,
+        );
+    }
+    let facts = recipe.facts()?;
     let executable = format!("{}.exe", facts.target);
     verify_original(recipe, &preparation.source, &checkpoint)?;
     let before = BuildInputs::capture(work, recipe, &checkpoint)?;
@@ -1140,6 +1272,12 @@ fn prepare_install_inner(
                 cmake_path(&inputs.roots[0].join("cyc_seeds.txt"))?
             ),
         ]),
+        CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
+        | CartridgeBuildRecipe::EarthBoundSnesSourceV1 => {
+            return Err(PortcoveError::state(
+                "source-only recipe reached NES cycle configuration",
+            ));
+        }
     }
     session.run(
         &arguments,

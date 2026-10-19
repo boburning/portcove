@@ -225,6 +225,13 @@ it.each(["library_default", "port_setting"] as const)(
     const shortPlan = {
       ...plan,
       storage: { ...plan.storage, volume_available_bytes: 32 * 1024 ** 2 },
+      temporary_space: {
+        path: plan.output_location.effective_output_directory,
+        required_bytes: plan.download_bytes,
+        available_bytes: 32 * 1024 ** 2,
+        volume_identity: "library-drive",
+        sufficient: false,
+      },
       output_location: { ...plan.output_location, selection_source: selectionSource },
     };
     function InsufficientSpaceHarness() {
@@ -257,6 +264,86 @@ it.each(["library_default", "port_setting"] as const)(
     expect(openLibraryStorage).toHaveBeenCalledTimes(1);
   },
 );
+
+it("reviews the complete cold download and blocks on Core's larger temporary-space requirement", async () => {
+  const install = vi.fn();
+  const recipePlan: InstallPlan = {
+    ...plan,
+    download_bytes: 230_411_690,
+    auxiliary_downloads: [{ ...plan.release.asset, name: "build-input.zip", size: 226_492_668 }],
+    temporary_space: {
+      path: "F:/Games/sample",
+      required_bytes: 2_151_402_670,
+      available_bytes: 1024 ** 3,
+      volume_identity: "external-drive",
+      sufficient: false,
+    },
+    output_location: {
+      ...plan.output_location,
+      effective_output_directory: "F:/Games/sample",
+      selection_source: "request_override",
+    },
+  };
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={recipePlan}
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  expect(document.body.textContent).toContain("220 MiB");
+  expect(document.body.textContent).toContain("2.0 GiB");
+  expect(document.body.textContent).toContain("F:/Games/sample");
+  expect(document.body.textContent).toContain("Final installed size is unknown");
+  expect(button("Free space required").disabled).toBe(true);
+  expect(install).not.toHaveBeenCalled();
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={{
+        ...recipePlan,
+        temporary_space: {
+          ...recipePlan.temporary_space!,
+          sufficient: null,
+          available_bytes: null,
+        },
+      }}
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  expect(document.body.textContent).toContain("Capacity is unknown");
+  expect(button("Install · 220 MiB").disabled).toBe(false);
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={{
+        ...recipePlan,
+        output_location: plan.output_location,
+        temporary_space: {
+          ...recipePlan.temporary_space!,
+          path: plan.output_location.effective_output_directory,
+          sufficient: null,
+          available_bytes: null,
+        },
+      }}
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  expect(document.body.textContent).toContain("Destination capacity is unknown");
+  expect(document.body.textContent).not.toContain("available in library");
+});
 
 it("does not block an external-output install using the library volume's free space", async () => {
   const externalPlan: InstallPlan = {

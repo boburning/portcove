@@ -448,6 +448,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 ),
             ),
             (
+                "external_runtime_relink_preview",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ExternalRuntimeRelinkPreview,
+                >(contract)),
+            ),
+            (
                 "external_runtime_removal_preview",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::ExternalRuntimeRemovalPreview,

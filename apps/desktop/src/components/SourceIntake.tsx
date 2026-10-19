@@ -76,7 +76,7 @@ export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
   );
 }
 
-function SourceIntakeSession({
+function useSourceIntakeSession({
   request,
   close,
   onAdded,
@@ -264,6 +264,53 @@ function SourceIntakeSession({
         } satisfies HostToolActions)
       : undefined;
 
+  return {
+    request,
+    returnFocus,
+    openEvidence,
+    copy,
+    result,
+    plan,
+    setPlan,
+    busy,
+    error,
+    notice,
+    saved,
+    refreshFailed,
+    dismiss,
+    choose,
+    review,
+    apply,
+    retryRefresh,
+    candidate,
+    requiredTool,
+    inlineToolActions,
+  };
+}
+
+function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]) {
+  const {
+    request,
+    returnFocus,
+    openEvidence,
+    copy,
+    result,
+    plan,
+    setPlan,
+    busy,
+    error,
+    notice,
+    saved,
+    refreshFailed,
+    dismiss,
+    choose,
+    review,
+    apply,
+    retryRefresh,
+    candidate,
+    requiredTool,
+    inlineToolActions,
+  } = useSourceIntakeSession(props);
   return (
     <Dialog
       open

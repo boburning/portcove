@@ -378,6 +378,19 @@ enum LaunchCommand {
 
 #[derive(Debug, Subcommand)]
 enum ExternalCommand {
+    /// Review a replacement folder against the existing retained runtime contract.
+    RelinkPreview { port_id: String, path: PathBuf },
+    /// Change only the registered external folder; preserve all external files.
+    Relink {
+        port_id: String,
+        path: PathBuf,
+        #[arg(long)]
+        expected_preview: String,
+        #[arg(long)]
+        acknowledge_shared_preferences: bool,
+        #[arg(long)]
+        yes: bool,
+    },
     /// Compare a player-owned runtime with the exact accepted package contract.
     Preview {
         /// Catalog port ID offering use-in-place runtime registration.
@@ -2367,6 +2380,68 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
         }
         Commands::External { command } => match command {
+            ExternalCommand::RelinkPreview { port_id, path } => {
+                render_success(
+                    mode,
+                    "external.relink-preview",
+                    service.preview_external_runtime_relink(&port_id, &path)?,
+                )?;
+            }
+            ExternalCommand::Relink {
+                port_id,
+                path,
+                expected_preview,
+                acknowledge_shared_preferences,
+                yes,
+            } => {
+                let preview = service.preview_external_runtime_relink(&port_id, &path)?;
+                if preview.preview_sha256 != expected_preview {
+                    return Err(PortcoveError::conflict(
+                        "external game folder or registration changed after review",
+                    ));
+                }
+                if mode == OutputMode::Human {
+                    println!("{}", human::document(&preview)?);
+                }
+                if let Some(shared) = &preview.proposed.shared_preferences {
+                    if mode == OutputMode::Human {
+                        println!(
+                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies in this Windows account. If unavailable, it can rewrite {} instead. Portcove does not own, back up, restore or delete these files.",
+                            shared.binding.path.display(),
+                            shared.local_fallback_path.display()
+                        );
+                    }
+                    if !acknowledge_shared_preferences {
+                        return Err(PortcoveError::usage(
+                            "review the shared preferences and use --acknowledge-shared-preferences with the outer --expected-preview",
+                        ));
+                    }
+                } else if acknowledge_shared_preferences {
+                    return Err(PortcoveError::usage(
+                        "this runtime has no shared preferences scope to acknowledge",
+                    ));
+                }
+                require_confirmation(
+                    &format!(
+                        "Change {port_id} from {} to {}? All external game files, settings and saves stay in place. Portcove does not copy, update, back up or delete either folder.",
+                        preview.previous_path.display(),
+                        preview.proposed.path.display()
+                    ),
+                    yes,
+                    cli.non_interactive,
+                )?;
+                let authorization = service.authorize_external_runtime_relink(
+                    &port_id,
+                    &path,
+                    &expected_preview,
+                    acknowledge_shared_preferences.then_some(expected_preview.as_str()),
+                )?;
+                render_success(
+                    mode,
+                    "external.relink",
+                    service.relink_external_runtime(&port_id, &path, &authorization.token)?,
+                )?;
+            }
             ExternalCommand::Preview { port_id, path } => {
                 render_success(
                     mode,
@@ -3309,6 +3384,8 @@ fn command_name(command: &Commands) -> &'static str {
             ExternalCommand::Preview { .. } => "external.preview",
             ExternalCommand::RemovalPreview { .. } => "external.removal-preview",
             ExternalCommand::Register { .. } => "external.register",
+            ExternalCommand::RelinkPreview { .. } => "external.relink-preview",
+            ExternalCommand::Relink { .. } => "external.relink",
             ExternalCommand::Remove { .. } => "external.remove",
         },
         Commands::Storage => "storage",

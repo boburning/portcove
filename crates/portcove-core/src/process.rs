@@ -51,6 +51,8 @@ pub struct GameProcessSpec {
     pub environment: BTreeMap<String, String>,
     /// Arguments owned by the embedded, validated catalog and adapter.
     pub fixed_arguments: Vec<String>,
+    /// Core derives this from the retained runtime's reviewed launch contract.
+    pub fixed_arguments_only: bool,
 }
 
 /// A launch resolved by an adapter, including both process and installation
@@ -62,6 +64,7 @@ pub struct LaunchSpec {
     pub working_directory: PathBuf,
     pub environment: BTreeMap<String, String>,
     pub arguments: Vec<String>,
+    pub fixed_arguments_only: bool,
     pub launch_kind: LaunchKind,
 }
 
@@ -73,6 +76,7 @@ impl LaunchSpec {
             working_directory: self.working_directory.clone(),
             environment: self.environment.clone(),
             fixed_arguments: self.arguments.clone(),
+            fixed_arguments_only: self.fixed_arguments_only,
         }
     }
 }
@@ -278,6 +282,11 @@ impl ChildProcessPolicy {
     }
 
     pub fn game_command(spec: &GameProcessSpec, forwarded_arguments: &[String]) -> Result<Command> {
+        if spec.fixed_arguments_only && !forwarded_arguments.is_empty() {
+            return Err(PortcoveError::launch(
+                "this runtime offers only its fixed ordinary launch; additional arguments are not supported",
+            ));
+        }
         if spec.launch_kind == LaunchKind::WindowsBatch && !forwarded_arguments.is_empty() {
             return Err(PortcoveError::launch(
                 "caller-supplied arguments are not supported for Windows batch launchers",
@@ -641,6 +650,35 @@ fn main() {
     }
 
     #[test]
+    fn fixed_native_runtime_refuses_unoffered_output_arguments_before_spawn() {
+        let mut spec = GameProcessSpec {
+            executable: PathBuf::from("game.exe"),
+            launch_kind: LaunchKind::Native,
+            working_directory: PathBuf::from("."),
+            environment: BTreeMap::new(),
+            fixed_arguments: vec!["game.gba".into()],
+            fixed_arguments_only: true,
+        };
+        let error = ChildProcessPolicy::game_command(
+            &spec,
+            &["--record".into(), "output & command".into()],
+        )
+        .unwrap_err();
+        assert!(error.message.contains("fixed ordinary launch"));
+        let ordinary = ChildProcessPolicy::game_command(&spec, &[]).unwrap();
+        assert_eq!(
+            ordinary.get_args().collect::<Vec<_>>(),
+            [OsStr::new("game.gba")]
+        );
+        spec.fixed_arguments_only = false;
+        let existing = ChildProcessPolicy::game_command(&spec, &["--example".into()]).unwrap();
+        assert_eq!(
+            existing.get_args().collect::<Vec<_>>(),
+            [OsStr::new("game.gba"), OsStr::new("--example")]
+        );
+    }
+
+    #[test]
     fn game_command_rejects_forwarded_batch_arguments_before_spawn() {
         let spec = GameProcessSpec {
             executable: PathBuf::from("launch.bat"),
@@ -648,6 +686,7 @@ fn main() {
             working_directory: PathBuf::from("."),
             environment: BTreeMap::new(),
             fixed_arguments: Vec::new(),
+            fixed_arguments_only: false,
         };
         let error = ChildProcessPolicy::game_command(&spec, &["& whoami".into()]).unwrap_err();
         assert!(error.message.contains("caller-supplied arguments"));
@@ -661,6 +700,7 @@ fn main() {
             working_directory: PathBuf::from("."),
             environment: BTreeMap::from([("FUTURE_SERVICE_TOKEN".into(), "secret".into())]),
             fixed_arguments: Vec::new(),
+            fixed_arguments_only: false,
         };
         let error = ChildProcessPolicy::game_command(&spec, &[]).unwrap_err();
         assert_eq!(
@@ -683,6 +723,7 @@ fn main() {
             working_directory: temporary.path().to_path_buf(),
             environment: BTreeMap::new(),
             fixed_arguments: vec![output.display().to_string(), "safe-value".into()],
+            fixed_arguments_only: false,
         };
         let status = ChildProcessPolicy::game_command(&spec, &[])
             .unwrap()

@@ -787,6 +787,15 @@ bounded source discovery hashes selected files. It is provisional, carries no
 registration authority, and cannot substitute for the completed report or
 saved-root snapshot. Desktop renders candidates during a scan, then replaces
 them with core's completed snapshot; source import still requires a fresh plan.
+Saved-folder inventory, snapshot reads, scans and add/relink/remove intentions carry
+an originating library generation. Native workers validate that generation when
+acquiring their service; an outgoing lease may finish in its original library,
+while queued stale work refuses instead of resolving a replacement library.
+Desktop discards picker, preflight and review continuations after their originating
+view is disposed. Readable folder inventory remains available when an old scan
+payload is unreadable. An explicit fresh scan reaches Core, which retains sole
+authority to recover corruption or refuse unsupported saved reports.
+
 The current Desktop workspace owns the ephemeral saved-folder scan observer.
 Opening a selected game's details and returning to Settings preserves that
 request's progress, provisional matches and cancellation target, and does not
@@ -1583,6 +1592,18 @@ TUF roles without executing candidate tooling with production credentials.
 
 ## Library model
 
+External folder relinking reads the retained registration and catalog in one
+observation, binds their exact stored bytes and the fully inspected proposed
+folder to a distinct reviewed authorization, then rechecks under the port lock.
+An immediate transaction refuses a changed row, managed installation or pending
+launch and changes only the external location and validated preference binding.
+It preserves registration identity, timestamps and the original catalog bytes;
+it never re-captures a possibly newer definition. A missing old folder is allowed,
+while its structural and account scope remain binding. New-folder shared consent
+uses the outer relink fingerprint. No external files or saves are moved or adopted.
+Managed planning, installation and updates refuse an extant external registration
+before provider resolution; the UI and adapters do not create another authority.
+
 The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
 read-only provider collection and factual operational checkpoints. It submits
 inert observations through the standalone CLI to core's existing release
@@ -2356,7 +2377,9 @@ authorized mutations.
 ### Fixed original-driven cartridge builds
 
 The private Core [`cartridge_build`](../crates/portcove-core/src/cartridge_build.rs)
-module owns the checked NES cycle recipes. Catalog data selects a shipped enum;
+module owns the checked NES cycle recipes and its private
+[`cartridge_source_build`](../crates/portcove-core/src/cartridge_source_build.rs)
+child owns the fixed GBA/SNES source recipes. Catalog data selects a shipped enum;
 it cannot supply build commands or arbitrary executable identities. The service
 binds the verified original before the installer admits download/build work.
 The recipe reuses bounded archive acquisition/extraction, the common
@@ -2381,6 +2404,16 @@ its original storage tuple and configuration. No catalog-supplied build command
 or arbitrary consumer extension is introduced.
 Source/unit fixtures, a compiler run, game operation acceptance and protected
 production delivery remain separate evidence scopes.
+
+Staged-source v9 adds exact Advance Wars USA Rev 1 and EarthBound USA recipes.
+They acquire authenticated game/framework sources, SDL2 SDK and toolchain;
+Core verifies its owned original before generation and packaging. GBA translation
+and the SNES Python HiROM backend use fixed tool invocations and bounded compiler
+groups. These recipes retain the common installer, worker drain and recovery
+authority, require their fixed original argument, and refuse forwarded arguments
+and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
+`dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
+A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
 ### Setup configuration dispositions
 

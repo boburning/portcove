@@ -19,6 +19,7 @@ namespace Portcove.ReferenceClient
         private long operationEventSchemaVersion = 2;
         private long apiSchemaVersion;
         private bool reviewedExternal;
+        internal bool SupportsExternalRelink { get; private set; }
         private long invocationCount;
         private int activeCommands;
         private int maximumConcurrentCommands;
@@ -48,6 +49,7 @@ namespace Portcove.ReferenceClient
             apiSchemaVersion = Json.Number(capabilities, "schema_version");
             operationEventSchemaVersion = ProtocolStream.Negotiate(capabilities);
             reviewedExternal = ProtocolStream.SupportsReviewedExternal(capabilities);
+            SupportsExternalRelink = ProtocolStream.SupportsExternalRelink(capabilities);
             var identity = await Read("library.identity", "library", "identity").ConfigureAwait(false);
             LibraryId = Json.Text(identity, "id");
             if (LibraryId.Length == 0) throw new InvalidOperationException("The CLI returned an empty library identity.");

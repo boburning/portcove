@@ -894,7 +894,13 @@ function classifyOnePath(
     addNodeTest(selection, "scripts/nextest-equivalence.test.mts");
   }
 
-  if (file.startsWith(".vite-hooks/") || file === "vite.config.ts") {
+  if (
+    file.startsWith(".vite-hooks/") ||
+    file === "vite.config.ts" ||
+    file === "scripts/hooks-install.mts" ||
+    file === "scripts/viteplus-cli.mts" ||
+    file === "scripts/precommit.mts"
+  ) {
     selection.scopes.add("tooling");
     addNodeTest(selection, "scripts/precommit-check.test.mts");
     recognized = true;

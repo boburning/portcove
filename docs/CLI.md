@@ -219,6 +219,23 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 72 adds `external.relink` and the `relink_external` activity operation.
+Read `external relink-preview PORT_ID PATH`, disclose the previous and proposed
+folders, then submit `external relink PORT_ID PATH --expected-preview SHA256 --yes`.
+The required fingerprint binds the exact retained registration/catalog and the
+new folder inspection. A generic registration confirmation cannot authorize a
+folder change. Shared preferences require `--acknowledge-shared-preferences`
+bound to this outer fingerprint; their accepted account/location cannot transfer.
+Core rechecks under the port lock and updates the location atomically. Failure
+or cancellation before publication leaves the original registration intact.
+Registration ID, timestamp, retained contract and all external files remain.
+The old folder may be missing; the proposed folder must satisfy its retained
+contract even when the current catalog offers managed installation instead.
+This command does not upgrade, copy, adopt, migrate saves or grant managed ownership.
+Managed planning, install and update commands refuse an external registration
+before resolving a release. Remove the registration explicitly before considering
+a separate new managed installation; removal itself does not adopt retained data.
+
 Schema 71 adds optional catalog presentation `original_game_title` and
 `variant_label`. These are descriptive labels: `name` remains the port project's
 name, and `id`, source contracts, installations and launch authority are unchanged.
@@ -653,6 +670,17 @@ core operation ID in progress events and final results. Opening the profile
 folder remains a host-integration action after core validates and creates the
 profile directory. A move requires a separately reviewed plan and explicit
 confirmation before the adapter grants the core's single-use authorization.
+
+API schema 71 adds optional `auxiliary_downloads` and `temporary_space` to install
+plans. The cold `download_bytes` total includes the primary artifact, bundled
+runtime and every required recipe archive. A primary cache hit can reduce the
+download but does not remove recipe auxiliary acquisitions, which have no curated
+cache restoration. `temporary_space` reports execution's free-space floor and
+the output folder/volume it concerns, with observed available bytes and an
+optional capacity result. Unknown capacity is not sufficient capacity; execution
+always rechecks. These quantities do not estimate final installed size. Plans for
+active, staged or retained reuse need no download and omit temporary acquisition
+capacity. Planning does not execute a cartridge build or grant title admission.
 
 API schema 34 adds an optional `tool_id` to source-inspection problems. The
 core exposes only the matching host-tool identifier, so CLI and desktop clients

@@ -1,11 +1,28 @@
 import type { SpawnSyncReturns } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { vitePlusCommand } from "./viteplus-cli.mts";
 import { spawnCommand } from "./dev-storage.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+
+function installRuntime(directory: string) {
+  const required = readFileSync(path.join(directory, ".node-version"), "utf8").trim();
+  if (process.versions.node !== required)
+    throw new Error(`Activate Node ${required}, then run pnpm hooks:enable`);
+  const executable = realpathSync(process.execPath);
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  if (/[\r\n]/u.test(executable)) throw new Error("Invalid hook runtime path");
+  const runtimeDirectory =
+    process.platform === "win32"
+      ? `runtime_dir="$(cygpath -u ${quote(path.dirname(executable))})" || exit 1`
+      : `runtime_dir=${quote(path.dirname(executable))}`;
+  writeFileSync(
+    path.join(directory, ".vite-hooks/_/portcove-node"),
+    `#!/usr/bin/env sh\nif [ ! -x ${quote(executable)} ]; then\n  printf '%s\\n' 'Hook runtime unavailable: activate pinned Node and run pnpm hooks:enable.' >&2\n  exit 1\nfi\n${runtimeDirectory}\nexport PATH="$runtime_dir:$PATH"\nexec ${quote(executable)} "$@"\n`,
+  );
+}
 
 // Vite+ 1.2 writes --local, which is shared across linked worktrees. Keep its
 // generated dispatcher and stage engine; isolate only installation preferences.
@@ -46,7 +63,9 @@ export function configureHooks(directory = root, mode = "install", environment =
     const common = checked(git("rev-parse", "--path-format=absolute", "--git-common-dir")).trim();
     if (gitDir !== common)
       return "Linked checkout: enable Git worktreeConfig before installing isolated hooks";
-    return checked(vite(mode === "install" ? ["config", "--no-agent"] : ["hooks", mode]));
+    const result = checked(vite(mode === "install" ? ["config", "--no-agent"] : ["hooks", mode]));
+    if (mode === "install" || mode === "enable") installRuntime(directory);
+    return result;
   }
   if (mode === "status")
     return `Worktree hooks: path=${hookPath || "disabled"}; disabled=${get("--bool", "--get", "vp.hooks.disabled") || "false"}`;
@@ -65,6 +84,7 @@ export function configureHooks(directory = root, mode = "install", environment =
   cpSync(path.join(scratch, ".vite-hooks/_"), path.join(directory, ".vite-hooks/_"), {
     recursive: true,
   });
+  installRuntime(directory);
   checked(git("config", "--worktree", "vp.hooks.dir", ".vite-hooks"));
   checked(git("config", "--worktree", "vp.hooks.disabled", "false"));
   checked(git("config", "--worktree", "core.hooksPath", ".vite-hooks/_"));

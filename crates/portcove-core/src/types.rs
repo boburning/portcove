@@ -738,6 +738,7 @@ pub enum ActivityOperation {
     Remove,
     RemoveSource,
     RegisterExternal,
+    RelinkExternal,
     RemoveExternal,
     RegisterSource,
     VerifySource,
@@ -768,6 +769,7 @@ impl std::fmt::Display for ActivityOperation {
             Self::Remove => "remove",
             Self::RemoveSource => "remove_source",
             Self::RegisterExternal => "register_external",
+            Self::RelinkExternal => "relink_external",
             Self::RemoveExternal => "remove_external",
             Self::RegisterSource => "register_source",
             Self::VerifySource => "verify_source",
@@ -802,6 +804,7 @@ impl FromStr for ActivityOperation {
             "remove" => Ok(Self::Remove),
             "remove_source" => Ok(Self::RemoveSource),
             "register_external" => Ok(Self::RegisterExternal),
+            "relink_external" => Ok(Self::RelinkExternal),
             "remove_external" => Ok(Self::RemoveExternal),
             "register_source" => Ok(Self::RegisterSource),
             "verify_source" => Ok(Self::VerifySource),
@@ -1210,10 +1213,27 @@ pub struct InstallPlan {
     pub release: ResolvedRelease,
     pub bundled_runtime: Option<BundledRuntime>,
     pub download_bytes: u64,
+    /// Required recipe inputs in addition to the primary release and bundled runtime.
+    /// These are cold acquisition quantities; existing cache reuse is not guaranteed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub auxiliary_downloads: Vec<ReleaseAsset>,
+    /// Execution's temporary free-space floor, not a final installed-size estimate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temporary_space: Option<InstallSpaceRequirement>,
     pub action: InstallPlanAction,
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
     pub output_location: PortOutputLocation,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct InstallSpaceRequirement {
+    pub path: PathBuf,
+    pub required_bytes: u64,
+    pub available_bytes: Option<u64>,
+    pub volume_identity: Option<String>,
+    /// Unknown when capacity could not be observed. Execution always rechecks.
+    pub sufficient: Option<bool>,
 }
 
 /// Exact registered-input review for the first managed installation.
@@ -1513,6 +1533,7 @@ impl CapabilityDocument {
                 "catalog.definition-refresh".into(),
                 "external".into(),
                 "external.review".into(),
+                "external.relink".into(),
                 "source".into(),
                 "source.roots".into(),
                 "source.roots.scan".into(),

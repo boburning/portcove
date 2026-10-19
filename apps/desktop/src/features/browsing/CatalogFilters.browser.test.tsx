@@ -241,7 +241,14 @@ it("keeps selections editable when candidate facts are unavailable instead of cl
   await click("Filters (1)");
   expect(button("Linux (unavailable)").disabled).toBe(false);
   expect(button("Linux (unavailable)").getAttribute("aria-pressed")).toBe("true");
-  expect(document.body.textContent).toContain("unavailable facts stay unavailable");
+  await page.getByText("Advanced filters", { exact: true }).click();
+  await expect
+    .element(page.getByRole("group", { name: "Installation attention", exact: true }))
+    .toBeVisible();
+  const attention = [...document.querySelectorAll("fieldset")].find(
+    (group) => group.querySelector("legend")?.textContent === "Installation attention",
+  );
+  expect(attention?.textContent).toContain("Unavailable details remain unknown");
   expect(button("Remove Linux filter")).toBeDefined();
 });
 

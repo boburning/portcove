@@ -101,7 +101,9 @@ describe("static development scenarios", () => {
     expect(installationReview).not.toContain('aria-label="Release channel filters"');
     expect(installationReview).not.toContain('class="port-grid"');
     const spaceBlocked = renderScenario("installation-review-space-blocked");
-    expect(spaceBlocked).toContain("This download needs more free space");
+    expect(spaceBlocked).toContain(
+      "This installation needs more free space in the Portcove library",
+    );
     expect(spaceBlocked).toContain("Free space required");
     expect(spaceBlocked).toContain("Open Library and storage");
     const spaceRoot = document.createElement("div");

@@ -1,5 +1,121 @@
 use super::*;
 
+#[cfg(target_os = "windows")]
+struct PlanningRelease(ResolvedRelease);
+
+#[cfg(target_os = "windows")]
+#[async_trait::async_trait]
+impl crate::ReleaseProvider for PlanningRelease {
+    async fn resolve(
+        &self,
+        _: &PortDefinition,
+        _: crate::ReleaseChannel,
+        _: Platform,
+    ) -> Result<ResolvedRelease> {
+        Ok(self.0.clone())
+    }
+}
+
+#[cfg(target_os = "windows")]
+#[tokio::test]
+async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacity_read_only() {
+    for (recipe, (port, profile), total) in [
+        (
+            CartridgeBuildRecipe::YoshisCookieNesCycle110,
+            fixture_port(),
+            230_411_690,
+        ),
+        (
+            CartridgeBuildRecipe::DrMarioNesCycle130Usa,
+            dr_mario_fixture(),
+            230_716_233,
+        ),
+        (
+            CartridgeBuildRecipe::AdvanceWarsGbaSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::AdvanceWarsUsaRev1),
+            224_932_042,
+        ),
+        (
+            CartridgeBuildRecipe::EarthBoundSnesSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::EarthBoundUsa),
+            228_366_267,
+        ),
+    ] {
+        let (version, asset) = if let Some(source) = recipe.source_recipe() {
+            (source.facts().version, source.primary_asset())
+        } else {
+            let facts = recipe.facts().unwrap();
+            (
+                facts.release_version,
+                ReleaseAsset {
+                    name: facts.asset_name.into(),
+                    url: "https://example.invalid/primary.zip".into(),
+                    size: facts.asset_size,
+                    sha256: facts.asset_sha256.into(),
+                },
+            )
+        };
+        let primary_bytes = asset.size;
+        let root = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(root.path()).unwrap();
+        let release = ResolvedRelease {
+            version: version.into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset,
+        };
+        let mut service = crate::PortcoveService::with_provider_read_only(
+            library.clone(),
+            std::sync::Arc::new(PlanningRelease(release)),
+        )
+        .unwrap();
+        let catalog = crate::Catalog::from_json(
+            &serde_json::to_string(&crate::CatalogDocument {
+                schema_version: 1,
+                source_catalog: None,
+                source_profiles: vec![profile],
+                ports: vec![port.clone()],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        service.replace_catalog_for_test(catalog);
+        let before = crate::test_fixture::library_file_snapshot(&library);
+        let activities = serde_json::to_value(library.activities(100).unwrap()).unwrap();
+        let _volume = crate::output_root::override_volume_details(
+            crate::output_root::TestVolumeDetails::Available {
+                available_bytes: 1024 * 1024 * 1024,
+                total_bytes: 10 * 1024 * 1024 * 1024,
+                volume_identity: "fixture-volume".into(),
+            },
+        );
+        let plan = service.plan_install(&port.id, None).await.unwrap();
+        assert_eq!(plan.action, crate::InstallPlanAction::Download);
+        assert_eq!(plan.download_bytes, total);
+        assert_eq!(
+            plan.auxiliary_downloads
+                .iter()
+                .map(|asset| asset.name.as_str())
+                .collect::<Vec<_>>(),
+            recipe
+                .archives()
+                .iter()
+                .map(|archive| archive.name)
+                .collect::<Vec<_>>()
+        );
+        let space = plan.temporary_space.unwrap();
+        assert_eq!(space.required_bytes, 2_147_483_648 + primary_bytes);
+        assert_eq!(space.path, plan.output_location.effective_output_directory);
+        assert_eq!(space.volume_identity.as_deref(), Some("fixture-volume"));
+        assert_eq!(space.sufficient, Some(false));
+        assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
+        assert_eq!(
+            serde_json::to_value(library.activities(100).unwrap()).unwrap(),
+            activities
+        );
+    }
+}
+
 pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
     let mut port = crate::Catalog::embedded()
         .unwrap()
@@ -618,6 +734,123 @@ fn compiler_groups_bind_the_complete_fixed_manifest_and_refuse_changed_or_unsafe
             CartridgeBuildRecipe::YoshisCookieNesCycle110
         )
         .is_err()
+    );
+}
+
+#[test]
+fn compiler_plan_oracle_preserves_cxx_order_complete_digests_and_case_identity() {
+    let temporary = tempfile::tempdir().unwrap();
+    fs::create_dir(temporary.path().join("CMakeFiles")).unwrap();
+    fs::write(
+        temporary.path().join("CMakeFiles/rules.ninja"),
+        b"inert pre-extraction CXX and order oracle\n",
+    )
+    .unwrap();
+    // This is an inert, independently fixed pre-extraction oracle. Neither
+    // count nor expected digests come from RecipeFacts or the parsed plan.
+    let objects: String = (0..101)
+        .rev()
+        .map(|i| {
+            let language = if i == 100 { "CXX" } else { "C" };
+            format!("build CMakeFiles/YoshisCookieRecomp.dir/object{i}.c.obj: {language}_COMPILER__YoshisCookieRecomp_unscanned_Release source{i}.c\n")
+        })
+        .collect();
+    let manifest = format!("include CMakeFiles/rules.ninja\n{objects}");
+    let graph = temporary.path().join("build.ninja");
+    fs::write(&graph, &manifest).unwrap();
+    let plan = CompilePlan::read(
+        temporary.path(),
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+    )
+    .unwrap();
+    assert_eq!(
+        plan.manifest_sha256,
+        "a08e63a1e0d9a9f3d42cd6479825a5da0617c5ccc132b055a422abc8d09adc6c"
+    );
+    assert_eq!(
+        plan.rules_sha256,
+        "8d340fb3791bed2901736e8910cd0cbcc55fce859b451a2cbf8a9b79e0112407"
+    );
+    assert_eq!(plan.object_targets.len(), 101);
+    assert_eq!(
+        plan.object_targets[0],
+        "CMakeFiles/YoshisCookieRecomp.dir/object100.c.obj"
+    );
+    assert_eq!(
+        plan.object_targets[50],
+        "CMakeFiles/YoshisCookieRecomp.dir/object50.c.obj"
+    );
+    assert_eq!(
+        plan.object_targets[100],
+        "CMakeFiles/YoshisCookieRecomp.dir/object0.c.obj"
+    );
+    fs::write(
+        &graph,
+        manifest.replace("object99.c.obj", "OBJECT100.c.obj"),
+    )
+    .unwrap();
+    assert!(
+        CompilePlan::read(
+            temporary.path(),
+            CartridgeBuildRecipe::YoshisCookieNesCycle110
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn fixed_target_plan_enforces_independent_nonempty_object_bounds() {
+    let temporary = tempfile::tempdir().unwrap();
+    fs::create_dir(temporary.path().join("CMakeFiles")).unwrap();
+    fs::write(
+        temporary.path().join("CMakeFiles/rules.ninja"),
+        "# fixed rules\n",
+    )
+    .unwrap();
+    fs::write(
+        temporary.path().join("build.ninja"),
+        "include CMakeFiles/rules.ninja\nbuild CMakeFiles/FixedTarget.dir/a.c.obj: C_COMPILER__FixedTarget_unscanned_Release a.c\nbuild CMakeFiles/FixedTarget.dir/b.cpp.obj: CXX_COMPILER__FixedTarget_unscanned_Release b.cpp\n",
+    ).unwrap();
+    let plan = CompilePlan::read_target(temporary.path(), "FixedTarget", 2..=3).unwrap();
+    assert_eq!(
+        plan.object_targets,
+        [
+            "CMakeFiles/FixedTarget.dir/a.c.obj",
+            "CMakeFiles/FixedTarget.dir/b.cpp.obj"
+        ]
+    );
+    for limits in [
+        0..=2,
+        std::ops::RangeInclusive::new(3, 2),
+        1..=1,
+        3..=3,
+        1..=20_001,
+    ] {
+        assert!(CompilePlan::read_target(temporary.path(), "FixedTarget", limits).is_err());
+    }
+    for target in [
+        "",
+        "../FixedTarget",
+        "FixedTarget.dir/",
+        "FixedTarget\n",
+        "FixedTarget$ ",
+    ] {
+        assert!(CompilePlan::read_target(temporary.path(), target, 2..=2).is_err());
+    }
+}
+
+#[test]
+fn crash_report_import_is_scoped_without_relaxing_existing_recipes() {
+    let imports = "Name: KERNEL32.dll\nName: DBGHELP.dll\n";
+    assert!(validate_imports(imports).is_err());
+    assert_eq!(
+        validate_imports_with_crash_reports(imports, true).unwrap(),
+        ["dbghelp.dll", "kernel32.dll"]
+    );
+    assert!(validate_imports_with_crash_reports("Name: other.dll\n", true).is_err());
+    assert!(
+        validate_imports_with_crash_reports("Name: DBGHELP.dll\nName: dbghelp.DLL\n", true)
+            .is_err()
     );
 }
 

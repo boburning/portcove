@@ -1,11 +1,82 @@
 import assert from "node:assert/strict";
 import { it } from "vite-plus/test";
-import { selectedSetupScanCompleted, sourceProfileLabel } from "./desktop-source-dialog-test.mts";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  selectedSetupGeneration,
+  selectedSetupRead,
+  selectedSetupScenario,
+  selectedSetupScanCompleted,
+  sourceProfileLabel,
+} from "./desktop-source-dialog-test.mts";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInstallFixture } from "./desktop-install-fixture.mts";
+import { fixtureObject as object } from "./desktop-scenario-state.mts";
+import { Session, WebDriver, WebElement } from "selenium-webdriver";
+import type { GameFileScanSnapshot } from "../src/transport-types.generated.d.ts";
+import { selectGameFilesSettings } from "./desktop-review-controls.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+
+it("selects the Game files category and waits for its mounted panel to become visible", async () => {
+  let selected = false;
+  let headingVisibilityChecks = 0;
+  const browser = new WebDriver(new Session("settings-category", {}), {
+    execute: async (command) => {
+      const parameters: unknown = command.getParameters();
+      assert.ok(isRecord(parameters));
+      switch (command.getName()) {
+        case "findElements":
+          assert.ok(typeof parameters.value === "string");
+          if (parameters.value.includes("game-file-libraries-heading")) {
+            assert.equal(selected, true, "select the category before using its mounted panel");
+            return [{ ELEMENT: "heading" }];
+          }
+          assert.match(parameters.value, /Settings categories/);
+          return [{ ELEMENT: "category" }];
+        case "executeScript":
+        case "isElementEnabled":
+          return true;
+        case "isElementDisplayed":
+        case "clickElement": {
+          assert.ok(isRecord(parameters.id));
+          const handle: Record<string, string> = {};
+          for (const [key, value] of Object.entries(parameters.id)) {
+            assert.ok(typeof value === "string");
+            handle[key] = value;
+          }
+          assert.ok(WebElement.isId(handle));
+          const id = WebElement.extractId(handle);
+          if (command.getName() === "isElementDisplayed")
+            return id === "heading" ? ++headingVisibilityChecks > 1 : true;
+          assert.equal(id, "category");
+          selected = true;
+          return;
+        }
+        default:
+          assert.fail(`Unexpected settings navigation command: ${command.getName()}`);
+      }
+    },
+  });
+  await selectGameFilesSettings(browser);
+  assert.equal(selected, true);
+  assert.ok(headingVisibilityChecks >= 2, "a located but hidden panel is not ready");
+});
+
+it("preserves Settings navigation failures before using a hidden Game files panel", async () => {
+  const failure = new Error("Settings category unavailable");
+  const browser = new WebDriver(new Session("settings-category-refusal", {}), {
+    execute: async (command) => {
+      assert.equal(command.getName(), "findElements");
+      const parameters: unknown = command.getParameters();
+      assert.ok(isRecord(parameters));
+      assert.ok(typeof parameters.value === "string");
+      assert.match(parameters.value, /Settings categories/);
+      throw failure;
+    },
+  });
+  await assert.rejects(selectGameFilesSettings(browser), (error: unknown) => error === failure);
+});
 
 it("waits for the native scan control before reading newly completed activity", async () => {
   let release: ((enabled: boolean) => void) | undefined;
@@ -115,3 +186,130 @@ it("reads the real raw qualification catalog label before Core fills output defa
     await rm(output, { recursive: true, force: true });
   }
 });
+
+it("binds native saved-scan harness reads to their captured bootstrap generation", async () => {
+  let currentGeneration = 7;
+  const invoke = async (name: string, args?: Record<string, unknown>) => {
+    if (name === "get_bootstrap_status")
+      return {
+        ok: true,
+        value: {
+          ready: true,
+          generation: currentGeneration,
+          library_root: null,
+          selection: null,
+          error: null,
+        },
+      };
+    assert.equal(name, "get_game_file_scan_snapshot");
+    assert.equal(args?.generation, 7, "the old intention must not resolve the new bootstrap");
+    return { ok: false, error: "open library changed" };
+  };
+  const generation = await selectedSetupGeneration(invoke);
+  const read = selectedSetupRead(invoke, generation);
+  currentGeneration = 8;
+  await assert.rejects(read("get_game_file_scan_snapshot"), /open library changed/);
+});
+
+it.each([
+  ["preliminary", "preliminary-source-review.json"],
+  ["preliminary-setup", "preliminary-selected-setup.json"],
+  ["hash-resume", "saved-folder-hash-resume.json"],
+  ["saved-folder", "selected-setup-journey.json"],
+] as const)(
+  "retains %s bootstrap failures with original inputs and report custody",
+  async (mode, reportName) => {
+    const output = await mkdtemp(path.join(tmpdir(), "portcove-source-bootstrap-failure-"));
+    const fixture = await createInstallFixture({
+      root: fileURLToPath(new URL("../../../", import.meta.url)),
+      output,
+      sourceJourney: true,
+      preliminaryJourney: mode === "preliminary" || mode === "preliminary-setup",
+      preliminarySetupJourney: mode === "preliminary-setup",
+      hashResumeJourney: mode === "hash-resume",
+      revision: "a".repeat(40),
+    });
+    const owned = fixture.sourceJourney;
+    assert.ok(owned);
+    const root = {
+      id: "owned-root",
+      path: owned.directory,
+      availability: "available" as const,
+      created_at: 1,
+      updated_at: 1,
+    };
+    const hashResumeInitial: GameFileScanSnapshot = {
+      format_version: 12,
+      catalog_sha256: "a".repeat(64),
+      completed_at: 1,
+      freshness: "inputs_match",
+      roots: [root],
+      limits: {
+        max_entries: 10_000,
+        max_depth: 6,
+        max_file_bytes: 2 * 1024 ** 3,
+        max_hash_bytes: 16 * 1024 ** 3,
+        max_candidates: 64,
+      },
+      report: {
+        searched_roots: [root.path],
+        searched_profiles: [],
+        candidates: [],
+        entries_examined: 0,
+        files_hashed: 0,
+        hash_bytes: 0,
+        symlinks_skipped: 0,
+        limits_reached: [],
+        issues: [],
+        issues_omitted: 0,
+      },
+    };
+    const browser = new WebDriver(new Session("bootstrap-refusal", {}), {
+      execute: async () => {
+        throw new Error("read-only failure-state capture unavailable");
+      },
+    });
+    const preliminary = fixture.preliminaryJourney;
+    const originals: readonly (readonly [string, string])[] = preliminary
+      ? [[preliminary.path, preliminary.before]]
+      : [
+          [owned.gamePath, owned.gameBefore],
+          [owned.biosPath, owned.biosBefore],
+        ];
+    try {
+      for (const [index, failure] of [false, 0, "", null, undefined].entries()) {
+        const reportDirectory = path.join(output, `failure-${index}`);
+        await mkdir(reportDirectory);
+        const artifacts: string[] = [];
+        await assert.rejects(
+          selectedSetupScenario({
+            browser,
+            fixture: { ...fixture, sourceJourney: { ...owned, root }, hashResumeInitial },
+            output: reportDirectory,
+            artifacts,
+            library: path.join(output, "library"),
+            cli: process.execPath,
+            invoke: (name) => {
+              assert.equal(name, "get_bootstrap_status");
+              return Promise.reject(failure);
+            },
+            scenario: async (_name, execute) => execute(),
+          }),
+          (error: unknown) => Object.is(error, failure),
+        );
+        const artifact = path.join(reportDirectory, reportName);
+        const rawReport: unknown = JSON.parse(await readFile(artifact, "utf8"));
+        const report = object(rawReport);
+        assert.equal(report.failure, String(failure));
+        if (mode === "saved-folder") assert.equal(report.original_inputs_restored, true);
+        assert.deepEqual(artifacts, [artifact]);
+        for (const [actual, original] of originals)
+          assert.deepEqual(await readFile(actual), await readFile(original));
+        assert.equal(fixture.requests.length, 0);
+      }
+    } finally {
+      await fixture.close();
+      await rm(output, { recursive: true, force: true });
+    }
+  },
+);

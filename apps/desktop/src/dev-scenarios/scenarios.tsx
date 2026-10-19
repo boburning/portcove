@@ -254,6 +254,13 @@ function reviewedInstallPlan(
     return {
       ...plan,
       storage: { ...plan.storage, volume_available_bytes: 16 * 1024 ** 2 },
+      temporary_space: {
+        path: plan.output_location.effective_output_directory,
+        required_bytes: plan.download_bytes,
+        available_bytes: 16 * 1024 ** 2,
+        volume_identity: "scenario-library-drive",
+        sufficient: false,
+      },
     };
   if (state === "local-unverified")
     return { ...plan, action: "blocked_unverified", download_bytes: 0 };

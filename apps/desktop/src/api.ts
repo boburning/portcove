@@ -407,20 +407,29 @@ export const desktopApi = {
     }),
   addSource: (profileId: string, path: string, expectedSha256?: string) =>
     invoke<SourceRecord>("add_source", { profileId, path, expectedSha256 }),
-  gameFileRoots: () => invoke<GameFileRoot[]>("get_game_file_roots"),
-  addGameFileRoot: (path: string) => invoke<GameFileRoot>("add_game_file_root", { path }),
-  relinkGameFileRoot: (rootId: string, path: string) =>
-    invoke<GameFileRoot>("relink_game_file_root", { rootId, path }),
-  removeGameFileRoot: (rootId: string) => invoke<boolean>("remove_game_file_root", { rootId }),
-  scanGameFileRoots: (limits: SourceDiscoveryLimits, onEvent?: (event: OperationEvent) => void) => {
+  gameFileRoots: (generation: number) =>
+    invoke<GameFileRoot[]>("get_game_file_roots", { generation }),
+  addGameFileRoot: (path: string, generation: number) =>
+    invoke<GameFileRoot>("add_game_file_root", { path, generation }),
+  relinkGameFileRoot: (rootId: string, path: string, generation: number) =>
+    invoke<GameFileRoot>("relink_game_file_root", { rootId, path, generation }),
+  removeGameFileRoot: (rootId: string, generation: number) =>
+    invoke<boolean>("remove_game_file_root", { rootId, generation }),
+  scanGameFileRoots: (
+    limits: SourceDiscoveryLimits,
+    generation: number,
+    onEvent?: (event: OperationEvent) => void,
+  ) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
     return invoke<GameFileScanSnapshot>("scan_game_file_roots", {
       limits,
+      generation,
       onEvent: channel,
     });
   },
-  gameFileScanSnapshot: () => invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot"),
+  gameFileScanSnapshot: (generation: number) =>
+    invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,
@@ -599,6 +608,24 @@ export const desktopApi = {
     }),
   previewExternalRuntime: (portId: string, path: string, generation: number) =>
     invoke<ExternalRuntimePreview>("preview_external_runtime", { portId, path, generation }),
+  previewExternalRuntimeRelink: (portId: string, path: string, generation: number) =>
+    invoke<import("./types").ExternalRuntimeRelinkPreview>("preview_external_runtime_relink", {
+      portId,
+      path,
+      generation,
+    }),
+  relinkExternalRuntime: (
+    portId: string,
+    path: string,
+    expectedPreview: string,
+    generation: number,
+  ) =>
+    invoke<ExternalRuntimeRecord | null>("relink_external_runtime", {
+      portId,
+      path,
+      expectedPreview,
+      generation,
+    }),
   registerExternalRuntime: (
     portId: string,
     path: string,

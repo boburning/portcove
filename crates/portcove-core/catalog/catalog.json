@@ -802,6 +802,16 @@
         "claim": "Pinned primary README specifies exact USA original 2097152 bytes SHA256 9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44. Independently matched unchanged original working copy. Package and runtime admission remain separate.",
         "immutable_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/2b1bd51e09c8599d5436ba56f5ad17bd22550d2e/README.md",
         "live_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/master/README.md"
+      },
+      {
+        "id": "earthbound-recomp-fixed-source-contract-2026-10-19",
+        "role": "upstream_support",
+        "authority": "nickclyde/EarthBoundRecomp",
+        "authority_ref": "fe1155dc26ffc40df36a8003dd0e639e17af3349",
+        "reviewed_at": "2026-10-19",
+        "claim": "Pins the documented original and private local source-build workflow. Core independently enforces exact source, SDK/toolchain and output contracts. Upstream source identity does not authenticate arbitrary prepared executables or establish actual build, native, gameplay or binary redistribution acceptance.",
+        "immutable_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
+        "live_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/main/README.md"
       }
     ],
     "identities": [
@@ -6358,6 +6368,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "earthbound-snes-usa",
+        "label": "EarthBound (USA) headerless 3145728-byte SNES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "exact-stock",
+            "title": "EarthBound Recomp",
+            "region": "USA",
+            "revision": null,
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "raw-original",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "earthbound-recomp-fixed-source-contract-2026-10-19"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "earthbound-recomp-fixed-source-contract-2026-10-19"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -9247,6 +9297,33 @@
           {
             "upstream_ref": "v0.4.1",
             "artifact_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "earthbound-recomp-game-source",
+        "port_id": "earthbound-recomp",
+        "role": "game",
+        "profile_id": "earthbound-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "exact-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "earthbound-recomp-fixed-source-contract-2026-10-19"
+        ],
+        "authority_ref": "fe1155dc26ffc40df36a8003dd0e639e17af3349",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
+        "live_review_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/main/README.md",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "source-fe1155dc26ff",
+            "artifact_sha256": "3cb01dc15d769defa1a8c3428b1ef5ce50f9c1cc224e3f0347f751841fc84710"
           }
         ],
         "aliases": [],
@@ -19009,6 +19086,82 @@
           ]
         }
       }
+    },
+    {
+      "id": "earthbound-recomp",
+      "name": "EarthBound Recomp",
+      "summary": "Early EarthBound native-port bring-up with interpreter fallback, privately built from the exact USA original.",
+      "project_url": "https://github.com/nickclyde/EarthBoundRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "nickclyde/EarthBoundRecomp",
+        "direct": {
+          "windows-x86-64": {
+            "version": "source-fe1155dc26ff",
+            "url": "https://github.com/nickclyde/EarthBoundRecomp/archive/fe1155dc26ffc40df36a8003dd0e639e17af3349.zip",
+            "size": 69441,
+            "sha256": "3cb01dc15d769defa1a8c3428b1ef5ce50f9c1cc224e3f0347f751841fc84710",
+            "published_at": null
+          }
+        },
+        "managed_build": {
+          "windows-x86-64": "earthbound-snes-source-fe1155dc26ff-usa"
+        }
+      },
+      "source_profile": "earthbound-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "EarthBoundRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "earthbound-snes-usa",
+            "label": "EarthBound (USA) headerless 3145728-byte SNES original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Supply the exact headerless raw USA SNES original. Core builds the pinned early EarthBound prototype privately with the Python HiROM analysis and SDL2 backends; launcher, mods, netplay, tracing and co-simulation are disabled. The owned game.sfc and fixed arguments are required. Remove SDL_DYNAMIC_API before starting Portcove. Configuration/keybindings, rom.cfg and saves use Core persistence; run/coverage/crash diagnostics are mutable outputs. Actual private Core build, 12-file verification, two startup/ordinary-close cycles, pinned current-version maintenance, four-file backup/restore and consent-bound owned removal passed at the recorded qualification CLI. A different source release requires a reviewed compatible recipe. Upstream title/file-select bring-up is not full-game acceptance. Installed Desktop, protected production delivery, binary redistribution, gameplay/save-load, visual/audio/controller and other-platform observations remain unqualified. See docs/qualification/earthbound-fixed-source-2026-10-19.md for exact scopes.",
+        "original_game_title": "EarthBound"
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "persistent_paths": [
+        "config.ini",
+        "config.local.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves"
+      ],
+      "runtime_mutable_paths": [
+        "last_run_report.json",
+        "tier2_coverage.json"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ]
     }
   ]
 }
