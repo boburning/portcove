@@ -1387,6 +1387,8 @@ impl PortcoveService {
                     required_source_extension: None,
                     source: None,
                     bios: None,
+                    source_assessment: None,
+                    bios_assessment: None,
                 });
                 return Ok(status);
             }
@@ -1472,6 +1474,19 @@ impl PortcoveService {
         }) {
             blockers.push(LaunchBlocker::InvalidInstallation);
         }
+        let release = status.active.as_ref()
+            .map(|install| (install.version.as_str(), install.artifact.sha256.as_str()))
+            .or_else(|| status.external_runtime.as_ref().map(|runtime| (runtime.version.as_str(), runtime.archive_sha256.as_str())));
+        let source_assessment = port.source_profile.as_deref().zip(source).map(|(id, health)|
+            crate::source_inspection::registered_launch_assessment(catalog, id, health, registered_sources.get(id), &port.id, crate::PortSourceRole::Game, release));
+        let bios_assessment = port.bios_source_profile.as_deref().zip(bios).map(|(id, health)|
+            crate::source_inspection::registered_launch_assessment(catalog, id, health, registered_sources.get(id), &port.id, crate::PortSourceRole::Bios, release));
+        for (assessment, blocker) in [(&source_assessment, LaunchBlocker::IncompatibleSource), (&bios_assessment, LaunchBlocker::IncompatibleBios)] {
+            if assessment.as_ref().is_some_and(|assessment| matches!(assessment.contract, crate::SourceContractResult::RecognizedNotListed { .. } | crate::SourceContractResult::KnownIncompatible { .. }))
+                && !blockers.contains(&blocker) {
+                blockers.push(blocker);
+            }
+        }
         status.readiness = Some(LaunchReadiness {
             launchable: installed && blockers.is_empty(),
             blockers,
@@ -1479,6 +1494,8 @@ impl PortcoveService {
             required_source_extension,
             source,
             bios,
+            source_assessment,
+            bios_assessment,
         });
         Ok(status)
     }
@@ -4785,6 +4802,7 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::MissingBios => (Availability::Waiting, Reason::MissingBios),
         LaunchBlocker::UnreadableBios => (Availability::Held, Reason::UnreadableBios),
         LaunchBlocker::ChangedBios => (Availability::Held, Reason::ChangedBios),
+        LaunchBlocker::IncompatibleBios => (Availability::Held, Reason::IncompatibleBios),
         LaunchBlocker::MissingRuntime => (Availability::Held, Reason::MissingRuntime),
         LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
         LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),

@@ -1301,6 +1301,12 @@ pub struct LaunchReadiness {
     pub source: Option<SourceHealth>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bios: Option<SourceHealth>,
+    /// Descriptive input evidence for this retained installed release. Missing
+    /// legacy fields and unreviewed contracts never establish compatibility.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_assessment: Option<crate::SourceAssessment>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bios_assessment: Option<crate::SourceAssessment>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1313,6 +1319,7 @@ pub enum LaunchBlocker {
     MissingBios,
     UnreadableBios,
     ChangedBios,
+    IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
     InvalidInstallation,

@@ -306,7 +306,7 @@ const SOURCE_BLOCKERS: ReadinessBlocker[] = [
   "changed_source",
   "incompatible_source",
 ];
-const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios"];
+const BIOS_BLOCKERS: ReadinessBlocker[] = ["missing_bios", "unreadable_bios", "changed_bios", "incompatible_bios"];
 
 export function summarizeLibrary(
   ports: PortDefinition[],

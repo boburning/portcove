@@ -125,6 +125,7 @@ pub enum PortActionReason {
     MissingBios,
     UnreadableBios,
     ChangedBios,
+    IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
     InvalidInstallation,

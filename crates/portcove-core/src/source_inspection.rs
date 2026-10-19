@@ -1655,6 +1655,16 @@ pub(crate) fn inspect_file_identity_with_compound(
 ) -> Result<SourceInspection> {
     let legacy = catalog.source_profile(profile_id)?;
     let observed_digests = observed_digests(identity);
+    let requires_n64 = catalog.source_catalog().into_iter()
+        .flat_map(|catalog| &catalog.identities)
+        .filter(|profile| profile.id == profile_id)
+        .flat_map(|profile| &profile.variants)
+        .flat_map(|variant| &variant.representations)
+        .any(|representation| matches!(representation.kind, SourceRepresentationKind::CanonicalN64 { .. })
+            && representation_extensions_match(representation, identity));
+    if requires_n64 && identity.canonical_n64_sha256.is_none() {
+        return Err(PortcoveError::source("This file is not a valid N64 ROM: its byte-order header is missing or invalid. Choose an original N64 ROM file."));
+    }
     if matching_compound_format(catalog, profile_id, identity, &observed_digests)
         .is_some_and(|format| Some(format) != validated_compound)
     {
@@ -1777,6 +1787,73 @@ pub(crate) fn inspect_file_identity_with_compound(
         record: admitted_record,
         message,
     })
+}
+
+/// Reassess durable raw-file facts without I/O or invoking a validator. Storage
+/// health is supplied by the normal status pass. Shapes whose structural proof
+/// cannot be reconstructed from these facts remain explicitly unevaluated.
+pub(crate) fn registered_launch_assessment(
+    catalog: &Catalog,
+    profile_id: &str,
+    health: crate::SourceHealth,
+    source: Option<&SourceRecord>,
+    port_id: &str,
+    role: crate::PortSourceRole,
+    release: Option<(&str, &str)>,
+) -> SourceAssessment {
+    let mut assessment = SourceAssessment {
+        health,
+        classification: SourceClassification::NotEvaluated,
+        contract: SourceContractResult::NotEvaluated,
+        admission: SourceAdmission::NotEvaluated,
+        evidence: Vec::new(),
+    };
+    if health != crate::SourceHealth::Current { return assessment; }
+    let Some(source) = source else { return assessment; };
+    let Some(facts) = source.observed_identity.as_ref() else { return assessment; };
+    if facts.validate_for_record(source).is_err()
+        || !catalog.source_profile(profile_id).is_ok_and(|profile| profile.kind == SourceKind::File)
+    { return assessment; }
+    let digest = |algorithm, scope| facts.digests.iter()
+        .find(|digest| digest.algorithm == algorithm && digest.scope == scope);
+    let content_scope = if facts.archive_member_name.is_some() { DigestScope::ArchiveMember } else { DigestScope::OriginalFile };
+    let canonical = digest(SourceDigestAlgorithm::Sha256, DigestScope::CanonicalN64BigEndian);
+    let identity = FileIdentity {
+        sha256: source.sha256.clone(), size: source.size,
+        sha1: digest(SourceDigestAlgorithm::Sha1, content_scope).map_or_else(String::new, |digest| digest.value.clone()),
+        crc32: digest(SourceDigestAlgorithm::Crc32, content_scope).map_or_else(String::new, |digest| digest.value.clone()),
+        storage_sha256: source.storage_sha256.clone(), storage_size: source.storage_size,
+        content_extension: Path::new(facts.archive_member_name.as_deref().unwrap_or_else(|| source.path.to_str().unwrap_or_default()))
+            .extension().and_then(|extension| extension.to_str()).unwrap_or_default().to_ascii_lowercase(),
+        archive_member: facts.archive_member_name.is_some(), archive_member_name: facts.archive_member_name.clone(),
+        canonical_n64_sha256: canonical.map(|digest| digest.value.clone()),
+        canonical_n64_sha1: digest(SourceDigestAlgorithm::Sha1, DigestScope::CanonicalN64BigEndian).map(|digest| digest.value.clone()),
+        canonical_n64_size: canonical.map(|digest| digest.size),
+    };
+    if matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some() {
+        return assessment;
+    }
+    let Ok(inspected) = inspect_file_identity_with_compound(catalog, profile_id, &source.path, &identity, None) else {
+        return assessment;
+    };
+    assessment.classification = inspected.assessment.classification;
+    assessment.admission = inspected.assessment.admission;
+    let contracts = catalog.source_catalog().into_iter().flat_map(|catalog| &catalog.contracts)
+        .filter(|contract| contract.port_id == port_id && contract.role == role && contract.profile_id == profile_id)
+        .collect::<Vec<_>>();
+    let [contract] = contracts.as_slice() else { return assessment; };
+    assessment.contract = if contract.admission_mode == crate::CatalogAdmissionMode::Informational {
+        SourceContractResult::Informational { contract_id: contract.id.clone() }
+    } else if !release.is_some_and(|(version, hash)| contract.applies_to_release(version, hash)) {
+        SourceContractResult::UnreviewedForRelease
+    } else if let SourceClassification::Recognized { identity } = &assessment.classification {
+        if contract.supported_variant_ids.contains(&identity.variant_id) {
+            SourceContractResult::Supported { contract_id: contract.id.clone() }
+        } else {
+            SourceContractResult::RecognizedNotListed { contract_id: contract.id.clone() }
+        }
+    } else { SourceContractResult::NotEvaluated };
+    assessment
 }
 
 fn representation_matches(

@@ -80,6 +80,7 @@ const actionReasons: Record<string, string> = {
   missing_bios: "A required BIOS file is missing.",
   unreadable_bios: "Portcove cannot read the required BIOS file.",
   changed_bios: "The required BIOS file changed. Review it before playing.",
+  incompatible_bios: "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
   missing_runtime: "A required runtime component is missing.",
   preparation_required: "Prepare game data before playing.",
   invalid_installation: "Portcove could not verify the installed files.",
@@ -300,6 +301,7 @@ const installedInputLabels = {
   unreadable_source: "Game files unreadable",
   missing_bios: "BIOS file missing",
   changed_bios: "BIOS file changed",
+  incompatible_bios: "BIOS edition unsupported",
   unreadable_bios: "BIOS file unreadable",
 };
 
