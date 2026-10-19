@@ -165,8 +165,8 @@ export function CatalogFilters({
         <DialogContent finalFocus={trigger}>
           <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
           <DialogDescription>
-            Choose what to show. Choices within a group are combined; each selected group must
-            match. Filtering does not check files or look for updates.
+            Choose any matching option within a group. A game must match every selected group for
+            the same setup or installation to appear.
           </DialogDescription>
           {!editable && (
             <p role="alert">
@@ -194,13 +194,6 @@ export function CatalogFilters({
               {groups
                 .filter((group) => !["platforms", "channels", "membership"].includes(group.key))
                 .map(renderGroup)}
-              <p className="text-xs text-pc-muted-foreground">
-                Platforms describe available targets, not tested compatibility. In my library means
-                installed or registered, not ready to play. File and attention filters use current
-                Core observations; unavailable facts stay unavailable. Update filters use the last
-                checked candidate for the installed version and do not contact upstream. A matching
-                staged candidate is shown as downloaded rather than available.
-              </p>
             </div>
           </details>
           <Button data-focusable variant="outline" onClick={() => setFilter("all")}>
@@ -242,6 +235,35 @@ export function CatalogFilters({
     return (
       <fieldset key={group.key} className="grid gap-2">
         <legend className="mb-2 font-medium">{group.label}</legend>
+        {group.key === "platforms" && (
+          <p>
+            Platforms describe release targets, not tested compatibility. For this device uses this
+            PC’s platform.
+          </p>
+        )}
+        {group.key === "membership" && (
+          <p>
+            Includes managed installations and registered runtimes in this library. Readiness may
+            still need checking.
+          </p>
+        )}
+        {group.key === "updates" && (
+          <p>
+            Uses the last check for the current installation. A matching staged update is downloaded
+            and verified. Filtering does not check for newer releases.
+          </p>
+        )}
+        {group.key === "gameFiles" && (
+          <p>
+            Uses the same setup or installation as your other filters. Changed or unreadable files
+            need checking; they are not counted as missing.
+          </p>
+        )}
+        {group.key === "attention" && (
+          <p>
+            Shows recorded needs for the current installation. Unavailable details remain unknown.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           {group.values.map((value) => (
             <Button

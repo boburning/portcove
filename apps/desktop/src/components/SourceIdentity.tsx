@@ -311,7 +311,7 @@ function IdentityDigests({ report }: { report: SourceInspectionReport }) {
         <>
           <DigestList label="Selected file" digests={inspection.observed_digests} calculated />
           {inspection.components.map((component) => (
-            <ObservedComponent key={component.id} component={component} report={report} />
+            <ObservedComponent key={component.id} component={component} />
           ))}
         </>
       ) : (
@@ -394,13 +394,7 @@ function ExpectedDigestGroup({
   );
 }
 
-function ObservedComponent({
-  component,
-  report,
-}: {
-  component: ObservedSourceComponent;
-  report: SourceInspectionReport;
-}) {
+function ObservedComponent({ component }: { component: ObservedSourceComponent }) {
   const detail = [
     component.name,
     component.track_count != null ? `${component.track_count} tracks` : undefined,
@@ -408,18 +402,9 @@ function ObservedComponent({
   ]
     .filter(Boolean)
     .join(" · ");
-  const expected = expectedComponentIdentities(report, component.id);
-  const result = componentMatch(component, expected);
   return (
     <div className="observed-component">
-      <span
-        className={cn(
-          "source-contract inline-flex items-center gap-1 text-xs font-medium",
-          sourceToneClasses[result.tone],
-        )}
-      >
-        {result.label}
-      </span>
+      <small>Observed member evidence</small>
       <DigestList
         label={`${componentKindLabel(component.kind)} · ${component.id}${detail ? ` · ${detail}` : ""}`}
         digests={component.digests}
@@ -597,60 +582,6 @@ function expectedGroups(
       identities: disc.identities,
     }));
   return [];
-}
-
-function expectedComponentIdentities(report: SourceInspectionReport, componentId: string) {
-  return (
-    report.expected_identity?.variants.flatMap((variant) =>
-      variant.representations.flatMap((representation) => {
-        if (representation.kind === "file-set")
-          return representation.members
-            .filter((member) => member.id === componentId)
-            .flatMap((member) => member.identities);
-        if (representation.kind === "multi-disc-set")
-          return representation.discs
-            .filter((disc) => disc.id === componentId)
-            .flatMap((disc) => disc.identities);
-        return [];
-      }),
-    ) ?? []
-  );
-}
-
-function componentMatch(component: ObservedSourceComponent, expected: DigestIdentity[]) {
-  if (expected.length === 0)
-    return {
-      label: "Expected identity missing",
-      tone: "contract-unreviewed_for_release",
-    };
-  const digests = component.digests.filter((observed) =>
-    ["sha1", "sha256", "crc32"].includes(observed.algorithm),
-  );
-  if (digests.length === 0)
-    return {
-      label: "Digest comparison unavailable",
-      tone: "contract-not_evaluated",
-    };
-  const match = digests.some((observed) =>
-    expected.some((identity) => {
-      const values = {
-        sha1: identity.sha1,
-        sha256: identity.sha256,
-        crc32: identity.crc32,
-      };
-      const value = Object.hasOwn(values, observed.algorithm)
-        ? values[observed.algorithm]
-        : undefined;
-      return (
-        identity.scope === observed.scope &&
-        typeof value === "string" &&
-        value.toLowerCase() === observed.value.toLowerCase()
-      );
-    }),
-  );
-  return match
-    ? { label: "Exact member match", tone: "contract-supported" }
-    : { label: "Member doesn't match", tone: "contract-known_incompatible" };
 }
 
 function representationFacts(representation: SourceRepresentation) {

@@ -12,12 +12,16 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, Key, until } from "selenium-webdriver";
 import { spawnCommand } from "../../../scripts/dev-storage.mts";
-import { assertOwnedSelectedSetupPath } from "./desktop-source-dialog-test.mts";
+import {
+  assertOwnedSelectedSetupPath,
+  selectedSetupGeneration,
+} from "./desktop-source-dialog-test.mts";
 import {
   assertCompactReview,
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   reviewControls,
+  selectGameFilesSettings,
 } from "./desktop-review-controls.mts";
 
 import {
@@ -214,6 +218,7 @@ export async function selectedSetupCompletionScenario({
     const owned = required(fixture.sourceJourney);
     const reviewPort = required(owned.reviewPort);
     const port = fixture.port;
+    let generation: number;
     const { button, click } = reviewControls(browser);
     const coreEnvironment = {
       ...process.env,
@@ -260,7 +265,14 @@ export async function selectedSetupCompletionScenario({
         | "plan_port",
       args?: Record<string, unknown>,
     ) {
-      const envelope = object(await invoke(name, args));
+      const envelope = object(
+        await invoke(
+          name,
+          name === "get_game_file_roots" || name === "get_game_file_scan_snapshot"
+            ? { ...args, generation }
+            : args,
+        ),
+      );
       const value = requireSuccess(envelope, "value", JSON.stringify(envelope.error));
       switch (name) {
         case "get_sources":
@@ -351,6 +363,7 @@ export async function selectedSetupCompletionScenario({
     };
     let failure: { error: unknown } | undefined;
     try {
+      generation = await selectedSetupGeneration(invoke);
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
       if (fixture.nativeConnectionJourney) {
@@ -464,7 +477,10 @@ export async function selectedSetupCompletionScenario({
         assert.equal(required(initial.coverage).batches, 1);
         assert.equal(required(initial.coverage).can_resume, true);
         await screenshot("connected-folder-management");
-      } else await click(By.xpath('//nav//button[contains(., "Settings")]'));
+      } else {
+        await click(By.xpath('//nav//button[contains(., "Settings")]'));
+        await selectGameFilesSettings(browser);
+      }
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       const initialSnapshot = required(await read("get_game_file_scan_snapshot"));
@@ -1101,6 +1117,7 @@ export async function selectedSetupCompletionScenario({
 
       const rootsBeforeRestart = await read("get_game_file_roots");
       browser = await restartApplication("selected-setup-inputs");
+      generation = await selectedSetupGeneration(invoke);
       const { button: restartButton, click: restartClick } = reviewControls(browser);
       assert.deepEqual(await read("get_sources"), biosSources);
       assert.deepEqual(await read("get_game_file_roots"), rootsBeforeRestart);
@@ -1121,6 +1138,7 @@ export async function selectedSetupCompletionScenario({
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
       await restartClick(By.xpath('//nav//button[contains(., "Settings")]'));
+      await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await browser.wait(
         async () => {

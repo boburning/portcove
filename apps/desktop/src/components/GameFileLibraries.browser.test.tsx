@@ -118,7 +118,7 @@ beforeEach(async () => {
   const host = document.createElement("div");
   document.body.append(host);
   root = await renderComponent(null, { container: document.body.appendChild(host) });
-  await root.rerender(<GameFileLibraries ports={[]} profiles={[]} />);
+  await root.rerender(<GameFileLibraries generation={1} ports={[]} profiles={[]} />);
 });
 afterEach(async () => {
   await cleanup();
@@ -133,6 +133,7 @@ it("scans only after a player asks and keeps exact results as reviewed candidate
   await click("Scan saved folders");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
     expect.objectContaining({ max_entries: 10_000, max_candidates: 64 }),
+    1,
     expect.any(Function),
   );
   expect(document.body.textContent).toContain("D:/Games/game.z64");
@@ -169,7 +170,11 @@ it("continues Core's saved frontier without discarding matches or changing scan 
   expect(document.body.textContent).not.toContain("Remove or update saved folders");
   expect(document.body.textContent).toContain("D:/Games/game.z64");
   await click("Continue scan");
-  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    snapshot.limits,
+    1,
+    expect.any(Function),
+  );
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -203,6 +208,7 @@ it("connects a registered preliminary selection to truthful port guidance and bo
     root.rerender(
       <SetupReviewSelectionProvider>
         <GameFileLibraries
+          generation={1}
           ports={[port]}
           profiles={[
             {
@@ -268,7 +274,7 @@ it("returns preliminary review cancellation to its opener or the heading when th
     accepted_extensions: ["iso"],
   };
   const render = (profiles = [profile]) =>
-    root.rerender(<GameFileLibraries ports={[]} profiles={profiles} />);
+    root.rerender(<GameFileLibraries generation={1} ports={[]} profiles={profiles} />);
   await render();
   await click("Refresh folders");
   await click("Review preliminary selection");
@@ -322,6 +328,7 @@ it.each(["inputs_match", "inputs_changed"] as const)(
     await root.rerender(
       <SetupReviewSelectionProvider>
         <GameFileLibraries
+          generation={1}
           ports={[port]}
           profiles={[]}
           registeredSources={[record]}
@@ -369,7 +376,7 @@ it.each(["continued", "fresh", "stale", "restart"] as const)(
     let finish: ((result: GameFileScanSnapshot) => void) | undefined;
     let emit: ((event: OperationEvent) => void) | undefined;
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(prior);
-    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+    vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
       emit = callback;
       return new Promise((resolve) => {
         finish = resolve;
@@ -378,6 +385,7 @@ it.each(["continued", "fresh", "stale", "restart"] as const)(
     await root.rerender(
       <SetupReviewSelectionProvider>
         <GameFileLibraries
+          generation={1}
           ports={[port]}
           profiles={[]}
           registeredSources={[source]}
@@ -453,7 +461,11 @@ it("preserves a CLI-created bounded scan budget when continuing through Desktop"
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
   await click("Refresh folders");
   await click("Continue scan");
-  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(continued.limits, expect.any(Function));
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    continued.limits,
+    1,
+    expect.any(Function),
+  );
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -473,7 +485,11 @@ it("keeps Core's bounded fresh-scan recovery available when the prior snapshot c
     .mockResolvedValueOnce(null)
     .mockRejectedValueOnce(new Error("Unreadable old report"));
   await click("Scan saved folders");
-  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    snapshot.limits,
+    1,
+    expect.any(Function),
+  );
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
@@ -557,6 +573,7 @@ it("marks matching registered candidates without claiming installation and keeps
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={ports}
       profiles={[]}
       registeredSources={[source]}
@@ -576,6 +593,7 @@ it("marks matching registered candidates without claiming installation and keeps
 
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={ports}
       profiles={[]}
       registeredSources={[source]}
@@ -590,6 +608,7 @@ it("marks matching registered candidates without claiming installation and keeps
   expect(button("Review game files").disabled).toBe(false);
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={ports}
       profiles={[]}
       registeredSources={[source]}
@@ -617,6 +636,7 @@ it("uses core action reasons and installation state for each registered match", 
   const renderStatus = async (value: typeof status) =>
     root.rerender(
       <GameFileLibraries
+        generation={1}
         ports={[port]}
         profiles={[]}
         registeredSources={snapshot.report.candidates}
@@ -640,6 +660,7 @@ it("holds a prior setup continuation when a later workspace refresh fails", asyn
   const onOpenPort = vi.fn();
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={ports}
       profiles={[]}
       registeredSources={[source]}
@@ -651,6 +672,7 @@ it("holds a prior setup continuation when a later workspace refresh fails", asyn
   expect(button("Open Game A details").disabled).toBe(false);
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={ports}
       profiles={[]}
       registeredSources={[source]}
@@ -668,13 +690,14 @@ it("holds a prior setup continuation when a later workspace refresh fails", asyn
 it("recognizes a registered source in streamed results but still reviews a different identity", async () => {
   const source = savedCandidate;
   let onEvent: ((event: OperationEvent) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     onEvent = callback;
     return new Promise<GameFileScanSnapshot>(() => {});
   });
   const onOpenPort = vi.fn();
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
       profiles={[]}
       registeredSources={[source]}
@@ -716,6 +739,7 @@ it("recognizes a registered source in streamed results but still reviews a diffe
   expect(onOpenPort).toHaveBeenCalledWith("game-a", "game-file-libraries-setup");
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       ports={[]}
       profiles={[]}
       registeredSources={[{ ...source, sha256: "c".repeat(64) }]}
@@ -750,13 +774,13 @@ it("keeps live catalog associations distinct through completion and stale readba
   };
   let onEvent: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     onEvent = callback;
     return new Promise<GameFileScanSnapshot>((resolve) => {
       finish = resolve;
     });
   });
-  await root.rerender(<GameFileLibraries ports={ports} profiles={[]} />);
+  await root.rerender(<GameFileLibraries generation={1} ports={ports} profiles={[]} />);
   await click("Scan saved folders");
   for (const [index, candidate] of completed.report.candidates.entries()) {
     await act(async () =>
@@ -795,7 +819,7 @@ it("keeps live catalog associations distinct through completion and stale readba
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 
   const currentPorts = ports.filter((port) => port.id !== "game-a");
-  await root.rerender(<GameFileLibraries ports={currentPorts} profiles={[]} />);
+  await root.rerender(<GameFileLibraries generation={1} ports={currentPorts} profiles={[]} />);
   expect(row("live", "game").textContent).toContain(
     "Catalog ports using this profile: Game B, Firmware consumer",
   );
@@ -825,7 +849,7 @@ it("reviews a streamed match through a fresh core plan before the scan completes
     .mockResolvedValue(snapshot);
   let onEvent: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     onEvent = callback;
     return new Promise<GameFileScanSnapshot>((resolve) => {
       finish = resolve;
@@ -902,7 +926,7 @@ it("restores focus to a completed match when its live scan button disappears", a
     .mockResolvedValue(snapshot);
   let onEvent: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     onEvent = callback;
     return new Promise<GameFileScanSnapshot>((resolve) => {
       finish = resolve;
@@ -933,7 +957,7 @@ it("restores focus to a completed match when its live scan button disappears", a
 it("ignores delayed events from a completed scan while another scan runs", async () => {
   const callbacks: ((event: OperationEvent) => void)[] = [];
   const resolvers: ((value: GameFileScanSnapshot) => void)[] = [];
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     if (callback) callbacks.push(callback);
     return new Promise<GameFileScanSnapshot>((resolve) => {
       resolvers.push(resolve);
@@ -976,7 +1000,7 @@ it("ignores delayed events from a completed scan while another scan runs", async
 it("keeps a streamed match unregistered when fresh planning rejects changed bytes", async () => {
   let onEvent: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     onEvent = callback;
     return new Promise<GameFileScanSnapshot>((resolve) => {
       finish = resolve;
@@ -1056,7 +1080,7 @@ it("retains a progressive scan across selected game details without starting ano
   const source = savedCandidate;
   let emit: ((event: OperationEvent) => void) | undefined;
   let finish: ((value: GameFileScanSnapshot) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     emit = callback;
     return new Promise((resolve) => {
       finish = resolve;
@@ -1068,6 +1092,7 @@ it("retains a progressive scan across selected game details without starting ano
       <button onClick={() => setDetails(false)}>Back to settings</button>
     ) : (
       <GameFileLibraries
+        generation={1}
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
         profiles={[]}
         registeredSources={[source]}
@@ -1076,7 +1101,7 @@ it("retains a progressive scan across selected game details without starting ano
     );
   }
   await root.rerender(
-    <GameFileScanProvider>
+    <GameFileScanProvider generation={1}>
       <WorkspaceJourney />
     </GameFileScanProvider>,
   );
@@ -1167,6 +1192,7 @@ it("offers only affected catalog ports after explicit source registration", asyn
       <button onClick={() => setSelectedPort(undefined)}>Back to settings</button>
     ) : (
       <GameFileLibraries
+        generation={1}
         ports={ports}
         profiles={[]}
         registeredSources={registeredSources}
@@ -1215,7 +1241,7 @@ it("coalesces simultaneous scan requests before root validation finishes", async
   let scan: ReturnType<typeof useGameFileScan> | undefined;
   let rootsReady: ((roots: GameFileRoot[]) => void) | undefined;
   function Owner() {
-    scan = useGameFileScan();
+    scan = useGameFileScan(1);
     return null;
   }
   await root.rerender(<Owner />);
@@ -1244,16 +1270,16 @@ it("disposes scan observation with its workspace and ignores old events and comp
   let scan: ReturnType<typeof useGameFileScan> | undefined;
   const callbacks: ((event: OperationEvent) => void)[] = [];
   const finishes: ((value: GameFileScanSnapshot) => void)[] = [];
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     callbacks.push(callback!);
     return new Promise((resolve) => finishes.push(resolve));
   });
   function Owner() {
-    scan = useGameFileScanObserver();
+    scan = useGameFileScanObserver(1);
     return null;
   }
   await root.rerender(
-    <GameFileScanProvider key="old-library">
+    <GameFileScanProvider generation={1} key="old-library">
       <Owner />
     </GameFileScanProvider>,
   );
@@ -1261,7 +1287,7 @@ it("disposes scan observation with its workspace and ignores old events and comp
     void scan?.start();
   });
   await root.rerender(
-    <GameFileScanProvider key="new-library">
+    <GameFileScanProvider generation={1} key="new-library">
       <Owner />
     </GameFileScanProvider>,
   );
@@ -1314,7 +1340,7 @@ it("retains a scan failure that arrives while selected game details are open", a
   const source = savedCandidate;
   let emit: ((event: OperationEvent) => void) | undefined;
   let fail: ((error: Error) => void) | undefined;
-  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, callback) => {
+  vi.mocked(desktopApi.scanGameFileRoots).mockImplementation((_limits, _generation, callback) => {
     emit = callback;
     return new Promise((_resolve, reject) => {
       fail = reject;
@@ -1326,6 +1352,7 @@ it("retains a scan failure that arrives while selected game details are open", a
       <button onClick={() => setDetails(false)}>Back to settings</button>
     ) : (
       <GameFileLibraries
+        generation={1}
         profiles={[]}
         registeredSources={[source]}
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
@@ -1334,7 +1361,7 @@ it("retains a scan failure that arrives while selected game details are open", a
     );
   }
   await root.rerender(
-    <GameFileScanProvider>
+    <GameFileScanProvider generation={1}>
       <Journey />
     </GameFileScanProvider>,
   );
@@ -1399,6 +1426,7 @@ it("keeps a committed source visible but holds setup until a failed refresh reco
     const [setupSource, setSetupSource] = useSetupSource(registeredSources);
     return (
       <GameFileLibraries
+        generation={1}
         ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
         profiles={[]}
         registeredSources={registeredSources}
@@ -1437,7 +1465,7 @@ it("preserves a saved root until removal is confirmed", async () => {
   expect(remove).not.toHaveBeenCalled();
   await click("Remove");
   await click("Remove saved folder");
-  expect(remove).toHaveBeenCalledWith(saved.id);
+  expect(remove).toHaveBeenCalledWith(saved.id, 1);
 });
 
 it.each([
@@ -1452,6 +1480,7 @@ it.each([
   const onOpenPort = vi.fn();
   await root.rerender(
     <GameFileLibraries
+      generation={1}
       key="loaded"
       ports={[{ ...portDefinition(), id: "game-a", name: "Game A", source_profile: "game" }]}
       profiles={[]}
@@ -1548,7 +1577,9 @@ it.each(["success", "failure"] as const)(
         failInitialSnapshot = reject;
       }),
     );
-    await root.rerender(<GameFileLibraries key="slow-start" ports={[]} profiles={[]} />);
+    await root.rerender(
+      <GameFileLibraries generation={1} key="slow-start" ports={[]} profiles={[]} />,
+    );
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
     await click("Refresh folders");
     const replacement = { ...saved, path: "E:/More Games" };
@@ -1586,7 +1617,7 @@ it.each(["failure", "cancellation"] as const)(
   "preserves a confirmed scan on a root mutation %s",
   async (outcome) => {
     vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
-    await root.rerender(<GameFileLibraries key="loaded" ports={[]} profiles={[]} />);
+    await root.rerender(<GameFileLibraries generation={1} key="loaded" ports={[]} profiles={[]} />);
     vi.spyOn(desktopApi, "removeGameFileRoot").mockRejectedValue(
       outcome === "failure" ? new Error("removal refused") : { code: "cancelled" },
     );
@@ -1612,9 +1643,9 @@ it("uses core root mutations for chosen folders and relinks the same root identi
     path: "E:/More Games",
   });
   await click("Add folder");
-  expect(add).toHaveBeenCalledWith("E:/More Games");
+  expect(add).toHaveBeenCalledWith("E:/More Games", 1);
   await click("Relink");
-  expect(relink).toHaveBeenCalledWith(saved.id, "E:/More Games");
+  expect(relink).toHaveBeenCalledWith(saved.id, "E:/More Games", 1);
 });
 
 it("does not offer review from a snapshot whose inputs changed", async () => {
@@ -1622,7 +1653,9 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
     ...snapshot,
     freshness: "inputs_changed",
   });
-  await root.rerender(<GameFileLibraries key="other-library" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="other-library" ports={[]} profiles={[]} />,
+  );
   expect(button("Review game files").disabled).toBe(true);
   expect(document.body.textContent).toContain("search rules changed");
   expect(document.body.textContent).toContain("Scan again before using these results");
@@ -1637,7 +1670,9 @@ it("caps saved roots at the core scan limit and explains the recovery", async ()
       path: `D:/Games-${index}`,
     })),
   );
-  await root.rerender(<GameFileLibraries key="eight-roots" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="eight-roots" ports={[]} profiles={[]} />,
+  );
   expect(button("Add folder").disabled).toBe(true);
   expect(button("Scan saved folders").disabled).toBe(false);
   expect(document.body.textContent).toContain("at most eight available folders");
@@ -1648,7 +1683,9 @@ it("rechecks availability when a previously unavailable root is scanned", async 
   vi.mocked(desktopApi.gameFileRoots)
     .mockResolvedValueOnce([{ ...saved, availability: "unavailable" }])
     .mockResolvedValue([saved]);
-  await root.rerender(<GameFileLibraries key="reconnected-root" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="reconnected-root" ports={[]} profiles={[]} />,
+  );
   expect(button("Scan saved folders").disabled).toBe(false);
   await click("Scan saved folders");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
@@ -1664,7 +1701,9 @@ it.each([
     const roots = rootsWithAvailability(available, unavailable);
     vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(roots);
     mockCompletedScan(roots);
-    await root.rerender(<GameFileLibraries key="mixed-roots" ports={[]} profiles={[]} />);
+    await root.rerender(
+      <GameFileLibraries generation={1} key="mixed-roots" ports={[]} profiles={[]} />,
+    );
     expect(button("Scan saved folders").disabled).toBe(false);
     expect(button("Add folder").disabled).toBe(available === 8);
     expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
@@ -1672,6 +1711,7 @@ it.each([
     expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
     expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
       snapshot.limits,
+      1,
       expect.any(Function),
     );
     expect(document.body.textContent).toContain("Unavailable saved folders were not searched.");
@@ -1691,12 +1731,14 @@ it("allows another available folder without removing disconnected saved folders"
     .mockResolvedValue([...roots, added]);
   const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue(added);
   const remove = vi.spyOn(desktopApi, "removeGameFileRoot");
-  await root.rerender(<GameFileLibraries key="add-mixed-roots" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="add-mixed-roots" ports={[]} profiles={[]} />,
+  );
   expect(button("Add folder").disabled).toBe(false);
   expect(add).not.toHaveBeenCalled();
   await click("Add folder");
   expect(add).toHaveBeenCalledOnce();
-  expect(add).toHaveBeenCalledWith(added.path);
+  expect(add).toHaveBeenCalledWith(added.path, 1);
   expect(remove).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain(fixtureValue(roots[7], "roots[7]").path);
   expect(button("Add folder").disabled).toBe(true);
@@ -1710,7 +1752,9 @@ it("rechecks available folders after choosing a folder before adding it", async 
   const reconnected = rootsWithAvailability(8, 1);
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
   const add = vi.spyOn(desktopApi, "addGameFileRoot");
-  await root.rerender(<GameFileLibraries key="reconnected-add" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="reconnected-add" ports={[]} profiles={[]} />,
+  );
   expect(button("Add folder").disabled).toBe(false);
   await click("Add folder");
   expect(picker.pickGameFileFolder).toHaveBeenCalledWith("");
@@ -1724,7 +1768,9 @@ it("uses fresh availability when disconnected folders can now be scanned", async
   const reconnected = rootsWithAvailability(1, 8);
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
   mockCompletedScan(reconnected);
-  await root.rerender(<GameFileLibraries key="reconnected-mixed-scan" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="reconnected-mixed-scan" ports={[]} profiles={[]} />,
+  );
   expect(button("Scan saved folders").disabled).toBe(false);
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
   await click("Scan saved folders");
@@ -1742,7 +1788,9 @@ it("blocks a scan when refreshed availability exceeds eight and keeps prior evid
     roots: initial,
     freshness: "inputs_changed",
   });
-  await root.rerender(<GameFileLibraries key="too-many-reconnected" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="too-many-reconnected" ports={[]} profiles={[]} />,
+  );
   expect(button("Scan saved folders").disabled).toBe(false);
   await click("Scan saved folders");
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
@@ -1755,7 +1803,9 @@ it("blocks a scan when refreshed availability exceeds eight and keeps prior evid
 
 it("explains that all nine saved folders are unavailable without starting a scan", async () => {
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(rootsWithAvailability(0, 9));
-  await root.rerender(<GameFileLibraries key="all-offline-roots" ports={[]} profiles={[]} />);
+  await root.rerender(
+    <GameFileLibraries generation={1} key="all-offline-roots" ports={[]} profiles={[]} />,
+  );
   expect(button("Scan saved folders").disabled).toBe(false);
   await click("Scan saved folders");
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
@@ -1773,8 +1823,90 @@ it("offers Core's hash-limited continuation without widening the allowance or au
   );
   expect(document.body.textContent).not.toContain("Remove or update saved folders");
   await click("Continue scan");
-  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(snapshot.limits, expect.any(Function));
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    snapshot.limits,
+    1,
+    expect.any(Function),
+  );
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
 vi.mock("../file-picker", { spy: true });
+
+it.each(["picker", "preflight"] as const)(
+  "discards an outgoing-library add after a delayed %s",
+  async (wait) => {
+    const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue(saved);
+    let release!: () => void;
+    if (wait === "picker") {
+      vi.mocked(picker.pickGameFileFolder).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve("E:/Old intention");
+          }),
+      );
+    } else {
+      vi.mocked(desktopApi.gameFileRoots).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            release = () => resolve([saved]);
+          }),
+      );
+    }
+    await click("Add folder");
+    await root.rerender(
+      <GameFileLibraries generation={2} key="replacement-library" ports={[]} profiles={[]} />,
+    );
+    await act(async () => release());
+    expect(add).not.toHaveBeenCalled();
+    expect(desktopApi.gameFileRoots).toHaveBeenCalledWith(2);
+  },
+);
+
+it("reaches Core's fresh scan when the previous payload is unreadable from mount onward", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockRejectedValue(
+    new Error("malformed saved scan JSON"),
+  );
+  await root.rerender(
+    <GameFileLibraries generation={1} key="corrupt-at-mount" ports={[]} profiles={[]} />,
+  );
+  expect(document.body.textContent).toContain(saved.path);
+  expect(document.body.textContent).toContain("malformed saved scan JSON");
+  expect(button("Scan saved folders").disabled).toBe(false);
+  await click("Scan saved folders");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledWith(
+    snapshot.limits,
+    1,
+    expect.any(Function),
+  );
+  expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+});
+
+it("discards a relink picker after the originating library is replaced", async () => {
+  const relink = vi.spyOn(desktopApi, "relinkGameFileRoot").mockResolvedValue(saved);
+  let release!: (path: string) => void;
+  vi.mocked(picker.pickGameFileFolder).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+  );
+  await click("Relink");
+  await root.rerender(
+    <GameFileLibraries generation={2} key="new-library" ports={[]} profiles={[]} />,
+  );
+  await act(async () => release("E:/Old relink"));
+  expect(relink).not.toHaveBeenCalled();
+});
+
+it("keeps a roots-only add preflight from confirming an older observation after mutation failure", async () => {
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(snapshot);
+  await click("Refresh folders");
+  expect(button("Review game files").disabled).toBe(false);
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue([{ ...saved, path: "E:/Changed root" }]);
+  vi.spyOn(desktopApi, "addGameFileRoot").mockRejectedValue(new Error("save failed"));
+  await click("Add folder");
+  expect(document.body.textContent).toContain("save failed");
+  expect(button("Review game files").disabled).toBe(true);
+  expect(document.body.textContent).not.toContain("Saved roots and catalog match this snapshot");
+});

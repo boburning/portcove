@@ -35,7 +35,7 @@ type ScanState = {
 
 // Owned by the current Workspace, rather than the temporarily visible Settings view.
 // Disposing this observer does not cancel core's operation or grant another library its state.
-export function useGameFileScan() {
+export function useGameFileScan(generation: number) {
   const [state, setState] = useState<ScanState>({ scanning: false, candidates: [], completion: 0 });
   const owner = useRef<{ active?: object; disposed: boolean }>({ disposed: false });
   useEffect(() => {
@@ -46,7 +46,7 @@ export function useGameFileScan() {
       delete current.active;
     };
   }, []);
-  const start = async (readRoots = desktopApi.gameFileRoots) => {
+  const start = async (readRoots = () => desktopApi.gameFileRoots(generation)) => {
     const current = owner.current;
     if (current.active || current.disposed) return;
     const token = {};
@@ -66,7 +66,7 @@ export function useGameFileScan() {
         notice = "No saved folder is available. Reconnect or relink one, then scan again.";
       } else {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.
-        const snapshot = await desktopApi.gameFileScanSnapshot().catch(() => null);
+        const snapshot = await desktopApi.gameFileScanSnapshot(generation).catch(() => null);
         if (!accepts()) return;
         const continuingScan = () =>
           snapshot?.freshness === "inputs_match" &&
@@ -96,7 +96,7 @@ export function useGameFileScan() {
         }
         let acceptingEvents = true;
         result = await desktopApi
-          .scanGameFileRoots(limits, (event) => {
+          .scanGameFileRoots(limits, generation, (event) => {
             if (!acceptingEvents || !accepts()) return;
             if (event.type === "started") {
               setState((previous) => ({ ...previous, operationId: event.operation_id }));
@@ -156,13 +156,19 @@ export type GameFileScan = ReturnType<typeof useGameFileScan>;
 
 const GameFileScanContext = createContext<GameFileScan | undefined>(undefined);
 
-export function GameFileScanProvider({ children }: { children: ReactNode }) {
-  const scan = useGameFileScan();
+export function GameFileScanProvider({
+  children,
+  generation,
+}: {
+  children: ReactNode;
+  generation: number;
+}) {
+  const scan = useGameFileScan(generation);
   return createElement(GameFileScanContext.Provider, { value: scan }, children);
 }
 
-export function useGameFileScanObserver() {
+export function useGameFileScanObserver(generation: number) {
   const workspace = useContext(GameFileScanContext);
-  const standalone = useGameFileScan();
+  const standalone = useGameFileScan(generation);
   return workspace ?? standalone;
 }

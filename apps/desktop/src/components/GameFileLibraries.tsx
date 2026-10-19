@@ -1,5 +1,5 @@
 import { SettingsRow } from "./ui/patterns";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickGameFileFolder } from "../file-picker";
 import { useSetupSource } from "../features/app-shell/use-setup-source";
@@ -586,43 +586,74 @@ function LiveScanResults({
   );
 }
 
-function useSavedFolderView(setError: (error: string) => void) {
+function useSavedFolderView(generation: number, setError: (error: string) => void) {
   const [roots, setRoots] = useState<GameFileRoot[]>();
   const [snapshot, setSnapshot] = useState<GameFileScanSnapshot | null>();
   const [readConfirmed, setReadConfirmed] = useState(false);
   const requests = useRef(new LatestRequestGeneration());
+  const refreshRoots = useCallback(async () => {
+    const savedRoots = await desktopApi.gameFileRoots(generation);
+    return savedRoots;
+  }, [generation]);
+  const refresh = useCallback(
+    async (reportErrors = false) => {
+      const request = requests.current.begin();
+      setReadConfirmed(false);
+      const [rootResult, snapshotResult] = await Promise.allSettled([
+        refreshRoots().then((savedRoots) => {
+          if (requests.current.isCurrent(request)) setRoots(savedRoots);
+          return savedRoots;
+        }),
+        desktopApi.gameFileScanSnapshot(generation),
+      ]);
+      if (requests.current.isCurrent(request)) {
+        if (rootResult.status === "fulfilled") setRoots(rootResult.value);
+        if (snapshotResult.status === "fulfilled") setSnapshot(snapshotResult.value);
+        setReadConfirmed(
+          rootResult.status === "fulfilled" && snapshotResult.status === "fulfilled",
+        );
+      }
+      const failure =
+        rootResult.status === "rejected"
+          ? rootResult
+          : snapshotResult.status === "rejected"
+            ? snapshotResult
+            : undefined;
+      if (failure) {
+        if (reportErrors && requests.current.isCurrent(request))
+          setError(errorText(failure.reason));
+        throw failure.reason;
+      }
+      if (rootResult.status === "rejected") throw rootResult.reason;
+      return rootResult.value;
+    },
+    [generation, refreshRoots, setError],
+  );
   useEffect(() => {
     const reads = requests.current;
-    const request = reads.begin();
-    void Promise.all([desktopApi.gameFileRoots(), desktopApi.gameFileScanSnapshot()])
-      .then(([savedRoots, savedSnapshot]) => {
-        if (!reads.isCurrent(request)) return;
-        setRoots(savedRoots);
-        setSnapshot(savedSnapshot);
-        setReadConfirmed(true);
+    let observing = true;
+    void Promise.resolve()
+      .then(() => {
+        if (observing) return refresh(true);
       })
-      .catch((value: unknown) => {
-        if (reads.isCurrent(request)) setError(errorText(value));
-      });
+      .catch(() => {});
     return () => {
+      observing = false;
       reads.begin();
     };
-  }, [setError]);
-  const refresh = useCallback(async () => {
-    const request = requests.current.begin();
-    setReadConfirmed(false);
-    const [savedRoots, savedSnapshot] = await Promise.all([
-      desktopApi.gameFileRoots(),
-      desktopApi.gameFileScanSnapshot(),
-    ]);
-    if (requests.current.isCurrent(request)) {
+  }, [refresh, setError]);
+  return {
+    roots,
+    snapshot,
+    setSnapshot,
+    readConfirmed,
+    refresh,
+    refreshRoots,
+    acceptRootPreflight: (savedRoots: GameFileRoot[]) => {
       setRoots(savedRoots);
-      setSnapshot(savedSnapshot);
-      setReadConfirmed(true);
-    }
-    return savedRoots;
-  }, []);
-  return { roots, snapshot, setSnapshot, readConfirmed, refresh };
+      setReadConfirmed(false);
+    },
+  };
 }
 
 function useCompletedScanView(
@@ -650,6 +681,7 @@ function useCompletedScanView(
 }
 
 export function GameFileLibraries({
+  generation,
   ports,
   profiles,
   registeredSources = [],
@@ -660,6 +692,7 @@ export function GameFileLibraries({
   setupSource,
   setSetupSource,
 }: {
+  generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
   registeredSources?: SourceRecord[];
@@ -671,11 +704,19 @@ export function GameFileLibraries({
   setSetupSource?: ((source?: SourceRecord) => void) | undefined;
 }) {
   const [busy, setBusy] = useState("");
-  const scanState = useGameFileScanObserver();
+  const scanState = useGameFileScanObserver(generation);
   const { scanning, operationId, candidates: liveCandidates } = scanState;
   const [error, setError] = useState<string>();
-  const view = useSavedFolderView(setError);
-  const { roots, snapshot, readConfirmed, refresh } = view;
+  const view = useSavedFolderView(generation, setError);
+  const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
+  const owner = useRef<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    owner.current = generation;
+    return () => {
+      owner.current = undefined;
+    };
+  }, [generation]);
+  const accepts = () => owner.current === generation;
   const viewCompletion = useCompletedScanView(scanState, view, setError);
   const [notice, setNotice] = useState<string>();
   const [removingId, setRemovingId] = useState<string>();
@@ -763,10 +804,12 @@ export function GameFileLibraries({
     setNotice(undefined);
     return task()
       .catch((value: unknown) => {
+        if (!accepts()) return;
         if (isCancellation(value)) setNotice(cancellationNotice);
         else setError(errorText(value));
       })
       .finally(() => {
+        if (!accepts()) return;
         setBusy("");
       });
   };
@@ -783,28 +826,34 @@ export function GameFileLibraries({
   const add = () =>
     run("Choosing folder…", async () => {
       const path = await pickGameFileFolder("");
-      if (!path) return;
-      if (availableRootCount(await refresh()) >= maxAvailableRootsPerScan) {
+      if (!path || !accepts()) return;
+      const currentRoots = await refreshRoots();
+      if (!accepts()) return;
+      acceptRootPreflight(currentRoots);
+      if (availableRootCount(currentRoots) >= maxAvailableRootsPerScan) {
         setNotice(
           "A scan supports at most eight available folders. Remove an available folder before adding another.",
         );
         return;
       }
-      await desktopApi.addGameFileRoot(path);
+      await desktopApi.addGameFileRoot(path, generation);
+      if (!accepts()) return;
       setPlan(undefined);
       await refreshAfterRootChange("Folder saved.");
     });
   const relink = (root: GameFileRoot) =>
     run("Choosing replacement…", async () => {
       const path = await pickGameFileFolder(root.path);
-      if (!path) return;
-      await desktopApi.relinkGameFileRoot(root.id, path);
+      if (!path || !accepts()) return;
+      await desktopApi.relinkGameFileRoot(root.id, path, generation);
+      if (!accepts()) return;
       setPlan(undefined);
       await refreshAfterRootChange("Saved folder location updated.");
     });
   const remove = (root: GameFileRoot) =>
     run("Removing folder…", async () => {
-      const removed = await desktopApi.removeGameFileRoot(root.id);
+      const removed = await desktopApi.removeGameFileRoot(root.id, generation);
+      if (!accepts()) return;
       setRemovingId(undefined);
       setPlan(undefined);
       await refreshAfterRootChange(
@@ -816,7 +865,7 @@ export function GameFileLibraries({
   const scan = () => {
     setError(undefined);
     setNotice(undefined);
-    return scanState.start(refresh);
+    return scanState.start(refreshRoots);
   };
   const review = (candidate: Pick<SourceRecord, "profile_id" | "path">) =>
     run(
@@ -825,13 +874,12 @@ export function GameFileLibraries({
         reviewedCandidate.current = candidate;
         setRegisteredSource(undefined);
         setPlan(undefined);
-        setPlan(
-          await desktopApi.planSourceImport(
-            candidate.profile_id,
-            candidate.path,
-            "use_current_location",
-          ),
+        const reviewed = await desktopApi.planSourceImport(
+          candidate.profile_id,
+          candidate.path,
+          "use_current_location",
         );
+        if (accepts()) setPlan(reviewed);
       },
       "Game-file check cancelled. No location was saved.",
     );
@@ -846,6 +894,7 @@ export function GameFileLibraries({
           plan.mode,
           plan.plan_sha256,
         );
+        if (!accepts()) return;
         if (!result) {
           setNotice(
             "Adding game files was cancelled. Check the current state before trying again.",

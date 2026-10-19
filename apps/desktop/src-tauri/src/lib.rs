@@ -899,8 +899,9 @@ async fn add_source(
 #[tauri::command]
 async fn get_game_file_roots(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
 ) -> DesktopResult<Vec<portcove_core::GameFileRoot>> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service.library().game_file_roots().map_err(Into::into)
     })
     .await
@@ -909,9 +910,10 @@ async fn get_game_file_roots(
 #[tauri::command]
 async fn add_game_file_root(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     path: PathBuf,
 ) -> DesktopResult<portcove_core::GameFileRoot> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
             .library()
             .add_game_file_root(&path)
@@ -923,10 +925,11 @@ async fn add_game_file_root(
 #[tauri::command]
 async fn relink_game_file_root(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     root_id: String,
     path: PathBuf,
 ) -> DesktopResult<portcove_core::GameFileRoot> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
             .library()
             .relink_game_file_root(&root_id, &path)
@@ -938,9 +941,10 @@ async fn relink_game_file_root(
 #[tauri::command]
 async fn remove_game_file_root(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     root_id: String,
 ) -> DesktopResult<bool> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
             .library()
             .remove_game_file_root(&root_id)
@@ -952,10 +956,11 @@ async fn remove_game_file_root(
 #[tauri::command]
 async fn scan_game_file_roots(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
     limits: portcove_core::SourceDiscoveryLimits,
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service
             .scan_game_file_roots_with_progress(&limits, |event| {
                 let _ = on_event.send(event);
@@ -968,8 +973,9 @@ async fn scan_game_file_roots(
 #[tauri::command]
 async fn get_game_file_scan_snapshot(
     state: tauri::State<'_, DesktopState>,
+    generation: u64,
 ) -> DesktopResult<Option<portcove_core::GameFileScanSnapshot>> {
-    blocking_service(state.inner().clone(), move |service| {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service.game_file_scan_snapshot().map_err(Into::into)
     })
     .await
@@ -2817,6 +2823,67 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(actual_root, replacement_root);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn delayed_saved_folder_worker_rejects_switch_but_acquired_lease_keeps_its_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = initialize_desktop_at(Some(temporary.path().join("original"))).unwrap();
+        let original_library = original.library.clone();
+        let replacement =
+            initialize_desktop_at(Some(temporary.path().join("replacement"))).unwrap();
+        let replacement_library = replacement.library.clone();
+        let folder = temporary.path().join("games");
+        std::fs::create_dir(&folder).unwrap();
+        let state = DesktopState {
+            initialization: std::sync::Arc::new(std::sync::Mutex::new(Ok(original))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(7)),
+            launch_observer: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        };
+        // A service already acquired under A may finish in A after the handoff.
+        let outgoing = service_at_generation(&state, 7).unwrap();
+        let queued_folder = folder.clone();
+        let mut queued = Box::pin(blocking_service_at_generation(
+            state.clone(),
+            7,
+            move |service| {
+                service
+                    .library()
+                    .add_game_file_root(&queued_folder)
+                    .map_err(Into::into)
+            },
+        ));
+        {
+            let mut initialization = state.initialization.lock().unwrap();
+            let mut context = std::task::Context::from_waker(futures_util::task::noop_waker_ref());
+            assert!(queued.as_mut().poll(&mut context).is_pending());
+            *initialization = Ok(replacement);
+            state
+                .generation
+                .store(8, std::sync::atomic::Ordering::Release);
+        }
+        assert_eq!(
+            queued.await.unwrap_err().code,
+            portcove_core::ErrorCode::Conflict
+        );
+        assert!(original_library.game_file_roots().unwrap().is_empty());
+        assert!(replacement_library.game_file_roots().unwrap().is_empty());
+        outgoing.library().add_game_file_root(&folder).unwrap();
+        assert_eq!(original_library.game_file_roots().unwrap().len(), 1);
+        assert!(replacement_library.game_file_roots().unwrap().is_empty());
+        let current_folder = temporary.path().join("current-games");
+        std::fs::create_dir(&current_folder).unwrap();
+        blocking_service_at_generation(state, 8, move |service| {
+            service
+                .library()
+                .add_game_file_root(&current_folder)
+                .map_err(Into::into)
+        })
+        .await
+        .unwrap();
+        assert_eq!(replacement_library.game_file_roots().unwrap().len(), 1);
     }
 
     #[tokio::test(flavor = "current_thread")]

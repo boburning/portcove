@@ -216,6 +216,14 @@ impl CartridgeBuildRecipe {
         }
     }
 
+    pub(crate) fn acquisition_assets(self) -> Vec<ReleaseAsset> {
+        self.archives().map(|archive| archive.asset()).into()
+    }
+
+    pub(crate) fn temporary_bytes(self, primary_bytes: u64) -> u64 {
+        primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
+    }
+
     pub(crate) fn minimum_template_version(self) -> u32 {
         match self {
             Self::YoshisCookieNesCycle110 => 6,
