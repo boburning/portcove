@@ -704,6 +704,7 @@ const value = (name) => process.argv[process.argv.indexOf(name) + 1];
 const app = value("--app"), output = value("--output");
 const manifest = JSON.parse(readFileSync(value("--package-evidence"), "utf8"));
 const ready = JSON.parse(readFileSync(manifest.installer_evidence.path, "utf8"));
+assert.equal(manifest.installer_evidence.bytes, readFileSync(manifest.installer_evidence.path).length);
 assert.equal(manifest.execution_context, "current-installed");
 assert.equal(ready.phase, "current_installed_boundary_ready");
 assert.equal(ready.details.installed_executable_path, app);

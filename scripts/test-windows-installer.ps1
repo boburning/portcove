@@ -1185,6 +1185,7 @@ try {
         $normalPackageManifest | Add-Member -NotePropertyName execution_context -NotePropertyValue 'current-installed' -Force
         $normalPackageManifest | Add-Member -NotePropertyName installer_evidence -NotePropertyValue ([ordered]@{
             path = $readyReceipt
+            bytes = (Get-Item -LiteralPath $readyReceipt).Length
             sha256 = (Get-FileHash -LiteralPath $readyReceipt -Algorithm SHA256).Hash.ToLowerInvariant()
         }) -Force
         $normalPackageManifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $boundManifest -Encoding utf8
