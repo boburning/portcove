@@ -2497,7 +2497,7 @@ describe("desktop components", () => {
       "Required for setup: <strong>Sample cartridge · PlayStation SCPH-1001 BIOS</strong>",
     );
     expect(missingBoth.indexOf("Required for setup:")).toBeLessThan(
-      missingBoth.indexOf("Status and actions"),
+      missingBoth.indexOf('aria-label="Game actions"'),
     );
     expect(missingBoth).toMatch(
       /<details class="future-setup-disclosure advanced-settings is-deferred[^"]*">/u,
@@ -3183,7 +3183,7 @@ describe("desktop components", () => {
       />,
     );
     const headings = [
-      "Status and actions",
+      'aria-label="Game actions"',
       "Requirements",
       "Installation and version",
       "Updates",
@@ -3406,7 +3406,8 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain(">Details</button>");
+    expect(html).toContain(`aria-label="View details for ${port.name}"`);
+    expect(html).not.toContain(">Details</button>");
     expect(html).toContain(`aria-label="More actions for ${port.name}"`);
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
@@ -3427,7 +3428,7 @@ describe("desktop components", () => {
       /<article class="port-card [^"]*\bport-card-library\b[^>]*>[\s\S]*?<\/article>/u,
     )?.[0];
     expect(card).toBeDefined();
-    expect(card).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(card).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
     expect(card).not.toContain(install.version);
@@ -3465,7 +3466,7 @@ describe("desktop components", () => {
 
     expect(html).toContain("Update downloaded");
     expect(html).toContain("1 update downloaded");
-    expect(html).toMatch(/<h2[^>]*>Sample Port<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
