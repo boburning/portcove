@@ -657,11 +657,12 @@ fn runtime_imports_accept_reviewed_windows_names_but_refuse_unsafe_or_unknown_de
     let parsed = validate_imports(&output).unwrap();
     assert_eq!(parsed.len(), names.len());
     assert!(parsed.contains(&"ws2_32.dll".to_owned()));
+    let drive_rooted_import = ["C:", "WS2_32.dll"].join("\\");
     for bad in [
         "",
         " ",
         "../WS2_32.dll",
-        "C:\\WS2_32.dll",
+        drive_rooted_import.as_str(),
         "WS2_32 .dll",
         "arbitrary.dll",
         "WS2_32.dll\nName: ws2_32.DLL",
