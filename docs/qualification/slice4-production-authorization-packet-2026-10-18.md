@@ -9,6 +9,19 @@ It grants nothing. The runnable workflow remains admission-only. The
 [held complete workflow](application-update-production.aggregate.yml) is outside
 `.github/workflows`; its four new jobs also have literal false conditions.
 
+## Current local runtime checkpoint
+
+The [bounded diagnostic result](slice4-bounded-runtime-result-2026-10-18.md)
+records the failed `CODEX_HOME` metadata startup and completed matching recovery.
+Its grant is fulfilled; both images remain detached and retained. The delivered
+metadata preflight is still unqualified natively. The
+[next retained-image observation](slice4-next-storage-observation-2026-10-18.md)
+prepares one fresh credential-free diagnostic and phase-specific recovery, using
+the existing second image and preserving the original marker byte-for-byte.
+It requires a new exact operation grant after delivery; no reattach or repeated
+fixture has occurred. The older preparation checkpoints below retain their
+historical scope. Production, authentication, issuer and acceptance holds remain.
+
 ## Continuation after merged #2125
 
 The [producer and #144 checkpoint](slice4-producer-and-144-checkpoint-2026-10-18.md)
@@ -819,15 +832,54 @@ unset; #144 outside compiled catalog; production held; slice 5 excluded.
 
 Delivery details and exact evidence: [reader/upstream checkpoint](slice4-reader-and-upstream-checkpoint-2026-10-18.md), [evidence](slice4-reader-and-upstream-evidence-2026-10-18.json).
 
-## Local storage diagnostic: first attempt recovered; corrected next attempt pending
+## Local storage diagnostic: approved attempt failed; matching recovery complete
+
+The owner subsequently approved the exact #2153 retained-image completion,
+single conditional credential-free diagnostic and matching recovery. That grant
+is now fulfilled. The
+[actual bounded-runtime result](slice4-bounded-runtime-result-2026-10-18.md)
+records successful storage completion, a failed single non-elevated diagnostic
+and positive exact-image detach readback. Codex could not read the bounded
+`CODEX_HOME`; no authentication error or review event was observed. Both images,
+markers and original/new failure evidence remain retained. No operator command
+remains for this attempt. The proposed/ungranted wording below is historical,
+superseded only within that consumed exact grant. No repeat or permission
+widening is authorized.
+
+The bounded storage branch now prepares a fail-closed metadata preflight on the
+actual suspended reviewer token. It verifies the impersonated AppContainer SID,
+observes the token's enabled bypass-traverse privilege and probes the fixed
+mount/attempt/home/work/temp directories with `GetFileAttributesW`. The broker
+retains owner/group/DACL/mandatory-label descriptors separately in a bounded
+CreateNew capture, with a digest and per-path results in the isolation receipt.
+This probe is not a trace or replacement for every Rust filesystem operation.
+Missing descriptors, denied or unknown metadata, wrong identity or failed
+preparation prevent `ResumeThread`; the common owned-job termination, empty-tree
+and profile teardown path still supplies the actual result. No ACL is widened.
+Descriptor queries use existing broker access; they do not enable a privilege
+or appoint an authority ([Windows query rights](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information)).
+Inert verification is preparation only. This new preflight has not run in a
+native attempt; the consumed grant authorizes no mounted observation or repeat.
 
 Later preparation supersedes the pending-operation wording below: the owner ran
 the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
 earlier initialization/format stages; no fixture ran. The second exact image
-remains attached pending its separately prepared partial cleanup. Neither the
+was detached by the owner under its approved exact cleanup, with positive
+independent readback and the backing file retained. The cleanup grant is
+fulfilled; neither the
 earlier intent phase nor the failed command proves absence of partial effects.
 Further VHD provisioning and fixture retries are stopped. These are retained
 diagnostic failures, not semantic acceptance.
+
+The elevated cleanup readback established the exact GPT/NTFS partitions and the
+provider identifier mismatch behind the mount failure. The one-line repair now
+passes the returned partition object. The
+[retained-volume completion proposal](slice4-semantic-retained-volume-completion-2026-10-18.md)
+prepares completion of that exact existing image without creating, initializing
+or formatting a disk. It includes an exclusive completion/recovery lock, fresh
+provider readback and matching recovery for one subsequent credential-free
+fixture. It is preparation only: that completion/diagnostic grant remains
+outstanding, and no attachment or fixture was performed during implementation.
 
 Pinned Codex `rust-v0.162.0` source at
 `c1382380de69521303b416720a52f42d51af6248` shows that app-server initialization

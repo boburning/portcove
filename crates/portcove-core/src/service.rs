@@ -1276,6 +1276,25 @@ impl PortcoveService {
         })
     }
 
+    fn install_matches_release(
+        &self,
+        install: &InstallRecord,
+        release: &ResolvedRelease,
+        runtime: Option<&crate::RuntimeIdentity>,
+    ) -> Result<bool> {
+        if !artifact_matches_release(install, release, runtime) {
+            return Ok(false);
+        }
+        let current = &self.catalog.port(&install.port_id)?.release.managed_build;
+        // A legacy install without a retained contract cannot establish a
+        // locally built recipe. Never infer its origin from today's catalog.
+        let retained = Installer::new(self.library.clone())?.retained_catalog(install)?;
+        Ok(match retained {
+            Some(catalog) => catalog.port(&install.port_id)?.release.managed_build == *current,
+            None => current.is_empty(),
+        })
+    }
+
     fn install_plan_action(
         &self,
         status: &PortStatus,
@@ -1286,14 +1305,14 @@ impl PortcoveService {
         if status
             .active
             .as_ref()
-            .is_some_and(|install| artifact_matches_release(install, release, runtime.as_ref()))
+            .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
+            .transpose()?
+            .unwrap_or(false)
         {
             return Ok(InstallPlanAction::AlreadyActive);
         }
-        if let Some(staged) = status
-            .staged
-            .as_ref()
-            .filter(|install| artifact_matches_release(install, release, runtime.as_ref()))
+        if let Some(staged) = status.staged.as_ref()
+            && self.install_matches_release(staged, release, runtime.as_ref())?
         {
             return Ok(if staged.verified {
                 InstallPlanAction::UseStaged
@@ -1309,6 +1328,9 @@ impl PortcoveService {
         else {
             return Ok(InstallPlanAction::Download);
         };
+        if !self.install_matches_release(&retained, release, runtime.as_ref())? {
+            return Ok(InstallPlanAction::Download);
+        }
         Ok(if retained.verified {
             InstallPlanAction::ReuseRetained
         } else {
@@ -2088,7 +2110,9 @@ impl PortcoveService {
         let update_available = status
             .active
             .as_ref()
-            .is_none_or(|install| !artifact_matches_release(install, release, runtime.as_ref()));
+            .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
+            .transpose()?
+            .is_none_or(|matches| !matches);
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -2378,7 +2402,7 @@ impl PortcoveService {
         )?;
         let runtime = crate::runtime::required(port, Platform::current()?);
         if let Some(active) = &status.active
-            && artifact_matches_release(active, &release, runtime.as_ref())
+            && self.install_matches_release(active, &release, runtime.as_ref())?
         {
             self.managed_install_root(&port.id, &active.path)?;
             let qualification = self.installed_mutability_qualification(active)?;
@@ -2386,7 +2410,7 @@ impl PortcoveService {
             return Ok(active.clone());
         }
         if let Some(staged) = &status.staged
-            && artifact_matches_release(staged, &release, runtime.as_ref())
+            && self.install_matches_release(staged, &release, runtime.as_ref())?
         {
             self.managed_install_root(&port.id, &staged.path)?;
             let qualification = self.installed_mutability_qualification(staged)?;
@@ -2401,6 +2425,7 @@ impl PortcoveService {
         if let Some(mut existing) =
             self.library
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
+            && self.install_matches_release(&existing, &release, runtime.as_ref())?
         {
             self.managed_install_root(&port.id, &existing.path)?;
             let qualification = self.installed_mutability_qualification(&existing)?;
@@ -2423,6 +2448,7 @@ impl PortcoveService {
         let bios = self.validate_and_remember_bios(port, overrides.bios, reporter.operation)?;
         reporter.operation.checkpoint()?;
         let platform = Platform::current()?;
+        let qualification = qualification.with_cartridge_build_source(source.as_ref())?;
         let managed = self
             .managed_preparation(
                 port,
@@ -3698,6 +3724,19 @@ impl PortcoveService {
             let port = launch_catalog.port(port_id)?;
             let active = self.library.status(port_id, default_channel(port))?.active;
             let external = self.library.external_runtime_with_port(port_id)?;
+            if !arguments.is_empty()
+                && let Some(install) = &active
+                && !self
+                    .installed_catalog(install)?
+                    .port(port_id)?
+                    .release
+                    .managed_build
+                    .is_empty()
+            {
+                return Err(PortcoveError::usage(
+                    "this cartridge build recipe does not allow forwarded launch arguments",
+                ));
+            }
             if !arguments.is_empty()
                 && let Some((record, retained_catalog)) = &external
                 && retained_catalog
@@ -5037,6 +5076,108 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn cartridge_artifact_reuse_requires_its_retained_build_recipe() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = crate::cartridge_build::tests::fixture_catalog();
+        let port = catalog.port("yoshis-cookie-recomp").unwrap();
+        let root = library.versions_dir().join(&port.id).join("inert-build");
+        fs::create_dir_all(&root).unwrap();
+        for name in [
+            "YoshisCookieRecomp.exe",
+            "SDL2.dll",
+            "game.nes",
+            crate::cartridge_build::RECEIPT,
+        ] {
+            fs::write(root.join(name), b"inert fixture bytes").unwrap();
+        }
+        let qualification =
+            InstallQualification::from_catalog(&catalog, &port.id, Platform::WindowsX86_64)
+                .unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "fixture.zip".into(),
+            sha256: "a".repeat(64),
+            size: 10,
+        };
+        let (manifest_sha256, selected_executable, runtime) = Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                "inert-build",
+                &port.id,
+                "v1",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+        let install = InstallRecord {
+            id: "inert-build".into(),
+            port_id: port.id.clone(),
+            version: "v1".into(),
+            path: root,
+            channel: ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            manifest_sha256,
+            selected_executable,
+            runtime,
+        };
+        library.register_install(&install, true).unwrap();
+        let mut service = PortcoveService::new(library).unwrap();
+        service.catalog = catalog.clone();
+        let release = ResolvedRelease {
+            version: "v1".into(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "fixture.zip".into(),
+                sha256: install.artifact.sha256.clone(),
+                size: 10,
+                url: "https://invalid.example/never-requested".into(),
+            },
+        };
+        assert!(
+            service
+                .install_matches_release(&install, &release, None)
+                .unwrap()
+        );
+        let before = service
+            .library
+            .status(&port.id, ReleaseChannel::Stable)
+            .unwrap();
+        assert_eq!(
+            service.install_plan_action(&before, &release).unwrap(),
+            InstallPlanAction::AlreadyActive
+        );
+        let mut document = catalog.authoritative_document();
+        document.ports[0].release.managed_build.clear();
+        service.catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        assert!(
+            !service
+                .install_matches_release(&install, &release, None)
+                .unwrap()
+        );
+        assert_eq!(
+            service.install_plan_action(&before, &release).unwrap(),
+            InstallPlanAction::Download
+        );
+        assert_eq!(
+            service
+                .library
+                .status(&port.id, ReleaseChannel::Stable)
+                .unwrap()
+                .active
+                .unwrap()
+                .id,
+            install.id
+        );
+        // An equal archive digest cannot turn a downloaded runtime into this
+        // original-driven build (or vice versa); no publication occurred.
+    }
 
     #[test]
     fn libultraship_persistence_matches_the_host_storage_contract() {

@@ -91,6 +91,49 @@ export function summarizeFallow(report: unknown, reference: string, title = "Fal
         `${category}: introduced ${text(record(root.attribution)[`${category}_introduced`])}; inherited ${text(record(root.attribution)[`${category}_inherited`])}`,
       );
 
+  if (root.kind === "audit-brief" || root.test_reach !== undefined) {
+    const reach = record(root.test_reach);
+    entries.push(
+      `Test reach (advisory static graph, not executed coverage): ${text(reach.status)}; masking ${text(reach.masking)}; changed exports ${text(reach.total)}`,
+    );
+    if (reach.status === "measured") {
+      entries.push(
+        `Reach counts: ${["direct", "transitive", "mocked-only", "none", "none-file", "framework"]
+          .map((name) => `${name}=${text(record(reach.counts)[name])}`)
+          .join(", ")}`,
+      );
+      section("Changed exports needing attention", reach.exports, (item) => {
+        const known = ["direct", "transitive", "mocked-only", "none", "none-file", "framework"];
+        const classification =
+          typeof item.reach === "string" && known.includes(item.reach)
+            ? text(item.reach)
+            : `unknown ${text(item.reach)} (needs attention)`;
+        return `${location(item)}; ${text(item.export_name)}; ${text(item.change)}; ${classification}`;
+      });
+      if (reach.exports_omitted !== undefined)
+        entries.push(
+          `Additional changed exports omitted by analyzer: ${text(reach.exports_omitted)}`,
+        );
+    } else {
+      entries.push("Test reach unavailable; no clean-coverage conclusion");
+    }
+    if (reach.masking === "capped")
+      entries.push("Mock detection capped; masking evidence incomplete");
+    if (reach.e2e_runner === true)
+      entries.push("End-to-end runner present; its coverage is outside static test reach");
+  }
+  section(
+    "Diff risk (advisory; verify evidence)",
+    record(root.diff_risk).findings,
+    (item) =>
+      `${severity(item)}; ${location(item)}; ${text(item.rule)}${item.kind ? `/${text(item.kind)}` : ""}; ${text(item.message)}; evidence ${text(item.evidence)}`,
+  );
+  section(
+    "Guardrail changes (advisory; verify evidence)",
+    root.weakening,
+    (item) => `${location(item)}; ${text(item.kind)}; evidence ${text(item.evidence)}`,
+  );
+
   const check = record(root.check ?? root.dead_code);
   if (check.total_issues !== undefined)
     entries.push(

@@ -99,7 +99,25 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.n64_windows_initial_d3d12
+        let capability_version = if !port.release.managed_build.is_empty() {
+            6
+        } else if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| runtime.settings_contract.is_some())
+        {
+            5
+        } else if port
+            .release
+            .user_prepared
+            .values()
+            .any(|runtime| !runtime.required_mutable_files.is_empty())
+        {
+            4
+        } else if !port.release.user_prepared.is_empty() && port.runtime_subdirectory.is_some() {
+            3
+        } else if port.n64_windows_initial_d3d12
             || port
                 .release
                 .user_prepared

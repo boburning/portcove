@@ -9,6 +9,298 @@ import {
 import { evaluateCiResults } from "./ci-result-gate.mts";
 
 const sha = (character: string) => character.repeat(40);
+
+void test(
+  "next observation preserves marker bytes, partial effects and exclusive handoff",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-observation-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const operator = fileURLToPath(new URL("./prepare-semantic-observation.ps1", import.meta.url));
+    const launcher = fileURLToPath(new URL("./semantic-review-sandbox.ps1", import.meta.url));
+    const script = `
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${operator.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'operator parse failed'}
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst]},$true))
+if($functions.Count -ne 6){throw 'unexpected observation function surface'}
+foreach($function in $functions){Invoke-Expression $function.Extent.Text}
+$launchAst=[Management.Automation.Language.Parser]::ParseFile('${launcher.replaceAll("'", "''")}',[ref]$tokens,[ref]$errors)
+$handoff=@($launchAst.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Open-ObservationHandoff'},$true))
+if($errors.Count -or $handoff.Count -ne 1){throw 'handoff unavailable'}
+Invoke-Expression $handoff[0].Extent.Text
+function Refuses([scriptblock]$action){$refused=$false;try{& $action|Out-Null}catch{$refused=$true};if(-not $refused){throw 'unsafe observation accepted'}}
+$base='${root.replaceAll("'", "''")}';$script:serial=0
+function Reset-Fixture {
+ $script:serial++;$script:root=Join-Path $base "case-$script:serial";$null=[IO.Directory]::CreateDirectory($script:root)
+ $script:active=Join-Path $script:root 'reviewer-active.json';$script:archive=Join-Path $script:root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json'
+ [IO.File]::WriteAllText($script:active,'original evidence');$script:oldMarkerHash=(Get-FileHash $script:active).Hash.ToLowerInvariant()
+ $script:image=Join-Path $script:root 'reviewer.vhd';[IO.File]::WriteAllText($script:image,'inert backing bytes')
+ $script:mount=Join-Path $script:root 'data';$script:diskId='exact-disk';$script:volumeId='exact-volume'
+ $script:imageState=[pscustomobject]@{ImagePath=$script:image;Size=536870912;FileSize=536871424;StorageType=2;Attached=$true;DevicePath='inert-device'}
+ $script:disk=[pscustomobject]@{UniqueId=$script:diskId;Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual';PartitionStyle='GPT';IsReadOnly=$false;Path='provider-partition-id'}
+ $script:reserved=[pscustomobject]@{Offset=17408;Size=16759808;DiskId=$script:disk.Path}
+ $script:data=[pscustomobject]@{Offset=16777216;Size=520028160;DiskId=$script:disk.Path}
+ $script:volume=[pscustomobject]@{Path=$script:volumeId;UniqueId=$script:volumeId;FileSystem='NTFS';FileSystemLabel='PortcoveSemantic';Size=520024064}
+ $script:mounted=$script:volume.PSObject.Copy();$script:providerCalls=0;$script:throwAfterAttach=$false
+ $script:intentPath=Join-Path $script:root 'observation-intent.json';$script:resultPath=Join-Path $script:root 'observation-result.json'
+ $script:workspace=$script:root;$script:ExpectedSourceRevision='a'*40;$script:ownerSid='inert-owner'
+ $script:configHash='c'*64;$script:nativeHash='d'*64;$script:launcherHash='e'*64;$script:qualifierHash='f'*64;$script:scriptHash='b'*64
+ [IO.File]::WriteAllText((Join-Path $script:root 'completion-operation.lock'),'')
+}
+function Get-DiskImage {param($ImagePath,$ErrorAction) if($ImagePath -ne $script:image){throw 'wrong image'};$script:imageState}
+function Get-Disk {param([Parameter(ValueFromPipeline)]$InputObject) process{if(-not [object]::ReferenceEquals($InputObject,$script:imageState)){throw 'wrong image association'};$script:disk}}
+function Get-Partition {param($Disk,$ErrorAction) if(-not [object]::ReferenceEquals($Disk,$script:disk)){throw 'wrong partition association'};$script:reserved;$script:data}
+function Get-Volume {param($Partition,$FilePath,$ErrorAction) if($FilePath){if($FilePath -ne ($script:mount+'\\')){throw 'wrong mount'};$script:mounted}else{if(-not [object]::ReferenceEquals($Partition,$script:data)){throw 'wrong volume association'};$script:volume}}
+function Mount-DiskImage {param($ImagePath,[switch]$NoDriveLetter,$ErrorAction)
+ if(-not (Test-Path $script:intentPath) -or (Test-Path $script:active) -or -not (Test-Path $script:archive)){throw 'effect preceded durable intent/archive'}
+ $script:providerCalls++;$script:imageState.Attached=$true;if($script:throwAfterAttach){throw 'ambiguous attachment response'}
+}
+function git {param($C,$Verb,$Arg,$Arg2) $global:LASTEXITCODE=0;if($Verb -eq 'rev-parse'){$script:ExpectedSourceRevision}}
+Reset-Fixture;Confirm-ObservationMount
+foreach($field in @('UniqueId','IsBoot','IsSystem','Size','BusType','PartitionStyle','IsReadOnly')){
+ Reset-Fixture;$script:disk.$field=$null;Refuses {Confirm-ObservationMount}
+}
+foreach($field in @('DiskId','Offset','Size')){Reset-Fixture;$script:data.$field=$null;Refuses {Confirm-ObservationMount}}
+foreach($field in @('Path','UniqueId','FileSystem','FileSystemLabel','Size')){Reset-Fixture;$script:volume.$field=$null;Refuses {Confirm-ObservationMount}}
+Reset-Fixture;$script:mounted.Path='other-volume';Refuses {Confirm-ObservationMount}
+Reset-Fixture;$handle=[IO.File]::Open($active,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::None)
+try{Refuses {Archive-ObservationMarker}}finally{$handle.Dispose()}
+Archive-ObservationMarker
+if((Test-Path $active) -or [IO.File]::ReadAllText($archive) -ne 'original evidence'){throw 'old marker lost'}
+Refuses {Archive-ObservationMarker}
+Write-ObservationRecord $intentPath @{phase='first'};Refuses {Write-ObservationRecord $intentPath @{phase='replacement'}}
+Refuses {Write-ObservationRecord $resultPath @{too_large=('x'*8193)}}
+$operatorTry=@($ast.EndBlock.Statements|Where-Object {$_ -is [Management.Automation.Language.TryStatementAst] -and $_.Finally.Extent.Text.Contains('$gate.Dispose()')})
+if($operatorTry.Count -ne 1){throw 'operator boundary missing'}
+foreach($ambiguous in @($false,$true)){
+ Reset-Fixture;$script:imageState.Attached=$false;$script:throwAfterAttach=$ambiguous;$Operation='Prepare'
+ if($ambiguous){Refuses {Invoke-Expression (($operatorTry[0].Body.Statements|ForEach-Object { $_.Extent.Text }) -join [Environment]::NewLine)}}else{Invoke-Expression (($operatorTry[0].Body.Statements|ForEach-Object { $_.Extent.Text }) -join [Environment]::NewLine)|Out-Null}
+ $result=Get-Content -Raw $resultPath|ConvertFrom-Json
+ if($result.ready -eq $ambiguous -or $script:providerCalls -ne 1 -or -not $script:imageState.Attached -or $result.automatic_retry -or (Test-Path $active) -or -not (Test-Path $archive)){throw 'partial effect or readiness misrepresented'}
+ if($ambiguous -and $result.provider_error -ne 'ambiguous attachment response'){throw 'original failure lost'}
+ Refuses {Invoke-Expression (($operatorTry[0].Body.Statements|ForEach-Object { $_.Extent.Text }) -join [Environment]::NewLine)}
+ if($script:providerCalls -ne 1){throw 'automatic repeat'}
+}
+# Execute the real recovery branch with only its terminal exit omitted, so its
+# resulting records can be asserted in this process. All provider effects are
+# mocked; ordinary temporary files exercise the actual CreateNew transitions.
+$recoverIf=$operatorTry[0].Body.Statements[0]
+$recoverBody=($recoverIf.Clauses[0].Item2.Statements|Where-Object {$_ -isnot [Management.Automation.Language.ExitStatementAst]}|ForEach-Object {$_.Extent.Text}) -join [Environment]::NewLine
+function Dismount-DiskImage {param($ImagePath,$ErrorAction)
+ if($ImagePath -ne $image -or -not (Test-Path (Join-Path $root 'observation-recovery-intent.json')) -or -not (Test-Path $active)){throw 'detach without exclusive recovery intent/marker'}
+ $script:providerCalls++;$script:imageState.Attached=$false;if($script:ambiguousDetach){throw 'ambiguous detach response'}
+}
+foreach($ambiguous in @($false,$true)){
+ Reset-Fixture;$script:ambiguousDetach=$ambiguous
+ Write-ObservationRecord $intentPath @{schema_version=1;operator_helper_sha256=$scriptHash;configuration_sha256=$configHash;owner_sid=$ownerSid;image=$image}
+ Archive-ObservationMarker
+ Invoke-Expression $recoverBody|Out-Null
+ $recovered=Get-Content -Raw (Join-Path $root 'observation-recovery-result.json')|ConvertFrom-Json
+ if(-not $recovered.detached_observed -or -not $recovered.markers_retained -or -not $recovered.backing_file_retained -or $recovered.automatic_retry -or $script:providerCalls -ne 1){throw 'actual recovery effects lost'}
+ if($ambiguous -and $recovered.provider_error -ne 'ambiguous detach response'){throw 'ambiguous response replaced by success'}
+ Refuses {Invoke-Expression $recoverBody}
+ if($script:providerCalls -ne 1){throw 'repeated recovery effect'}
+}
+Reset-Fixture
+Write-ObservationRecord $intentPath @{schema_version=1;operator_helper_sha256=$scriptHash;configuration_sha256=$configHash;owner_sid=$ownerSid;image=$image}
+Archive-ObservationMarker;[IO.File]::WriteAllText($active,'new fixture ownership')
+Refuses {Invoke-Expression $recoverBody}
+if($script:providerCalls -or (Test-Path (Join-Path $root 'observation-recovery-intent.json'))){throw 'recovery crossed new fixture ownership'}
+# Exercise the actual launcher gate using the retained real old marker bytes in
+# an ordinary temporary directory; no native profile/storage operations occur.
+Reset-Fixture
+# Keep hosted tests self-contained: the old marker is an intentionally fixed
+# fixture whose exact bytes are supplied alongside this test below.
+$markerBytes=[Convert]::FromBase64String('__MARKER_BASE64__')
+[IO.File]::WriteAllBytes($archive,$markerBytes)
+$record=@{schema_version=1;owner_sid=$ownerSid;source_revision=('a'*40);image=$image;configuration_sha256=$configHash;native_helper_sha256=$nativeHash;launcher_sha256=$launcherHash;qualifier_sha256=$qualifierHash;operator_helper_sha256=$scriptHash;ready=$true;provider_error=$null;readback_error=$null}
+function Open-Gate {Open-ObservationHandoff $root $configHash $nativeHash $launcherHash $scriptHash $qualifierHash $ownerSid}
+$legacy=Open-Gate
+try{
+ Refuses {[IO.File]::Open((Join-Path $root 'completion-operation.lock'),[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}
+ # A preparation arriving after the legacy intent check cannot enter its lock,
+ # so it cannot archive/attach while this launcher retains legacy ownership.
+ if(Test-Path $intentPath){throw 'legacy fixture unexpectedly has intent'}
+}finally{$legacy.Dispose()}
+Write-ObservationRecord $intentPath $record;Refuses {Open-Gate}
+Write-ObservationRecord $resultPath $record
+$held=Open-Gate
+try{Refuses {Open-Gate};Refuses {[IO.File]::Open((Join-Path $root 'completion-operation.lock'),[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None)}}finally{$held.Dispose()}
+foreach($field in @('owner_sid','source_revision','image','configuration_sha256','native_helper_sha256','launcher_sha256','qualifier_sha256','operator_helper_sha256','ready','provider_error','readback_error')){
+ $bad=$record.Clone();$bad[$field]=if($field -eq 'ready'){$false}else{'wrong'}
+ [IO.File]::WriteAllText($resultPath,($bad|ConvertTo-Json));Refuses {Open-Gate}
+}
+[IO.File]::WriteAllText($resultPath,($record|ConvertTo-Json))
+Write-ObservationRecord (Join-Path $root 'observation-recovery-intent.json') @{claimed=$true};Refuses {Open-Gate}
+@{provider_calls='mocked only';marker='byte preserved';partial_attach='retained, no retry';handoff='exclusive and identity bound'}|ConvertTo-Json -Compress
+`;
+    const marker = await readFile(
+      new URL("./fixtures/semantic-review-retained-marker.json.txt", import.meta.url),
+    );
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(
+          script.replace("__MARKER_BASE64__", marker.toString("base64")),
+          "utf16le",
+        ).toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      provider_calls: "mocked only",
+      marker: "byte preserved",
+      partial_attach: "retained, no retry",
+      handoff: "exclusive and identity bound",
+    });
+  },
+);
+
+void test(
+  "suspended storage preflight refuses unknown access and always reverts a verified entry",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const helper = fileURLToPath(
+      new URL("./fixtures/semantic-review-appcontainer.cs.txt", import.meta.url),
+    ).replaceAll("'", "''");
+    const source = await readFile(
+      new URL("./fixtures/semantic-review-appcontainer.cs.txt", import.meta.url),
+      "utf8",
+    );
+    const preflight = source.indexOf(
+      "result.Storage=ObserveStorage(token,profile,storagePaths,stdout,cwd)",
+    );
+    const resume = source.indexOf('Require(ResumeThread(pi.thread)!=UInt32.MaxValue,"resume")');
+    assert.ok(preflight > 0 && resume > preflight);
+    assert.match(source, /if\(!result.Storage.Passed\)result.ForcedTermination=true/u);
+    assert.match(source, /if\(!result.ForcedTermination\)\s*\{\s*Require\(ResumeThread/u);
+    assert.match(source, /if\(result.ForcedTermination\)Require\(TerminateJobObject\(job,1\)/u);
+    const script = `
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${helper}'))
+function New-Paths {
+ [PortcoveReviewContainer+StorageObservation[]]@(0..4|ForEach-Object {[PortcoveReviewContainer+StorageObservation]@{Path="C:\\inert\\directory$_";Sddl='O:SYD:(A;;FA;;;SY)'}})
+}
+function Invoke-Case([string]$kind) {
+ $script:entered=0;$script:verified=0;$script:observed=0;$script:reverted=0
+ $paths=New-Paths
+ if($kind -eq 'bad-path'){$paths[0].Path='relative'}
+ if($kind -eq 'oversized'){$paths[0].Sddl='x'*4097}
+ if($kind -eq 'descriptor'){$paths[0].DescriptorError=5;$paths[0].Sddl=$null}
+ $script:kind=$kind
+ $result=[PortcoveReviewContainer]::CheckStorage($paths,[Func[bool]]{$script:entered++;$script:kind -ne 'enter-failed'},[Func[bool]]{$script:verified++;$script:kind -ne 'identity'},[Action[PortcoveReviewContainer+StorageObservation[]]]{param($rows)
+  $script:observed++
+  if($script:kind -eq 'throw'){throw 'inert metadata failure'}
+  foreach($p in $rows){$p.Attributes=16}
+  if($script:kind -eq 'denied'){$rows[2].Attributes=$null;$rows[2].MetadataError=5}
+  if($script:kind -eq 'unknown'){$rows[2].Attributes=$null}
+  if($script:kind -eq 'file'){$rows[2].Attributes=128}
+ },[Func[bool]]{$script:reverted++;$script:kind -ne 'revert-failed'})
+ if($result.Passed -ne ($kind -eq 'pass')){throw "incorrect acceptance: $kind"}
+ $expectedEnter=if($kind -in @('bad-path','oversized')){0}else{1}
+ $expectedRevert=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
+ $expectedVerify=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
+ $expectedObserve=if($kind -in @('bad-path','oversized','enter-failed','identity')){0}else{1}
+ if($script:entered -ne $expectedEnter -or $script:verified -ne $expectedVerify -or $script:reverted -ne $expectedRevert -or $script:observed -ne $expectedObserve){throw "incorrect ownership flow: $kind"}
+ if($kind -eq 'denied' -and $result.Paths[2].MetadataError -ne 5){throw 'native refusal lost'}
+ if($kind -eq 'revert-failed' -and $result.Reverted){throw 'failed revert described as complete'}
+}
+foreach($kind in @('pass','bad-path','oversized','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed')){Invoke-Case $kind}
+@{cases=11;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), { cases: 11, native_processes: 0, storage_operations: 0 });
+  },
+);
+
+void test(
+  "storage preflight capture preserves teardown and keeps descriptors out of the recovery receipt",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-storage-capture-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./semantic-review-sandbox.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop'
+$errors=$null;$tokens=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'parse failure'}
+$functions=@($ast.FindAll({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-StoragePreflightCapture'},$true))
+if($functions.Count -ne 1){throw 'production capture helper missing'}
+Invoke-Expression $functions[0].Extent.Text
+$root='${root.replaceAll("'", "''")}'
+$null=New-Item -ItemType Directory -Path (Join-Path $root 'capture')
+$process=[pscustomobject]@{TreeEmpty=$true;ForcedTermination=$true;ReviewerResumed=$false;ExitCode=$null;Storage=[pscustomobject]@{Passed=$false;IdentityVerified=$true;Reverted=$true;BypassTraverseEnabled=$false;Error=$null;Paths=@(0..4|ForEach-Object {[pscustomobject]@{Path="C:\\inert\\directory$_";Sddl=('x'*800);Attributes=$null;MetadataError=5;DescriptorError=0}})}}
+$summary=Write-StoragePreflightCapture $root $process
+if(-not $summary.TreeEmpty -or -not $summary.ForcedTermination -or $summary.ReviewerResumed -or $summary.Storage.Passed -or -not $summary.Storage.Reverted){throw 'refusal/teardown state lost'}
+$capturePath=Join-Path $root 'capture/storage-preflight.json'
+if((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $summary.Storage.CaptureSha256){throw 'capture hash differs'}
+$capture=Get-Content -Raw -LiteralPath $capturePath|ConvertFrom-Json
+if($capture.preflight.Paths.Count -ne 5 -or $capture.preflight.Paths[0].Sddl.Length -ne 800 -or $summary.Storage.Paths[0].PSObject.Properties.Name -contains 'Sddl'){throw 'descriptor evidence/summary scope wrong'}
+$isolation=@{process=$summary;profile_deleted=$true;cleanup_errors=@()}|ConvertTo-Json -Depth 7
+if([Text.Encoding]::UTF8.GetByteCount($isolation) -ge 16384){throw 'recovery receipt exceeds helper bound'}
+$hash=(Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash
+$refused=$false;try{$null=Write-StoragePreflightCapture $root $process}catch{$refused=$true}
+if(-not $refused -or (Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash -ne $hash){throw 'prior capture overwritten'}
+$null=New-Item -ItemType Directory -Path (Join-Path $root 'oversized/capture')
+$process.Storage.Paths[0].Sddl='x'*40000
+$refused=$false;try{$null=Write-StoragePreflightCapture (Join-Path $root 'oversized') $process}catch{$refused=$true}
+if(-not $refused -or (Test-Path -LiteralPath (Join-Path $root 'oversized/capture/storage-preflight.json'))){throw 'oversized capture was written'}
+@{preserved_teardown=$true;bound_capture=$true;recovery_receipt_bounded=$true;overwrite_refused=$true;oversized_refused=$true;native_operations=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      preserved_teardown: true,
+      bound_capture: true,
+      recovery_receipt_bounded: true,
+      overwrite_refused: true,
+      oversized_refused: true,
+      native_operations: 0,
+    });
+  },
+);
 const plan = (oldPath: string, newPath = oldPath, status = "M") =>
   buildValidationPlan({
     changes: [
@@ -213,6 +505,207 @@ Reset-Fixture;$script:diskSet=@($script:diskSet[0],$script:diskSet[0]);Must-Refu
     assert.deepEqual(JSON.parse(output), {
       cases: 15,
       mutations: "none; extracted production guard with inert provider functions",
+    });
+  },
+);
+
+void test(
+  "semantic storage provisioning binds the returned partition object through its complete provider sequence",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const parent = await mkdtemp(path.join(tmpdir(), "portcove-storage-provider-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./prepare-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const root = path.join(parent, "owned").replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'helper parse failed'}
+$guards=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Get-OwnedDisk'},$true))
+$branches=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq "$"+"Operation -eq 'Provision'"},$true))
+if($guards.Count -ne 1 -or $branches.Count -ne 1){throw 'exact production stages missing'}
+$body=$branches[0].Clauses[0].Item2
+foreach($command in $body.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)){
+ if($command.GetCommandName() -notin @('Test-Path','New-Item','Set-Acl','Join-Path','diskpart.exe','Get-OwnedDisk','ConvertTo-Json','Set-Content','Initialize-Disk','New-Partition','Format-Volume','Add-PartitionAccessPath','Get-Content','Out-Null')){throw 'unexpected production command'}
+}
+Invoke-Expression $guards[0].Extent.Text
+Invoke-Expression ('function Invoke-ProductionProvision '+$body.Extent.Text)
+$root='${root}';$image=Join-Path $root 'reviewer.vhd';$mount=Join-Path $root 'data'
+$identity=[Security.Principal.WindowsIdentity]::GetCurrent();$ExpectedConfigurationSha256='a'*64
+$script:disk=[pscustomobject]@{UniqueId='6002248094AE6EFC7984F0EC20A288AC';Path='provider-partition-disk-path';Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual';PartitionStyle='RAW'}
+$script:partition=[pscustomobject]@{DiskId=$script:disk.Path;Offset=16777216}
+$script:volume=[pscustomobject]@{Path='fixture-volume-guid';FileSystem='NTFS';Size=520024064}
+$script:steps=[Collections.Generic.List[string]]::new()
+function Get-DiskImage {param($ImagePath,$ErrorAction) if($ImagePath -ne $image){throw 'wrong image'};[pscustomobject]@{Attached=$true}}
+function Get-Disk {param([Parameter(ValueFromPipeline=$true)]$InputObject) process{$script:disk}}
+function Set-Acl {param($LiteralPath,$AclObject) if($LiteralPath -eq $root){$script:steps.Add('root-acl')}elseif($LiteralPath -eq $script:volume.Path){$script:steps.Add('volume-acl')}else{throw 'unexpected ACL target'}}
+function diskpart.exe {param($s,$scriptFile) if($scriptFile -ne (Join-Path $root 'diskpart.txt')){throw 'wrong command file'};$script:steps.Add('attach');$global:LASTEXITCODE=0}
+function Initialize-Disk {param($UniqueId,$PartitionStyle,$ErrorAction) if($UniqueId -ne $script:disk.UniqueId){throw 'wrong unique disk'};$script:steps.Add('initialize');$script:disk.PartitionStyle='GPT'}
+function New-Partition {param($DiskId,[switch]$UseMaximumSize,$ErrorAction) if($DiskId -ne $script:disk.UniqueId){throw 'wrong partition input'};$script:steps.Add('partition');$script:partition}
+function Format-Volume {param($Partition,$FileSystem,$NewFileSystemLabel,$Confirm,$ErrorAction) if(-not [object]::ReferenceEquals($Partition,$script:partition)){throw 'wrong format partition'};$script:steps.Add('format');$script:volume}
+function Add-PartitionAccessPath {param($InputObject,$DiskId,$Offset,$AccessPath,$ErrorAction) if(-not [object]::ReferenceEquals($InputObject,$script:partition) -or $AccessPath -ne ($mount+'\\')){throw 'partition provider requires its returned object, not disk UniqueId'};$script:steps.Add('bind')}
+$null=Invoke-ProductionProvision
+$receipt=Get-Content -Raw -LiteralPath (Join-Path $root 'storage.json')|ConvertFrom-Json
+if($receipt.disk_unique_id -ne $script:disk.UniqueId -or $receipt.volume_guid -ne $script:volume.Path -or $receipt.observed_volume_bytes -ne 520024064 -or $receipt.configuration_sha256 -ne $ExpectedConfigurationSha256){throw 'storage receipt differs'}
+if(Test-Path -LiteralPath $image){throw 'inert provider test created an image'}
+@{steps=@($script:steps);native_storage_calls=0;receipt='actual production branch'}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      steps: ["root-acl", "attach", "initialize", "partition", "format", "bind", "volume-acl"],
+      native_storage_calls: 0,
+      receipt: "actual production branch",
+    });
+  },
+);
+
+void test(
+  "retained storage completion verifies exact provider association and fresh mount readback",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const helper = fileURLToPath(
+      new URL("./complete-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'completion parse failed'}
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Get-PreparedPartition','Connect-PreparedPartition')},$true))
+if($functions.Count -ne 2){throw 'exact completion functions missing'}
+foreach($function in $functions){
+ foreach($command in $function.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)){
+  if($command.GetCommandName() -notin @('Get-Partition','Where-Object','Get-Volume','Get-PreparedPartition','Add-PartitionAccessPath')){throw 'unexpected provider command'}
+ }
+ Invoke-Expression $function.Extent.Text
+}
+$mount='X:/inert-only/data';$script:disk=[pscustomobject]@{Path='partition-provider-id';UniqueId='physical-disk-id'}
+function Reset-Fixture {
+ $script:reserved=[pscustomobject]@{DiskId=$script:disk.Path;Offset=17408;Size=16759808}
+ $script:data=[pscustomobject]@{DiskId=$script:disk.Path;Offset=16777216;Size=520028160;AccessPaths=@('fixture-volume-guid')}
+ $script:volume=[pscustomobject]@{Path='fixture-volume-guid';UniqueId='fixture-volume-guid';FileSystem='NTFS';FileSystemLabel='PortcoveSemantic';Size=520024064}
+ $script:binds=0;$script:omitReadback=$false
+}
+function Get-Partition {param($Disk,$ErrorAction) if(-not [object]::ReferenceEquals($Disk,$script:disk)){throw 'wrong disk object'};$script:reserved;$script:data}
+function Get-Volume {param($Partition,$ErrorAction) if(-not [object]::ReferenceEquals($Partition,$script:data)){throw 'wrong volume association'};$script:volume}
+function Add-PartitionAccessPath {param($InputObject,$AccessPath,$ErrorAction) if(-not [object]::ReferenceEquals($InputObject,$script:data) -or $AccessPath -ne ($mount+'\\')){throw 'wrong partition binding'};$script:binds++;if(-not $script:omitReadback){$script:data.AccessPaths+=($mount+'\\')}}
+function Must-Refuse {try{$null=Connect-PreparedPartition $script:disk 'fixture-volume-guid'}catch{return};throw 'unsafe retained volume accepted'}
+Reset-Fixture
+if((Connect-PreparedPartition $script:disk 'fixture-volume-guid').Path -ne 'fixture-volume-guid' -or $script:binds -ne 1){throw 'valid retained volume refused'}
+$cases=1
+foreach($change in @(@{DiskId='physical-disk-id'},@{Offset=16777217},@{Size=520028159},@{AccessPaths=@('fixture-volume-guid','C:/unrelated/')})){
+ Reset-Fixture;foreach($key in $change.Keys){$script:data.$key=$change[$key]};Must-Refuse;if($script:binds -ne 0){throw 'mutated before partition refusal'};$cases++
+}
+foreach($change in @(@{Path='other-volume'},@{UniqueId='other-volume'},@{FileSystem='FAT32'},@{FileSystemLabel='other-owner'},@{Size=520024065})){
+ Reset-Fixture;foreach($key in $change.Keys){$script:volume.$key=$change[$key]};Must-Refuse;if($script:binds -ne 0){throw 'mutated before volume refusal'};$cases++
+}
+Reset-Fixture;$script:omitReadback=$true;Must-Refuse;if($script:binds -ne 1){throw 'ambiguous mount effect disappeared'};$cases++
+@{cases=$cases;native_storage_calls=0;ambiguous_binding='retained; no automatic undo or retry'}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      cases: 11,
+      native_storage_calls: 0,
+      ambiguous_binding: "retained; no automatic undo or retry",
+    });
+  },
+);
+
+void test(
+  "completion and incomplete recovery share one exclusive operator boundary before attach",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-completion-lock-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./complete-semantic-storage.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop';$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'completion parse failed'}
+$functions=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in @('Open-CompletionOperationLock','Write-NewCompletionRecord')},$true))
+if($functions.Count -ne 2){throw 'exact operator boundary missing'}
+foreach($function in $functions){Invoke-Expression $function.Extent.Text}
+$root='${root.replaceAll("'", "''")}'
+$completion=Open-CompletionOperationLock $root
+try{
+ # Completion has persisted its intent, but has not reached the attach effect.
+ Write-NewCompletionRecord (Join-Path $root 'completion-intent.json') @{phase='detached-before-completion'}
+ $recovery=$null;$refused=$false
+ try{$recovery=Open-CompletionOperationLock $root}catch{$refused=$true}finally{if($recovery){$recovery.Dispose()}}
+ if(-not $refused){throw 'recovery entered while completion could still attach'}
+}finally{$completion.Dispose()}
+$settled=Open-CompletionOperationLock $root
+try{
+ # Recovery's sentinel and the launcher use the same CreateNew primitive. The
+ # loser cannot start a reviewer or replace a preexisting ownership record.
+ $marker=Join-Path $root 'reviewer-active.json'
+ Write-NewCompletionRecord $marker @{kind='pre-fixture-completion-detach';fixture_started=$false}
+ $launcher=$null;$refused=$false
+ try{$launcher=[IO.File]::Open($marker,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)}catch{$refused=$true}finally{if($launcher){$launcher.Dispose()}}
+ if(-not $refused){throw 'launcher replaced recovery ownership'}
+ try{Write-NewCompletionRecord $marker @{kind='replacement'};throw 'sentinel overwritten'}catch{if($_.Exception.Message -eq 'sentinel overwritten'){throw}}
+}finally{$settled.Dispose()}
+$locks=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.TryStatementAst] -and $null -ne $n.Finally -and $n.Finally.Extent.Text.Contains('$operationLock.Dispose()')},$true))
+if($locks.Count -ne 1){throw 'operator lock not held to final readback'}
+$commands=@($locks[0].Body.FindAll({param($n)$n -is [Management.Automation.Language.CommandAst]},$true)|ForEach-Object GetCommandName)
+foreach($required in @('Mount-DiskImage','Dismount-DiskImage','Connect-PreparedPartition','Get-ExactImage')){if($required -notin $commands){throw 'mutation/readback escaped shared boundary'}}
+@{live_completion='recovery refused';settled_completion='recovery lock acquired';recovery_marker='launcher refused';native_storage_calls=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      live_completion: "recovery refused",
+      settled_completion: "recovery lock acquired",
+      recovery_marker: "launcher refused",
+      native_storage_calls: 0,
     });
   },
 );

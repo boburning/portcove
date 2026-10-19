@@ -268,7 +268,12 @@ Every wrapper invocation retains original analyzer output, stderr and source,
 scope, version and comparison metadata below ignored `work/fallow-reports`.
 Local source identity includes dirty content; a commit SHA alone does not identify
 an uncommitted candidate. The bounded summary lists concrete findings and
-refactoring targets from the report already produced. Inspect the retained JSON
+refactoring targets from the report already produced. The review summary also
+shows bounded changed-export test reach and guardrail-change evidence. Test reach
+describes the static import graph, not executed coverage; missing tests, capped
+mock detection and end-to-end coverage limits remain explicit. Unknown reach
+classes require attention. These signals are advisory and do not change gates.
+Inspect the retained JSON
 for omitted groups or full context; use `fallow report --from` where the pinned
 version supports the desired presentation, rather than repeating analysis.
 Hosted analysis publishes a job summary and retains the reports as an artifact
