@@ -321,9 +321,11 @@ remain expected; refusal preserves game installations, generated data and saves.
 
 The qualified snapshot route now has exact source/O2R/settings preservation,
 forward generation and compound data/pointer recovery observations at the
-scope above. Populated game-save/global-data round trips and applicable
-protected unchanged-client delivery through #246/#534 remain unresolved #53
-requirements. An executable rollback alone cannot establish data rollback.
+scope above. Populated game-save/global-data round trips remain unobserved;
+the current integration minimum does not require optional gameplay/save-load
+observations. Applicable protected unchanged-client delivery through #246/#534
+retains its separately granted authority and acceptance. An executable rollback
+alone cannot establish data rollback.
 Optional gameplay/audio/controller/in-game-save observations and other platforms
 remain separate. This receipt grants no source redistribution, signing,
 publisher, release, support or whole-issue completion authority.
