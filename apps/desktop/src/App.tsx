@@ -1261,7 +1261,10 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => openSourceIntake(model.port.id, profile.id)}
+      inspectSource={(profile) => {
+        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
+        openSourceIntake(model.port.id, profile.id, path.trim() ? [path] : []);
+      }}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({

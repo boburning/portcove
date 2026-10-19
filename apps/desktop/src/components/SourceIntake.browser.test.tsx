@@ -165,6 +165,24 @@ describe("source intake dialog", () => {
     expect(document.body.querySelector('[role="alert"]')).toBeNull();
     expect(document.body.querySelector('[aria-label="Source import review"]')).toBeNull();
     expect(button("Close")!.disabled).toBe(false);
+    expect(button("Copy into Portcove")).toBeUndefined();
+    refresh.mockResolvedValue(undefined);
+    await act(async () => button("Retry refresh")!.click());
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(imported).toHaveBeenCalledOnce();
+    expect(button("Return to game")!.disabled).toBe(false);
+    expect(button("Retry refresh")).toBeUndefined();
+  });
+
+  it("offers a return after saving and prevents a repeated import", async () => {
+    const imported = prepareImport();
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    await openImportReview(refresh);
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(imported).toHaveBeenCalledOnce();
+    expect(button("Return to game")!.disabled).toBe(false);
+    expect(button("Copy into Portcove")).toBeUndefined();
+    expect(button("Use current location")).toBeUndefined();
   });
 
   it("keeps a genuine import failure separate from a refresh failure", async () => {

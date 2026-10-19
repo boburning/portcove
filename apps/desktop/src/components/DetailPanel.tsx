@@ -1557,8 +1557,8 @@ function SourceField({
   const selectedOverride = Boolean(path.trim()) && (!source || path !== source.path);
   const sourceNote = selectedOverride
     ? bios
-      ? "Selected BIOS file has not been checked. Portcove validates it when you continue."
-      : "Selected path has not been checked. Portcove validates these files when you continue."
+      ? "Selected BIOS file has not been checked. Choose Check required BIOS to check and save this location."
+      : "Selected path has not been checked. Choose Check game files to check and save this location."
     : source
       ? sourceHealthNote(inspection?.health ?? health, bios)
       : copy.note;
@@ -1766,6 +1766,29 @@ function PrimaryActions({
         dismiss={actions.dismissInstallReview}
         openLibraryStorage={openLibraryStorage}
       />
+    );
+  const missingProfile = !sourceReady
+    ? sources.sourceProfile
+    : !biosReady
+      ? sources.biosProfile
+      : undefined;
+  if (missingProfile && sources.inspectSource)
+    return (
+      <div className="actions primary-actions mt-4 flex flex-wrap gap-2">
+        <Button
+          data-focusable
+          className="wide flex-1"
+          variant="primary"
+          size="lg"
+          disabled={Boolean(busy)}
+          onClick={() => sources.inspectSource?.(missingProfile)}
+        >
+          <Icon glyph={FileSearch} />
+          {missingProfile.id === sources.port.bios_source_profile
+            ? "Locate required BIOS"
+            : "Locate game files"}
+        </Button>
+      </div>
     );
   return (
     <InstalledPlayActions

@@ -4,6 +4,9 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { startInteractiveScenarios, stopInteractiveScenarios } from "./entry";
 import { recoveryKey } from "./transport";
+import { desktopApi } from "../../api";
+import { workspace } from "./scenarios";
+import { sourceProfile } from "../../test-fixtures";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [] });
@@ -61,6 +64,44 @@ it("opens current Settings read surfaces without fixture refusals", async () => 
   expect(document.body.textContent).toContain("Color theme");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
+
+it.each(["game", "bios"] as const)(
+  "carries the selected %s repair path into inspection without asking for it again",
+  async (purpose) => {
+    const snapshot = workspace("setup");
+    const profile = { ...sourceProfile(), id: "owned-game" };
+    snapshot.catalog.source_profiles = [profile];
+    snapshot.catalog.ports[0] = {
+      ...snapshot.catalog.ports[0]!,
+      [purpose === "bios" ? "bios_source_profile" : "source_profile"]: profile.id,
+    };
+    snapshot.statuses[0]!.readiness = {
+      launchable: false,
+      pending_setup: false,
+      blockers: [],
+      [purpose === "bios" ? "bios" : "source"]: "missing",
+    };
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount("setup");
+    await click("View details for Harbor Adventure");
+    const inspect = vi
+      .spyOn(desktopApi, "inspectSourceIntake")
+      .mockRejectedValue(new Error("Check fixture"));
+    const input = document.querySelector<HTMLInputElement>('input[id^="source-"]')!;
+    expect(input).not.toBeNull();
+    await act(async () =>
+      page
+        .getByRole("textbox", { name: purpose === "bios" ? /Required BIOS ·/ : /Game files ·/ })
+        .fill("fixture/replacement.iso"),
+    );
+    const repair = page.getByRole("button", {
+      name: purpose === "bios" ? "Locate required BIOS" : "Locate game files",
+    });
+    expect(repair.element().closest(".primary-actions")).not.toBeNull();
+    await act(async () => repair.click());
+    expect(inspect).toHaveBeenCalledWith("owned-game", ["fixture/replacement.iso"]);
+  },
+);
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
