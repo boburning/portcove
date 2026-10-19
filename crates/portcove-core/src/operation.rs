@@ -468,6 +468,8 @@ pub(crate) enum LifecycleFaultPoint {
     GhostshipRecoveryPublicationRecorded,
     GhostshipRecoveryMetadataCommitted,
     GhostshipRecoveryCleanup,
+    #[cfg(test)]
+    SourceVerificationCaptured,
     SourcePrepared,
     LaunchReadyToSpawn,
     LaunchChildStarted,
@@ -611,6 +613,14 @@ impl OperationCoordinator {
             library, activity, owner,
         )?));
         Ok(operation)
+    }
+
+    pub(crate) fn resume_cancellation(&mut self, library: &Library) -> Result<()> {
+        self.cancellation = Some(Arc::new(crate::cancellation::CancellationScope::resume(
+            library,
+            &self.operation_id,
+        )?));
+        Ok(())
     }
 
     pub(crate) fn checkpoint(&self) -> Result<()> {
