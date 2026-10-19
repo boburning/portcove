@@ -38,23 +38,23 @@ function Refuses([scriptblock]$action){$refused=$false;try{& $action|Out-Null}ca
 $base='${root.replaceAll("'", "''")}';$script:serial=0
 function Reset-Fixture {
  $script:serial++;$script:root=Join-Path $base "case-$script:serial";$null=[IO.Directory]::CreateDirectory($script:root)
- $script:active=Join-Path $script:root 'reviewer-active.json';$script:archive=Join-Path $script:root 'reviewer-active.semantic-isolation-ttTNEZ.retained.json'
+ $script:active=Join-Path $script:root 'reviewer-active.json';$script:archive=Join-Path $script:root 'reviewer-active.semantic-isolation-MdzaNi.retained.json'
  [IO.File]::WriteAllText($script:active,'original evidence');$script:oldMarkerHash=(Get-FileHash $script:active).Hash.ToLowerInvariant()
  $script:image=Join-Path $script:root 'reviewer.vhd';[IO.File]::WriteAllText($script:image,'inert backing bytes')
  $script:mount=Join-Path $script:root 'data';$script:diskId='exact-disk';$script:volumeId='exact-volume'
  $script:imageState=[pscustomobject]@{ImagePath=$script:image;Size=536870912;FileSize=536871424;StorageType=2;Attached=$true;DevicePath='inert-device'}
- $script:disk=[pscustomobject]@{UniqueId=$script:diskId;Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual';PartitionStyle='GPT';IsReadOnly=$false;Path='provider-partition-id'}
+ $script:disk=[pscustomobject]@{UniqueId=$script:diskId;Location=$script:image;Size=536870912;IsBoot=$false;IsSystem=$false;BusType='File Backed Virtual';PartitionStyle='GPT';IsReadOnly=$false;Path='provider-partition-id'}
  $script:reserved=[pscustomobject]@{Offset=17408;Size=16759808;DiskId=$script:disk.Path}
  $script:data=[pscustomobject]@{Offset=16777216;Size=520028160;DiskId=$script:disk.Path}
  $script:volume=[pscustomobject]@{Path=$script:volumeId;UniqueId=$script:volumeId;FileSystem='NTFS';FileSystemLabel='PortcoveSemantic';Size=520024064}
  $script:mounted=$script:volume.PSObject.Copy();$script:providerCalls=0;$script:throwAfterAttach=$false
- $script:intentPath=Join-Path $script:root 'observation-intent.json';$script:resultPath=Join-Path $script:root 'observation-result.json'
+ $script:intentPath=Join-Path $script:root 'privilege-observation-intent.json';$script:resultPath=Join-Path $script:root 'privilege-observation-result.json'
  $script:workspace=$script:root;$script:ExpectedSourceRevision='a'*40;$script:ownerSid='inert-owner'
  $script:configHash='c'*64;$script:nativeHash='d'*64;$script:launcherHash='e'*64;$script:qualifierHash='f'*64;$script:scriptHash='b'*64
  [IO.File]::WriteAllText((Join-Path $script:root 'completion-operation.lock'),'')
 }
 function Get-DiskImage {param($ImagePath,$ErrorAction) if($ImagePath -ne $script:image){throw 'wrong image'};$script:imageState}
-function Get-Disk {param([Parameter(ValueFromPipeline)]$InputObject) process{if(-not [object]::ReferenceEquals($InputObject,$script:imageState)){throw 'wrong image association'};$script:disk}}
+function Get-Disk {param($UniqueId,$ErrorAction) if($UniqueId -ne $script:diskId){throw 'wrong opaque disk selection'};$script:disk}
 function Get-Partition {param($Disk,$ErrorAction) if(-not [object]::ReferenceEquals($Disk,$script:disk)){throw 'wrong partition association'};$script:reserved;$script:data}
 function Get-Volume {param($Partition,$FilePath,$ErrorAction) if($FilePath){if($FilePath -ne ($script:mount+'\\')){throw 'wrong mount'};$script:mounted}else{if(-not [object]::ReferenceEquals($Partition,$script:data)){throw 'wrong volume association'};$script:volume}}
 function Mount-DiskImage {param($ImagePath,[switch]$NoDriveLetter,$ErrorAction)
@@ -63,7 +63,7 @@ function Mount-DiskImage {param($ImagePath,[switch]$NoDriveLetter,$ErrorAction)
 }
 function git {param($C,$Verb,$Arg,$Arg2) $global:LASTEXITCODE=0;if($Verb -eq 'rev-parse'){$script:ExpectedSourceRevision}}
 Reset-Fixture;Confirm-ObservationMount
-foreach($field in @('UniqueId','IsBoot','IsSystem','Size','BusType','PartitionStyle','IsReadOnly')){
+foreach($field in @('UniqueId','Location','IsBoot','IsSystem','Size','BusType','PartitionStyle','IsReadOnly')){
  Reset-Fixture;$script:disk.$field=$null;Refuses {Confirm-ObservationMount}
 }
 foreach($field in @('DiskId','Offset','Size')){Reset-Fixture;$script:data.$field=$null;Refuses {Confirm-ObservationMount}}
@@ -93,7 +93,7 @@ foreach($ambiguous in @($false,$true)){
 $recoverIf=$operatorTry[0].Body.Statements[0]
 $recoverBody=($recoverIf.Clauses[0].Item2.Statements|Where-Object {$_ -isnot [Management.Automation.Language.ExitStatementAst]}|ForEach-Object {$_.Extent.Text}) -join [Environment]::NewLine
 function Dismount-DiskImage {param($ImagePath,$ErrorAction)
- if($ImagePath -ne $image -or -not (Test-Path (Join-Path $root 'observation-recovery-intent.json')) -or -not (Test-Path $active)){throw 'detach without exclusive recovery intent/marker'}
+ if($ImagePath -ne $image -or -not (Test-Path (Join-Path $root 'privilege-observation-recovery-intent.json')) -or -not (Test-Path $active)){throw 'detach without exclusive recovery intent/marker'}
  $script:providerCalls++;$script:imageState.Attached=$false;if($script:ambiguousDetach){throw 'ambiguous detach response'}
 }
 foreach($ambiguous in @($false,$true)){
@@ -101,7 +101,7 @@ foreach($ambiguous in @($false,$true)){
  Write-ObservationRecord $intentPath @{schema_version=1;operator_helper_sha256=$scriptHash;configuration_sha256=$configHash;owner_sid=$ownerSid;image=$image}
  Archive-ObservationMarker
  Invoke-Expression $recoverBody|Out-Null
- $recovered=Get-Content -Raw (Join-Path $root 'observation-recovery-result.json')|ConvertFrom-Json
+ $recovered=Get-Content -Raw (Join-Path $root 'privilege-observation-recovery-result.json')|ConvertFrom-Json
  if(-not $recovered.detached_observed -or -not $recovered.markers_retained -or -not $recovered.backing_file_retained -or $recovered.automatic_retry -or $script:providerCalls -ne 1){throw 'actual recovery effects lost'}
  if($ambiguous -and $recovered.provider_error -ne 'ambiguous detach response'){throw 'ambiguous response replaced by success'}
  Refuses {Invoke-Expression $recoverBody}
@@ -111,7 +111,7 @@ Reset-Fixture
 Write-ObservationRecord $intentPath @{schema_version=1;operator_helper_sha256=$scriptHash;configuration_sha256=$configHash;owner_sid=$ownerSid;image=$image}
 Archive-ObservationMarker;[IO.File]::WriteAllText($active,'new fixture ownership')
 Refuses {Invoke-Expression $recoverBody}
-if($script:providerCalls -or (Test-Path (Join-Path $root 'observation-recovery-intent.json'))){throw 'recovery crossed new fixture ownership'}
+if($script:providerCalls -or (Test-Path (Join-Path $root 'privilege-observation-recovery-intent.json'))){throw 'recovery crossed new fixture ownership'}
 # Exercise the actual launcher gate using the retained real old marker bytes in
 # an ordinary temporary directory; no native profile/storage operations occur.
 Reset-Fixture
@@ -137,11 +137,11 @@ foreach($field in @('owner_sid','source_revision','image','configuration_sha256'
  [IO.File]::WriteAllText($resultPath,($bad|ConvertTo-Json));Refuses {Open-Gate}
 }
 [IO.File]::WriteAllText($resultPath,($record|ConvertTo-Json))
-Write-ObservationRecord (Join-Path $root 'observation-recovery-intent.json') @{claimed=$true};Refuses {Open-Gate}
+Write-ObservationRecord (Join-Path $root 'privilege-observation-recovery-intent.json') @{claimed=$true};Refuses {Open-Gate}
 @{provider_calls='mocked only';marker='byte preserved';partial_attach='retained, no retry';handoff='exclusive and identity bound'}|ConvertTo-Json -Compress
 `;
     const marker = await readFile(
-      new URL("./fixtures/semantic-review-retained-marker.json.txt", import.meta.url),
+      new URL("./fixtures/semantic-review-MdzaNi-marker.json.txt", import.meta.url),
     );
     const output = execFileSync(
       "pwsh.exe",
