@@ -320,6 +320,16 @@ Preview (`beta`) selection still requires the catalog to declare that channel; c
 does not grant compatibility or installation authority. No selectable stable
 release produces an unavailable result, rather than falling through to a beta.
 
+Managed `staged-source-portable` execution requires complete immutable install
+verification, including nested package selectors previously recorded as
+noncritical. Retained adapter identity selects this policy; changing the current
+catalog cannot remove it. The existing mutable and generated-metadata rules
+remain in force, while recorded immutable files cannot become exempt through
+new mutable declarations. Inventory refuses redirected/unsafe filesystem objects
+and is bounded to 100,000 entries and depth 64. These sequential observations
+provide no filesystem snapshot or execution sandbox. External user-prepared
+inspection remains its separate non-owning route.
+
 Catalog schema 1/2 supports hosted or exact direct-manifest package installation
 through its existing adapters. The `user-prepared` release route is separate:
 an official definition pins the package's exact archive identity and the

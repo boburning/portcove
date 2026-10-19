@@ -35,7 +35,9 @@
     "sonic-the-hedgehog-2-genesis-world-reva",
     "sonic-3-and-knuckles-genesis-usa-lockon",
     "yoshis-cookie-nes-usa",
-    "dr-mario-nes-japan-usa-rev1"
+    "dr-mario-nes-japan-usa-rev1",
+    "super-metroid-snes-japan-usa",
+    "mega-man-x2-snes-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -74,6 +76,8 @@
     "sonic-the-hedgehog-2-recomp",
     "sonic-3-and-knuckles-recomp",
     "yoshis-cookie-recomp",
-    "dr-mario-nes-recomp"
+    "dr-mario-nes-recomp",
+    "super-metroid-recomp",
+    "mega-man-x2-snes-recomp"
   ]
 }
