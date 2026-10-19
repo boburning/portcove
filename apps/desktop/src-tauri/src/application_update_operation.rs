@@ -12,7 +12,8 @@ use tokio::io::AsyncRead;
 use tokio_util::sync::CancellationToken;
 
 use crate::application_update::{
-    ApplicationUpdateCandidateSummary, CandidateSelection, CandidateState, SelectedCandidate,
+    ApplicationChannel, ApplicationUpdateCandidateSummary, CandidateSelection, CandidateState,
+    SelectedCandidate,
 };
 use crate::application_update_coordinator::{
     ApplicationUpdateCheckCompletion, ApplicationUpdateCheckEnvironment, ApplicationUpdateChecker,
@@ -95,6 +96,9 @@ pub struct ApplicationUpdateSelectionSummary {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ApplicationUpdateOperationOutcome {
+    MetadataChecked {
+        selection: ApplicationUpdateSelectionSummary,
+    },
     Held(ApplicationUpdateCheckDecision),
     Superseded {
         checked_preference_revision: u64,
@@ -224,6 +228,30 @@ impl ApplicationUpdateOperation {
             coordinator,
             staging,
         }
+    }
+
+    /// Checks authenticated metadata without accessing staging, saved choices,
+    /// scheduling, or a payload source. Cancellation releases check ownership.
+    pub async fn check_once(
+        &self,
+        channel: ApplicationChannel,
+        checker: &dyn ApplicationUpdateChecker,
+        progress: &dyn ApplicationUpdateProgressSink,
+        cancellation: &CancellationToken,
+    ) -> Result<ApplicationUpdateOperationOutcome, ApplicationUpdateOperationError> {
+        require_active(cancellation)?;
+        progress.report_phase(ApplicationUpdateOperationPhase::Checking);
+        let checked = tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => return Err(ApplicationUpdateOperationError::Cancelled),
+            checked = self.coordinator.check_once(channel, checker) => checked?,
+        };
+        require_active(cancellation)?;
+        validate_selection_shape(&checked.selection, checked.payload_key.is_some())?;
+        progress.report_phase(ApplicationUpdateOperationPhase::Complete);
+        Ok(ApplicationUpdateOperationOutcome::MetadataChecked {
+            selection: selection_summary(&checked.selection),
+        })
     }
 
     /// Runs one policy-controlled check and stages only an authenticated newer
@@ -414,7 +442,7 @@ mod tests {
     impl ApplicationUpdateChecker for FakeChecker {
         async fn check(
             &self,
-            _choice: ApplicationUpdateChoice,
+            _channel: ApplicationChannel,
         ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
             self.result.lock().unwrap().take().unwrap()
         }

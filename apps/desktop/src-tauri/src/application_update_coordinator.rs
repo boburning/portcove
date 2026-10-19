@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::application_update::ApplicationChannel;
 use async_trait::async_trait;
 use fs2::FileExt;
 
@@ -83,7 +84,7 @@ pub enum ApplicationUpdateCoordinatorOutcome {
 pub trait ApplicationUpdateChecker: Send + Sync {
     async fn check(
         &self,
-        choice: ApplicationUpdateChoice,
+        channel: ApplicationChannel,
     ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError>;
 }
 
@@ -208,6 +209,24 @@ impl ApplicationUpdateCoordinator {
         })
     }
 
+    /// An explicit metadata-only query shares check ownership but neither
+    /// reads consent nor changes automatic scheduling. Authentication may
+    /// retain metadata/replay floors inside the checker, never payload bytes.
+    pub async fn check_once(
+        &self,
+        channel: ApplicationChannel,
+        checker: &dyn ApplicationUpdateChecker,
+    ) -> Result<AuthenticatedCandidateSelection, ApplicationUpdateCoordinatorError> {
+        let _check_lock = self.lock()?;
+        checker
+            .check(channel)
+            .await
+            .map_err(|source| ApplicationUpdateCoordinatorError::Check {
+                failure: source.failure_kind(),
+                source,
+            })
+    }
+
     /// Evaluates and, when due, executes one check without blocking application
     /// startup. Callers may await this from a background task or an explicit
     /// manual command. No candidate is returned after its preference changes.
@@ -283,7 +302,7 @@ impl ApplicationUpdateCoordinator {
         let preference_revision = preferences.revision;
         let schedule_revision = schedule.revision;
 
-        let checked = checker.check(choice.clone()).await;
+        let checked = checker.check(choice.channel).await;
         let selection = match checked {
             Ok(selection) => selection,
             Err(source) => {
@@ -576,7 +595,7 @@ mod tests {
     impl ApplicationUpdateChecker for BlockingChecker {
         async fn check(
             &self,
-            _choice: ApplicationUpdateChoice,
+            _channel: ApplicationChannel,
         ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             self.started.add_permits(1);
@@ -589,7 +608,7 @@ mod tests {
     impl ApplicationUpdateChecker for FakeChecker {
         async fn check(
             &self,
-            _choice: ApplicationUpdateChoice,
+            _channel: ApplicationChannel,
         ) -> Result<AuthenticatedCandidateSelection, CandidateLoadError> {
             self.calls.fetch_add(1, Ordering::SeqCst);
             self.result.lock().unwrap().take().unwrap()
