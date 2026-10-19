@@ -1,1 +1,6 @@
-git diff --cached --check && node scripts/node-test-inventory.mts --staged && node scripts/catalog-staged-check.mts --staged && vp staged --relative
+runtime="$(dirname "$0")/_/portcove-node"
+if [ ! -f "$runtime" ]; then
+  printf '%s\n' 'Hook runtime missing: activate pinned Node and run pnpm hooks:enable.' >&2
+  exit 1
+fi
+exec sh "$runtime" scripts/precommit.mts "$@"
