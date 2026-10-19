@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
@@ -88,6 +88,7 @@ export function GameUpdateControl({
   perform,
   compact = false,
   gameName,
+  reviewScope,
 }: {
   portId: string;
   generation: number;
@@ -96,10 +97,14 @@ export function GameUpdateControl({
   perform?: Perform | undefined;
   compact?: boolean;
   gameName?: string;
+  reviewScope?: { active: boolean; claim: () => void; current: () => boolean };
 }) {
   const [activate, setActivate] = useState(compact || policy === "automatic");
-  const [plan, setPlan] = useState<GameUpdatePlan>();
-  const [pending, setPending] = useState(false);
+  const [reviewedPlan, setPlan] = useState<GameUpdatePlan>();
+  const plan = reviewScope?.active === false ? undefined : reviewedPlan;
+  const [pendingState, setPending] = useState(false);
+  const pending = pendingState && reviewScope?.active !== false;
+  const [applying, setApplying] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
   const [failure, setFailure] = useState<{ value: unknown }>();
@@ -107,6 +112,13 @@ export function GameUpdateControl({
   const requests = useRef(new LatestRequestGeneration());
   const pendingRequest = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  useLayoutEffect(() => {
+    if (reviewScope?.active !== false) return;
+    requests.current.begin();
+    pendingRequest.current = false;
+  }, [reviewScope?.active]);
   useEffect(
     () => () => {
       requests.current.begin();
@@ -116,6 +128,8 @@ export function GameUpdateControl({
   const dismissReview = () => setPlan(undefined);
   const review = async (useNow = activate) => {
     if (pendingRequest.current || busy) return;
+    if (reviewScope && !reviewScope.current()) setPlan(undefined);
+    reviewScope?.claim();
     pendingRequest.current = true;
     const current = requests.current.begin();
     setActivate(useNow);
@@ -125,22 +139,32 @@ export function GameUpdateControl({
     setMessage(undefined);
     try {
       const value = await desktopApi.planGameUpdate(portId, useNow, generation);
-      if (requests.current.isCurrent(current)) setPlan(value);
+      if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) setPlan(value);
     } catch (error) {
-      if (requests.current.isCurrent(current)) {
+      if (requests.current.isCurrent(current) && (reviewScope?.current() ?? true)) {
         setPlan(undefined);
         setError(errorText(error));
       }
     } finally {
-      pendingRequest.current = false;
-      if (requests.current.isCurrent(current)) setPending(false);
+      if (requests.current.isCurrent(current)) {
+        pendingRequest.current = false;
+        setPending(false);
+      }
     }
   };
   const apply = async () => {
-    if (pendingRequest.current || !plan || !perform || !gameUpdateActionLabel(plan)) return;
+    if (
+      pendingRequest.current ||
+      !(reviewScope?.current() ?? true) ||
+      !plan ||
+      !perform ||
+      !gameUpdateActionLabel(plan)
+    )
+      return;
     pendingRequest.current = true;
     const current = requests.current.begin();
     setPending(true);
+    setApplying(true);
     setError(undefined);
     setFailure(undefined);
     let failed = false;
@@ -186,9 +210,10 @@ export function GameUpdateControl({
         setMessage(undefined);
       }
     } finally {
-      pendingRequest.current = false;
       if (requests.current.isCurrent(current)) {
+        pendingRequest.current = false;
         setPending(false);
+        setApplying(false);
         setPlan(undefined);
         setOperation(undefined);
       }
@@ -226,7 +251,7 @@ export function GameUpdateControl({
       >
         {pending ? "Checking update…" : "Review game update"}
       </Button>
-      {plan && (
+      {plan && reviewScope?.active !== false && (
         <Dialog
           open
           onOpenChange={(nextOpen) => {
@@ -237,12 +262,13 @@ export function GameUpdateControl({
             showCloseButton={false}
             finalFocus={reviewButton}
             reviewSize="standard"
-            aria-describedby="game-update-review-description"
+            data-game-update-review
+            aria-describedby={descriptionId}
           >
-            <DialogTitle id="game-update-review-title" className="mb-2 text-xl">
+            <DialogTitle id={titleId} className="mb-2 text-xl">
               {gameName ? `${gameName} update` : "Review game update"}
             </DialogTitle>
-            <DialogDescription id="game-update-review-description" className="mb-4 leading-relaxed">
+            <DialogDescription id={descriptionId} className="mb-4 leading-relaxed">
               Confirm the release and what happens to your active version before updating.
             </DialogDescription>
             <GameUpdateReview plan={plan} />
@@ -265,7 +291,11 @@ export function GameUpdateControl({
                     disabled={busy || pending || !perform}
                     onClick={() => void apply()}
                   >
-                    {pending ? "Updating…" : gameUpdateActionLabel(plan)}
+                    {pending
+                      ? applying
+                        ? "Updating…"
+                        : "Checking update…"
+                      : gameUpdateActionLabel(plan)}
                   </Button>
                 ) : null
               ) : (

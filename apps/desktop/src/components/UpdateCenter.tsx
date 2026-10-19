@@ -153,6 +153,8 @@ export function UpdateCenter({
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
   const [reviewedActivity, setReviewedActivity] = useState<{ id: string; request: number }>();
+  const [reviewingUpdate, setReviewingUpdate] = useState<string>();
+  const updateReviewOwner = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!reviewedActivity) return;
     const frame = window.requestAnimationFrame(() => {
@@ -346,6 +348,14 @@ export function UpdateCenter({
                         perform={perform}
                         compact
                         gameName={gameIdentityLabel(port)}
+                        reviewScope={{
+                          active: reviewingUpdate === port.id,
+                          claim: () => {
+                            updateReviewOwner.current = port.id;
+                            setReviewingUpdate(port.id);
+                          },
+                          current: () => updateReviewOwner.current === port.id,
+                        }}
                       />
                     )}
                   {onLaunch &&
