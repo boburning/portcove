@@ -291,7 +291,14 @@ export function domainsForPath(input: string) {
       )
     )
       add(domains, "repository");
-    if (domains.size === 0) add(domains, ...allReusableDomains);
+    // Formatting says nothing about the behavioral stages consuming a script.
+    if (/^(?:retained-package|retained-evidence|native-helper-dependencies)(?:\.|$)/u.test(name))
+      add(domains, "development", "release", "repository");
+    if (/^release-semantic-/u.test(name)) add(domains, "release");
+    if (/^github-api(?:\.|$)/u.test(name))
+      add(domains, "repository", "roadmap", "development", "release");
+    if (name === "runtime-values.mts" || ![...domains].some((domain) => domain !== "format"))
+      add(domains, ...allReusableDomains);
     recognized = true;
   }
 
