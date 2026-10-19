@@ -244,6 +244,7 @@ pub use types::*;
 // Public 69 adds qualified Ghostship legacy snapshot recovery.
 // Public 70 adds release-scoped input assessments and BIOS incompatibility guidance.
 // Public 71 adds descriptive game identity and authored manual setup guidance.
+// Install plans also expose optional recipe acquisitions and temporary install capacity.
 pub const API_SCHEMA_VERSION: u32 = 71;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;

@@ -305,7 +305,7 @@ test("completion report preserves explicit primitive failures including undefine
   }
 });
 
-test("completion scenario retains primitive IPC failures after checking original inputs", async () => {
+test("completion scenario retains primitive bootstrap IPC failures after checking original inputs", async () => {
   const output = await mkdtemp(path.join(tmpdir(), "portcove-completion-rejection-"));
   const tool = path.join(output, "inert-tool");
   await writeFile(tool, "inert fixture bytes; never executed");
@@ -324,6 +324,7 @@ test("completion scenario retains primitive IPC failures after checking original
       const reportDirectory = path.join(output, `failure-${index}`);
       await mkdir(reportDirectory);
       const artifacts: string[] = [];
+      let failedCommand: string | undefined;
       await assert.rejects(
         selectedSetupCompletionScenario({
           browser,
@@ -332,13 +333,17 @@ test("completion scenario retains primitive IPC failures after checking original
           artifacts,
           library: path.join(output, "library"),
           cli: process.execPath,
-          invoke: () => Promise.reject(failure),
+          invoke: (name) => {
+            failedCommand = name;
+            return Promise.reject(failure);
+          },
           scenario: async (_name: string, execute: () => Promise<void>) => execute(),
           restartApplication: async () => assert.fail("Failed IPC must stop restart"),
           chooseGameFileFolder: async () => assert.fail("Failed IPC must stop picker"),
         }),
         (error) => Object.is(error, failure),
       );
+      assert.equal(failedCommand, "get_bootstrap_status");
       const file = path.join(reportDirectory, "selected-setup-completion.json");
       const report: unknown = JSON.parse(await readFile(file, "utf8"));
       assert.equal(object(report).original_inputs_preserved, true);
