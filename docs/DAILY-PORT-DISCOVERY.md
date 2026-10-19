@@ -243,6 +243,15 @@ Final receipts disclose actual charged requests/bytes and gaps. Fixture tests,
 manual runs and actual scheduled runs are different evidence scopes. Keep
 #2100 validating until three actual scheduled receipts have been evaluated.
 
+Discovery state uses an exclusive sibling file followed by atomic replacement.
+On Windows, replacement alone waits at most one second (25 ms intervals, at most
+41 attempts) for `EPERM`, `EACCES` or `EBUSY`. Readers without delete sharing can
+cause these errors; the code does not infer which process holds the file.
+The same prepared bytes are retried, with no unlink/truncate fallback. Persistent
+failure retains the old target and pending sibling. File creation, API requests,
+and whole runs are never retried by this mechanism. Local contention time counts
+toward the existing session deadline; it neither resets nor extends that deadline.
+
 ## Investigation and safe writes
 
 For each material candidate establish exact game/edition AND implementation,
