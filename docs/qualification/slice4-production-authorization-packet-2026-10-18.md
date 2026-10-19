@@ -833,6 +833,21 @@ remains for this attempt. The proposed/ungranted wording below is historical,
 superseded only within that consumed exact grant. No repeat or permission
 widening is authorized.
 
+The bounded storage branch now prepares a fail-closed metadata preflight on the
+actual suspended reviewer token. It verifies the impersonated AppContainer SID,
+observes the token's enabled bypass-traverse privilege and probes the fixed
+mount/attempt/home/work/temp directories with `GetFileAttributesW`. The broker
+retains owner/group/DACL/mandatory-label descriptors separately in a bounded
+CreateNew capture, with a digest and per-path results in the isolation receipt.
+This probe is not a trace or replacement for every Rust filesystem operation.
+Missing descriptors, denied or unknown metadata, wrong identity or failed
+preparation prevent `ResumeThread`; the common owned-job termination, empty-tree
+and profile teardown path still supplies the actual result. No ACL is widened.
+Descriptor queries use existing broker access; they do not enable a privilege
+or appoint an authority ([Windows query rights](https://learn.microsoft.com/en-us/windows/win32/secauthz/security-information)).
+Inert verification is preparation only. This new preflight has not run in a
+native attempt; the consumed grant authorizes no mounted observation or repeat.
+
 Later preparation supersedes the pending-operation wording below: the owner ran
 the corrected Provision once. It failed at `Add-PartitionAccessPath` after the
 earlier initialization/format stages; no fixture ran. The second exact image

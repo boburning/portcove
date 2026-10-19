@@ -9,6 +9,141 @@ import {
 import { evaluateCiResults } from "./ci-result-gate.mts";
 
 const sha = (character: string) => character.repeat(40);
+
+void test(
+  "suspended storage preflight refuses unknown access and always reverts a verified entry",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const helper = fileURLToPath(
+      new URL("./fixtures/semantic-review-appcontainer.cs.txt", import.meta.url),
+    ).replaceAll("'", "''");
+    const source = await readFile(
+      new URL("./fixtures/semantic-review-appcontainer.cs.txt", import.meta.url),
+      "utf8",
+    );
+    const preflight = source.indexOf(
+      "result.Storage=ObserveStorage(token,profile,storagePaths,stdout,cwd)",
+    );
+    const resume = source.indexOf('Require(ResumeThread(pi.thread)!=UInt32.MaxValue,"resume")');
+    assert.ok(preflight > 0 && resume > preflight);
+    assert.match(source, /if\(!result.Storage.Passed\)result.ForcedTermination=true/u);
+    assert.match(source, /if\(!result.ForcedTermination\)\s*\{\s*Require\(ResumeThread/u);
+    assert.match(source, /if\(result.ForcedTermination\)Require\(TerminateJobObject\(job,1\)/u);
+    const script = `
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition ([IO.File]::ReadAllText('${helper}'))
+function New-Paths {
+ [PortcoveReviewContainer+StorageObservation[]]@(0..4|ForEach-Object {[PortcoveReviewContainer+StorageObservation]@{Path="C:\\inert\\directory$_";Sddl='O:SYD:(A;;FA;;;SY)'}})
+}
+function Invoke-Case([string]$kind) {
+ $script:entered=0;$script:verified=0;$script:observed=0;$script:reverted=0
+ $paths=New-Paths
+ if($kind -eq 'bad-path'){$paths[0].Path='relative'}
+ if($kind -eq 'oversized'){$paths[0].Sddl='x'*4097}
+ if($kind -eq 'descriptor'){$paths[0].DescriptorError=5;$paths[0].Sddl=$null}
+ $script:kind=$kind
+ $result=[PortcoveReviewContainer]::CheckStorage($paths,[Func[bool]]{$script:entered++;$script:kind -ne 'enter-failed'},[Func[bool]]{$script:verified++;$script:kind -ne 'identity'},[Action[PortcoveReviewContainer+StorageObservation[]]]{param($rows)
+  $script:observed++
+  if($script:kind -eq 'throw'){throw 'inert metadata failure'}
+  foreach($p in $rows){$p.Attributes=16}
+  if($script:kind -eq 'denied'){$rows[2].Attributes=$null;$rows[2].MetadataError=5}
+  if($script:kind -eq 'unknown'){$rows[2].Attributes=$null}
+  if($script:kind -eq 'file'){$rows[2].Attributes=128}
+ },[Func[bool]]{$script:reverted++;$script:kind -ne 'revert-failed'})
+ if($result.Passed -ne ($kind -eq 'pass')){throw "incorrect acceptance: $kind"}
+ $expectedEnter=if($kind -in @('bad-path','oversized')){0}else{1}
+ $expectedRevert=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
+ $expectedVerify=if($kind -in @('bad-path','oversized','enter-failed')){0}else{1}
+ $expectedObserve=if($kind -in @('bad-path','oversized','enter-failed','identity')){0}else{1}
+ if($script:entered -ne $expectedEnter -or $script:verified -ne $expectedVerify -or $script:reverted -ne $expectedRevert -or $script:observed -ne $expectedObserve){throw "incorrect ownership flow: $kind"}
+ if($kind -eq 'denied' -and $result.Paths[2].MetadataError -ne 5){throw 'native refusal lost'}
+ if($kind -eq 'revert-failed' -and $result.Reverted){throw 'failed revert described as complete'}
+}
+foreach($kind in @('pass','bad-path','oversized','enter-failed','identity','descriptor','denied','unknown','file','throw','revert-failed')){Invoke-Case $kind}
+@{cases=11;native_processes=0;storage_operations=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), { cases: 11, native_processes: 0, storage_operations: 0 });
+  },
+);
+
+void test(
+  "storage preflight capture preserves teardown and keeps descriptors out of the recovery receipt",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { execFileSync } = await import("node:child_process");
+    const { mkdtemp, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const { fileURLToPath } = await import("node:url");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-storage-capture-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const helper = fileURLToPath(
+      new URL("./semantic-review-sandbox.ps1", import.meta.url),
+    ).replaceAll("'", "''");
+    const script = `
+$ErrorActionPreference='Stop'
+$errors=$null;$tokens=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile('${helper}',[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'parse failure'}
+$functions=@($ast.FindAll({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Write-StoragePreflightCapture'},$true))
+if($functions.Count -ne 1){throw 'production capture helper missing'}
+Invoke-Expression $functions[0].Extent.Text
+$root='${root.replaceAll("'", "''")}'
+$null=New-Item -ItemType Directory -Path (Join-Path $root 'capture')
+$process=[pscustomobject]@{TreeEmpty=$true;ForcedTermination=$true;ReviewerResumed=$false;ExitCode=$null;Storage=[pscustomobject]@{Passed=$false;IdentityVerified=$true;Reverted=$true;BypassTraverseEnabled=$false;Error=$null;Paths=@(0..4|ForEach-Object {[pscustomobject]@{Path="C:\\inert\\directory$_";Sddl=('x'*800);Attributes=$null;MetadataError=5;DescriptorError=0}})}}
+$summary=Write-StoragePreflightCapture $root $process
+if(-not $summary.TreeEmpty -or -not $summary.ForcedTermination -or $summary.ReviewerResumed -or $summary.Storage.Passed -or -not $summary.Storage.Reverted){throw 'refusal/teardown state lost'}
+$capturePath=Join-Path $root 'capture/storage-preflight.json'
+if((Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $summary.Storage.CaptureSha256){throw 'capture hash differs'}
+$capture=Get-Content -Raw -LiteralPath $capturePath|ConvertFrom-Json
+if($capture.preflight.Paths.Count -ne 5 -or $capture.preflight.Paths[0].Sddl.Length -ne 800 -or $summary.Storage.Paths[0].PSObject.Properties.Name -contains 'Sddl'){throw 'descriptor evidence/summary scope wrong'}
+$isolation=@{process=$summary;profile_deleted=$true;cleanup_errors=@()}|ConvertTo-Json -Depth 7
+if([Text.Encoding]::UTF8.GetByteCount($isolation) -ge 16384){throw 'recovery receipt exceeds helper bound'}
+$hash=(Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash
+$refused=$false;try{$null=Write-StoragePreflightCapture $root $process}catch{$refused=$true}
+if(-not $refused -or (Get-FileHash -LiteralPath $capturePath -Algorithm SHA256).Hash -ne $hash){throw 'prior capture overwritten'}
+$null=New-Item -ItemType Directory -Path (Join-Path $root 'oversized/capture')
+$process.Storage.Paths[0].Sddl='x'*40000
+$refused=$false;try{$null=Write-StoragePreflightCapture (Join-Path $root 'oversized') $process}catch{$refused=$true}
+if(-not $refused -or (Test-Path -LiteralPath (Join-Path $root 'oversized/capture/storage-preflight.json'))){throw 'oversized capture was written'}
+@{preserved_teardown=$true;bound_capture=$true;recovery_receipt_bounded=$true;overwrite_refused=$true;oversized_refused=$true;native_operations=0}|ConvertTo-Json -Compress
+`;
+    const output = execFileSync(
+      "pwsh.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-OutputFormat",
+        "Text",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    assert.deepEqual(JSON.parse(output), {
+      preserved_teardown: true,
+      bound_capture: true,
+      recovery_receipt_bounded: true,
+      overwrite_refused: true,
+      oversized_refused: true,
+      native_operations: 0,
+    });
+  },
+);
 const plan = (oldPath: string, newPath = oldPath, status = "M") =>
   buildValidationPlan({
     changes: [

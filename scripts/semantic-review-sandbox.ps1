@@ -6,13 +6,24 @@ param(
   [string]$BoundedStorageConfiguration
 )
 $ErrorActionPreference='Stop'
+function Write-StoragePreflightCapture([string]$Root,$ProcessResult) {
+  $capture=[Text.Encoding]::UTF8.GetBytes((@{schema_version=1;preflight=$ProcessResult.Storage}|ConvertTo-Json -Depth 7))
+  if($capture.Length -gt 32768) { throw 'storage preflight capture exceeds bound' }
+  $file=[IO.File]::Open((Join-Path $Root 'capture/storage-preflight.json'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+  try { $file.Write($capture);$file.Flush($true) } finally { $file.Dispose() }
+  $storage=$ProcessResult.Storage
+  $summary=[ordered]@{Passed=$storage.Passed;IdentityVerified=$storage.IdentityVerified;Reverted=$storage.Reverted;BypassTraverseEnabled=$storage.BypassTraverseEnabled;Error=$storage.Error;CaptureSha256=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($capture)).ToLowerInvariant();Paths=@($storage.Paths|Select-Object Path,Attributes,MetadataError,DescriptorError)}
+  $processReceipt=$ProcessResult|Select-Object * -ExcludeProperty Storage
+  $processReceipt|Add-Member -NotePropertyName Storage -NotePropertyValue $summary
+  return $processReceipt
+}
 if($Mode -eq 'codex') { throw 'HOLD: reviewer writable profile storage and fixed read-only input reader are not yet enforced; credential provisioning cannot remove this hold' }
 if($Mode -in @('fixture','reader-fixture') -and -not $ReadOnlyStorage) { throw 'inert actual-runtime fixture requires read-only LPAC preparation; no credentials' }
 if($StorageProbe -and ($Mode -ne 'probe' -or -not $ReadOnlyStorage)) { throw 'native storage probe requires read-only preparation' }
 if($BoundedStorageConfiguration -and (($Mode -notin @('fixture','reader-fixture') -and -not ($Mode -eq 'probe' -and $StorageProbe)) -or -not $ReadOnlyStorage)) { throw 'bounded writable differential is inert fixture only; production remains held' }
 $runPath=[IO.Path]::GetFullPath($RunRoot)
 if(-not [IO.Path]::IsPathFullyQualified($RunRoot) -or -not (Test-Path -LiteralPath (Join-Path $runPath '.portcove-semantic-review-owned') -PathType Leaf)) { throw 'trusted owned run root required' }
-foreach($prior in @('capture/isolation.json','capture/process.identity.txt','capture/stdout.jsonl','capture/stderr.txt')) { if(Test-Path -LiteralPath (Join-Path $runPath $prior)) { throw 'prior attempt evidence exists; explicit readback/recovery required, never overwrite' } }
+foreach($prior in @('capture/isolation.json','capture/process.identity.txt','capture/stdout.jsonl','capture/stderr.txt','capture/storage-preflight.json')) { if(Test-Path -LiteralPath (Join-Path $runPath $prior)) { throw 'prior attempt evidence exists; explicit readback/recovery required, never overwrite' } }
 $required=@('runtime','inputs','work','capture','sensitive')
 $nativeBytes=[IO.File]::ReadAllBytes((Join-Path $PSScriptRoot 'fixtures/semantic-review-appcontainer.cs.txt'))
 $nativeSha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($nativeBytes)).ToLowerInvariant()
@@ -50,6 +61,7 @@ $boundedMount=$null
 $boundedGuid=$null
 $dataRoot=$null
 $boundedGrantsRemoved=$false
+$storagePreflightPaths=@()
 $cleanupErrors=[Collections.Generic.List[string]]::new()
 try {
   if($ReadOnlyStorage) {
@@ -138,6 +150,7 @@ try {
     $workPath=Join-Path $dataRoot 'work';$homePath=Join-Path $dataRoot 'home';$tempPath=Join-Path $dataRoot 'temp'
     & icacls.exe $dataRoot /setintegritylevel '(OI)(CI)L' > (Join-Path $runPath 'capture/bounded-data-integrity.txt')
     if($LASTEXITCODE -ne 0) { throw 'bounded data integrity label failed' }
+    $storagePreflightPaths=@($boundedMount,$dataRoot,$homePath,$workPath,$tempPath)
   }
   if($ReadOnlyStorage) {
     # Observed Win32 AppContainer environment rewriting derives TEMP from the
@@ -180,7 +193,7 @@ try {
   if($ReadOnlyStorage) { $environment += @("PORTCOVE_REVIEW_PROFILE=$profilePath","CODEX_HOME=$homePath","USERPROFILE=$homePath","APPDATA=$homePath") }
   if($BoundedStorageConfiguration) { $environment += "PORTCOVE_REVIEW_BOUNDED_DATA=$dataRoot" }
   if($Mode -eq 'fixture') { $environment += @('RUST_BACKTRACE=1','RUST_LOG=codex_app_server_client=debug,codex_core=debug,codex_exec=debug') }
-  $result=[PortcoveReviewContainer]::Run($reviewContainer,$executable,[string[]]$arguments,$workPath,(Join-Path $inputs 'instructions.txt'),(Join-Path $runPath 'capture/stdout.jsonl'),(Join-Path $runPath 'capture/stderr.txt'),[string[]]$environment,$timeout,[bool]$ReadOnlyStorage)
+  $result=[PortcoveReviewContainer]::Run($reviewContainer,$executable,[string[]]$arguments,$workPath,(Join-Path $inputs 'instructions.txt'),(Join-Path $runPath 'capture/stdout.jsonl'),(Join-Path $runPath 'capture/stderr.txt'),[string[]]$environment,$timeout,[bool]$ReadOnlyStorage,[string[]]$storagePreflightPaths)
 } finally {
   try { if($StorageProbe -and $profilePath -and $null -ne $result -and $result.TreeEmpty) {
     [ordered]@{profile_path=$profilePath;sddl=(Get-Acl -LiteralPath $profilePath).Sddl;native_probe_file_present=(Test-Path -LiteralPath (Join-Path $profilePath 'native-profile.data'))} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runPath 'capture/profile-storage-readback.json') -Encoding utf8NoBOM
@@ -195,8 +208,11 @@ try {
   try {
     if($activeMarkerPath -and $null -ne $result -and $result.TreeEmpty -and $deleted -and $boundedGrantsRemoved -and $cleanupErrors.Count -eq 0) { Remove-Item -LiteralPath $activeMarkerPath -ErrorAction Stop }
   } catch { $cleanupErrors.Add('active marker retained; explicit recovery required') }
+  $processReceipt=$result
+  try { if($null -ne $result -and $null -ne $result.Storage) { $processReceipt=Write-StoragePreflightCapture $runPath $result } }
+  catch { $processReceipt=$result|Select-Object * -ExcludeProperty Storage;$cleanupErrors.Add('storage preflight capture unavailable; retain original state') }
   try {
-    [ordered]@{schema_version=1;mode=$Mode;native_helper_sha256=$nativeSha;read_only_storage=[bool]$ReadOnlyStorage;bounded_mount=$boundedMount;bounded_volume_guid=$boundedGuid;bounded_grants_removed=$boundedGrantsRemoved;cleanup_errors=@($cleanupErrors);profile_name=$reviewContainer.Name;expected_sid=$reviewContainer.Sid;profile_deleted=$deleted;broker_sid=$identity.Value;process=$result;qualification='OS containment/process evidence only; not semantic acceptance or credential authority'} | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $runPath 'capture/isolation.json') -Encoding utf8NoBOM
+    [ordered]@{schema_version=1;mode=$Mode;native_helper_sha256=$nativeSha;read_only_storage=[bool]$ReadOnlyStorage;bounded_mount=$boundedMount;bounded_volume_guid=$boundedGuid;bounded_grants_removed=$boundedGrantsRemoved;cleanup_errors=@($cleanupErrors);profile_name=$reviewContainer.Name;expected_sid=$reviewContainer.Sid;profile_deleted=$deleted;broker_sid=$identity.Value;process=$processReceipt;qualification='OS containment/process evidence only; not semantic acceptance or credential authority'} | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath (Join-Path $runPath 'capture/isolation.json') -Encoding utf8NoBOM
   } catch { throw 'isolation receipt unavailable; preserve all state for recovery' }
 }
 if($cleanupErrors.Count -ne 0 -or -not $result.TreeEmpty -or $result.ForcedTermination -or $result.ExitCode -ne 0) { throw 'reviewer failed or required forced tree termination; credentials remain withheld' }
