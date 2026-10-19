@@ -207,6 +207,8 @@ Read the retained authority bodies/comments before choosing actions. Prioritize
 unfinished delivery, then actionable changes. Propose worthwhile intake early:
 the runner reserves its estimated mutation/readback/full-doctor cost, including
 evidence refresh and repeated thin inventory reads, before lower-priority work.
+The estimate reserves at least one additional complete thin inventory read for
+semantic reconciliation within the same request, byte and time limits.
 If capacity cannot admit a complete batch, retain its journal and continuation;
 do not request a routine one-run budget extension. A successful collection and
 a successful delivery are separate receipt fields.
@@ -229,6 +231,18 @@ change, identity mismatch, malformed page, membership change, redaction or
 archive uncertainty blocks without validating or replacing the cached inventory.
 All reconciliation reads consume the existing budget; failure retains the issue
 number and revisions where available for diagnosis on a later admitted run.
+
+Separately, a changing `totalCount` between successful Project connection pages
+produces a typed `inventory_changed` refusal. Once per foreground session, the
+runner may discard that entire incomplete view and recollect the complete
+inventory from fresh repository and Project context. It never joins abandoned
+pages or falls back to a cached view. Both attempts and their charged request
+counts are retained. Only the fully validated replacement can reach mutation or
+doctor; a second count drift stops the run. Transport denials, malformed pages,
+duplicate identities and other integrity failures do not trigger recollection.
+This allowance is distinct from issue-revision reconciliation and does not
+restart the process or retry a failed HTTP request. Retained created issue and
+comment identities remain the recovery targets after any failure.
 `canonical-baseline.json`, `project-items.json`, `checkpoint.json`,
 `active-run.json` and `runs/<run-id>/` retain identities, evidence and recovery.
 They are collection caches, never independent planning or support authority.

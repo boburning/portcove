@@ -6,7 +6,7 @@ import { createInterface } from "node:readline";
 import { Transform } from "node:stream";
 import { spawnSync } from "node:child_process";
 import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
-import { GitHubApiClient } from "./github-api.mts";
+import { GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   discoveryPost,
   recordDiscoveryComment,
@@ -150,30 +150,29 @@ export function discoveryDeliveryCost(
   const pages =
     Math.ceil(inventory.issues.length / 100) +
     Math.ceil((inventory.items.length + inventory.archivedItems.length) / 100) +
-    5;
+    8;
   const thin =
     Buffer.byteLength(
       JSON.stringify(
-        inventory.items.map((i) => ({
+        [...inventory.items, ...inventory.archivedItems].map((i) => ({
           ...i,
           content: i.content ? { ...i.content, body: undefined } : null,
         })),
       ),
     ) + Buffer.byteLength(JSON.stringify(inventory.issues.map((i) => ({ ...i, body: undefined }))));
+  const requests =
+    (candidates.length + 1) * pages +
+    candidates.length * 8 +
+    4 +
+    candidates.reduce((s, c) => s + (c.requests ?? 0), 0);
+  const bytes =
+    (candidates.length + 1) * thin +
+    candidates.reduce((s, c) => s + Buffer.byteLength(c.body) * 4 + (c.bytes ?? 0), 0) +
+    512 * 1024;
   return {
-    requests: Math.ceil(
-      ((candidates.length + 1) * pages +
-        candidates.length * 8 +
-        4 +
-        candidates.reduce((s, c) => s + (c.requests ?? 0), 0)) *
-        1.25,
-    ),
-    bytes: Math.ceil(
-      ((candidates.length + 1) * thin +
-        candidates.reduce((s, c) => s + Buffer.byteLength(c.body) * 4 + (c.bytes ?? 0), 0) +
-        512 * 1024) *
-        1.25,
-    ),
+    // Preserve the existing margin or a whole additional thin inventory, whichever is larger.
+    requests: Math.ceil(Math.max(requests * 1.25, requests + pages)),
+    bytes: Math.ceil(Math.max(bytes * 1.25, bytes + thin)),
   };
 }
 export class DiscoverySession {
@@ -187,6 +186,7 @@ export class DiscoverySession {
   readonly journalFile: string;
   wrote = false;
   inventoryStarted = false;
+  inventoryRecollections = 0;
   inventoryCache: InventoryCache | undefined;
   searches = 0;
   intakeAttempts = 0;
@@ -345,10 +345,57 @@ export class DiscoverySession {
   refresh() {
     const file = path.join(this.stateDir, "inventory.json");
     const old = this.inventoryCache;
-    this.inventory = collectRoadmapInventory(
-      this.client,
-      this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
-    );
+    const collect = () =>
+      collectRoadmapInventory(
+        this.client,
+        this.budget.usage.profile === "cold" && !this.inventoryStarted ? undefined : old,
+      );
+    const started = this.budget.usage.requests;
+    try {
+      this.inventory = collect();
+    } catch (error) {
+      if (
+        !(error instanceof GitHubApiError) ||
+        error.code !== "inventory_changed" ||
+        this.inventoryRecollections !== 0
+      )
+        throw error;
+      this.inventoryRecollections++;
+      const observation = {
+        phase: "inventory-recollection",
+        allowance: this.inventoryRecollections,
+        first: {
+          error: errorMessage(error),
+          requests_before: started,
+          requests_after: this.budget.usage.requests,
+        },
+        second: {
+          requests_before: this.budget.usage.requests,
+          requests_after: this.budget.usage.requests,
+          status: "pending",
+          error: "",
+        },
+      };
+      this.journal.notes.push(observation);
+      this.persist();
+      try {
+        if (this.inventory) {
+          const cost = discoveryDeliveryCost(this.inventory, []);
+          this.budget.admit(cost.requests, cost.bytes);
+        } else this.budget.admit(1, 1);
+        this.client._completeProjectContext = undefined;
+        this.client._projectContext = undefined;
+        this.inventory = collect();
+        observation.second.status = "complete";
+      } catch (second) {
+        observation.second.status = "failed";
+        observation.second.error = errorMessage(second);
+        throw second;
+      } finally {
+        observation.second.requests_after = this.budget.usage.requests;
+        this.persist();
+      }
+    }
     this.inventoryCache = this.inventory;
     this.inventoryStarted = true;
     if (this.budget.usage.profile === "cold")
