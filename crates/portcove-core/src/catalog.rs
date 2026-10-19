@@ -731,6 +731,17 @@ impl Catalog {
                             )));
                         }
                         crate::external_runtime::validate_required_mutable_files(runtime)?;
+                        crate::external_runtime::shared_preferences::validate(runtime)?;
+                        if runtime.shared_preferences.is_some()
+                            && (*platform != crate::Platform::WindowsX86_64
+                                || port.adapter != AdapterKind::StagedSourcePortable
+                                || port.runtime_subdirectory.is_some()
+                                || port.launch_arguments != ["--save-dir", "saves"])
+                        {
+                            return Err(PortcoveError::usage(
+                                "shared preferences require the Windows staged-source root route",
+                            ));
+                        }
                         if runtime.settings_contract.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
                                 || port.runtime_subdirectory.is_some()
@@ -1550,6 +1561,52 @@ mod tests {
         assert!(!valid_direct_release_url(
             "http://127.0.0.1:43210/fixture.tar.gz"
         ));
+    }
+
+    #[test]
+    fn regaiden_exact_shared_preferences_catalog_roundtrips_and_refuses_weakened_routes() {
+        let input = include_str!("../tests/fixtures/regaiden-041-shared-preferences.json");
+        let catalog = Catalog::from_json(input).unwrap();
+        let port = catalog.port("resident-evil-gaiden-recomp").unwrap();
+        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(
+            runtime.immutable_tree_sha256,
+            "0dee3194883214a9842093ca511a899ca0a95689e01c837e8f0546655daeb4ef"
+        );
+        assert_eq!(
+            runtime.shared_preferences,
+            Some(crate::PreparedSharedPreferencesContract::Regaiden041Windows)
+        );
+        assert_eq!(port.launch_arguments, ["--save-dir", "saves"]);
+        assert!(port.persistent_paths.is_empty());
+        let projected = serde_json::to_string(catalog.document()).unwrap();
+        let reread = Catalog::from_json(&projected).unwrap();
+        assert_eq!(
+            serde_json::to_value(reread.port(&port.id).unwrap()).unwrap(),
+            serde_json::to_value(port).unwrap()
+        );
+        for (field, value) in [
+            (
+                "launch_arguments",
+                serde_json::json!(["--rom", "other.gbc"]),
+            ),
+            ("runtime_subdirectory", serde_json::json!("other")),
+            ("platforms", serde_json::json!(["linux-x86-64"])),
+        ] {
+            let mut changed: serde_json::Value = serde_json::from_str(input).unwrap();
+            changed["ports"][0][field] = value;
+            assert!(Catalog::from_json(&changed.to_string()).is_err());
+        }
+        for (field, value) in [
+            ("archive_sha256", serde_json::json!("a".repeat(64))),
+            ("source_argument_extension", serde_json::json!(null)),
+            ("mutable_paths", serde_json::json!(["."])),
+            ("shared_preferences", serde_json::json!("arbitrary-path")),
+        ] {
+            let mut changed: serde_json::Value = serde_json::from_str(input).unwrap();
+            changed["ports"][0]["release"]["user_prepared"]["windows-x86-64"][field] = value;
+            assert!(Catalog::from_json(&changed.to_string()).is_err());
+        }
     }
 
     #[test]

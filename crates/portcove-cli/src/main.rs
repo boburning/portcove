@@ -394,6 +394,9 @@ enum ExternalCommand {
         /// Require the exact external preview reviewed by the caller.
         #[arg(long)]
         expected_preview: Option<String>,
+        /// Accept the displayed shared preference rewrite scope for this exact preview.
+        #[arg(long, requires = "expected_preview")]
+        acknowledge_shared_preferences: bool,
         /// Confirm the freshly reviewed registration without a prompt; files are rechecked.
         #[arg(long)]
         yes: bool,
@@ -2325,11 +2328,30 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 port_id,
                 path,
                 expected_preview,
+                acknowledge_shared_preferences,
                 yes,
             } => {
                 let preview = service.preview_external_runtime(&port_id, &path)?;
                 if mode == OutputMode::Human {
                     println!("{}", human::document(&preview)?);
+                }
+                if let Some(shared) = &preview.shared_preferences {
+                    if mode == OutputMode::Human {
+                        println!(
+                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies. If that location is unavailable, it can instead rewrite {}. Portcove does not own, back up, restore or delete these files.",
+                            shared.binding.path.display(),
+                            shared.local_fallback_path.display()
+                        );
+                    }
+                    if !acknowledge_shared_preferences {
+                        return Err(PortcoveError::usage(
+                            "review the shared preferences and use --acknowledge-shared-preferences with --expected-preview",
+                        ));
+                    }
+                } else if acknowledge_shared_preferences {
+                    return Err(PortcoveError::usage(
+                        "this runtime has no shared preferences scope to acknowledge",
+                    ));
                 }
                 require_confirmation(
                     &format!(
@@ -2339,13 +2361,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     yes,
                     cli.non_interactive,
                 )?;
-                let authorization = service.authorize_external_runtime(
-                    &port_id,
-                    &path,
-                    expected_preview
-                        .as_deref()
-                        .unwrap_or(&preview.preview_sha256),
-                )?;
+                let authorization = service
+                    .authorize_external_runtime_with_shared_preferences_ack(
+                        &port_id,
+                        &path,
+                        expected_preview
+                            .as_deref()
+                            .unwrap_or(&preview.preview_sha256),
+                        acknowledge_shared_preferences.then_some(preview.preview_sha256.as_str()),
+                    )?;
                 render_success(
                     mode,
                     "external.register",

@@ -3181,6 +3181,7 @@ mod tests {
             immutable_tree_sha256: "b".repeat(64),
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         });
         let before = serde_json::to_value((&managed, &external)).unwrap();
         let output = super::statuses(&[managed.clone(), external.clone()]);

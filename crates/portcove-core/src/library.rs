@@ -38,12 +38,9 @@ struct StoredSourceRow {
 /// envelope for opt-in selectors; legacy registrations keep their original shape.
 fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
     let port = catalog.port(port_id)?;
-    if port
-        .release
-        .user_prepared
-        .values()
-        .any(|runtime| !runtime.required_mutable_files.is_empty())
-    {
+    if port.release.user_prepared.values().any(|runtime| {
+        !runtime.required_mutable_files.is_empty() || runtime.shared_preferences.is_some()
+    }) {
         return Ok(serde_json::to_string(
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
@@ -60,6 +57,25 @@ fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
         return retained.catalog(port_id);
     }
     Catalog::from_json(content)
+}
+
+fn check_external_preferences_binding(
+    record: &ExternalRuntimeRecord,
+    catalog: &Catalog,
+) -> Result<()> {
+    if let Some(spec) = catalog
+        .port(&record.port_id)?
+        .release
+        .user_prepared
+        .get(&record.platform)
+    {
+        crate::external_runtime::shared_preferences::check_binding(record, spec)?;
+    } else if record.shared_preferences.is_some() {
+        return Err(PortcoveError::verification(
+            "shared consent has no retained runtime contract",
+        ));
+    }
+    Ok(())
 }
 
 impl StoredSourceRow {
@@ -1894,6 +1910,7 @@ impl Library {
                     "retained external runtime has a mismatched port identity",
                 ));
             }
+            check_external_preferences_binding(&record, &catalog)?;
             Ok((record, catalog))
         })
         .transpose()
@@ -1946,6 +1963,7 @@ impl Library {
                 "retained browsing metadata has a mismatched port identity",
             ));
         }
+        check_external_preferences_binding(&record, &catalog)?;
         Ok(Some((record, catalog)))
     }
 
@@ -1959,6 +1977,7 @@ impl Library {
                 "external runtime and retained port identities differ",
             ));
         }
+        check_external_preferences_binding(record, retained_catalog)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let existing: bool = transaction.query_row(

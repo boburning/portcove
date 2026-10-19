@@ -80,7 +80,14 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if let Some(version) = typed
+    let version = if typed
+        .release
+        .user_prepared
+        .values()
+        .any(|runtime| runtime.shared_preferences.is_some())
+    {
+        8
+    } else if let Some(version) = typed
         .release
         .managed_build
         .values()

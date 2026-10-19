@@ -79,6 +79,10 @@ export type DefinitionEligibilityReason =
 export type DefinitionOperation = "availability" | "install" | "register_external" | "prepare" | "launch" | "update";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
 /**
+ * A reviewed shared write scope, never a caller-selected external path.
+ */
+export type PreparedSharedPreferencesContract = "regaiden041-windows";
+/**
  * A read-only projection of the existing operation guards for client presentation.
  * An `allowed` result is not an authorization token: execution rechecks current
  * inputs under its own lock and may still require an exact reviewed plan.
@@ -918,6 +922,7 @@ export interface ExternalRuntimeRecord {
   port_id: string;
   registered_at: number;
   retained_definition?: DefinitionSelectionIdentity | null;
+  shared_preferences?: AcceptedSharedPreferencesBinding | null;
   version: string;
   [k: string]: unknown;
 }
@@ -946,6 +951,14 @@ export interface AuthenticatedDefinitionProvenance {
   targets_version: number;
   timestamp_sha256: string;
   timestamp_version: number;
+}
+/**
+ * Explicitly accepted account and location; mutable contents are not authority.
+ */
+export interface AcceptedSharedPreferencesBinding {
+  account_sid_sha256: string;
+  contract: PreparedSharedPreferencesContract;
+  path: string;
 }
 export interface UpdateSnapshot {
   check: UpdateCheck;
@@ -1350,6 +1363,10 @@ export interface UserPreparedRuntimeSpec {
    * Read-only, version-scoped source-selection semantics; never seeds settings.
    */
   settings_contract?: PreparedRuntimeSettingsContract | null;
+  /**
+   * Explicit consent to the exact runtime's non-owned, shared preferences.
+   */
+  shared_preferences?: PreparedSharedPreferencesContract | null;
   source_argument_extension: string | null;
   version: string;
   [k: string]: unknown;
@@ -1746,8 +1763,15 @@ export interface OutputExternalRuntimePreview {
   path: string;
   port_id: string;
   preview_sha256: string;
+  shared_preferences?: SharedPreferencesReview | null;
   version: string;
   [k: string]: unknown;
+}
+export interface SharedPreferencesReview {
+  binding: AcceptedSharedPreferencesBinding;
+  local_fallback_path: string;
+  local_fallback_present: boolean;
+  present: boolean;
 }
 export interface OutputExternalRuntimeRemovalPreview {
   external_files_will_be_preserved: boolean;

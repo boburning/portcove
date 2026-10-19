@@ -23,6 +23,7 @@ const MAX_FILES: usize = 100_000;
 const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
+pub(crate) mod shared_preferences;
 mod tfe_settings;
 
 /// Required selectors are existence/type constraints, never content authority.
@@ -161,6 +162,8 @@ pub struct ExternalRuntimePreview {
     pub immutable_tree_sha256: String,
     pub immutable_file_count: usize,
     pub preview_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<crate::SharedPreferencesReview>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -220,6 +223,7 @@ pub(crate) fn check_registered_location(
         ));
     }
     check_required_mutable_files(&root, spec)?;
+    shared_preferences::check_record(record, spec)?;
     Ok(())
 }
 
@@ -354,6 +358,7 @@ fn visit(
             .map_err(|_| PortcoveError::state("external runtime path escaped its root"))?;
         let relative = crate::path::unicode(relative, "user-prepared runtime")?.replace('\\', "/");
         let kind = entry.file_type()?;
+        shared_preferences::check_tree_path(spec, &path, kind.is_dir())?;
         let (_, key) = crate::archive::validate_relative_path(&relative, kind.is_dir())?;
         if kind.is_dir() {
             visit(root, &path, spec, files, seen, total_bytes, pass)?;
@@ -684,6 +689,7 @@ mod tests {
             library_user_data: false,
             required_mutable_files: vec![],
             settings_contract: None,
+            shared_preferences: None,
             mutable_paths: vec!["runtime-state".into()],
         };
         let mismatch = inspect(&runtime, &spec, &library).unwrap_err();
@@ -708,6 +714,7 @@ mod tests {
             immutable_tree_sha256: inspected.immutable_tree_sha256,
             registered_at: 1,
             retained_definition: None,
+            shared_preferences: None,
         }
     }
 
