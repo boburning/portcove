@@ -169,6 +169,7 @@ jobs:
         run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
       - name: Grant user namespaces only to this disposable qualification interpreter
         id: namespace_profile
+        if: inputs.runner == 'ubuntu-24.04'
         run: node scripts/desktop-linux-namespace-profile.mts --prepare
       - name: Preflight the actual ordinary-account qualification namespace mechanism
         timeout-minutes: 3
@@ -208,6 +209,7 @@ jobs:
         run: command -v strace || sudo -n apt-get install --no-install-recommends -y strace
       - name: Grant user namespaces only to this disposable qualification interpreter
         id: namespace_profile
+        if: inputs.runner == 'ubuntu-24.04'
         run: node scripts/desktop-linux-namespace-profile.mts --prepare
       - name: Admit the complete namespace mechanism before building or provisioning media
         timeout-minutes: 3
