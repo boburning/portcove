@@ -74,3 +74,11 @@ level = "allow"
 
 [rules."perf.hot_path_allocations"]
 level = "allow"
+
+# This dedicated test file intentionally rejects the exact hostile selector below.
+# No inherited global path allowance is used here; keep its exception exact and test-only.
+[[scope]]
+include = ["**/crates/portcove-core/src/external_runtime/tfe_settings_tests.rs"]
+
+[scope.rules."portability.absolute_literal_paths"]
+allow_regex = ['^C:/Games/$']
