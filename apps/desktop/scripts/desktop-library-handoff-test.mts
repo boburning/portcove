@@ -1,23 +1,18 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { Locator } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 interface HandoffContext extends ScenarioContext {
   invoke: ScenarioInvoke;
   library: string;
   command: FixtureCommand;
   confirmNative: ReturnType<typeof nativeConfirmation>;
-}
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
 }
 function success(value: unknown) {
   const result = object(value);

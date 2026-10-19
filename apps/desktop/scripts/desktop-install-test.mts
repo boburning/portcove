@@ -1,3 +1,8 @@
+import {
+  fixtureSuccess as success,
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { WebDriver } from "selenium-webdriver";
 import type { FileIdentity } from "../../../scripts/development-evidence.mts";
 import type { createInstallFixture } from "./desktop-install-fixture.mts";
@@ -46,23 +51,10 @@ interface RefreshObservations {
         restored: boolean;
       };
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
-}
 function fixtureHash(port: FixturePort) {
   return required(port.release.direct[required(port.platforms[0])]).sha256;
 }
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { copyFile, stat, writeFile } from "node:fs/promises";

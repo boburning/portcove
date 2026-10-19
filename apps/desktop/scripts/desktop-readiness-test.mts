@@ -1,3 +1,7 @@
+import {
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { WebDriver } from "selenium-webdriver";
 import type {
   PortDefinition,
@@ -48,14 +52,6 @@ interface HeldObservations {
 type HoldContext = Pick<ReadinessContext, "browser" | "output" | "artifacts" | "command"> & {
   port: PortDefinition;
 };
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
-  return value;
-}
 function readinessCommand(command: FixtureCommand) {
   function read(args: ["catalog", "show", string]): PortDefinition;
   function read(args: ["status", string]): PortStatus;
@@ -69,7 +65,7 @@ function readinessCommand(command: FixtureCommand) {
   }
   return read;
 }
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import path from "node:path";

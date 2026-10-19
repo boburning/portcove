@@ -1,10 +1,14 @@
+import {
+  fixtureSuccess as success,
+  requiredFixtureValue as required,
+  fixtureObject as object,
+} from "./desktop-scenario-state.mts";
 import type { BinaryLike } from "node:crypto";
 import type { Locator, WebDriver } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { ScenarioInvoke } from "./desktop-scenario-context.mts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 import { transportValue } from "./transport-values.mts";
 interface CorrectionContext extends ScenarioContext {
   invoke: ScenarioInvoke;
@@ -19,26 +23,13 @@ interface CorrectionWindow extends Window {
     invoke(command: string, args: unknown): Promise<unknown>;
   };
 }
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
-}
 function text(value: unknown): string {
   assert.ok(typeof value === "string");
-  return value;
-}
-function required<Value>(value: Value | null | undefined): Value {
-  assert.ok(value !== null && value !== undefined);
   return value;
 }
 function jsonObject(value: string) {
   const parsed: unknown = JSON.parse(value);
   return object(parsed);
-}
-function success(value: unknown) {
-  const reply = object(value);
-  assert.equal(reply.ok, true, JSON.stringify(reply));
-  return reply.value;
 }
 function ports(value: unknown) {
   const entries = object(value).ports;

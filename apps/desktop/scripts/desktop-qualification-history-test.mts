@@ -216,7 +216,6 @@ export async function waitHistorySessionExit(inventory: Pick<HistoryInventory, "
 
 // The repository-level scripts/desktop-scenarios.test.mts consumes this export.
 // Its test root is outside the frontend Fallow graph.
-// fallow-ignore-next-line unused-export
 export function qualificationHistoryFixture(catalog: unknown) {
   const raw = object(catalog);
   const portRecord = required(entries(raw.ports).find((entry) => entry.id === "snap64-recomp"));

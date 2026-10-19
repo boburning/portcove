@@ -26,7 +26,7 @@ interface ResponseEntry {
   completed: boolean;
   outcome: "ok" | "error" | null;
 }
-export interface ListenerSnapshot {
+interface ListenerSnapshot {
   rewrites: number;
   privileged_requests: number;
   mismatches: string[];

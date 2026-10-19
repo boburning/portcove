@@ -65,7 +65,7 @@ export function BackupHistory({
     readState &&
     readState.status !== "idle" && (
       <div
-        className="backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-warning-surface,_var(--color-bg-subtle))] p-[12px] [&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]"
+        className="backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-bg-subtle)] p-[12px] [&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]"
         role="status"
       >
         {readState.status === "pending" && (
@@ -115,7 +115,7 @@ export function BackupHistory({
     (state !== "healthy" || problems.length > 0) && (
       <div
         className={cn(
-          `backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-warning-surface,_var(--color-bg-subtle))] p-[12px] ${state}`,
+          `backup-inventory-notice rounded-pc-md border border-[var(--color-warning-border,_var(--color-border))] bg-[var(--color-bg-subtle)] p-[12px] ${state}`,
           "[&.recovery_required]:border-[var(--color-danger-border,_var(--color-border))]",
         )}
         role="status"

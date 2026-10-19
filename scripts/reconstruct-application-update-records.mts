@@ -65,7 +65,10 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
 } from "./release-package-policy.mts";
-import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
+import {
+  assertOwnedUnlinkedPath,
+  releasePathContains as contains,
+} from "./release-path-safety.mts";
 import { updaterIdentity } from "./updater-artifact-inventory.mts";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -761,14 +764,6 @@ async function loadSources(projectRoot: string, descriptorPath: string) {
     }),
   );
   return { sources, inputPaths };
-}
-
-function contains(parent: string, child: string) {
-  const relative = path.relative(parent, child);
-  return (
-    relative === "" ||
-    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
-  );
 }
 
 function parseArguments(argv: string[]) {

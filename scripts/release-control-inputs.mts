@@ -14,8 +14,8 @@ import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
-export const classificationBranch = "portcove-release-inputs";
-export const pauseBranch = "portcove-release-pause";
+const classificationBranch = "portcove-release-inputs";
+const pauseBranch = "portcove-release-pause";
 const maximumBytes = 128 * 1024;
 
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
@@ -41,7 +41,7 @@ function canonical(value: unknown): string {
   if (result === undefined) throw new Error("release control JSON is incomplete");
   return result;
 }
-export function releaseOpportunityDigest(value: unknown) {
+function releaseOpportunityDigest(value: unknown) {
   return createHash("sha256")
     .update(canonical(validateOpportunity(value)))
     .digest("hex");
@@ -200,7 +200,7 @@ function session(api: CoordinatorRemoteApi) {
   return { get, ref, contents, bound, refId: (branch: string) => refIds.get(branch) };
 }
 
-export interface ReviewProducerConfiguration {
+interface ReviewProducerConfiguration {
   schema_version: 1;
   review_app_id: number;
   writer_app_id: number;

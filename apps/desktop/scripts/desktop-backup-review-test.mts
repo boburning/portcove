@@ -1,3 +1,4 @@
+import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import type { WebDriver } from "selenium-webdriver";
 import type {
@@ -7,7 +8,6 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 import type { FixtureCommand } from "./desktop-scenario-state.mts";
 import type { nativeConfirmation } from "./desktop-native-confirmation.mts";
-import { isRecord } from "../../../scripts/runtime-values.mts";
 import { transportValue } from "./transport-values.mts";
 interface BackupReviewContext {
   browser: WebDriver;
@@ -23,10 +23,6 @@ interface BackupReviewContext {
   ) => Promise<{ port: PortDefinition; install: Pick<InstallRecord, "id"> }>;
   open: (port: PortDefinition, refresh?: boolean) => Promise<unknown>;
   confirmNative: ReturnType<typeof nativeConfirmation>;
-}
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
 }
 function text(value: unknown) {
   assert.ok(typeof value === "string");

@@ -11,7 +11,7 @@ interface NamespaceExit {
   signal: NodeJS.Signals | null;
   observed_at: string;
 }
-export interface NamespaceReceipt {
+interface NamespaceReceipt {
   method: string;
   nonce: string;
   started_at: string;

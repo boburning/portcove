@@ -247,7 +247,7 @@ const otherEntries = (text: string) =>
     .filter((block) => !/^name = "serde_json"$/mu.test(block))
     .join("");
 
-export async function runEngineProbe({
+async function runEngineProbe({
   engine,
   workspace,
   configFile,

@@ -9,7 +9,7 @@ import type {
   ChildRegistration,
 } from "./heavy-rust-test-lock.mts";
 
-export type ResourceProfile = "rust" | "browser" | "analysis" | "container";
+type ResourceProfile = "rust" | "browser" | "analysis" | "container";
 interface ReservationSlot {
   name: string;
   token: string;
@@ -88,7 +88,7 @@ function retainIdentity() {
 }
 
 const inheritedName = "PORTCOVE_RESOURCE_RESERVATION";
-export const resourceProfiles = Object.freeze({ rust: 1, browser: 1, analysis: 1, container: 2 });
+const resourceProfiles = Object.freeze({ rust: 1, browser: 1, analysis: 1, container: 2 });
 
 export { resourceDomainRoot } from "./resource-paths.mts";
 

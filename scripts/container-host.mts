@@ -1,6 +1,21 @@
 import type { ResourceLease } from "./resource-capacity.mts";
 import { restartedNativePreparation } from "./container-recovery.mts";
 import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
+
+/** Preserve the causal command status and adapter diagnostic fields. */
+export function containerFailure(failure: unknown) {
+  const error = isRecord(failure) ? failure : {};
+  const state = isRecord(error.state) ? error.state : {};
+  return {
+    report: {
+      error: error.message,
+      observations: error.observations,
+      observation: error.observation,
+    },
+    exitCode: typeof state.causal_exit === "number" && state.causal_exit ? state.causal_exit : 1,
+  };
+}
+
 import { runRustTests } from "./run-rust-tests.mts";
 import { EventEmitter } from "node:events";
 import {

@@ -1,5 +1,6 @@
+import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
-import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import {
   captureSettledVisual,
@@ -127,10 +128,6 @@ interface CompletionReport extends CompletionReportDiagnostics {
   failure?: { message: string; stack: string | undefined };
   original_inputs_preserved?: boolean;
   preservation_failure?: string;
-}
-function object(value: unknown): Record<string, unknown> {
-  assert.ok(isRecord(value));
-  return value;
 }
 function required<Value>(value: Value | null | undefined): Value {
   assert.ok(value !== null && value !== undefined, "Required completion observation missing");
