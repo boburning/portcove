@@ -7,6 +7,14 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# This exact Windows ownership regression passed at 19.3s, then reached the
+# 30s harness cutoff during shared-drive contention. Retain all five provider
+# refusal operations, preservation assertions, two workers and zero retries.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^service::tests::external_ownership_refuses_managed_provider_work_before_resolution$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # These complete Windows import-preservation fixtures timed out at 30s while
 # still creating their backup. Bounded diagnostics completed at 29.4s and 44.6s.
 # Keep every lifecycle/assertion, two workers and zero retries; give only these

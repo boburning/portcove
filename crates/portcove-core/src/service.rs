@@ -10066,7 +10066,8 @@ fn main() {
         let platform_key = serde_json::to_value(platform).unwrap();
         let platform_key = platform_key.as_str().unwrap();
         let executable = runtime.executable.clone();
-        let document = serde_json::json!({
+        let source_extension = runtime.source_argument_extension.clone();
+        let mut document = serde_json::json!({
             "schema_version": 2,
             "source_catalog": {
                 "evidence": [], "identities": [], "contracts": [],
@@ -10090,6 +10091,19 @@ fn main() {
                 "executable_hints": { (platform_key): [executable] }
             }]
         });
+        if let Some(extension) = source_extension {
+            // Independently authored legacy input is normalized into the same
+            // retained schema-2 contract; no live title definition is borrowed.
+            document["schema_version"] = 1.into();
+            document.as_object_mut().unwrap().remove("source_catalog");
+            document["source_profiles"] = serde_json::json!([{
+                "id": "external-location-source",
+                "label": "Inert external source fixture",
+                "kind": "file",
+                "accepted_extensions": [extension]
+            }]);
+            document["ports"][0]["source_profile"] = "external-location-source".into();
+        }
         Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
     }
 
