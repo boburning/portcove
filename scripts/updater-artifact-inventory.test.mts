@@ -67,7 +67,25 @@ foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
   $launch.process.Dispose()
  }
 }
-@{ smoke_roles = $evidence.process_runs.Count; failed_exit_preserved = $true } | ConvertTo-Json -Compress
+# A deterministic provider fixture models a child already gone before live
+# image observation. Blank StartInfo must not become an identity fallback.
+function Start-Process {
+ param($FilePath, $ArgumentList, [switch]$PassThru, $WindowStyle, $RedirectStandardOutput, $RedirectStandardError)
+ $process = [pscustomobject]@{ Id = 123; StartTime = [DateTime]::UtcNow; StartInfo = @{ FileName = '' }; Path = $null; HasExited = $true }
+ $process | Add-Member -MemberType ScriptMethod -Name Refresh -Value {}
+ $process
+}
+function Stop-JournaledProcess { param($Run, $Process, $Status, $Reason) }
+foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
+ $refused = $false
+ try { Start-JournaledProcess $role $program @() | Out-Null }
+ catch {
+  if ($_.Exception.Message -ne "$role exited before its executable image could be verified") { throw }
+  $refused = $true
+ }
+ if (-not $refused) { throw 'Smoke without executable identity was accepted' }
+}
+@{ smoke_roles = 2; failed_exit_preserved = $true; unverified_smokes_refused = $true } | ConvertTo-Json -Compress
 `;
     const result = spawnSync(
       "pwsh",
@@ -80,7 +98,67 @@ foreach ($role in @('predecessor_smoke', 'candidate_smoke')) {
       { encoding: "utf8", windowsHide: true, timeout: 30000 },
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), { smoke_roles: 2, failed_exit_preserved: true });
+    assert.deepEqual(JSON.parse(result.stdout), {
+      smoke_roles: 2,
+      failed_exit_preserved: true,
+      unverified_smokes_refused: true,
+    });
+  },
+);
+
+void test(
+  "Windows updater preflight records and refuses unsuitable runtimes before fixture builds",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "portcove-runtime-preflight-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const workflow = await readFile(
+      new URL("../.github/workflows/updater-artifact-rehearsal.yml", import.meta.url),
+      "utf8",
+    );
+    const block = workflow.match(
+      /- name: Check Windows updater runtime prerequisite before building fixtures\r?\n[\s\S]*?        run: \|\r?\n(?<body>[\s\S]*?)      - name: Test signature/,
+    );
+    assert.ok(block?.groups?.body);
+    assert.ok(workflow.includes("work/updater-prerequisites/windows-runtime.json"));
+    const step = block.groups.body.replace(/^          /gmu, "");
+    for (const [index, actual] of [
+      "155.0.4283.60",
+      "155.0.4283.62",
+      "155.0.4283.63",
+      "155.0.4283.62 dev",
+      "",
+    ].entries()) {
+      const cwd = path.join(root, String(index));
+      await mkdir(path.join(cwd, "apps/desktop/src-tauri"), { recursive: true });
+      await writeFile(
+        path.join(cwd, "apps/desktop/src-tauri/tauri.conf.json"),
+        JSON.stringify({ bundle: { windows: { minimumWebview2Version: "155.0.4283.62" } } }),
+      );
+      const script = `$ErrorActionPreference = 'Stop'\nfunction node { $global:LASTEXITCODE = 0; '{"desktop":{"webview2_version":"${actual}"}}' }\n${step}`;
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-EncodedCommand",
+          Buffer.from(script, "utf16le").toString("base64"),
+        ],
+        { cwd, encoding: "utf8", windowsHide: true, timeout: 10000 },
+      );
+      assert.equal(result.status, index === 1 || index === 2 ? 0 : 1, result.stderr);
+      const receipt = object(
+        JSON.parse(
+          await readFile(path.join(cwd, "work/updater-prerequisites/windows-runtime.json"), "utf8"),
+        ),
+      );
+      assert.equal(receipt.registered_webview2, actual);
+      assert.equal(receipt.minimum_webview2, "155.0.4283.62");
+      assert.match(
+        text(receipt.observation),
+        /application-selected runtime is recorded separately/,
+      );
+    }
   },
 );
 

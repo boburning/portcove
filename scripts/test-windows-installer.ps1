@@ -518,8 +518,8 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
         } while ((Get-Date) -lt $imageDeadline)
         if ([string]::IsNullOrWhiteSpace($observedPath)) {
             if (-not $process.HasExited) { throw "$Role stable executable image path could not be observed while it was running" }
-            if ($Role -eq "installed_update_helper") {
-                throw "Installed update helper exited before its executable image could be verified"
+            if ($Role -in @("installed_update_helper", "predecessor_smoke", "candidate_smoke")) {
+                throw "$Role exited before its executable image could be verified"
             }
             $run.image_observation = "Process exited before a stable executable image path was observable; StartInfo and the retained handle identify the exact hash-journaled launch"
             if ($evidence) { Write-InstallerEvidence $evidence.phase }
