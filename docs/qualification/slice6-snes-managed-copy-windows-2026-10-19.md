@@ -91,7 +91,7 @@ Current-release checks/no-change, backup/restore and owned removal are distinct
 from a version-changing update or successful rollback. This declaration does not
 grant publisher, signing or protected distribution authority.
 
-## Actual evidence and remaining acceptance
+## Actual Windows operation evidence
 
 Evidence root: `E:/Codex-Evidence/slice6-20261018/`, prefix `prepared-reuse-4-`.
 Actual qualification retains Core source
@@ -100,6 +100,13 @@ Actual qualification retains Core source
 and private 106-port catalog SHA256
 `9510f257d55e37073a77d3e3f6522390f8c78e7decdd44587e96e5ca9c88d8f2`.
 Later presentation/admission changes do not relabel these actual artifacts.
+
+The repaired integrity gate is separately compiled and exercised at Core source
+`c19b8103d66a202a9776ce948891a5c1f44f4964`, qualification CLI SHA256
+`bb48ac7584b4c59808fe88f582d9277ad97e7e038e3ce223438e656f30dd8afc`
+(41,995,776 bytes). The same private catalog and exact game packages are reused.
+The clean-source build and all 38 managed-installation fixtures pass at that
+source. No game executable is rebuilt or relabeled by this Core repair.
 
 - Isolated Core acquisition, installation and verification pass for both exact
   official executables, checking 29/19 immutable files.
@@ -131,15 +138,32 @@ Later presentation/admission changes do not relabel these actual artifacts.
   original and retained backup remain unchanged. Only the two exact owned failed
   reservations are archived after readback. No ordinary-close or refusal success
   is inferred from that failed request.
-- The candidate repairs managed staged-source launch/maintenance gates through
+- Core repairs managed staged-source launch/maintenance gates through
   complete immutable verification and bounded no-follow inventory, retaining
   older manifest identities and existing mutable/generated output rules.
   The 38 managed-installation fixtures pass, including the nested noncritical
-  selector regression. New-CLI operation evidence remains pending.
-- **Pending:** repaired-CLI mod-manifest refusal and applicable positive launch
-  acceptance, consent-bound owned removal,
-  independent final review, exact-head hosted CI, guarded merge and canonical
-  issue/Project readback. This candidate is not delivered yet.
+  selector regression. The new CLI rejects the same manifest change with
+  verification exit 11 and a terminal childless request, preserves the original
+  failure, and restores/verifies the exact preimage. Previously passed source,
+  executable and SDL controls retain their original evidence rather than being
+  repeated or rewriting the failed packet as a success.
+- Each title then passes one positive cycle under the repaired CLI: matching
+  Core/OS identities, responsive window, ordinary close, positive captured-process
+  termination, Core/CLI exit zero, zero TCP listeners at observation and full
+  immutable verification. Each title now has three successful recorded launches;
+  the interrupted failed Mega Man X2 request remains separately recorded.
+- Ordered consent-bound owned removal passes for both titles, including wrong
+  preview and missing-consent refusals. Super Metroid retains an authenticated
+  archive of 39 files/57,248,478 bytes; Mega Man X2 retains 28 files/39,745,497
+  bytes. Current configuration, canonical ROM copies, external originals and
+  original backups remain independently preserved. Both private installs are
+  removed, with zero pending lifecycle/activity/launch records. Archives are
+  evidence bytes without execution or admission authority.
+
+Independent source and actual operation reviews are recorded with the owning
+delivery PR and issue receipts. Repository admission, exact-head hosted checks,
+guarded merge and canonical Project readback use those delivery receipts; these
+Windows observations do not establish protected production distribution.
 
 Optional gameplay, game save/load, physical controller, audio, visual fidelity,
 other platforms, installed Desktop and #246/#534 protected production delivery
