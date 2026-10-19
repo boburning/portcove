@@ -1524,8 +1524,27 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
             )
         },
     );
+    let temporary_space = plan.temporary_space.as_ref().map_or_else(
+        || "checked at installation when acquisition is needed".to_owned(),
+        |space| {
+            format!(
+                "{} at {} (available: {}; execution rechecks)",
+                format_bytes(space.required_bytes),
+                clean(&space.path.display().to_string()),
+                space
+                    .available_bytes
+                    .map_or_else(|| "unknown".to_owned(), format_bytes)
+            )
+        },
+    );
+    let auxiliary = plan
+        .auxiliary_downloads
+        .iter()
+        .map(|asset| format!("{} ({})", clean(&asset.name), format_bytes(asset.size)))
+        .collect::<Vec<_>>()
+        .join("; ");
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nTotal download: {}\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
         clean(&plan.port_id),
         install_action(plan.action),
         release_channel(plan.channel),
@@ -1534,7 +1553,13 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         clean(&plan.release.asset.name),
         format_bytes(plan.release.asset.size),
         runtime,
+        if auxiliary.is_empty() {
+            "none"
+        } else {
+            &auxiliary
+        },
         format_bytes(plan.download_bytes),
+        temporary_space,
         requirements,
         clean(
             &plan
@@ -2183,6 +2208,30 @@ mod tests {
         assert_eq!(before["plan"]["channel"], "beta");
         assert_eq!(before["selected_install"]["channel"], "beta");
         assert_eq!(serde_json::to_value(&review).unwrap(), before);
+    }
+
+    #[test]
+    fn install_plan_displays_core_acquisitions_and_temporary_destination_separately() {
+        let plan: portcove_core::InstallPlan = serde_json::from_value(serde_json::json!({
+            "port_id": "fixture", "channel": "stable", "platform": "windows-x86-64",
+            "release": {"version": "fixture", "channel": "stable", "published_at": null,
+                "asset": {"name": "primary.zip", "url": "https://example.invalid/primary.zip", "size": 4, "sha256": "a".repeat(64)}},
+            "bundled_runtime": null, "download_bytes": 1024, "action": "download", "source_requirements": [],
+            "auxiliary_downloads": [{"name": "auxiliary.zip", "url": "https://example.invalid/auxiliary.zip", "size": 1020, "sha256": "b".repeat(64)}],
+            "temporary_space": {"path": "external/game", "required_bytes": 8192, "available_bytes": 4096, "volume_identity": "external", "sufficient": false},
+            "storage": {"library_root": "owned", "volume_total_bytes": 1024, "volume_available_bytes": 1024},
+            "output_location": {"port_id": "fixture", "library_root": "owned", "default_output_directory": "owned/ports",
+                "configured_output_directory": "external/game", "effective_output_directory": "external/game", "selection_source": "port_setting", "user_data_root": "owned/user"}
+        })).unwrap();
+        let before = serde_json::to_value(&plan).unwrap();
+        let text = super::plan(&plan);
+        assert!(text.contains("auxiliary.zip"));
+        assert!(text.contains("Total cold download (cache reuse may reduce): 1.0 KiB"));
+        assert!(
+            text.contains("Temporary free space: 8.0 KiB at external/game (available: 4.0 KiB")
+        );
+        assert!(text.contains("Final installed size: unknown"));
+        assert_eq!(serde_json::to_value(&plan).unwrap(), before);
     }
 
     #[test]

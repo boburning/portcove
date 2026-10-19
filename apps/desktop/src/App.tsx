@@ -156,7 +156,7 @@ export default function App() {
       />
     );
   return (
-    <GameFileScanProvider key={bootstrap.generation}>
+    <GameFileScanProvider key={bootstrap.generation} generation={bootstrap.generation}>
       <SetupReviewSelectionProvider>
         <Workspace
           bootstrap={bootstrap}
