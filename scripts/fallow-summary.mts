@@ -184,7 +184,7 @@ function reviewPartition(
     );
     section(
       "Independent slice sample",
-      partition.independent_slices.map((modules, index) => ({ modules, index })),
+      partition.independent_slices.map((modules: unknown, index) => ({ modules, index })),
       (item) =>
         `slice ${rank(item.index) + 1}; modules ${count(item.modules)}; ${strings(item.modules)}`,
     );

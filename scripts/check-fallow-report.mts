@@ -112,7 +112,7 @@ export function evaluateFallowReport(value: unknown, { requireParseGate = false 
           ["source-read-failure", "no-source-files-analyzed"].includes(String(diagnostic.kind))
         )
           failures.push(
-            `required source analysis incomplete: ${String(diagnostic.kind)} (${String(diagnostic.path ?? "whole scope")})`,
+            `required source analysis incomplete: ${String(diagnostic.kind)} (${typeof diagnostic.path === "string" ? diagnostic.path : "whole scope"})`,
           );
     }
   }
