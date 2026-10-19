@@ -69,9 +69,13 @@ children. History-derived rankings are incomplete. Two optional review-guide
 requests timed out; the Fallow graph judgment loop is not claimed complete.
 Separate source review and ordinary hosted validation remain distinct evidence.
 
-Focused tests exposed a stale live upstream-monitoring policy binding for
-`road-rash-64-recompiled`. The identical hash mismatch reproduces on the unchanged
-parent. The audit does not regenerate accepted policy hashes to obtain a pass.
+Focused tests exposed stale live upstream-monitoring contract bindings; the
+identical failure reproduces on the unchanged parent. Nineteen rules across
+13 ports had changed only their `presentation` field. Each approved old hash was
+reproduced from `93259eb`, and every other contract field was verified identical
+before rebinding the full hash. Pin and condition fields, metadata requirements
+and authority remain unchanged. The ledger retains each old/new binding and its
+approved source; all 87 shared-contract controls pass after this repair.
 
 This report does not claim a full Fallow quality-gate pass, native acceptance,
 release qualification or measured coverage. Current exact-head CI, separate
