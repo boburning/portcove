@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   checkDesktopCommandContract,
@@ -14,6 +15,8 @@ import {
   extractFrontendDesktopEvents,
   extractProducedDesktopEvents,
   extractRegisteredDesktopCommands,
+  exportSchemas,
+  exportDesktopSchemas,
 } from "./check-transport-contract.mts";
 import { renderTransportSchemas } from "./transport-schemas.mts";
 
@@ -34,6 +37,136 @@ const schemas = {
     },
   },
 };
+
+void test("production exporters report sequential phases separately from their returned contracts", (t) => {
+  const stderr: string[] = [];
+  const stdout: string[] = [];
+  t.mock.method(process.stderr, "write", (value: string) => {
+    stderr.push(value);
+    return true;
+  });
+  t.mock.method(process.stdout, "write", (value: string) => {
+    stdout.push(value);
+    return true;
+  });
+  const calls: string[][] = [];
+  const execute = (args: string[]) => {
+    calls.push(args);
+    const core = args.includes("--contract");
+    return {
+      status: 0,
+      stderr: "",
+      stdout: JSON.stringify(
+        core
+          ? { ok: true, command: "schema.export", data: schemas }
+          : { input: schemas, output: schemas, events: schemas },
+      ),
+    };
+  };
+  assert.deepEqual(exportSchemas("fixture", "output", execute), schemas);
+  assert.deepEqual(exportSchemas("fixture", "input", execute), schemas);
+  assert.deepEqual(exportDesktopSchemas("fixture", true, execute).output, schemas);
+  assert.deepEqual(
+    calls.map((args) => args.at(-1)),
+    ["output", "input", "export_desktop_transport", "export_transport"],
+  );
+  assert.deepEqual(
+    stderr.filter((line) => line.includes("started")),
+    [
+      "[transport] core-output started\n",
+      "[transport] core-input started\n",
+      "[transport] desktop-headless started\n",
+      "[transport] desktop-native started\n",
+      "[transport] desktop-parity started\n",
+    ],
+  );
+  assert.equal(stderr.filter((line) => /completed \(\d+ms\)/u.test(line)).length, 5);
+  assert.deepEqual(stdout, ["Headless Desktop contracts match the compiled native host.\n"]);
+});
+
+void test("export failures retain phase, diagnostics and exit status; invalid JSON is not completion", (t) => {
+  const stderr: string[] = [];
+  t.mock.method(process.stderr, "write", (value: string) => {
+    stderr.push(value);
+    return true;
+  });
+  assert.throws(
+    () =>
+      exportSchemas("fixture", "input", () => ({
+        status: 7,
+        stdout: "",
+        stderr: "compiler detail\n",
+      })),
+    (error: unknown) => {
+      assert.ok(error instanceof Error && "exitCode" in error);
+      assert.equal(error.exitCode, 7);
+      return true;
+    },
+  );
+  assert.match(
+    stderr.join(""),
+    /core-input started[\s\S]*compiler detail[\s\S]*core-input failed/u,
+  );
+  stderr.length = 0;
+  assert.throws(() =>
+    exportSchemas("fixture", "output", () => ({ status: 0, stdout: "invalid", stderr: "" })),
+  );
+  assert.match(stderr.join(""), /core-output failed/u);
+  assert.doesNotMatch(stderr.join(""), /completed/u);
+  let calls = 0;
+  assert.throws(
+    () =>
+      exportDesktopSchemas("fixture", true, () => {
+        calls += 1;
+        return { status: null, stdout: null, stderr: undefined, error: new Error("spawn failed") };
+      }),
+    /spawn failed/,
+  );
+  assert.equal(calls, 1);
+});
+
+void test("Desktop malformed envelopes and parity drift produce failed phases", (t) => {
+  const stderr: string[] = [];
+  t.mock.method(process.stderr, "write", (value: string) => {
+    stderr.push(value);
+    return true;
+  });
+  assert.throws(
+    () => exportDesktopSchemas("fixture", true, () => ({ status: 0, stdout: "{}", stderr: "" })),
+    /invalid envelope/,
+  );
+  assert.match(stderr.join(""), /desktop-headless failed/);
+  stderr.length = 0;
+  assert.throws(
+    () =>
+      exportDesktopSchemas("fixture", true, (args) => ({
+        status: 0,
+        stderr: "",
+        stdout: JSON.stringify({
+          input: schemas,
+          events: schemas,
+          output: args.includes("portcove-desktop") ? { different: {} } : schemas,
+        }),
+      })),
+    /differ from/,
+  );
+  assert.match(stderr.join(""), /desktop-parity started[\s\S]*desktop-parity failed/u);
+  assert.doesNotMatch(stderr.join(""), /desktop-parity completed/u);
+});
+
+void test("real missing Cargo CLI preserves spawn diagnostics without undefined-stream errors", () => {
+  const module = new URL("./check-transport-contract.mts", import.meta.url);
+  const result = spawnSync(process.execPath, [fileURLToPath(module)], {
+    env: { ...process.env, PATH: "" },
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /core-output failed/);
+  assert.match(result.stderr, /ENOENT/);
+  assert.doesNotMatch(result.stderr, /TypeError|ERR_INVALID_ARG_TYPE/);
+  assert.equal(result.stdout, "");
+});
 
 void test("headless export retains required Windows native parity and explicit capable-host parity", () => {
   const headless = [
