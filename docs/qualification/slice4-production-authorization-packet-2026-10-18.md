@@ -11,6 +11,14 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [native Check consumer preparation](slice4-534-native-check-consumer-2026-10-20.md)
+binds separate candidate and local native producer identities to the distinct
+configured issuer, stage, host/account, exact source/harness and positive teardown
+report. Only the actual provider path can mint its private receipt; fixtures
+remain unaccepted. Genuine broker capture, ratified custody and the stage-specific
+record/context joins are still required. No native execution or production
+authority is established by this preparation.
+
 The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
 connects isolated fresh immutable-release observation, dedicated journal
 credential transport, observed-effect recovery and actual publication-stage
