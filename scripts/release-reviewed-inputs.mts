@@ -38,6 +38,7 @@ async function main() {
       "observe-production-site-publication",
       "observe-production-release-publication",
       "persist",
+      "persist-request",
       "read",
     ].includes(mode ?? "") &&
       !mode?.startsWith("observe-production-"))
@@ -89,6 +90,7 @@ async function main() {
   );
   const phaseProfile = releaseControlPhaseProfile(phase);
   const observing = mode === "observe" || productionObservation;
+  const persisting = mode === "persist" || mode === "persist-request";
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
@@ -104,9 +106,8 @@ async function main() {
       JSON.stringify({ schema_version: 1, operation: mode, status: "started", authority: "none" }) +
         "\n",
     );
-    const appToken =
-      observing || mode === "persist" ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
-    if ((observing || mode === "persist") && (!appToken || appToken.length > 16384))
+    const appToken = observing || persisting ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
+    if ((observing || persisting) && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
     const runner = createGitHubRunner({
       cwd: process.cwd(),
@@ -136,12 +137,16 @@ async function main() {
     );
     const api = {
       request: (method: string, endpoint: string, body?: unknown) =>
-        (endpoint.includes("/check-runs/") ? readApi : appApi).request(method, endpoint, body),
+        (/\/(?:check-runs|check-suites)(?:\/|\?)/u.test(endpoint) ? readApi : appApi).request(
+          method,
+          endpoint,
+          body,
+        ),
       graphql: (query: string, variables: Readonly<Record<string, unknown>>) =>
         appApi.graphql(query, variables),
     };
     let observerIdentity: unknown = null;
-    if (observing || mode === "persist") {
+    if (observing || persisting) {
       // Config is separately ratified environment data, never an input file or
       // dispatch-provided expected identity. No self-expectation from JWT claims.
       if (process.env.GITHUB_RUN_ATTEMPT !== "1")
@@ -245,7 +250,59 @@ async function main() {
         await import("./release-control-inputs.mts");
       const config: unknown = JSON.parse(process.env.PORTCOVE_REVIEW_PRODUCER ?? "null");
       const opportunity: unknown = JSON.parse(process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null");
-      if (mode === "persist") {
+      if (mode === "persist-request") {
+        const { requireReviewedInputsReleaseAuthorities } =
+          await import("./release-authority-configuration.mts");
+        const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
+        const { inspectReleaseReviewRequest } = await import("./release-review-request.mts");
+        const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
+        const { persistReviewedClassificationForRequest } =
+          await import("./release-classification-request.mts");
+        const authorities = await requireReviewedInputsReleaseAuthorities();
+        const producer = {
+          schema_version: 1,
+          review_app_id: authorities.apps.semantic.app_id,
+          writer_app_id: authorities.apps.classification.app_id,
+          review_check_name: semanticReviewCheckName,
+        };
+        const { inspectReviewProducerConfiguration } = await import("./release-control-inputs.mts");
+        const parsed = inspectReviewProducerConfiguration(config);
+        if (
+          parsed.review_app_id !== producer.review_app_id ||
+          parsed.writer_app_id !== producer.writer_app_id ||
+          parsed.review_check_name !== producer.review_check_name
+        )
+          throw new Error("writer producer roles differ from ratified release authority");
+        const recovered = await recoverRemoteCoordinator(
+          temp,
+          { schema_version: 1, namespace: authorities.namespace },
+          { transport: { cwd: process.cwd() } },
+        );
+        const request = inspectReleaseReviewRequest(recovered.input.review_request);
+        if (!request) throw new Error("no outstanding exact journal request for automatic writer");
+        const beforeMutation = () => {
+          requireReleaseInputWriterPolicy(
+            JSON.parse(process.env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION ?? "null"),
+            producer.writer_app_id,
+          );
+          const response = readApi.request(
+            "GET",
+            `repos/boburning/portcove/git/ref/heads/${authorities.namespace}-coordinator-state`,
+          );
+          if (
+            response.status !== 200 ||
+            !isRecord(response.body) ||
+            response.body.ref !== `refs/heads/${authorities.namespace}-coordinator-state` ||
+            !isRecord(response.body.object) ||
+            response.body.object.type !== "commit" ||
+            response.body.object.sha !== recovered.checkpoint
+          )
+            throw new Error("automatic writer outstanding journal request changed");
+        };
+        beforeMutation();
+        result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
+        beforeMutation();
+      } else if (mode === "persist") {
         // Only the fixed held workflow maps this from needs.protection_observation.
         // No workflow_dispatch inputs are declared. A cross-workflow receipt is
         // not accepted, and aggregate admission remains independently held.
