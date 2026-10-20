@@ -300,6 +300,13 @@ const selectionContractTests = [
 
 const explicitNodeTests = new Map<string, readonly string[]>([
   [
+    "scripts/release-coordinator-journal-api.mts",
+    ["scripts/release-coordinator-journal-api.test.mts"],
+  ],
+  ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
+  ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
+  [
     "scripts/release-compiler-source-closure.mts",
     ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
   ],
@@ -331,6 +338,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
+  ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
+  ["scripts/release-native-admission.mts", ["scripts/release-native-admission.test.mts"]],
+  ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  [
+    "scripts/release-authority-configuration.mts",
+    ["scripts/production-controller-admission.test.mts"],
+  ],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",
@@ -485,24 +500,15 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/repository-skills.test.mts", "scripts/native-qualification-account-adapter.test.mts"],
   ],
   [
-    "scripts/native-qualification-account-adapter.psm1",
-    ["scripts/native-qualification-account-adapter.test.mts"],
-  ],
-  [
-    "apps/desktop/scripts/desktop-native-account-session.mts",
-    [
-      "apps/desktop/scripts/desktop-native-account-session.test.mts",
-      "scripts/native-helper-dependencies.test.mts",
-    ],
-  ],
-  ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
-  [
     "scripts/native-qualification-account.cs.txt",
     ["scripts/native-qualification-account.test.mts"],
   ],
   [
     "scripts/native-qualification-account-bridge.ps1",
-    ["scripts/native-qualification-account.test.mts"],
+    [
+      "scripts/native-qualification-account.test.mts",
+      "scripts/native-qualification-account-adapter.test.mts",
+    ],
   ],
   [
     "scripts/native-qualification-account-client.ps1",
@@ -513,12 +519,27 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/native-qualification-account-client.mts",
-    ["scripts/native-qualification-account-client.test.mts"],
+    [
+      "scripts/native-qualification-account-client.test.mts",
+      "apps/desktop/scripts/desktop-native-account-session.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-adapter.psm1",
+    ["scripts/native-qualification-account-adapter.test.mts"],
   ],
   [
     "scripts/fixtures/native-account-gui-probe.ps1",
     ["scripts/native-qualification-account.test.mts"],
   ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      "apps/desktop/scripts/desktop-native-account-session.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
+  ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
   [
     "crates/portcove-core/catalog/catalog-current-authoring.json",
     ["scripts/generate-catalog.test.mts"],
@@ -640,12 +661,18 @@ const releaseContractTests = Object.freeze([
   "scripts/release-public-build-provenance.test.mts",
   "scripts/release-handshake-hosted-fixture.test.mts",
   "scripts/release-controller-tools.test.mts",
+  "scripts/release-compiler-source.test.mts",
+  "scripts/release-native-qualification-contract.test.mts",
+  "scripts/release-native-acceptance.test.mts",
+  "scripts/release-native-admission.test.mts",
+  "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
   "scripts/release-live-control-admission.test.mts",
   "scripts/write-release-checksums.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
+  "scripts/release-signing-handoff.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

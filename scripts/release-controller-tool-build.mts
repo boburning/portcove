@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isBuiltin } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
+import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
@@ -15,6 +16,7 @@ import {
   controllerToolPaths,
   readControllerToolFile,
   inspectControllerToolManifest,
+  controllerCompilerSourceAsset,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
  * replacement. Resolve the canonical path to avoid Windows junction long paths. */
@@ -116,6 +118,25 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
   }
 }
 
+/** Generated under the unprivileged bootstrap guard, never by a role job. */
+export async function materializeControllerCompilerSource(
+  sourceRoot: string,
+  tools: string,
+  expected: { commit: string; tree: string },
+) {
+  const closure = await prepareReleaseCompilerSourceClosure(sourceRoot, {
+    source_commit: expected.commit,
+    source_tree: expected.tree,
+  });
+  const bytes = Buffer.from(JSON.stringify(closure));
+  if (bytes.length > 65536) throw new Error("generated compiler source closure exceeds bound");
+  await writeFile(path.join(tools, controllerCompilerSourceAsset), bytes, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return { bytes: bytes.length, sha256: hash(bytes) };
+}
+
 export function controllerBootstrapEnvironment(home: string, target: string) {
   return {
     PATH: process.env.PATH,
@@ -154,6 +175,7 @@ export async function buildControllerTools(
   if (process.versions.node !== "24.22.0") throw new Error("fixed Node runtime differs");
   if (
     process.platform !== "linux" ||
+    process.arch !== "x64" ||
     !/^[a-f0-9]{40}$/.test(expected.commit) ||
     !/^[a-f0-9]{40}$/.test(expected.tree)
   )
@@ -200,9 +222,21 @@ export async function buildControllerTools(
     if (status !== 0) throw new Error(`fixed controller tool build refused; retain ${directory}`);
     phase = "tool-inventory";
     await mkdir(path.join(tools, "bin"), { mode: 0o700 });
+    const desktop = createRequire(path.join(sourceRoot, "apps/desktop/package.json"));
+    const cliPackage = desktop.resolve("@tauri-apps/cli/package.json");
+    const cli = createRequire(cliPackage);
+    const addon = await realpath(cli.resolve("@tauri-apps/cli-linux-x64-gnu"));
+    for (const filename of [cliPackage, path.join(path.dirname(addon), "package.json")]) {
+      const metadata: unknown = JSON.parse(
+        (await readControllerToolFile(filename, 65536)).toString("utf8"),
+      );
+      if (!isRecord(metadata) || metadata.version !== "2.12.2")
+        throw new Error("fixed maintained Tauri CLI version differs");
+    }
     for (const [name, filename] of [
       ["node", process.execPath],
       ["portcove-release-tools", path.join(target, "release", "portcove-release-tools")],
+      ["tauri-addon.node", addon],
     ])
       await writeFile(path.join(tools, "bin", name!), await readControllerToolFile(filename!), {
         flag: "wx",
@@ -216,6 +250,8 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
+    phase = "fixed-compiler-source-closure";
+    await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
     const files = [];
     for (const name of controllerToolPaths) {
@@ -223,12 +259,13 @@ export async function buildControllerTools(
       files.push({ path: name, bytes: bytes.length, sha256: hash(bytes) });
     }
     const manifest = inspectControllerToolManifest({
-      schema_version: 1,
+      schema_version: 2,
       source_commit: expected.commit,
       source_tree: expected.tree,
       platform: "linux-x86_64",
       node_version: "24.22.0",
       bundler: "vite-plus@1.3.0",
+      tauri_cli_version: "2.12.2",
       files,
     });
     await writeFile(path.join(tools, "manifest.json"), JSON.stringify(manifest), {

@@ -404,6 +404,15 @@ migrate AppData, qualify an upstream package, or grant update/backup ownership.
 Removing the external registration preserves both the external folder and private
 user files. No current title is admitted by this generic engine component.
 
+Mutable paths exempt player-owned output bytes from the immutable digest, not
+from filesystem safety. Every regular mutable file must have exactly one
+filesystem link during both sweeps of full prepared-runtime inspection, including
+the inspection before launch. This applies even when no required selector is
+declared; a hard-linked save or settings file could otherwise redirect a game
+write into the original installation or other data. Independent mutable content
+may still change without changing package identity. These observations do not
+freeze player-owned paths after inspection or provide an execution sandbox.
+
 A `staged-source-portable` prepared spec may declare up to 64
 `required_mutable_files`, each an exact relative file path within its declared
 `mutable_paths`. Portable path keys must be unique, including case aliases.

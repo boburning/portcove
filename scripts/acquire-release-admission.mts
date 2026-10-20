@@ -67,6 +67,9 @@ import { readProductionControllerWorkflowBytes } from "./production-controller-a
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
+import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
+import type { NativeQualificationStage } from "./release-native-qualification-contract.mts";
+import type { VerifiedNativeReleaseQualification } from "./release-native-acceptance.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
@@ -85,6 +88,11 @@ export interface PreparedReleaseAdmissionFacts {
   contexts: unknown;
   allocations: unknown;
   compiler_evidence?: unknown;
+  native_evidence?: readonly {
+    check_id: number;
+    report_sha256: string;
+    stage: NativeQualificationStage;
+  }[];
 }
 export interface ReleaseCompilerAdmissionPrerequisite {
   controller_tools: object;
@@ -97,6 +105,7 @@ export interface ActualReleaseAdmissionContext {
   admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
   checkpoint: string;
   native_qualifications: readonly object[];
+  coordinator_repository: string;
   sbom_receipt: object;
   pending_obligations: readonly string[];
 }
@@ -105,6 +114,8 @@ const actualAdmissionContexts = new WeakMap<
   { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
 >();
 const acquiredSbomReceipts = new WeakMap<object, object>();
+const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
+const acquiredCoordinatorRepositories = new WeakMap<object, string>();
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -117,7 +128,8 @@ export function requireActualReleaseAdmissionContext(
     !retained ||
     !["payload-signing", "release-publication"].includes(expectedStage) ||
     retained.context.stage !== expectedStage ||
-    retained.context.admission.decision !== "admitted" ||
+    retained.context.admission.decision !==
+      (expectedStage === "payload-signing" ? "eligible-for-payload-signing" : "admitted") ||
     retained.context.admission.holds.length !== 0 ||
     retained.context.admission.evidence_scope !== "github.com" ||
     retained.context.controls.evidence_scope !== "github.com" ||
@@ -187,7 +199,7 @@ function configuration(raw: unknown) {
 export async function acquireReleaseAdmission(
   privateRoot: string,
   rawConfiguration: unknown,
-  options: {
+  rawOptions: {
     api?: Api;
     recover?: Recover;
     download?: typeof readGitHubArtifactArchive;
@@ -196,6 +208,11 @@ export async function acquireReleaseAdmission(
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
     compiler?: ReleaseCompilerAdmissionPrerequisite;
+    // Fixed caller obtains actual native Check receipts against these privately
+    // acquired candidate facts. Serialized reports are never prerequisites.
+    establishNative?: (
+      facts: Readonly<PreparedReleaseAdmissionFacts>,
+    ) => Promise<readonly object[]>;
     // Called once after all large immutable archives have been privately
     // validated. The same process retains its facts; no serialized facts import.
     establishControls?: (
@@ -204,7 +221,25 @@ export async function acquireReleaseAdmission(
     ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
+  // Preserve actual/injected transport provenance and capability references
+  // throughout asynchronous acquisition. A caller cannot clear an injected
+  // option after collection to obtain a production context.
+  const options = Object.freeze({
+    ...rawOptions,
+    ...(rawOptions.compiler
+      ? {
+          compiler: Object.freeze({
+            ...rawOptions.compiler,
+            controller_source: structuredClone(rawOptions.compiler.controller_source),
+          }),
+        }
+      : {}),
+  });
   const controlPhase = inspectReleaseControlPhase(options.controlPhase);
+  const nativeStage: NativeQualificationStage =
+    controlPhase === "release-publication" ? "release-publication" : "payload-signing";
+  let nativeReceipts: readonly object[] | null = null;
+  let nativeReports: readonly VerifiedNativeReleaseQualification[] | null = null;
   if (options.controls) requireAuthenticatedReleaseControlSource(options.controls, controlPhase);
   if (options.controls && options.establishControls)
     throw new Error("admission accepts exactly one live control establishment path");
@@ -659,7 +694,7 @@ export async function acquireReleaseAdmission(
           (publicBinding?.artifacts.reduce((sum, item) => sum + item.bytes, 0) ?? 0),
       ),
     });
-    if (options.establishControls) {
+    if (options.establishControls || options.establishNative) {
       if (!frozenControlsOpportunity)
         throw new Error("late control acquisition requires the actual frozen complete opportunity");
       phase = "private-facts-ready-awaiting-fresh-observer";
@@ -676,13 +711,32 @@ export async function acquireReleaseAdmission(
         allocations,
         compiler_evidence: compilerEvidence,
       };
-      controls = await options.establishControls(
-        hash(JSON.stringify(facts)),
-        freezePreparedFacts(structuredClone(facts)),
-      );
-      requireAuthenticatedReleaseControlSource(controls, controlPhase);
-      phase = "authenticated-controls-before-final-readback";
-      controlsBefore = controls.read(api, frozenControlsOpportunity);
+      if (options.establishNative) {
+        phase = "actual-stage-native-qualification";
+        nativeReceipts = Object.freeze([
+          ...(await options.establishNative(freezePreparedFacts(structuredClone(facts)))),
+        ]);
+        nativeReports = await requireNativeReleaseQualificationPair(
+          nativeReceipts,
+          assembly,
+          archives,
+          nativeStage,
+        );
+        facts.native_evidence = nativeReports.map((report) => ({
+          check_id: report.check.id,
+          report_sha256: report.check.report_sha256,
+          stage: report.stage,
+        }));
+      }
+      if (options.establishControls) {
+        controls = await options.establishControls(
+          hash(JSON.stringify(facts)),
+          freezePreparedFacts(structuredClone(facts)),
+        );
+        requireAuthenticatedReleaseControlSource(controls, controlPhase);
+        phase = "authenticated-controls-before-final-readback";
+        controlsBefore = controls.read(api, frozenControlsOpportunity);
+      }
     }
     phase = "freshness-bracket";
     const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
@@ -793,7 +847,22 @@ export async function acquireReleaseAdmission(
       options.now
     )
       holds.add("strict-release-SBOM-document-unverified");
-    holds.add("strict-release-native-authorization-not-evaluated");
+    if (!nativeReceipts || !nativeReports)
+      holds.add("strict-release-native-authorization-not-evaluated");
+    else {
+      phase = "actual-stage-native-final-readback";
+      nativeReports = await requireNativeReleaseQualificationPair(
+        nativeReceipts,
+        assembly,
+        archives,
+        nativeStage,
+      );
+    }
+    // The post-sign journey must also join the actual signed context/records,
+    // not just a report's declared digest. The private context consumer owns
+    // that remaining connection; native observations alone cannot clear it.
+    if (nativeStage === "release-publication")
+      holds.add("authenticated-signed-context-qualification-unavailable");
     const publication = {
       complete: publishedSources.length === publishedVersions.length,
       observed_at: new Date((options.now ?? Date.now)()).toISOString(),
@@ -819,9 +888,24 @@ export async function acquireReleaseAdmission(
             },
           })
         : null;
+    const evidenceScope =
+      options.api ||
+      options.recover ||
+      options.download ||
+      options.now ||
+      options.capacity ||
+      (controls?.evidence_scope !== undefined && controls.evidence_scope !== "github.com")
+        ? "injected-provider"
+        : "github.com";
     const result = {
       schema_version: 1,
-      decision: "hold",
+      decision:
+        holds.size === 0 && nativeReports && evidenceScope === "github.com"
+          ? nativeStage === "payload-signing"
+            ? "eligible-for-payload-signing"
+            : "admitted"
+          : "hold",
+      stage: nativeStage,
       descriptor: null,
       directory: root,
       checkpoint,
@@ -839,23 +923,37 @@ export async function acquireReleaseAdmission(
       declared_producers: declarations,
       sbom_evidence: sbomEvidence,
       compiler_evidence: compilerEvidence,
+      native_evidence:
+        nativeReports?.map((report) => ({
+          check_id: report.check.id,
+          stage: report.stage,
+          report_sha256: report.check.report_sha256,
+          candidate: report.candidate,
+          producer: report.producer,
+        })) ?? null,
+      pending_obligations:
+        nativeStage === "payload-signing"
+          ? [
+              "post-sign-native-compatible-update-rollback-journal",
+              "post-publication-full-public-V0-to-V1-acceptance",
+            ]
+          : ["post-publication-full-public-V0-to-V1-acceptance"],
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
-      evidence_scope:
-        options.api ||
-        options.recover ||
-        options.download ||
-        options.now ||
-        options.capacity ||
-        (controls?.evidence_scope !== undefined && controls.evidence_scope !== "github.com")
-          ? "injected-provider"
-          : "github.com",
+      evidence_scope: evidenceScope,
       authority: "none",
     };
     if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
       await requireVerifiedReleaseSbomDocument(sbomEvidence);
       acquiredSbomReceipts.set(result, sbomEvidence);
+      if (nativeReceipts && nativeReports) acquiredNativeReceipts.set(result, nativeReceipts);
+      if (
+        typeof before.repository === "string" &&
+        path.isAbsolute(before.repository) &&
+        /^coordinator-recovery-[A-Za-z0-9]+$/u.test(path.relative(root, before.repository))
+      )
+        acquiredCoordinatorRepositories.set(result, before.repository);
     }
     return result;
   } catch {
@@ -896,6 +994,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
   ) => Promise<string>,
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
+  establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
@@ -907,6 +1006,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
   } = { facts: null, controls: null };
   const admission = await acquireReleaseAdmission(root, configuration, {
     ...(compiler ? { compiler } : {}),
+    ...(establishNative ? { establishNative } : {}),
     controlPhase: phase,
     establishControls: async (factsSha256, facts) => {
       retained.facts = facts;
@@ -932,10 +1032,14 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       return retained.controls;
     },
   });
-  // Current independent holds deliberately make this unreachable. A future
-  // actual positive acquisition may continue only in this same private process;
-  // no JSON descriptor, injected provider or fixture brand can call this seam.
-  if (onAdmitted && admission.decision === "admitted" && admission.holds.length === 0) {
+  // Native stage qualification is necessary but cannot clear unrelated holds.
+  // Only this actual acquisition process can create the corresponding private
+  // continuation; no JSON/injected descriptor appoints an execution stage.
+  if (
+    onAdmitted &&
+    ["admitted", "eligible-for-payload-signing"].includes(admission.decision) &&
+    admission.holds.length === 0
+  ) {
     const { facts, controls } = retained;
     if (
       admission.evidence_scope !== "github.com" ||
@@ -952,17 +1056,37 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     const sbomReceipt = acquiredSbomReceipts.get(admission);
     if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
     await requireVerifiedReleaseSbomDocument(sbomReceipt);
-    if (phase !== "release-publication")
-      throw new Error("full admission context cannot appoint another execution stage");
+    const stage =
+      phase === "payload"
+        ? "payload-signing"
+        : phase === "release-publication"
+          ? "release-publication"
+          : null;
+    if (!stage || stage !== admission.stage)
+      throw new Error("actual admission context cannot appoint another execution stage");
+    const nativeReceipts = acquiredNativeReceipts.get(admission);
+    if (!nativeReceipts) throw new Error("positive continuation requires actual native custody");
+    await requireNativeReleaseQualificationPair(
+      nativeReceipts,
+      facts.assembly,
+      facts.archives,
+      stage,
+    );
+    const coordinatorRepository = acquiredCoordinatorRepositories.get(admission);
+    if (!coordinatorRepository)
+      throw new Error(
+        "positive continuation requires actual privately recovered coordinator repository",
+      );
     const context = Object.freeze({
-      stage: "release-publication" as const,
+      stage,
       facts,
       controls,
       admission: freezePreparedFacts(structuredClone(admission)),
       checkpoint: admission.checkpoint,
-      native_qualifications: Object.freeze([] as object[]),
+      native_qualifications: nativeReceipts,
+      coordinator_repository: coordinatorRepository,
       sbom_receipt: sbomReceipt,
-      pending_obligations: Object.freeze(["post-publication-full-public-V0-to-V1-acceptance"]),
+      pending_obligations: Object.freeze([...admission.pending_obligations]),
     });
     actualAdmissionContexts.set(context, { context, phase });
     await onAdmitted(context);

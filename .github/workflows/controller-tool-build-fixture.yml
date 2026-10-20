@@ -16,6 +16,8 @@ on:
       - Cargo.lock
       - rust-toolchain.toml
       - package.json
+      - apps/desktop/package.json
+      - release/package-policy.json
       - pnpm-lock.yaml
       - .node-version
   push:
@@ -29,6 +31,8 @@ on:
       - Cargo.lock
       - rust-toolchain.toml
       - package.json
+      - apps/desktop/package.json
+      - release/package-policy.json
       - pnpm-lock.yaml
       - .node-version
 permissions:
@@ -58,6 +62,8 @@ jobs:
         env:
           FIXTURE_SOURCE_SHA: ${{ github.sha }}
         run: node scripts/qualify-controller-tool-build.mts
+      - name: Exercise actual job-local disposable role channel on Linux
+        run: node --test --test-timeout=30000 scripts/release-role-key-channel.test.mts
       - name: Retain only bounded public fixture evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -388,6 +388,35 @@ Each signer reports its role/output digest and `authority: "none"`; assembly
 reports exact public file identities. Repeating exact output reuses it; a changed
 existing output refuses. Payload signing remains a separate operation.
 
+`portcove-release-tools prepare-tuf-renewal CONFIG.json` prepares public inputs
+for metadata-only renewal. Its strict schema-1 configuration has `generated_at`,
+`trusted_root`, `previous_repository` and `output`. The caller independently
+ratifies the root and authenticates complete current public feed/readback
+provenance. The frozen generation time supports identical retries; it cannot
+override expirations. The tool verifies current TUF signatures and expiration,
+the unchanged offline anchors and retained signed history before returning a
+plan. Expired current state requires separate recovery. It reads no private key.
+
+The prepared context preserves all record bytes and advances the five online
+versions by exactly one, with increasing expirations within the existing caps:
+48 hours for timestamp, seven days for snapshot/Preview/Stable and 90 days for
+releases. Targets version/expiry and root/targets bytes remain unchanged. Stable
+remains empty. The output supplies the same context to the existing isolated
+role jobs and keyless assembler; it allocates no application version, candidate
+or semantic approval. Signing and publication remain later protected operations.
+
+`renewal.json` binds the current and next versions/expirations, frozen clock,
+root/targets digests, prior timestamp/snapshot digests, unchanged record identities
+and exact prior public component inventory. Versions in this descriptor are
+canonical positive decimal strings, preserving TUF's full `u64` identity in
+JavaScript; TUF/config versions retain their existing numeric representation.
+Descriptor digests use compact JSON with sorted object keys and no terminal
+newline. The prior component digest covers sorted `{path, bytes, sha256}` entries
+for public `metadata/**` and `targets/**`. It excludes the internal
+`repository-manifest.json`, which is derived locally and is not a required public
+endpoint. Shared-site generation identity is separate. A digest or persisted
+plan does not authenticate provider provenance or grant an effect.
+
 The unchanged reconstruction step still requires the complete retained inventory
 history and protects existing immutable releases. Role isolation changes local signing
 custody, not allocation, qualification, controller, publication or platform
@@ -1521,3 +1550,70 @@ production/build graph requires focused source review; there is no routine Rust
 source fingerprint to maintain. See the [current procedure and dated approval](releases/2026-10-14-linux-beta-risk-706.md).
 Ordinary Windows preflight remains independent of Linux authorization. No
 publication, approval renewal, advisory dismissal or remediation is implied.
+
+## Metadata-only renewal in the existing coordinator journal
+
+A schema2 coordinator may retain `published_metadata` and `metadata_renewal`
+with capacity sub-schema2. The former binds the application public component,
+root/offline targets, six exact decimal-string version floors and expirations,
+unchanged record digest, actual publication receipt and whole-site
+`publication.site_generation_sha256`. The whole-site marker includes the catalog;
+it is distinct from the application-only public component digest. Missing state
+holds renewal. Initial seeding is a separately authorized import: its fixed caller
+must actually verify the independently ratified root, safe-expiry Tough feed and
+independent public readback. Hash parsing and Git persistence do not authenticate
+those observations or grant initial setup authority.
+
+`runBoundedMetadataRenewalOperation` freezes the verified renewal descriptor,
+uses its own observation time, and commits its exact pending effect through the
+existing remote checkpoint adapter before the supplied effect. It never allocates
+a candidate, invents a source/version/review, changes the active reservation or
+rewrites earlier release observations. Two transient and three substantive
+recovery increments apply across the same prior published generation; changing
+the descriptor does not reset them. Stable logical destinations identify purposes,
+such as a role artifact or Pages deployment, rather than changing run/artifact IDs.
+Remote completion remains pending until exact provider readback is durably
+recorded. Publication advancement needs a resolved operation with the matching
+receipt and all five advancing online floors. Offline anchors remain unchanged.
+
+Compact prior-effect groups remain inside the same checkpoint. They retain the
+logical subject/destination, completion and retry floors, plus the original raw
+operation checkpoint, ID and full-operation digest. The original immutable Git
+history retains provider receipts. `readRetainedCapacityOperation` resolves that
+bounded original checkpoint without traversing history; a sparse restored caller
+must obtain the explicitly named checkpoint objects before requesting its raw
+receipt. Current candidate effects and current published-generation effects
+cannot be dropped or rewritten. Old metadata groups become collectible only after
+a bound published successor readback; active-candidate groups survive renewal.
+A 96-purpose lifecycle cap and six proof attempts per purpose remain fail closed.
+The focused workload covers 63 candidate purposes, seven metadata purposes and
+all five recovery increments within the existing64KiB checkpoint bound. The
+operation also reserves its declared bounded receipt budget before any effect.
+
+An operation may bind an original fixed executor identity and a separately
+recorded recovery executor identity. These are association fields, never caller
+authentication. The admitted wrapper must freshly verify the actual job identity,
+remote ownership and original-job termination before another executor resolves
+its result. A nonce, local checkpoint, imported report or JSON receipt provides no
+credential, lease, protected execution or publication authority. Legacy schema1
+replay bytes remain unchanged; routine metadata admission uses the new explicit
+schema and authenticated published-state prerequisite.
+
+`prepareAuthenticatedMetadataRenewal` is the maintained fixed-tool adapter. The
+admitted caller supplies independently ratified executable/root hashes and the
+independently observed complete application component digest. It snapshots the
+bounded public inputs, invokes the actual copied `prepare-tuf-renewal` executable
+with a credential-free environment, then binds its verified descriptor, context
+and complete output inventory to an in-process session. Imported JSON cannot
+replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
+and tool identities before role-job or journal use. Failures retain private work;
+the adapter neither discovers keys nor grants provisioning or execution.
+
+The actual `assemble-tuf` report additionally returns `publication`: root/offline
+anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
+canonical decimal-string version floors and exact expirations. These facts are
+derived after the maintained stack verifies the assembled signatures, freshness,
+content and retained history. The fixed controller binds this actual tool output
+to the private assembly session, independently reads back the published bytes,
+then attaches the actual operation and provider/whole-site receipt for
+`recordPublishedMetadata`. An imported report alone is not publication evidence.

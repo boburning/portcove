@@ -12,8 +12,16 @@ const repositoryId = 1354613114;
 export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
 export type ControllerOidcEnvironment =
   | "github-pages"
+  | "production-payload-signing"
+  | "production-release-coordinator"
+  | "production-release-publication"
   | "production-release-classification"
-  | "production-release-protection-observer";
+  | "production-release-protection-observer"
+  | "production-tuf-releases"
+  | "production-tuf-preview"
+  | "production-tuf-stable"
+  | "production-tuf-snapshot"
+  | "production-tuf-timestamp";
 export function controllerOidcSubject(ref: string, environment?: ControllerOidcEnvironment) {
   if (!/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(ref))
     throw new Error("controller OIDC subject requires the fixed protected tag family");
@@ -21,8 +29,16 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     environment !== undefined &&
     ![
       "github-pages",
+      "production-payload-signing",
+      "production-release-coordinator",
+      "production-release-publication",
       "production-release-classification",
       "production-release-protection-observer",
+      "production-tuf-releases",
+      "production-tuf-preview",
+      "production-tuf-stable",
+      "production-tuf-snapshot",
+      "production-tuf-timestamp",
     ].includes(environment)
   )
     throw new Error("controller OIDC environment is unsupported");
@@ -380,6 +396,73 @@ async function verifyJobIdentity(
 // Fixed profiles are deliberately private: callers cannot promote another job
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
+const capacityExecutorProfiles = Object.freeze({
+  "payload-signing": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("payload").reader_name,
+    environment: "production-payload-signing" as const,
+  },
+  "tuf-releases": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-releases").reader_name,
+    environment: "production-tuf-releases" as const,
+  },
+  "tuf-preview": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-preview").reader_name,
+    environment: "production-tuf-preview" as const,
+  },
+  "tuf-stable": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-stable").reader_name,
+    environment: "production-tuf-stable" as const,
+  },
+  "tuf-snapshot": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-snapshot").reader_name,
+    environment: "production-tuf-snapshot" as const,
+  },
+  "tuf-timestamp": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-timestamp").reader_name,
+    environment: "production-tuf-timestamp" as const,
+  },
+  coordinator: {
+    workflow: productionControllerWorkflow,
+    job: "Coordinate application release",
+    environment: "production-release-coordinator" as const,
+  },
+  "release-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish immutable application release",
+    environment: "production-release-publication" as const,
+  },
+  "site-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish authenticated application site",
+    environment: "github-pages" as const,
+  },
+});
+export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
+
+/** Fixed coordinator/publication profiles; names supplied by a caller cannot
+ * appoint another job. Identity verification alone grants no effect authority. */
+export async function verifyCapacityExecutorJobIdentity(
+  role: CapacityExecutorRole,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  if (!Object.hasOwn(capacityExecutorProfiles, role))
+    throw new Error("capacity executor role is not a fixed controller profile");
+  const observed = await verifyJobIdentity(
+    capacityExecutorProfiles[role],
+    token,
+    expected,
+    options,
+  );
+  return { ...observed, role };
+}
 /** Fresh producer identity only; receivers authenticate the existing GitHub
  * attestation instead of retaining or accepting an expired bearer token. */
 export function verifyControllerToolBootstrapJobIdentity(

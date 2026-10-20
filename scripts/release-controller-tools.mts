@@ -4,18 +4,25 @@ import { open } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
   "release-reviewed-inputs",
+  "release-payload-preparation",
+  "release-role-key-channel",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   ".github/workflows/application-update-production.yml",
+  "release/package-policy.json",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [
     "bin/node",
     "bin/portcove-release-tools",
+    "bin/tauri-addon.node",
+    controllerCompilerSourceAsset,
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...controllerToolAssets,
   ].sort(),
@@ -59,11 +66,12 @@ export function inspectControllerToolManifest(raw: unknown) {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
-      "bundler,files,node_version,platform,schema_version,source_commit,source_tree" ||
-    value.schema_version !== 1 ||
+      "bundler,files,node_version,platform,schema_version,source_commit,source_tree,tauri_cli_version" ||
+    value.schema_version !== 2 ||
     value.platform !== "linux-x86_64" ||
     value.node_version !== "24.22.0" ||
     value.bundler !== "vite-plus@1.3.0" ||
+    value.tauri_cli_version !== "2.12.2" ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
     typeof value.source_tree !== "string" ||
@@ -91,12 +99,13 @@ export function inspectControllerToolManifest(raw: unknown) {
   });
   if (total > 320 * 1024 ** 2) throw new Error("controller tool expanded bytes exceed bound");
   return {
-    schema_version: 1,
+    schema_version: 2,
     source_commit: value.source_commit,
     source_tree: value.source_tree,
     platform: "linux-x86_64",
     node_version: "24.22.0",
     bundler: "vite-plus@1.3.0",
+    tauri_cli_version: "2.12.2",
     files,
   };
 }
@@ -144,5 +153,15 @@ export function inspectControllerToolArchive(
       throw new Error("controller tool bytes differ from signed manifest");
     files.set(file.path, bytes);
   }
+  const closureBytes = files.get(controllerCompilerSourceAsset)!;
+  if (closureBytes.length > 65536) throw new Error("compiler source asset exceeds bound");
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse(closureBytes.toString("utf8")) as unknown,
+  );
+  if (
+    closure.source_commit !== manifest.source_commit ||
+    closure.source_tree !== manifest.source_tree
+  )
+    throw new Error("compiler source asset differs from authenticated tool source");
   return { manifest, manifest_sha256: hash(manifestBytes), files };
 }
