@@ -301,7 +301,8 @@ export type CartridgeBuildRecipe =
   | "yoshis-cookie-nes-cycle-v1.1.0"
   | "dr-mario-nes-cycle-v1.3.0-usa"
   | "advance-wars-gba-source-cb3facb53b6b-usa-rev1"
-  | "earthbound-snes-source-fe1155dc26ff-usa";
+  | "earthbound-snes-source-fe1155dc26ff-usa"
+  | "render96-us-source-48da5c491c8a";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.

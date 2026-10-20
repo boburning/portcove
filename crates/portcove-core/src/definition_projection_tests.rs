@@ -107,6 +107,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
             crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
             crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
             | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
+            crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
         })
         .max()
     {
@@ -179,6 +180,34 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
         &bytes,
         contract,
     )
+}
+
+#[test]
+fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
+    let document = projection();
+    let contract = serde_json::to_vec(&document).unwrap();
+    for (id, version) in [("render96ex", 13), ("f-zero-snes-recomp", 11)] {
+        let position = document["catalog"]["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|port| port["id"] == id)
+            .unwrap();
+        let valid = entry(&document, &contract, position);
+        assert_eq!(
+            valid["required_capabilities"][0]["minimum_version"],
+            version
+        );
+        assert_eq!(
+            valid["required_capabilities"][0]["maximum_version"],
+            version
+        );
+        inspect(&valid, &contract).unwrap();
+        let mut stale = valid;
+        stale["required_capabilities"][0]["minimum_version"] = json!(version - 1);
+        stale["required_capabilities"][0]["maximum_version"] = json!(version - 1);
+        assert!(inspect(&stale, &contract).is_err(), "{id}");
+    }
 }
 
 #[test]

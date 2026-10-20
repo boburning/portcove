@@ -339,6 +339,36 @@ mod tests {
     }
 
     #[test]
+    fn render96_source_recipe_negotiates_v13_without_widening_existing_clients() {
+        let required = request("staged-source-portable", 13, 13);
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 13
+            })
+            .collect();
+        let report = check_with_inventory(&required, &previous).unwrap();
+        assert!(!report.compatible);
+        assert_eq!(report.checks[0].installed_version, Some(12));
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 12, 12), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 11, 11), &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 9, 9), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn cartridge_build_preserves_v5_and_refuses_v5_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()

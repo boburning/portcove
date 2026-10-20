@@ -561,6 +561,39 @@ NES recipe storage identities remain unchanged. Capability implementation,
 repository title admission, actual operation acceptance, optional gameplay and
 protected installed-client delivery retain their separate evidence requirements.
 
+Staged-source version 13 adds `render96-us-source-48da5c491c8a`, a closed
+Windows x64 source recipe for `render96ex`. It pins Render96 source commit
+`48da5c491c8abfb2f5192b59278c1c269411e533`, SDL2 2.32.10 and the existing
+authenticated toolchain. The selected output is `sm64.us.f3dex2e.exe`, built
+with the US/f3dex2e, D3D11/DXGI and SDL2 settings, external stock resources,
+and text saves, Discord RPC and RMODERN disabled. No optional model or texture
+pack is acquired. Fixed client patches declare the standard I/O header,
+adapt the assembler driver, preserve generated C across compiler batches, extract
+raw sound-player bytecode from the COFF section with exact identity checks, and
+divide extraction/build work into supervised phases. The linker-only plan is
+checked before execution. These patches do not authorize catalogue-supplied code
+or arbitrary executables. The independent version 11 Windows path capability
+retains its existing meaning; the fixed Render96 contract requires that optional
+retained path policy to be absent.
+
+The source contract selects only the USA 1.0 variant of the existing
+`ghostship-source` identity. Building requires an exact 8,388,608-byte raw
+`.z64`, `.n64` or `.v64` file whose canonical big-endian SHA256 is
+`17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91`.
+Registering a ZIP for another consumer does not make it a build input; extract
+and register its raw original first. Stored bytes and canonical identity are
+verified separately. The private runtime retains an immutable owned canonical
+copy; the external original remains outside removal authority.
+
+Core fixes launch to `--savepath !` from the runtime root, without forwarded
+arguments. Only `sm64config.txt` and `sm64_save_file.bin` are persistent.
+Resources, DLLs, extra roots and `cont.m64` remain immutable; no broad save-folder
+or file-pattern exception is allowed. Nonempty inherited `SDL_DYNAMIC_API` is
+refused. The initial Make recipe requires build paths containing only ASCII
+letters, digits, slash, colon, dot, underscore or hyphen. A different source
+revision or ambiguous path requires a reviewed compatible recipe. Source and
+private build evidence establish no redistribution, signing or publication grant.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and

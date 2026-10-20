@@ -1703,15 +1703,51 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
         )));
     }
 
-    let mut rom = if extension.eq_ignore_ascii_case("zip") {
+    let rom = if extension.eq_ignore_ascii_case("zip") {
         read_zip_source(source, &["z64", "v64", "n64"], 512 * 1024 * 1024)?
     } else {
         std::fs::read(source)?
     };
+    write_n64_big_endian(rom, destination)
+}
+
+/// Fixed source builders consume raw cartridge bytes, never a container parser.
+/// The caller independently binds the canonical digest and stored identity.
+pub(crate) fn prepare_raw_n64_source(
+    source: &Path,
+    destination: &Path,
+    exact_size: u64,
+) -> Result<()> {
+    if !source
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| {
+            ["z64", "n64", "v64"]
+                .iter()
+                .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+        })
+    {
+        return Err(PortcoveError::source(
+            "this source build requires a raw .z64, .n64 or .v64 original; extract and register the raw original before building",
+        ));
+    }
+    if exact_size == 0 || exact_size > 512 * 1024 * 1024 {
+        return Err(PortcoveError::state("invalid fixed raw N64 size"));
+    }
+    let rom = crate::path::read_bounded_regular(source, exact_size)?;
+    if rom.len() as u64 != exact_size {
+        return Err(PortcoveError::source(
+            "raw N64 original has the wrong exact size",
+        ));
+    }
+    write_n64_big_endian(rom, destination)
+}
+
+fn write_n64_big_endian(mut rom: Vec<u8>, destination: &Path) -> Result<()> {
     if rom.len() < 4 {
         return Err(PortcoveError::source(format!(
-            "N64 ROM is too short: {}",
-            source.display()
+            "N64 ROM is too short: {} bytes",
+            rom.len()
         )));
     }
     let padding = (4 - rom.len() % 4) % 4;
@@ -1731,8 +1767,8 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
         }
         _ => {
             return Err(PortcoveError::source(format!(
-                "unrecognized N64 ROM byte order: {}",
-                source.display()
+                "unrecognized N64 ROM byte order: {:02x?}",
+                &rom[..4]
             )));
         }
     }
@@ -4322,6 +4358,36 @@ mod tests {
             std::fs::write(&source, bytes).unwrap();
             prepare_n64_source(&source, &destination).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
+        }
+    }
+
+    #[test]
+    fn raw_n64_build_materialization_is_exact_bounded_and_never_parses_zip() {
+        let root = tempfile::tempdir().unwrap();
+        let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        for (name, bytes) in [
+            ("game.z64", canonical),
+            ("game.v64", [0x37, 0x80, 0x40, 0x12, 2, 1, 4, 3]),
+            ("game.n64", [0x40, 0x12, 0x37, 0x80, 4, 3, 2, 1]),
+        ] {
+            let source = root.path().join(name);
+            let target = root.path().join(format!("{name}.owned"));
+            std::fs::write(&source, bytes).unwrap();
+            prepare_raw_n64_source(&source, &target, 8).unwrap();
+            assert_eq!(std::fs::read(target).unwrap(), canonical);
+        }
+        for (name, bytes) in [
+            ("too-short.z64", &canonical[..4]),
+            ("too-long.z64", &[0_u8; 9][..]),
+            ("wrong-order.z64", &[0_u8; 8][..]),
+            ("unparsed.zip", &canonical[..]),
+        ] {
+            let source = root.path().join(name);
+            let target = root.path().join(format!("{name}.refused"));
+            std::fs::write(&source, bytes).unwrap();
+            assert!(prepare_raw_n64_source(&source, &target, 8).is_err());
+            assert!(!target.exists());
+            assert_eq!(std::fs::read(source).unwrap(), bytes);
         }
     }
 

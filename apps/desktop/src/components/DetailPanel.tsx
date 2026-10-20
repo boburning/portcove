@@ -2545,7 +2545,12 @@ function availableInstallState(
   if (selectedRequirement === "game")
     description =
       "Selected game files have not been checked. Portcove validates them when you continue installation.";
-  return { title: "Available to install", description, tone: "available", icon: Download };
+  return {
+    title: selectedRequirement ? "Files selected · not checked" : "Available to install",
+    description,
+    tone: "available",
+    icon: Download,
+  };
 }
 
 function runtimeRequirementState(updateAvailable: boolean): DetailState {

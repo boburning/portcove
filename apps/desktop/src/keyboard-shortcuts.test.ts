@@ -6,7 +6,9 @@ describe("global keyboard shortcuts", () => {
     expect(keyboardShortcutAction({ key: "1", ctrlKey: true })).toBe("library");
     expect(keyboardShortcutAction({ key: "4", metaKey: true })).toBe("settings");
     expect(keyboardShortcutAction({ key: "k", ctrlKey: true })).toBe("toggle-palette");
-    expect(keyboardShortcutAction({ key: "/" })).toBe("focus-search");
+    expect(keyboardShortcutAction({ key: "f", ctrlKey: true })).toBe("focus-search");
+    expect(keyboardShortcutAction({ key: "F", metaKey: true })).toBe("focus-search");
+    expect(keyboardShortcutAction({ key: "/" })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "Escape", paletteOpen: true })).toBe("close-palette");
   });
 
@@ -14,6 +16,14 @@ describe("global keyboard shortcuts", () => {
     expect(keyboardShortcutAction({ key: "/", targetIsField: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "/", altKey: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "1" })).toBeUndefined();
+    expect(
+      keyboardShortcutAction({ key: "f", ctrlKey: true, targetIsField: true }),
+    ).toBeUndefined();
+    expect(
+      keyboardShortcutAction({ key: "f", ctrlKey: true, searchAvailable: false }),
+    ).toBeUndefined();
+    expect(keyboardShortcutAction({ key: "f", ctrlKey: true, altKey: true })).toBeUndefined();
+    expect(keyboardShortcutAction({ key: "f", ctrlKey: true, modalOpen: true })).toBeUndefined();
     expect(keyboardShortcutAction({ key: "k", ctrlKey: true, altKey: true })).toBeUndefined();
   });
 
