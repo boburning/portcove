@@ -18,7 +18,6 @@ Tauri/Rust signing tests retain their component scope. The production caller
 remains held until fresh positive controls and all independent acceptance are
 connected; no key or production signing authority is activated.
 
-
 The October 20 [keyless complete-site composer](slice4-534-shared-site-2026-10-20.md)
 passed actual disposable-key TUF CLI composition, unchanged replay and corrupt
 envelope refusal. Catalog/history preservation is implemented; provider deployment,
