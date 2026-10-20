@@ -336,8 +336,9 @@ export function StatusLayer({
     <>
       {invocations
         ? [...invocations.values()].map((record) => (
-            <section
+            <div
               key={record.id}
+              role="group"
               aria-label={`${record.context.action} · ${record.context.target.label}`}
               data-invocation-id={record.id}
               className={
@@ -389,7 +390,7 @@ export function StatusLayer({
                   </p>
                 )
               )}
-            </section>
+            </div>
           ))
         : error != null && (
             <ErrorNotice
