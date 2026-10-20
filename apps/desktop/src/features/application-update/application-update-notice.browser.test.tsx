@@ -215,6 +215,7 @@ describe("application update notice", () => {
     expect(status.textContent).toContain("Automatic updates are recommended");
     const buttons = [...status.querySelectorAll<HTMLButtonElement>("button")];
     expect(buttons.map((button) => button.textContent)).toEqual(["Review options", "Not now"]);
+    expect(fixtureValue(buttons[0], "buttons[0]").getAttribute("data-variant")).toBe("outline");
     expect(buttons.every((button) => button.hasAttribute("data-focusable"))).toBe(true);
     await act(async () => fixtureValue(buttons[0], "buttons[0]").click());
     await act(async () => fixtureValue(buttons[1], "buttons[1]").click());

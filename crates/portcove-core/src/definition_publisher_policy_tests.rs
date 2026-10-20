@@ -1990,10 +1990,16 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // after installer start, beyond its 5s fixture latch. Give this exact setup
     // wait the same finite 15s headroom; preserve every intervention/drain check
     // and the unchanged 30s whole-case safeguard.
+    // Windows CI 39450594334/a1: CancelRetain entered download about 4.24s
+    // after installer start and missed the 5s setup latch before any copy.
+    // Give this fixture the same finite 15s headroom; preserve the real
+    // partial-copy barrier, cancellation/drain checks and 30s outer safeguard.
     let latch_timeout = if cfg!(target_os = "windows")
         && matches!(
             intervention,
-            CacheIntervention::ArtifactWithdrawalRetain | CacheIntervention::PolicyLoss
+            CacheIntervention::ArtifactWithdrawalRetain
+                | CacheIntervention::PolicyLoss
+                | CacheIntervention::CancelRetain
         ) {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
