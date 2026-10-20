@@ -2110,7 +2110,9 @@ describe("desktop components", () => {
     );
     expect(html).not.toContain(`<strong>${source.profile_id}</strong>`);
     expect(html).not.toContain(">Update file location</button>");
-    expect(html).toContain("Remove saved location");
+    expect(html).toContain("Review saved location removal");
+    expect(html).not.toContain("Remove saved location…");
+    expect(html).not.toContain('aria-label="Saved-location removal impact"');
     expect(html).toContain("Needs attention");
     expect(html).not.toContain("Checking identity");
   });

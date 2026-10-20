@@ -1237,15 +1237,39 @@ export async function preparationScenarios({
     assert.ok(trial, "Rendered trial-launch action must be available");
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
-    await browser.wait(
-      () =>
-        executeBrowserScript(browser, () => {
-          const heading = document.querySelector("[data-task-owner] h2");
-          return heading?.textContent?.trim() === "Next step" && document.activeElement === heading;
-        }),
-      5_000,
-      "Unconfirmed compatibility must leave completion focus on the next-step heading",
-    );
+    try {
+      await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const heading = document.querySelector("[data-task-owner] h2");
+            return (
+              heading?.textContent?.trim() === "Next step" && document.activeElement === heading
+            );
+          }),
+        5_000,
+        "Unconfirmed compatibility must leave completion focus on the next-step heading",
+      );
+    } catch (error) {
+      const diagnostic = path.join(output, "preparation-completion-focus-failure.json");
+      await writeFile(
+        diagnostic,
+        JSON.stringify(
+          await executeBrowserScript(browser, () => ({
+            active: document.activeElement?.outerHTML,
+            actions: document.querySelector('[aria-label="Game actions"]')?.outerHTML,
+            overlays: [
+              ...document.querySelectorAll('[role="dialog"], [data-portcove-focus-scope]'),
+            ].map((item) => item.outerHTML),
+          })),
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(diagnostic);
+      throw error;
+    }
+
     await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");

@@ -1,5 +1,14 @@
 # Portcove frontend design system
 
+## Saved-location impact
+
+Saved-location removal uses an inline impact region within Game files. Its
+explicit review trigger loads fresh consequences; Remove saved location… opens
+the sole final native approval. The full affected game/port set remains available
+inline. Keep location dismisses the inline region and returns focus to its
+trigger. Cancellation is neutral and changed impact requires renewed intent.
+Other destructive reviews retain their own consent contracts.
+
 ## Library covers and compact rows
 
 Library defaults to covers; Compact rows presents the same entries and action
