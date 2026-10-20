@@ -8,6 +8,7 @@ import test from "node:test";
 import {
   admitProductionController,
   admitReviewedInputsController,
+  admitReviewedInputsWriter,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
@@ -46,6 +47,26 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("classification writer admits only its own fixed workflow, job and ratified bytes", () => {
+  const writer = {
+    ...environment,
+    GITHUB_JOB: "classification_writer",
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+  };
+  const accepted = admitReviewedInputsWriter(raw, writer, source);
+  assert.equal(accepted.workflow, ".github/workflows/release-reviewed-inputs.yml");
+  for (const change of [
+    { GITHUB_JOB: "admission" },
+    { GITHUB_JOB: "protection_observation" },
+    { GITHUB_WORKFLOW_REF: environment.GITHUB_WORKFLOW_REF },
+    { GITHUB_RUN_ATTEMPT: "2" },
+    { GITHUB_REF_PROTECTED: "false" },
+  ])
+    assert.throws(() => admitReviewedInputsWriter(raw, { ...writer, ...change }, source));
+  assert.throws(() => admitReviewedInputsWriter(raw, writer, Buffer.from("other workflow")));
+  assert.throws(() => admitProductionController(raw, writer, source));
+});
 
 void test("exact separately configured fixture admits only its source execution", () => {
   const result = admitProductionController(raw, environment, source);
