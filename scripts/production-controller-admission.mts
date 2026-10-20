@@ -123,6 +123,19 @@ export function admitProductionInputReader(
     "independent_admission",
   );
 }
+export function admitProductionProtectionObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "protection_observation",
+  );
+}
 export function admitReviewedInputsController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,

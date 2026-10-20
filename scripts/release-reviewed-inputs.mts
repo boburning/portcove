@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { open } from "node:fs/promises";
+import { open, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -150,6 +150,29 @@ async function main() {
       if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
         throw new Error("trusted observer output channel unavailable or oversized");
       await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
+      if (mode === "observe-production") {
+        // The fixed source waits for readiness before releasing the App token.
+        // Preserve its exact artifact association beside the actual report.
+        const ready = JSON.parse(
+          await readFile(
+            path.join(temp, "release-control-ready", "control-ready-readback.json"),
+            "utf8",
+          ),
+        ) as unknown;
+        if (
+          !isRecord(ready) ||
+          ready.role !== "ready" ||
+          !isRecord(ready.body) ||
+          !isRecord(ready.body.producer) ||
+          !isRecord(result) ||
+          !isRecord(result.producer) ||
+          ready.body.producer.run_id !== result.producer.run_id ||
+          ready.body.producer.run_attempt !== result.producer.run_attempt ||
+          ready.body.producer.controller_revision !== result.producer.controller_revision
+        )
+          throw new Error("matching fixed reader readiness unavailable");
+        await writeFile(path.join(temp, "observation.json"), encoded, { flag: "wx", mode: 0o600 });
+      }
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");

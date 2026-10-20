@@ -428,6 +428,31 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
   assert.equal(result.capacity.availability, "unknown");
   assert.equal(result.capacity.headroom, "unknown");
   assert.equal(result.capacity.reservation, "none");
+  const downloaded = f.calls.filter((call) => call.startsWith("ZIP ")).length;
+  let ready = 0;
+  const late = await acquireReleaseAdmission(f.root, f.config, {
+    ...f.options,
+    api,
+    establishControls: async (factsSha256) => {
+      ready++;
+      assert.match(factsSha256, /^[a-f0-9]{64}$/u);
+      assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+      return runtime.create();
+    },
+  });
+  assert.equal(ready, 1);
+  assert.equal(late.controls?.classification.review_check_id, 303);
+  assert.equal(late.decision, "hold");
+  assert.equal(late.descriptor, null);
+  assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, {
+      ...f.options,
+      api,
+      establishControls: async () => ({ ...controls }),
+    }),
+    /private-facts-ready/u,
+  );
   control.faults.value = "issuer";
   await assert.rejects(acquireReleaseAdmission(f.root, f.config, options), CoordinatorRemoteError);
   assert.equal(control.mutations(), 1);

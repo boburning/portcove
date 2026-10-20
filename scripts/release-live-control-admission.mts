@@ -18,6 +18,8 @@ import {
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
+import { requireObservedControlArtifact } from "./release-control-handshake.mts";
+import type { ObservedControlArtifact } from "./release-control-handshake.mts";
 const establishedSources = new WeakSet<object>();
 export function requireAuthenticatedReleaseControlSource(value: unknown) {
   if (typeof value !== "object" || value === null || !establishedSources.has(value))
@@ -35,9 +37,42 @@ function json(raw: string | undefined, maximum: number) {
 }
 
 type ReaderIdentityOptions = Parameters<typeof verifyReleaseInputReaderJobIdentity>[2];
+type ReaderOptions = {
+  identity?: ReaderIdentityOptions;
+  requestToken?: typeof requestAssemblerToken;
+};
+export async function authenticateControlReaderJob(
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+  options: ReaderOptions = {},
+) {
+  const env = { ...environment };
+  const admitted = admitProductionInputReader(
+    env.PORTCOVE_CONTROLLER_ADMISSION,
+    env,
+    workflowBytes,
+  );
+  const expected = {
+    audience: "portcove-release-input-reader-v1",
+    subject: `repo:boburning/portcove:ref:${admitted.execution_ref}`,
+    controller_revision: admitted.revision,
+    controller_ref: admitted.execution_ref,
+    actor_id: admitted.actor_id,
+    run_id: admitted.run_id,
+    run_attempt: admitted.run_attempt,
+  };
+  const token = await (options.requestToken ?? requestAssemblerToken)(expected.audience, env);
+  const identity = await verifyReleaseInputReaderJobIdentity(
+    token,
+    expected,
+    options.identity ?? { transport: { cwd: process.cwd() } },
+  );
+  return { admitted, identity };
+}
 
 /** No caller acceptance Boolean exists. Runtime establishment verifies the fixed
- * controller source, current consumer job, and the completed observer producer.
+ * controller source, current consumer job, and the isolated observer producer.
+ * A live observer is permitted only after runtime immutable artifact collection.
  * The observer's Administration-write credential never enters this process.
  */
 export async function authenticateReleaseControlSource(
@@ -48,16 +83,16 @@ export async function authenticateReleaseControlSource(
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
     now?: () => number;
+    observedArtifact?: ObservedControlArtifact;
   } = {},
 ) {
   const env = { ...environment };
-  const admitted = admitProductionInputReader(
-    env.PORTCOVE_CONTROLLER_ADMISSION,
-    env,
-    workflowBytes,
-  );
+  const { admitted, identity } = await authenticateControlReaderJob(env, workflowBytes, options);
   const config = inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
-  const handoff = json(env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION, 128 * 1024);
+  if (options.observedArtifact)
+    requireObservedControlArtifact(options.observedArtifact, "observation");
+  const handoff =
+    options.observedArtifact?.body ?? json(env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION, 128 * 1024);
   exact(handoff, "observation,producer,schema_version");
   exact(
     handoff.producer,
@@ -78,21 +113,6 @@ export async function authenticateReleaseControlSource(
     !/^[1-9][0-9]{0,15}$/u.test(producer.check_run_id)
   )
     throw new Error("protection handoff is not from this exact admitted controller attempt");
-  const expected = {
-    audience: "portcove-release-input-reader-v1",
-    subject: `repo:boburning/portcove:ref:${admitted.execution_ref}`,
-    controller_revision: admitted.revision,
-    controller_ref: admitted.execution_ref,
-    actor_id: admitted.actor_id,
-    run_id: admitted.run_id,
-    run_attempt: admitted.run_attempt,
-  };
-  const token = await (options.requestToken ?? requestAssemblerToken)(expected.audience, env);
-  const identity = await verifyReleaseInputReaderJobIdentity(
-    token,
-    expected,
-    options.identity ?? { transport: { cwd: process.cwd() } },
-  );
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
   const observerApi =
@@ -117,13 +137,24 @@ export async function authenticateReleaseControlSource(
       job.run_attempt !== admitted.run_attempt ||
       job.head_sha !== admitted.revision ||
       job.name !== "Observe production release input protections" ||
-      job.status !== "completed" ||
-      job.conclusion !== "success" ||
+      !(
+        (job.status === "completed" && job.conclusion === "success") ||
+        (options.observedArtifact && job.status === "in_progress" && job.conclusion === null)
+      ) ||
       job.check_run_url !==
         `https://api.github.com/repos/boburning/portcove/check-runs/${producerCheckRunId}`
     )
       throw new Error("completed isolated observer job is unavailable or differs");
-    return capacityDigest(job);
+    // An observer may finish after its immutable report upload. Bind stable
+    // provider identity; a normal in-progress→success transition is permitted.
+    return capacityDigest({
+      id: job.id,
+      run_id: job.run_id,
+      run_attempt: job.run_attempt,
+      head_sha: job.head_sha,
+      name: job.name,
+      check_run_url: job.check_run_url,
+    });
   };
   const producerIdentity = producerReadback();
   const now = options.now ?? Date.now;
@@ -139,7 +170,8 @@ export async function authenticateReleaseControlSource(
       options.requestToken ||
       options.observerApi ||
       options.now ||
-      identity.evidence_scope !== "github.com"
+      identity.evidence_scope !== "github.com" ||
+      options.observedArtifact?.evidence_scope === "injected-provider"
         ? "injected-provider"
         : "github.com",
     read(api: CoordinatorRemoteApi, opportunity: unknown) {

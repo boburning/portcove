@@ -49,10 +49,12 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import {
   authenticateReleaseControlSource,
+  authenticateControlReaderJob,
   requireAuthenticatedReleaseControlSource,
 } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
+import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
@@ -137,9 +139,15 @@ export async function acquireReleaseAdmission(
     now?: () => number;
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
+    // Called once after all large immutable archives have been privately
+    // validated. The same process retains its facts; no serialized facts import.
+    establishControls?: (preparedFactsSha256: string) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
   if (options.controls) requireAuthenticatedReleaseControlSource(options.controls);
+  if (options.controls && options.establishControls)
+    throw new Error("admission accepts exactly one live control establishment path");
+  let controls = options.controls;
   const capacitySource = options.capacity
     ? {
         ratification: structuredClone(options.capacity.ratification),
@@ -518,10 +526,10 @@ export async function acquireReleaseAdmission(
           intent.migration_notes !== (parsed.migration_notes ?? "")
         )
           throw new Error("frozen classification differs from the existing preparation intent");
-        if (options.controls) {
+        frozenControlsOpportunity = structuredClone(frozen);
+        if (controls) {
           phase = "authenticated-controls-before";
-          frozenControlsOpportunity = structuredClone(frozen);
-          controlsBefore = options.controls.read(api, frozenControlsOpportunity);
+          controlsBefore = controls.read(api, frozenControlsOpportunity);
         }
       }
     }
@@ -708,6 +716,29 @@ export async function acquireReleaseAdmission(
       files,
     };
     await inspectTrustedAssemblyInput(assembly);
+    if (options.establishControls) {
+      if (!frozenControlsOpportunity)
+        throw new Error("late control acquisition requires the actual frozen complete opportunity");
+      phase = "private-facts-ready-awaiting-fresh-observer";
+      controls = await options.establishControls(
+        hash(
+          JSON.stringify({
+            checkpoint,
+            configuration: config,
+            opportunity: frozenControlsOpportunity,
+            assembly,
+            archives,
+            public_build_inputs: publicBuildInputs?.binding ?? null,
+            evidence,
+            contexts,
+            allocations,
+          }),
+        ),
+      );
+      requireAuthenticatedReleaseControlSource(controls);
+      phase = "authenticated-controls-before-final-readback";
+      controlsBefore = controls.read(api, frozenControlsOpportunity);
+    }
     phase = "freshness-bracket";
     const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
     if (publicBinding)
@@ -727,9 +758,9 @@ export async function acquireReleaseAdmission(
     const after = record(await recover());
     if (after.checkpoint !== checkpoint)
       throw new Error("coordinator checkpoint changed during admission");
-    if (options.controls && controlsBefore) {
+    if (controls && controlsBefore) {
       phase = "authenticated-controls-after";
-      controlsAfter = options.controls.read(api, frozenControlsOpportunity);
+      controlsAfter = controls.read(api, frozenControlsOpportunity);
       if (controlsBefore.facts_sha256 !== controlsAfter.facts_sha256)
         throw new Error("authenticated control inputs changed during admission");
     }
@@ -853,8 +884,7 @@ export async function acquireReleaseAdmission(
         options.download ||
         options.now ||
         options.capacity ||
-        (options.controls?.evidence_scope !== undefined &&
-          options.controls.evidence_scope !== "github.com")
+        (controls?.evidence_scope !== undefined && controls.evidence_scope !== "github.com")
           ? "injected-provider"
           : "github.com",
       authority: "none",
@@ -885,7 +915,8 @@ export async function acquireReleaseAdmission(
 }
 
 async function main() {
-  if (process.argv.length !== 2)
+  const handshake = process.argv.length === 3 && process.argv[2] === "--handshake";
+  if (process.argv.length !== 2 && !handshake)
     throw new Error("admission accepts no candidate path or dispatch arguments");
   const raw = process.env.PORTCOVE_COORDINATOR_CONFIGURATION;
   if (!raw || Buffer.byteLength(raw) > 4096)
@@ -903,11 +934,31 @@ async function main() {
       stage("acquire-publication-reservation-and-qualification");
       let result;
       try {
-        const controls = await authenticateReleaseControlSource(
-          process.env,
-          await readProductionControllerWorkflowBytes(),
-        );
-        result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
+        const workflow = await readProductionControllerWorkflowBytes();
+        if (handshake) {
+          const reader = await authenticateControlReaderJob(process.env, workflow);
+          result = await acquireReleaseAdmission(root, JSON.parse(raw), {
+            establishControls: async (factsSha256) => {
+              // One fixed process owns all prepared facts in memory. This public
+              // readiness declaration is never a serialized admission result.
+              await writeFile(
+                path.join(root, "ready.json"),
+                JSON.stringify(prepareControlReadiness(reader.identity, factsSha256)),
+                { flag: "wx", mode: 0o600 },
+              );
+              const observedArtifact = await waitForControlArtifact(root, "observation", {
+                controller_revision: reader.admitted.revision,
+                controller_ref: reader.admitted.execution_ref,
+                run_id: String(reader.admitted.run_id),
+                run_attempt: reader.admitted.run_attempt,
+              });
+              return authenticateReleaseControlSource(process.env, workflow, { observedArtifact });
+            },
+          });
+        } else {
+          const controls = await authenticateReleaseControlSource(process.env, workflow);
+          result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
+        }
       } catch (error) {
         if (error instanceof CoordinatorRemoteError)
           await writeFile(
@@ -939,10 +990,19 @@ async function main() {
   );
   process.exitCode = 2;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  main().catch(() => {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main().catch(() => {
     console.error(
       "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
     );
     process.exitCode = 2;
   });
+  if (process.argv[2] === "--handshake" && process.env.RUNNER_TEMP)
+    await writeFile(
+      path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
+      JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+      { flag: "wx", mode: 0o600 },
+    ).catch(() => {
+      process.exitCode = 2;
+    });
+}

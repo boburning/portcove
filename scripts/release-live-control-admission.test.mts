@@ -145,7 +145,7 @@ void test("production handoff serialization is token-free and requires an unexpi
   );
 });
 
-void test("held controller provides the isolated observer output through direct needs and never releases its administrative token to admission", async () => {
+void test("held controller uses a parallel tiny-artifact handshake and isolates Administration authority after readiness", async () => {
   const raw: unknown = parse(
     await readFile(
       new URL("../docs/qualification/application-update-production.aggregate.yml", import.meta.url),
@@ -158,13 +158,21 @@ void test("held controller provides the isolated observer output through direct 
   assert.ok(isRecord(observer) && isRecord(admission));
   assert.equal(observer.if, "${{ false }}");
   assert.equal(admission.if, "${{ false }}");
-  assert.deepEqual(admission.needs, ["admission", "protection_observation"]);
+  assert.equal(admission.needs, "admission");
+  assert.equal(observer.needs, "admission");
   assert.match(JSON.stringify(observer), /permission-administration.*write/);
   assert.doesNotMatch(
     JSON.stringify(admission),
     /secrets\.|CONTROL_APP_TOKEN|permission-administration|observer-token/,
   );
-  assert.match(JSON.stringify(admission), /needs.protection_observation.outputs.observation/);
+  assert.match(JSON.stringify(admission), /--handshake/);
+  assert.match(JSON.stringify(admission), /trusted-release-control-ready-/);
+  assert.doesNotMatch(JSON.stringify(admission), /needs.protection_observation/);
+  assert.ok(
+    JSON.stringify(observer).indexOf("release-control-ready.mts") <
+      JSON.stringify(observer).indexOf("create-github-app-token"),
+  );
+  assert.match(JSON.stringify(observer), /trusted-release-control-observation-/);
   assert.match(JSON.stringify(observer), /observe-production/);
   const live = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
