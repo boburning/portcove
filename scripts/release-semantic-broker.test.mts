@@ -12,6 +12,8 @@ import {
   inspectSemanticInstallationToken,
 } from "./release-semantic-issuer.mts";
 import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
+import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
+import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -39,6 +41,7 @@ import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import {
   readbackSemanticCheck,
+  readbackSemanticDispositionCheck,
   publishSemanticCapture,
   publishSemanticDispositionCapture,
 } from "./release-semantic-broker.mts";
@@ -89,9 +92,26 @@ void test("issuer transport pins App/token routes and the exact captured Check b
       ...request,
       method: "GET",
       body: null,
-      endpoint: `repos/boburning/portcove/commits/${"a".repeat(40)}/check-runs?filter=all&per_page=100&page=16`,
+      endpoint: `repos/boburning/portcove/commits/${"a".repeat(40)}/check-suites?app_id=123&per_page=100&page=1`,
     }),
   );
+  assert.doesNotThrow(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint:
+        "repos/boburning/portcove/check-suites/11/check-runs?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=10",
+    }),
+  );
+  for (const endpoint of [
+    `repos/boburning/portcove/commits/${"a".repeat(40)}/check-suites?app_id=456&per_page=100&page=1`,
+    "repos/boburning/portcove/check-suites/11/check-runs?check_name=other&filter=all&per_page=100&page=1",
+    "repos/boburning/portcove/check-suites/11/check-runs?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=11",
+  ])
+    assert.throws(() =>
+      inspectSemanticIssuerRequest({ ...request, method: "GET", body: null, endpoint }),
+    );
   assert.throws(() =>
     inspectSemanticIssuerRequest({
       ...request,
@@ -1194,6 +1214,7 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
     ...body,
     id: 7,
     app: { id: 101 },
+    check_suite: { id: 11 },
     output: { ...body.output, annotations_count: 0 },
   };
   const expected = {
@@ -1209,6 +1230,18 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
       if (route === "repos/boburning/portcove")
         value = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture-repository" };
       else if (route.includes("/commits/"))
+        value = {
+          total_count: 1,
+          check_suites: [
+            {
+              id: 11,
+              head_sha: body.head_sha,
+              app: { id: 101 },
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+            },
+          ],
+        };
+      else if (route.includes("/check-suites/"))
         value = {
           total_count: fault === "missing" ? 0 : fault === "duplicate" ? 2 : 1,
           check_runs:
@@ -1252,4 +1285,68 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
     () => readbackSemanticCheck(api, config, { ...opportunity, urgency: true }, expected),
     /exact opportunity/,
   );
+});
+
+void test("negative POST recovery is GET-only with complete suite coverage and exact original wire", () => {
+  const prepared = prepareNegativeSemanticDispositionCheck(negativeSemanticDispositionFixture());
+  const body = prepared.proposed_request.body;
+  const check = {
+    ...body,
+    id: 99,
+    app: { id: 123 },
+    check_suite: { id: 11 },
+    output: { ...body.output, annotations_count: 0, text: "" },
+  };
+  let mode = "valid";
+  const api = {
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      let value: unknown = check;
+      if (endpoint === "repos/boburning/portcove")
+        value = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixed-repo" };
+      else if (endpoint.includes("/commits/"))
+        value = {
+          total_count: 1,
+          check_suites: [
+            {
+              id: 11,
+              app: { id: 123 },
+              head_sha: body.head_sha,
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+            },
+          ],
+        };
+      else if (endpoint.includes("/check-suites/"))
+        value = {
+          total_count: mode === "missing" ? 0 : mode === "duplicate" ? 2 : 1,
+          check_runs:
+            mode === "missing"
+              ? []
+              : mode === "duplicate"
+                ? [check, { ...check, id: 100 }]
+                : [check],
+        };
+      else if (mode === "issuer") value = { ...check, app: { id: 456 } };
+      else if (mode === "drift")
+        value = { ...check, output: { ...check.output, summary: body.output.summary + " " } };
+      return { status: 200, headers: new Map<string, string>(), body: value };
+    },
+    graphql() {
+      throw new Error("no GraphQL");
+    },
+  };
+  const expected = {
+    head: body.head_sha,
+    external_id: body.external_id,
+    summary: body.output.summary,
+  };
+  const issuer = { app_id: 123, installation_id: 789, writer_app_id: 456 };
+  assert.equal(
+    readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected).check_run_id,
+    99,
+  );
+  for (mode of ["missing", "duplicate", "issuer", "drift"])
+    assert.throws(() =>
+      readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected),
+    );
 });

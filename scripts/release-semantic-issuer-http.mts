@@ -49,7 +49,11 @@ export function inspectSemanticIssuerRequest(raw: unknown) {
             raw.endpoint === repository ||
             new RegExp(`^${repository}/check-runs/[1-9][0-9]{0,15}$`, "u").test(raw.endpoint) ||
             new RegExp(
-              `^${repository}/commits/${head}/check-runs\\?filter=all&per_page=100&page=(?:[1-9]|1[0-6])$`,
+              `^${repository}/commits/${head}/check-suites\\?app_id=${String(config.app_id)}&per_page=100&page=1$`,
+              "u",
+            ).test(raw.endpoint) ||
+            new RegExp(
+              `^${repository}/check-suites/[1-9][0-9]{0,15}/check-runs\\?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=(?:[1-9]|10)$`,
               "u",
             ).test(raw.endpoint))) ||
           (raw.method === "POST" &&
