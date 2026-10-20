@@ -21,6 +21,12 @@ native/semantic/signer acceptance, live credentials or protected execution.
 The final controller, initial feed bootstrap and consolidated setup remain
 pending; no recurring elevated diagnostic is introduced.
 
+The October 20 [compiler tool-source preparation](slice4-534-compiler-tool-source-2026-10-20.md)
+adds the generated source closure to the existing authenticated tool inventory
+and separates pre-sign from post-sign native wire evidence. Actual compiler-use,
+native Check authentication and stage-specific record/context joins remain
+separate obligations. No imported report becomes acceptance or execution authority.
+
 The October 20 [isolated role continuation](slice4-isolated-role-continuation-2026-10-20.md)
 connects the genuine private admission callback to current-control checks and
 one-use job-local payload key transport, expands the fixed tool inventory with

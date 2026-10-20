@@ -4,7 +4,7 @@ import { open } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",

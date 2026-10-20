@@ -24,7 +24,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,
-} from "./release-compiler-source.mts";
+} from "./release-compiler-source-closure.mts";
 import {
   receiveControllerTools,
   verifiedControllerToolPaths,
@@ -510,6 +510,7 @@ void test("the receiver dependency closure loads without npm packages before any
   const files = [
     "release-controller-tool-admission",
     "release-controller-tools",
+    "release-compiler-source-closure",
     "github-controller-attestation",
     "assembler-job-identity",
     "production-controller-admission",
