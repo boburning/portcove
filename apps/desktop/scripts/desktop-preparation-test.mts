@@ -1302,6 +1302,16 @@ export async function preparationScenarios({
         const playBounds = play.getBoundingClientRect();
         const moreBounds = more.getBoundingClientRect();
         const detailsStyle = getComputedStyle(details);
+        // Cover entries use the collection's painted surface. Resolve the
+        // actual opaque ancestor instead of treating transparency as a color.
+        let painted: Element | null = element;
+        while (
+          painted &&
+          getComputedStyle(painted).backgroundColor.replace(/\s/gu, "") === "rgba(0,0,0,0)"
+        )
+          painted = painted.parentElement;
+        if (!painted || getComputedStyle(painted).backgroundImage !== "none")
+          throw new Error("Card contrast needs an identified flat painted surface");
         details.focus();
         return {
           tag: element.tagName,
@@ -1323,7 +1333,7 @@ export async function preparationScenarios({
             playBounds.right <= cardBounds.right &&
             moreBounds.right <= cardBounds.right,
           details_color: detailsStyle.color,
-          details_background: getComputedStyle(element).backgroundColor,
+          details_background: getComputedStyle(painted).backgroundColor,
           nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
             .length,
           details_focused: document.activeElement === details,
