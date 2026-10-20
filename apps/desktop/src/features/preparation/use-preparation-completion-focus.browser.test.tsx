@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { act, useEffect, useRef } from "react";
 import { afterEach, expect, it } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -10,15 +10,20 @@ function Owner({
   prepared = false,
   modal = false,
   identity = "sample:1",
+  onCapture,
 }: {
   busy: boolean;
   prepared?: boolean;
   modal?: boolean;
   identity?: string;
+  onCapture?: (callback: () => void) => void;
 }) {
   const owner = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const completed = usePreparationCompletionFocus({ owner, nextStep: heading, identity, busy });
+  useEffect(() => {
+    onCapture?.(completed);
+  }, [onCapture, completed]);
   return (
     <>
       <button>Another game</button>
@@ -74,6 +79,7 @@ it("does not hand an outgoing library's completion to its replacement", async ()
   await page.getByRole("button", { name: "Complete owned preparation" }).click();
   await screen.rerender(<Owner busy={false} prepared identity="sample:2" />);
   await screen.rerender(<Owner busy={false} prepared identity="sample:1" />);
+  await new Promise(requestAnimationFrame);
   await expect.element(page.getByRole("button", { name: "Play" })).not.toHaveFocus();
 });
 
@@ -92,5 +98,25 @@ it("cancels the pending handoff when another modal takes focus", async () => {
   await new Promise(requestAnimationFrame);
   other.remove();
   await screen.rerender(<Owner busy={false} prepared />);
+  await new Promise(requestAnimationFrame);
+  await expect.element(page.getByRole("button", { name: "Play" })).not.toHaveFocus();
+});
+
+it("refuses a late callback from before an A to B to A context change", async () => {
+  let original: (() => void) | undefined;
+  const screen = await render(
+    <Owner
+      busy
+      onCapture={(callback) => {
+        original ??= callback;
+      }}
+    />,
+  );
+  await screen.rerender(<Owner busy prepared identity="sample:2" />);
+  await screen.rerender(<Owner busy={false} prepared identity="sample:1" />);
+  await act(async () => {
+    original?.();
+  });
+  await new Promise(requestAnimationFrame);
   await expect.element(page.getByRole("button", { name: "Play" })).not.toHaveFocus();
 });
