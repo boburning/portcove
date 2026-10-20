@@ -420,3 +420,27 @@ void test("semantic helper-only changes retain their actual broker consumer loca
     ),
   );
 });
+
+void test("fixed controller bootstrap and shared attestation verifier retain protected release ownership", () => {
+  for (const file of [
+    "scripts/release-controller-tool-build.mts",
+    "scripts/release-controller-tools.mts",
+    "scripts/release-controller-tool-admission.mts",
+    "scripts/release-controller-tool-bootstrap.mts",
+    "scripts/github-controller-attestation.mts",
+    "docs/qualification/application-update-production.controller-tools.yml",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/release-controller-tools.test.mts"),
+      file,
+    );
+    assert.ok(
+      classifyChanges([{ status: "M", path: file }]).nodeTests.has(
+        "scripts/release-controller-tools.test.mts",
+      ),
+      file,
+    );
+  }
+});

@@ -346,6 +346,20 @@ async function verifyJobIdentity(
 // Fixed profiles are deliberately private: callers cannot promote another job
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
+/** Fresh producer identity only; receivers authenticate the existing GitHub
+ * attestation instead of retaining or accepting an expired bearer token. */
+export function verifyControllerToolBootstrapJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: "Prepare trusted application controller tools" },
+    token,
+    expected,
+    options,
+  );
+}
 export function verifyAssemblerJobIdentity(
   token: string,
   expected: unknown,

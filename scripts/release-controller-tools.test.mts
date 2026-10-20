@@ -1,0 +1,417 @@
+import assert from "node:assert/strict";
+import { parseDocument } from "yaml";
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import os from "node:os";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+import {
+  bundleControllerEntries,
+  controllerBootstrapEnvironment,
+} from "./release-controller-tool-build.mts";
+import {
+  controllerToolAssets,
+  controllerToolEntries,
+  controllerToolPaths,
+  controllerToolPredicateType,
+  inspectControllerToolArchive,
+} from "./release-controller-tools.mts";
+import { isRecord } from "./runtime-values.mts";
+import {
+  receiveControllerTools,
+  verifiedControllerToolPaths,
+} from "./release-controller-tool-admission.mts";
+import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
+import {
+  assemblerIdentityFixture,
+  expected as identityExpected,
+} from "./fixtures/assembler-identity-fixture.mts";
+import { verifyControllerToolBootstrapJobIdentity } from "./assembler-job-identity.mts";
+
+const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
+const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await bundleControllerEntries(sourceRoot, root);
+  for (const name of controllerToolAssets) {
+    await mkdir(path.dirname(path.join(root, name)), { recursive: true });
+    await copyFile(path.join(sourceRoot, name), path.join(root, name));
+  }
+  await writeFile(
+    path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
+    "fixture workflow bytes; no active reviewed-input workflow claimed",
+  );
+  assert.deepEqual((await readdir(root)).sort(), [".github", "scripts"]);
+  for (const [name, workflow, args] of [
+    ["production-controller-admission", "application-update-production.yml", []],
+    ["release-reviewed-inputs", "release-reviewed-inputs.yml", ["admission"]],
+  ] as const) {
+    const bytes = await readFile(path.join(root, ".github/workflows", workflow));
+    const revision = "a".repeat(40),
+      ref = "refs/tags/portcove-production-controller-fixture";
+    const result = spawnSync(
+      process.execPath,
+      [path.join(root, "scripts", `${name}.bundle.mjs`), ...args],
+      {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 5000,
+        env: {
+          PATH: path.dirname(process.execPath),
+          SystemRoot: process.env.SystemRoot,
+          GITHUB_ACTIONS: "true",
+          GITHUB_SERVER_URL: "https://github.com",
+          GITHUB_API_URL: "https://api.github.com",
+          GITHUB_REPOSITORY: "boburning/portcove",
+          GITHUB_REPOSITORY_ID: "1354613114",
+          GITHUB_EVENT_NAME: "workflow_dispatch",
+          GITHUB_REF: ref,
+          GITHUB_REF_TYPE: "tag",
+          GITHUB_REF_PROTECTED: "true",
+          GITHUB_SHA: revision,
+          GITHUB_WORKFLOW_SHA: revision,
+          GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/${workflow}@${ref}`,
+          GITHUB_ACTOR: "fixture",
+          GITHUB_ACTOR_ID: "1122",
+          GITHUB_TRIGGERING_ACTOR: "fixture",
+          GITHUB_RUN_ID: "9988",
+          GITHUB_RUN_ATTEMPT: "1",
+          GITHUB_JOB: "admission",
+          RUNNER_ENVIRONMENT: "github-hosted",
+          PORTCOVE_CONTROLLER_REVISION: revision,
+          PORTCOVE_CONTROLLER_REF: ref,
+          PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+            schema_version: 1,
+            mode: "admission-only",
+            execution_ref: ref,
+            revision,
+            workflow_sha256: hash(bytes),
+            actor_id: "1122",
+          }),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const observed: unknown = JSON.parse(result.stdout);
+    assert.ok(isRecord(observed));
+    assert.equal(observed.run_id, "9988");
+  }
+  const ready = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-control-ready.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(ready.status, 2);
+  assert.match(ready.stderr, /fixed reader readiness refused/);
+  assert.equal(
+    (
+      await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
+    ).includes("semver"),
+    true,
+  );
+  assert.equal(controllerToolEntries.length, 3);
+});
+void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
+  const env = controllerBootstrapEnvironment("/owned/home", "/owned/target");
+  assert.equal(env.CARGO_TARGET_DIR, "/owned/target");
+  assert.equal(env.HOME, "/owned/home");
+  for (const key of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "NODE_OPTIONS",
+    "NPM_CONFIG_USERCONFIG",
+    "RUSTC_WRAPPER",
+    "AWS_SECRET_ACCESS_KEY",
+  ])
+    assert.equal(Object.hasOwn(env, key), false);
+});
+void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
+  const make = (patch: Record<string, unknown> = {}) =>
+    assemblerIdentityFixture(
+      patch,
+      {},
+      {
+        workflow: ".github/workflows/application-update-production.yml",
+        job: "Prepare trusted application controller tools",
+      },
+    );
+  const f = make();
+  assert.equal(
+    (await verifyControllerToolBootstrapJobIdentity(f.token, identityExpected, f)).job_id,
+    501,
+  );
+  for (const patch of [{ exp: 1 }, { run_attempt: "9" }, { workflow_sha: "b".repeat(40) }]) {
+    const bad = make(patch);
+    await assert.rejects(
+      verifyControllerToolBootstrapJobIdentity(bad.token, identityExpected, bad),
+    );
+  }
+  const other = assemblerIdentityFixture();
+  await assert.rejects(
+    verifyControllerToolBootstrapJobIdentity(other.token, identityExpected, other),
+  );
+});
+
+function fixture() {
+  const bytes = new Map(
+    controllerToolPaths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
+  );
+  const manifest = {
+    schema_version: 1,
+    source_commit: "a".repeat(40),
+    source_tree: "b".repeat(40),
+    platform: "linux-x86_64",
+    node_version: "24.22.0",
+    bundler: "vite-plus@1.3.0",
+    files: [...bytes].map(([name, content]) => ({
+      path: name,
+      bytes: content.length,
+      sha256: hash(content),
+    })),
+  };
+  const manifestBytes = Buffer.from(JSON.stringify(manifest));
+  const archive = createAuditZip([["manifest.json", manifestBytes], ...bytes]);
+  const bundleArchive = createAuditZip([
+    ["controller-tools-attestation.json", "synthetic fixture; not a protected attestation"],
+  ]);
+  const expected = {
+    controller_revision: manifest.source_commit,
+    source_tree: manifest.source_tree,
+    controller_ref: "refs/tags/portcove-production-controller-fixture",
+    run_id: "9988",
+    run_attempt: 1,
+    artifact_id: 99,
+    sha256: hash(archive),
+  };
+  const bundle = { artifact_id: 100, sha256: hash(bundleArchive) };
+  const workflow = ".github/workflows/application-update-production.yml";
+  const run = {
+    id: 9988,
+    run_attempt: 1,
+    head_sha: expected.controller_revision,
+    path: workflow,
+    event: "workflow_dispatch",
+    status: "in_progress",
+    conclusion: null,
+    repository: { id: 1354613114, full_name: "boburning/portcove" },
+    head_repository: { id: 1354613114 },
+  };
+  const artifact = (id: number, data: Buffer, kind: string) => ({
+    id,
+    name: `${kind}-9988-1`,
+    digest: `sha256:${hash(data)}`,
+    size_in_bytes: data.length,
+    expired: false,
+    workflow_run: {
+      id: 9988,
+      head_sha: expected.controller_revision,
+      repository_id: 1354613114,
+      head_repository_id: 1354613114,
+    },
+  });
+  const toolArtifact = artifact(99, archive, "trusted-controller-tools"),
+    bundleArtifact = artifact(100, bundleArchive, "trusted-controller-tools-attestation");
+  const producer = { run_id: "9988", run_attempt: 1, job_id: 501, check_run_id: "777" };
+  const job = {
+    id: 501,
+    run_id: 9988,
+    run_attempt: 1,
+    head_sha: expected.controller_revision,
+    name: "Prepare trusted application controller tools",
+    status: "completed",
+    conclusion: "success",
+    check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
+  };
+  const predicate = {
+    schema_version: 1,
+    role: "fixed-controller-tools",
+    repository: "boburning/portcove",
+    repository_id: 1354613114,
+    controller: {
+      revision: expected.controller_revision,
+      tree: expected.source_tree,
+      ref: expected.controller_ref,
+      workflow,
+    },
+    producer,
+    artifact: { id: 99, bytes: archive.length, sha256: expected.sha256 },
+    manifest_sha256: hash(manifestBytes),
+    manifest,
+    compile_acceptance: "not-established",
+    authority: "none",
+  };
+  const certificate = {
+    issuer: "https://token.actions.githubusercontent.com",
+    sourceRepositoryIdentifier: "1354613114",
+    sourceRepositoryURI: "https://github.com/boburning/portcove",
+    buildSignerURI: `https://github.com/boburning/portcove/${workflow}@${expected.controller_ref}`,
+    buildSignerDigest: expected.controller_revision,
+    sourceRepositoryDigest: expected.controller_revision,
+    sourceRepositoryRef: expected.controller_ref,
+    runnerEnvironment: "github-hosted",
+    runInvocationURI: "https://github.com/boburning/portcove/actions/runs/9988/attempts/1",
+  };
+  const verified = [
+    {
+      verificationResult: {
+        signature: { certificate },
+        verifiedTimestamps: [{ timestamp: "injected-boundary-only" }],
+        statement: {
+          _type: "https://in-toto.io/Statement/v1",
+          predicateType: controllerToolPredicateType,
+          subject: [{ name: "controller-tools-manifest", digest: { sha256: hash(manifestBytes) } }],
+          predicate,
+        },
+      },
+    },
+  ];
+  const calls: string[] = [];
+  const options = {
+    api: {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        calls.push(endpoint);
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: endpoint.includes("/git/commits/")
+            ? { sha: expected.controller_revision, tree: { sha: expected.source_tree } }
+            : endpoint.includes("/artifacts/")
+              ? endpoint.endsWith("/99")
+                ? toolArtifact
+                : bundleArtifact
+              : endpoint.includes("/jobs/")
+                ? job
+                : run,
+        };
+      },
+    },
+    download: (endpoint: string) => (endpoint.endsWith("/99/zip") ? archive : bundleArchive),
+    spawn: ((_command, args) => {
+      assert.equal(args[0], "attestation");
+      assert.ok(args.includes("--deny-self-hosted-runners"));
+      return { status: 0, stdout: JSON.stringify(verified), stderr: "" };
+    }) satisfies NonNullable<NonNullable<Parameters<typeof receiveControllerTools>[3]>["spawn"]>,
+  };
+  return {
+    bytes,
+    manifest,
+    archive,
+    expected,
+    bundle,
+    options,
+    job,
+    predicate,
+    certificate,
+    calls,
+  };
+}
+void test("opaque fixture tool archive requires exact complete inventory and refuses links, omissions, aliases and changed bytes", () => {
+  const f = fixture();
+  assert.equal(
+    inspectControllerToolArchive(f.archive, f.manifest).files.size,
+    controllerToolPaths.length + 1,
+  );
+  for (const archive of [
+    createAuditZip([["manifest.json", JSON.stringify(f.manifest)]]),
+    createAuditZip([["../manifest.json", "x"]]),
+    createAuditZip([["manifest.json", JSON.stringify(f.manifest)], ...f.bytes, ["extra", "x"]]),
+    createAuditZip([
+      ["manifest.json", JSON.stringify(f.manifest)],
+      ...[...f.bytes].map(([name, bytes]) => [name, bytes, { attributes: 0xa1ff0000 }] as const),
+    ]),
+  ])
+    assert.throws(() => inspectControllerToolArchive(archive, f.manifest));
+  assert.throws(() =>
+    inspectControllerToolArchive(f.archive, { ...f.manifest, source_tree: "f".repeat(40) }),
+  );
+});
+void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-receiver-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  const result = await receiveControllerTools(root, f.expected, f.bundle, f.options);
+  await assert.rejects(verifiedControllerToolPaths(result), /actual same-process/);
+  await assert.rejects(verifiedControllerToolPaths(structuredClone(result)), /actual same-process/);
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.compile_acceptance, "not-established");
+  assert.equal(result.authority, "none");
+  assert.equal(f.calls.length, 12);
+  for (const [name, bytes] of f.bytes)
+    assert.deepEqual(await readFile(path.join(result.tools, name)), bytes);
+  for (const fault of ["source", "attempt", "job", "predicate", "certificate"] as const) {
+    const g = fixture();
+    if (fault === "source") g.job.head_sha = "c".repeat(40);
+    if (fault === "attempt") g.job.run_attempt = 2;
+    if (fault === "job")
+      g.job.check_run_url = "https://api.github.com/repos/boburning/portcove/check-runs/501";
+    if (fault === "predicate") g.predicate.producer.job_id = 999;
+    if (fault === "certificate") g.certificate.sourceRepositoryIdentifier = "1";
+    const before = new Set(await readdir(root));
+    await assert.rejects(receiveControllerTools(root, g.expected, g.bundle, g.options));
+    const [newRoot] = (await readdir(root)).filter((name) => !before.has(name));
+    await assert.rejects(readdir(path.join(root, newRoot!, "tools")));
+  }
+});
+
+void test("the receiver dependency closure loads without npm packages before any role credential", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-receiver-no-deps-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const files = [
+    "release-controller-tool-admission",
+    "release-controller-tools",
+    "github-controller-attestation",
+    "assembler-job-identity",
+    "production-controller-admission",
+    "release-control-phases",
+    "github-api",
+    "github-binary",
+    "runtime-values",
+    "bounded-zip",
+  ];
+  for (const file of files)
+    await copyFile(path.join(sourceRoot, "scripts", `${file}.mts`), path.join(root, `${file}.mts`));
+  const code = `import {receiveControllerTools} from './release-controller-tool-admission.mts'; try { await receiveControllerTools('/unused',{},{}); process.exitCode=99; } catch { console.log('fixed input refused without dependencies'); }`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", code], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 5000,
+    env: { SystemRoot: process.env.SystemRoot },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /fixed input refused without dependencies/);
+});
+
+void test("held bootstrap separates compilation from isolated attestation and never activates role credentials", async () => {
+  const text = await readFile(
+    new URL(
+      "../docs/qualification/application-update-production.controller-tools.yml",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const document = parseDocument(text, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  assert.equal(document.getIn(["jobs", "tool_bootstrap", "if"]), "${{ false }}");
+  assert.equal(document.getIn(["jobs", "tool_attest", "if"]), "${{ false }}");
+  assert.equal(
+    document.getIn(["jobs", "tool_bootstrap", "name"]),
+    "Prepare trusted application controller tools",
+  );
+  assert.equal(
+    document.getIn(["jobs", "tool_bootstrap", "permissions", "attestations"]),
+    undefined,
+  );
+  assert.equal(document.getIn(["jobs", "tool_attest", "permissions", "attestations"]), "write");
+  assert.doesNotMatch(text, /secrets\.|actions\/cache@|permission-administration/);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const attester = JSON.stringify(parsed.jobs.tool_attest);
+  assert.doesNotMatch(attester, /pnpm|cargo|checkout@/);
+  assert.match(text, /retention-days: 7/);
+  assert.match(text, /overwrite: false/);
+});
