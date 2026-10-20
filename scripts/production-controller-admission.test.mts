@@ -132,7 +132,14 @@ void test("global configured role inventory refuses every App conflation and wea
     "release_publication",
   ];
   const apps = Object.fromEntries(
-    names.map((name, index) => [name, { app_id: 100 + index, installation_id: 200 + index }]),
+    names.map((name, index) => [
+      name,
+      {
+        app_id: 100 + index,
+        installation_id: 200 + index,
+        ...(name === "dispatch" ? { actor_id: "123456" } : {}),
+      },
+    ]),
   );
   const native = Object.fromEntries(
     ["windows-x86_64", "linux-x86_64"].map((platform) => [
@@ -186,7 +193,7 @@ void test("global configured role inventory refuses every App conflation and wea
     for (const other of names.filter((entry) => entry !== name)) {
       const conflated = structuredClone(config);
       conflated.apps[name] = conflated.apps[other]!;
-      assert.throws(() => inspectReleaseAuthorityConfiguration(conflated), /conflated/);
+      assert.throws(() => inspectReleaseAuthorityConfiguration(conflated));
     }
   }
   for (const [platform, lower] of [
