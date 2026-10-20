@@ -48,6 +48,7 @@ import {
   jwk as identityJwk,
 } from "./fixtures/assembler-identity-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
@@ -1392,7 +1393,7 @@ for (const lost of [false, true])
       let activeIdentity = signed;
       let publisherTerminal = false;
       const coordinatorSubject =
-        "repo:boburning@43177418/portcove@1354613114:environment:production-release-coordinator";
+        controllerOidcSubject(identityExpected.controller_ref, "production-release-coordinator");
       const coordinatorIdentity = () =>
         assemblerIdentityFixture(
           {
