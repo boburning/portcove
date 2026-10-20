@@ -1035,6 +1035,7 @@ export async function requestTrustedSemanticReview(
         budget,
       );
     if (isRecord(recovered.input.active_candidate)) {
+      phase = "actual-active-resumption-authority";
       const authorities = await requireControllerReleaseAuthorities("coordinator");
       if (authorities.namespace !== namespace)
         throw new Error("active coordinator authority namespace differs");

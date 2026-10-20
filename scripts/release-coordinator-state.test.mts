@@ -279,7 +279,7 @@ async function recoveryFixture(t: test.TestContext, signed = false) {
 
 for (const changed of [false, true])
   void test(
-    `trusted coordinator ${changed ? "refuses changed remote recovery before reading main" : "recovers the existing active candidate before coalescing current main"}`,
+    `trusted coordinator ${changed ? "refuses changed remote recovery before reading main" : "recovers active candidate then requires actual resumption authority before reading main"}`,
     { timeout: 60000 },
     async (t) => {
       // Real Git recovery through the production default transport, with the gh
@@ -290,6 +290,12 @@ for (const changed of [false, true])
       const parent = await mkdtemp(path.join(projectRoot, "work", "coordinator-fixture-"));
       t.after(() => rm(parent, { recursive: true, force: true }));
       const initialRefs = structuredClone(f.refs);
+      const previousAuthorities = process.env.PORTCOVE_RELEASE_AUTHORITIES;
+      delete process.env.PORTCOVE_RELEASE_AUTHORITIES;
+      t.after(() => {
+        if (previousAuthorities === undefined) delete process.env.PORTCOVE_RELEASE_AUTHORITIES;
+        else process.env.PORTCOVE_RELEASE_AUTHORITIES = previousAuthorities;
+      });
       const original = childProcess.spawnSync;
       let mainReads = 0;
       const mock = t.mock.method(
@@ -327,10 +333,14 @@ for (const changed of [false, true])
         });
         assert.equal(mainReads, 0);
       } else {
-        const result = await run;
-        assert.equal(result.decision, "coalesced-active");
-        assert.equal(result.checkpoint, f.saved.checkpoint);
-        assert.equal(mainReads, 1);
+        await assert.rejects(run, (error: unknown) => {
+          assert.ok(error instanceof CoordinatorRemoteError);
+          assert.ok(isRecord(error.evidence));
+          assert.equal(error.evidence.phase, "actual-active-resumption-authority");
+          assert.equal(error.evidence.checkpoint, f.saved.checkpoint);
+          return true;
+        });
+        assert.equal(mainReads, 0);
       }
       assert.deepEqual(f.refs, initialRefs);
       assert.equal(
