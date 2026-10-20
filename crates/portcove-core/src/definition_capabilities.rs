@@ -313,17 +313,17 @@ mod tests {
     }
 
     #[test]
-    fn prepared_narrow_paths_require_v15_without_changing_managed_v11() {
-        let required = request("staged-source-portable", 15, 15);
+    fn prepared_narrow_paths_require_v17_without_changing_managed_v11() {
+        let required = request("staged-source-portable", 17, 17);
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 15
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 17
             })
             .collect();
         let old = check_with_inventory(&required, &previous).unwrap();
         assert!(!old.compatible);
-        assert_eq!(old.checks[0].installed_version, Some(14));
+        assert_eq!(old.checks[0].installed_version, Some(16));
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         assert!(
             check_definition_capabilities(&request("staged-source-portable", 11, 11))

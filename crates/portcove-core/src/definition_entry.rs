@@ -169,9 +169,10 @@ impl DefinitionContentIndex {
                         >= crate::runtime_path_policy::minimum_capability(&port)
             })
         {
-            return Err(PortcoveError::verification(
-                "Windows runtime paths require the applicable staged-source path capability",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "Windows runtime paths require staged-source capability version {}",
+                crate::runtime_path_policy::minimum_capability(&port)
+            )));
         }
         if let Some(minimum) = port
             .release
