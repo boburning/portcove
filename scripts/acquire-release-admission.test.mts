@@ -9,6 +9,7 @@ import {
   requireActualReleaseAdmissionContext,
   acquireActualCandidateBuildingEligibility,
   requireActualCandidateBuildingEligibility,
+  inspectAdmissionNativeStage,
 } from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
@@ -19,6 +20,23 @@ import { rateLimitFromResponse } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+
+void test("qualifying continuation consumes pre-sign native stage without claiming payload admission", () => {
+  assert.equal(inspectAdmissionNativeStage("admission", "candidate-building"), "payload-signing");
+  assert.equal(inspectAdmissionNativeStage("payload", "payload-signing"), "payload-signing");
+  assert.equal(
+    inspectAdmissionNativeStage("release-publication", "release-publication"),
+    "release-publication",
+  );
+  for (const [phase, stage] of [
+    ["admission", "payload-signing"],
+    ["payload", "candidate-building"],
+    ["release-publication", "candidate-building"],
+    ["payload", "release-publication"],
+    ["admission", "release-publication"],
+  ])
+    assert.throws(() => inspectAdmissionNativeStage(phase, stage), /cannot appoint/);
+});
 
 void test("building eligibility is a separate private proof and imported success cannot authorize phase progress", async () => {
   for (const raw of [

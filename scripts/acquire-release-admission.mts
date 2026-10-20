@@ -103,6 +103,21 @@ export interface ActualCandidateBuildingEligibility {
   pending_obligations: readonly string[];
 }
 const actualBuildingEligibility = new WeakMap<object, ActualCandidateBuildingEligibility>();
+/** Data-only stage association. Candidate building consumes pre-sign native
+ * qualification, but is never itself payload-signing admission. */
+export function inspectAdmissionNativeStage(
+  phase: unknown,
+  admissionStage: unknown,
+): NativeQualificationStage {
+  if (
+    (phase === "admission" && admissionStage === "candidate-building") ||
+    (phase === "payload" && admissionStage === "payload-signing")
+  )
+    return "payload-signing";
+  if (phase === "release-publication" && admissionStage === "release-publication")
+    return "release-publication";
+  throw new Error("actual admission context cannot appoint another execution stage");
+}
 type Api = Pick<GitHubApiClient, "request" | "graphql">;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
 export interface PreparedReleaseAdmissionFacts {
@@ -1120,15 +1135,9 @@ async function performAdmissionHandshake(
     const sbomReceipt = acquiredSbomReceipts.get(admission);
     if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
     await requireVerifiedReleaseSbomDocument(sbomReceipt);
-    const stage = building
-      ? "payload-signing"
-      : phase === "payload"
-        ? "payload-signing"
-        : phase === "release-publication"
-          ? "release-publication"
-          : null;
-    if (!stage || stage !== admission.stage)
+    if (building ? phase !== "admission" : phase !== "payload" && phase !== "release-publication")
       throw new Error("actual admission context cannot appoint another execution stage");
+    const stage = inspectAdmissionNativeStage(phase, admission.stage);
     const nativeReceipts = acquiredNativeReceipts.get(admission);
     if (!nativeReceipts) throw new Error("positive continuation requires actual native custody");
     await requireNativeReleaseQualificationPair(
