@@ -262,8 +262,10 @@ mod tests {
                 },
             )
             .unwrap();
-            let result = observe_at(&root, checkpoint, &control, Duration::from_secs(1));
-            assert_eq!(result.is_ok(), matching);
+            // Marker fsync is part of this harness wait on Windows. Keep a finite
+            // disk-tolerant budget without changing the instrumented observer.
+            let result = observe_at(&root, checkpoint, &control, Duration::from_secs(15));
+            assert_eq!(result.is_ok(), matching, "{checkpoint:?}: {result:?}");
         }
     }
 
