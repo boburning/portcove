@@ -593,6 +593,43 @@ export type PreparedReleasePublication = Awaited<
   ReturnType<typeof prepareImmutableReleasePublication>
 >;
 
+/** Read-only feed prerequisite. Obtain the expected complete asset inventory from
+ * the actual private preparation, not a caller's release receipt. This performs
+ * no publication and does not clear the independent acceptance gates. */
+export function verifyPreparedImmutableRelease(
+  session: PreparedReleasePublication,
+  candidate: unknown,
+) {
+  const privateValue = prepared.get(session);
+  if (!privateValue || !isRecord(candidate))
+    throw new Error("actual immutable Release preparation and current candidate required");
+  const identity = privateValue.session.identity;
+  if (
+    candidate.prepared_commit !== identity.source_commit ||
+    candidate.version !== identity.version
+  )
+    throw new Error("immutable Release preparation differs from the current reservation");
+  const runner = createGitHubRunner({
+    cwd: privateValue.session.directory,
+    timeoutMs: 15000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  const api = new GitHubApiClient((args, body) =>
+    runner([...args, "--hostname", "github.com"], body),
+  );
+  const actual = readImmutableReleaseState(api, identity);
+  const transition = proposeImmutableReleaseTransition(identity, actual.release, actual.assets);
+  if (transition.decision !== "complete")
+    throw new Error("feed publication requires the complete observed immutable Release");
+  return {
+    ...transition,
+    source_commit: identity.source_commit,
+    version: identity.version,
+    evidence_scope: "github.com" as const,
+    evidence_sha256: capacityDigest(actual),
+  };
+}
+
 /** Complete release inventory includes drafts; a published-only tag lookup can
  * hide a retained draft after an ambiguous create. Embedded assets are ignored. */
 export function readImmutableReleaseState(

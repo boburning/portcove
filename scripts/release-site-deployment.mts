@@ -29,6 +29,8 @@ import { createPagesProviderTransport } from "./release-pages-provider.mts";
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
+import { verifyPreparedImmutableRelease } from "./release-immutable-publication.mts";
+import type { PreparedReleasePublication } from "./release-immutable-publication.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const block = 512;
@@ -386,6 +388,7 @@ export async function publishPreparedSiteDeployment(
     metadata_renewal?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
+  releaseSession?: PreparedReleasePublication,
 ) {
   const prepared = sessions.get(session);
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
@@ -418,6 +421,13 @@ export async function publishPreparedSiteDeployment(
   const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
   if (input.metadata_renewal === undefined && !isRecord(frozen))
     throw new Error("release site requires the existing complete frozen opportunity");
+  const readRelease = () => {
+    if (input.metadata_renewal !== undefined) return null;
+    if (!releaseSession)
+      throw new Error("actual immutable Release preparation required before feed publication");
+    return verifyPreparedImmutableRelease(releaseSession, candidate);
+  };
+  readRelease();
   const runner = createGitHubRunner({
     cwd: prepared.directory,
     timeoutMs: 15_000,
@@ -455,6 +465,7 @@ export async function publishPreparedSiteDeployment(
       // before the sole POST. No provider CAS guarantee is inferred from them.
       await readPublicApplicationSiteMarker(prepared.previous_generation!);
       await readBoundary();
+      const immutableRelease = readRelease();
       const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
       const write = async (name: string, value: unknown) =>
         writeFile(path.join(attempt, name), JSON.stringify(value), { flag: "wx", mode: 0o600 });
@@ -463,6 +474,7 @@ export async function publishPreparedSiteDeployment(
         generation: prepared.generation.generation,
         previous_generation: prepared.previous_generation!.generation,
         artifact_id: prepared.upload!.artifact_id,
+        immutable_release: immutableRelease,
       });
       try {
         const accepted = await provider.create({
