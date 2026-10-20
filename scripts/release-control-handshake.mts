@@ -33,6 +33,25 @@ export interface ControlAttempt {
   controller_ref: string;
   run_id: string;
   run_attempt: number;
+  round?: { index: number; nonce?: string };
+}
+export function inspectControlRound(raw: unknown, requireNonce = true) {
+  if (
+    !isRecord(raw) ||
+    !["index", "index,nonce"].includes(Object.keys(raw).sort().join(",")) ||
+    (requireNonce && !Object.hasOwn(raw, "nonce")) ||
+    !Number.isSafeInteger(raw.index) ||
+    Number(raw.index) < 1 ||
+    Number(raw.index) > 12 ||
+    (raw.nonce === undefined
+      ? requireNonce
+      : typeof raw.nonce !== "string" || !/^[a-f0-9]{64}$/u.test(raw.nonce))
+  )
+    throw new Error("fixed control round requires bounded ordinal and exact nonce");
+  return {
+    index: Number(raw.index),
+    ...(typeof raw.nonce === "string" ? { nonce: raw.nonce } : {}),
+  };
 }
 function attempt(raw: ControlAttempt) {
   const phase = inspectReleaseControlPhase(raw.phase);
@@ -51,13 +70,14 @@ function attempt(raw: ControlAttempt) {
     controller_ref: raw.controller_ref,
     run_id: raw.run_id,
     run_attempt: raw.run_attempt,
+    ...(raw.round === undefined ? {} : { round: inspectControlRound(raw.round, false) }),
   };
 }
 export function controlHandshakeArtifactName(role: Role, raw: ControlAttempt) {
   if (role !== "ready" && role !== "observation")
     throw new Error("fixed control artifact role required");
   const input = attempt(raw);
-  return `trusted-release-control-${input.phase}-${role}-${input.run_id}-${input.run_attempt}`;
+  return `trusted-release-control-${input.phase}-${role}-${input.run_id}-${input.run_attempt}${input.round ? `-r${input.round.index}` : ""}`;
 }
 /** Token-free identity declaration. Authentication comes from the fixed reviewed
  * upload route AND current provider job/artifact readback, not this JSON alone. */
@@ -65,6 +85,7 @@ export function prepareControlReadiness(
   identity: unknown,
   factsSha256: string,
   rawPhase: unknown = "admission",
+  round?: { index: number; nonce: string },
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   if (
@@ -87,6 +108,7 @@ export function prepareControlReadiness(
       check_run_id: identity.check_run_id,
     },
     facts_sha256: factsSha256,
+    ...(round === undefined ? {} : { round: inspectControlRound(round) }),
   };
 }
 /** A proof cannot be recreated from JSON or caller booleans. */
@@ -123,6 +145,7 @@ export async function waitForControlArtifact(
   } = {},
 ) {
   const input = attempt(raw);
+  if (role === "observation" && input.round) inspectControlRound(input.round);
   const phaseProfile = releaseControlPhaseProfile(input.phase);
   const runner = createGitHubRunner({
     ...options.transport,
@@ -275,7 +298,7 @@ export async function waitForControlArtifact(
           compressedBytes: maximum,
           expandedBytes: maximum,
           files: 1,
-          nameBytes: 32,
+          nameBytes: 64,
           allowedPaths: new Set([member]),
         });
         const entry = parsed.entries[0];
@@ -296,6 +319,15 @@ export async function waitForControlArtifact(
           !isRecord(body.producer)
         )
           throw new Error("control artifact payload unavailable");
+        if (input.round) {
+          const observed = inspectControlRound(body.round);
+          if (
+            observed.index !== input.round.index ||
+            (input.round.nonce !== undefined && observed.nonce !== input.round.nonce)
+          )
+            throw new Error("control artifact round/nonce differs from private continuation");
+        } else if (Object.hasOwn(body, "round"))
+          throw new Error("unexpected control round on legacy continuation");
         const p = body.producer;
         if (
           Object.keys(p).sort().join(",") !==
@@ -315,7 +347,10 @@ export async function waitForControlArtifact(
           throw new Error("control artifact producer differs from fixed live job");
         if (
           role === "ready" &&
-          (Object.keys(body).sort().join(",") !== "facts_sha256,phase,producer,schema_version" ||
+          (Object.keys(body).sort().join(",") !==
+            (input.round
+              ? "facts_sha256,phase,producer,round,schema_version"
+              : "facts_sha256,phase,producer,schema_version") ||
             typeof body.facts_sha256 !== "string" ||
             !/^[a-f0-9]{64}$/u.test(body.facts_sha256))
         )

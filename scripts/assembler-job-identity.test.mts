@@ -14,6 +14,11 @@ import {
 } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
+  releaseControlPhaseProfile,
+  isMaintenanceReleaseControlPhase,
+  inspectReleaseControlPhase,
+} from "./release-control-phases.mts";
+import {
   expected,
   jwk,
   assemblerIdentityFixture as fixture,
@@ -24,13 +29,16 @@ void test("capacity executor roles require their exact signed job, not another t
     ["release-publication", "Publish immutable application release"],
     ["site-publication", "Publish authenticated application site"],
   ] as const) {
-    const subject = controllerOidcSubject(
-      expected.controller_ref,
-      role === "site-publication" ? "github-pages" : undefined,
-    );
+    const environment =
+      role === "site-publication"
+        ? "github-pages"
+        : role === "coordinator"
+          ? "production-release-coordinator"
+          : "production-release-publication";
+    const subject = controllerOidcSubject(expected.controller_ref, environment);
     const binding = { ...expected, subject };
     const f = fixture(
-      { sub: subject, ...(role === "site-publication" ? { environment: "github-pages" } : {}) },
+      { sub: subject, ...(environment ? { environment } : {}) },
       {},
       { workflow: productionControllerWorkflow, job: name },
     );
@@ -40,30 +48,126 @@ void test("capacity executor roles require their exact signed job, not another t
     assert.equal(actual.evidence_scope, "injected-provider");
     const wrong = fixture();
     await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, binding, wrong));
+    if (environment) {
+      const unprotected = fixture(
+        { sub: expected.subject },
+        {},
+        { workflow: productionControllerWorkflow, job: name },
+      );
+      await assert.rejects(
+        verifyCapacityExecutorJobIdentity(role, unprotected.token, binding, unprotected),
+      );
+    }
     f.faults.value = "name-only";
     await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, binding, f));
   }
 });
 void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
+  const wanted = {
+    ...expected,
+    subject: controllerOidcSubject(expected.controller_ref, "production-payload-signing"),
+  };
+  const claims = { sub: wanted.subject, environment: "production-payload-signing" };
   const f = fixture(
-    {},
+    claims,
     {},
     { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
   );
-  const result = await verifyPayloadSignerJobIdentity(f.token, expected, f);
+  const result = await verifyPayloadSignerJobIdentity(f.token, wanted, f);
   assert.equal(result.job_id, 501);
   assert.equal(result.check_run_id, "777");
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
   const assembler = fixture();
-  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, expected, assembler));
+  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, wanted, assembler));
   const nameOnly = fixture(
-    {},
+    claims,
     {},
     { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
   );
   nameOnly.faults.value = "name-only";
-  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, expected, nameOnly));
+  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, wanted, nameOnly));
+  for (const change of [
+    { environment: "production-tuf-releases" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture(
+      { ...claims, ...change },
+      {},
+      { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+    );
+    await assert.rejects(verifyPayloadSignerJobIdentity(wrong.token, wanted, wrong));
+  }
+});
+
+void test("coordinator controls require their exact isolated job, subject and environment", async () => {
+  const profile = releaseControlPhaseProfile("coordinator");
+  const wanted = {
+    ...expected,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const claims = {
+    aud: wanted.audience,
+    sub: wanted.subject,
+    environment: profile.reader_environment,
+  };
+  const producer = { workflow: productionControllerWorkflow, job: profile.reader_name };
+  const positive = fixture(claims, {}, producer);
+  assert.equal(
+    (await verifyReleaseControlReaderJobIdentity("coordinator", positive.token, wanted, positive))
+      .job_id,
+    501,
+  );
+  for (const change of [
+    { environment: "github-pages" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture({ ...claims, ...change }, {}, producer);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("coordinator", wrong.token, wanted, wrong),
+    );
+  }
+  assert.equal(isMaintenanceReleaseControlPhase("coordinator"), true);
+});
+
+void test("Release publication reader requires its own protected environment and refuses tag-only or another role", async () => {
+  const profile = releaseControlPhaseProfile("release-publication");
+  const wanted = {
+    ...expected,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const claims = {
+    aud: wanted.audience,
+    sub: wanted.subject,
+    environment: profile.reader_environment,
+  };
+  const job = { workflow: productionControllerWorkflow, job: profile.reader_name };
+  const actual = fixture(claims, {}, job);
+  assert.equal(
+    (
+      await verifyReleaseControlReaderJobIdentity(
+        "release-publication",
+        actual.token,
+        wanted,
+        actual,
+      )
+    ).job_id,
+    501,
+  );
+  for (const change of [
+    { environment: "production-payload-signing" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture({ ...claims, ...change }, {}, job);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("release-publication", wrong.token, wanted, wrong),
+    );
+  }
 });
 
 void test("signed check-run identity resolves the independent numeric job through complete attempt pages", async () => {
@@ -326,4 +430,94 @@ void test("immutable owner/repository subjects and exact environment profiles re
   await assert.rejects(
     verifyReleaseControlReaderJobIdentity("site-publication", positive.token, expected, positive),
   );
+});
+
+void test("five TUF roles bind separate fixed environment/job identities and one protected metadata observer", async () => {
+  for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
+    const phase = `tuf-${role}` as const;
+    const profile = releaseControlPhaseProfile(phase);
+    assert.equal(profile.reader_job, `tuf_${role}`);
+    assert.equal(profile.reader_environment, `production-tuf-${role}`);
+    assert.equal(profile.observer_job, "metadata_protection_observation");
+    assert.equal(isMaintenanceReleaseControlPhase(phase), true);
+    const wanted = {
+      ...expected,
+      audience: profile.reader_audience,
+      subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+    };
+    const claims = {
+      aud: wanted.audience,
+      sub: wanted.subject,
+      environment: profile.reader_environment,
+    };
+    const f = fixture(
+      claims,
+      {},
+      { workflow: productionControllerWorkflow, job: profile.reader_name },
+    );
+    assert.equal(
+      (await verifyReleaseControlReaderJobIdentity(phase, f.token, wanted, f)).job_id,
+      501,
+    );
+    for (const patch of [
+      { environment: undefined },
+      { environment: "github-pages" },
+      { sub: expected.subject },
+      { sub: wanted.subject.replace("@43177418/", "@1/") },
+    ]) {
+      const bad = fixture(
+        { ...claims, ...patch },
+        {},
+        { workflow: productionControllerWorkflow, job: profile.reader_name },
+      );
+      await assert.rejects(verifyReleaseControlReaderJobIdentity(phase, bad.token, wanted, bad));
+      assert.equal(bad.counts().requests, 0);
+    }
+    const other = releaseControlPhaseProfile(role === "releases" ? "tuf-preview" : "tuf-releases");
+    const crossJob = fixture(
+      claims,
+      {},
+      { workflow: productionControllerWorkflow, job: other.reader_name },
+    );
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity(phase, crossJob.token, wanted, crossJob),
+    );
+    const observerExpected = {
+      ...wanted,
+      audience: profile.observer_audience,
+      subject: controllerOidcSubject(expected.controller_ref, profile.observer_environment),
+    };
+    const observer = fixture(
+      {
+        aud: observerExpected.audience,
+        sub: observerExpected.subject,
+        environment: profile.observer_environment,
+      },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.observer_name },
+    );
+    assert.equal(
+      (
+        await verifyProductionProtectionObserverJobIdentity(
+          observer.token,
+          observerExpected,
+          observer,
+          phase,
+        )
+      ).job_id,
+      501,
+    );
+  }
+  assert.equal(isMaintenanceReleaseControlPhase("site-publication"), true);
+  for (const phase of [
+    "admission",
+    "payload",
+    "release-publication",
+    "tuf-root",
+    "tuf-targets",
+    "tuf-unknown",
+    null,
+  ])
+    assert.equal(isMaintenanceReleaseControlPhase(phase), false);
+  assert.throws(() => inspectReleaseControlPhase("tuf-root"));
 });

@@ -279,6 +279,37 @@ void test("site maintenance reads only current pause/capacity under the same fre
   for (const phase of ["admission", "payload", "release-publication"] as const) {
     const wrong = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
     const wrongSource = await wrong.create();
-    assert.throws(() => wrongSource.readMaintenance(control.api), /site-publication phase/);
+    assert.throws(() => wrongSource.readMaintenance(control.api), /fixed maintenance/);
+  }
+});
+
+void test("only selected online metadata roles may read pause/capacity without inventing release classification", async () => {
+  for (const phase of [
+    "coordinator",
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+  ] as const) {
+    const control = releaseControlInputsFixture(
+      capacityDocumentFixture(),
+      opportunity,
+      config,
+      true,
+    );
+    const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
+    const source = await runtime.create();
+    const facts = source.readMaintenance(control.api);
+    assert.equal(
+      facts.purpose,
+      phase === "coordinator" ? "metadata-coordinator-controls" : "metadata-signing-controls",
+    );
+    assert.equal(facts.pause.publication_paused, true);
+    assert.equal(facts.authority, "none");
+    assert.throws(() => source.read(control.api, opportunity));
+    runtime.advance(60001);
+    assert.throws(() => source.readMaintenance(control.api), /fresh/);
+    assert.equal(control.mutations(), 0);
   }
 });

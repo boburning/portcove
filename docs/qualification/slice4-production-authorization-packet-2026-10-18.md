@@ -11,6 +11,16 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [isolated role continuation](slice4-isolated-role-continuation-2026-10-20.md)
+connects the genuine private admission callback to current-control checks and
+one-use job-local payload key transport, expands the fixed tool inventory with
+the pinned Tauri addon, and binds separate payload/coordinator environments. The
+[nonce-bound rounds](slice4-control-rounds-2026-10-20.md) retain the existing
+sixty-second freshness window. Current independent holds still prevent signing;
+immutable signature handoffs, job-bound effect settlement, native/compatibility
+record reconstruction and the final hosted graph remain pending. No environment,
+credential, production execution or acceptance is activated here.
+
 The October 20 [connected site/executor integration](slice4-534-site-publication-integration-2026-10-20.md)
 adds durable pending-before-effect ownership, fresh role identity, actual immutable
 Release readback before application feed publication, verifier-bound TUF facts,
@@ -36,8 +46,9 @@ protected/publication observations. #534 acceptance remains open.
 
 The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
 prepares bounded, attested fixed-source tool custody before role-key access and
-adds a separate ordinary credential-free Linux build fixture. Its initial three
-bundled entries require explicit extension to the final role wrappers; protected
+adds a separate ordinary credential-free Linux build fixture. Its five fixed
+bundled entries now include private payload continuation and key transport; the
+remaining role wrappers still require explicit integration. Protected
 tool execution and all independent acceptance remain pending. The
 [OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
 owner/repository IDs and each existing fixed environment without changing provider

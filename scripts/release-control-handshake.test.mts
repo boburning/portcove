@@ -9,6 +9,7 @@ import {
   controlHandshakeArtifactName,
   requireObservedControlArtifact,
   waitForControlArtifact,
+  inspectControlRound,
 } from "./release-control-handshake.mts";
 import {
   liveControlRuntimeFixture,
@@ -23,11 +24,12 @@ async function fixture(
   t: test.TestContext,
   role: "ready" | "observation" = "ready",
   phase: ReleaseControlPhase = "admission",
+  round?: { index: number; nonce: string },
 ) {
   const root = await mkdtemp(path.join(os.tmpdir(), "control-handshake-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const runtime = liveControlRuntimeFixture(protectionFixture("b".repeat(40)), undefined, phase);
-  const body =
+  const baseBody =
     role === "observation"
       ? structuredClone(runtime.handoff)
       : {
@@ -36,12 +38,14 @@ async function fixture(
           producer: { ...runtime.handoff.producer, job_id: 601, check_run_id: "889" },
           facts_sha256: "f".repeat(64),
         };
+  const body = { ...baseBody, ...(round ? { round } : {}) };
   const input = {
     phase,
     controller_revision: body.producer.controller_revision,
     controller_ref: body.producer.controller_ref,
     run_id: body.producer.run_id,
     run_attempt: body.producer.run_attempt,
+    ...(round ? { round } : {}),
   };
   let zip: Buffer = createAuditZip([[`${role}-${phase}.json`, JSON.stringify(body)]]);
   const artifact = {
@@ -114,6 +118,79 @@ async function fixture(
     collect: () => waitForControlArtifact(root, role, input, options),
   };
 }
+
+void test("bounded rounds use distinct immutable names and reject missing, invalid or excess round identities", () => {
+  for (const value of [
+    { index: 0, nonce: "a".repeat(64) },
+    { index: 13, nonce: "a".repeat(64) },
+    { index: 1 },
+    { index: 1, nonce: "short" },
+    { index: 1, nonce: "a".repeat(64), accepted: true },
+  ])
+    assert.throws(() => inspectControlRound(value));
+  assert.deepEqual(inspectControlRound({ index: 12 }, false), { index: 12 });
+});
+void test("a later operation consumes only its exact round and private nonce while the observer remains live", async (t) => {
+  const round = { index: 2, nonce: "a".repeat(64) };
+  const f = await fixture(t, "observation", "payload", round);
+  assert.match(f.artifact.name, /-r2$/);
+  const proof = await f.collect();
+  f.runtime.observerJob.status = "in_progress";
+  f.runtime.observerJob.conclusion = null;
+  const source = await authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+    ...f.runtime.options,
+    phase: "payload",
+    round,
+    observedArtifact: proof,
+  });
+  assert.equal(source.evidence_scope, "injected-provider");
+  await assert.rejects(
+    authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+      ...f.runtime.options,
+      phase: "payload",
+      round: { ...round, nonce: "b".repeat(64) },
+      observedArtifact: proof,
+    }),
+    /round differs/,
+  );
+  await assert.rejects(
+    authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+      ...f.runtime.options,
+      phase: "payload",
+      round,
+    }),
+    /actual collected/,
+  );
+});
+void test("wrong nonce or ordinal in a provider-authenticated round archive refuses before establishing controls", async (t) => {
+  for (const round of [
+    { index: 2, nonce: "b".repeat(64) },
+    { index: 3, nonce: "a".repeat(64) },
+  ]) {
+    const f = await fixture(t, "observation", "payload", { index: 2, nonce: "a".repeat(64) });
+    f.zip(createAuditZip([["observation-payload.json", JSON.stringify({ ...f.body, round })]]));
+    await assert.rejects(f.collect(), /retain exact attempt/);
+  }
+});
+void test("observer discovers the nonce only from the exact immutable ready round", async (t) => {
+  const f = await fixture(t, "ready", "payload", { index: 2, nonce: "c".repeat(64) });
+  const proof = await waitForControlArtifact(
+    f.root,
+    "ready",
+    { ...f.input, round: { index: 2 } },
+    f.options,
+  );
+  assert.deepEqual(proof.body.round, { index: 2, nonce: "c".repeat(64) });
+});
+void test("site and release publication observation members traverse the actual bounded ZIP collector", async (t) => {
+  for (const phase of ["site-publication", "release-publication"] as const) {
+    const f = await fixture(t, "observation", phase, { index: 1, nonce: "d".repeat(64) });
+    const proof = await f.collect();
+    assert.equal(proof.phase, phase);
+    assert.ok(isRecord(proof.body.producer));
+    assert.equal(proof.body.producer.job_id, f.job.id);
+  }
+});
 
 void test("same active job ready artifact becomes readable before job completion with bounded GET polling", async (t) => {
   const f = await fixture(t);
