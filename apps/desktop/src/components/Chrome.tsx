@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
+import { InterfaceSizeSettings } from "../InterfaceSize";
 import type {
   ActivityRecord,
   PortDefinition,
@@ -1663,6 +1664,7 @@ export function SettingsView({
           description="Choose how Portcove looks on this device."
         >
           <AppearanceSettings appearance={appearance} />
+          <InterfaceSizeSettings />
           <LanguageSettings />
         </SettingsSection>
         {renderStorageSettings()}

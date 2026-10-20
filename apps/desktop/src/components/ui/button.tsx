@@ -5,7 +5,7 @@ import { controlClassName, controlFocus, controlMotion } from "./control-style";
 
 const buttonVariants = cva(
   cn(
-    "group/button inline-flex shrink-0 items-center justify-center rounded-pc-md border border-transparent bg-clip-padding text-sm font-medium [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex max-w-full shrink-0 items-center justify-center rounded-pc-md border border-transparent bg-clip-padding text-sm font-medium [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     controlFocus,
     controlMotion,
   ),
