@@ -66,9 +66,12 @@ import { createHash } from "node:crypto";
 import {
   createReleaseReviewRequest,
   inspectReleaseReviewRequest,
+  advanceReleaseReviewRecovery,
 } from "./release-review-request.mts";
+import { createReleaseReviewDispositionReceipt } from "./release-semantic-disposition-reader.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -79,6 +82,27 @@ function coordinatorDeadline() {
     check() {
       if (Date.now() >= deadline)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
+    },
+  };
+}
+function guardedCoordinatorJournal(
+  directory: string,
+  budget: ReturnType<typeof coordinatorDeadline>,
+  beforeMutation: () => void,
+) {
+  const journal = createCoordinatorJournalApi(directory);
+  return {
+    request: (...args: Parameters<typeof journal.request>) => {
+      budget.check();
+      return journal.request(...args);
+    },
+    graphql: (...args: Parameters<typeof journal.graphql>) => {
+      budget.check();
+      if (/^\s*mutation\b/u.test(args[0])) {
+        beforeMutation();
+        budget.check();
+      }
+      return journal.graphql(...args);
     },
   };
 }
@@ -212,6 +236,26 @@ export async function coordinateTrustedRelease(
   privateParent: string,
   raw: { remote_configuration: unknown; opportunity: unknown; dispatch_actor_id: string },
 ) {
+  return coordinateTrustedReleaseAt(privateParent, raw);
+}
+
+type RecoveredCoordinatorRound = {
+  directory: string;
+  budget: ReturnType<typeof coordinatorDeadline>;
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>;
+  admission?: {
+    workflow: Awaited<ReturnType<typeof readProductionControllerWorkflowBytes>>;
+    reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>;
+    controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>;
+    request: NonNullable<ReturnType<typeof inspectReleaseReviewRequest>>;
+  };
+};
+
+async function coordinateTrustedReleaseAt(
+  privateParent: string,
+  raw: Parameters<typeof coordinateTrustedRelease>[1],
+  round?: RecoveredCoordinatorRound,
+) {
   const selected = structuredClone(raw);
   if (
     Object.keys(selected).sort().join(",") !== "dispatch_actor_id,opportunity,remote_configuration"
@@ -226,9 +270,10 @@ export async function coordinateTrustedRelease(
     throw new Error(
       "independently selected dispatch principal and explicit net-delta scope required",
     );
-  await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
-  const directory = await mkdtemp(path.join(privateParent, "coordinator-attempt-"));
-  const budget = coordinatorDeadline();
+  if (!round) await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
+  const directory =
+    round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-attempt-")));
+  const budget = round?.budget ?? coordinatorDeadline();
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
@@ -240,9 +285,11 @@ export async function coordinateTrustedRelease(
     const api = new GitHubApiClient((args, body) =>
       runner([...args, "--hostname", "github.com"], body),
     );
-    let recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
-    });
+    let recovered =
+      round?.recovered ??
+      (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
+        transport: { cwd: directory },
+      }));
     checkpoint = recovered.checkpoint;
     const repository = recovered.repository;
     const existingActive = recovered.input.active_candidate;
@@ -263,10 +310,12 @@ export async function coordinateTrustedRelease(
     const changes = collectReleaseSourceChanges(api, opportunity);
     if (changes.change_set_sha256 !== opportunity.change_set_sha256)
       throw new Error("independent complete source delta differs from reviewed opportunity");
-    const workflow = await readProductionControllerWorkflowBytes();
-    const reader = await authenticateControlReaderJob(process.env, workflow, {
-      phase: "coordinator",
-    });
+    const workflow = round?.admission?.workflow ?? (await readProductionControllerWorkflowBytes());
+    const reader =
+      round?.admission?.reader ??
+      (await authenticateControlReaderJob(process.env, workflow, {
+        phase: "coordinator",
+      }));
     let currentExecutor: Awaited<ReturnType<typeof authenticateCapacityExecutor>> | null = null;
     const getExecutor = async () => {
       currentExecutor ??= await authenticateCapacityExecutor(
@@ -324,27 +373,36 @@ export async function coordinateTrustedRelease(
     );
     const factsSha = capacityDigest({ opportunity, publication, checkpoint });
     const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
-    await writeFile(path.join(directory, "ready-coordinator.json"), `${JSON.stringify(ready)}\n`, {
-      flag: "wx",
-      mode: 0o600,
-    });
+    if (!round?.admission)
+      await writeFile(
+        path.join(directory, "ready-coordinator.json"),
+        `${JSON.stringify(ready)}\n`,
+        {
+          flag: "wx",
+          mode: 0o600,
+        },
+      );
     phase = "actual-coordinator-control-observation";
-    const artifact = await waitForControlArtifact(
-      directory,
-      "observation",
-      {
+    const artifact = round?.admission
+      ? undefined
+      : await waitForControlArtifact(
+          directory,
+          "observation",
+          {
+            phase: "coordinator",
+            controller_revision: reader.admitted.revision,
+            controller_ref: reader.admitted.execution_ref,
+            run_id: String(reader.admitted.run_id),
+            run_attempt: reader.admitted.run_attempt,
+          },
+          { deadline: budget.deadline },
+        );
+    const controls =
+      round?.admission?.controls ??
+      (await authenticateReleaseControlSource(process.env, workflow, {
         phase: "coordinator",
-        controller_revision: reader.admitted.revision,
-        controller_ref: reader.admitted.execution_ref,
-        run_id: String(reader.admitted.run_id),
-        run_attempt: reader.admitted.run_attempt,
-      },
-      { deadline: budget.deadline },
-    );
-    const controls = await authenticateReleaseControlSource(process.env, workflow, {
-      phase: "coordinator",
-      observedArtifact: artifact,
-    });
+        ...(artifact ? { observedArtifact: artifact } : {}),
+      }));
     const initial = controls.read(api, opportunity);
     const original =
       activeOpportunity.source_commit === opportunity.source_commit
@@ -473,9 +531,19 @@ export async function coordinateTrustedRelease(
         authority: "none",
         automatic_retry: false,
       };
-    const journal = createCoordinatorJournalApi(directory);
-    const readBoundary = async () => {
+    const journal = guardedCoordinatorJournal(directory, budget, () => {
+      readSynchronousBoundary();
+    });
+    const readSynchronousBoundary = () => {
       budget.check();
+      if (round?.admission) {
+        const exact = controls.readRequest(api, round.admission.request).classification;
+        if (
+          exact.status !== "reviewed" ||
+          capacityDigest(exact.opportunity) !== capacityDigest(opportunity)
+        )
+          throw new Error("accepted request changed or acquired contradictory disposition");
+      }
       const fresh = controls.read(api, opportunity);
       const frozen =
         activeOpportunity.source_commit === opportunity.source_commit
@@ -495,6 +563,7 @@ export async function coordinateTrustedRelease(
         throw new Error("fresh coordinator control sources changed or remain held");
       return structuredClone(fresh.capacity_source.capacity.boundary);
     };
+    const readBoundary = async () => readSynchronousBoundary();
     await readBoundary();
     await assertInventory();
     phase = "durable-planner-input";
@@ -896,7 +965,12 @@ export async function prepareTrustedCoordinatorRenewal(
       recovered.repository,
       checkpoint,
       selected.remote_configuration,
-      { api: createCoordinatorJournalApi(directory) },
+      {
+        api: guardedCoordinatorJournal(directory, budget, () => {
+          if (controls.readMaintenance(api).facts_sha256 !== initial.facts_sha256)
+            throw new Error("maintenance controls changed immediately before journal CAS");
+        }),
+      },
     );
     return {
       decision: "metadata-prepared",
@@ -950,6 +1024,28 @@ export async function requestTrustedSemanticReview(
       transport: { cwd: directory },
     });
     checkpoint = recovered.checkpoint;
+    const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
+    if (outstanding)
+      return continueTrustedSemanticReview(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        budget,
+      );
+    if (isRecord(recovered.input.active_candidate)) {
+      const authorities = await requireControllerReleaseAuthorities("coordinator");
+      if (authorities.namespace !== namespace)
+        throw new Error("active coordinator authority namespace differs");
+      return coordinateTrustedReleaseAt(
+        directory,
+        {
+          remote_configuration: selected.remote_configuration,
+          opportunity: validateOpportunity(recovered.input.opportunity),
+          dispatch_actor_id: authorities.apps.dispatch.actor_id,
+        },
+        { directory, budget, recovered },
+      );
+    }
     const runner = createGitHubRunner({
       cwd: directory,
       timeoutMs: 15000,
@@ -974,16 +1070,6 @@ export async function requestTrustedSemanticReview(
       return value.object.sha;
     };
     const source = mainHead();
-    const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
-    if (outstanding || recovered.input.active_candidate !== null)
-      return {
-        decision: outstanding ? "review-request-retained" : "coalesced-active",
-        directory,
-        checkpoint,
-        review_request: outstanding,
-        current_main: source,
-        authority: "none",
-      };
     phase = "complete-publication-baseline-and-source";
     const inventory = createReleasePublicationReader(api);
     const tags = inventory.tags();
@@ -1077,6 +1163,13 @@ export async function requestTrustedSemanticReview(
     input.now = requestedAt;
     input.publication = { ...publication, observed_at: requestedAt };
     input.review_request = request;
+    const disposition = advanceReleaseReviewRecovery(
+      recovered.input.review_disposition,
+      request,
+      input.publication,
+    );
+    if (Object.hasOwn(input, "review_disposition") || disposition !== null)
+      input.review_disposition = disposition;
     input.controller = {
       workflow: ".github/workflows/application-update-production.yml",
       revision: reader.admitted.revision,
@@ -1113,7 +1206,12 @@ export async function requestTrustedSemanticReview(
       recovered.repository,
       checkpoint,
       selected.remote_configuration,
-      { api: createCoordinatorJournalApi(directory) },
+      {
+        api: guardedCoordinatorJournal(directory, budget, () => {
+          if (controls.readMaintenance(api).facts_sha256 !== observed.facts_sha256)
+            throw new Error("neutral request controls changed immediately before journal CAS");
+        }),
+      },
     );
     return {
       decision: "review-requested",
@@ -1133,6 +1231,144 @@ export async function requestTrustedSemanticReview(
         retained_error: error instanceof CoordinatorRemoteError ? error.evidence : null,
         automatic_retry: false,
         authority: "none",
+      },
+    );
+  }
+}
+
+/** Resolve the exact outstanding request through current authenticated controls.
+ * Accepted persisted records enter the existing coordinator using this same
+ * recovered bare repository, observer and deadline. Only genuinely missing
+ * records can take the separate negative retirement path. */
+async function continueTrustedSemanticReview(
+  directory: string,
+  remoteConfiguration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
+  let checkpoint: string = recovered.checkpoint;
+  let phase = "actual-negative-semantic-controls";
+  try {
+    const request = inspectReleaseReviewRequest(recovered.input.review_request);
+    if (!request) throw new Error("no outstanding exact semantic request to retire");
+    const runner = createGitHubRunner({
+      cwd: directory,
+      timeoutMs: 15000,
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    const api = new GitHubApiClient((args, body) =>
+      runner([...args, "--hostname", "github.com"], body),
+    );
+    const workflow = await readProductionControllerWorkflowBytes();
+    const reader = await authenticateControlReaderJob(process.env, workflow, {
+      phase: "coordinator",
+    });
+    await writeFile(
+      path.join(directory, "ready-coordinator.json"),
+      `${JSON.stringify(prepareControlReadiness(reader.identity, capacityDigest({ request, checkpoint }), "coordinator"))}\n`,
+      { flag: "wx", mode: 0o600 },
+    );
+    phase = "actual-negative-semantic-controls";
+    const artifact = await waitForControlArtifact(
+      directory,
+      "observation",
+      {
+        phase: "coordinator",
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        run_id: String(reader.admitted.run_id),
+        run_attempt: reader.admitted.run_attempt,
+      },
+      { deadline: budget.deadline },
+    );
+    const controls = await authenticateReleaseControlSource(process.env, workflow, {
+      phase: "coordinator",
+      observedArtifact: artifact,
+    });
+    const reviewed = controls.readRequest(api, request);
+    if (reviewed.classification.status === "reviewed") {
+      const authorities = await requireControllerReleaseAuthorities("coordinator");
+      if (
+        authorities.namespace !== inspectCoordinatorRemoteNamespace(remoteConfiguration) ||
+        reviewed.pause.publication_paused
+      )
+        throw new Error("accepted request authority namespace or pause differs");
+      budget.check();
+      return coordinateTrustedReleaseAt(
+        directory,
+        {
+          remote_configuration: remoteConfiguration,
+          opportunity: reviewed.classification.opportunity,
+          dispatch_actor_id: authorities.apps.dispatch.actor_id,
+        },
+        { directory, budget, recovered, admission: { workflow, reader, controls, request } },
+      );
+    }
+    const observed = controls.readDisposition(api, request);
+    if (
+      observed.pause.publication_paused ||
+      !observed.resource_policy_matches_controller ||
+      !isRecord(observed.capacity_source.capacity) ||
+      !isRecord(recovered.input.controller) ||
+      !isRecord(recovered.input.controller.capacity_attempt) ||
+      recovered.input.controller.capacity_attempt.schema_version !== 2
+    )
+      throw new Error("semantic retirement controls/capacity remain held");
+    const priorCapacity = recovered.input.controller.capacity_attempt;
+    const input = structuredClone(recovered.input);
+    input.schema_version = 2;
+    input.now = new Date().toISOString();
+    input.review_request = null;
+    input.review_disposition = createReleaseReviewDispositionReceipt(
+      observed.disposition,
+      checkpoint,
+      input.review_disposition,
+    );
+    input.controller = {
+      workflow: ".github/workflows/application-update-production.yml",
+      revision: reader.admitted.revision,
+      publication_paused: observed.pause.publication_paused,
+      capacity_attempt: {
+        ...observed.capacity_source.capacity,
+        schema_version: 2,
+        operation: structuredClone(priorCapacity.operation),
+        prior_operations: structuredClone(priorCapacity.prior_operations),
+      },
+    };
+    const fresh = controls.readDisposition(api, request);
+    const current = await readRemoteCoordinatorSnapshot(directory, remoteConfiguration, {
+      transport: { cwd: directory },
+    });
+    budget.check();
+    if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)
+      throw new Error("negative semantic/control/checkpoint identity changed before retirement");
+    phase = "durable-negative-semantic-retirement";
+    const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
+    checkpoint = saved.checkpoint;
+    await publishCoordinatorCheckpoint(recovered.repository, checkpoint, remoteConfiguration, {
+      api: guardedCoordinatorJournal(directory, budget, () => {
+        if (controls.readDisposition(api, request).facts_sha256 !== observed.facts_sha256)
+          throw new Error("semantic disposition/controls changed immediately before journal CAS");
+      }),
+    });
+    return {
+      decision: "negative-review-retired",
+      directory,
+      checkpoint,
+      review_disposition: input.review_disposition,
+      authority: "none",
+      automatic_retry: false,
+    };
+  } catch (error) {
+    throw new CoordinatorRemoteError(
+      "negative semantic retirement stopped; retain exact request/checkpoint",
+      {
+        directory,
+        checkpoint,
+        phase,
+        retained_error: error instanceof CoordinatorRemoteError ? error.evidence : null,
+        authority: "none",
+        automatic_retry: false,
       },
     );
   }
