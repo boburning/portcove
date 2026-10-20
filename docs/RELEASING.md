@@ -1622,6 +1622,20 @@ execution and post-sign qualification remain separate requirements. This
 preparation neither publishes nor turns pre-sign qualification into publication
 admission, and it cannot accept imported context or qualification JSON.
 
+The context artifact preparation additionally requires actual complete public-site
+custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
+manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact
+ordered file inventory bind the entire context. The producer rechecks the
+uploaded opaque archive against the private factory and obtains fresh signed
+payload-job identity before preparing the existing custom attestation predicate.
+The receiver invokes the pinned GitHub verifier, matches the exact source,
+run/attempt, manifest, artifact and completed numeric producer job, brackets
+provider readback, and rehashes all retained public proof and context files.
+Injected providers cannot mint a private receiver receipt. This transfers pre-sign
+context provenance only. Actual callable role orchestration, fresh role controls,
+post-sign qualification and publication admission remain separate joins; no
+workflow permissions or credential provisioning follow from this preparation.
+
 The actual `assemble-tuf` report additionally returns `publication`: root/offline
 anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
 canonical decimal-string version floors and exact expirations. These facts are

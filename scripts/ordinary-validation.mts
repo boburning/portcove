@@ -363,6 +363,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
   [
+    "scripts/release-signing-context-artifact.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
+  [
     "scripts/release-authority-configuration.mts",
     ["scripts/production-controller-admission.test.mts"],
   ],
@@ -659,6 +663,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-payload-preparation.test.mts",
   "scripts/release-signing-handoff.test.mts",
   "scripts/release-signing-context.test.mts",
+  "scripts/release-signing-context-artifact.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

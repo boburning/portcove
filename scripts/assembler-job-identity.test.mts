@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
   verifyClassificationWriterJobIdentity,
@@ -23,6 +24,67 @@ import {
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+
+void test("fixed role phase deadline caps each provider boundary and refuses expiry without another request", async (t) => {
+  const f = fixture();
+  await assert.rejects(
+    verifyAssemblerJobIdentity(f.token, expected, {
+      ...f,
+      transport: { ...f.transport, deadline: performance.now() - 1 },
+    }),
+    /phase deadline/,
+  );
+  assert.equal(f.counts().keyReads, 0);
+  assert.equal(f.counts().requests, 0);
+  const deadline = performance.now() + 1000;
+  const timeouts: number[] = [];
+  const transport = {
+    ...f.transport,
+    deadline,
+    spawn: (...args: Parameters<typeof f.transport.spawn>) => {
+      const timeout = args[2]?.timeout;
+      assert.equal(typeof timeout, "number");
+      timeouts.push(Number(timeout));
+      return f.transport.spawn(args[0], args[1], { ...args[2], timeout: 15000 });
+    },
+  };
+  const result = await verifyAssemblerJobIdentity(f.token, expected, { ...f, transport });
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.ok(timeouts.length > 1 && timeouts.every((timeout) => timeout > 0 && timeout <= 1000));
+  const late = fixture();
+  let clock = Math.floor(performance.now());
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    verifyAssemblerJobIdentity(late.token, expected, {
+      transport: { ...late.transport, deadline: clock + 1000 },
+      readKeys: async () => {
+        const result = await late.readKeys();
+        clock += 1001;
+        return result;
+      },
+    }),
+    /phase deadline/,
+  );
+  assert.equal(late.counts().requests, 0);
+  const lateApi = fixture();
+  await assert.rejects(
+    verifyAssemblerJobIdentity(lateApi.token, expected, {
+      readKeys: lateApi.readKeys,
+      transport: {
+        cwd: lateApi.transport.cwd,
+        deadline: clock + 1000,
+        spawn: (command, args, settings) => {
+          assert.ok(Number(settings.timeout) <= 1000);
+          const result = lateApi.transport.spawn(command, args, { ...settings, timeout: 15000 });
+          clock += 1001;
+          return result;
+        },
+      },
+    }),
+    /phase deadline/,
+  );
+  assert.equal(lateApi.counts().requests, 1);
+});
 void test("capacity executor roles require their exact signed job, not another trusted role or matching name", async () => {
   for (const [role, name, environment] of [
     ["coordinator", "Coordinate application release", "production-release-coordinator"],

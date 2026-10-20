@@ -15,6 +15,7 @@ import { updaterIdentity } from "./updater-artifact-inventory.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { requirePublishedCompleteSite } from "./release-site-readback.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Files = Map<string, Buffer>;
@@ -24,7 +25,7 @@ const identities = (files: Files) =>
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
 
-async function retainedFiles(directory: string) {
+export async function readBoundedReleaseContextFiles(directory: string) {
   const output: Files = new Map();
   let count = 0,
     total = 0;
@@ -143,9 +144,11 @@ export function releaseRecordManifestBytes(
 type BoundContext = {
   payload: object;
   prior: PreparedMetadataRenewal;
+  previous_site?: object;
   directory: string;
   files: { path: string; bytes: number; sha256: string }[];
   binding: {
+    version: string;
     source_commit: string;
     source_tree: string;
     run_id: string;
@@ -164,10 +167,19 @@ export async function prepareReleaseSigningContext(
   payloadReceipt: object,
   priorReceipt: PreparedMetadataRenewal,
   outputParent: string,
+  previousSite?: object,
 ) {
   // Both getters check actual private provenance before any output effect.
   const payload = await requirePreparedPayloadSignatures(payloadReceipt);
   const prior = await inspectPreparedMetadataRenewal(priorReceipt);
+  const site =
+    previousSite === undefined ? undefined : await requirePublishedCompleteSite(previousSite);
+  if (
+    site &&
+    (site.pins.root_sha256 !== prior.descriptor.root_sha256 ||
+      site.pins.repository_sha256 !== prior.descriptor.prior_repository_sha256)
+  )
+    throw new Error("complete published site and authenticated Tough prior differ");
   const publicInputs = await readVerifiedReleasePublicBuildInputFiles(
     payload.context.public_build_inputs_receipt,
   );
@@ -295,6 +307,7 @@ export async function prepareReleaseSigningContext(
   // The unchanged-renewal descriptor is not a description of this new release.
   source.delete("renewal.json");
   const binding = {
+    version: accepted.version,
     source_commit: accepted.source_commit,
     source_tree: accepted.source_tree,
     run_id: String(accepted.run_id),
@@ -338,6 +351,7 @@ export async function prepareReleaseSigningContext(
     contexts.set(receipt, {
       payload: payloadReceipt,
       prior: priorReceipt,
+      ...(previousSite === undefined ? {} : { previous_site: previousSite }),
       directory,
       files: identities(source),
       binding,
@@ -356,8 +370,15 @@ export async function requireReleaseSigningContext(receipt: object) {
   if (!bound) throw new Error("actual same-process release signing context required");
   const payload = await requirePreparedPayloadSignatures(bound.payload);
   await inspectPreparedMetadataRenewal(bound.prior);
+  const previousSite =
+    bound.previous_site === undefined
+      ? undefined
+      : await requirePublishedCompleteSite(bound.previous_site);
   await readVerifiedReleasePublicBuildInputFiles(payload.context.public_build_inputs_receipt);
-  if (digest(identities(await retainedFiles(bound.directory))) !== digest(bound.files))
+  if (
+    digest(identities(await readBoundedReleaseContextFiles(bound.directory))) !==
+    digest(bound.files)
+  )
     throw new Error("actual release signing context changed");
   return Object.freeze({
     directory: bound.directory,
@@ -368,6 +389,23 @@ export async function requireReleaseSigningContext(receipt: object) {
     opportunity: structuredClone(payload.context.facts.opportunity),
     checkpoint: payload.context.checkpoint,
     coordinator_repository: payload.context.coordinator_repository,
+    facts: structuredClone(payload.context.facts),
+    control_facts: structuredClone(payload.context.admission.controls),
+    settled_checkpoint: payload.settlement.checkpoint,
+    previous_site: previousSite,
     authority: "none" as const,
   });
+}
+
+/** Public bytes for the reviewed upload route; no credential state or private
+ * receipt is serialized. A receiver must independently authenticate attestation
+ * and provider custody before using these files. */
+export async function readReleaseSigningContextFiles(receipt: object) {
+  await requireReleaseSigningContext(receipt);
+  const bound = contexts.get(receipt);
+  if (!bound) throw new Error("actual same-process release signing context required");
+  const files = await readBoundedReleaseContextFiles(bound.directory);
+  if (digest(identities(files)) !== digest(bound.files))
+    throw new Error("actual release signing context changed during readback");
+  return files;
 }
