@@ -389,7 +389,7 @@ const capacityExecutorProfiles = Object.freeze({
   "site-publication": {
     workflow: productionControllerWorkflow,
     job: "Publish authenticated application site",
-    environment: "github-pages",
+    environment: "github-pages" as const,
   },
 });
 export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;

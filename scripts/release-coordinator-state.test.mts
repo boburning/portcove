@@ -1379,7 +1379,11 @@ for (const lost of [false, true])
       // issuer credential, GitHub request, publication or protected grant is used.
       const f = await remoteCapacityFixture(t);
       const signed = assemblerIdentityFixture(
-        { aud: "portcove-capacity-executor" },
+        {
+          aud: "portcove-capacity-executor",
+          environment: "github-pages",
+          sub: "repo:boburning@43177418/portcove@1354613114:environment:github-pages",
+        },
         {},
         { workflow: productionControllerWorkflow, job: "Publish authenticated application site" },
       );
@@ -1457,7 +1461,11 @@ for (const lost of [false, true])
       });
       const executor = await authenticateCapacityExecutor(
         "site-publication",
-        { ...identityExpected, audience: "portcove-capacity-executor" },
+        {
+          ...identityExpected,
+          audience: "portcove-capacity-executor",
+          subject: "repo:boburning@43177418/portcove@1354613114:environment:github-pages",
+        },
         f.repository,
       );
       const request = {

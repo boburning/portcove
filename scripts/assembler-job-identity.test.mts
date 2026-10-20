@@ -24,15 +24,24 @@ void test("capacity executor roles require their exact signed job, not another t
     ["release-publication", "Publish immutable application release"],
     ["site-publication", "Publish authenticated application site"],
   ] as const) {
-    const f = fixture({}, {}, { workflow: productionControllerWorkflow, job: name });
-    const actual = await verifyCapacityExecutorJobIdentity(role, f.token, expected, f);
+    const subject = controllerOidcSubject(
+      expected.controller_ref,
+      role === "site-publication" ? "github-pages" : undefined,
+    );
+    const binding = { ...expected, subject };
+    const f = fixture(
+      { sub: subject, ...(role === "site-publication" ? { environment: "github-pages" } : {}) },
+      {},
+      { workflow: productionControllerWorkflow, job: name },
+    );
+    const actual = await verifyCapacityExecutorJobIdentity(role, f.token, binding, f);
     assert.equal(actual.role, role);
     assert.equal(actual.job_id, 501);
     assert.equal(actual.evidence_scope, "injected-provider");
     const wrong = fixture();
-    await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, expected, wrong));
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, binding, wrong));
     f.faults.value = "name-only";
-    await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, expected, f));
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, binding, f));
   }
 });
 void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
