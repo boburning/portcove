@@ -1,4 +1,5 @@
 //! Read-only recognition of closed shared write scopes. Never creates or owns them.
+use crate::runtime_path_policy::require_narrow_windows_path;
 #[cfg(any(windows, test))]
 use std::fs;
 use std::path::Path;
@@ -137,27 +138,6 @@ pub(super) fn check_tree_path(
             "shared preferences require Windows",
         ))
     }
-}
-
-fn require_narrow_windows_path(path: &Path, suffix: &str) -> Result<()> {
-    let text = path.to_str().ok_or_else(|| {
-        PortcoveError::unsupported("this runtime requires a printable ASCII Windows path")
-    })?;
-    let ordinary = text.strip_prefix("\\\\?\\").unwrap_or(text);
-    let length = if text.starts_with("\\\\?\\UNC\\") {
-        ordinary.len().saturating_sub(2)
-    } else {
-        ordinary.len()
-    };
-    if ordinary.is_empty()
-        || !ordinary.bytes().all(|byte| (32..127).contains(&byte))
-        || length.saturating_add(suffix.len()) >= 260
-    {
-        return Err(PortcoveError::unsupported(
-            "this exact runtime requires printable ASCII Windows paths shorter than MAX_PATH",
-        ));
-    }
-    Ok(())
 }
 
 pub(crate) fn check_record(

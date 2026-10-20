@@ -1744,48 +1744,126 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_pins_an_unqualified_nonowning_windows_route() {
+    fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
+        assert_eq!(
+            port.windows_runtime_path_policy,
+            Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        );
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(
+            port.executable_hints[&Platform::WindowsX86_64],
+            ["FZeroSNESRecomp.exe"]
+        );
+        assert!(port.presentation.as_ref().unwrap().manual_setup.is_none());
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
-        assert!(port.persistent_paths.is_empty());
-        assert!(port.runtime_source_filename.is_none());
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "fzero.sfc",
+                "config.ini",
+                "fzero-video.ini",
+                "fzero-video.ini.tmp",
+                "keybinds.ini",
+                "rom.cfg",
+                "saves"
+            ]
+        );
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("fzero.sfc"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::Copy)
+        );
+        assert_eq!(
+            port.runtime_source_hashes["fzero.sfc"],
+            "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
+        );
         assert!(port.setup_executable_hints.is_empty());
-        assert!(port.launch_arguments.is_empty());
-        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
-        assert!(port.release.direct.is_empty());
+        assert_eq!(port.launch_arguments, ["fzero.sfc"]);
+        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert!(port.release.user_prepared.is_empty());
         assert!(port.release.asset_hints.is_empty());
-        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(
+            port.runtime_mutable_paths,
+            [
+                "diagnostics",
+                "last_run_report.json",
+                ".snesrecomp_write_probe"
+            ]
+        );
+        assert_eq!(
+            serde_json::to_value(&port.runtime_mutable_file_patterns).unwrap(),
+            serde_json::json!([
+                {"prefix": "crash_report_", "suffix": ".json"},
+                {"prefix": "crash_minidump_", "suffix": ".dmp"}
+            ])
+        );
+        let runtime = &port.release.direct[&Platform::WindowsX86_64];
         assert_eq!(runtime.version, "v1.8.3");
         assert_eq!(
-            runtime.archive_name,
-            "FZeroSNESRecomp-1.8.3-windows-x64.zip"
+            runtime.url,
+            "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip"
         );
-        assert_eq!(runtime.archive_size, 8_247_843);
+        assert_eq!(runtime.size, 8_247_843);
         assert_eq!(
-            runtime.archive_sha256,
+            runtime.sha256,
             "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
         );
-        assert_eq!(runtime.executable, "FZeroSNESRecomp.exe");
-        assert_eq!(
-            runtime.immutable_tree_sha256,
-            "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6"
-        );
-        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
-        assert!(
-            !runtime
-                .mutable_paths
-                .iter()
-                .any(|path| { path == &runtime.executable || path.starts_with("crash_report_") })
-        );
         let source_catalog = catalog.source_catalog().unwrap();
-        assert!(
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(runtime.sha256.clone()),
+            upstream_ref: Some(runtime.version.clone()),
+            contract_id: Some("f-zero-snes-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "f-zero-snes-usa".into(),
+                    variant_id: "usa".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("fzero-managed-startup-persistence-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+        let changed_check = crate::SourceEvidenceScope {
+            check_version: Some("unexecuted-check-version".into()),
+            ..scope.clone()
+        };
+        assert_eq!(
             source_catalog
-                .qualification
-                .iter()
-                .all(|record| { record.scope.port_id != "f-zero-snes-recomp" })
+                .assess_qualification(&changed_check)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        let changed_artifact = crate::SourceEvidenceScope {
+            artifact_sha256: Some("0".repeat(64)),
+            ..scope
+        };
+        assert_eq!(
+            source_catalog
+                .assess_qualification(&changed_artifact)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
         assert_eq!(profile.accepted_extensions, ["sfc"]);
@@ -2107,7 +2185,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 20);
+        assert_eq!(qualification.len(), 24);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "f-zero-snes-recomp")
+                .count(),
+            4
+        );
         assert_eq!(
             qualification
                 .iter()
@@ -2374,7 +2459,8 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 12);
+        assert_eq!(prepared.len(), 11);
+        assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
             let guide = presentation.manual_setup.as_ref().unwrap();

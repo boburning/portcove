@@ -3992,6 +3992,16 @@
               "string",
               "null"
             ]
+          },
+          "windows_runtime_path_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WindowsRuntimePathPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -5396,6 +5406,13 @@
           "mutable_paths"
         ],
         "type": "object"
+      },
+      "WindowsRuntimePathPolicy": {
+        "description": "A declared upstream limitation, checked by Core rather than left to the game.",
+        "enum": [
+          "printable-ascii-max-path"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16482,6 +16499,13 @@
           "mutable_paths"
         ],
         "type": "object"
+      },
+      "WindowsRuntimePathPolicy": {
+        "description": "A declared upstream limitation, checked by Core rather than left to the game.",
+        "enum": [
+          "printable-ascii-max-path"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16767,6 +16791,16 @@
         "type": [
           "string",
           "null"
+        ]
+      },
+      "windows_runtime_path_policy": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/WindowsRuntimePathPolicy"
+          },
+          {
+            "type": "null"
+          }
         ]
       }
     },
@@ -20857,6 +20891,16 @@
               "string",
               "null"
             ]
+          },
+          "windows_runtime_path_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WindowsRuntimePathPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -22261,6 +22305,13 @@
           "mutable_paths"
         ],
         "type": "object"
+      },
+      "WindowsRuntimePathPolicy": {
+        "description": "A declared upstream limitation, checked by Core rather than left to the game.",
+        "enum": [
+          "printable-ascii-max-path"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

@@ -208,13 +208,14 @@ impl Adapter for StandardAdapter {
         let LaunchSpecRequest {
             library,
             port,
-            platform: _,
+            platform,
             install_root,
             selected_executable,
             source,
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
                 "selected executable is not a file in the registered install",
@@ -360,6 +361,7 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
                 "selected executable is not a file in the registered install",

@@ -219,6 +219,12 @@ the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
 
+Schema 74 adds the optional retained `windows_runtime_path_policy` declaration.
+Core enforces it during managed readiness and before launch preparation; clients
+must retain Core's readiness/refusal result rather than infer that an installed
+runtime can run from every path. Staged-source template version11 is required for
+independent definitions using this policy. Operation-event schemas remain unchanged.
+
 Schema 72 adds `external.relink` and the `relink_external` activity operation.
 Read `external relink-preview PORT_ID PATH`, disclose the previous and proposed
 folders, then submit `external relink PORT_ID PATH --expected-preview SHA256 --yes`.

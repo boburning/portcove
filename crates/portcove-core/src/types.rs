@@ -507,6 +507,13 @@ pub struct PersistentFilePattern {
     pub suffix: String,
 }
 
+/// A declared upstream limitation, checked by Core rather than left to the game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WindowsRuntimePathPolicy {
+    PrintableAsciiMaxPath,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -538,6 +545,8 @@ pub struct PortDefinition {
     pub runtime_mutable_paths: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub windows_runtime_path_policy: Option<WindowsRuntimePathPolicy>,
     #[serde(default)]
     pub portable_marker: bool,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
