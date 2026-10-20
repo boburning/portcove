@@ -42,7 +42,8 @@
     "earthbound-snes-usa",
     "smb1r-world-nes",
     "dark-forces-pc-complete-installed-data",
-    "super-bomberman-snes-usa"
+    "super-bomberman-snes-usa",
+    "gundam-wing-endless-duel-snes-japan"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -88,6 +89,7 @@
     "earthbound-recomp",
     "super-mario-bros-remastered",
     "render96ex",
-    "super-bomberman-recomp"
+    "super-bomberman-recomp",
+    "gundam-wing-endless-duel-recomp"
   ]
 }

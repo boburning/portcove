@@ -25,6 +25,9 @@ mod source_build;
 #[path = "render96_build.rs"]
 mod render96;
 
+#[path = "gundam_build.rs"]
+mod gundam;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum CartridgeBuildRecipe {
@@ -38,6 +41,8 @@ pub enum CartridgeBuildRecipe {
     EarthBoundSnesSourceV1,
     #[serde(rename = "render96-us-source-48da5c491c8a")]
     Render96UsSourceV1,
+    #[serde(rename = "gundam-wing-snes-source-c7aaaa152192-japan-offline")]
+    GundamWingSnesSourceV1,
 }
 
 #[cfg(test)]
@@ -180,6 +185,7 @@ impl CartridgeBuildRecipe {
             },
             Self::AdvanceWarsGbaSourceV1
             | Self::EarthBoundSnesSourceV1
+            | Self::GundamWingSnesSourceV1
             | Self::Render96UsSourceV1 => {
                 return Err(PortcoveError::state(
                     "source-only recipe has no NES cycle facts",
@@ -192,12 +198,11 @@ impl CartridgeBuildRecipe {
         match self {
             Self::YoshisCookieNesCycle110 => vec![GAME, ENGINE, UI, TOOLCHAIN],
             Self::DrMarioNesCycle130Usa => vec![DR_MARIO_GAME, ENGINE, UI, TOOLCHAIN],
-            Self::AdvanceWarsGbaSourceV1 => source_build::SourceRecipe::AdvanceWarsUsaRev1
-                .archives()
-                .into(),
-            Self::EarthBoundSnesSourceV1 => {
-                source_build::SourceRecipe::EarthBoundUsa.archives().into()
+            Self::AdvanceWarsGbaSourceV1 => {
+                source_build::SourceRecipe::AdvanceWarsUsaRev1.archives()
             }
+            Self::EarthBoundSnesSourceV1 => source_build::SourceRecipe::EarthBoundUsa.archives(),
+            Self::GundamWingSnesSourceV1 => source_build::SourceRecipe::GundamWingJapan.archives(),
             Self::Render96UsSourceV1 => render96::archives(),
         }
     }
@@ -206,6 +211,7 @@ impl CartridgeBuildRecipe {
         match self {
             Self::AdvanceWarsGbaSourceV1 => Some(source_build::SourceRecipe::AdvanceWarsUsaRev1),
             Self::EarthBoundSnesSourceV1 => Some(source_build::SourceRecipe::EarthBoundUsa),
+            Self::GundamWingSnesSourceV1 => Some(source_build::SourceRecipe::GundamWingJapan),
             Self::YoshisCookieNesCycle110
             | Self::DrMarioNesCycle130Usa
             | Self::Render96UsSourceV1 => None,
@@ -242,6 +248,11 @@ impl CartridgeBuildRecipe {
     }
 
     pub(crate) fn temporary_bytes(self, primary_bytes: u64) -> u64 {
+        if self == Self::GundamWingSnesSourceV1 {
+            // The authenticated setup archive expands to 861 MiB in addition
+            // to the 798 MiB toolchain, SDK, archive spools and private build.
+            return primary_bytes.saturating_add(4 * 1024 * 1024 * 1024);
+        }
         primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
     }
 
@@ -251,6 +262,7 @@ impl CartridgeBuildRecipe {
             Self::DrMarioNesCycle130Usa => 7,
             Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => 9,
             Self::Render96UsSourceV1 => 13,
+            Self::GundamWingSnesSourceV1 => 14,
         }
     }
 
@@ -1369,6 +1381,7 @@ fn prepare_install_inner(
         ]),
         CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
         | CartridgeBuildRecipe::EarthBoundSnesSourceV1
+        | CartridgeBuildRecipe::GundamWingSnesSourceV1
         | CartridgeBuildRecipe::Render96UsSourceV1 => {
             return Err(PortcoveError::state(
                 "source-only recipe reached NES cycle configuration",
