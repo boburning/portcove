@@ -15,11 +15,21 @@ import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { inspectPayloadSigningRequest } from "./release-payload-signing.mts";
+import { inspectPayloadSigningRequest, signReleasePayload } from "./release-payload-signing.mts";
+import {
+  receiveControllerTools,
+  verifiedControllerToolPaths,
+} from "./release-controller-tool-admission.mts";
+import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
+import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
+import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
+import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { orderedJsonValue } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   requestAssemblerToken,
+  inspectAssemblerIdentityExpectation,
   verifyPayloadSignerJobIdentity,
 } from "./assembler-job-identity.mts";
 
@@ -252,6 +262,25 @@ export async function prepareControllerPayloadSigning(
     aggregate?: Parameters<typeof verifyUploadedAggregate>[2];
   } = {},
 ) {
+  return preparePayloadSigning(rawConfig, options);
+}
+
+type PositiveContext = Parameters<
+  NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[4]>
+>[0];
+type PreparedPayloads = {
+  requests: ReturnType<typeof inspectPayloadSigningRequest>[];
+  verification: Awaited<ReturnType<typeof verifyUploadedAggregate>>;
+};
+async function preparePayloadSigning(
+  rawConfig: unknown,
+  options: NonNullable<Parameters<typeof prepareControllerPayloadSigning>[1]>,
+  onAdmitted?: (
+    context: PositiveContext,
+    prepared: PreparedPayloads,
+    directory: string,
+  ) => Promise<void>,
+) {
   for (const key of [
     "TAURI_SIGNING_PRIVATE_KEY",
     "TAURI_SIGNING_PRIVATE_KEY_PATH",
@@ -271,12 +300,7 @@ export async function prepareControllerPayloadSigning(
   await mkdir(directory, { mode: 0o700 });
   let phase = "fresh-independent-admission";
   try {
-    let prepared:
-      | {
-          requests: ReturnType<typeof inspectPayloadSigningRequest>[];
-          verification: Awaited<ReturnType<typeof verifyUploadedAggregate>>;
-        }
-      | undefined;
+    let prepared: PreparedPayloads | undefined;
     const admission = await acquireReleaseAdmissionWithControlHandshake(
       directory,
       config.admission_configuration,
@@ -328,12 +352,26 @@ export async function prepareControllerPayloadSigning(
           { flag: "wx", mode: 0o600 },
         );
         phase = "public-key";
-        const publicPath = await assertOwnedUnlinkedPath(
-          config.projectRoot,
-          config.publicKey,
-          "independent payload public key",
+        const publicInputs = facts.public_build_inputs;
+        if (
+          !isRecord(publicInputs) ||
+          publicInputs.evidence_scope !== "github.com" ||
+          typeof publicInputs.directory !== "string"
+        )
+          throw new Error("actual admitted public build input bytes are required for signing");
+        const keyBytes = await readBounded(
+          path.join(publicInputs.directory, "windows-x86_64", "input", "updater-public.key"),
+          16 * 1024,
         );
-        const keyBytes = await readBounded(publicPath, 16 * 1024);
+        if (
+          !keyBytes.equals(
+            await readBounded(
+              path.join(publicInputs.directory, "linux-x86_64", "input", "updater-public.key"),
+              16 * 1024,
+            ),
+          )
+        )
+          throw new Error("admitted public payload keys differ across the package matrix");
         const outer = keyBytes.toString("utf8").trim();
         const key = Buffer.from(outer, "base64");
         const lines = key.toString("utf8").trimEnd().split("\n");
@@ -384,6 +422,11 @@ export async function prepareControllerPayloadSigning(
           }),
         );
       },
+      async (context) => {
+        if (!prepared || context.checkpoint !== prepared.requests[0]?.reservation_checkpoint)
+          throw new Error("private admitted payloads differ from the current reservation");
+        await onAdmitted?.(context, prepared, directory);
+      },
     );
     const admissionBytes = JSON.stringify(admission);
     if (Buffer.byteLength(admissionBytes) > 2 * 1024 ** 2)
@@ -425,19 +468,165 @@ export async function prepareControllerPayloadSigning(
   }
 }
 
-/** Future held caller: preparation is mandatory before identity/key access.
- * Current literal admission holds have no production signing continuation. */
+/** Actual positive continuation is private to this one acquisition process.
+ * Current independent holds stop it before signer identity or key delivery. */
 export async function runPayloadSigningController(
   config: unknown,
   signerExpected: Parameters<typeof verifyPayloadSignerJobIdentity>[1],
+  toolsReceipt: object,
 ) {
-  const prepared = await prepareControllerPayloadSigning(config);
-  if (prepared.holds.length) return prepared;
-  const token = await requestAssemblerToken("portcove-payload-signing");
-  await verifyPayloadSignerJobIdentity(token, signerExpected, {
-    transport: { cwd: prepared.directory },
-  });
-  throw new Error("positive payload signing controls remain unconnected; no key accessed");
+  const identityExpected = inspectAssemblerIdentityExpectation(structuredClone(signerExpected));
+  const tools = await verifiedControllerToolPaths(toolsReceipt);
+  if (
+    identityExpected.controller_revision !== tools.identity.controller_revision ||
+    identityExpected.controller_ref !== tools.identity.controller_ref ||
+    identityExpected.run_id !== tools.identity.run_id ||
+    identityExpected.run_attempt !== tools.identity.run_attempt
+  )
+    throw new Error("payload signer and verified fixed tools differ");
+  const selected = inspectPayloadPreparationConfiguration(config);
+  if (
+    selected.projectRoot !== tools.root ||
+    selected.aggregate.controller_revision !== tools.identity.controller_revision ||
+    selected.aggregate.controller_ref !== tools.identity.controller_ref ||
+    selected.aggregate.run_id !== tools.identity.run_id ||
+    selected.aggregate.run_attempt !== tools.identity.run_attempt
+  )
+    throw new Error("payload preparation and verified controller custody differ");
+  const pinned = {
+    node: { path: tools.node, sha256: hash(await readBounded(tools.node, 128 * 1024 ** 2)) },
+    tauriAddon: {
+      path: tools.tauriAddon,
+      sha256: hash(await readBounded(tools.tauriAddon, 128 * 1024 ** 2)),
+    },
+    verifier: { path: tools.rust, sha256: hash(await readBounded(tools.rust, 128 * 1024 ** 2)) },
+  };
+  let signatures: Awaited<ReturnType<typeof signReleasePayload>>[] | undefined;
+  const observation = await preparePayloadSigning(
+    selected,
+    {},
+    async (context, prepared, directory) => {
+      const token = await requestAssemblerToken("portcove-payload-signing");
+      const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
+        transport: { cwd: directory },
+      });
+      if (identity.evidence_scope !== "github.com")
+        throw new Error("actual payload signer required");
+      const admitted = context.admission.controls;
+      if (!admitted) throw new Error("actual admitted control snapshot required");
+      let round = 0;
+      const factsDigest = hash(
+        JSON.stringify(
+          orderedJsonValue({
+            checkpoint: context.checkpoint,
+            requests: prepared.requests,
+            aggregate_artifact_id: prepared.verification.artifact_id,
+            aggregate_archive_sha256: prepared.verification.sha256,
+          }),
+        ),
+      );
+      const guard = async () => {
+        await verifiedControllerToolPaths(toolsReceipt);
+        const coordinator = {
+          schema_version: 1,
+          namespace: selected.admission_configuration.namespace,
+        };
+        const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
+          transport: { cwd: directory },
+        });
+        await requireReservedAggregate(
+          JSON.stringify({
+            schema_version: 1,
+            checkpoint: context.checkpoint,
+            coordinator,
+            assembly: context.facts.assembly,
+            archives: context.facts.archives,
+            evidence: {},
+          }),
+          snapshot,
+        );
+        const source = await authenticateReleaseControlRound(
+          path.join(directory, `payload-controls-r${++round}`),
+          factsDigest,
+          "payload",
+          round,
+        );
+        const runner = createGitHubRunner({
+          cwd: directory,
+          maxBuffer: 2 * 1024 ** 2,
+          timeoutMs: 15000,
+        });
+        const api = new GitHubApiClient((args, input) =>
+          runner([...args, "--hostname", "github.com"], input),
+        );
+        let requests = 0;
+        const bound = () => {
+          if (++requests > 32) throw new Error("payload control read bound exhausted");
+        };
+        const current = source.read(
+          {
+            request(method, endpoint, body) {
+              bound();
+              if (
+                method !== "GET" ||
+                body !== undefined ||
+                !endpoint.startsWith("repos/boburning/portcove/")
+              )
+                throw new Error("payload controls permit only fixed repository reads");
+              return api.request(method, endpoint);
+            },
+            graphql(query, variables) {
+              bound();
+              if (query !== releaseControlRefQuery)
+                throw new Error("payload control query differs");
+              return api.graphql(query, variables);
+            },
+          },
+          context.facts.opportunity,
+        );
+        if (
+          current.pause.publication_paused ||
+          !current.resource_policy_matches_controller ||
+          !isDeepStrictEqual(current.classification, admitted.classification) ||
+          !isDeepStrictEqual(current.pause, admitted.pause) ||
+          !isDeepStrictEqual(current.capacity, admitted.capacity)
+        )
+          throw new Error("current payload controls differ from actual admission");
+      };
+      await guard();
+      const temporary = process.env.RUNNER_TEMP;
+      if (!temporary || !path.isAbsolute(temporary))
+        throw new Error("private runner key channel root unavailable");
+      signatures = await receiveIsolatedRoleKey(
+        path.join(temporary, "payload-role-key"),
+        "payload",
+        Date.now() + 30000,
+        async (key, password) => {
+          const results = [];
+          for (const request of prepared.requests) {
+            results.push(
+              await signReleasePayload(
+                {
+                  projectRoot: tools.root,
+                  request,
+                  payload: path.join(directory, "payloads", request.filename),
+                  publicKey: path.join(directory, "public.key"),
+                  output: path.join(directory, `signature-${request.platform_label}`),
+                  tools: pinned,
+                },
+                { beforeSign: guard, keyMaterial: async () => ({ key, password }) },
+              ),
+            );
+          }
+          await guard();
+          return results;
+        },
+      );
+    },
+  );
+  return signatures
+    ? { ...observation, decision: "signed", signatures, authority: "none" }
+    : observation;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -450,18 +639,36 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (
       !isRecord(raw) ||
       !isRecord(raw.configuration) ||
-      !isDeepStrictEqual(Object.keys(raw).sort(), ["configuration", "signer_identity"])
+      !isRecord(raw.tools) ||
+      !isRecord(raw.tools.artifact) ||
+      !isRecord(raw.tools.bundle) ||
+      !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
+      !isDeepStrictEqual(Object.keys(raw).sort(), ["configuration", "signer_identity", "tools"])
     )
       throw new Error("fixed payload caller configuration differs");
-    await runPayloadSigningController(
+    const receipt = await receiveControllerTools(
+      project,
+      raw.tools.artifact as unknown as ControllerToolArtifactExpected,
+      raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
+    );
+    const tools = await verifiedControllerToolPaths(receipt);
+    const selected = inspectPayloadPreparationConfiguration({
+      ...raw.configuration,
+      projectRoot: project,
+      output: path.join(project, "work", "payload-preparation"),
+    });
+    await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
+    const result = await runPayloadSigningController(
       {
-        ...raw.configuration,
-        projectRoot: project,
-        output: path.join(project, "work", "payload-preparation"),
+        ...selected,
+        projectRoot: tools.root,
+        output: path.join(tools.root, "work", "payload-preparation"),
+        publicKey: path.join(tools.root, "work", "admitted-public.key"),
       },
       raw.signer_identity,
+      receipt,
     );
-    process.exitCode = 2;
+    process.exitCode = result.decision === "signed" ? 0 : 2;
   } catch {
     console.error(
       "held payload signing controller refused; retain bounded public preparation evidence",

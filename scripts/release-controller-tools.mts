@@ -8,14 +8,18 @@ export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
   "release-reviewed-inputs",
+  "release-payload-preparation",
+  "release-role-key-channel",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   ".github/workflows/application-update-production.yml",
+  "release/package-policy.json",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [
     "bin/node",
     "bin/portcove-release-tools",
+    "bin/tauri-addon.node",
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...controllerToolAssets,
   ].sort(),
@@ -59,11 +63,12 @@ export function inspectControllerToolManifest(raw: unknown) {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
-      "bundler,files,node_version,platform,schema_version,source_commit,source_tree" ||
-    value.schema_version !== 1 ||
+      "bundler,files,node_version,platform,schema_version,source_commit,source_tree,tauri_cli_version" ||
+    value.schema_version !== 2 ||
     value.platform !== "linux-x86_64" ||
     value.node_version !== "24.22.0" ||
     value.bundler !== "vite-plus@1.3.0" ||
+    value.tauri_cli_version !== "2.12.2" ||
     typeof value.source_commit !== "string" ||
     !/^[a-f0-9]{40}$/.test(value.source_commit) ||
     typeof value.source_tree !== "string" ||
@@ -91,12 +96,13 @@ export function inspectControllerToolManifest(raw: unknown) {
   });
   if (total > 320 * 1024 ** 2) throw new Error("controller tool expanded bytes exceed bound");
   return {
-    schema_version: 1,
+    schema_version: 2,
     source_commit: value.source_commit,
     source_tree: value.source_tree,
     platform: "linux-x86_64",
     node_version: "24.22.0",
     bundler: "vite-plus@1.3.0",
+    tauri_cli_version: "2.12.2",
     files,
   };
 }

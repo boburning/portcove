@@ -7,16 +7,18 @@ jobs within the existing 100-minute controller ceiling and rebind the reviewed
 workflow/resource policy. No larger ceiling is introduced.
 
 The unprivileged bootstrap checks the exact clean controller commit/tree, bundles
-three existing Node CLIs with repository-pinned Vite+ 1.3.0 Pack, and builds the
+five fixed Node CLIs with repository-pinned Vite+ 1.3.0 Pack, and builds the
 maintained `portcove-release-tools` once under the existing resource supervisor.
 Cargo home/target and temporary storage are fresh. Compilation receives no role
 credentials, Node/npm hooks, shared Cargo target or candidate checkout. Only the
 fixed trusted source lockfile is installed, with hooks disabled, before this
-stage. Node 24.22.0, the Rust executable, three bundled CLI files and the fixed
-controller workflow form an exact manifest of paths, bytes and SHA-256 values.
+stage. Node 24.22.0, the Rust executable, the pinned Tauri CLI 2.12.2 native addon,
+five bundled CLI files, package policy and the fixed controller workflow form a
+schema-2 exact manifest of paths, bytes and SHA-256 values.
 
 The first entries are `production-controller-admission`, `release-control-ready`
-and `release-reviewed-inputs`. Imported modules retain their own module URLs via
+and `release-reviewed-inputs`, followed by `release-payload-preparation` and
+`release-role-key-channel`. Imported modules retain their own module URLs via
 the pinned parser's AST, so their direct-launch guards remain inactive and static
 policy paths retain their meaning. Node built-ins and a possible own bundle
 reference are the only remaining imports. Receiver-side tools need no npm install,
@@ -56,9 +58,13 @@ The separate ordinary `Controller tool build fixture` workflow now runs on
 relevant pull requests and main changes with only `contents: read`. It binds the
 actual checked-out fixture commit/tree, invokes the same fresh Cargo-home/target
 build, rechecks every tool byte, and smokes the copied Node runtime, all three
-bundled CLI refusal paths without runtime dependencies, and the actual Rust
+bundled CLI refusal paths without runtime dependencies, the Tauri version and
+supported signer/build flags, and the actual Rust
 binary's usage refusal. It retains only bounded public manifest/result JSON for
 seven days. It has no OIDC, attestation, App, role-key, environment or production
 tool-artifact route. The fifteen-minute ordinary job is separate from the held
 controller's resource allocation. Adding this workflow is not a claim that its
 hosted build has passed; that requires exact-head provider execution evidence.
+The original three-entry fixture receipt remains evidence for that earlier
+inventory. It does not qualify the expanded schema-2 inventory or the actual
+Linux role-key channel; the ordinary fixture now also runs those channel tests.

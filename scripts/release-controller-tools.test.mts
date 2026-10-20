@@ -44,7 +44,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
   );
-  assert.deepEqual((await readdir(root)).sort(), [".github", "scripts"]);
+  assert.deepEqual((await readdir(root)).sort(), [".github", "release", "scripts"]);
   for (const [name, workflow, args] of [
     ["production-controller-admission", "application-update-production.yml", []],
     ["release-reviewed-inputs", "release-reviewed-inputs.yml", ["admission"]],
@@ -112,7 +112,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     ).includes("semver"),
     true,
   );
-  assert.equal(controllerToolEntries.length, 3);
+  assert.equal(controllerToolEntries.length, 5);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
   const env = controllerBootstrapEnvironment("/owned/home", "/owned/target");
@@ -223,12 +223,13 @@ function fixture() {
     controllerToolPaths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
   );
   const manifest = {
-    schema_version: 1,
+    schema_version: 2,
     source_commit: "a".repeat(40),
     source_tree: "b".repeat(40),
     platform: "linux-x86_64",
     node_version: "24.22.0",
     bundler: "vite-plus@1.3.0",
+    tauri_cli_version: "2.12.2",
     files: [...bytes].map(([name, content]) => ({
       path: name,
       bytes: content.length,
