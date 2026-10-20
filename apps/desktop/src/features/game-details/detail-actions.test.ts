@@ -95,7 +95,7 @@ describe("detail actions", () => {
       refresh: "workspace",
       invalidateDiagnostics: false,
       context: {
-        action: "check",
+        action: "Check for game updates",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
         libraryGeneration: 9,
         exclusionScope: "target",
@@ -201,7 +201,7 @@ describe("detail actions", () => {
 
     expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function), {
       context: {
-        action: "back up data",
+        action: "Back up saved data",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
         libraryGeneration: 9,
         exclusionScope: "target",
@@ -315,7 +315,7 @@ describe("detail actions", () => {
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
       context: {
-        action: "remove",
+        action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
         libraryGeneration: 9,
         exclusionScope: "target",
@@ -414,7 +414,7 @@ describe("detail actions", () => {
 
     expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
       context: {
-        action: "remove",
+        action: "Remove installation",
         target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
         libraryGeneration: 9,
         exclusionScope: "target",
