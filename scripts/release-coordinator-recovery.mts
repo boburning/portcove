@@ -7,6 +7,11 @@ import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./g
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  withCoordinatorDeadline,
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
 const maximumResponseBytes = 256 * 1024;
@@ -378,6 +383,21 @@ export async function recoverRemoteCoordinator(
   configuration: unknown,
   options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
 ) {
+  const captured = {
+    ...options,
+    ...(options.transport ? { transport: { ...options.transport } } : {}),
+  };
+  const work = () => recoverRemoteCoordinatorWithinScope(parentDirectory, configuration, captured);
+  return captured.transport?.deadline === undefined
+    ? work()
+    : withCoordinatorDeadline(captured.transport.deadline, work);
+}
+
+async function recoverRemoteCoordinatorWithinScope(
+  parentDirectory: string,
+  configuration: unknown,
+  options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
+) {
   const snapshot = await readRemoteCoordinatorSnapshot(parentDirectory, configuration, options);
   const localRepository = await mkdtemp(
     path.join(path.resolve(parentDirectory), "coordinator-recovery-"),
@@ -400,11 +420,12 @@ export async function recoverRemoteCoordinator(
       ],
       {
         env,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(),
         maxBuffer: 128 * 1024,
         windowsHide: true,
       },
     );
+    checkCoordinatorDeadline();
     phase = "validate-and-import";
     const { importCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
     const state = await importCoordinatorCheckpoint(
@@ -412,6 +433,7 @@ export async function recoverRemoteCoordinator(
       snapshot.checkpoint,
       snapshot.objects,
     );
+    checkCoordinatorDeadline();
     return {
       ...state,
       repository: localRepository,
