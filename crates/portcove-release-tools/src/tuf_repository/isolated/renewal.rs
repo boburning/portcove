@@ -23,6 +23,72 @@ pub struct RenewalReport {
     pub authority: &'static str,
 }
 
+/// Facts derived only after this stack has authenticated the complete output.
+/// Provider/public readback and journal association remain the fixed caller's job.
+#[derive(Debug, Serialize)]
+pub struct PublicTufPublication {
+    pub schema_version: u32,
+    pub root_sha256: String,
+    pub offline_targets_sha256: String,
+    pub repository_sha256: String,
+    pub timestamp_sha256: String,
+    pub snapshot_sha256: String,
+    pub records_sha256: String,
+    pub versions: BTreeMap<String, String>,
+    pub expires: BTreeMap<String, String>,
+}
+
+pub(super) fn authenticated_publication(
+    context: &Context,
+    files: &BTreeMap<String, Vec<u8>>,
+) -> Result<PublicTufPublication, TufRepositoryError> {
+    let public: BTreeMap<_, _> = files
+        .iter()
+        .filter(|(name, _)| name.as_str() != "repository-manifest.json")
+        .map(|(name, bytes)| (name.clone(), bytes.clone()))
+        .collect();
+    let records: BTreeMap<_, _> = context
+        .targets
+        .iter()
+        .filter(|(name, _)| name.as_str() != "keys/payload.json")
+        .map(|(name, bytes)| (name.clone(), bytes.clone()))
+        .collect();
+    let names = [
+        "targets",
+        "snapshot",
+        "timestamp",
+        "releases",
+        "preview",
+        "stable",
+    ];
+    Ok(PublicTufPublication {
+        schema_version: 1,
+        root_sha256: sha256(&context.root_bytes),
+        offline_targets_sha256: sha256(&context.top_bytes),
+        repository_sha256: sha256(&canonical_bytes(serde_json::to_value(identities(
+            &public,
+        ))?)?),
+        timestamp_sha256: sha256(bytes_at(files, "metadata/timestamp.json")?),
+        snapshot_sha256: sha256(bytes_at(
+            files,
+            &format!("metadata/{}.snapshot.json", context.versions[1]),
+        )?),
+        records_sha256: sha256(&canonical_bytes(serde_json::to_value(identities(
+            &records,
+        ))?)?),
+        versions: names
+            .iter()
+            .zip(&context.versions)
+            .map(|(name, value)| ((*name).to_owned(), value.to_string()))
+            .collect(),
+        expires: names
+            .iter()
+            .zip(&context.expires)
+            .map(|(name, value)| ((*name).to_owned(), value.to_string()))
+            .collect(),
+    })
+}
+
 fn canonical_bytes(mut value: serde_json::Value) -> Result<Vec<u8>, TufRepositoryError> {
     value.sort_all_objects();
     Ok(serde_json::to_vec(&value)?)

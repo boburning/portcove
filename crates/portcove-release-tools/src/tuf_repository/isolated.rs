@@ -1027,9 +1027,19 @@ pub async fn sign_tuf_role(
 
 /// Verify every signed envelope and atomically assemble the existing repository
 /// format. This entrypoint has no private-key configuration or key-loading call.
+#[derive(Debug, Serialize)]
+pub struct KeylessAssemblyReport {
+    pub schema_version: u32,
+    pub changed: bool,
+    pub records: usize,
+    pub files: Vec<RepositoryFileIdentity>,
+    pub output: PathBuf,
+    pub publication: renewal::PublicTufPublication,
+}
+
 pub async fn assemble_tuf_repository(
     config_path: &Path,
-) -> Result<TufRepositoryReport, TufRepositoryError> {
+) -> Result<KeylessAssemblyReport, TufRepositoryError> {
     let config: AssemblyConfig = parse_file(config_path, "keyless assembly config")?;
     if config.schema_version != 1 {
         return invalid("unsupported keyless assembly schema");
@@ -1114,6 +1124,7 @@ pub async fn assemble_tuf_repository(
     write_files(staged.path(), &files)?;
     verify_history(&context, &files, &context.versions)?;
     let expected = report_files(staged.path())?;
+    let publication = renewal::authenticated_publication(&context, &files)?;
     if output.exists() {
         let mut actual_files = BTreeMap::new();
         collect_tree(&output, "", &mut actual_files)?;
@@ -1122,20 +1133,22 @@ pub async fn assemble_tuf_repository(
         if actual_files != staged_files {
             return invalid("assembled output already exists differently; never overwrite");
         }
-        return Ok(TufRepositoryReport {
+        return Ok(KeylessAssemblyReport {
             schema_version: 1,
             changed: false,
             records: context.records,
             files: expected,
             output,
+            publication,
         });
     }
     fs::rename(staged.path(), &output)?;
-    Ok(TufRepositoryReport {
+    Ok(KeylessAssemblyReport {
         schema_version: 1,
         changed: true,
         records: context.records,
         files: expected,
         output,
+        publication,
     })
 }

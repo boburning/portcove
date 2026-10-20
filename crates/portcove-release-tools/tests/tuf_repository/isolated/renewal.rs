@@ -80,6 +80,38 @@ async fn public_only_renewal_authenticates_feed_and_drives_existing_isolated_rol
     );
     let result = assemble_tuf_repository(&assembly).await.unwrap();
     assert_eq!(result.records, 2);
+    let publication = serde_json::to_value(&result.publication).unwrap();
+    assert_eq!(publication["root_sha256"], descriptor["root_sha256"]);
+    assert_eq!(
+        publication["offline_targets_sha256"],
+        descriptor["offline_targets_sha256"]
+    );
+    assert_eq!(publication["versions"], descriptor["next_versions"]);
+    assert_eq!(publication["expires"], descriptor["next_expires"]);
+    assert_eq!(
+        publication["records_sha256"],
+        descriptor["unchanged_records_sha256"]
+    );
+    assert_ne!(
+        publication["repository_sha256"],
+        descriptor["prior_repository_sha256"]
+    );
+    let inventory: Vec<_> = result
+        .files
+        .iter()
+        .filter(|file| file.path != "repository-manifest.json")
+        .map(|file| {
+            let bytes = fs::read(result.output.join(&file.path)).unwrap();
+            assert_eq!(file.sha256, sha256(&bytes));
+            json!({"path":file.path,"bytes":bytes.len(),"sha256":sha256(&bytes)})
+        })
+        .collect();
+    let mut canonical = serde_json::to_value(inventory).unwrap();
+    canonical.sort_all_objects();
+    assert_eq!(
+        publication["repository_sha256"],
+        sha256(&serde_json::to_vec(&canonical).unwrap())
+    );
     let root: tough::schema::Signed<Root> =
         serde_json::from_slice(&fs::read(fixture.root().join("trusted-root.json")).unwrap())
             .unwrap();

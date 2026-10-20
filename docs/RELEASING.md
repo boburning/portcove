@@ -1598,3 +1598,22 @@ its result. A nonce, local checkpoint, imported report or JSON receipt provides 
 credential, lease, protected execution or publication authority. Legacy schema1
 replay bytes remain unchanged; routine metadata admission uses the new explicit
 schema and authenticated published-state prerequisite.
+
+`prepareAuthenticatedMetadataRenewal` is the maintained fixed-tool adapter. The
+admitted caller supplies independently ratified executable/root hashes and the
+independently observed complete application component digest. It snapshots the
+bounded public inputs, invokes the actual copied `prepare-tuf-renewal` executable
+with a credential-free environment, then binds its verified descriptor, context
+and complete output inventory to an in-process session. Imported JSON cannot
+replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
+and tool identities before role-job or journal use. Failures retain private work;
+the adapter neither discovers keys nor grants provisioning or execution.
+
+The actual `assemble-tuf` report additionally returns `publication`: root/offline
+anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
+canonical decimal-string version floors and exact expirations. These facts are
+derived after the maintained stack verifies the assembled signatures, freshness,
+content and retained history. The fixed controller binds this actual tool output
+to the private assembly session, independently reads back the published bytes,
+then attaches the actual operation and provider/whole-site receipt for
+`recordPublishedMetadata`. An imported report alone is not publication evidence.
