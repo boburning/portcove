@@ -187,6 +187,7 @@ void test("site and release publication observation members traverse the actual 
     const f = await fixture(t, "observation", phase, { index: 1, nonce: "d".repeat(64) });
     const proof = await f.collect();
     assert.equal(proof.phase, phase);
+    assert.ok(isRecord(proof.body.producer));
     assert.equal(proof.body.producer.job_id, f.job.id);
   }
 });
