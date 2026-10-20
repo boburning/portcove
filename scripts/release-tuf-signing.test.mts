@@ -133,7 +133,7 @@ void test("role lifecycle callbacks are captured before asynchronous input acqui
   try {
     const lifecycle = {
       deadline: performance.now() + 10000,
-      beforeKey: async () => {
+      beforeKey: async (): Promise<void> => {
         guarded++;
         throw new Error("public guard refusal");
       },
