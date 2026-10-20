@@ -302,12 +302,17 @@ export type CartridgeBuildRecipe =
   | "dr-mario-nes-cycle-v1.3.0-usa"
   | "advance-wars-gba-source-cb3facb53b6b-usa-rev1"
   | "earthbound-snes-source-fe1155dc26ff-usa"
-  | "render96-us-source-48da5c491c8a";
+  | "render96-us-source-48da5c491c8a"
+  | "gundam-wing-snes-source-c7aaaa152192-japan-offline";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.
  */
 export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
+/**
+ * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
+ */
+export type RuntimeDataPolicy = "racewave46-v1.0.0-windows";
 export type RuntimeSourceMaterialization =
   "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
@@ -1298,6 +1303,7 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  runtime_data_policy?: RuntimeDataPolicy | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
   runtime_source_filename: string | null;
@@ -2071,6 +2077,7 @@ export interface InstallPlan {
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
+  preservation_notices?: string[];
   release: ResolvedRelease;
   source_requirements: InstallSourceRequirement[];
   storage: StorageSummary;

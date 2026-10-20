@@ -156,6 +156,27 @@ it("reviews without execution and submits the exact download-only plan on confir
   expect(container.textContent).not.toContain("Update downloaded for later");
 });
 
+it("shows per-version sign-in limits in update review before confirmation", async () => {
+  const notice = "Sign-in stays with each installed version and is excluded from backups.";
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    plan: { ...plan.plan, preservation_notices: [notice] },
+  });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain(notice);
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("reviews an immediate update in place and obtains new consent before keeping it for later", async () => {
   const review = vi
     .spyOn(desktopApi, "planGameUpdate")

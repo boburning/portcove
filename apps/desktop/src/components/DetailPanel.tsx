@@ -2248,6 +2248,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           )}
         </div>
       )}
+      {plan.preservation_notices?.map((notice) => (
+        <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
+          {notice}
+        </p>
+      ))}
     </div>
   );
 }

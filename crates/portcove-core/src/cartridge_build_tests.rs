@@ -40,6 +40,11 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
             source_build::tests::fixture(source_build::SourceRecipe::EarthBoundUsa),
             228_366_267,
         ),
+        (
+            CartridgeBuildRecipe::GundamWingSnesSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::GundamWingJapan),
+            467_081_447,
+        ),
     ] {
         let (version, asset) = if let Some(source) = recipe.source_recipe() {
             (source.facts().version, source.primary_asset())
@@ -104,7 +109,12 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
                 .collect::<Vec<_>>()
         );
         let space = plan.temporary_space.unwrap();
-        assert_eq!(space.required_bytes, 2_147_483_648 + primary_bytes);
+        let capacity = if recipe == CartridgeBuildRecipe::GundamWingSnesSourceV1 {
+            4_294_967_296
+        } else {
+            2_147_483_648
+        };
+        assert_eq!(space.required_bytes, capacity + primary_bytes);
         assert_eq!(space.path, plan.output_location.effective_output_directory);
         assert_eq!(space.volume_identity.as_deref(), Some("fixture-volume"));
         assert_eq!(space.sufficient, Some(false));

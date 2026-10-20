@@ -95,6 +95,30 @@ async function click(label: string) {
   await act(async () => button(label).click());
 }
 
+it("shows preservation limits before installing the reviewed release", async () => {
+  const install = vi.fn();
+  const notice = "Sign-in stays with each installed version and is excluded from backups.";
+  function PreservationReviewHarness() {
+    const [reviewed, setReviewed] = useState<InstallPlan>();
+    return (
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={reviewed}
+        install={install}
+        review={() => setReviewed({ ...plan, preservation_notices: [notice] })}
+        dismiss={() => setReviewed(undefined)}
+      />
+    );
+  }
+  await root.rerender(<PreservationReviewHarness />);
+  await click("Review installation");
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(notice);
+  expect(install).not.toHaveBeenCalled();
+  expect(button("Install ·").disabled).toBe(false);
+});
+
 async function pressEscape() {
   await act(async () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

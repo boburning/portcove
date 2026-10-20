@@ -6742,7 +6742,8 @@
           "dr-mario-nes-cycle-v1.3.0-usa",
           "advance-wars-gba-source-cb3facb53b6b-usa-rev1",
           "earthbound-snes-source-fe1155dc26ff-usa",
-          "render96-us-source-48da5c491c8a"
+          "render96-us-source-48da5c491c8a",
+          "gundam-wing-snes-source-c7aaaa152192-japan-offline"
         ],
         "type": "string"
       },
@@ -8261,6 +8262,16 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "runtime_data_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeDataPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "runtime_mutable_file_patterns": {
             "items": {
               "$ref": "#/$defs/PersistentFilePattern"
@@ -8985,6 +8996,13 @@
           "asset"
         ],
         "type": "object"
+      },
+      "RuntimeDataPolicy": {
+        "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
+        "enum": [
+          "racewave46-v1.0.0-windows"
+        ],
+        "type": "string"
       },
       "RuntimeIdentity": {
         "properties": {
