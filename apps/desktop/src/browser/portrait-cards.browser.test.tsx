@@ -163,13 +163,19 @@ it.for([
         expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
       }
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
-      const projectRows = [...document.querySelectorAll<HTMLElement>(".card-content > p[title]")];
+      const projectRows = [
+        ...document.querySelectorAll<HTMLElement>(
+          view === "library" ? ".collection-project" : ".card-content > p[title]",
+        ),
+      ];
       expect(projectRows).toHaveLength(5);
       const variants = [...document.querySelectorAll<HTMLElement>(".card-variant")];
-      expect(variants.map((variant) => variant.textContent)).toEqual([
-        "Fictional edition",
-        "Fictional prototype with a long edition label",
-      ]);
+      const variantText =
+        view === "catalog"
+          ? variants.map((variant) => variant.textContent).join(" | ")
+          : projectRows.map((row) => row.textContent).join(" | ");
+      expect(variantText).toContain("Fictional edition");
+      expect(variantText).toContain("Fictional prototype with a long edition label");
       for (const variant of variants) {
         expect(variant.scrollWidth).toBeLessThanOrEqual(variant.clientWidth + 1);
         expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
@@ -179,9 +185,18 @@ it.for([
         const alignedRows = new Map<number, number>();
         for (const row of projectRows) {
           const artworkTop = Math.round(
-            row.parentElement!.previousElementSibling!.getBoundingClientRect().top,
+            (view === "library"
+              ? row.closest("article")!
+              : row.parentElement!.previousElementSibling!
+            ).getBoundingClientRect().top,
           );
-          const projectTop = row.getBoundingClientRect().top;
+          const projectTop =
+            view === "library"
+              ? row
+                  .closest("article")!
+                  .querySelector(".collection-actions")!
+                  .getBoundingClientRect().bottom
+              : row.getBoundingClientRect().top;
           if (!alignedRows.has(artworkTop)) alignedRows.set(artworkTop, projectTop);
           alignmentErrors.push(Math.abs(projectTop - alignedRows.get(artworkTop)!));
         }
@@ -203,7 +218,10 @@ it.for([
           card.querySelector(".card-art")!.getBoundingClientRect().bottom,
         );
         expect(favorite.closest("button button")).toBeNull();
-        for (const action of card.querySelectorAll<HTMLElement>(".card-content button")) {
+        for (const action of card.querySelectorAll<HTMLElement>(
+          ".collection-actions button, .card-content button",
+        )) {
+          if (action === favorite) continue;
           const a = favorite.getBoundingClientRect();
           const b = action.getBoundingClientRect();
           expect(
@@ -231,7 +249,7 @@ it.for([
         context,
       );
       await captureTargetScreenshot(
-        document.querySelector(".card-content")!,
+        document.querySelector(view === "library" ? ".collection-identity" : ".card-content")!,
         `../../../../outputs/uiux-game-titles/ready-details-${view}-${theme}-${width}.png`,
         "ready-details",
         context,
@@ -284,14 +302,16 @@ it.for(["library", "catalog"] as const)(
       }
     }
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
-    frames[99]!
-      .nextElementSibling!.querySelector<HTMLElement>(view === "library" ? "button" : "h2")!
-      .scrollIntoView();
+    (view === "library"
+      ? frames[99]!.parentElement!.querySelector<HTMLElement>(".collection-title")!
+      : frames[99]!.nextElementSibling!.querySelector<HTMLElement>("h2")!
+    ).scrollIntoView();
     expect(window.scrollY).toBeGreaterThan(640);
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/expanded-${view}-960.png`,
     });
-    const metadata = frames[99]!.nextElementSibling!;
+    const metadata =
+      view === "library" ? frames[99]!.parentElement! : frames[99]!.nextElementSibling!;
     const complete = () =>
       captureTargetScreenshot(
         metadata,
@@ -310,13 +330,15 @@ it.for(["library", "catalog"] as const)(
         : null,
     );
     await captureTargetScreenshot(
-      metadata.querySelector("h2")!,
+      metadata.querySelector(view === "library" ? ".collection-title" : "h2")!,
       `../../../../outputs/uiux-game-titles/expanded-${view}-960-title.png`,
       "expanded-title",
       context,
     );
     await captureTargetScreenshot(
-      metadata.lastElementChild!,
+      view === "library"
+        ? metadata.closest("article")!.querySelector(".collection-actions")!
+        : metadata.lastElementChild!,
       `../../../../outputs/uiux-game-titles/expanded-${view}-960-actions.png`,
       "expanded-actions",
       context,
@@ -406,7 +428,9 @@ it.each([
     const reached = new Set<HTMLElement>([controls[0]!]);
     for (const origin of reached) for (const target of edges.get(origin) ?? []) reached.add(target);
     expect(reached.size).toBe(controls.length);
-    expect(window.scrollY).toBeGreaterThan(0);
+    // At 1280px the shorter covers may keep all controls in view.
+    // When they extend below the viewport, navigation must actually scroll.
+    expect(document.documentElement.scrollHeight <= innerHeight || window.scrollY > 0).toBe(true);
     const first = document.querySelector<HTMLElement>(
       view === "library"
         ? '[data-detail-game-id="portrait-0"]'

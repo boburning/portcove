@@ -839,7 +839,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in library All can launch`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
+  );
 }
 
 export async function preparationScenarios({
@@ -1234,11 +1237,39 @@ export async function preparationScenarios({
     assert.ok(trial, "Rendered trial-launch action must be available");
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
-    await browser.wait(
-      () => executeBrowserScript(browser, (element) => document.activeElement === element, trial),
-      5_000,
-      "Successful preparation did not hand focus to the available launch action",
-    );
+    try {
+      await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const heading = document.querySelector("[data-task-owner] h2");
+            return (
+              heading?.textContent?.trim() === "Next step" && document.activeElement === heading
+            );
+          }),
+        5_000,
+        "Unconfirmed compatibility must leave completion focus on the next-step heading",
+      );
+    } catch (error) {
+      const diagnostic = path.join(output, "preparation-completion-focus-failure.json");
+      await writeFile(
+        diagnostic,
+        JSON.stringify(
+          await executeBrowserScript(browser, () => ({
+            active: document.activeElement?.outerHTML,
+            actions: document.querySelector('[aria-label="Game actions"]')?.outerHTML,
+            overlays: [
+              ...document.querySelectorAll('[role="dialog"], [data-portcove-focus-scope]'),
+            ].map((item) => item.outerHTML),
+          })),
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(diagnostic);
+      throw error;
+    }
+
     await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
@@ -1278,6 +1309,16 @@ export async function preparationScenarios({
         const playBounds = play.getBoundingClientRect();
         const moreBounds = more.getBoundingClientRect();
         const detailsStyle = getComputedStyle(details);
+        // Cover entries use the collection's painted surface. Resolve the
+        // actual opaque ancestor instead of treating transparency as a color.
+        let painted: Element | null = element;
+        while (
+          painted &&
+          getComputedStyle(painted).backgroundColor.replace(/\s/gu, "") === "rgba(0,0,0,0)"
+        )
+          painted = painted.parentElement;
+        if (!painted || getComputedStyle(painted).backgroundImage !== "none")
+          throw new Error("Card contrast needs an identified flat painted surface");
         details.focus();
         return {
           tag: element.tagName,
@@ -1299,7 +1340,7 @@ export async function preparationScenarios({
             playBounds.right <= cardBounds.right &&
             moreBounds.right <= cardBounds.right,
           details_color: detailsStyle.color,
-          details_background: getComputedStyle(element).backgroundColor,
+          details_background: getComputedStyle(painted).backgroundColor,
           nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
             .length,
           details_focused: document.activeElement === details,
@@ -1314,9 +1355,9 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: "Jak and Daxter: The Precursor Legacy",
+      details: `Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
       details_tag: "BUTTON",
-      details_label: `View details for Jak and Daxter: The Precursor Legacy · ${port.name}`,
+      details_label: `View details for Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
       details_slot: null,
       details_variant: null,
       play: "Try launch",
@@ -1401,6 +1442,118 @@ export async function preparationScenarios({
       "Returning from overflow details must focus the originating card menu",
     );
   });
+  await scenario("native-library-layout", async () => {
+    const first = await seed("opengoal-jak1", "success");
+    const second = await seed("opengoal-jak2", "success");
+    const before = [await status(first.port.id), await status(second.port.id)];
+    const originalWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    const observations: unknown[] = [];
+    const measure = () =>
+      executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        contentWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        layout: document.querySelector(".collection-rows") ? "rows" : "covers",
+        entries: document.querySelectorAll(".collection-entry").length,
+        query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+        zoom: localStorage.getItem("portcove.appearance.interface-size"),
+        theme: document.documentElement.dataset.theme,
+      }));
+    try {
+      for (const theme of ["dark", "light"]) {
+        await shortcut("0");
+        await openUpdateTheme(browser, theme);
+        await clickVisible(
+          browser,
+          await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')),
+        );
+        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        const search = await browser.findElement(By.id("port-search"));
+        await search.clear();
+        await search.sendKeys("Jak");
+        for (const layout of ["Covers", "Compact rows"]) {
+          await clickVisible(browser, await browser.findElement(button(layout)));
+          for (const { width, height } of [
+            { width: 960, height: 640 },
+            { width: 1280, height: 800 },
+            { width: 1366, height: 768 },
+            { width: 1600, height: 1000 },
+            { width: 1920, height: 1080 },
+          ]) {
+            await browser.manage().window().setRect({ width, height });
+            const state = await measure();
+            assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
+            assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+            observations.push({ window: { width, height }, ...state });
+            const file = path.join(
+              output,
+              `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
+            );
+            await writeFile(file, await browser.takeScreenshot(), {
+              encoding: "base64",
+              flag: "wx",
+            });
+            artifacts.push(file);
+          }
+          await browser.manage().window().setRect({ width: 960, height: 640 });
+          for (const size of [125, 150, 175, 200, 250, 300, 400]) {
+            await shortcut("+");
+            await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+          }
+          await browser.wait(async () => (await measure()).zoom === "400", 10_000);
+          const enlarged = await measure();
+          assert.ok(
+            enlarged.width <= 240 && enlarged.scrollWidth <= enlarged.contentWidth + 1,
+            JSON.stringify(enlarged),
+          );
+          observations.push(enlarged);
+          const identity = await browser.findElement(
+            By.css(".collection-entry button[data-detail-game-id]"),
+          );
+          await clickVisible(browser, identity);
+          await clickVisible(
+            browser,
+            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
+          );
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => document.activeElement?.hasAttribute("data-detail-game-id") === true,
+              ),
+            5000,
+          );
+          await shortcut("-");
+          await browser.wait(async () => (await measure()).zoom === "300", 10_000);
+          const narrow = await measure();
+          assert.ok(
+            narrow.width <= 320 && narrow.scrollWidth <= narrow.contentWidth + 1,
+            JSON.stringify(narrow),
+          );
+          assert.equal(narrow.query, "Jak");
+          observations.push(narrow);
+          await shortcut("0");
+          await browser.wait(async () => (await measure()).zoom === "100", 10_000);
+        }
+        await browser.navigate().refresh();
+        await browser.wait(until.elementLocated(By.css(".collection-rows")), 15_000);
+        assert.equal((await measure()).query, "Jak");
+      }
+      for (const [index, port] of [first.port, second.port].entries()) {
+        assert.deepEqual((await status(port.id)).active, before[index]!.active);
+      }
+      const file = path.join(output, "native-library-layout-observations.json");
+      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    } finally {
+      await shortcut("0");
+      await browser.manage().window().setRect(originalWindow);
+    }
+  });
   await scenario("native-ready-detail-composition", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const readyStatus = await status(port.id);
@@ -1483,9 +1636,9 @@ export async function preparationScenarios({
           assert.match(required(hierarchy.state), /Ready to play/);
           assert.deepEqual(hierarchy.groups, [
             "Status and actions",
+            "Updates",
             "Requirements",
             "Installation and version",
-            "Updates",
             "Saves and storage",
             "Compatibility and testing",
             "Project and release",
@@ -2719,7 +2872,9 @@ export async function preparationScenarios({
     await browser.findElement(card).click();
     await clickVisible(
       browser,
-      await browser.findElement(By.css("details.advanced-settings > summary")),
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+      ),
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
@@ -2827,7 +2982,9 @@ export async function preparationScenarios({
       await browser.findElement(card).click();
       await clickVisible(
         browser,
-        await browser.findElement(By.css("details.advanced-settings > summary")),
+        await browser.findElement(
+          By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+        ),
       );
       const channel = await browser.findElement(
         By.css('section[aria-label="Game release channel"]'),

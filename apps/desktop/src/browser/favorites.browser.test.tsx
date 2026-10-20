@@ -205,5 +205,5 @@ it("keeps focus on a failed retry and uses the empty Library action after succes
   await expect.poll(() => document.activeElement?.textContent).toBe("Retry favorites");
   await userEvent.click(retry);
   await expect.element(retry).not.toBeInTheDocument();
-  await expect.poll(() => document.activeElement?.textContent).toMatch(/Browse port catalog/);
+  await expect.poll(() => document.activeElement?.textContent).toBe("Add games");
 });

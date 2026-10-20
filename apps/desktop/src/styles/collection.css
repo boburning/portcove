@@ -1,0 +1,88 @@
+@layer components {
+  .collection-covers {
+    --collection-card-min: 11rem;
+    --collection-card-max: 13.75rem;
+    grid-template-columns: repeat(
+      auto-fill,
+      minmax(min(100%, var(--collection-card-min)), var(--collection-card-max))
+    );
+    align-items: stretch;
+  }
+
+  .collection-cover {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .collection-identity {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    align-content: start;
+    border-radius: var(--radius-md);
+  }
+
+  .collection-art {
+    width: min(100%, var(--collection-art-width, 100%));
+    aspect-ratio: 2 / 3;
+    margin-inline: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .collection-title {
+    margin-block-start: var(--space-2);
+  }
+  .collection-project {
+    margin-block-start: var(--space-1);
+  }
+  .collection-rows {
+    max-width: 64rem;
+  }
+
+  .collection-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(9rem, 1fr) auto;
+    gap: var(--space-4);
+    align-items: center;
+    padding-block: var(--space-2);
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  .collection-row .collection-identity {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    column-gap: var(--space-3);
+    align-content: center;
+  }
+  .collection-row .collection-art {
+    grid-row: span 2;
+  }
+  .collection-row .collection-title {
+    margin-block-start: 0;
+    align-self: end;
+  }
+  .collection-row .collection-project {
+    align-self: start;
+  }
+  @media (max-height: 44rem) {
+    .collection-covers {
+      --collection-card-min: 9rem;
+      --collection-card-max: 11rem;
+      --collection-art-width: 7rem;
+    }
+  }
+
+  @media (max-width: 48rem) {
+    .collection-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: var(--space-2);
+    }
+    .collection-row .collection-state {
+      padding-inline-start: min(3.75rem, 20%);
+    }
+    .collection-row .collection-actions {
+      justify-content: end;
+    }
+  }
+}

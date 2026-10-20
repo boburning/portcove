@@ -91,20 +91,23 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
         </DialogTitle>
         <DialogDescription id="import-library-description" className="mb-4 leading-relaxed">
           You need a library metadata file and a separate copy of the original library folder.
-          Restore into a new or empty library. Portcove checks this destination and the copy during
-          review before changing files, then opens the restored library. The originals stay where
-          they are.
+          Restore into a new or empty library. Review the destination and copied files first.
+          Portcove copies and verifies the restored content before opening the library. A review
+          alone does not verify a complete recovery copy. The originals stay where they are.
         </DialogDescription>
         <p>
           <strong>Use an export you trust.</strong> Review its source, destination, required space,
           installed versions, saved file locations, and copied files before restoring it.
         </p>
-        <p>
-          Destination: <code>{libraryRoot}</code>
+        <p className="min-w-0 [overflow-wrap:anywhere]">
+          Destination:{" "}
+          <bdi dir="ltr">
+            <code>{libraryRoot}</code>
+          </bdi>
         </p>
         <NavigationHints />
         <label htmlFor="import-metadata">Library metadata file</label>
-        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+        <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             data-autofocus
             data-focusable
@@ -129,7 +132,7 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           </Button>
         </div>
         <label htmlFor="import-content">Copy of the original library folder</label>
-        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+        <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             data-focusable
             id="import-content"

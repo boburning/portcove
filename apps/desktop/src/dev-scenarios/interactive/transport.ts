@@ -13,6 +13,7 @@ import {
 } from "./scenarios";
 import type { ArtworkSlot, OperationEvent, ApplicationUpdateCheckPhase } from "../../types";
 import type { desktopApi } from "../../api";
+import { collectionArtwork } from "./collection-artwork";
 
 export const recoveryKey = "portcove.interactive.fixture-recovery";
 export function installInteractiveTransport(journey: Journey, refuse: (message: string) => void) {
@@ -228,7 +229,9 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_doctor_report: (args) => {
       requireArgs("get_doctor_report", args, { generation });
-      return doctor;
+      return journey === "collection"
+        ? { ...doctor, catalog_port_count: 12, installed_port_count: 12 }
+        : doctor;
     },
     get_activities: (args) => {
       requireArgs("get_activities", args, {});
@@ -347,7 +350,49 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       )
         return unsupported("get_artwork");
       requireArgs("get_artwork", args, { portId: args?.portId, slot: args?.slot, generation });
-      return artworkState(String(args?.portId), args?.slot as ArtworkSlot);
+      const id = String(args?.portId);
+      const state = artworkState(
+        id,
+        args?.slot as ArtworkSlot,
+        0,
+        journey === "collection" && id !== "collection-4",
+      );
+      if (journey === "collection") {
+        const port = workspace(journey).catalog.ports.find((port) => port.id === id)!;
+        state.generated_fallback.initials =
+          port.presentation?.original_game_title?.slice(0, 2).toUpperCase() ?? "PC";
+        state.generated_fallback.palette_index = Number(id.split("-")[1]) % 6;
+        if (state.selection) {
+          const index = Number(id.split("-")[1]) % 3;
+          const identity = String(index + 1).repeat(64);
+          state.choice.asset_sha256 = identity;
+          state.selection.sha256 = identity;
+          state.selection.original_name = "simulated-geometric-artwork.png";
+          state.selection.width = [120, 180, 120][index]!;
+          state.selection.height = [180, 100, 120][index]!;
+          state.resolved_source = { kind: "local_import", asset_sha256: identity };
+        }
+      }
+      return state;
+    },
+    get_artwork_thumbnail: (args) => {
+      if (
+        journey !== "collection" ||
+        !workspace(journey).catalog.ports.some((port) => port.id === args?.portId)
+      )
+        return unsupported("get_artwork_thumbnail");
+      requireArgs("get_artwork_thumbnail", args, {
+        portId: args?.portId,
+        slot: args?.slot,
+        expectedRevision: 0,
+        generation,
+      });
+      const index = Number(String(args?.portId).split("-")[1]) % 3;
+      return {
+        asset_sha256: String(index + 1).repeat(64),
+        choice_revision: 0,
+        png_base64: collectionArtwork[index]!,
+      };
     },
     plan_preparation: (args) => {
       requireArgs("plan_preparation", args, { portId: "sample", generation });

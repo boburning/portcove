@@ -94,7 +94,6 @@ const assembleSection = job("assemble");
 const rehearseSection = job("rehearse");
 const attestSection = job("attest");
 const publishSection = job("publish");
-const cleanupSection = job("cleanup");
 
 function inlineRunScript(name: string, stepName: string) {
   const step = steps(name).find((step) => step.name === stepName);
@@ -140,7 +139,7 @@ function assertWriteAuthority(data: typeof workflowData) {
     "id-token": "write",
   });
   assert.deepEqual(data.jobs.publish?.permissions, { contents: "write" });
-  assert.deepEqual(data.jobs.cleanup?.permissions, { actions: "write" });
+  assert.equal(data.jobs.cleanup, undefined);
   assert.equal(
     Object.values(data.jobs).filter(
       (job) => isRecord(job.permissions) && job.permissions.contents === "write",
@@ -149,7 +148,7 @@ function assertWriteAuthority(data: typeof workflowData) {
   );
 }
 
-void test("write authority is split across isolated attestation publication and cleanup jobs", () => {
+void test("write authority is split across isolated attestation and publication jobs", () => {
   assertWriteAuthority(workflowData);
   assert.doesNotMatch(attestSection, /actions\/checkout|run:/);
   assert.doesNotMatch(publishSection, /actions\/checkout|setup-node|node scripts/);
@@ -199,22 +198,22 @@ void test("every builder uploads only the staged checksummed payload with short 
     assert.match(buildSection, new RegExp(`label: ${label}`));
   assert.match(intelBuildSection, /--label macos-x86_64/);
   artifact("build", "upload-artifact", {
-    name: "release-build-${{ matrix.label }}",
+    name: "release-build-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}",
     path: "release-upload/**",
-    "retention-days": 1,
-    overwrite: true,
+    "retention-days": 7,
+    overwrite: false,
   });
   artifact("build_intel", "upload-artifact", {
-    name: "release-build-macos-x86_64",
-    "retention-days": 1,
-    overwrite: true,
+    name: "release-build-macos-x86_64-${{ github.run_id }}-${{ github.run_attempt }}",
+    "retention-days": 7,
+    overwrite: false,
   });
   assert.match(buildSection, /--stage-dir release-upload/);
   assert.match(buildSection, /path: release-upload\/\*\*/);
-  assert.match(buildSection, /retention-days: 1/);
-  assert.match(buildSection, /overwrite: true/);
-  assert.match(intelBuildSection, /retention-days: 1/);
-  assert.match(intelBuildSection, /overwrite: true/);
+  assert.match(buildSection, /retention-days: 7/);
+  assert.match(buildSection, /overwrite: false/);
+  assert.match(intelBuildSection, /retention-days: 7/);
+  assert.match(intelBuildSection, /overwrite: false/);
   assert.match(buildSection, /--run-id "\$\{\{ github\.run_id \}\}"/);
   assert.match(buildSection, /--revision "\$\{\{ github\.sha \}\}"/);
   assert.doesNotMatch(buildSection, /target\/release\/bundle\/\*\*/);
@@ -257,7 +256,9 @@ void test("supplemental CLI smoke source guard excludes shell-based launcher det
 
 void test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
   needs("assemble", ["release_gate"]);
-  artifact("assemble", "download-artifact", { pattern: "release-build-*" });
+  artifact("assemble", "download-artifact", {
+    pattern: "release-build-*-${{ github.run_id }}-${{ github.run_attempt }}",
+  });
   const reconcile = assembleSection.indexOf("reconcile-release-assets.mts");
   const sbom = assembleSection.indexOf("anchore/sbom-action@");
   const finalize = assembleSection.indexOf("finalize-release-assets.mts");
@@ -311,8 +312,12 @@ void test("tag releases attest exact final bytes and the SBOM before draft mutat
 
 void test("publisher mutates drafts only from precomputed metadata and attested assets", () => {
   assert.equal(workflowData.jobs.publish?.if, "github.event_name == 'push'");
-  artifact("publish", "download-artifact", { name: "release-final" });
-  artifact("publish", "download-artifact", { name: "release-publication-metadata" });
+  artifact("publish", "download-artifact", {
+    name: "release-final-${{ github.run_id }}-${{ github.run_attempt }}",
+  });
+  artifact("publish", "download-artifact", {
+    name: "release-publication-metadata-${{ github.run_id }}-${{ github.run_attempt }}",
+  });
   assert.match(publishSection, /Refusing to modify non-draft release/);
   assert.match(
     publishSection,
@@ -704,14 +709,12 @@ void test(
   },
 );
 
-void test("cleanup deletes transient artifacts only after successful rehearsal or publication", () => {
-  assert.match(cleanupSection, /always\(\).*needs\.assemble\.result == 'success'/);
-  assert.match(cleanupSection, /needs\.rehearse\.result == 'success'/);
-  assert.match(cleanupSection, /needs\.publish\.result == 'success'/);
-  assert.match(cleanupSection, /release-build-/);
-  assert.match(cleanupSection, /release-final/);
-  assert.match(cleanupSection, /release-attestation-metadata/);
-  assert.match(cleanupSection, /release-publication-metadata/);
+void test("assembly and draft publication retain custody until downstream handoff or expiry", () => {
+  assert.equal(workflowData.jobs.cleanup, undefined);
+  assert.doesNotMatch(
+    workflow,
+    /actions: write|actions\/artifacts\/.*artifact_id|Delete verified transient artifacts/,
+  );
 });
 
 void test("release job semantics survive YAML key and job reordering", () => {
@@ -740,11 +743,13 @@ void test("release job semantics survive YAML key and job reordering", () => {
     ["assemble", "attest", "authorize_publication"],
     parsedWorkflow(stringify(reordered, { indent: 4 })),
   );
-  const expectedArtifact = { name: "release-final" };
+  const expectedArtifact = { name: "release-final-${{ github.run_id }}-${{ github.run_attempt }}" };
   artifact("publish", "download-artifact", expectedArtifact, parsedWorkflow(stringify(reordered)));
   const wrongArtifact = structuredClone(reordered);
   const download = steps("publish", wrongArtifact).find(
-    (step) => isRecord(step.with) && step.with.name === "release-final",
+    (step) =>
+      isRecord(step.with) &&
+      step.with.name === "release-final-${{ github.run_id }}-${{ github.run_attempt }}",
   )!;
   download.with = { name: "foreign-final" };
   assert.throws(() =>

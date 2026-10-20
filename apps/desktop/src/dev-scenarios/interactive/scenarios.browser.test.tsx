@@ -48,7 +48,7 @@ async function click(label: string) {
 
 it("opens actual game details, returns to Library and resets the selected journey", async () => {
   await mount("library");
-  await click("View details for Harbor Adventure");
+  await click("View details for Harbor Adventure Port: Harbor Adventure");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).not.toBeNull();
   await click("Back to previous workspace");
@@ -246,7 +246,11 @@ it.each([
       const box = frame.getBoundingClientRect();
       expect(box.height / box.width).toBeCloseTo(1.5, 1);
     }
-    expect(grid.getBoundingClientRect().width).toBeLessThanOrEqual(1064);
+    // Columns derive from usable space; the former five-column reference was
+    // not a fixed collection width. Cover size remains bounded independently.
+    const cover = frames[0]!.getBoundingClientRect();
+    expect(cover.width).toBeLessThanOrEqual(height <= 704 ? 112 : 220);
+    expect(grid.getBoundingClientRect().right).toBeLessThanOrEqual(width);
     expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
   },
 );
@@ -269,7 +273,7 @@ it.each(["game", "bios"] as const)(
     };
     vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
     await mount("setup");
-    await click("View details for Harbor Adventure");
+    await click("View details for Harbor Adventure Port: Harbor Adventure");
     const inspect = vi
       .spyOn(desktopApi, "inspectSourceIntake")
       .mockRejectedValue(new Error("Check fixture"));
@@ -291,7 +295,7 @@ it.each(["game", "bios"] as const)(
 
 it("reviews preparation, preserves progress until cancellation, and shows controlled failure", async () => {
   await mount("setup");
-  await click("View details for Harbor Adventure");
+  await click("View details for Harbor Adventure Port: Harbor Adventure");
   await click("Review game preparation");
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain("fixture/owned.iso");
   await click("Prepare game data");

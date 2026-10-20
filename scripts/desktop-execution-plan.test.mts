@@ -299,6 +299,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
             "native-interface-size",
+            "native-library-layout",
           ].includes(id),
       ),
     });

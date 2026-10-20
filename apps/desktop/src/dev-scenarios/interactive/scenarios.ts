@@ -6,10 +6,13 @@ import type {
   InstallRecord,
   PreparationPlan,
   WorkspaceSnapshot,
+  PortDefinition,
+  PortStatus,
 } from "../../types";
 
 export const journeys = [
   { id: "library", label: "Interactive Library" },
+  { id: "collection", label: "Mixed collection · simulated content" },
   { id: "setup", label: "Interactive preparation" },
   { id: "recovery", label: "Interactive startup recovery" },
 ] as const;
@@ -81,27 +84,64 @@ export function workspace(journey: Journey): WorkspaceSnapshot {
       ? { adapter: "upstream-managed-setup" as const, setup_output_paths: ["game.dat"] }
       : {}),
   };
-  const ports = [
+  const ordinaryPorts = [
     sample,
     { ...portDefinition(), id: "orchard", name: "Orchard Quest" },
     { ...portDefinition(), id: "summit", name: "Summit Racer" },
   ];
+  const ports =
+    journey === "collection"
+      ? Array.from({ length: 12 }, (_, index): PortDefinition => ({
+          ...portDefinition(),
+          id: `collection-${index}`,
+          name:
+            index === 0
+              ? "sm64-port"
+              : index === 1
+                ? "Mario modern port"
+                : `Harbor desktop port ${index + 1}`,
+          presentation: {
+            installation_method: "portable-package",
+            saves_and_settings: "portcove-managed",
+            source_requirements: [],
+            ...portDefinition().presentation,
+            original_game_title:
+              index < 2
+                ? "Super Mario 64"
+                : index === 2
+                  ? "Harbor Adventure: The Very Long Voyage Beyond the Northern Sea — Complete Edition"
+                  : ["Orchard Quest", "Summit Racer", "Moonlit Harbor", "The Last Station"][
+                      index % 4
+                    ]!,
+            variant_label: index === 1 ? "Modern renderer" : null,
+          },
+        }))
+      : ordinaryPorts;
   return {
     catalog: { schema_version: 1, ports, source_profiles: [] },
-    statuses: ports.map((port) => ({
+    statuses: ports.map((port): PortStatus => ({
       ...portStatus(),
       port_id: port.id,
       active:
-        port.id === "sample"
-          ? install
-          : port.id === "orchard"
-            ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
-            : null,
+        journey === "collection"
+          ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
+          : port.id === "sample"
+            ? install
+            : port.id === "orchard"
+              ? { ...install, port_id: port.id, id: `fixture-${port.id}` }
+              : null,
       readiness: {
-        launchable: port.id !== "summit" && (journey !== "setup" || port.id !== "sample"),
+        launchable:
+          port.id !== "collection-4" &&
+          port.id !== "summit" &&
+          (journey !== "setup" || port.id !== "sample"),
         pending_setup: journey === "setup" && port.id === "sample",
-        blockers: [],
+        blockers: port.id === "collection-4" ? ["missing_source"] : [],
+        ...(port.id === "collection-4" ? { source: "missing" as const } : {}),
       },
+      ...(journey === "collection" && port.id === "collection-3"
+        ? { staged: { ...install, id: "fixture-staged", port_id: port.id, staged: true } }
+        : {}),
     })),
     sources: [],
     activities,

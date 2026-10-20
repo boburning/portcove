@@ -1,5 +1,6 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
-import { gameTitle, gameProjectLabel } from "../port-identity";
+import { usePreparationCompletionFocus } from "../features/preparation/use-preparation-completion-focus";
+import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
@@ -79,7 +80,6 @@ import {
   presentPortAction,
   useOperationPresentation,
 } from "../features/operations/operation-presentation";
-import { focusAndReveal, navigationScope } from "../focus";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -544,6 +544,20 @@ function DetailBody({
           />
         </div>
       </div>
+      {installed && !external && (
+        <UpdatesGroup
+          perform={perform}
+          port={port}
+          status={status}
+          installed={installed}
+          deferSetupChoices={deferSetupChoices}
+          selectedChannel={selectedChannel}
+          policy={policy}
+          libraryGeneration={libraryGeneration}
+          busy={busy}
+          actions={actions}
+        />
+      )}
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
@@ -570,7 +584,7 @@ function DetailBody({
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
         </DetailGroup>
       )}
-      {!external && (
+      {!installed && !external && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -682,6 +696,12 @@ function StatusActionsGroup({
 }) {
   const gameActions = useRef<HTMLElement>(null);
   const nextStep = useRef<HTMLHeadingElement>(null);
+  const preparedFocus = usePreparationCompletionFocus({
+    owner: gameActions,
+    nextStep,
+    identity: `${port.id}:${libraryGeneration}`,
+    busy: Boolean(busy),
+  });
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   const trial =
     hasUnconfirmedLaunchInput(status, port) ||
@@ -783,30 +803,10 @@ function StatusActionsGroup({
             generation={libraryGeneration}
             disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
             run={prepare}
-            onPrepared={() => {
-              const owner = gameActions.current;
-              const identity = `${port.id}:${libraryGeneration}`;
-              requestAnimationFrame(() => {
-                const active = document.activeElement;
-                if (
-                  !owner?.isConnected ||
-                  gameActions.current !== owner ||
-                  owner.dataset.taskOwner !== identity ||
-                  navigationScope() !== document ||
-                  (active !== document.body &&
-                    active !== nextStep.current &&
-                    active !== owner.querySelector("[data-launch-action]"))
-                )
-                  return;
-                focusAndReveal(
-                  owner.querySelector<HTMLElement>("[data-launch-action]:not(:disabled)") ??
-                    nextStep.current,
-                );
-              });
-            }}
+            onPrepared={preparedFocus}
             focusFallback={() =>
               gameActions.current?.querySelector<HTMLElement>(
-                "[data-launch-action]:not(:disabled)",
+                "[data-confirmed-play]:not(:disabled)",
               ) ?? nextStep.current
             }
           />
@@ -936,13 +936,6 @@ function UpdatesGroup({
   );
   return (
     <DetailGroup title="Updates">
-      <FutureSetupDisclosure
-        deferred={deferSetupChoices}
-        title="Release and update choices for later"
-        description="Game files are still required before installation. These choices apply to a future managed install."
-      >
-        {preferences}
-      </FutureSetupDisclosure>
       {status?.staged && (
         <section aria-label="Use update saved for later">
           <p>
@@ -958,12 +951,24 @@ function UpdatesGroup({
             portId={port.id}
             generation={libraryGeneration}
             policy={policy}
+            gameName={gameIdentityLabel(port)}
             busy={Boolean(busy)}
             perform={perform}
           />
           <UpdateCheckAction busy={busy} check={actions.check} />
         </>
       )}
+      <details className="mt-4">
+        <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+          Future update preferences
+        </summary>
+        <p className="text-xs text-pc-muted-foreground">
+          {deferSetupChoices ? "Game files are still required before installation. " : ""}
+          These choices apply to future checks and managed updates. Saving them does not run an
+          update.
+        </p>
+        {preferences}
+      </details>
     </DetailGroup>
   );
 }
@@ -1897,6 +1902,7 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
+        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
         className="wide flex-1"
         variant="primary"
         size="lg"
@@ -2255,10 +2261,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       ))}
       {plan.shared_preferences && (
         <p className="col-span-full text-[length:var(--text-sm)]">
-          ReGaiden can rewrite shared preferences at {plan.shared_preferences.binding.path} and
-          affect other copies in this Windows account. Portcove does not own or back up that shared
-          file. Its local fallback at {plan.shared_preferences.local_fallback_path} is managed with
-          this installation. The Windows confirmation will ask you to accept this scope before
+          ReGaiden can rewrite shared preferences at{" "}
+          <bdi dir="ltr">{plan.shared_preferences.binding.path}</bdi> and affect other copies in
+          this Windows account. Portcove does not own or back up that shared file. Its local
+          fallback at <bdi dir="ltr">{plan.shared_preferences.local_fallback_path}</bdi> is managed
+          with this installation. The Windows confirmation will ask you to accept this scope before
           installing.
         </p>
       )}

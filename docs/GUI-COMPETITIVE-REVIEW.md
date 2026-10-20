@@ -1,5 +1,14 @@
 # GUI competitive review
 
+> Current-contract note — 20 October 2026: this is the retained September 1
+> assessment. Its implemented-polish list records that historical baseline,
+> including the former slash shortcut and Update Center wording. Current search
+> uses Ctrl/Command+F in its searchable view; Ctrl/Command+K opens the palette.
+> Library / Find games / Activity / Settings and current component behavior are
+> specified in [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) and
+> [the approved implementation contract](UI-UX-IMPLEMENTATION.md). Historical
+> observations below are preserved, not instructions to restore retired behavior.
+
 This review captures the 2026-09-01 product baseline for Portcove's desktop experience. It uses the direct upstreams at the following inspected commits rather than screenshots or claims copied through a third-party catalog:
 
 - [GithubLauncher](https://github.com/SirDiabo/GithubLauncher) at `6e62a967cb37a2106b0420dc47375ee83cac41d3`

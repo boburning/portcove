@@ -3,7 +3,16 @@ import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity
 import { cn } from "cn";
 import { Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
-import { useState, useRef, useEffect, useId, type Dispatch, type SetStateAction } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useId,
+  type Dispatch,
+  type SetStateAction,
+  type ReactNode,
+} from "react";
+import type { CollectionLayout } from "../features/browsing/use-collection-layout";
 import {
   ArrowRight,
   Boxes,
@@ -41,7 +50,8 @@ import {
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
-import { ArtworkImage } from "./Artwork";
+import { ArtworkImage, ArtworkFrame, artworkDisplayNotice } from "./Artwork";
+import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
@@ -90,7 +100,13 @@ export function PortBrowser({
   clearFilters,
   loading,
   nativeSourceDrag = { active: false, pathCount: 0 },
+  collectionLayout = "covers",
+  setCollectionLayout,
+  collectionLayoutFailure,
 }: {
+  collectionLayout?: CollectionLayout;
+  setCollectionLayout?: ((layout: CollectionLayout) => void) | undefined;
+  collectionLayoutFailure?: "read" | "write" | undefined;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   view: View;
   ports: PortDefinition[];
@@ -204,6 +220,10 @@ export function PortBrowser({
   const visiblePorts = favorites?.only
     ? ports.filter((port) => favorites.ids?.has(port.id))
     : ports;
+  const resultCount =
+    view === "library"
+      ? `${visiblePorts.length} library ${visiblePorts.length === 1 ? "entry" : "entries"}`
+      : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`;
   const reset = () => {
     const owner = browserOwner.current;
     const origin = document.activeElement;
@@ -345,10 +365,14 @@ export function PortBrowser({
             Clear search and filters
           </Button>
         )}
-        <span className="ml-auto text-xs text-pc-muted-foreground" aria-hidden="true">
-          {resultsUnavailable
-            ? "Ports unavailable"
-            : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
+        <span
+          className={cn(
+            "ml-auto text-xs text-pc-muted-foreground",
+            view === "library" && "sr-only",
+          )}
+          aria-hidden="true"
+        >
+          {resultsUnavailable ? "Ports unavailable" : resultCount}
         </span>
       </div>
     );
@@ -382,13 +406,51 @@ export function PortBrowser({
           ? "Your library is empty."
           : resultsUnavailable
             ? "Search results unavailable"
-            : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
+            : resultCount}
       </p>
       {renderDropAnnouncement()}
       {renderConnectPrompt()}
       {renderContinue()}
-      {renderLibrarySummary()}
-      {renderSteamBatch()}
+      {view === "library" && (
+        <div
+          className="collection-tools mb-4 flex flex-wrap items-end justify-end gap-3"
+          data-focus-group
+        >
+          {renderLibrarySummary()}
+          {onBrowseCatalog && overview.installed > 0 && (
+            <Button
+              data-focusable
+              data-add-games-trigger
+              variant="outline"
+              onClick={onBrowseCatalog}
+            >
+              Add games
+            </Button>
+          )}
+          {setCollectionLayout && (
+            <div role="group" aria-label="Collection view" className="flex flex-wrap gap-1">
+              {(["covers", "rows"] as const).map((layout) => (
+                <Button
+                  key={layout}
+                  variant={collectionLayout === layout ? "selected" : "outline"}
+                  aria-pressed={collectionLayout === layout}
+                  data-focusable
+                  onClick={() => setCollectionLayout(layout)}
+                >
+                  {layout === "covers" ? "Covers" : "Compact rows"}
+                </Button>
+              ))}
+            </div>
+          )}
+          {collectionLayoutFailure && (
+            <p role="status" className="basis-full text-end text-xs text-pc-muted-foreground">
+              {collectionLayoutFailure === "read"
+                ? "The saved collection view could not be read. Covers are shown."
+                : "This collection view is available for this session; it could not be saved."}
+            </p>
+          )}
+        </div>
+      )}
       {renderFavoritesFailure()}
       {unresolvedReadiness && (
         <p role="alert" className="mb-3 text-sm text-pc-muted-foreground">
@@ -408,8 +470,10 @@ export function PortBrowser({
         {renderFilters()}
         {renderDeclaredFilters()}
         {renderSort()}
+        {renderSteamBatch()}
       </div>
       <BrowserResults
+        layout={view === "library" ? collectionLayout : "covers"}
         view={view}
         ports={visiblePorts}
         favorites={favorites}
@@ -479,12 +543,16 @@ function SteamBatchLibraryAction({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div className="mb-4 flex justify-end">
+      <details className="text-xs text-pc-muted-foreground">
+        <summary data-focusable className="cursor-pointer py-2">
+          Integrations
+        </summary>
+        <p>Choose library entries to add to Steam. This does not install or launch a game.</p>
         <Button data-focusable variant="outline" onClick={() => setOpen(true)}>
           <Icon glyph={Gamepad2} />
-          Add selected games to Steam
+          Choose games for Steam…
         </Button>
-      </div>
+      </details>
       {open && (
         <SteamBatchEntryDialog ports={ports} generation={generation} close={() => setOpen(false)} />
       )}
@@ -493,6 +561,7 @@ function SteamBatchLibraryAction({
 }
 
 function BrowserResults({
+  layout,
   favorites,
   onFavoriteToggle,
   view,
@@ -508,6 +577,7 @@ function BrowserResults({
   loading,
   nativeSourceDrag,
 }: {
+  layout: CollectionLayout;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   view: View;
@@ -537,11 +607,17 @@ function BrowserResults({
     );
   return (
     <section
-      className="port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+      className={
+        view === "library"
+          ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : "gap-4"}`
+          : "port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+      }
+      aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group
     >
       {ports.map((port) => (
         <PortCard
+          layout={layout}
           favorites={favorites}
           onFavoriteToggle={onFavoriteToggle}
           key={port.id}
@@ -561,10 +637,10 @@ function BrowserResults({
 function LoadingState() {
   return (
     <section
-      className="loading-state flex min-h-[18.75rem] items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-start text-pc-muted-foreground"
+      className="loading-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-4 text-start text-pc-muted-foreground min-[48rem]:flex-row min-[48rem]:p-10"
       aria-live="polite"
     >
-      <div className="grid w-48 shrink-0 justify-items-center gap-1">
+      <div className="grid w-48 max-w-full shrink-0 justify-items-center gap-1">
         <BrandWordmark className="block h-18 w-48 max-w-[100%] bg-[var(--color-brand-stage)] object-contain" />
         <span className="loading-mark relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
           <BrandMotif className="absolute -bottom-1.5" />
@@ -575,7 +651,7 @@ function LoadingState() {
           />
         </span>
       </div>
-      <div>
+      <div className="max-w-full min-w-0 [overflow-wrap:anywhere]">
         <strong className="block text-pc-foreground">Loading your port library</strong>
         <p className="m-0 max-w-[32rem] leading-[var(--leading-relaxed)]">
           Loading the catalog, added game files, and ports in your library.
@@ -610,12 +686,18 @@ function BrowserEmptyState({
         }
         eyebrow="EMPTY LIBRARY"
         title="Your library is empty"
-        description="Browse the catalog to install a supported port or use an existing installation. You can also copy a supported installation without changing its original folder."
+        description="Add games using your original files, search a chosen folder, or find a port. You can also copy a supported installation without changing its original folder."
         action={
           <>
-            <Button data-focusable variant="primary" size="lg" onClick={onBrowseCatalog}>
+            <Button
+              data-focusable
+              data-add-games-trigger
+              variant="primary"
+              size="lg"
+              onClick={onBrowseCatalog}
+            >
               <Icon glyph={Boxes} />
-              Browse port catalog
+              Add games
             </Button>
             {onConnectGameFiles && (
               <Button data-focusable variant="outline" size="lg" onClick={onConnectGameFiles}>
@@ -679,29 +761,16 @@ function ContinueCard({
   const trial = hasUnconfirmedLaunchInput(status, port);
   return (
     <section
-      className="continue-card mb-[13px] grid min-h-[92px] grid-cols-[72px_minmax(0,_1fr)_auto] items-center gap-[17px] rounded-pc-lg border border-[var(--color-interactive-active)] bg-pc-surface p-3 shadow-[var(--shadow-raised)] max-[65rem]:grid-cols-[4.25rem_minmax(0,_1fr)]"
+      className="continue-card mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-pc-border pb-3 max-[48rem]:grid-cols-1"
       data-focus-group
       data-successful-launches={status.successful_launches}
       aria-label={`Continue ${gameIdentityLabel(port)}`}
     >
-      <ArtworkImage
-        port={port}
-        className="continue-art relative grid aspect-2/3 w-17 place-items-center overflow-hidden rounded-pc-lg bg-[var(--art-color)]"
-      />
       <div>
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          CONTINUE
-        </p>
-        <h2 className="m-0 text-lg">{gameTitle(port)}</h2>
+        <p className="mb-1 text-xs text-pc-muted-foreground">Last played</p>
+        <h2 className="m-0 text-sm">{gameTitle(port)}</h2>
         {gameProjectLabel(port) && (
           <p className="m-0 mt-1 text-xs text-pc-muted-foreground">{gameProjectLabel(port)}</p>
-        )}
-        {(status.active || status.external_runtime) && (
-          <p className="m-0 mt-[5px] text-xs text-pc-muted-foreground">
-            {status.active
-              ? `Version ${status.active.version}`
-              : `External version ${status.external_runtime?.version}`}
-          </p>
         )}
         {trial && (
           <p className="m-0 mt-1 text-xs text-pc-warning-foreground">Compatibility unconfirmed</p>
@@ -745,10 +814,12 @@ function ContinueCard({
 function LibrarySummary({ overview }: { overview: LibraryOverview }) {
   return (
     <section
-      className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-pc-border pb-3 text-xs"
+      className="me-auto flex flex-wrap items-center gap-x-3 gap-y-2 text-xs"
       aria-label="Library readiness"
     >
-      <strong className="text-pc-foreground">{overview.installed} in library</strong>
+      <strong className="text-pc-foreground">
+        {overview.installed} library {overview.installed === 1 ? "entry" : "entries"}
+      </strong>
       <span className="inline-flex items-center gap-1 text-[var(--color-success-text-raised)]">
         <Icon glyph={CheckCircle2} size="sm" />
         {overview.ready === overview.installed ? "All can launch" : `${overview.ready} can launch`}
@@ -776,6 +847,7 @@ type CardState = {
 };
 
 type PortCardProps = {
+  layout: CollectionLayout;
   onFavoriteToggle: (portId: string, button: HTMLButtonElement) => void;
   favorites?: ReturnType<typeof useFavorites> | undefined;
   port: PortDefinition;
@@ -788,6 +860,7 @@ type PortCardProps = {
 };
 
 function PortCard({
+  layout,
   favorites,
   onFavoriteToggle,
   port,
@@ -844,8 +917,7 @@ function PortCard({
         variant={favorites.ids?.has(port.id) ? "selected" : "outline"}
         size="icon-sm"
         className={cn(
-          "absolute bottom-4 z-10 bg-pc-surface",
-          view === "library" ? "start-4" : "end-4",
+          view === "library" ? "shrink-0" : "absolute end-4 bottom-4 z-10 bg-pc-surface",
         )}
         aria-label={`Favorite ${gameIdentityLabel(port)}`}
         aria-pressed={favorites.ids?.has(port.id) ?? false}
@@ -865,16 +937,24 @@ function PortCard({
   const accessibleLabel = `${gameIdentityLabel(port)}. ${state.label}. ${status?.staged ? "Update downloaded. " : ""}${state.action}.`;
   if (view === "library")
     return (
-      <article
-        className={className}
-        aria-label={accessibleLabel}
-        aria-describedby={input ? setupDescriptionId : undefined}
-        data-source-drop-port-id={dropEligible ? port.id : undefined}
-        data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
-      >
-        {contents}
-        {favoriteToggle}
-      </article>
+      <LibraryEntry
+        {...{
+          port,
+          status,
+          state,
+          layout,
+          detailOrigin,
+          onSelect,
+          onLaunch,
+          input,
+          setupDescriptionId,
+          updateAvailable,
+          channel,
+          dropEligible,
+          dropTarget,
+          favoriteToggle,
+        }}
+      />
     );
   return (
     <div className="relative">
@@ -900,6 +980,141 @@ function PortCard({
 
 const cardBadgeClass =
   "rounded-full bg-[var(--color-bg-subtle-hover)] px-[7px] py-1 text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]";
+
+function LibraryEntry({
+  port,
+  status,
+  state,
+  layout,
+  detailOrigin,
+  onSelect,
+  onLaunch,
+  input,
+  setupDescriptionId,
+  updateAvailable,
+  channel,
+  dropEligible,
+  dropTarget,
+  favoriteToggle,
+}: Pick<PortCardProps, "port" | "status" | "layout" | "onSelect" | "onLaunch"> & {
+  state: CardState;
+  detailOrigin: string;
+  input: ReturnType<typeof installedCardInputPresentation>;
+  setupDescriptionId: string;
+  updateAvailable: boolean;
+  channel: ReturnType<typeof releaseChannelPresentation> | undefined;
+  dropEligible: boolean;
+  dropTarget: boolean;
+  favoriteToggle: ReactNode;
+}) {
+  const { element: artworkElement, visible } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(port.id, "cover", visible);
+  const artworkNotice = artworkDisplayNotice(artwork);
+  return (
+    <article
+      className={cn(
+        `port-card port-card-library collection-entry collection-${layout === "rows" ? "row" : "cover"} relative min-w-0`,
+        dropTarget && "outline-3 outline-offset-2 outline-pc-ring outline-solid",
+      )}
+      aria-label={`${gameIdentityLabel(port)}. ${state.label}.`}
+      aria-describedby={input ? setupDescriptionId : undefined}
+      data-source-drop-port-id={dropEligible ? port.id : undefined}
+      data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
+    >
+      <button
+        data-focusable
+        className={cn(
+          controlFocus,
+          "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
+        )}
+        aria-label={`View details for ${gameTitle(port)} Port: ${gameProjectLabel(port) ?? port.name}`}
+        aria-describedby={input ? setupDescriptionId : undefined}
+        data-detail-game-id={port.id}
+        data-detail-origin={detailOrigin}
+        onClick={() => onSelect(port.id, detailOrigin)}
+      >
+        <ArtworkFrame
+          element={artworkElement}
+          display={artwork}
+          identityArtwork
+          className="card-art collection-art"
+        />
+        <span
+          role="heading"
+          aria-level={2}
+          className="collection-title block text-sm leading-snug font-semibold wrap-anywhere"
+        >
+          {gameTitle(port)}
+        </span>{" "}
+        <span className="collection-project block text-xs leading-normal wrap-anywhere text-[var(--color-text-secondary)]">
+          Port: {gameProjectLabel(port) ?? port.name}
+        </span>
+      </button>
+      <div className="collection-state flex min-w-0 flex-col items-start gap-1 text-xs leading-normal wrap-anywhere">
+        {artworkNotice && <p className="m-0 text-pc-muted-foreground">{artworkNotice}</p>}
+        <span
+          className={cn(
+            `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
+            "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+          )}
+        >
+          <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
+          {state.label}
+        </span>
+        {(status?.staged || updateAvailable) && (
+          <Button
+            variant="link"
+            size="sm"
+            className="h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
+            data-detail-origin={`${detailOrigin}:update`}
+            onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
+          >
+            {status?.staged ? "Review downloaded update" : "Review update seen at last check"}
+          </Button>
+        )}
+        {status?.staged && updateAvailable && (
+          <p className="m-0 mt-1 text-pc-interactive-foreground">
+            Another update available at last check
+          </p>
+        )}
+        {channel && channel.tone !== "stable" && (
+          <p className="m-0 mt-1 text-pc-muted-foreground">Release channel: {channel.label}</p>
+        )}
+        {port.upstream_status === "retired" && (
+          <p className="m-0 mt-1 text-pc-warning-foreground">Retired upstream</p>
+        )}
+        {input && (
+          <div id={setupDescriptionId} className="sr-only">
+            {input.reasons.map((reason) => (
+              <p key={reason}>{reason}</p>
+            ))}
+          </div>
+        )}
+      </div>
+      <PortCardStatus
+        port={port}
+        status={status}
+        state={state}
+        layout={layout}
+        hasFavorite={false}
+        favoriteToggle={favoriteToggle}
+        detailOrigin={detailOrigin}
+        onSelect={onSelect}
+        onLaunch={onLaunch}
+        view="library"
+        inputDescriptionId={input ? setupDescriptionId : undefined}
+      />
+      {dropEligible && (
+        <span
+          className="source-drop-target pointer-events-none absolute inset-0 grid place-items-center rounded-pc-md border-2 border-dashed border-pc-interactive bg-pc-interactive/90 p-3 text-center text-sm font-bold text-pc-action-foreground"
+          aria-hidden="true"
+        >
+          {dropTarget ? "Release to check" : "Drop to check for this game"}
+        </span>
+      )}
+    </article>
+  );
+}
 
 function PortCardContents({
   port,
@@ -932,28 +1147,9 @@ function PortCardContents({
   const renderTitle = () => (
     <div className="flex items-start justify-between gap-2">
       <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={gameTitle(port)}>
-        {view === "library" ? (
-          <button
-            className={cn(
-              controlFocus,
-              "block w-full cursor-pointer text-start hover:text-pc-interactive-foreground",
-            )}
-            data-focusable
-            aria-label={`View details for ${gameIdentityLabel(port)}`}
-            data-detail-game-id={port.id}
-            aria-describedby={input ? setupDescriptionId : undefined}
-            data-detail-origin={detailOrigin}
-            onClick={() => onSelect(port.id, detailOrigin)}
-          >
-            <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
-              {gameTitle(port)}
-            </span>
-          </button>
-        ) : (
-          <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
-            {gameTitle(port)}
-          </span>
-        )}
+        <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
+          {gameTitle(port)}
+        </span>
       </h2>
     </div>
   );
@@ -973,7 +1169,7 @@ function PortCardContents({
           {port.presentation.variant_label}
         </span>
       )}
-      {view === "catalog" && channel && (
+      {channel && (
         <span
           className={cn(
             `badge ${channel.tone} ${cardBadgeClass}`,
@@ -1029,11 +1225,6 @@ function PortCardContents({
               </p>
             ))}
           </div>
-        )}
-        {view === "library" && channel && (
-          <small className="text-xs text-[var(--color-text-secondary)]">
-            Release channel: {channel.label}
-          </small>
         )}
         {(status?.staged || updateAvailable || port.upstream_status === "retired") && (
           <div className="flex min-h-[18px] flex-wrap gap-[5px]">
@@ -1096,6 +1287,8 @@ function PortCardContents({
 }
 
 function PortCardStatus({
+  layout,
+  favoriteToggle,
   inputDescriptionId,
   port,
   status,
@@ -1109,6 +1302,8 @@ function PortCardStatus({
   inputDescriptionId?: string | undefined;
   state: CardState;
   hasFavorite: boolean;
+  favoriteToggle?: ReactNode;
+  layout?: CollectionLayout;
   detailOrigin: string;
 }) {
   const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
@@ -1123,23 +1318,25 @@ function PortCardStatus({
   return (
     <div
       className={cn(
-        `mt-auto flex min-h-11 flex-wrap items-center gap-2 border-t border-pc-border pt-3 text-xs ${view === "library" ? "justify-end" : "justify-between"}`,
+        `collection-actions flex min-h-11 flex-wrap items-center gap-2 text-xs ${layout === "rows" ? "mt-0 pt-0" : "mt-auto pt-2"} ${view === "library" ? "justify-between" : "justify-between border-t border-pc-border"}`,
         hasFavorite && (view === "library" ? "ps-8" : "pe-9"),
       )}
     >
+      {favoriteToggle}
       {view === "catalog" && (
         <strong className="font-semibold text-[var(--color-text-secondary)]">
           {cardInstallationLabel(port, status)}
         </strong>
       )}
       {view === "library" ? (
-        <span className="inline-flex flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
+        <span className="inline-flex flex-1 flex-wrap items-center justify-end gap-1 text-[var(--color-interactive-text-strong)]">
           {!canLaunch && (
             <Button
               data-focusable
               variant="outline"
               size="sm"
-              aria-label={`Review ${gameIdentityLabel(port)}`}
+              className="flex-1"
+              aria-label={`Review game: ${gameIdentityLabel(port)}`}
               aria-describedby={inputDescriptionId}
               data-detail-origin={reviewOrigin}
               onClick={() => onSelect(port.id, reviewOrigin)}
@@ -1152,6 +1349,7 @@ function PortCardStatus({
               data-focusable
               variant="primary"
               size="sm"
+              className="flex-1"
               disabled={Boolean(action.busy)}
               title={action.assessment.reason}
               onClick={() => onLaunch?.(port.id)}

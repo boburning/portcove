@@ -1,5 +1,13 @@
 # Architecture
 
+Library collection layout is a profile-local React preference scoped by the
+canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
+separately from existing browsing envelopes. Invalid/missing values start at
+covers; failed storage keeps the session choice with feedback. It creates no
+Core migration or membership authority. Covers and rows reuse identity,
+readiness, actions and the shared exclusion selector. Changing layout preserves
+query, filters and durable entries.
+
 Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
@@ -1015,16 +1023,21 @@ requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Source-reference removal and shared review state
 
-Settings exposes the existing core source-removal preview with the original path,
+Settings exposes the existing core source-removal preview inline with the original path,
 installed dependents and all catalog dependents. The review explains that only the
 library reference is removed, other files/state remain, and later use requires
 registration under current checks. Both preview and application use the selected
 library generation. The adapter checks the fingerprint before backend-owned native
 confirmation, then reacquires the current service and delegates authorization and
 locked deletion to core. A changed reference or dependency set requires a fresh
-review; no renderer request can bypass native consent.
+review; no renderer request can bypass native consent. Explicit review intent
+loads fresh impact. A location/generation change discards the inline intent;
+returning to an old identity never revives it. Remove saved location… opens only
+the host's final approval. The host resolves requirement and game/port names from
+its catalog, shows the exact location, affected-entry count and preserved data,
+and points to the full inline affected set when the native summary is bounded.
 
-Backup, installed-game and source-removal dialogs share one presentation-only
+Backup/installed-game dialogs and the inline saved-location preview share one presentation-only
 review lifecycle: stale request rejection, synchronous duplicate-apply exclusion,
 neutral native cancellation and renewed review after failure. Each domain keeps
 its own core preview, confirmation, action and detailed copy. Source-list refresh
@@ -2842,3 +2855,57 @@ observation. Timer and visibility notifications refer to their own observation
 and cannot expire a replacement result. These browsing observations provide no
 setup or launch shortcut and do not establish native UI, game or whole-issue
 acceptance.
+
+### Guided manual library recovery
+
+Settings > Library & storage owns one Library recovery composition: prepare a
+manual recovery copy, checked restore, and Move as distinct tasks. The guide links
+to Tasks & history and each installed entry’s existing Saves and storage page;
+only that page’s current Core assessment grants save-backup eligibility. An empty
+or idle Activity view cannot prove process quiescence. Export metadata after
+applicable backups; then close games, Portcove and all other clients before copying.
+No writes may intervene between the export and content copy; otherwise repeat
+both from a matching state. The guide adds no copy API, durable workflow or bundle.
+
+Current schema-3 export declares six content roots: `versions`, `user`,
+`source-inbox`, `backups`, `toolchains`, and `artwork`. Copy existing roots with
+names and structure intact into one content folder, retaining the metadata export.
+External originals/BIOS, external installations/saves and credentials are excluded
+and require separate preservation. Retained admission may require the originating
+host's secure-storage key; ordinary copying does not mint another host's trust.
+The UI reports metadata export only, never a verified backup or a manual checkbox
+as verification. Existing content-bound import checks publication into a new/empty
+destination; Move separately switches authority and retains its original tree.
+Profile/workspace presentation state cannot change these Core guarantees.
+
+The manual-copy guide must also disclose host-local version credentials before
+copy instructions. The [managed RaceWave46 recovery contract](reference/managed-racewave46.md#manual-transfer-recovery)
+owns exact refusal handling: sign out and close the affected version; temporary
+credential leaves may remain. Privately preserve a specifically refused leaf on
+this host outside all Portcove trees before manual removal from its listed transfer
+tree, then obtain fresh review/export/copy. Never upload it or silently filter it
+into an alleged verified backup. Checked whole-library transfer refuses reserved
+credential leaves rather than granting portable sign-in authority.
+
+### Contextual Add games workspace
+
+Library and its legitimate empty state open one in-flow Add games workspace. Its
+file route explicitly selects a game/port before the existing profile-scoped
+inspection: the current inspector is not a catalog-wide file recognizer. Saved
+folder scanning remains the bounded multi-game recognition route, preserving its
+sixteen-port ephemeral setup-review selection and current route checks. Find
+games, installation copy and supported external routes remain available.
+The visible stages connect choosing inputs, recognition/port choice, current
+route checks, consequence review, preparation and completion/Play. The existing
+details, source-import, installation and preparation contracts own each review;
+labels do not turn unknown compatibility or saved-data facts into guarantees.
+
+The workspace remains mounted, hidden when inactive, within the generation-keyed
+library workspace. Its drafts, scan observation and return origin survive normal
+navigation/details/back; library replacement invalidates outgoing continuations.
+Navigation does not cancel a Core worker. Existing cancellation settlement and
+valid recovery plans remain authoritative; there is no scheduler or durable queue.
+Add games and Settings reuse saved-folder composition with unique instance IDs,
+scoped focus queries and return origins. Hidden siblings cannot supply focus or
+another instance's heading. Scroll capture/restoration uses the shell's current
+scroll-owner helpers, including document flow at enlarged effective widths.

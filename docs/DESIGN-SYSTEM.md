@@ -1,5 +1,39 @@
 # Portcove frontend design system
 
+## Saved-location impact
+
+Saved-location removal uses an inline impact region within Game files. Its
+explicit review trigger loads fresh consequences; Remove saved location… opens
+the sole final native approval. The full affected game/port set remains available
+inline. Keep location dismisses the inline region and returns focus to its
+trigger. Cancellation is neutral and changed impact requires renewed intent.
+Other destructive reviews retain their own consent contracts.
+
+## Library covers and compact rows
+
+Library defaults to covers; Compact rows presents the same entries and action
+selector. Columns derive from usable space: ordinary frames are 176–220 CSS
+pixels wide, with 112px artwork in short windows. Fixed 2:3 frames contain the
+whole image with neutral padding. Full game titles and port/variant labels grow
+below the frame without changing its height. Cover actions align within rows.
+Compact rows use 48×72px thumbnails and become an in-flow identity → state →
+actions sequence below 48rem.
+
+One details button owns artwork/title/port identity. Favorite, Play/review,
+update review and menus are siblings, never nested controls. Routine Stable and
+maintenance facts stay out of ordinary entries. Play remains beside a secondary
+downloaded-update review link. Steam bulk selection belongs to Integrations.
+Counts are library entries, including separate ports for one game. Details put
+current update decisions after identity/readiness/actions; Future update
+preferences are disclosed and saving them does not execute an update.
+
+Geist remains bundled. Initial body/secondary roles are 15/13px, page headings
+28px, compact controls 36px and ordinary controls 40px. Dimensions are
+content-driven minima, not clipping limits. Enlargement/text spacing may grow
+controls. Both themes share semantic roles. This supersedes earlier Library
+card-density assumptions; Find games retains its discovery composition and
+dated audit/reference evidence remains retained.
+
 ## Activity and contextual task feedback
 
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
@@ -14,7 +48,7 @@ The React/Vite/Tauri desktop is migrating incrementally under [#917](https://git
 
 `apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
 
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.4.0 and Tailwind 4.3.3 under Vite+ 1.2.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
+The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.3.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
 
 | Input                             | Version | License    | Demonstrated purpose                                              |
 | --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
@@ -69,7 +103,7 @@ build targets, operating-system minima or publication qualification.
 - The migration checks official shadcn/ui component source into Portcove; it then becomes Portcove-owned control code. Initialization explicitly selects Base UI and the compact Nova style, records React/Vite rather than Next.js assumptions, keeps React Server Components disabled, retains Lucide, and uses semantic CSS variables. Nova is initial density and composition scaffolding, not the visual acceptance target: the reference compositions must deliberately establish Portcove typography, spacing, radii, surfaces, and artwork hierarchy. Exact compatible stable versions and generated configuration are verified at implementation time instead of relying on CLI defaults.
 - Tailwind utilities and variants are the primary component styling approach. Limited custom CSS remains appropriate for specialized artwork, layout, input, or native-integration behavior where it is clearer than utilities. CSS Modules may survive only for justified specialized ownership; they are no longer the default migration destination.
 - `html[data-theme]` is the runtime theme marker and activates Tailwind `dark:` variants. `html[lang]`, `html[dir]`, and Base UI's `DirectionProvider` are now driven together by the [desktop localization owner](LOCALIZATION.md), including for portaled controls. New layout rules use logical properties and mixed-direction technical values keep an explicit direction.
-- Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and the 30/36/42 control scale. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
+- Shared Button intent is explicit: neutral `default`, signature-red `primary` for the dominant Play/Install/Apply action, blue `selected`, and danger-semantic `destructive`. All retain the shared gold focus signal and 36px compact and 40px ordinary/large minimum heights. Dialog owns the semantic scrim without backdrop blur; Dialog and Select use logical positioning and spacing where direction matters.
 - Graphite and warm controller-gray surfaces carry most of the interface. Blue means selected or interactive, yellow means keyboard/controller focus or rare emphasis, green means healthy or complete, and red is reserved for Portcove's signature and dangerous or critical action.
 - Selected state and focus are deliberately different: blue and an inset double-line marker communicate state; a gold outline communicates the current keyboard or controller target. The marker remains present in both themes and forced colors without changing the control's dimensions.
 - Depth comes from borders, tonal steps, restrained inset treatment, and small shadows. Portcove does not use gradients, glass, blur, neon glow, scanlines, or pixel-interface typography.
@@ -90,7 +124,7 @@ Game-port release channels display as **Stable / Preview / Rolling**. Current ga
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
+- Controls use shared 36-pixel-equivalent compact and 40-pixel-equivalent ordinary/large minimum-height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Setup and launch controls consume the current core action availability and supplied reason. A scoped hold or unoffered managed setup route has a readable explanation instead of an enabled installation review; source and BIOS input keep their existing selection/review flow. Installed launch still requires positive core readiness, and a retained-definition hold explains its exact reason. Missing legacy action projections keep the existing readiness behavior; malformed or incomplete current projections do not enable an action. An existing review can still be dismissed during a hold, and owned-operation cancellation stays reachable. A later allowed snapshot can restore the control, but preview and presentation never authorize execution: core rechecks current inputs under its existing guards.
@@ -506,7 +540,9 @@ consequences beside the enabled review action. A managed setup does not lead wit
 a disabled Play placeholder. Requirement fields remain in their dedicated group;
 missing-file recovery stays ahead of preparation when inputs are unavailable.
 After confirmed preparation, the current detail owner returns focus to enabled
-Play or its next-step heading. Library-generation/owner replacement and deliberate
+confirmed Play or its next-step heading. Unconfirmed compatibility keeps Try launch
+available but returns completion focus to the heading; Start setup is not a confirmed
+Play target either. Library-generation/owner replacement and deliberate
 focus elsewhere suppress that deferred handoff.
 
 Startup recovery places a specific interrupted Move or restore before generic
@@ -551,3 +587,45 @@ cancel, result and return sequence only for the recorded source, platform and
 inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
+
+### Library recovery composition
+
+Storage capacity, recovery and startup library selection are separate Settings
+rows. Recovery has a disclosed three-step manual-copy guide, then independently
+labeled Restore and Move actions. Preserve exact LTR-isolated paths and six
+current export content categories. Export success acknowledges metadata only;
+manual copy remains unverified until corresponding restore observations succeed.
+Use existing reviewed backup/import controls and native restore consent. Do not
+introduce a progress bar, checkbox, success badge or automatic-copy implication
+for work the application did not perform.
+
+### Add games composition
+
+Library's contextual Add games action and empty-state primary action open the
+same in-flow workspace. Keep source choice, current port identity and the next
+review action together. The initial stage list is orientation, not a claim that
+later checks passed. Files are checked against an explicitly selected port;
+folder search supplies multi-game recognition. Retain ambiguous/unsupported and
+unknown evidence in existing review treatments. Detail/setup completion uses the
+shared primary/recovery and focus contracts. Save drafts during normal navigation;
+opening another destination must not imply cancellation or task completion.
+
+### Library identity and artwork feedback
+
+The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
+
+Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.
+
+## Read-only diagnostics
+
+`components/ui/read-only-text-field.tsx` owns the shared read-only field used by
+error-detail manual-copy fallback and Activity's retained output, error and
+manual-copy fields. Its label and exact value come from the feature. Technical values use isolated left-to-right direction and the existing monospace role, including inside an RTL workspace. The field
+uses semantic inset/input/text roles and the shared focus treatment, wraps long
+content within the available width, and allows vertical resize and scrolling.
+Its 80–384px equivalent height bounds preserve access to long output without
+expanding the whole task; text remains selectable with keyboard or pointer.
+
+Features retain lazy capture, redaction, request/generation guards, clipboard
+outcomes and announcements. The primitive does not fetch, redact, copy or store
+diagnostics. Existing failure and Activity semantics remain authoritative.

@@ -1,5 +1,16 @@
 # Portcove theme and CSS ownership
 
+The inline saved-location impact uses the ordinary text, border and destructive
+button roles. It introduces no overlay, palette or fixed footer. Long locations
+and affected-entry names wrap in document flow, including enlargement.
+
+`collection.css` owns Library geometry in the components layer after adaptive
+shell rules. It consumes shared tokens and adds no palette. Fixed 2:3 contained
+artwork frames remain independent of identity/status height. Covers and compact
+rows share status, focus, selection and action variants. The 36/40px controls
+are content-driven minima; 15px body, 13px secondary and 28px heading roles all
+enlarge through the native controller.
+
 Activity sections reuse shared button variants and their persistent pressed cue. Contextual task records reuse existing info, neutral, warning and failure roles; temporary exclusion does not recolor or reinterpret Core readiness. Foreground progress and exact-ID Activity progress share one component and bounded numeric presentation. No separate Activity palette or progress implementation is introduced.
 
 Portcove keeps its graphite dark and warm controller-gray light identity, with
@@ -128,7 +139,7 @@ queries respond to available component space; viewport queries own shell changes
 Artwork fitting/lettering has a local layered CSS Module beside Artwork.tsx.
 Do not recreate a global feature stylesheet through imported fragments.
 
-Vite+ 1.2.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
+Vite+ 1.3.0 owns the toolchain. Tailwind 4.3.3 generates utilities with optimization
 disabled; Vite performs full Lightning CSS transformation and minification.
 Processing CSS, minifier CSS and JavaScript targets explicitly match Chrome 111
 and Safari 16.4. Production scan exclusions are independent of module tree shaking.
@@ -147,3 +158,13 @@ Use the canonical root `pnpm check`, `pnpm test`, `pnpm test:browser` and `pnpm 
 routes; focused tests use the existing exact-file runner. Never regenerate copied
 controls over these theme, state, accessibility and composition decisions without
 review. [DESIGN-SYSTEM](DESIGN-SYSTEM.md) retains the wider product acceptance.
+
+Library recovery uses existing semantic text, surface, action, disclosure, status
+and error roles in both themes. Step headings and explicit manual-copy wording
+carry state without relying on color. The guide flows at enlarged effective widths;
+paths wrap and retain isolated LTR direction. No separate recovery palette exists.
+
+Add games uses shared semantic action, selected, focus, status and error roles in
+both themes. In-flow stages and wrapping controls remain readable at effective
+240px widths. Native HTML port selection retains OS/forced-color behavior; it
+adds no independent palette, panel surface or durable selection authority.

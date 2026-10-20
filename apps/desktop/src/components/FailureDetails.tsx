@@ -3,6 +3,7 @@ import { copyText } from "../clipboard";
 import type { DesktopError } from "../types";
 import type { FailureDisplay } from "../view-model";
 import { Button } from "./ui/button";
+import { ReadOnlyTextField } from "./ui/read-only-text-field";
 
 type Presentation = DesktopError["presentation"];
 
@@ -139,10 +140,9 @@ function FailureDetailsCopy({ technical }: { technical: string }) {
       {copyOutcome === "failed" && (
         <>
           <p role="alert">Clipboard unavailable. Select and copy the technical details below.</p>
-          <textarea
-            readOnly
-            className="mt-2 min-h-20 w-full"
-            aria-label="Technical details for manual copy"
+          <ReadOnlyTextField
+            className="mt-2"
+            label="Technical details for manual copy"
             value={technical}
           />
         </>

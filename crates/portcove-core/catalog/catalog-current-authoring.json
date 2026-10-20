@@ -922,6 +922,16 @@
         "claim": "The pinned generator declares the exact raw Japanese original SHA256 and CRC32. The closed offline managed recipe verifies this identity, authenticates its fixed build inputs and selects positional game.sfc. Source identity and private build evidence do not establish game operation acceptance or redistribution permission.",
         "immutable_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/c7aaaa152192db5d750db3fb190e8f93b6240c19/src/codegen_setup.c",
         "live_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/main/src/codegen_setup.c"
+      },
+      {
+        "id": "dkc2-v002-prepared-source-contract-2026-10-20",
+        "role": "upstream_support",
+        "authority": "mstan/DKC2Recomp",
+        "authority_ref": "e181419f2f8ff7b12494453e74840a4828bdb723",
+        "reviewed_at": "2026-10-20",
+        "claim": "Pinned Windows WinMain accepts a positional raw verified USA original. SNESRECOMP_NO_LAUNCHER bypasses the artwork launcher. Private player-prepared projection omits retail cover art, preserves all remaining published runtime bytes and notices, and grants no acquisition or redistribution authority. Actual operations remain separately qualified.",
+        "immutable_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/desktop_main.c",
+        "live_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/desktop_main.c"
       }
     ],
     "identities": [
@@ -7033,6 +7043,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "donkey-kong-country-2-snes-usa",
+        "label": "Donkey Kong Country 2 (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "Donkey Kong Country 2: Diddy's Kong Quest",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "35421a9af9dd011b40b91f792192af9f99c93201d8d394026bdfb42cbf2d8633",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "dkc2-v002-prepared-source-contract-2026-10-20"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "dkc2-v002-prepared-source-contract-2026-10-20"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -10058,6 +10108,33 @@
           {
             "upstream_ref": "source-c7aaaa152192",
             "artifact_sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "dkc2-recomp-game-source",
+        "port_id": "dkc2-recomp",
+        "role": "game",
+        "profile_id": "donkey-kong-country-2-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "dkc2-v002-prepared-source-contract-2026-10-20"
+        ],
+        "authority_ref": "e181419f2f8ff7b12494453e74840a4828bdb723",
+        "reviewed_at": "2026-10-20",
+        "immutable_review_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/verified_rom.c",
+        "live_review_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/verified_rom.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.0.2",
+            "artifact_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89"
           }
         ],
         "aliases": [],
@@ -21093,6 +21170,102 @@
       ],
       "runtime_mutable_file_patterns": [],
       "launch_environment": {}
+    },
+    {
+      "id": "dkc2-recomp",
+      "name": "DKC2Recomp",
+      "summary": "Play Donkey Kong Country 2 with a reviewed player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/DKC2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/DKC2Recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.0.2",
+            "archive_name": "DKC2Recomp-windows-x64-v0.0.2.zip",
+            "archive_size": 8488768,
+            "archive_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89",
+            "executable": "DKC2Recomp.exe",
+            "immutable_tree_sha256": "980bdaf31d4ddf573b49447513abe3825f41ce0a4d2f457475d2c04599c5eb55",
+            "source_argument_extension": "sfc",
+            "mutable_paths": [
+              "launcher.cfg",
+              "rom.cfg",
+              "performance.log",
+              "diagnostics",
+              "saves",
+              ".snesrecomp_write_probe"
+            ]
+          }
+        }
+      },
+      "source_profile": "donkey-kong-country-2-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC2Recomp.exe"
+        ]
+      },
+      "launch_arguments": [],
+      "presentation": {
+        "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "donkey-kong-country-2-snes-usa",
+            "label": "Donkey Kong Country 2 (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the exact official v0.0.2 Windows runtime outside the Portcove library, omitting assets/img/boxart.tga. Keep all other executable, DLL, asset and license files unchanged. Select your own exact stock headerless USA .sfc original. Use short basic-Latin paths for both the runtime and original. Portcove bypasses the artwork launcher, fixes the GDI compatibility presenter and diagnostic destinations, and passes the checked original directly to the game. You manage saves, diagnostics, settings and runtime updates. Known upstream alpha rendering and level-dispatch limitations remain; startup acceptance is separate from gameplay completion.",
+        "artwork": {
+          "game_id": 1092,
+          "cover_id": 94882,
+          "image_id": "co217m",
+          "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+          "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
+          "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the exact runtime",
+              "instruction": "Extract the complete official v0.0.2 Windows x64 ZIP into a writable folder outside your Portcove library. Omit assets/img/boxart.tga and leave every other file unchanged."
+            },
+            {
+              "title": "Choose compatible folders",
+              "instruction": "Use short paths with basic Latin characters for both the runtime folder and your original game file."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check your own stock headerless USA .sfc original in Portcove, then choose the prepared runtime folder below for review."
+            }
+          ],
+          "warnings": [
+            "Portcove selects the GDI compatibility renderer and bypasses the artwork launcher. You manage updates, settings, diagnostics and saves in this external folder; removal unregisters only.",
+            "Known upstream alpha rendering and level-dispatch limitations remain. Startup checks do not establish completed gameplay or populated save/load."
+          ]
+        }
+      },
+      "persistent_paths": [],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1",
+        "DKC2_DESKTOP_FORCE_GDI": "1",
+        "SNESRECOMP_TIER2_MANIFEST": "diagnostics/tier2_dkc2.json",
+        "SNESRECOMP_TIER2_JOURNAL": "diagnostics/tier2_dkc2.jsonl"
+      }
     }
   ]
 }

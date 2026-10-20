@@ -187,7 +187,7 @@ describe("Library empty browsing context", () => {
 
     await render("all", "unmatched title");
     const resultStatus = host.querySelector('[role="status"]');
-    expect(resultStatus?.textContent).toBe("0 ports");
+    expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No ports in your library match your search and filters");
     expect(host.textContent).toContain("This library has no ports yet");
@@ -214,7 +214,7 @@ describe("Library empty browsing context", () => {
         .click(),
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("use an existing installation");
+    expect(host.textContent).toContain("copy a supported installation");
     expect(host.textContent).not.toContain("Clear search and filters");
   });
 });

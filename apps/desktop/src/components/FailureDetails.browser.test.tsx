@@ -1,4 +1,5 @@
 import { act } from "react";
+import axe from "axe-core";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -21,6 +22,41 @@ vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
 }));
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+it("announces repeated task outcomes without creating duplicate landmarks", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  let state!: ReturnType<typeof useOperationState>;
+  function Fixture() {
+    state = useOperationState({ refresh: async () => {} });
+    return (
+      <StatusLayer clearError={() => state.setError(undefined)} invocations={state.invocations} />
+    );
+  }
+  try {
+    await act(async () => root.render(<Fixture />));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await act(async () => {
+        await state.perform("review install", async () => undefined);
+      });
+    }
+    expect(host.querySelectorAll('[data-invocation-id][role="group"]').length).toBe(2);
+    const announcements = [...host.querySelectorAll('[role="status"]')];
+    expect(announcements).toHaveLength(2);
+    expect(announcements.map((node) => node.textContent)).toEqual([
+      expect.stringContaining("finished"),
+      expect.stringContaining("finished"),
+    ]);
+    const report = await axe.run(host, {
+      runOnly: { type: "rule", values: ["landmark-unique"] },
+    });
+    expect(report.violations).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
 });
 
 describe("diagnostic clipboard outcomes", () => {

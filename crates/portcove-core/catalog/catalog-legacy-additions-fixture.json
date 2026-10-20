@@ -43,7 +43,8 @@
     "smb1r-world-nes",
     "dark-forces-pc-complete-installed-data",
     "super-bomberman-snes-usa",
-    "gundam-wing-endless-duel-snes-japan"
+    "gundam-wing-endless-duel-snes-japan",
+    "donkey-kong-country-2-snes-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -90,6 +91,7 @@
     "super-mario-bros-remastered",
     "render96ex",
     "super-bomberman-recomp",
-    "gundam-wing-endless-duel-recomp"
+    "gundam-wing-endless-duel-recomp",
+    "dkc2-recomp"
   ]
 }

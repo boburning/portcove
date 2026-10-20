@@ -718,6 +718,24 @@ existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
 
+Release workflow uploads use immutable attempt names:
+`release-build-<platform>-<run-id>-<attempt>` and
+`release-{final,attestation-metadata,publication-metadata}-<run-id>-<attempt>`.
+Uploads refuse overwrite and request seven-day retention. Downloads select the
+same run and attempt; reconciliation requires matching declared producer lineage.
+A partial rerun cannot silently borrow a prior attempt's builds. Verified local
+staging still uses `release-build-<platform>` directories. Artifact names do not
+authenticate the original compiler or establish its job/attempt identity.
+
+Rehearsal and draft publication no longer delete run artifacts: neither proves
+the downstream controller has durable custody. Provider expiry remains the
+fallback; earlier deletion requires a separately verified terminal handoff and
+exact artifact IDs. Each attempt adds its build archives, aggregate and metadata
+to the seven-day storage window. This retention request supplies neither space
+nor a reservation: admission remains a bounded attempt under the ratified $0
+stop-usage boundary, with availability/headroom Unknown. Provider refusal stops
+the attempt and preserves available effects for explicit recovery.
+
 `assembleReleaseArtifacts` in `scripts/release-artifact-assembly.mts` connects
 the existing complete Release run evidence collector, opaque artifact transport,
 private staging and the full-policy assembler. Callers supply independently

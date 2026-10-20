@@ -69,7 +69,7 @@ for (const theme of ["dark", "light"]) {
       </LocalizationProvider>,
     );
     const origin = page.getByRole("button", {
-      name: "View details for Orchard Quest",
+      name: "View details for Orchard Quest Port: Orchard Quest",
       exact: true,
     });
     await expect.element(origin).toBeVisible();
@@ -109,7 +109,7 @@ for (const theme of ["dark", "light"]) {
         <App />
       </LocalizationProvider>,
     );
-    const search = page.getByRole("textbox", { name: "Search ports Ctrl F" });
+    const search = page.getByRole("textbox", { name: "Search your library" });
     await search.fill("a retained search draft");
     for (const [width, height] of [
       [320, 800],
@@ -145,7 +145,10 @@ for (const theme of ["dark", "light"]) {
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
+        .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
+        .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
+      expect(document.documentElement.scrollWidth, overflowing.join("\n")).toBeLessThanOrEqual(
         document.documentElement.clientWidth + 1,
       );
     }

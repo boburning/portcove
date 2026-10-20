@@ -1,4 +1,6 @@
 import desktopPackage from "../package.json";
+import { AddGames } from "./components/AddGames";
+import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
@@ -9,7 +11,7 @@ import {
   useApplicationUpdateNotice,
   useApplicationUpdateProductionTransition,
 } from "./features/application-update/use-application-update";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
@@ -110,6 +112,7 @@ import {
 } from "./view-model";
 import { gameIdentityLabel } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
@@ -370,6 +373,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
@@ -493,6 +497,9 @@ function Workspace({
     open: openPortDetails,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
+  const [addGamesOpen, setAddGamesOpen] = useState(false);
+  const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const addGamesReturn = useRef(0);
   const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
@@ -519,6 +526,25 @@ function Workspace({
     ui.setSettingsCategory("game-files");
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
+  };
+  const openAddGames = () => {
+    addGamesReturn.current = workspaceScrollTop(workspace.current);
+    setAddGamesStarted(true);
+    setAddGamesOpen(true);
+    setPrimaryView("library");
+    requestAnimationFrame(() => {
+      scrollWorkspaceTo(workspace.current, 0);
+      workspace.current?.querySelector<HTMLElement>("h1")?.focus();
+    });
+  };
+  const closeAddGames = () => {
+    setAddGamesOpen(false);
+    requestAnimationFrame(() => {
+      scrollWorkspaceTo(workspace.current, addGamesReturn.current);
+      workspace.current
+        ?.querySelector<HTMLElement>("[data-add-games-trigger]")
+        ?.focus({ preventScroll: true });
+    });
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
   const commandSurface = useCommandSurface({
@@ -597,7 +623,10 @@ function Workspace({
   };
 
   const renderPageHeader = () =>
-    !model.port && (
+    !model.port &&
+    (addGamesOpen && ui.view === "library" ? (
+      <h1 tabIndex={-1}>Add games</h1>
+    ) : (
       <PageHeader
         view={ui.view}
         query={ui.query}
@@ -605,7 +634,7 @@ function Workspace({
         portCount={data.catalog?.ports.length ?? 0}
         onOpenCommands={() => commandSurface.setOpen(true)}
       />
-    );
+    ));
   const renderPreferenceFailure = () =>
     preferenceFailure && (
       <Notice intent="danger" className="" role="alert">
@@ -652,8 +681,10 @@ function Workspace({
         }}
         close={closePortDetails}
       />
-    ) : (
+    ) : addGamesOpen && ui.view === "library" ? null : (
       <CurrentView
+        onAddGames={openAddGames}
+        collection={collection}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -696,6 +727,9 @@ function Workspace({
           return (
             detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
             detail?.querySelector<HTMLButtonElement>(".detail-back") ??
+            document.querySelector<HTMLButtonElement>(
+              'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
+            ) ??
             null
           );
         }}
@@ -797,6 +831,26 @@ function Workspace({
             />
             {renderPreferenceFailure()}
             {renderWorkspaceView()}
+            {addGamesStarted && (
+              <AddGames
+                key={bootstrap.generation}
+                active={addGamesOpen && ui.view === "library" && !model.port}
+                generation={bootstrap.generation}
+                ports={data.catalog?.ports ?? []}
+                profiles={data.catalog?.source_profiles ?? []}
+                statuses={model.statusMap}
+                sources={data.sources}
+                refreshFailed={Boolean(data.refreshFailure)}
+                onAdded={data.refreshAfterMutation}
+                onOpenPort={openPortDetails}
+                onCheckFiles={openSourceIntake}
+                onBrowseCatalog={() => setPrimaryView("catalog")}
+                onCopyInstallation={() => ui.setAdoptOpen(true)}
+                setupSource={setupSource}
+                setSetupSource={setSetupSource}
+                close={closeAddGames}
+              />
+            )}
           </main>
           <AdoptionOverlay
             ui={ui}
@@ -984,6 +1038,8 @@ function selectedPort(
 }
 
 function CurrentView({
+  onAddGames,
+  collection,
   favorites,
   data,
   ui,
@@ -1003,6 +1059,8 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  onAddGames: () => void;
+  collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
@@ -1095,6 +1153,14 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
         onOpenPort={openPortDetails}
+        onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
+        onOpenActivity={() => {
+          ui.setView("updates");
+          ui.setActivitySection("tasks");
+          window.requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>("main h1")?.focus(),
+          );
+        }}
         setupSource={setupSource}
         setSetupSource={setSetupSource}
         onCatalogChanged={data.refreshAfterMutation}
@@ -1176,6 +1242,9 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      collectionLayout={collection.value}
+      setCollectionLayout={collection.set}
+      collectionLayoutFailure={collection.failure}
       favorites={favorites}
       view={ui.view}
       ports={model.visible}
@@ -1210,7 +1279,7 @@ function CurrentView({
             },
           );
       }}
-      onBrowseCatalog={() => ui.setView("catalog")}
+      onBrowseCatalog={onAddGames}
       onConnectGameFiles={() => {
         ui.setSettingsCategory("game-files");
         ui.setView("settings");

@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import styles from "./Artwork.module.css";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { Gamepad2 } from "lucide-react";
 import { useArtwork, useArtworkVisibility } from "../artwork";
 import { pickArtworkPath } from "../file-picker";
 import type { ArtworkSlot, ArtworkState, PortDefinition } from "../types";
@@ -19,8 +20,32 @@ export function ArtworkImage({
 }) {
   const { element, visible } = useArtworkVisibility();
   const { display } = useArtwork(port.id, slot, visible);
+  return <ArtworkFrame element={element} display={display} className={className} />;
+}
+
+export function artworkDisplayNotice(display: ReturnType<typeof useArtwork>["display"]) {
+  return display.stale
+    ? "Previously loaded artwork"
+    : display.error || display.state?.availability === "unavailable"
+      ? "Image unavailable"
+      : undefined;
+}
+
+/** Allows an identity control to keep artwork feedback outside its visible label. */
+export function ArtworkFrame({
+  element,
+  display,
+  className = "",
+  identityArtwork = false,
+}: {
+  element: RefObject<HTMLDivElement | null>;
+  display: ReturnType<typeof useArtwork>["display"];
+  className?: string;
+  identityArtwork?: boolean;
+}) {
   const image = display.image;
   const fallback = display.state?.generated_fallback;
+  const notice = artworkDisplayNotice(display);
   const palettes = [
     "[--art-color:var(--color-art-neutral)]",
     "[--art-color:var(--color-art-yellow)]",
@@ -49,18 +74,16 @@ export function ArtworkImage({
           decoding="async"
           onError={display.onImageError}
         />
+      ) : identityArtwork ? (
+        <Gamepad2 aria-hidden="true" className="size-10 max-w-3/5 text-[var(--color-art-text)]" />
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
-      {display.stale ? (
+      {!identityArtwork && notice && (
         <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
-          Previously loaded artwork
+          {notice}
         </small>
-      ) : display.error || display.state?.availability === "unavailable" ? (
-        <small className="artwork-image-note absolute inset-x-0 bottom-0 bg-pc-scrim p-2 text-[length:var(--text-2xs)] leading-tight text-[var(--color-art-text)]">
-          Image unavailable
-        </small>
-      ) : null}
+      )}
     </div>
   );
 }

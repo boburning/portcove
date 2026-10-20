@@ -27,7 +27,7 @@ it.for(["dark", "light"] as const)(
       '<select hidden id="scenario"></select><p hidden id="scenario-limitation"></p><div id="scenario-preview"></div>';
     startInteractiveScenarios();
     document.querySelector<HTMLElement>(".scenario-fixture-actions")!.hidden = true;
-    await expect.element(page.getByPlaceholder("Search ports")).toBeVisible();
+    await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
     applyWebTheme(theme);
     expect(getComputedStyle(document.documentElement).fontSize).toBe("32px");
     const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
@@ -78,7 +78,10 @@ it.for(["dark", "light"] as const)(
     startInteractiveScenarios();
     document.querySelector<HTMLElement>(".scenario-fixture-actions")!.hidden = true;
     await userEvent.click(
-      page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }),
+      page.getByRole("button", {
+        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        exact: true,
+      }),
     );
     applyWebTheme(theme);
     await userEvent.click(
