@@ -518,7 +518,6 @@ async function coordinateTrustedReleaseAt(
     )
       throw new Error("bounded coordinator capacity state unavailable");
     const oldCapacity = recovered.input.controller.capacity_attempt;
-    const frozenController = recovered.input.controller;
     if (!isRecord(oldCapacity) || oldCapacity.schema_version !== 2)
       throw new Error("actual coordinator requires existing capacity schema2 seed");
     const input = structuredClone(recovered.input);
@@ -528,7 +527,8 @@ async function coordinateTrustedReleaseAt(
     if (inspectReleaseReviewRequest(input.review_request)) input.review_request = null;
     input.publication = { ...publication, observed_at: input.now };
     input.controller = {
-      ...frozenController,
+      workflow: ".github/workflows/application-update-production.yml",
+      revision: reader.admitted.revision,
       publication_paused: initial.pause.publication_paused,
       capacity_attempt: {
         ...structuredClone(initial.capacity_source.capacity),
@@ -959,14 +959,14 @@ async function prepareTrustedCoordinatorRenewalAt(
     )
       throw new Error("bounded coordinator maintenance state unavailable");
     const oldCapacity = recovered.input.controller.capacity_attempt;
+    const frozenController = recovered.input.controller;
     const input = structuredClone(recovered.input);
     input.schema_version = 2;
     input.now = new Date().toISOString();
     input.publication = { ...publication, observed_at: input.now };
     input.metadata_renewal = prepared.descriptor;
     input.controller = {
-      workflow: ".github/workflows/application-update-production.yml",
-      revision: reader.admitted.revision,
+      ...frozenController,
       publication_paused: initial.pause.publication_paused,
       capacity_attempt: {
         ...initial.capacity_source.capacity,
