@@ -2735,7 +2735,10 @@ mod tests {
 
     #[test]
     fn required_mutable_retained_envelope_refuses_old_readers_and_mixed_shapes() {
-        let legacy = Catalog::embedded().unwrap();
+        let legacy = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap();
         let port_id = "dkc3-recomp";
         let raw = encode_external_catalog(&legacy, port_id).unwrap();
         assert_eq!(

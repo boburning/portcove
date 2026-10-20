@@ -10815,7 +10815,11 @@ fn main() {
         let source_bytes = b"inert exact headerless source fixture";
         fs::write(&source, source_bytes).unwrap();
         let mut service = service_with_release(library.clone(), "v1");
-        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let mut document = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap()
+        .authoritative_document();
         // Preserve the real port/source contract, excluding unrelated catalog work
         // from this bounded inert preflight/removal control.
         document.ports.retain(|port| port.id == "dkc3-recomp");
@@ -11288,7 +11292,11 @@ fn main() {
                 .details["actual_tree_sha256"]
                 .clone();
         let mut service = service_with_release(library.clone(), "v1");
-        let mut document = service.catalog().authoritative_document();
+        let mut document = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap()
+        .authoritative_document();
         let source = temporary.path().join("original.gbc");
         let source_bytes = b"inert GBC source fixture";
         fs::write(&source, source_bytes).unwrap();
