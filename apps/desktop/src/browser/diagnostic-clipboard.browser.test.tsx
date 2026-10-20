@@ -12,6 +12,7 @@ import { failureReport } from "../test-fixtures";
 import type { ActivityDiagnostic as Diagnostic } from "../types";
 import { failurePresentation } from "../view-model";
 import "../styles/index.css";
+import { captureTargetScreenshot } from "./capture-target";
 
 vi.mock("../clipboard", () => ({ copyText: vi.fn() }));
 vi.mock("../api", () => ({ desktopApi: { activityDiagnostic: vi.fn() } }));
@@ -113,7 +114,7 @@ it("announces diagnostic copy outcomes and offers exact selectable fallback with
 });
 
 for (const theme of ["dark", "light"]) {
-  it(`keeps long ${theme} diagnostics selectable at 320px with text spacing`, async () => {
+  it(`keeps long ${theme} diagnostics selectable at 320px with text spacing`, async (context) => {
     await page.viewport(320, 800);
     document.documentElement.dataset.theme = theme;
     const spacing = document.createElement("style");
@@ -135,6 +136,7 @@ for (const theme of ["dark", "light"]) {
     ];
     vi.mocked(desktopApi.activityDiagnostic).mockResolvedValue(capture);
     vi.mocked(copyText).mockRejectedValue(new Error("clipboard unavailable"));
+    host.dir = "rtl";
     flushSync(() =>
       root.render(
         <DirectionProvider direction="ltr">
@@ -169,6 +171,19 @@ for (const theme of ["dark", "light"]) {
       expect(element.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth);
       expect(getComputedStyle(element).outlineStyle).not.toBe("none");
       expect(getComputedStyle(element).overflowY).toBe("auto");
+      expect(getComputedStyle(element).direction).toBe("ltr");
+      expect(getComputedStyle(element).unicodeBidi).toBe("isolate");
+      if (
+        label === "Preparation standard output" ||
+        label === "Technical details for manual copy"
+      ) {
+        await captureTargetScreenshot(
+          element,
+          `../../../../outputs/uiux-remainder/field-${theme}-${label === "Preparation standard output" ? "output" : "fallback"}.png`,
+          `${theme}-diagnostic-${label === "Preparation standard output" ? "output" : "fallback"}`,
+          context,
+        );
+      }
     }
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth);
     expect(desktopApi.activityDiagnostic).toHaveBeenCalledTimes(1);

@@ -14,10 +14,11 @@ export function ReadOnlyTextField({
   return (
     <textarea
       readOnly
+      dir="ltr"
       aria-label={label}
       value={value}
       className={cn(
-        "max-h-96 min-h-20 w-full min-w-0 resize-y overflow-auto rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-pc-foreground",
+        "max-h-96 min-h-20 w-full min-w-0 resize-y overflow-auto rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] px-3 py-2 font-mono text-sm [overflow-wrap:anywhere] whitespace-pre-wrap text-pc-foreground [unicode-bidi:isolate]",
         controlFocus,
         className,
       )}
