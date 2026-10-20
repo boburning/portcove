@@ -1982,14 +1982,23 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // CI 38953206413/a1: three retention fixtures missed their 10s latch before
     // any copy was observed. Trial 15s with exact 45s whole-case safeguards so
     // intervention and drain retain finite headroom after 12.7-14.6s of setup.
-    let latch_timeout = if cfg!(all(target_os = "macos", target_arch = "x86_64"))
+    // Windows CI 39383272662/a1 reached its first real partial copy 5.08s after
+    // installer start, just beyond this case's 5s setup latch. Give only this
+    // exact intervention 15s, retaining the same starting point, incomplete-copy
+    // barrier, worker drain, refusal assertions and outer 30s safeguard.
+    let latch_timeout = if cfg!(target_os = "windows")
+        && matches!(intervention, CacheIntervention::ArtifactWithdrawalRetain)
+    {
+        Duration::from_secs(15)
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
             intervention,
             CacheIntervention::PolicyLoss
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
-        ) {
+        )
+    {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
