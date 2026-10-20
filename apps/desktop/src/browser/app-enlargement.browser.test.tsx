@@ -78,7 +78,10 @@ it.for(["dark", "light"] as const)(
     startInteractiveScenarios();
     document.querySelector<HTMLElement>(".scenario-fixture-actions")!.hidden = true;
     await userEvent.click(
-      page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }),
+      page.getByRole("button", {
+        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        exact: true,
+      }),
     );
     applyWebTheme(theme);
     await userEvent.click(
