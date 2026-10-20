@@ -318,6 +318,7 @@ export async function hostPublicationScenario(context: Context) {
     const destination = path.join(output, "published-move-destination");
     const original = await fileIdentity(save);
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await reviewControls(browser).click(button("Advanced"));
     // Settings starts a real library-bound diagnostic worker. Let that read
     // finish before requesting an exclusive transfer; never retry a mutation
     // or treat a failed diagnostic as successful host qualification.
@@ -356,6 +357,7 @@ export async function hostPublicationScenario(context: Context) {
     };
     const move = await arm("library_move_published");
     move.result.settings_diagnostics_before_transfer = settingsDiagnostics;
+    await reviewControls(browser).click(button("Library and storage"));
     await browser.findElement(button("Move library")).click();
     await browser.wait(until.elementLocated(By.id("library-destination")), 15_000);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);
