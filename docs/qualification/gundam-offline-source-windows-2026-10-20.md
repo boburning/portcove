@@ -5,10 +5,11 @@ Owner: #330; narrow capability owner: #136. Fixed slice 6B builder pair.
 ## Current evidence boundary
 
 Authenticated private generation, configuration, compilation, linking and import
-inventory passed. The resulting game has **not been executed**. This snapshot
-does not establish actual Core installation, native startup/ordinary close,
-runtime write inventory, maintenance, removal, catalog admission or user delivery.
-Those remain necessary engineering and acceptance, not exclusions.
+inventory passed. Subsequent actual Core build/install/verification, two native
+startup and ordinary titlebar-close cycles, pinned maintenance, backup/restore
+and consent-bound removal passed. Their exact producers and limits are recorded
+below. Repository admission, final-head review/CI/merge and protected user delivery
+remain separate from these original observations.
 
 ## Exact inputs
 
@@ -101,3 +102,60 @@ Windows-path11 and older fixed-source9 meanings remain intact. Configuration
 may include other data files; no OS sandbox or ownership of external data is
 claimed. Optional gameplay, audio quality, controller/save-load observations,
 minimum Windows, installed Desktop and protected #246/#534 delivery stay separate.
+
+## Actual Core and operation acceptance
+
+Clean producer `d16b8622d21d5cce4cc792ae297532dba56a7bce`, tree
+`1c0f57c05201dfb82708f3ff823672e7eba3eb22`, built the qualification-feature CLI
+SHA256 `fd86af58302659776551c6c90ac8b95579ff2e6895aff88675badcece5241c22`.
+Private catalog SHA256
+`cdfd2581be69f4118bd8ca20120b87ee8b413e8e7dd3cfdc0d635e5775a04ca5`
+contains the selected route and preserves all110 prior entries. These historical
+identities are not relabeled as a later catalog or delivery head.
+
+- Core installA1 failed normally with exit12 before compilation: the long private
+  root made the pinned analyzer executable path260 characters, and Windows
+  refused process creation with WinError206. No timeout or forced termination
+  occurred. The original failed receipt remains unchanged.
+- Independently reviewed installA2 selected fresh short ASCII root `H:/pc6g-a2`,
+  reducing that executable path to224 characters. Actual Core acquisition,
+  generation,86-object compilation, linking, import checking and activation passed
+  in306985ms. The builder quiesced without executing the game. Its13 runtime files
+  plus build receipt passed immutable verification. The admitted original stayed
+  unchanged and the installed `game.sfc` matched its exact hash.
+- The actual Core-built executable SHA256 is
+  `665957a519906b912addaffee65ac6eb9acad2827707bcc121bf31bc0cc0684e`.
+  It is distinct from the earlier private prototype executable above; both
+  producer identities and their scopes remain retained.
+- NativeA1 used the reviewed A3 harness. Both actual Core-mediated startup and
+  restart cycles passed, with PID/Windows-FILETIME/executable-bound held OS
+  handles, Core session and CLI exit0. Computer Use observed the Japanese opening
+  and attract-mode battle. The first Alt+F4 request returned without closing;
+  that raw observation is retained separately. Both accepted closes used the
+  ordinary titlebar close button. The second cycle reached the animated opening
+  starfield. No forced termination or diagnostic frame limit supplied acceptance.
+- An unrecorded DLL was refused before spawning; subsequent immutable checks
+  passed. The runtime created and synchronized `keybinds.ini` and `rom.cfg` into
+  the canonical persistent root. These are data observations, not populated
+  gameplay-save evidence. Other declared persistent paths remain unobserved.
+- MaintenanceA1 passed current-version check/update, exact no-previous rollback
+  refusal, two-file backup/consented restore, creation and consented deletion of
+  its safety backup. Both persistent files and protected original/immutable files
+  stayed byte-identical. The original backup remains retained.
+- RemovalA1 first archived and hash-verified every one of17 installation files
+  (10,986,434 bytes). Wrong-preview and missing-consent controls refused removal.
+  Consented removal removed the owned version, left it unlaunchable, and preserved
+  the external original, both canonical persistent files and both backup files.
+  The retained byte archive is evidence, not new executable admission authority.
+
+Receipts are under the evidence root above: `evidence/gundam-producer-a1`,
+`gundam-core-install-a1`, `gundam-core-install-a2`, `gundam-native-a1`,
+`gundam-maintenance-a1` and `gundam-removal-a1`. The rejected unexecuted nativeA1
+harness used a copied Bomberman process-name check; A2 corrected it and A3 bound
+the short-root install. Those drafts remain retained; no acceptance is inferred
+from them. Existing resource admission and native-session ownership were used.
+
+ArtworkA1 searched the exact project and underlying Japanese SNES title. Both
+provider matches failed semantic identity checks, so the selected route retains
+the generated fallback. Its evidence is a finite artwork exception, not missing
+runtime acceptance. An unrelated SMB cover proposal was not applied.
