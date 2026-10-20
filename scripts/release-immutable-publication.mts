@@ -44,7 +44,6 @@ import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidenc
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
-import { requireActualCandidatePhaseAdvance } from "./release-candidate-progress.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
@@ -661,6 +660,7 @@ export async function rebindPreparedImmutableReleaseAfterPhase(
     const state = prepared.get(session);
     if (!state || active.has(session))
       throw new Error("actual idle immutable preparation required");
+    const { requireActualCandidatePhaseAdvance } = await import("./release-candidate-progress.mts");
     const phase = await requireActualCandidatePhaseAdvance(phaseReceipt, "publishing");
     const context = requireActualReleaseAdmissionContext(
       phase.original_context,
