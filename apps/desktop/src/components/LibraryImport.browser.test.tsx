@@ -8,6 +8,7 @@ import * as picker from "../file-picker";
 import type { LibraryImportPlan } from "../types";
 import { LibraryImportButton } from "./LibraryImport";
 import { LibraryMoveButton, LibraryMoveRecovery } from "./LibraryMove";
+import { BootstrapRecovery } from "../App";
 
 let root: RenderResult;
 const plan: LibraryImportPlan = {
@@ -225,6 +226,54 @@ it("fails closed after activation and offers resume only", async () => {
   expect(document.body.textContent).not.toContain("Keep using original library");
   await click("Resume move");
   expect(recover).toHaveBeenCalledWith("D:/Original", false);
+});
+
+it("prioritizes interrupted-transfer recovery and excludes generic reload until settlement", async () => {
+  let fail!: (reason: unknown) => void;
+  const recover = vi.spyOn(desktopApi, "recoverLibraryMove").mockImplementation(
+    () =>
+      new Promise<never>((_resolve, reject) => {
+        fail = reject;
+      }),
+  );
+  const choose = vi.fn(async () => {});
+  const reset = vi.fn(async () => {});
+  await root.rerender(
+    <BootstrapRecovery
+      chooseLibrary={choose}
+      resetLibrary={reset}
+      error={{
+        code: "conflict",
+        message: "An interrupted move needs review.",
+        details: {
+          retained_source: "D:/Original",
+          transfer_id: "exact-move",
+          move_abort_available: "true",
+        },
+      }}
+    />,
+  );
+  const buttons = [...document.querySelectorAll("button")];
+  expect(buttons.indexOf(button("Resume move"))).toBeLessThan(
+    buttons.indexOf(button("Retry startup")),
+  );
+  expect(document.body.textContent).toContain("Original library: D:/Original");
+  await click("Resume move");
+  expect(recover).toHaveBeenCalledWith("D:/Original", false);
+  for (const label of [
+    "Resume move",
+    "Keep using original library",
+    "Retry startup",
+    "Choose library",
+    "Use platform default",
+  ])
+    expect(button(label).disabled).toBe(true);
+  await click("Choose library");
+  expect(choose).not.toHaveBeenCalled();
+  await act(async () => fail({ message: "Original disk disconnected" }));
+  expect(button("Resume move").disabled).toBe(false);
+  expect(button("Retry startup").disabled).toBe(false);
+  expect(document.body.textContent).toContain("Original disk disconnected");
 });
 
 vi.mock("../file-picker", { spy: true });

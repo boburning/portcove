@@ -494,6 +494,21 @@ broad fragile pixel-perfect suite is required.
 
 ## Review gates
 
+Preparation presents game/port identity, the next step and existing Core-reviewed
+consequences beside the enabled review action. A managed setup does not lead with
+a disabled Play placeholder. Requirement fields remain in their dedicated group;
+missing-file recovery stays ahead of preparation when inputs are unavailable.
+After confirmed preparation, the current detail owner returns focus to enabled
+Play or its next-step heading. Library-generation/owner replacement and deliberate
+focus elsewhere suppress that deferred handoff.
+
+Startup recovery places a specific interrupted Move or restore before generic
+retry/library choices, naming the original or destination folder and preserved
+copies. Only host/Core-supported recovery actions appear. While recovery or a
+library choice is settling, competing recovery, reload and selection controls are
+disabled; failure restores usable choices. This changes presentation and local
+exclusion, never transfer authority or resume eligibility.
+
 Run the focused frontend tests, applicable theme/style contracts and production
 build before accepting a design-system change. The style gates must cover the
 actual Tailwind CSS and JSX utility sources, reject raw status colors and direct
