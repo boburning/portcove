@@ -11,6 +11,13 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [request-bound semantic handoff](slice4-534-request-bound-semantic-handoff-2026-10-20.md)
+connects neutral coordinator requests, direct proposal/full-review capture,
+isolated issuer preparation and complete GET-only Check reconciliation. It also
+preserves original versus prepared publication source across following reviews.
+Automatic local execution, actual producer evidence and the remaining stage
+joins are still pending; this delivery grants or activates nothing.
+
 The October 20 [native stage and payload signing join preparation](slice4-534-native-stage-signing-join-2026-10-20.md)
 connects genuine two-platform native receipts and authenticated compiler/SPDX
 custody to the private pre-sign continuation. The actual payload role places
