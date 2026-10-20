@@ -717,11 +717,18 @@ describe("desktop components", () => {
           },
         ]),
       ];
-      for (const refusal of blocked) {
+      for (const refusal of blocked.slice(0, 2)) {
         const html = renderToStaticMarkup(<DetailPanel {...refusal} />);
         const button = html.match(/<button\b[^>]*>Review game preparation<\/button>/)?.[0];
         expect(button).toBeDefined();
         expect(button).toMatch(/\sdisabled(?:\s|=|>)/);
+      }
+      for (const missingRequirement of blocked.slice(2)) {
+        const html = renderToStaticMarkup(<DetailPanel {...missingRequirement} />);
+        expect(html).not.toContain("Review game preparation");
+        expect(html).not.toContain(">Play</button>");
+        expect(html).toContain("Requirements");
+        expect(html).toContain("Next step");
       }
       expect(props.prepare).not.toHaveBeenCalled();
     },

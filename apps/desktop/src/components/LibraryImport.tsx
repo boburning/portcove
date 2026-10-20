@@ -212,13 +212,16 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
 export function LibraryImportRecovery({
   destination,
   onBusyChange,
+  disabled = false,
 }: {
   destination: string;
   onBusyChange?: (active: boolean) => void;
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const recover = async () => {
+    if (busy || disabled) return;
     setBusy(true);
     setError(undefined);
     onBusyChange?.(true);
@@ -234,6 +237,10 @@ export function LibraryImportRecovery({
   };
   return (
     <section aria-label="Library restore recovery">
+      <h2 className="text-base">Finish the interrupted library restore</h2>
+      <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
+        Restore destination: {destination}
+      </p>
       <p>
         Resume the restore to verify and finish opening the copied library. The Portcove export
         stays unchanged. Incomplete copies remain closed until recovery succeeds.
@@ -241,7 +248,7 @@ export function LibraryImportRecovery({
       <Button
         data-focusable
         variant="primary"
-        disabled={busy}
+        disabled={busy || disabled}
         onClick={() => {
           void recover();
         }}

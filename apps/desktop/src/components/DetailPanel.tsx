@@ -75,6 +75,7 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import { focusAndReveal, navigationScope } from "../focus";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -520,6 +521,7 @@ function DetailBody({
             pendingSetup={pendingSetup}
             runtimeUpdateAvailable={runtimeUpdateAvailable}
             managedPreparation={managedPreparation}
+            prepare={prepare}
             installPlan={installPlan}
             busy={busy}
             libraryGeneration={libraryGeneration}
@@ -532,14 +534,11 @@ function DetailBody({
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
-        status={status}
         installed={installed}
         sources={sources}
         managedPreparation={managedPreparation}
         pendingSetup={pendingSetup}
-        libraryGeneration={libraryGeneration}
         busy={busy}
-        prepare={prepare}
       />
       <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
         {port.summary}
@@ -640,6 +639,7 @@ function StatusActionsGroup({
   pendingSetup,
   runtimeUpdateAvailable,
   managedPreparation,
+  prepare,
   installPlan,
   busy,
   libraryGeneration,
@@ -659,6 +659,7 @@ function StatusActionsGroup({
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
+  prepare?: RunPreparation | undefined;
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
@@ -666,6 +667,8 @@ function StatusActionsGroup({
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
+  const gameActions = useRef<HTMLElement>(null);
+  const nextStep = useRef<HTMLHeadingElement>(null);
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   const trial =
     hasUnconfirmedLaunchInput(status, port) ||
@@ -745,9 +748,57 @@ function StatusActionsGroup({
       </section>
     );
   return (
-    <section aria-label="Game actions" className="grid gap-3">
+    <section
+      ref={gameActions}
+      data-task-owner={`${port.id}:${libraryGeneration}`}
+      aria-label="Game actions"
+      className="grid gap-3"
+    >
       <RetiredNotice port={port} />
       {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
+      {(!launchReady || managedPreparation) && (
+        <h2 ref={nextStep} tabIndex={-1} className="m-0 text-base">
+          {managedPreparation && pendingSetup ? "Next step: prepare game data" : "Next step"}
+        </h2>
+      )}
+      {managedPreparation && pendingSetup && sources.sourceReady && sources.biosReady && (
+        <>
+          <PreparationControl
+            key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
+            portId={port.id}
+            taskLabel={`${gameTitle(port)}${gameProjectLabel(port) ? ` · Port: ${gameProjectLabel(port)}` : ""}`}
+            generation={libraryGeneration}
+            disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
+            run={prepare}
+            onPrepared={() => {
+              const owner = gameActions.current;
+              const identity = `${port.id}:${libraryGeneration}`;
+              requestAnimationFrame(() => {
+                const active = document.activeElement;
+                if (
+                  !owner?.isConnected ||
+                  gameActions.current !== owner ||
+                  owner.dataset.taskOwner !== identity ||
+                  navigationScope() !== document ||
+                  (active !== document.body &&
+                    active !== nextStep.current &&
+                    active !== owner.querySelector("[data-launch-action]"))
+                )
+                  return;
+                focusAndReveal(
+                  owner.querySelector<HTMLElement>("[data-launch-action]:not(:disabled)") ??
+                    nextStep.current,
+                );
+              });
+            }}
+            focusFallback={() =>
+              gameActions.current?.querySelector<HTMLElement>(
+                "[data-launch-action]:not(:disabled)",
+              ) ?? nextStep.current
+            }
+          />
+        </>
+      )}
       <PrimaryActions
         trial={trial}
         installCancellations={installCancellations}
@@ -779,24 +830,18 @@ const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
 function RequirementsGroup({
   port,
-  status,
   installed,
   sources,
   managedPreparation,
   pendingSetup,
-  libraryGeneration,
   busy,
-  prepare,
 }: {
   port: PortDefinition;
-  status?: PortStatus | undefined;
   installed: boolean;
   sources: SourceControls;
   managedPreparation: boolean;
   pendingSetup: boolean;
-  libraryGeneration: number;
   busy?: string | undefined;
-  prepare?: RunPreparation | undefined;
 }) {
   const needsAttention =
     !installed ||
@@ -805,7 +850,6 @@ function RequirementsGroup({
     (managedPreparation && pendingSetup);
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
-  const preparationFocus = useRef<HTMLElement>(null);
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
@@ -817,11 +861,7 @@ function RequirementsGroup({
         className="requirements-disclosure border-y border-pc-border"
         open={initiallyOpen}
       >
-        <summary
-          ref={preparationFocus}
-          data-focusable
-          className={`requirements-summary ${disclosureSummaryStyle}`}
-        >
+        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
@@ -830,16 +870,6 @@ function RequirementsGroup({
           <RequirementsSummary port={port} />
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-          {managedPreparation && pendingSetup && (
-            <PreparationControl
-              key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
-              portId={port.id}
-              generation={libraryGeneration}
-              disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
-              run={prepare}
-              focusFallback={() => preparationFocus.current}
-            />
-          )}
         </div>
       </details>
     </DetailGroup>
@@ -1847,37 +1877,36 @@ function InstalledPlayActions({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  if (preparationRequired)
+    return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   return (
     <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         data-focusable
+        data-launch-action
         className="wide flex-1"
         variant="primary"
         size="lg"
         title={
-          preparationRequired
-            ? "Prepare game data before playing"
-            : launchReady
-              ? trial
-                ? "Try launching; compatibility is unconfirmed"
-                : "Launch this port"
-              : "Review the current launch requirements"
+          launchReady
+            ? trial
+              ? "Try launching; compatibility is unconfirmed"
+              : "Launch this port"
+            : "Review the current launch requirements"
         }
-        disabled={preparationRequired || !launchReady || Boolean(busy)}
+        disabled={!launchReady || Boolean(busy)}
         onClick={() => {
           void actions.launch();
         }}
       >
         <Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />
-        {preparationRequired
-          ? "Prepare game data first"
-          : !launchReady
-            ? "Play unavailable"
-            : pendingSetup
-              ? "Start setup"
-              : trial
-                ? "Try launch"
-                : "Play"}
+        {!launchReady
+          ? "Play unavailable"
+          : pendingSetup
+            ? "Start setup"
+            : trial
+              ? "Try launch"
+              : "Play"}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>

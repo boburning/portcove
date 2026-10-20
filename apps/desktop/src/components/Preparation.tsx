@@ -13,16 +13,20 @@ export type RunPreparation = (
 
 export function PreparationControl({
   portId,
+  taskLabel,
   generation,
   disabled,
   run,
   focusFallback,
+  onPrepared,
 }: {
   portId: string;
+  taskLabel?: string;
   generation: number;
   disabled: boolean;
   run?: RunPreparation | undefined;
   focusFallback?: () => HTMLElement | null;
+  onPrepared?: () => void;
 }) {
   const [plan, setPlan] = useState<PreparationPlan>();
   const [pending, setPending] = useState<"review" | "prepare">();
@@ -30,6 +34,7 @@ export function PreparationControl({
   const [error, setError] = useState<string>();
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);
+  const completed = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
   useEffect(
     () => () => {
@@ -41,6 +46,7 @@ export function PreparationControl({
     setPlan(undefined);
   };
   const review = async () => {
+    completed.current = false;
     const current = ++request.current;
     setPending("review");
     setError(undefined);
@@ -67,6 +73,8 @@ export function PreparationControl({
         if (event.type === "started") setOperationId(event.operation_id);
         if (event.type === "message") setMessage(event.message);
       });
+      if (result) onPrepared?.();
+      if (request.current === current) completed.current = Boolean(result);
       if (request.current === current)
         setMessage(
           result
@@ -89,6 +97,7 @@ export function PreparationControl({
   };
   return (
     <section aria-label="Prepare game data" className="preparation-control">
+      {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
       <p>
         Portcove will use your selected original files to prepare this installed version. Your
         current installation and saved data will stay in place.
@@ -119,6 +128,7 @@ export function PreparationControl({
             finalFocus={() => {
               const fallback = focusFallback?.();
               if (focusFallback && !fallback?.isConnected) return false;
+              if (completed.current && fallback?.isConnected) return fallback;
               // Popup cleanup precedes this commit's removal of the opener's
               // temporary hidden/pending state. Its owner determines availability.
               if (reviewButton.current?.isConnected && !disabled && run)
@@ -135,6 +145,7 @@ export function PreparationControl({
               Check the original files, installed version, space needed, and preserved data before
               starting setup.
             </DialogDescription>
+            {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
             <div
               className="preparation-plan mt-[16px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] [overflow-wrap:anywhere]"
               aria-label="Preparation plan"
