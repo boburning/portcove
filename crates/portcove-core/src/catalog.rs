@@ -2420,6 +2420,13 @@ mod tests {
         // Keep frozen port facts except the reviewed runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
+        let shipwright = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap();
+        assert!(shipwright.persistent_paths.contains(&"saves".into()));
+        assert!(!shipwright.persistent_paths.contains(&"Save".into()));
+        shipwright.persistent_paths.push("Save".into());
         let ghostship = expected_ports
             .iter_mut()
             .find(|port| port.id == "ghostship")
