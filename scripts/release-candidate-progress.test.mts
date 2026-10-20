@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   advanceActualCandidateToBuilding,
   advanceActualCandidateToPublishing,
+  advanceActualCandidateToPromoting,
   requireActualCandidatePhaseAdvance,
 } from "./release-candidate-progress.mts";
 
@@ -30,5 +31,9 @@ void test("imported eligibility and expired deadlines cannot enter candidate pha
       "publishing",
     ),
     /actual same-process candidate phase/,
+  );
+  await assert.rejects(
+    advanceActualCandidateToPromoting({ kind: "actual-owned-immutable-release-completion" }),
+    /actual owned immutable Release completion custody/,
   );
 });
