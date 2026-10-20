@@ -183,7 +183,26 @@ export async function sourceRemovalScenario({
     command(["source", "add", source.profile_id, replacement]);
     preserved.push(await fileIdentity(replacement));
     await click(button("Remove saved location…"));
-    await browser.wait(until.elementLocated(button("Check saved location again")), 15_000);
+    const renewedIntent = await browser.wait(
+      async () => {
+        if ((await browser.findElements(button("Check saved location again"))).length)
+          return "recheck";
+        // External-CLI reconciliation may publish the new source identity first.
+        // That unmounts the old inline review; reopening is explicit renewed intent.
+        if (
+          !(await browser.findElements(dialog)).length &&
+          (await browser.findElements(trigger)).length
+        )
+          return "reopen";
+        return false;
+      },
+      15_000,
+      "Changed saved location must invalidate the previous impact review",
+    );
+    assert.equal(
+      sources().find((item) => item.profile_id === source.profile_id)?.path,
+      replacement,
+    );
     const bootstrap = await invoke("get_bootstrap_status");
     assert(isRecord(bootstrap) && bootstrap.ok === true);
     const generation = transportValue("desktop_bootstrap_status", bootstrap.value).generation;
@@ -203,7 +222,8 @@ export async function sourceRemovalScenario({
     assert.equal(stale.ok, false);
     assert(isRecord(stale.error));
     assert.equal(stale.error.code, "conflict");
-    await click(button("Check saved location again"));
+    if (renewedIntent === "reopen") await click(trigger);
+    else await click(button("Check saved location again"));
     await browser.wait(until.elementLocated(button("Remove saved location…")), 15_000);
     text = await browser.findElement(dialog).getText();
     assert.ok(text.includes(replacement));
