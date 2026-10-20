@@ -145,10 +145,16 @@ function versionedFiles(
   git: Git,
   proposal: Pick<Proposal, "source_commit" | "base_version" | "version">,
 ) {
-  return reproducePreparedReleaseVersionFiles(
-    (filename) => sourceFile(git, proposal.source_commit, filename),
-    proposal,
-  );
+  // Publication eligibility uses the independently reviewed published base.
+  // The off-main preparation must instead transform the actual frozen source
+  // authorities: publishing a prepared child never rewrites main's version.
+  const readSource = (filename: string) => sourceFile(git, proposal.source_commit, filename);
+  const sourceVersion = parseWorkspacePackage(readSource("Cargo.toml")).version;
+  if (typeof sourceVersion !== "string") throw new Error("frozen source workspace version absent");
+  return reproducePreparedReleaseVersionFiles(readSource, {
+    base_version: sourceVersion,
+    version: proposal.version,
+  });
 }
 
 /** Exact existing preparation transform, reusable with authenticated inert blob
