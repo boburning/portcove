@@ -6057,7 +6057,8 @@
               {
                 "id": "raw-big-endian-zip",
                 "extensions": [
-                  "zip"
+                  "bin",
+                  "md"
                 ],
                 "kind": "archive-member",
                 "member_extensions": [
@@ -6164,7 +6165,8 @@
               {
                 "id": "raw-big-endian-zip",
                 "extensions": [
-                  "zip"
+                  "bin",
+                  "md"
                 ],
                 "kind": "archive-member",
                 "member_extensions": [
@@ -6230,7 +6232,8 @@
               {
                 "id": "raw-big-endian-zip",
                 "extensions": [
-                  "zip"
+                  "bin",
+                  "md"
                 ],
                 "kind": "archive-member",
                 "member_extensions": [
@@ -16807,7 +16810,7 @@
     {
       "id": "dkc3-recomp",
       "name": "DKC3Recomp",
-      "summary": "Native Donkey Kong Country 3 recompilation.",
+      "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; gameplay remains unqualified.",
       "project_url": "https://github.com/elliotttate/DKC3Recomp",
       "support_tier": "beta",
       "channels": [
