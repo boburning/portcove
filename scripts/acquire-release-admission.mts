@@ -45,6 +45,7 @@ import {
   selectPublicBuildInputBinding,
   verifyReleasePublicBuildInputs,
   requireStablePublicBuildInputEvidence,
+  requireVerifiedReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import {
@@ -107,6 +108,7 @@ export interface ActualReleaseAdmissionContext {
   native_qualifications: readonly object[];
   coordinator_repository: string;
   sbom_receipt: object;
+  public_build_inputs_receipt: object;
   pending_obligations: readonly string[];
 }
 const actualAdmissionContexts = new WeakMap<
@@ -116,6 +118,7 @@ const actualAdmissionContexts = new WeakMap<
 const acquiredSbomReceipts = new WeakMap<object, object>();
 const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
 const acquiredCoordinatorRepositories = new WeakMap<object, string>();
+const acquiredPublicInputReceipts = new WeakMap<object, object>();
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -947,6 +950,10 @@ export async function acquireReleaseAdmission(
     if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
       await requireVerifiedReleaseSbomDocument(sbomEvidence);
       acquiredSbomReceipts.set(result, sbomEvidence);
+      if (publicBuildInputs) {
+        await requireVerifiedReleasePublicBuildInputs(publicBuildInputs);
+        acquiredPublicInputReceipts.set(result, publicBuildInputs);
+      }
       if (nativeReceipts && nativeReports) acquiredNativeReceipts.set(result, nativeReceipts);
       if (
         typeof before.repository === "string" &&
@@ -1077,6 +1084,10 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       throw new Error(
         "positive continuation requires actual privately recovered coordinator repository",
       );
+    const publicInputs = acquiredPublicInputReceipts.get(admission);
+    if (!publicInputs)
+      throw new Error("positive continuation requires actual public root/key custody");
+    await requireVerifiedReleasePublicBuildInputs(publicInputs);
     const context = Object.freeze({
       stage,
       facts,
@@ -1086,6 +1097,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       native_qualifications: nativeReceipts,
       coordinator_repository: coordinatorRepository,
       sbom_receipt: sbomReceipt,
+      public_build_inputs_receipt: publicInputs,
       pending_obligations: Object.freeze([...admission.pending_obligations]),
     });
     actualAdmissionContexts.set(context, { context, phase });

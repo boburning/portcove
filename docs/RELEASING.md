@@ -1609,6 +1609,19 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+`prepareReleaseSigningContext` connects the actual same-process pre-sign native,
+SPDX, payload signature and public build-input receipts to a Tough-authenticated
+prior repository. It reconstructs the selected Windows/Linux Preview records
+with the existing record factory, preserves every historical target byte, and
+refuses changed immutable paths, Root/key mismatches or a different verifier.
+The private getter rechecks the complete retained tree and original receipts;
+its full record digest and candidate/aggregate/signature binding are expected
+inputs for the later role and publication joins. Versions retain exact numeric
+`u64` JSON tokens. Initial empty-feed bootstrap, cross-job attestation, five-role
+execution and post-sign qualification remain separate requirements. This
+preparation neither publishes nor turns pre-sign qualification into publication
+admission, and it cannot accept imported context or qualification JSON.
+
 The actual `assemble-tuf` report additionally returns `publication`: root/offline
 anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
 canonical decimal-string version floors and exact expirations. These facts are
