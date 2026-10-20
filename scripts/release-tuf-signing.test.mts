@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import {
+  assembleIsolatedTufPublication,
+  inspectTufAssemblyInputs,
+  requireActualTufPublication,
+} from "./release-tuf-publication.mts";
 import { test } from "node:test";
 
 import { createHash } from "node:crypto";
@@ -258,6 +263,65 @@ void test(
         results.push(result);
       }
       const wrong = Buffer.from(keys.preview);
+      const assembled = await assembleIsolatedTufPublication(
+        {
+          context_directory: input,
+          tool: { path: tool, sha256 },
+          signed_roles: results.map(
+            ({ filename, path: envelopePath, bytes, sha256: envelopeSha }) => ({
+              filename,
+              path: envelopePath,
+              bytes,
+              sha256: envelopeSha,
+            }),
+          ),
+          output_parent: root,
+        },
+        performance.now() + 10000,
+      );
+      assert.equal(assembled.records, 0);
+      assert.equal(assembled.publication.records_sha256, hash(Buffer.from("[]")));
+      assert.ok(!(await readdir(assembled.directory)).includes("private-work"));
+      await assert.rejects(requireActualTufPublication(assembled), /actual keyless/u);
+      const reordered = results.map(
+        ({ filename, path: envelopePath, bytes, sha256: envelopeSha }) => ({
+          filename,
+          path: envelopePath,
+          bytes,
+          sha256: envelopeSha,
+        }),
+      );
+      [reordered[0], reordered[1]] = [reordered[1]!, reordered[0]!];
+      assert.throws(() => inspectTufAssemblyInputs(reordered), /five exact/u);
+      const malformed = Buffer.from('{"signed":{},"signatures":[]}');
+      const tampered = path.join(root, "tampered-releases.json");
+      await writeFile(tampered, malformed, { flag: "wx" });
+      const forged = results.map(
+        ({ filename, path: envelopePath, bytes, sha256: envelopeSha }) => ({
+          filename,
+          path: envelopePath,
+          bytes,
+          sha256: envelopeSha,
+        }),
+      );
+      forged[0] = {
+        filename: "releases.json",
+        path: tampered,
+        bytes: malformed.length,
+        sha256: hash(malformed),
+      };
+      await assert.rejects(
+        assembleIsolatedTufPublication(
+          {
+            context_directory: input,
+            tool: { path: tool, sha256 },
+            signed_roles: forged,
+            output_parent: root,
+          },
+          performance.now() + 10000,
+        ),
+        /public evidence retained/u,
+      );
       await assert.rejects(
         signIsolatedTufRole(
           {
