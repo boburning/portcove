@@ -575,3 +575,7 @@ cancel, result and return sequence only for the recorded source, platform and
 inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
+
+### Library identity and artwork feedback
+
+The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
