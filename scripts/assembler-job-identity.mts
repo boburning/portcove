@@ -11,6 +11,10 @@ const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
 };
+const payloadSignerProfile = {
+  workflow: productionControllerWorkflow,
+  job: "Sign admitted updater payloads",
+};
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",
@@ -345,12 +349,50 @@ async function verifyJobIdentity(
 // Fixed profiles are deliberately private: callers cannot promote another job
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
+const capacityExecutorProfiles = Object.freeze({
+  coordinator: { workflow: productionControllerWorkflow, job: "Coordinate application release" },
+  "release-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish immutable application release",
+  },
+  "site-publication": {
+    workflow: productionControllerWorkflow,
+    job: "Publish authenticated application site",
+  },
+});
+export type CapacityExecutorRole = keyof typeof capacityExecutorProfiles;
+
+/** Fixed coordinator/publication profiles; names supplied by a caller cannot
+ * appoint another job. Identity verification alone grants no effect authority. */
+export async function verifyCapacityExecutorJobIdentity(
+  role: CapacityExecutorRole,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  if (!Object.hasOwn(capacityExecutorProfiles, role))
+    throw new Error("capacity executor role is not a fixed controller profile");
+  const observed = await verifyJobIdentity(
+    capacityExecutorProfiles[role],
+    token,
+    expected,
+    options,
+  );
+  return { ...observed, role };
+}
 export function verifyAssemblerJobIdentity(
   token: string,
   expected: unknown,
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(assemblerProfile, token, expected, options);
+}
+export function verifyPayloadSignerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(payloadSignerProfile, token, expected, options);
 }
 export function verifyClassificationWriterJobIdentity(
   token: string,

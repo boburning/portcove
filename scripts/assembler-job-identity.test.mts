@@ -5,12 +5,53 @@ import {
   verifyAssemblerJobIdentity,
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
+  verifyPayloadSignerJobIdentity,
+  verifyCapacityExecutorJobIdentity,
 } from "./assembler-job-identity.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   expected,
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+void test("capacity executor roles require their exact signed job, not another trusted role or matching name", async () => {
+  for (const [role, name] of [
+    ["coordinator", "Coordinate application release"],
+    ["release-publication", "Publish immutable application release"],
+    ["site-publication", "Publish authenticated application site"],
+  ] as const) {
+    const f = fixture({}, {}, { workflow: productionControllerWorkflow, job: name });
+    const actual = await verifyCapacityExecutorJobIdentity(role, f.token, expected, f);
+    assert.equal(actual.role, role);
+    assert.equal(actual.job_id, 501);
+    assert.equal(actual.evidence_scope, "injected-provider");
+    const wrong = fixture();
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, expected, wrong));
+    f.faults.value = "name-only";
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, expected, f));
+  }
+});
+void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
+  const f = fixture(
+    {},
+    {},
+    { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+  );
+  const result = await verifyPayloadSignerJobIdentity(f.token, expected, f);
+  assert.equal(result.job_id, 501);
+  assert.equal(result.check_run_id, "777");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.authority, "none");
+  const assembler = fixture();
+  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, expected, assembler));
+  const nameOnly = fixture(
+    {},
+    {},
+    { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+  );
+  nameOnly.faults.value = "name-only";
+  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, expected, nameOnly));
+});
 
 void test("signed check-run identity resolves the independent numeric job through complete attempt pages", async () => {
   const f = fixture();
