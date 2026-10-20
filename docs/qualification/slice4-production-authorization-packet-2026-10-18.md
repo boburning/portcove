@@ -28,6 +28,14 @@ remain unaccepted. Genuine broker capture, ratified custody and the stage-specif
 record/context joins are still required. No native execution or production
 authority is established by this preparation.
 
+The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
+records an owner-visible unconfigured project site and absent parent user-site
+repository, bracketed around fixed public-route 404 observations. This is
+read-only setup evidence, not historical/unlisted-path absence or a publication
+grant. First publication still needs an explicit same-journal bootstrap,
+ratified custody and fresh setup/provider reconciliation; ordinary renewal
+cannot fabricate its first prior repository.
+
 The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
 connects isolated fresh immutable-release observation, dedicated journal
 credential transport, observed-effect recovery and actual publication-stage
