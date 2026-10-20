@@ -308,7 +308,10 @@ it("includes visible Find games card content in its accessible name when artwork
   }));
   await page.viewport(1280, 800);
   await mount("dark");
-  await page.getByRole("button", { name: "Find games", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("button", { name: /^Find games/ })
+    .click();
   await expect
     .poll(() => document.querySelectorAll('[data-detail-origin^="catalog:card:"]').length)
     .toBe(12);
