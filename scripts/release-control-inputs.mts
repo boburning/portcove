@@ -11,6 +11,7 @@ import {
 import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
+import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -440,6 +441,48 @@ export function readReviewedClassification(
     observed_at: new Date().toISOString(),
     authority: "none",
   };
+}
+
+/** Locate the existing D1 record from the exact neutral request, then reuse the
+ * same authenticated Check/record verifier. Only an absent path is missing;
+ * malformed, legacy, substituted or changed records remain hard refusals. */
+export function readReviewedClassificationForRequest(
+  api: CoordinatorRemoteApi,
+  rawConfig: unknown,
+  rawRequest: unknown,
+) {
+  const config = configuration(rawConfig);
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("classification extraction requires an exact neutral request");
+  const io = session(api);
+  const before = io.ref(classificationBranch);
+  const text = io.contents(
+    before,
+    `classification/${request.source_commit}/${request.change_set_sha256}.json`,
+    true,
+  );
+  if (text === null) {
+    if (io.ref(classificationBranch) !== before)
+      throw new Error("classification ref changed while path was absent");
+    return { status: "missing" as const, commit: before, authority: "none" as const };
+  }
+  const declared: unknown = JSON.parse(text);
+  if (!isRecord(declared)) throw new Error("request classification record malformed");
+  const opportunity = validateOpportunity(declared.opportunity);
+  if (
+    opportunity.base_commit !== request.base_commit ||
+    opportunity.source_commit !== request.source_commit ||
+    opportunity.source_tree !== request.source_tree ||
+    opportunity.change_set_sha256 !== request.change_set_sha256 ||
+    opportunity.requested_channel !== request.requested_channel ||
+    opportunity.classification.base_version !== request.base_version ||
+    opportunity.classification.change_set_scope !== request.change_set_scope
+  )
+    throw new Error("persisted classification differs from exact neutral request");
+  const verified = readReviewedClassification(api, config, opportunity);
+  if (verified.commit !== before || io.ref(classificationBranch) !== before)
+    throw new Error("request classification changed during independent reauthentication");
+  return { ...verified, status: "reviewed" as const };
 }
 
 export function readPublicationPause(api: CoordinatorRemoteApi) {

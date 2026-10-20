@@ -10,7 +10,9 @@ import {
   readPublicationPause,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
+  readReviewedClassificationForRequest,
 } from "./release-control-inputs.mts";
+import { createReleaseReviewRequest } from "./release-review-request.mts";
 import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
@@ -26,6 +28,49 @@ import {
   opportunity,
   config,
 } from "./fixtures/release-control-inputs-fixture.mts";
+void test("neutral request discovers only its existing exact D1 path and reauthenticates the unchanged consumer", () => {
+  const f = fixture();
+  const request = createReleaseReviewRequest({
+    before_checkpoint: "1".repeat(40),
+    requested_at: "2026-01-01T00:00:00.000Z",
+    base_commit: opportunity.base_commit,
+    base_version: opportunity.classification.base_version,
+    source_commit: opportunity.source_commit,
+    source_tree: opportunity.source_tree,
+    change_set_sha256: opportunity.change_set_sha256,
+  });
+  assert.equal(readReviewedClassificationForRequest(f.api, config, request).status, "missing");
+  assert.equal(f.mutations(), 0);
+  persistReviewedClassification(f.api, config, opportunity, 303, () => {});
+  const result = readReviewedClassificationForRequest(f.api, config, request);
+  assert.equal(result.status, "reviewed");
+  if (result.status !== "reviewed") assert.fail("verified fixture classification missing");
+  assert.deepEqual(result.opportunity, opportunity);
+  assert.equal(result.review_check_id, 303);
+  const wrongBase = createReleaseReviewRequest({
+    before_checkpoint: request.before_checkpoint,
+    requested_at: request.requested_at,
+    base_commit: request.base_commit,
+    base_version: "0.1.0-alpha.1",
+    source_commit: request.source_commit,
+    source_tree: request.source_tree,
+    change_set_sha256: request.change_set_sha256,
+  });
+  assert.throws(
+    () => readReviewedClassificationForRequest(f.api, config, wrongBase),
+    /exact neutral request/,
+  );
+  f.legacy();
+  assert.throws(
+    () => readReviewedClassificationForRequest(f.api, config, request),
+    /schema differs/,
+  );
+  assert.equal(f.mutations(), 1);
+  const malformed = fixture();
+  malformed.conflicting();
+  assert.throws(() => readReviewedClassificationForRequest(malformed.api, config, request));
+  assert.equal(malformed.mutations(), 0);
+});
 void test("semantic review binds exact inputs; CAS writes once; identical repeat does not write", () => {
   const f = fixture();
   assert.equal(
