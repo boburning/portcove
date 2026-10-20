@@ -3,7 +3,7 @@
 ## Managed RaceWave46 sign-in boundary
 
 The exact official Windows v1.0.0 package uses a closed retained runtime-data
-policy requiring staged-source capability 14. Ordinary `.runtime` saves and
+policy requiring staged-source capability 15. Ordinary `.runtime` saves and
 settings are managed; RetroAchievements credentials stay inside each version.
 They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
 known credential names before reading payloads and again before publication.

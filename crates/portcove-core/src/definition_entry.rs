@@ -135,11 +135,11 @@ impl DefinitionContentIndex {
         if port.runtime_data_policy.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 14
+                    && requirement.minimum_version >= 15
             })
         {
             return Err(PortcoveError::verification(
-                "version-local credentials require staged-source capability version 14",
+                "version-local credentials require staged-source capability version 15",
             ));
         }
         if port.managed_initialization.is_some()

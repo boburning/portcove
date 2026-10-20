@@ -5,7 +5,7 @@ checked original as `game.z64`. Fixed launch arguments select that private copy.
 Existing external registrations remain non-owning and are not adopted.
 
 Core retains the exact artifact-bound runtime-data policy with the installation.
-Capability 14 is required; delivered Render96 capability13 does not implement this
+Capability 15 is required; delivered Gundam capability14 does not implement this
 credential boundary. Historical qualification retains its original engine identity.
 Removing the policy from the same managed artifact is
 invalid; older engine capabilities cannot silently ignore it.
