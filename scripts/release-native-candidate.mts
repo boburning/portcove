@@ -280,6 +280,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
         recover: source.recover,
         controlPhase: "payload",
         retainDesktopPackage: async (identity, bytes) => {
+          if (identity.platform_label !== parent.descriptor.platform_label) return;
           if (packages.has(identity.platform_label)) throw new Error("native package repeats");
           packages.set(identity.platform_label, { identity: structuredClone(identity), bytes });
         },
