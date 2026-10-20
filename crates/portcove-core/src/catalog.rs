@@ -2506,7 +2506,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 37);
+        assert_eq!(qualification.len(), 39);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "the-force-engine-dark-forces")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()
