@@ -1,5 +1,6 @@
 import { fixtureObject as object } from "./desktop-scenario-state.mts";
 import { observeVisibleTarget } from "./browser-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 import {
@@ -171,6 +172,8 @@ export async function assertCompletionCoreParity({
 export interface CompletionReportDiagnostics {
   artifact_write_failure?: string;
   fallback_log_failure?: string;
+  enlargement_cleanup_failure?: string;
+  enlargement_capture_failure?: string;
 }
 export async function retainCompletionReport<T extends object>(options: {
   file: string;
@@ -308,13 +311,49 @@ export async function selectedSetupCompletionScenario({
         "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"]',
       };
       const target = targets[name] ?? '[aria-labelledby="install-review-title"]';
+      const enlargedTargets: Readonly<Record<string, string>> = {
+        "initial-folder-connection": '[aria-label="Connect your game files"] h2',
+        "connected-folder-management": "#game-file-libraries-heading",
+        "selected-setup-prepared": "[data-task-owner] h2",
+        "selected-setup-queue-return": '[aria-label="Selected setup reviews"] > h3',
+        "selected-setup-bios-queue-return": '[aria-label="Selected setup reviews"] > h3',
+        "selected-setup-bios-settled-return": '[aria-label="Selected setup reviews"] > h3',
+      };
+      // Full panels deliberately scroll at 400%. Capture an identified bounded
+      // heading; retain the full-panel readiness and complete-target validator.
+      const captureTarget = enlargedTargets[name] ?? "#install-review-title";
+      const preparedTarget = await prepareCaptureTarget({
+        target: captureTarget,
+        label: `400% ${name} heading`,
+        scroll: () =>
+          executeBrowserScript(
+            browser,
+            (selector) => {
+              document
+                .querySelector(selector)
+                ?.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" });
+            },
+            captureTarget,
+          ),
+        observe: () =>
+          executeBrowserScript(browser, observeVisibleTarget, captureTarget, "visual" as const),
+      });
       const capture = await captureSettledVisual({
         browser,
         output,
         name,
         scenario: "native-selected-setup-completion",
-        target,
-        observeTarget: () => executeBrowserScript(browser, observeVisibleTarget, target),
+        target: captureTarget,
+        observeTarget: async () => {
+          const state = await executeBrowserScript(
+            browser,
+            observeVisibleTarget,
+            captureTarget,
+            "visual" as const,
+          );
+          requireUnchangedCaptureTarget(preparedTarget.observation, state);
+          return state;
+        },
         readiness: () =>
           executeBrowserScript(
             browser,
@@ -359,13 +398,85 @@ export async function selectedSetupCompletionScenario({
           ? "Folder connections use the actual native picker; the bounded scan pre-state uses the CLI"
           : "Saved root seeded by the existing CLI; native picker credited separately",
         "No real game, BIOS preparation, gameplay, full representation matrix or other platform qualification",
+        "400% viewport captures target identified headings; scrollable full panels are exercised through their controls, not claimed wholly visible",
       ],
       port_id: port.id,
       observations: { sources: undefined },
     };
     let failure: { error: unknown } | undefined;
+    const originalWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    let enlargedJourney = false;
+    let baselineWidth = 0;
+    const enlargedStage = async (stage: string) => {
+      if (!enlargedJourney) return;
+      const observed = await executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        client: document.documentElement.clientWidth,
+        scroll: document.documentElement.scrollWidth,
+        zoom: localStorage.getItem("portcove.appearance.interface-size"),
+        dpr: devicePixelRatio,
+        theme: document.documentElement.dataset.theme,
+        userAgent: navigator.userAgent,
+        focus: document.activeElement?.textContent?.trim(),
+      }));
+      const nativeWindow = await browser.manage().window().getRect();
+      assert.equal(nativeWindow.width, 960);
+      assert.equal(nativeWindow.height, 640);
+      assert.equal(observed.zoom, "400", `Enlargement lost at ${stage}`);
+      assert.ok(
+        Math.abs(observed.width - baselineWidth / 4) <= 2,
+        `Native zoom ratio changed at ${stage}`,
+      );
+      assert.ok(observed.width <= 240, `Native effective width changed at ${stage}`);
+      assert.ok(observed.scroll <= observed.client + 1, `Horizontal overflow at ${stage}`);
+      const file = path.join(output, `selected-setup-400-${stage}.json`);
+      await writeFile(file, JSON.stringify({ ...observed, nativeWindow, baselineWidth }, null, 2), {
+        flag: "wx",
+      });
+      artifacts.push(file);
+    };
     try {
       generation = await selectedSetupGeneration(invoke);
+      await browser.manage().window().setRect({ width: 960, height: 640 });
+      await shortcut("0");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+          ),
+        10_000,
+      );
+      const baseline = await executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        dpr: devicePixelRatio,
+        theme: document.documentElement.dataset.theme,
+        userAgent: navigator.userAgent,
+      }));
+      baselineWidth = baseline.width;
+      const baselineFile = path.join(output, "selected-setup-100-baseline.json");
+      await writeFile(baselineFile, JSON.stringify(baseline, null, 2), { flag: "wx" });
+      artifacts.push(baselineFile);
+      // Retain the actual viewport if even the first enlargement attempt fails.
+      enlargedJourney = true;
+      for (let step = 0; step < 7; step++) await shortcut("+");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            (width) =>
+              localStorage.getItem("portcove.appearance.interface-size") === "400" &&
+              Math.abs(innerWidth - width / 4) <= 2,
+            baselineWidth,
+          ),
+        10_000,
+      );
+      await enlargedStage("folder-connection");
       assert.deepEqual(await read("get_sources"), []);
       assert.equal((await status()).active, null, "No adopted installation may seed completion");
       if (fixture.nativeConnectionJourney) {
@@ -487,6 +598,7 @@ export async function selectedSetupCompletionScenario({
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
           5_000,
         );
+        await enlargedStage("choose-inputs");
         await click(button("Choose game files"));
         const query = await browser.findElement(By.id("port-search"));
         await query.sendKeys(port.name);
@@ -495,13 +607,7 @@ export async function selectedSetupCompletionScenario({
         );
         assert.equal(options.length, 1);
         await required(options[0]).click();
-        const originalWindow = await browser.manage().window().getRect();
-        const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
-        const shortcut = (key: string) =>
-          browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
-        try {
-          await browser.manage().window().setRect({ width: 960, height: 640 });
-          for (let step = 0; step < 7; step++) await shortcut("+");
+        {
           await browser.wait(
             () =>
               executeBrowserScript(
@@ -524,17 +630,6 @@ export async function selectedSetupCompletionScenario({
           const receipt = path.join(output, "add-games-native-400.json");
           await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
           artifacts.push(receipt);
-        } finally {
-          await shortcut("0");
-          await browser.wait(
-            () =>
-              executeBrowserScript(
-                browser,
-                () => localStorage.getItem("portcove.appearance.interface-size") === "100",
-              ),
-            10_000,
-          );
-          await browser.manage().window().setRect(originalWindow);
         }
         await click(By.xpath('//nav//button[contains(., "Settings")]'));
         await click(
@@ -547,6 +642,7 @@ export async function selectedSetupCompletionScenario({
         await click(button("Search game-file folders"));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
+      await enlargedStage("scan-and-recognize");
       await click(button("Refresh folders"));
       const initialSnapshot = required(await read("get_game_file_scan_snapshot"));
       assert.equal(required(initialSnapshot.coverage).batches, 1);
@@ -687,6 +783,7 @@ export async function selectedSetupCompletionScenario({
         await browser.findElement(button("Cancel review")),
       );
       await screenshot("selected-setup-install-review");
+      await enlargedStage("install-review");
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
         async () => (await browser.findElements(installDialog)).length === 0,
@@ -817,6 +914,7 @@ export async function selectedSetupCompletionScenario({
       assert.equal(cancelledStatus.staged, null);
       await assert.rejects(stat(path.join(library, "staging", running.id)), { code: "ENOENT" });
       report.observations.cancelled = { activity: cancelled, status: cancelledStatus };
+      await enlargedStage("cancelled-install");
 
       await browser.wait(until.elementLocated(button("Review installation")), 15_000);
       await openInstall();
@@ -840,6 +938,7 @@ export async function selectedSetupCompletionScenario({
         "Installation must not imply prepared game data",
       );
       report.observations.installed = { activity: installedActivity, status: installed };
+      await enlargedStage("installed-next-step");
 
       await click(button("Review game preparation"));
       const preparationDialog = By.css('[aria-labelledby="preparation-review-title"]');
@@ -849,6 +948,7 @@ export async function selectedSetupCompletionScenario({
         15_000,
       );
       await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
+      await enlargedStage("preparation-review");
       assert.equal(
         required((await status()).active).id,
         installed.active.id,
@@ -917,6 +1017,7 @@ export async function selectedSetupCompletionScenario({
       assert.equal(report.observations.result_focus.tag, "H2");
       assert.equal(report.observations.result_focus.text, "Next step");
       await screenshot("selected-setup-prepared");
+      await enlargedStage("prepared-completion");
       await click(By.css('[aria-label="Back to previous workspace"]'));
       await browser.wait(until.elementLocated(continuation), 5_000);
       report.observations.return_focus = await browser.wait(
@@ -983,6 +1084,7 @@ export async function selectedSetupCompletionScenario({
       await browser.wait(until.elementLocated(queue), 5_000);
       assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       await screenshot("selected-setup-queue-return");
+      await enlargedStage("returned-selection");
       await click(
         By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Settings")]'),
       );
@@ -1198,6 +1300,18 @@ export async function selectedSetupCompletionScenario({
 
       const rootsBeforeRestart = await read("get_game_file_roots");
       browser = await restartApplication("selected-setup-inputs");
+      await browser.manage().window().setRect({ width: 960, height: 640 });
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () =>
+              localStorage.getItem("portcove.appearance.interface-size") === "400" &&
+              innerWidth <= 240,
+          ),
+        10_000,
+        "Restart did not restore native enlargement",
+      );
       generation = await selectedSetupGeneration(invoke);
       const { button: restartButton, click: restartClick } = reviewControls(browser);
       assert.deepEqual(await read("get_sources"), biosSources);
@@ -1257,6 +1371,7 @@ export async function selectedSetupCompletionScenario({
         selection_restored: false,
       };
       await screenshot("selected-setup-bios-restarted-review");
+      await enlargedStage("restarted-review");
       await restartClick(restartButton("Cancel review"));
       await browser.wait(
         async () => (await browser.findElements(installDialog)).length === 0,
@@ -1281,6 +1396,55 @@ export async function selectedSetupCompletionScenario({
         message: errorMessage(error),
         stack: error instanceof Error ? error.stack : undefined,
       };
+      if (enlargedJourney) {
+        try {
+          const image = path.join(output, "selected-setup-enlargement-failure.png");
+          await writeFile(image, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(image);
+        } catch (captureError) {
+          failure = {
+            error: new AggregateError([error, captureError], "Setup and failure capture failed"),
+          };
+          report.enlargement_capture_failure = errorMessage(captureError);
+        }
+      }
+    }
+    try {
+      await shortcut("0");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+          ),
+        10_000,
+      );
+    } catch (error) {
+      const previous = failure;
+      failure = {
+        error: previous
+          ? new AggregateError(
+              [previous.error, error],
+              "Setup journey and enlargement cleanup failed",
+            )
+          : error,
+      };
+      report.enlargement_cleanup_failure = errorMessage(error);
+    }
+    try {
+      await browser.manage().window().setRect(originalWindow);
+    } catch (error) {
+      failure = {
+        error: failure
+          ? new AggregateError([failure.error, error], "Setup and window restoration failed")
+          : error,
+      };
+      report.enlargement_cleanup_failure = [report.enlargement_cleanup_failure, errorMessage(error)]
+        .filter(Boolean)
+        .join("; ");
     }
     let preservationFailure: { error: unknown } | undefined;
     try {
