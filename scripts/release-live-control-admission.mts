@@ -3,6 +3,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   admitProductionInputReader,
   productionControllerWorkflow,
+  readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
@@ -19,11 +20,20 @@ import {
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
-import { requireObservedControlArtifact } from "./release-control-handshake.mts";
+import {
+  requireObservedControlArtifact,
+  prepareControlReadiness,
+  waitForControlArtifact,
+} from "./release-control-handshake.mts";
+import { mkdir, writeFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
+import path from "node:path";
+import { inspectControlRound } from "./release-control-handshake.mts";
 import type { ObservedControlArtifact } from "./release-control-handshake.mts";
 import {
   inspectReleaseControlPhase,
   releaseControlPhaseProfile,
+  isMaintenanceReleaseControlPhase,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
 const establishedSources = new WeakSet<object>();
@@ -101,6 +111,7 @@ export async function authenticateReleaseControlSource(
     observerTransport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
+    round?: { index: number; nonce: string };
   } = {},
 ) {
   const env = { ...environment };
@@ -108,11 +119,24 @@ export async function authenticateReleaseControlSource(
   const profile = releaseControlPhaseProfile(phase);
   const { admitted, identity } = await authenticateControlReaderJob(env, workflowBytes, options);
   const config = inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
+  if (options.round && !options.observedArtifact)
+    throw new Error("control rounds require actual collected observer artifact");
   if (options.observedArtifact)
     requireObservedControlArtifact(options.observedArtifact, "observation", phase);
   const handoff =
     options.observedArtifact?.body ?? json(env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION, 128 * 1024);
-  exact(handoff, "observation,phase,producer,schema_version");
+  exact(
+    handoff,
+    options.round
+      ? "observation,phase,producer,round,schema_version"
+      : "observation,phase,producer,schema_version",
+  );
+  if (
+    options.round &&
+    JSON.stringify(inspectControlRound(handoff.round)) !==
+      JSON.stringify(inspectControlRound(options.round))
+  )
+    throw new Error("observed protection round differs from the private continuation");
   exact(
     handoff.producer,
     "check_run_id,controller_ref,controller_revision,job_id,run_attempt,run_id,workflow",
@@ -219,6 +243,7 @@ export async function authenticateReleaseControlSource(
     controller_ref: admitted.execution_ref,
     expires_at: identity.expires_at,
     scope: "oidc-job-identity-only",
+    ...(options.round ? { round: inspectControlRound(options.round) } : {}),
   });
   const source = Object.freeze({
     phase,
@@ -233,8 +258,8 @@ export async function authenticateReleaseControlSource(
         ? "injected-provider"
         : "github.com",
     readMaintenance(api: CoordinatorRemoteApi) {
-      if (phase !== "site-publication")
-        throw new Error("metadata renewal requires the fixed site-publication phase");
+      if (!isMaintenanceReleaseControlPhase(phase))
+        throw new Error("metadata controls require a fixed maintenance signing/publication phase");
       const protection = guard();
       const pause = readPublicationPause(api);
       const capacity = readRatifiedCapacityConfiguration(api, guard);
@@ -304,3 +329,39 @@ export async function authenticateReleaseControlSource(
 export type AuthenticatedReleaseControlSource = Awaited<
   ReturnType<typeof authenticateReleaseControlSource>
 >;
+
+/** One fixed-job continuation round. The caller prepares immutable bytes first;
+ * its reviewed workflow uploads only this ready file while this process waits.
+ * Every later protected operation needs a new ordinal/nonce, never an overwrite
+ * or a relaxed protection freshness window. No credential enters this helper. */
+export async function authenticateReleaseControlRound(
+  directory: string,
+  factsSha256: string,
+  rawPhase: unknown,
+  index: number,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const round = { index, nonce: randomBytes(32).toString("hex") };
+  inspectControlRound(round);
+  if (!path.isAbsolute(directory) || !/^[a-f0-9]{64}$/u.test(factsSha256))
+    throw new Error("private round directory and exact prepared facts required");
+  const env = { ...process.env };
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  if (reader.identity.evidence_scope !== "github.com") throw new Error("actual reader required");
+  await mkdir(directory, { mode: 0o700 });
+  await writeFile(
+    path.join(directory, `ready-${phase}.json`),
+    JSON.stringify(prepareControlReadiness(reader.identity, factsSha256, phase, round)),
+    { flag: "wx", mode: 0o600 },
+  );
+  const observedArtifact = await waitForControlArtifact(directory, "observation", {
+    phase,
+    round,
+    controller_revision: reader.admitted.revision,
+    controller_ref: reader.admitted.execution_ref,
+    run_id: String(reader.admitted.run_id),
+    run_attempt: reader.admitted.run_attempt,
+  });
+  return authenticateReleaseControlSource(env, workflow, { phase, round, observedArtifact });
+}
