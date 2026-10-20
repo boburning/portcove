@@ -6,6 +6,15 @@ namespace Portcove.ReferenceClient
     // Descriptive instructions only. No step is treated as completed or authorized.
     internal static class SetupInstructions
     {
+        internal static object ForRuntime(object status, object catalog)
+        {
+            // A current managed definition cannot describe preparation of a
+            // previously registered, player-owned external installation.
+            if (Json.OptionalObjectField(status, "external_runtime") != null &&
+                Json.Text(Json.Field(catalog, "release"), "provider") != "user-prepared") return null;
+            return Json.OptionalObjectField(catalog, "presentation");
+        }
+
         internal static string Summary(object presentation)
         {
             if (presentation == null) return null;
@@ -192,7 +201,8 @@ namespace Portcove.ReferenceClient
             if (installed && launch != null && launch.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review launch hold",
                     "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
-            var external = Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
+            var external = Json.OptionalObjectField(status, "external_runtime") != null ||
+                Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var register = actions.FirstOrDefault(value => value.Action == "register_external");
             if (external && !installed && register != null && register.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review registration hold",

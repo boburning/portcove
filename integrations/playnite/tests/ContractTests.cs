@@ -523,7 +523,7 @@ internal static class ContractTests
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
             }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 10 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+            Check(prepared.Length == 4 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
@@ -1024,6 +1024,21 @@ internal static class ContractTests
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");
+        var convertedCatalog = Json.Parse(Json.Print(new {
+            source_profile = (string)null, bios_source_profile = (string)null,
+            release = new { provider = "direct-manifest" },
+            presentation = new { manual_preparation = "Portcove downloads a new managed installation." }
+        }));
+        var retainedBrokenExternal = Json.Object(Json.Parse(Json.Print(registeredExternal)));
+        retainedBrokenExternal["port_actions"] = new object[0];
+        Check(GuidedSetup.Choose(retainedBrokenExternal, convertedCatalog, "", "").Label == "Review external runtime",
+            "a converted catalog does not redirect a retained external installation into managed setup");
+        Check(SetupInstructions.ForRuntime(retainedBrokenExternal, convertedCatalog) == null,
+            "current managed preparation copy is suppressed for a retained external installation");
+        var freshManaged = Json.Parse(Json.Print(new { external_runtime = (object)null }));
+        Check(SetupInstructions.Summary(SetupInstructions.ForRuntime(freshManaged, convertedCatalog))
+                == "Portcove downloads a new managed installation.",
+            "suppressing retained external guidance does not remove new managed guidance");
         var sharedNeedsSetup = Json.Object(Json.Parse(Json.Print(registeredExternal)));
         Json.Object(Json.Field(sharedNeedsSetup, "readiness"))["blockers"] = new[] { "preparation_required" };
         Json.Object(Json.Field(sharedNeedsSetup, "external_runtime"))["shared_preferences"] = Json.Parse(Json.Print(new { contract = "smb1r-1.1-stable-windows", path = @"H:\Account\SMB1R", account_sid_sha256 = new string('a', 64) }));
