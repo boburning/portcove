@@ -124,7 +124,13 @@ async function main() {
       assert.equal(result.error, undefined);
       assert.equal(
         result.status,
-        ["release-control-ready", "release-payload-preparation"].includes(name) ? 2 : 1,
+        [
+          "release-control-ready",
+          "release-payload-preparation",
+          "release-signing-controller",
+        ].includes(name)
+          ? 2
+          : 1,
         name,
       );
       assert.ok(result.stderr.trim(), name);

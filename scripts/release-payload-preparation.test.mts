@@ -10,13 +10,27 @@ import {
   prepareControllerPayloadSigning,
   runPayloadSigningController,
   requirePreparedPayloadSignatures,
+  nextPreparedPayloadControlRound,
 } from "./release-payload-preparation.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import { signReleasePayload } from "./release-payload-signing.mts";
+import { runPayloadSigningAndContextController } from "./release-signing-controller.mts";
+import { expected } from "./fixtures/assembler-identity-fixture.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("imported payload metadata cannot allocate another observer round", async () => {
+  for (const receipt of [{}, { decision: "signed", control_round: 0, authority: "none" }])
+    await assert.rejects(nextPreparedPayloadControlRound(receipt), /actual same-process/);
+});
+void test("connected payload/context caller requires actual tools and cannot reinterpret imported signer success", async () => {
+  await assert.rejects(
+    runPayloadSigningAndContextController({}, expected, {}, []),
+    /actual same-process controller tool/,
+  );
+  await assert.rejects(runPayloadSigningAndContextController({ decision: "signed" }, {}, {}, []));
+});
 void test("an exhausted fixed role deadline refuses before tools, key callbacks or signing effects", async () => {
   let called = false;
   await assert.rejects(

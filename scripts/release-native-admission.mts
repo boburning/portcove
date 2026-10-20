@@ -106,11 +106,14 @@ export async function collectConfiguredNativeReleaseQualificationPair(
   locators: unknown,
   assembly: unknown,
   archives: unknown,
+  phase: "admission" | "payload" = "payload",
 ) {
+  if (phase !== "admission" && phase !== "payload")
+    throw new Error("fixed pre-sign native reader phase required");
   const capturedLocators: unknown = structuredClone(locators),
     capturedAssembly: unknown = structuredClone(assembly),
     capturedArchives: unknown = structuredClone(archives);
-  const authorities = await requireControllerReleaseAuthorities("payload");
+  const authorities = await requireControllerReleaseAuthorities(phase);
   const expected = await deriveNativeQualificationExpectations(
     authorities,
     capturedLocators,

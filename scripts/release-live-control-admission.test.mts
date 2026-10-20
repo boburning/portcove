@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
 import {
   config,
@@ -15,6 +16,7 @@ import {
 import { persistReviewedClassification } from "./release-control-inputs.mts";
 import {
   authenticateReleaseControlSource,
+  authenticateControlReaderJob,
   requireAuthenticatedReleaseControlSource,
 } from "./release-live-control-admission.mts";
 import { prepareProductionProtectionHandoff } from "./release-input-protections.mts";
@@ -127,6 +129,47 @@ void test("coordinator exact request reader accepts persisted independent proof 
   }
 });
 
+void test("source policy selects protected admission identity only in complete workflow mode", async () => {
+  const runtime = liveControlRuntimeFixture(protectionFixture("a".repeat(40)));
+  const policy: unknown = JSON.parse(runtime.environment.PORTCOVE_CONTROLLER_ADMISSION);
+  assert.ok(isRecord(policy));
+  const environment = {
+    ...runtime.environment,
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...policy,
+      schema_version: 2,
+      mode: "bounded-application-release",
+      authority_configuration_sha256: "a".repeat(64),
+      grant_sha256: "b".repeat(64),
+    }),
+  };
+  await assert.rejects(
+    authenticateControlReaderJob(environment, runtime.workflow, runtime.options),
+  );
+  const protectedRuntime = liveControlRuntimeFixture(
+    protectionFixture("a".repeat(40)),
+    config,
+    "admission",
+    true,
+  );
+  const protectedOptions = protectedRuntime.options;
+  const result = await authenticateControlReaderJob(
+    environment,
+    runtime.workflow,
+    protectedOptions,
+  );
+  assert.equal(result.admitted.mode, "bounded-application-release");
+  assert.equal(result.identity.evidence_scope, "injected-provider");
+  await assert.rejects(
+    authenticateControlReaderJob(runtime.environment, runtime.workflow, protectedOptions),
+  );
+  assert.equal(
+    (await authenticateControlReaderJob(runtime.environment, runtime.workflow, runtime.options))
+      .admitted.mode,
+    "admission-only",
+  );
+});
+
 function publicationProtection(commit: string, enabled = true) {
   const original = protectionFixture(commit);
   const inventory = {
@@ -147,6 +190,37 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
   return { control, runtime };
 }
+
+void test("controls cap the actual observer subprocess and refuse its late response without minting a source", async (t) => {
+  const f = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const { observerApi, ...options } = f.runtime.options;
+  let requests = 0;
+  await assert.rejects(
+    authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+      ...options,
+      deadline: 2000,
+      observerTransport: {
+        spawn(_command, args, settings) {
+          requests++;
+          assert.ok(settings.timeout && settings.timeout <= 1000);
+          const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+          assert.ok(endpoint);
+          const response = observerApi.request("GET", endpoint);
+          clock = 2001;
+          return {
+            status: 0,
+            stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
+            stderr: "",
+          };
+        },
+      },
+    }),
+    /phase deadline/u,
+  );
+  assert.equal(requests, 1);
+});
 
 void test("default observer REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
   const f = fixture();

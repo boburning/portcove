@@ -12,6 +12,7 @@ const repositoryId = 1354613114;
 export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
 export type ControllerOidcEnvironment =
   | "github-pages"
+  | "production-release-admission"
   | "production-payload-signing"
   | "production-release-coordinator"
   | "production-release-publication"
@@ -29,6 +30,7 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     environment !== undefined &&
     ![
       "github-pages",
+      "production-release-admission",
       "production-payload-signing",
       "production-release-coordinator",
       "production-release-publication",
@@ -94,10 +96,10 @@ function decoded(value: string): Buffer {
   return result;
 }
 
-async function providerKeys(): Promise<unknown> {
+async function providerKeys(timeoutMs = 15_000): Promise<unknown> {
   const response = await fetch(`${issuer}/.well-known/jwks`, {
     redirect: "error",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (response.status !== 200 || !response.body) throw new Error("OIDC provider keys unavailable");
   const parts: Buffer[] = [];
@@ -157,12 +159,23 @@ async function verifyJobIdentity(
   profile: JobIdentityProfile,
   token: string,
   rawExpected: unknown,
-  options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
+  options: {
+    transport?: { cwd: string; spawn?: Spawn; deadline?: number };
+    readKeys?: () => Promise<unknown>;
+  } = {},
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   if (expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment))
     throw new Error("independently expected OIDC subject differs from the fixed role");
   if (!options.transport) throw new Error("assembler identity transport is unconfigured");
+  const remaining = () => {
+    if (options.transport?.deadline === undefined) return 15000;
+    const value = Math.ceil(options.transport.deadline - performance.now());
+    if (!Number.isFinite(options.transport.deadline) || value < 1 || value > 600000)
+      throw new Error("assembler identity total phase deadline exhausted");
+    return Math.min(15000, value);
+  };
+  remaining();
   if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
     throw new Error("OIDC token exceeds its byte bound");
   const parts = token.split(".");
@@ -180,7 +193,8 @@ async function verifyJobIdentity(
   )
     throw new Error("OIDC header or key selection is unsupported");
   const started = performance.now();
-  const keys = await (options.readKeys ?? providerKeys)();
+  const keys = await (options.readKeys ?? (() => providerKeys(remaining())))();
+  remaining();
   if (!isRecord(keys) || !Array.isArray(keys.keys) || keys.keys.length < 1 || keys.keys.length > 16)
     throw new Error("OIDC provider key inventory is incomplete or oversized");
   const matches = keys.keys.filter((key: unknown) => isRecord(key) && key.kid === header.kid);
@@ -255,19 +269,22 @@ async function verifyJobIdentity(
     throw new Error("signed OIDC claims differ from the expected direct controller job");
   const expires = claims.exp;
   const checkRunId = claims.check_run_id;
-  const runner = createGitHubRunner({
-    ...options.transport,
-    maxBuffer: 2 * 1024 * 1024,
-    timeoutMs: 15_000,
-  });
+  const transport = options.transport;
   const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
+    createGitHubRunner({
+      cwd: transport.cwd,
+      ...(transport.spawn ? { spawn: transport.spawn } : {}),
+      maxBuffer: 2 * 1024 * 1024,
+      timeoutMs: remaining(),
+    })([...args, "--hostname", "github.com"], input),
   );
   let requests = 0;
   const get = (suffix: string) => {
+    remaining();
     if (++requests > 20 || performance.now() - started > 120_000 || Date.now() / 1000 >= expires)
       throw new Error("assembler identity collection deadline exhausted");
     const reply = api.request("GET", `repos/${repository}${suffix}`);
+    remaining();
     if (
       reply.status !== 200 ||
       performance.now() - started > 120_000 ||
@@ -528,7 +545,17 @@ export function verifyReleaseInputReaderJobIdentity(
   expected: unknown,
   options: IdentityOptions = {},
 ) {
-  return verifyReleaseControlReaderJobIdentity("admission", token, expected, options);
+  // Original schema-1 read-only admission route. Complete-workflow admission
+  // uses the environment-bound phase verifier below before any journal access.
+  return verifyJobIdentity(
+    {
+      workflow: productionControllerWorkflow,
+      job: releaseControlPhaseProfile("admission").reader_name,
+    },
+    token,
+    expected,
+    options,
+  );
 }
 export function verifyReleaseControlReaderJobIdentity(
   phase: unknown,
@@ -553,7 +580,15 @@ export async function requestAssemblerToken(
   audience: string,
   environment: NodeJS.ProcessEnv = process.env,
   fetcher: typeof fetch = fetch,
+  deadline?: number,
 ) {
+  const remaining = () => {
+    const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
+    if (!Number.isFinite(left) || left < 1 || (deadline !== undefined && left > 600000))
+      throw new Error("runner OIDC phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   // These are runner-issued control variables, never dispatch/candidate values.
   const endpoint = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL ?? "");
   const bearer = environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
@@ -571,16 +606,19 @@ export async function requestAssemblerToken(
   const response = await fetcher(endpoint, {
     headers: { Authorization: `Bearer ${bearer}` },
     redirect: "error",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(remaining()),
   });
+  remaining();
   if (response.status !== 200 || !response.body) throw new Error("runner OIDC request refused");
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+    remaining();
     length += chunk.byteLength;
     if (length > 32 * 1024) throw new Error("runner OIDC response exceeds bound");
     chunks.push(Buffer.from(chunk));
   }
+  remaining();
   const result: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   if (!isRecord(result) || typeof result.value !== "string" || result.value.length > 16384)
     throw new Error("runner OIDC response is invalid");
