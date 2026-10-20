@@ -19875,7 +19875,7 @@
     {
       "id": "render96ex",
       "name": "Super Mario 64 Render96",
-      "summary": "Pinned Render96 source build from the verified USA original, with the stock resource set.",
+      "summary": "Play Super Mario 64 through the Render96 engine.",
       "project_url": "https://github.com/Render96/Render96ex",
       "support_tier": "beta",
       "channels": [
