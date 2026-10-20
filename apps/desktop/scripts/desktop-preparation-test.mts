@@ -960,6 +960,19 @@ export async function preparationScenarios({
     const { port, install } = await seed("opengoal-jak1", "success");
     await open(port);
     assert.equal(required((await status(port.id)).readiness).launchable, false);
+    const preparationHierarchy = await executeBrowserScript(browser, () => {
+      const actions = document.querySelector('section[aria-label="Game actions"]');
+      return {
+        heading: actions?.querySelector("h2")?.textContent,
+        firstAction: actions?.querySelector("button:not(:disabled)")?.textContent?.trim(),
+        disabledPlaceholder: actions?.textContent?.includes("Prepare game data first"),
+        owner: actions?.getAttribute("data-task-owner"),
+      };
+    });
+    assert.equal(preparationHierarchy.heading, "Next step: prepare game data");
+    assert.equal(preparationHierarchy.firstAction, "Review game preparation");
+    assert.equal(preparationHierarchy.disabledPlaceholder, false);
+    assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
     await outputLocationInput.sendKeys(
@@ -1060,6 +1073,110 @@ export async function preparationScenarios({
     artifacts.push(reviewImage);
     const accessibilityReport = path.join(output, "preparation-accessibility.json");
     await captureAccessibilityReport(browser, accessibilityReport, artifacts);
+    const reviewWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = async (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    try {
+      await browser.manage().window().setRect({ width: 960, height: 640 });
+      for (let step = 0; step < 7; step++) await shortcut("+");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () =>
+              localStorage.getItem("portcove.appearance.interface-size") === "400" &&
+              innerWidth <= 240,
+          ),
+        10_000,
+        "Preparation review did not reach actual native 400% enlargement",
+      );
+      await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
+      const confirm = await browser.findElement(button("Prepare game data"));
+      await executeBrowserScript(
+        browser,
+        (element) => {
+          element.scrollIntoView({ block: "center" });
+          (element as HTMLElement).focus();
+        },
+        confirm,
+      );
+      assert.equal(await confirm.isDisplayed(), true);
+      assert.equal(await confirm.isEnabled(), true);
+      const visibleAction = async (element: WebElement) => {
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (control) => {
+                const bounds = control.getBoundingClientRect();
+                const hit = document.elementFromPoint(
+                  bounds.x + bounds.width / 2,
+                  bounds.y + bounds.height / 2,
+                );
+                return (
+                  document.activeElement === control &&
+                  bounds.top >= 0 &&
+                  bounds.bottom <= innerHeight + 1 &&
+                  bounds.left >= 0 &&
+                  bounds.right <= innerWidth + 1 &&
+                  (hit === control || (hit !== null && control.contains(hit)))
+                );
+              },
+              element,
+            ),
+          5_000,
+          "Enlarged review action is not focused, in the viewport and unobscured",
+        );
+      };
+      await visibleAction(confirm);
+      await browser.actions().sendKeys(Key.TAB).perform();
+      const cancel = await browser.findElement(button("Cancel review"));
+      await visibleAction(cancel);
+      const enlarged = path.join(output, "preparation-native-400-observation.json");
+      await writeFile(
+        enlarged,
+        JSON.stringify(
+          await executeBrowserScript(browser, () => ({
+            width: innerWidth,
+            height: innerHeight,
+            zoomPreference: localStorage.getItem("portcove.appearance.interface-size"),
+            focus: document.activeElement?.textContent?.trim(),
+            dialog: document.querySelector('[aria-labelledby="preparation-review-title"]')
+              ?.textContent,
+          })),
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(enlarged);
+      // Exercise the real dismissal at enlargement; focus and geometry alone
+      // do not establish that the action can actually be used.
+      await cancel.click();
+      await browser.wait(
+        async () => (await browser.findElements(preparationDialog)).length === 0,
+        5_000,
+      );
+      assert.equal(
+        required((await status(port.id)).active).id,
+        install.id,
+        "Enlarged dismissal must not prepare",
+      );
+    } finally {
+      await shortcut("0");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+          ),
+        10_000,
+      );
+      await browser.manage().window().setRect(reviewWindow);
+    }
+    await clickVisible(browser, await browser.findElement(button("Review game preparation")));
+    await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(preparationDialog)).length === 0,
@@ -1108,6 +1225,11 @@ export async function preparationScenarios({
     assert.ok(trial, "Rendered trial-launch action must be available");
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
+    await browser.wait(
+      () => executeBrowserScript(browser, (element) => document.activeElement === element, trial),
+      5_000,
+      "Successful preparation did not hand focus to the available launch action",
+    );
     await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");

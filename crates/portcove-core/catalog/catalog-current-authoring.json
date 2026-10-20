@@ -892,6 +892,16 @@
         "claim": "Exact managed Windows original intake, reviewed unchanged official package acquisition, supervised startup/ordinary close and administrative preservation. Startup screenshot shows logo over water, not menu arrival. Synthetic version-local sign-in excluded from canonical data/backups, preserved through restore and deleted on removal. No gameplay, save/load, new-version update/rollback or support promotion.",
         "immutable_url": "https://github.com/boburning/portcove/blob/2bcc4459133ab6f06ab277f0432da9d1f593d0a7/docs/qualification/racewave46-managed-windows-2026-10-20.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/racewave46-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "super-bomberman-v011-source-contract-2026-10-19",
+        "role": "upstream_support",
+        "authority": "elliotttate/BombermanRecomp",
+        "authority_ref": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+        "reviewed_at": "2026-10-19",
+        "claim": "The pinned v0.1.1 source accepts the exact stock headerless Super Bomberman USA payload and direct positional invocation; the checked official package contains the native Windows x64 host. Package, source and original identities are separate from operation/gameplay acceptance.",
+        "immutable_url": "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c",
+        "live_url": "https://github.com/elliotttate/BombermanRecomp/blob/main/runner/verified_rom.c"
       }
     ],
     "identities": [
@@ -6923,6 +6933,46 @@
             ]
           }
         ]
+      },
+      {
+        "id": "super-bomberman-snes-usa",
+        "label": "Super Bomberman (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "Super Bomberman",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-bomberman-v011-source-contract-2026-10-19"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-bomberman-v011-source-contract-2026-10-19"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -9894,6 +9944,33 @@
           {
             "upstream_ref": "source-48da5c491c8a",
             "artifact_sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-bomberman-recomp-game-source",
+        "port_id": "super-bomberman-recomp",
+        "role": "game",
+        "profile_id": "super-bomberman-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-bomberman-v011-source-contract-2026-10-19"
+        ],
+        "authority_ref": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c",
+        "live_review_url": "https://github.com/elliotttate/BombermanRecomp/blob/main/runner/verified_rom.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a"
           }
         ],
         "aliases": [],
@@ -20745,6 +20822,87 @@
         "sm64config.txt",
         "sm64_save_file.bin"
       ]
+    },
+    {
+      "id": "super-bomberman-recomp",
+      "name": "BombermanRecomp",
+      "summary": "Play Super Bomberman on your desktop.",
+      "project_url": "https://github.com/elliotttate/BombermanRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.1.1",
+            "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+            "size": 1245795,
+            "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+            "published_at": "2026-08-26T16:01:04Z"
+          }
+        }
+      },
+      "source_profile": "super-bomberman-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "BombermanRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "original_game_title": "Super Bomberman",
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-bomberman-snes-usa",
+            "label": "Super Bomberman (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own stock headerless Super Bomberman (USA) source. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route.",
+        "artwork": {
+          "game_id": 3450,
+          "cover_id": 292645,
+          "image_id": "co69t1",
+          "image_sha256": "ca7bb95b008bfa7dcfd4a2fe0da3af70abeeaa52b084f5a08504f0130a0a7669",
+          "game_slug": "super-bomberman",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "launch_environment": {},
+      "runtime_source_filename": "game.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.sfc": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".jsonl"
+        }
+      ],
+      "persistent_paths": [
+        "game.sfc",
+        "saves"
+      ],
+      "runtime_mutable_paths": []
     }
   ]
 }

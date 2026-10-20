@@ -41,7 +41,8 @@
     "resident-evil-gaiden-gbc-usa",
     "earthbound-snes-usa",
     "smb1r-world-nes",
-    "dark-forces-pc-complete-installed-data"
+    "dark-forces-pc-complete-installed-data",
+    "super-bomberman-snes-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -86,6 +87,7 @@
     "resident-evil-gaiden-recomp",
     "earthbound-recomp",
     "super-mario-bros-remastered",
-    "render96ex"
+    "render96ex",
+    "super-bomberman-recomp"
   ]
 }

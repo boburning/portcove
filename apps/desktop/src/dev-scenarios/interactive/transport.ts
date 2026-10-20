@@ -64,6 +64,12 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     return String(args?.portId);
   };
   const handlers: Record<string, (args: Record<string, unknown> | undefined) => unknown> = {
+    // Fixtures acknowledge only their ordinary 100% browser baseline. They do
+    // not simulate native zoom or claim an enlarged WebView observation.
+    "plugin:webview|set_webview_zoom": (args) => {
+      requireArgs("plugin:webview|set_webview_zoom", args, { label: "main", value: 1 });
+      return null;
+    },
     get_favorite_ports: (args) => {
       requireArgs("get_favorite_ports", args, { generation });
       return [...favorites];

@@ -72,6 +72,14 @@ build targets, operating-system minima or publication qualification.
 
 ## Component rules
 
+Interface size is one profile-local whole-interface control in Appearance with
+100/125/150/175/200/250/300/400 percent presets and Ctrl/Command plus/minus/zero.
+It preserves the active library, drafts and browsing context. Below 48rem
+effective width, primary navigation wraps above the workspace in one vertical
+reading flow. Keep task controls in that flow rather than sticking them over
+content. [Theme ownership](THEME.md#whole-interface-enlargement-and-reflow) owns
+the controller, persistence and native/browser evidence boundaries.
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
@@ -485,6 +493,21 @@ screenshots supplement rather than replace accessibility and input checks; no
 broad fragile pixel-perfect suite is required.
 
 ## Review gates
+
+Preparation presents game/port identity, the next step and existing Core-reviewed
+consequences beside the enabled review action. A managed setup does not lead with
+a disabled Play placeholder. Requirement fields remain in their dedicated group;
+missing-file recovery stays ahead of preparation when inputs are unavailable.
+After confirmed preparation, the current detail owner returns focus to enabled
+Play or its next-step heading. Library-generation/owner replacement and deliberate
+focus elsewhere suppress that deferred handoff.
+
+Startup recovery places a specific interrupted Move or restore before generic
+retry/library choices, naming the original or destination folder and preserved
+copies. Only host/Core-supported recovery actions appear. While recovery or a
+library choice is settling, competing recovery, reload and selection controls are
+disabled; failure restores usable choices. This changes presentation and local
+exclusion, never transfer authority or resume eligibility.
 
 Run the focused frontend tests, applicable theme/style contracts and production
 build before accepting a design-system change. The style gates must cover the
