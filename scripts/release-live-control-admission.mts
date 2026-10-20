@@ -6,6 +6,7 @@ import {
 } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
+  controllerOidcSubject,
   verifyReleaseControlReaderJobIdentity,
 } from "./assembler-job-identity.mts";
 import { requireReleaseInputWriterPolicy } from "./release-input-protections.mts";
@@ -67,7 +68,7 @@ export async function authenticateControlReaderJob(
   );
   const expected = {
     audience: profile.reader_audience,
-    subject: `repo:boburning/portcove:ref:${admitted.execution_ref}`,
+    subject: controllerOidcSubject(admitted.execution_ref, profile.reader_environment),
     controller_revision: admitted.revision,
     controller_ref: admitted.execution_ref,
     actor_id: admitted.actor_id,

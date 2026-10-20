@@ -1,6 +1,6 @@
+import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
@@ -397,76 +397,14 @@ export async function verifyAggregateAttestation(
     const bundlePath = path.join(directory, "input", "attestation.json");
     await writeFile(filename, archive, { flag: "wx", mode: 0o600 });
     await writeFile(bundlePath, bundle, { flag: "wx", mode: 0o600 });
-    const runner = createGitHubRunner({
-      cwd: directory,
-      spawn:
-        options.spawn ??
-        ((command, args, settings) =>
-          spawnSync(command, args, {
-            ...settings,
-            env: { ...process.env, GH_HOST: "github.com" },
-          })),
-      maxBuffer: 1024 * 1024,
-      timeoutMs: 30000,
-    });
-    const raw: unknown = JSON.parse(
-      runner([
-        "attestation",
-        "verify",
-        filename,
-        "--bundle",
-        bundlePath,
-        "--repo",
-        repository,
-        "--signer-workflow",
-        `${repository}/${productionControllerWorkflow}`,
-        "--signer-digest",
-        expected.controller_revision,
-        "--source-digest",
-        expected.controller_revision,
-        "--source-ref",
-        expected.controller_ref,
-        "--cert-oidc-issuer",
-        "https://token.actions.githubusercontent.com",
-        "--deny-self-hosted-runners",
-        "--predicate-type",
-        aggregatePredicateType,
-        "--format",
-        "json",
-      ]),
+    const statement = verifyControllerArtifactStatement(
+      directory,
+      filename,
+      bundlePath,
+      expected,
+      aggregatePredicateType,
+      options,
     );
-    if (
-      !Array.isArray(raw) ||
-      raw.length !== 1 ||
-      !isRecord(raw[0]) ||
-      !isRecord(raw[0].verificationResult)
-    )
-      throw new Error("aggregate bundle verification is missing or ambiguous");
-    const result = raw[0].verificationResult;
-    if (
-      !isRecord(result.signature) ||
-      !isRecord(result.signature.certificate) ||
-      !Array.isArray(result.verifiedTimestamps) ||
-      result.verifiedTimestamps.length < 1 ||
-      !isRecord(result.statement)
-    )
-      throw new Error("aggregate verified certificate, timestamp or statement is absent");
-    const certificate = result.signature.certificate;
-    const workflowUri = `https://github.com/${repository}/${productionControllerWorkflow}@${expected.controller_ref}`;
-    if (
-      certificate.issuer !== "https://token.actions.githubusercontent.com" ||
-      certificate.sourceRepositoryIdentifier !== "1354613114" ||
-      certificate.sourceRepositoryURI !== `https://github.com/${repository}` ||
-      certificate.buildSignerURI !== workflowUri ||
-      certificate.buildSignerDigest !== expected.controller_revision ||
-      certificate.sourceRepositoryDigest !== expected.controller_revision ||
-      certificate.sourceRepositoryRef !== expected.controller_ref ||
-      certificate.runnerEnvironment !== "github-hosted" ||
-      certificate.runInvocationURI !==
-        `https://github.com/${repository}/actions/runs/${expected.run_id}/attempts/${expected.run_attempt}`
-    )
-      throw new Error("aggregate attester certificate identity differs");
-    const statement = result.statement;
     const name = `trusted-release-final-${expected.run_id}-${expected.run_attempt}`;
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||

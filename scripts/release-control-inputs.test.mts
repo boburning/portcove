@@ -212,6 +212,7 @@ void test("held CLI source admission runs without installed dependencies and ref
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
   for (const file of [
     "release-reviewed-inputs.mts",
+    "release-control-phases.mts",
     "assembler-job-identity.mts",
     "production-controller-admission.mts",
     "github-api.mts",

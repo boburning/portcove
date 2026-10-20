@@ -11,6 +11,16 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
+prepares bounded, attested fixed-source tool custody before role-key access and
+adds a separate ordinary credential-free Linux build fixture. Its initial three
+bundled entries require explicit extension to the final role wrappers; protected
+tool execution and all independent acceptance remain pending. The
+[OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
+owner/repository IDs and each existing fixed environment without changing provider
+settings. Site capacity-profile composition remains a separate integration; no
+production job, credential, setting or owning-issue closure is activated here.
+
 The October 20 [immutable Release preparation](slice4-534-immutable-release-preparation-2026-10-20.md)
 adds draft-first one-effect transport, actual intent settlement binding and
 fixed-controller qualification against inert exact candidate source. It supplies
