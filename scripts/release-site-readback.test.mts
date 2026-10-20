@@ -7,11 +7,14 @@ import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { GitHubApiError } from "./github-api.mts";
+import { composeSiteFiles, readComposedSite } from "./release-site-composer.mts";
 import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
   materializePublishedApplicationComponent,
   observeInitialApplicationSite,
+  materializePublishedCompleteSite,
+  requirePublishedCompleteSite,
 } from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
@@ -210,6 +213,98 @@ function componentFixture() {
     },
   };
 }
+
+void test("whole-site custody retains catalog and history for composition, rejects imported custody and local mutation", async (t) => {
+  const f = componentFixture();
+  const parent = await mkdtemp(path.join(os.tmpdir(), "complete-public-site-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    assert.equal(options.credentials, "omit");
+    calls.push(url.slice(origin.length));
+    return response(url, f.files.get(url.slice(origin.length))!);
+  });
+  const result = await materializePublishedCompleteSite(f.expected, parent);
+  const custody = await requirePublishedCompleteSite(result.receipt);
+  const { cp, writeFile: writeNext } = await import("node:fs/promises");
+  const updatedApplication = path.join(parent, "next-application");
+  await cp(custody.application, updatedApplication, { recursive: true, errorOnExist: true });
+  await writeNext(
+    path.join(updatedApplication, "metadata/timestamp.json"),
+    "next-disposable-timestamp",
+  );
+  const next = await composeSiteFiles({
+    previous: custody.directory,
+    expected_previous_generation: custody.generation.generation,
+    application: updatedApplication,
+    application_root_sha256: custody.pins.root_sha256,
+    output_parent: parent,
+  });
+  const composed = await readComposedSite(
+    next.output,
+    next.generation.generation,
+    f.expected.root_sha256,
+  );
+  assert.equal(
+    composed.files.get("catalog/targets/separate.json")?.toString("utf8"),
+    "never-download-for-application-renewal",
+  );
+  assert.equal(next.generation.previous_generation, f.expected.site_generation_sha256);
+  assert.equal(
+    await readFile(path.join(result.directory, "catalog/targets/separate.json"), "utf8"),
+    "never-download-for-application-renewal",
+  );
+  assert.equal(
+    await readFile(path.join(result.application, "targets/retained.json"), "utf8"),
+    "unchanged-target",
+  );
+  assert.equal(result.receipt.authority, "none");
+  assert.deepEqual(calls, [
+    "publication.json",
+    ...f.marker.files.map((file) => file.path),
+    "publication.json",
+  ]);
+  await assert.rejects(
+    requirePublishedCompleteSite(structuredClone(result.receipt)),
+    /actual complete/,
+  );
+  const { writeFile } = await import("node:fs/promises");
+  await writeFile(path.join(result.directory, "catalog/targets/separate.json"), "changed");
+  await assert.rejects(requirePublishedCompleteSite(result.receipt), /prior site bytes/);
+});
+
+void test("whole-site acquisition refuses missing catalog, changing generation and wrong application pins with partial bytes retained", async (t) => {
+  for (const mode of ["catalog", "bracket", "repository"] as const) {
+    const f = componentFixture();
+    const parent = await mkdtemp(path.join(os.tmpdir(), "complete-public-refusal-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    let markers = 0;
+    const mock = t.mock.method(globalThis, "fetch", async (url: string) => {
+      const name = url.slice(origin.length);
+      if (name === "publication.json") markers++;
+      return response(
+        url,
+        mode === "bracket" && markers === 2 ? Buffer.from("changed") : f.files.get(name)!,
+        mode === "catalog" && name.startsWith("catalog/") ? 404 : 200,
+      );
+    });
+    await assert.rejects(
+      materializePublishedCompleteSite(
+        { ...f.expected, ...(mode === "repository" ? { repository_sha256: "f".repeat(64) } : {}) },
+        parent,
+      ),
+      /retain /,
+    );
+    const [directory] = await readdir(parent);
+    const failure: unknown = JSON.parse(
+      await readFile(path.join(parent, directory!, "refusal.json"), "utf8"),
+    );
+    assert.ok(isRecord(failure));
+    assert.equal(failure.completed, false);
+    assert.equal(failure.automatic_retry, false);
+    mock.mock.restore();
+  }
+});
 
 void test("fresh renewal materialization pins complete component, preserves history and never reads catalog", async (t) => {
   const f = componentFixture();
