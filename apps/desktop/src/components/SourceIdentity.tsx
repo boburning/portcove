@@ -604,6 +604,11 @@ function sourceDisplayState(report: SourceInspectionReport) {
       ? "Basic file checks passed · compatibility unconfirmed"
       : "Edition unknown · review check details";
   const known = {
+    check_failed: {
+      label: "File checks failed",
+      tone: "danger",
+      icon: ShieldAlert,
+    },
     recognized_exact: { label: "Exact match", tone: "success", icon: Check },
     accepted_identity_unknown: {
       label: unknownEditionLabel,

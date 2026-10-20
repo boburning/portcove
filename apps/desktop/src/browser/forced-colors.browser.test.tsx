@@ -10,6 +10,29 @@ afterEach(async () => {
   document.documentElement.removeAttribute("data-theme");
 });
 for (const theme of ["dark", "light"]) {
+  it(`distinguishes ${theme} selection from focus in forced colors`, async () => {
+    document.documentElement.dataset.theme = theme;
+    await render(
+      <>
+        <Button variant="selected" aria-pressed>
+          All
+        </Button>
+        <Button variant="outline" aria-pressed={false}>
+          Ready
+        </Button>
+      </>,
+    );
+    const selected = page.getByRole("button", { name: "All", exact: true });
+    const ordinary = page.getByRole("button", { name: "Ready", exact: true });
+    expect(getComputedStyle(selected.element()).borderTopStyle).toBe("double");
+    expect(parseFloat(getComputedStyle(selected.element()).borderTopWidth)).toBeGreaterThanOrEqual(
+      3,
+    );
+    expect(getComputedStyle(ordinary.element()).borderTopStyle).not.toBe("double");
+    await userEvent.tab();
+    await expect.element(selected).toHaveFocus();
+    expect(getComputedStyle(selected.element()).outlineStyle).not.toBe("none");
+  });
   it(`respects actual reduced motion for ${theme} controls and portaled popups`, async () => {
     expect(matchMedia("(prefers-reduced-motion: reduce)").matches).toBe(true);
     document.documentElement.dataset.theme = theme;

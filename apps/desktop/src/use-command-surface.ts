@@ -23,6 +23,7 @@ interface CommandSurfaceOptions {
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
   focusSearch: () => void;
+  focusLibrarySearch: () => void;
 }
 
 export function commandSurfaceCommands({
@@ -34,6 +35,7 @@ export function commandSurfaceCommands({
   setSelectedId,
   checkAll,
   focusSearch,
+  focusLibrarySearch,
 }: CommandSurfaceOptions): PaletteCommand[] {
   return [
     {
@@ -55,11 +57,17 @@ export function commandSurfaceCommands({
       action: () => setView("catalog"),
     },
     {
+      id: "search-library",
+      label: "Search library",
+      description: "Find a game or port in your library",
+      icon: Search,
+      action: focusLibrarySearch,
+    },
+    {
       id: "search",
       label: "Search port catalog",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
-      shortcut: "/",
       action: focusSearch,
     },
     {
@@ -118,6 +126,7 @@ export function commandSurfaceCommands({
 }
 
 export function useCommandSurface({
+  view,
   recent,
   installedCount,
   busy,
@@ -126,6 +135,7 @@ export function useCommandSurface({
   setSelectedId,
   checkAll,
 }: {
+  view: View;
   recent?: RecentPort | undefined;
   installedCount: number;
   busy: boolean;
@@ -135,12 +145,20 @@ export function useCommandSurface({
   checkAll: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
-  const focusSearch = useCallback(() => {
-    setView("catalog");
-    window.requestAnimationFrame(() =>
-      document.querySelector<HTMLInputElement>("#port-search")?.focus(),
-    );
-  }, [setView]);
+  const openSearch = useCallback(
+    (destination: View) => {
+      setView(destination);
+      window.requestAnimationFrame(() =>
+        document.querySelector<HTMLInputElement>("#port-search")?.focus(),
+      );
+    },
+    [setView],
+  );
+  const focusSearch = useCallback(() => openSearch("catalog"), [openSearch]);
+  const focusLibrarySearch = useCallback(() => openSearch("library"), [openSearch]);
+  const focusCurrentSearch = useCallback(() => {
+    document.querySelector<HTMLInputElement>("#port-search")?.focus();
+  }, []);
   const commands = useMemo<PaletteCommand[]>(
     () =>
       commandSurfaceCommands({
@@ -152,14 +170,26 @@ export function useCommandSurface({
         setSelectedId,
         checkAll,
         focusSearch,
+        focusLibrarySearch,
       }),
-    [busy, checkAll, focusSearch, installedCount, recent, setAdoptOpen, setSelectedId, setView],
+    [
+      busy,
+      checkAll,
+      focusLibrarySearch,
+      focusSearch,
+      installedCount,
+      recent,
+      setAdoptOpen,
+      setSelectedId,
+      setView,
+    ],
   );
   useGlobalShortcuts({
     paletteOpen: open,
     setPaletteOpen: setOpen,
     setView,
-    focusSearch,
+    focusSearch: focusCurrentSearch,
+    searchAvailable: view === "library" || view === "catalog",
   });
   return { open, setOpen, commands };
 }

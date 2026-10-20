@@ -201,8 +201,15 @@ export function PortBrowser({
     ? ports.filter((port) => favorites.ids?.has(port.id))
     : ports;
   const reset = () => {
+    const owner = browserOwner.current;
+    const origin = document.activeElement;
     favorites?.setOnly(false);
     clearFilters?.();
+    window.requestAnimationFrame(() => {
+      if (owner.closed || browserOwner.current !== owner) return;
+      if (document.activeElement !== origin && document.activeElement !== document.body) return;
+      (document.querySelector<HTMLInputElement>("#port-search") ?? filterButton.current)?.focus();
+    });
   };
   const constrained =
     filterConstrained(filter) ||
@@ -310,6 +317,9 @@ export function PortBrowser({
                   )
             }
           >
+            {(composedLibrary ? libraryReadiness === item : filterSelected(filter, item)) && (
+              <span aria-hidden="true">✓</span>
+            )}
             {filterLabel(item)}
             {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
           </Button>
@@ -334,7 +344,7 @@ export function PortBrowser({
             Clear search and filters
           </Button>
         )}
-        <span className="ml-auto text-xs text-pc-muted-foreground">
+        <span className="ml-auto text-xs text-pc-muted-foreground" role="status">
           {resultsUnavailable
             ? "Ports unavailable"
             : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
@@ -794,7 +804,7 @@ function PortCard({
   const dropEligible = nativeSourceDrag.active && Boolean(port.source_profile);
   const dropTarget = dropEligible && nativeSourceDrag.targetPortId === port.id;
   const detailOrigin = `${view}:card:${port.id}`;
-  const className = `port-card @container/card relative isolate flex min-w-0 flex-col overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:border-[var(--color-interactive-border)] hover:bg-pc-secondary hover:shadow-(--shadow-raised) focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
+  const className = `port-card @container/card relative isolate flex min-w-0 flex-col overflow-hidden rounded-pc-lg border border-pc-border bg-pc-surface p-0 text-start text-pc-foreground shadow-(--shadow-control) transition-[border-color,box-shadow,background-color] duration-(--duration-slow) ease-(--ease-emphasized) hover:border-[var(--color-interactive-border)] hover:shadow-(--shadow-raised) focus-within:border-[var(--color-interactive-border)] motion-reduce:transition-none ${view === "catalog" ? "port-card-selectable cursor-pointer" : "port-card-library"}${dropEligible ? " source-drop-eligible border-[var(--color-interactive-border)]" : ""}${dropTarget ? " source-drop-targeted outline-3 outline-solid outline-pc-ring outline-offset-2" : ""}`;
   const contents = (
     <PortCardContents
       {...{
@@ -956,7 +966,7 @@ function PortCardContents({
         <span
           className={cn(
             `badge ${channel.tone} ${cardBadgeClass}`,
-            "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+            "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
           )}
         >
           Release channel: {channel.label}
@@ -1020,7 +1030,7 @@ function PortCardContents({
               <span
                 className={cn(
                   `badge update ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
                 )}
               >
                 Update downloaded
@@ -1030,7 +1040,7 @@ function PortCardContents({
               <span
                 className={cn(
                   `badge update ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
                 )}
               >
                 Update available
@@ -1040,7 +1050,7 @@ function PortCardContents({
               <span
                 className={cn(
                   `badge retired self-start ${cardBadgeClass}`,
-                  "[&.beta]:bg-[var(--color-warning-subtle)] [&.beta]:text-[var(--color-warning-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-interactive-subtle)] [&.rolling]:text-[var(--color-interactive-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
+                  "[&.beta]:bg-[var(--color-interactive-subtle)] [&.beta]:text-[var(--color-interactive-text)] [&.retired]:bg-[var(--color-bg-raised)] [&.retired]:text-[var(--color-text-secondary)] [&.rolling]:bg-[var(--color-warning-subtle)] [&.rolling]:text-[var(--color-warning-text)] [&.stable]:bg-[var(--color-success-subtle)] [&.stable]:text-[var(--color-success-text)] [&.update]:bg-[var(--color-highlight)] [&.update]:text-[var(--color-text-on-highlight)]",
                 )}
               >
                 Retired upstream

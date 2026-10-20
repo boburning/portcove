@@ -17,6 +17,7 @@ function commands(recent = true) {
       ...actions,
       checkAll: vi.fn(async () => undefined),
       focusSearch: vi.fn(),
+      focusLibrarySearch: vi.fn(),
     }),
   };
 }
@@ -48,6 +49,7 @@ describe("command surface player-facing copy", () => {
         setSelectedId: vi.fn(),
         checkAll: vi.fn(async () => undefined),
         focusSearch: vi.fn(),
+        focusLibrarySearch: vi.fn(),
       }).find(({ id }) => id === "check");
     expect(make(0, false)).toMatchObject({
       disabled: true,

@@ -263,7 +263,7 @@ complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
-The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `/` focuses port search, and `Ctrl/Cmd+K` opens the command palette. Workspace shortcuts stay inactive behind a dialog.
+The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
 
 When a game-file check identifies a specific host disc tool that needs attention,
 its detail result links to that tool in Settings > Game Files. The route focuses

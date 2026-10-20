@@ -51,6 +51,7 @@ describe("source identity presentation", () => {
   });
 
   it.each([
+    ["check_failed", "File checks failed"],
     ["recognized_exact", "Exact match"],
     ["accepted_identity_unknown", "Edition unknown · review check details"],
     ["ambiguous_identity", "More checks needed · edition unclear"],

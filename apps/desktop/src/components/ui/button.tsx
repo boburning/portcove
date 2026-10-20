@@ -17,7 +17,7 @@ const buttonVariants = cva(
         primary:
           "border-pc-primary bg-pc-primary text-pc-action-foreground shadow-sm hover:border-pc-primary-hover hover:bg-pc-primary-hover active:border-pc-primary-active active:bg-pc-primary-active",
         selected:
-          "border-pc-interactive bg-pc-selection text-pc-selection-foreground shadow-sm hover:bg-pc-selection hover:text-pc-selection-foreground active:bg-[var(--color-interactive-active)] active:text-pc-action-foreground",
+          "border-pc-interactive bg-pc-selection text-pc-selection-foreground shadow-sm hover:bg-pc-selection hover:text-pc-selection-foreground active:bg-[var(--color-interactive-active)] active:text-pc-action-foreground forced-colors:border-4 forced-colors:border-double",
         outline:
           "border-pc-border bg-pc-background text-pc-selection-foreground hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:border-pc-input dark:bg-pc-surface-muted/30 dark:hover:bg-pc-surface-muted/50",
         secondary:

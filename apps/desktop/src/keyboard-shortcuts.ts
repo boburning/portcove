@@ -15,6 +15,7 @@ export function keyboardShortcutAction(input: {
   metaKey?: boolean;
   altKey?: boolean;
   targetIsField?: boolean;
+  searchAvailable?: boolean;
   paletteOpen?: boolean;
   modalOpen?: boolean;
 }): KeyboardShortcutAction | undefined {
@@ -26,7 +27,13 @@ export function keyboardShortcutAction(input: {
       : undefined;
   }
   if (commandKey && !input.altKey && input.key.toLowerCase() === "k") return "toggle-palette";
-  if (!input.targetIsField && !commandKey && !input.altKey && input.key === "/")
+  if (
+    !input.targetIsField &&
+    input.searchAvailable !== false &&
+    commandKey &&
+    !input.altKey &&
+    input.key.toLowerCase() === "f"
+  )
     return "focus-search";
   if (!commandKey || input.altKey) return undefined;
   return ({ "1": "library", "2": "catalog", "3": "updates", "4": "settings" } as const)[
@@ -39,11 +46,13 @@ export function useGlobalShortcuts({
   setPaletteOpen,
   setView,
   focusSearch,
+  searchAvailable = true,
 }: {
   paletteOpen: boolean;
   setPaletteOpen: (value: boolean | ((current: boolean) => boolean)) => void;
   setView: (view: View) => void;
   focusSearch: () => void;
+  searchAvailable?: boolean;
 }) {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -56,6 +65,7 @@ export function useGlobalShortcuts({
         metaKey: event.metaKey,
         altKey: event.altKey,
         targetIsField: target?.matches("input, textarea, select, [contenteditable=true]") ?? false,
+        searchAvailable,
         paletteOpen,
         modalOpen: navigationScope() !== document,
       });
@@ -70,7 +80,7 @@ export function useGlobalShortcuts({
     };
     window.addEventListener("keydown", keydown, true);
     return () => window.removeEventListener("keydown", keydown, true);
-  }, [focusSearch, paletteOpen, setPaletteOpen, setView]);
+  }, [focusSearch, paletteOpen, searchAvailable, setPaletteOpen, setView]);
 }
 
 type WorkspaceFocus = { kind: "id" | "detail-origin"; value: string };

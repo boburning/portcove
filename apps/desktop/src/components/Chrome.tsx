@@ -138,6 +138,7 @@ export function Sidebar({
           >
             <Icon glyph={item.icon} />
             <span className="min-w-0 flex-1">{item.label}</span>
+            {view === item.view && <span aria-hidden="true">•</span>}
             {item.view === "library" && (
               <b
                 className="rounded-pc-md bg-[var(--color-warning-subtle)] p-[2px_7px] text-[length:var(--text-xs)] text-[var(--color-warning-text)]"
@@ -261,7 +262,7 @@ export function PageHeader({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search ports"
             />
-            <Shortcut className="ms-auto">/</Shortcut>
+            <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
           </label>
         )}
         <Button

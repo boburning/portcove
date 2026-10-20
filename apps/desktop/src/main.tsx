@@ -1,3 +1,4 @@
+import "./styles/index.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { DirectionProvider } from "@base-ui/react/direction-provider";
@@ -6,7 +7,6 @@ import { AppErrorBoundary } from "./ErrorBoundary";
 import { desktopApi } from "./api";
 import { initializeTheme } from "./theme";
 import { initializeLocalization, LocalizationProvider } from "./localization";
-import "./styles/index.css";
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 document.documentElement.dir = "ltr";

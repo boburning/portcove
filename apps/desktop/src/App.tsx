@@ -489,6 +489,7 @@ function Workspace({
   };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
   const commandSurface = useCommandSurface({
+    view: ui.view,
     recent: model.recent,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),

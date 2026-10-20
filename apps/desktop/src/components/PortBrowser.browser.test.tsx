@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition } from "../test-fixtures";
@@ -76,6 +76,45 @@ describe("Library card overflow", () => {
 describe("Library empty browsing context", () => {
   let host: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
+
+  it("returns reset focus to search without losing restored results", async () => {
+    function ResetContext() {
+      const [query, setQuery] = useState("missing");
+      return (
+        <>
+          <input
+            id="port-search"
+            aria-label="Search library"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <PortBrowser
+            view="library"
+            ports={query ? [] : [portDefinition()]}
+            statuses={new Map()}
+            overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+            filter="all"
+            query={query}
+            setFilter={vi.fn()}
+            onSelect={vi.fn()}
+            clearFilters={() => setQuery("")}
+            loading={false}
+          />
+        </>
+      );
+    }
+    await act(async () => root.render(<ResetContext />));
+    const clear = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Clear search and filters"),
+    )!;
+    await act(async () => {
+      clear.focus();
+      clear.click();
+    });
+    await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    expect(document.activeElement).toBe(host.querySelector("#port-search"));
+    expect(host.textContent).toContain(portDefinition().name);
+  });
 
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
