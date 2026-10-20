@@ -7,6 +7,8 @@ import {
   verifyProtectionObserverJobIdentity,
   verifyPayloadSignerJobIdentity,
   verifyCapacityExecutorJobIdentity,
+  verifyProductionProtectionObserverJobIdentity,
+  verifyReleaseInputReaderJobIdentity,
 } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -216,4 +218,28 @@ void test("fixed control profiles accept only their exact workflow/job and rejec
     );
     await assert.rejects(role.verify(wrongWorkflow.token, expected, wrongWorkflow));
   }
+});
+
+void test("production observer and reader profiles cannot reuse each other's job or the separate review workflow", async () => {
+  const workflow = ".github/workflows/application-update-production.yml";
+  const observer = fixture(
+    {},
+    {},
+    { workflow, job: "Observe production release input protections" },
+  );
+  const reader = fixture({}, {}, { workflow, job: "Authenticate release control inputs" });
+  assert.equal(
+    (await verifyProductionProtectionObserverJobIdentity(observer.token, expected, observer))
+      .job_id,
+    501,
+  );
+  assert.equal(
+    (await verifyReleaseInputReaderJobIdentity(reader.token, expected, reader)).job_id,
+    501,
+  );
+  await assert.rejects(verifyReleaseInputReaderJobIdentity(observer.token, expected, observer));
+  await assert.rejects(
+    verifyProductionProtectionObserverJobIdentity(reader.token, expected, reader),
+  );
+  await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
 });

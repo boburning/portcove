@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
@@ -392,7 +393,7 @@ export function verifyPayloadSignerJobIdentity(
   expected: unknown,
   options: IdentityOptions = {},
 ) {
-  return verifyJobIdentity(payloadSignerProfile, token, expected, options);
+  return verifyReleaseControlReaderJobIdentity("payload", token, expected, options);
 }
 export function verifyClassificationWriterJobIdentity(
   token: string,
@@ -407,6 +408,41 @@ export function verifyProtectionObserverJobIdentity(
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(protectionProfile, token, expected, options);
+}
+export function verifyProductionProtectionObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+  phase: unknown = "admission",
+) {
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: profile.observer_name },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyReleaseInputReaderJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyReleaseControlReaderJobIdentity("admission", token, expected, options);
+}
+export function verifyReleaseControlReaderJobIdentity(
+  phase: unknown,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: profile.reader_name },
+    token,
+    expected,
+    options,
+  );
 }
 
 export async function requestAssemblerToken(

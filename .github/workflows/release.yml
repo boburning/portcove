@@ -26,6 +26,8 @@ jobs:
     outputs:
       release_profile: ${{ steps.build-plan.outputs.profile }}
       build_matrix: ${{ steps.build-plan.outputs.build_matrix }}
+      public_configuration_revision: ${{ steps.public-input-identity.outputs.revision }}
+      public_configuration_sha256: ${{ steps.public-input-identity.outputs.manifest_sha256 }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,6 +41,13 @@ jobs:
         env:
           PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
         run: node scripts/release-package-policy.mts --profile "$PORTCOVE_RELEASE_PROFILE" --build-plan >> "$GITHUB_OUTPUT"
+      - name: Bind separately ratified public application build inputs
+        if: steps.build-plan.outputs.profile == 'initial-beta-win-linux'
+        id: public-input-identity
+        env:
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ vars.PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION }}
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ vars.PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256 }}
+        run: node scripts/release-public-build-inputs.mts --validate-identity
       - name: Verify release identity and workflow contracts
         run: |
           node --test scripts/check-release-metadata.test.mts scripts/release-package-policy.test.mts scripts/write-release-checksums.test.mts scripts/reconcile-release-assets.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/release-workflow.test.mts
@@ -177,6 +186,31 @@ jobs:
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
       - run: pnpm install --frozen-lockfile
+      - name: Read immutable public application configuration without executing it
+        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: boburning/portcove
+          ref: ${{ needs.identity.outputs.public_configuration_revision }}
+          path: work/release-public-configuration
+          sparse-checkout: release-public-inputs
+          persist-credentials: false
+      - name: Prepare secret-free updater-capable public build configuration
+        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        env:
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ needs.identity.outputs.public_configuration_revision }}
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ needs.identity.outputs.public_configuration_sha256 }}
+          PORTCOVE_PUBLIC_CONFIGURATION_CHECKOUT: ${{ github.workspace }}/work/release-public-configuration
+        run: node scripts/release-public-build-inputs.mts
+      - name: Retain exact public build inputs and configuration provenance
+        if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-public-build-inputs-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.PORTCOVE_RELEASE_PUBLIC_BUILD_INPUT_DIRECTORY }}/**
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
       - name: Build CLI
         shell: pwsh
         env:
@@ -208,6 +242,9 @@ jobs:
           RELEASE_TARGET: ${{ matrix.target }}
         run: |
           $arguments = @("tauri", "build", "--bundles", "${{ matrix.bundles }}")
+          if (-not [string]::IsNullOrWhiteSpace($env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION)) {
+            $arguments += @("--no-sign", "--config", $env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION)
+          }
           if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) {
             $arguments += @("--target", $env:RELEASE_TARGET)
           }

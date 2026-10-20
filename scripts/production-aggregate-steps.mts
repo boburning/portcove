@@ -55,6 +55,8 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
 export async function requireReservedAggregate(rawDescriptor: string, rawState: unknown) {
   const descriptor = inspectAggregateDescriptor(rawDescriptor);
   const { accepted } = await inspectTrustedAssemblyInput(descriptor.assembly);
+  if (accepted.release_profile === "initial-beta-win-linux" && !accepted.public_build_inputs)
+    throw new Error("protected beta assembly requires independently bound public build inputs");
   if (
     !isRecord(rawState) ||
     rawState.checkpoint !== descriptor.checkpoint ||
@@ -198,7 +200,7 @@ async function main() {
             artifact_id: Number(process.env.PORTCOVE_NEW_ARTIFACT_ID),
             sha256: process.env.PORTCOVE_NEW_ARTIFACT_SHA256 ?? "",
           },
-          { cwd: root },
+          { cwd: root, evidenceRequest: inspectReleaseEvidenceRequest(descriptor.evidence) },
         );
         await output({
           artifact_id: String(binding.predicate.artifact.id),

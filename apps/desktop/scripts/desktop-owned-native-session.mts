@@ -207,11 +207,13 @@ export function readNativeSessionObservation(
 
 // Ephemeral harness ownership, never durable operation or product authority.
 export class OwnedNativeSession {
+  private launchAttempted = false;
   driver: CapturedNativeProcess | undefined;
   inventory: string | undefined;
   cleanup: NativeSessionCleanup | undefined;
 
   beginLaunch() {
+    this.launchAttempted = true;
     // Invalidate the former host's proof before a replacement can exist,
     // including when spawn succeeds but identity capture fails.
     this.driver = undefined;
@@ -224,5 +226,19 @@ export class OwnedNativeSession {
     assert.ok(this.inventory, "Current owned exit inventory is required");
     assert.ok(this.cleanup?.exited, "Positive current owned root/descendant exit is required");
     return this.cleanup;
+  }
+
+  async releaseResources({
+    closeFixtures,
+    releaseLock,
+  }: {
+    closeFixtures: () => Promise<void>;
+    releaseLock: () => Promise<void>;
+  }) {
+    // Missing identity after an attempted spawn is unknown, not proof that no
+    // process exists. Only a pristine session can release without an exit proof.
+    if (this.launchAttempted) this.requireQuiescence();
+    await closeFixtures();
+    await releaseLock();
   }
 }

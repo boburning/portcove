@@ -174,7 +174,11 @@ void test("CLI runs with only fixed source files and no installed dependencies",
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(path.join(root, "scripts"), { recursive: true });
   await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-  for (const file of ["production-controller-admission.mts", "runtime-values.mts"])
+  for (const file of [
+    "production-controller-admission.mts",
+    "runtime-values.mts",
+    "release-control-phases.mts",
+  ])
     await copyFile(new URL(file, import.meta.url), path.join(root, "scripts", file));
   await writeFile(path.join(root, ".github/workflows/application-update-production.yml"), source);
   const command = path.join(root, "scripts/production-controller-admission.mts");

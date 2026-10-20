@@ -112,8 +112,14 @@ function ExistingInstallReview() {
       setBusy(undefined);
     }
   };
-  const planning = useAdoptionPlanning(path, undefined, open, generation, perform, () =>
-    setOpen(false),
+  const planning = useAdoptionPlanning(
+    path,
+    undefined,
+    open,
+    generation,
+    perform,
+    () => setOpen(false),
+    [port],
   );
   const changePath = (next: string) => {
     planning.invalidate();

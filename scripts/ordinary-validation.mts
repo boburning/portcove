@@ -559,7 +559,10 @@ const workflowTests = new Map([
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mts"]],
-  ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mts"]],
+  [
+    "updater-artifact-rehearsal.yml",
+    ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
+  ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
 ]);
 
@@ -568,8 +571,15 @@ const releaseContractTests = Object.freeze([
   "scripts/controller-canary.test.mts",
   "scripts/check-release-metadata.test.mts",
   "scripts/release-package-policy.test.mts",
+  "scripts/release-public-build-inputs.test.mts",
+  "scripts/release-public-build-provenance.test.mts",
+  "scripts/release-handshake-hosted-fixture.test.mts",
+  "scripts/release-control-handshake.test.mts",
+  "scripts/release-live-control-admission.test.mts",
   "scripts/write-release-checksums.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
+  "scripts/release-payload-signing.test.mts",
+  "scripts/release-payload-preparation.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/finalize-release-assets.test.mts",
   "scripts/generate-release-downloads.test.mts",
@@ -685,6 +695,15 @@ function classifyOnePath(
   }
   const includeFileChecks = options.includeFileChecks ?? true;
   let recognized = false;
+  if (
+    file.startsWith("docs/") &&
+    /\.ya?ml$/u.test(file) &&
+    validationOwnershipForPath(file).areas.includes("release-security")
+  ) {
+    selection.scopes.add("release-tooling");
+    for (const testFile of releaseContractTests) addNodeTest(selection, testFile);
+    recognized = true;
+  }
   if (
     file.startsWith("apps/desktop/src/browser/") ||
     file.startsWith("apps/desktop/src/components/ui/") ||
@@ -1119,6 +1138,8 @@ function sorted(set: ReadonlySet<string>) {
 export function nodeTestCommand(files: string[]) {
   const serialWindowsQualification = [
     "scripts/updater-artifact-inventory.test.mts",
+    "scripts/release-payload-signing.test.mts",
+    "scripts/release-payload-preparation.test.mts",
     "scripts/windows-qualification-session.integration.test.mts",
   ].every((file) => files.includes(file));
   return command(

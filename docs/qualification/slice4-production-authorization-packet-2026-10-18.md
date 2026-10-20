@@ -11,6 +11,47 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [phase-specific late controls](slice4-payload-phase-controls-2026-10-20.md)
+connect payload preparation to its own fresh isolated observation after aggregate
+and opaque package acquisition. Site maintenance can read pause/capacity without
+a classification record or candidate. All production fragments remain held; the
+ordinary credential-free process fixture establishes hosted lifetime only when
+its actual CI run succeeds. Custody, final resource/digest reconciliation and
+protected acceptance remain pending.
+
+The October 20 [isolated online TUF roles](slice4-534-isolated-tuf-roles-2026-10-20.md)
+add one-key role invocations, actual keyless Tough assembly and authenticated
+immutable history. The repaired signed-history regression passes with disposable
+keys; production custody, hosted roles and metadata-only coordinator integration
+remain pending.
+
+The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
+connect actual controller/reader and isolated observer identities to existing
+classification, pause and capacity readers. Large acquisition precedes the
+unchanged 60-second freshness window. Later phases need their own fresh controls;
+actual hosted timing and final resource/digest reconciliation remain pending.
+
+The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
+connects actual aggregate verification and existing reservation association to
+strict diagnostic requests for the two beta updater payloads. Actual disposable
+Tauri/Rust signing tests retain their component scope. The production caller
+remains held until fresh positive controls and all independent acceptance are
+connected; no key or production signing authority is activated.
+
+The October 20 [keyless complete-site composer](slice4-534-shared-site-2026-10-20.md)
+passed actual disposable-key TUF CLI composition, unchanged replay and corrupt
+envelope refusal. Catalog/history preservation is implemented; provider deployment,
+exclusive remote execution and independent public readback remain pending.
+
+The October 20 [public build-input integration](slice4-534-public-build-inputs-2026-10-20.md)
+connects fixed public roots/origins/key/packaging bytes to secret-free beta
+builders and independently verified immutable downstream provenance. Schema-3
+admission/assembly and aggregate predicates bind the separately ratified public
+configuration and selected platform archives. Public provenance is not proof of
+compiler use or embedded package contents; those and all protected/native/SBOM
+acceptance remain pending. Earlier #2253/#2254/#2256/#2257 delivery retains its
+component scope; this checkpoint adds no authority.
+
 October 20: the [non-elevated Linux runtime implementation](slice4-534-linux-runtime-implementation-2026-10-20.md)
 adds a fixed direct-capture backend, bounded useful reader and credential-free
 qualification entry point under the selected rootless route. It is preparation,

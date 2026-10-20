@@ -6,11 +6,26 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
+import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+import {
+  releaseControlInputsFixture,
+  config as reviewProducer,
+} from "./fixtures/release-control-inputs-fixture.mts";
+import {
+  capacityDocumentFixture,
+  liveControlRuntimeFixture,
+  protectionFixture,
+} from "./fixtures/release-live-control-fixture.mts";
+import {
+  persistReviewedClassification,
+  releaseControlRefQuery,
+} from "./release-control-inputs.mts";
 
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function commit(tree: string, parents: string[], message: string) {
@@ -349,6 +364,110 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
   };
 }
 
+void test("actual admission authenticates frozen semantic producer, owner pause and spending source without clearing independent holds", async (t) => {
+  const f = await fixture(t);
+  const frozen = {
+    ...structuredClone(f.input.opportunity),
+    change_set_sha256: f.sourceFacts.expectedHash,
+    classification: {
+      ...f.input.opportunity.classification,
+      change_set_sha256: f.sourceFacts.expectedHash,
+      change_set_scope: "portcove-release-net-tree-delta-v1",
+    },
+  };
+  Object.assign(f.input.active_candidate, { frozen_opportunity: frozen });
+  const control = releaseControlInputsFixture(
+    capacityDocumentFixture(),
+    frozen,
+    reviewProducer,
+    false,
+    "R_fixture",
+  );
+  persistReviewedClassification(control.api, reviewProducer, frozen, 303, () => {});
+  const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
+  const controls = await runtime.create();
+  const baseApi = f.options.api;
+  assert.ok(baseApi);
+  const api = {
+    request: (method: string, endpoint: string) => {
+      const url = new URL(endpoint, "https://api.github.com/");
+      const canonical = url.pathname.slice(1);
+      if (!control.owns(canonical)) return baseApi.request(method, endpoint);
+      const response = control.api.request(method, canonical);
+      return { ...response, rateLimit: rateLimitFromResponse(response) };
+    },
+    graphql: (query: string, variables: Readonly<Record<string, unknown>> = {}) => {
+      if (query !== releaseControlRefQuery) return baseApi.graphql(query, variables);
+      const response = { status: 200, headers: new Map<string, string>(), body: {} };
+      return {
+        data: control.api.graphql(query, variables).data,
+        response,
+        rateLimit: rateLimitFromResponse(response),
+      };
+    },
+  };
+  const options = { ...f.options, api, controls };
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.controls?.classification.review_check_id, 303);
+  assert.equal(
+    result.holds.includes("independent-classification-and-pause-sources-unconfigured"),
+    false,
+  );
+  assert.equal(result.holds.includes("admitted-spending-boundary-source-unconfigured"), false);
+  assert.equal(result.holds.includes("publication-paused-by-owner-source"), false);
+  assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
+  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(
+    result.holds.includes(
+      "current-controller-workflow-differs-from-ratified-capacity-resource-policy",
+    ),
+  );
+  assert.equal(result.capacity.eligibility, "ineligible");
+  assert.equal(result.capacity.availability, "unknown");
+  assert.equal(result.capacity.headroom, "unknown");
+  assert.equal(result.capacity.reservation, "none");
+  const downloaded = f.calls.filter((call) => call.startsWith("ZIP ")).length;
+  let ready = 0;
+  const late = await acquireReleaseAdmission(f.root, f.config, {
+    ...f.options,
+    api,
+    establishControls: async (factsSha256, facts) => {
+      ready++;
+      assert.ok(Object.isFrozen(facts));
+      assert.ok(Object.isFrozen(facts.archives));
+      assert.ok(Object.isFrozen(facts.assembly));
+      assert.throws(() => {
+        (facts as { checkpoint: string }).checkpoint = "attacker";
+      });
+      assert.throws(() => {
+        (facts.archives as unknown[]).push({});
+      });
+      assert.equal(facts.checkpoint, "c".repeat(40));
+      assert.match(factsSha256, /^[a-f0-9]{64}$/u);
+      assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+      return runtime.create();
+    },
+  });
+  assert.equal(ready, 1);
+  assert.equal(late.controls?.classification.review_check_id, 303);
+  assert.equal(late.decision, "hold");
+  assert.equal(late.descriptor, null);
+  assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, {
+      ...f.options,
+      api,
+      establishControls: async () => ({ ...controls }),
+    }),
+    /private-facts-ready/u,
+  );
+  control.faults.value = "issuer";
+  await assert.rejects(acquireReleaseAdmission(f.root, f.config, options), CoordinatorRemoteError);
+  assert.equal(control.mutations(), 1);
+});
+
 void test("read-only acquisition constructs the full internally observed matrix and feeds only a conservative held plan", async (t) => {
   const f = await fixture(t);
   const result = await acquireReleaseAdmission(f.root, f.config, f.options);
@@ -376,6 +495,55 @@ void test("ratified beta acquisition consumes exactly the two declared platform 
   assert.equal(result.assembly.release_profile, "initial-beta-win-linux");
   assert.equal(result.assembly.files.length, f.request.files.length);
   assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 2);
+});
+
+void test("schema3 admission independently selects and verifies immutable public build provenance while preserving unrelated holds", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const p = await releasePublicBuildProvenanceFixture(t);
+  for (const item of p.binding.artifacts)
+    f.artifacts.push({
+      ...f.artifacts[0],
+      id: item.artifact_id,
+      name: releasePublicBuildArtifactName(item.platform, "12345", 1),
+      size_in_bytes: item.bytes,
+      digest: `sha256:${item.sha256}`,
+      workflow_run: {
+        id: 12345,
+        repository_id: 1354613114,
+        head_repository_id: 1354613114,
+        head_sha: f.prepared.sha,
+      },
+    });
+  const packageDownload = f.options.download;
+  assert.ok(packageDownload);
+  const options = {
+    ...f.options,
+    download: (endpoint: string, options: Parameters<typeof packageDownload>[1]) =>
+      Number(endpoint.split("/").at(-2)) < 100
+        ? p.download(endpoint)
+        : packageDownload(endpoint, options),
+  };
+  const config = {
+    schema_version: 3,
+    namespace: "portcove-fixture",
+    release_profile: "initial-beta-win-linux",
+    public_build_inputs: p.configuration,
+  };
+  const result = await acquireReleaseAdmission(f.root, config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.assembly.schema_version, 3);
+  assert.deepEqual(result.assembly.public_build_inputs, p.binding);
+  assert.equal(result.public_build_inputs?.receipts.length, 2);
+  assert.ok(result.holds.length > 0);
+  assert.equal(result.holds.includes("ratified-public-build-inputs-unavailable"), false);
+  await assert.rejects(
+    acquireReleaseAdmission(
+      f.root,
+      { ...config, public_build_inputs: { ...p.configuration, manifest_sha256: "f".repeat(64) } },
+      options,
+    ),
+  );
 });
 
 void test("frozen net source facts bind the original classification and preparation despite a newer queued opportunity", async (t) => {
