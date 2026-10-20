@@ -300,6 +300,9 @@ const selectionContractTests = [
 
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
+  ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
+  ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
+  ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   [
     "scripts/release-coordinator-journal-api.mts",
