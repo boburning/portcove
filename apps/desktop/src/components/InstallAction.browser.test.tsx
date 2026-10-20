@@ -125,6 +125,49 @@ async function pressEscape() {
   });
 }
 
+it("separates account-wide preferences from managed local fallback before installation", async () => {
+  const install = vi.fn();
+  function ScopeReviewHarness() {
+    const [reviewed, setReviewed] = useState<InstallPlan>();
+    return (
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={reviewed}
+        install={install}
+        review={() =>
+          setReviewed({
+            ...plan,
+            shared_preferences: {
+              binding: {
+                contract: "regaiden041-windows",
+                account_sid_sha256: "a".repeat(64),
+                path: "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+              },
+              local_fallback_path: "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+              shared_present: false,
+              local_fallback_present: false,
+            },
+          })
+        }
+        dismiss={() => setReviewed(undefined)}
+      />
+    );
+  }
+  await root.rerender(<ScopeReviewHarness />);
+  await click("Review installation");
+  const text = document.body.querySelector('[role="dialog"]')?.textContent;
+  expect(text).toContain("C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini");
+  expect(text).toContain("E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini");
+  expect(text).toContain("does not own or back up that shared file");
+  expect(text).toContain("Windows confirmation");
+  expect(install).not.toHaveBeenCalled();
+  await click("Cancel review");
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(install).not.toHaveBeenCalled();
+});
+
 it("opens the missing game picker, then the BIOS picker, and restores focus after each choice", async () => {
   let finishPicker: (() => void) | undefined;
   const pickSource = vi.fn(

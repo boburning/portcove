@@ -106,6 +106,19 @@ internal static class ContractTests
         Check(InstallationReview.Read(withNotices, "shape-a", library).Description.Contains("Sign-in stays with each installed version."), "installation review presents the core preservation notice before confirmation");
         Json.Object(Json.Field(withNotices, "plan"))["preservation_notices"] = new object[] { 123 };
         Reject(() => InstallationReview.Read(withNotices, "shape-a", library), "malformed preservation notice refuses review");
+        var shared = fresh();
+        Json.Object(Json.Field(shared, "plan"))["shared_preferences"] = Json.Parse(Json.Print(new {
+            binding = new { contract = "regaiden041-windows", account_sid_sha256 = new string('c',64), path = @"C:\Users\Fixture\AppData\Roaming\gbrecompiled\runtime\runtime_prefs.ini" },
+            local_fallback_path = @"H:\Isolated library\versions\shape-a\runtime_prefs.ini", shared_present = false, local_fallback_present = false
+        }));
+        var sharedReview = InstallationReview.Read(shared, "shape-a", library);
+        Reject(() => sharedReview.InstallationArguments(), "managed shared scope cannot inherit generic installation consent");
+        Check(!sharedReview.ConfirmSharedScope(message => false), "managed shared scope cancellation remains canceled");
+        Reject(() => sharedReview.InstallationArguments(), "canceled managed shared scope has no CLI acknowledgment");
+        Check(sharedReview.ConfirmSharedScope(message => message.Contains("never owns, moves, backs up, restores or deletes") && message.Contains("managed saves and settings")), "managed scope distinguishes global exclusion from owned local fallback");
+        Check(sharedReview.InstallationArguments().Contains("--acknowledge-shared-preferences") && sharedReview.InstallationArguments().Contains(new string('a',64)), "explicit managed acceptance binds exact reviewed plan and acknowledgment");
+        Json.Object(Json.Field(shared, "plan"))["shared_preferences"] = "untyped";
+        Reject(() => InstallationReview.Read(shared, "shape-a", library), "malformed managed shared scope refuses review");
         Check(review.Fingerprint == new string('a', 64) && review.Description.Contains("Requested release version: v2") &&
             review.Description.Contains("fixture.zip") && review.Description.Contains("123 bytes") &&
             review.Description.Contains(@"versions\shape-a") && review.Description.Contains("Original game (registered)"),
@@ -220,7 +233,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -228,7 +241,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -245,7 +258,7 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 77 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 78 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -429,7 +442,7 @@ internal static class ContractTests
         bad["schema_version"] = 76;
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "runtime path policy keeps launch decisions in Core");
-        bad["schema_version"] = 77;
+        bad["schema_version"] = 78;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -528,7 +541,7 @@ internal static class ContractTests
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
             }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 3 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+            Check(prepared.Length == 2 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
@@ -759,12 +772,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 77 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 78 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -804,7 +817,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 77 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 78 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);

@@ -1,5 +1,18 @@
 # Catalog policy
 
+## Managed ReGaiden shared preferences
+
+The exact v0.4.1 Windows package has a closed consent-bearing managed route.
+`managed_shared_preferences` requires staged-source capability16 and the
+`regaiden-gbc` materialization that older engines cannot parse. Core retains
+explicit review of the Windows account and both shared/local preference paths
+in schema7 installation manifests. Local saves/settings are managed; the
+account-wide file is never owned, backed up, restored or deleted. Scope cannot
+travel through adoption, relocation or library transfer. See the
+[exact contract and manual reinstall recovery](reference/managed-regaiden.md).
+Historical prepared registrations retain their previous non-owning semantics;
+this route neither migrates them nor establishes gameplay qualification.
+
 ## Managed RaceWave46 sign-in boundary
 
 The exact official Windows v1.0.0 package uses a closed retained runtime-data

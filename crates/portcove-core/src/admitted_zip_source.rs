@@ -23,12 +23,14 @@ impl<'a> AdmittedZipCopy<'a> {
         materialization: RuntimeSourceMaterialization,
         required_hashes: &BTreeMap<String, String>,
     ) -> Result<Option<Self>> {
-        if materialization != RuntimeSourceMaterialization::Copy
-            || !source
-                .path
-                .extension()
-                .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+        if !matches!(
+            materialization,
+            RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc
+        ) || !source
+            .path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
         {
             return Ok(None);
         }
