@@ -11,6 +11,15 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [public build-input integration](slice4-534-public-build-inputs-2026-10-20.md)
+connects fixed public roots/origins/key/packaging bytes to secret-free beta
+builders and independently verified immutable downstream provenance. Schema-3
+admission/assembly and aggregate predicates bind the separately ratified public
+configuration and selected platform archives. Public provenance is not proof of
+compiler use or embedded package contents; those and all protected/native/SBOM
+acceptance remain pending. Earlier #2253/#2254/#2256/#2257 delivery retains its
+component scope; this checkpoint adds no authority.
+
 October 20: the [non-elevated Linux runtime implementation](slice4-534-linux-runtime-implementation-2026-10-20.md)
 adds a fixed direct-capture backend, bounded useful reader and credential-free
 qualification entry point under the selected rootless route. It is preparation,
