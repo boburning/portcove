@@ -218,12 +218,8 @@ export async function selectedSetupCompletionScenario({
     const owned = required(fixture.sourceJourney);
     const reviewPort = required(owned.reviewPort);
     const port = fixture.port;
-    const setupOrigin = fixture.nativeConnectionJourney
-      ? "game-file-libraries-setup"
-      : "add-games-folders-setup";
-    const setupHeading = fixture.nativeConnectionJourney
-      ? "game-file-libraries-heading"
-      : "add-games-folders-heading";
+    const setupOrigin = "add-games-folders-setup";
+    const setupHeading = "add-games-folders-heading";
     let generation: number;
     const { button, click } = reviewControls(browser);
     const coreEnvironment = {
@@ -337,7 +333,7 @@ export async function selectedSetupCompletionScenario({
                         node && !document.querySelector('[aria-label="Source import review"]'),
                       )
                     : phase === "selected-setup-prepared"
-                      ? enabled("Play")
+                      ? enabled("Try launch")
                       : phase.includes("queue-return") || phase.includes("settled-return")
                         ? Boolean(
                             node &&
@@ -483,7 +479,8 @@ export async function selectedSetupCompletionScenario({
         assert.equal(required(initial.coverage).batches, 1);
         assert.equal(required(initial.coverage).can_resume, true);
         await screenshot("connected-folder-management");
-      } else {
+      }
+      {
         await click(By.xpath('//nav//button[contains(., "Library")]'));
         await click(button("Add games"));
         await browser.wait(
@@ -905,8 +902,12 @@ export async function selectedSetupCompletionScenario({
         prepared,
         observations: report.observations,
       });
-      await browser.wait(until.elementLocated(button("Play")), 15_000);
-      await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
+      assert.equal(prepared.readiness?.source_assessment?.contract.state, "unreviewed_for_release");
+      await browser.wait(until.elementLocated(button("Try launch")), 15_000);
+      await browser.wait(
+        until.elementIsEnabled(await browser.findElement(button("Try launch"))),
+        15_000,
+      );
       report.observations.result_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionResultFocus, port.name),
         5_000,
