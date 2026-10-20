@@ -35,6 +35,42 @@ void test("complete site context deadline refuses before creating custody or req
   );
 });
 
+void test("public readback and component custody refuse expired and late responses under the same phase deadline", async (t) => {
+  const { files, marker } = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async (input: string) => {
+    calls++;
+    clock = 2001;
+    return response(input, files.get("publication.json")!);
+  });
+  for (const read of [readPublicApplicationSite, readPublicApplicationSiteMarker]) {
+    await assert.rejects(read(marker, 999), /phase deadline/);
+  }
+  await assert.rejects(
+    materializePublishedApplicationComponent(
+      {
+        site_generation_sha256: "a".repeat(64),
+        root_sha256: "b".repeat(64),
+        repository_sha256: "c".repeat(64),
+      },
+      "missing",
+      999,
+    ),
+    /phase deadline/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(readPublicApplicationSite(marker, 2000), /deadline exceeded after response/);
+  assert.equal(calls, 1);
+  clock = 1000;
+  await assert.rejects(
+    readPublicApplicationSiteMarker(marker, 2000),
+    /deadline exceeded after response/,
+  );
+  assert.equal(calls, 2);
+});
+
 async function initialFixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-initial-site-test-"));
   t.after(() => rm(root, { recursive: true, force: true }));
