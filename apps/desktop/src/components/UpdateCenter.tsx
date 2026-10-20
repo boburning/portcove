@@ -1000,7 +1000,7 @@ function UpdateStat({
   warning?: boolean;
 }) {
   return (
-    <div className="update-stat grid min-w-[82px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3">
+    <div className="update-stat grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3 wrap-anywhere">
       <div
         className={`row-span-2 ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : "text-pc-muted-foreground"}`}
       >
