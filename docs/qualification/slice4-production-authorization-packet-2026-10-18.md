@@ -11,6 +11,12 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [immutable Release preparation](slice4-534-immutable-release-preparation-2026-10-20.md)
+adds draft-first one-effect transport, actual intent settlement binding and
+fixed-controller qualification against inert exact candidate source. It supplies
+no protected publisher job, credential, positive scanner/native/SBOM/compiler
+acceptance or production grant; existing holds remain.
+
 The October 20 [phase-specific late controls](slice4-payload-phase-controls-2026-10-20.md)
 connect payload preparation to its own fresh isolated observation after aggregate
 and opaque package acquisition. Site maintenance can read pause/capacity without

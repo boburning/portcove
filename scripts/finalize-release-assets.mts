@@ -13,6 +13,9 @@ type FinalizationInventory = Pick<ReconciledInventory, "schema_version" | "versi
 export interface FinalizeOptions {
   projectRoot?: string;
   sbomSubjectChecksums?: string;
+  // The protected caller materializes/authenticates this exact inert prepared
+  // source. Storage/policy ownership remains projectRoot; no scanner waiver.
+  linuxQualificationRoot?: string;
 }
 
 function assertInventory(value: unknown): asserts value is FinalizationInventory {
@@ -121,7 +124,10 @@ export async function finalizeReleaseAssets(
     )
   ) {
     const { authorizeLinuxRelease } = await import("./linux-beta-risk-706.mts");
-    const decision = authorizeLinuxRelease(projectRoot, inventory.tag);
+    const decision = authorizeLinuxRelease(
+      options.linuxQualificationRoot ?? projectRoot,
+      inventory.tag,
+    );
     if (
       !inventory.workflow_producers?.some(
         (producer) =>
