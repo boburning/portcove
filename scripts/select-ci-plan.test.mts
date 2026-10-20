@@ -8,13 +8,84 @@ import {
   classifyChanges,
   discoverCiPlan,
   fastPlatformMatrix,
+  qualificationMatrices,
   parseRawDiff,
   isInformationalPath,
   writeGithubOutputs,
 } from "./select-ci-plan.mts";
-import { buildValidationPlan } from "./validation-plan.mts";
+import {
+  buildValidationPlan,
+  fastGroups,
+  qualificationPlatforms,
+  validateValidationPlan,
+} from "./validation-plan.mts";
 
 const sha = (character: string) => character.repeat(40);
+
+void test("only an explicitly forced release reusable caller selects the beta qualification profile", async (t) => {
+  const selected = {
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("c"),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-win-linux",
+  };
+  const beta = discoverCiPlan(selected, () => assert.fail("Git must not run"));
+  validateValidationPlan(beta);
+  assert.equal(beta.release_profile, "initial-beta-win-linux");
+  assert.deepEqual(beta.groups, fastGroups);
+  assert.deepEqual(beta.platforms, ["linux-x86_64", "windows-x86_64"]);
+  assert.deepEqual(qualificationMatrices(beta), {
+    native: [{ platform: "linux-x86_64", runner: "ubuntu-22.04", partition: "hash:1/1" }],
+    docs: [
+      { platform: "linux-x86_64", runner: "ubuntu-22.04" },
+      { platform: "windows-x86_64", runner: "windows-latest" },
+    ],
+  });
+  for (const override of [
+    { forceQualification: false },
+    { qualificationCaller: "nightly" },
+    { callerWorkflow: "qualification.yml" },
+    { eventName: "pull_request" },
+    { eventName: "schedule" },
+    { releaseProfile: "foreign" },
+  ])
+    assert.throws(() => discoverCiPlan({ ...selected, ...override }), /profile/);
+  const full = discoverCiPlan({ ...selected, releaseProfile: "full" });
+  const unchanged = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("c"),
+    forceQualification: true,
+  });
+  assert.deepEqual(full, unchanged);
+  assert.equal(Object.hasOwn(full, "release_profile"), false);
+  assert.deepEqual(full.platforms, qualificationPlatforms);
+  assert.equal(qualificationMatrices(full).docs.length, 4);
+  assert.equal(qualificationMatrices(full).native.length, 2);
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-beta-plan-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const output = path.join(root, "output");
+  await writeGithubOutputs(output, beta);
+  const values = Object.fromEntries(
+    (await readFile(output, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => {
+        const split = line.indexOf("=");
+        return [line.slice(0, split), line.slice(split + 1)];
+      }),
+  );
+  assert.equal(values.release_profile, "initial-beta-win-linux");
+  assert.deepEqual(
+    JSON.parse(values.qualification_native_matrix_json!),
+    qualificationMatrices(beta).native,
+  );
+  assert.deepEqual(
+    JSON.parse(values.qualification_docs_matrix_json!),
+    qualificationMatrices(beta).docs,
+  );
+});
 void test("frontend tooling provisioning follows selected inputs and skips pure Rust and allowlisted prose", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "portcove-tool-provision-"));
   try {

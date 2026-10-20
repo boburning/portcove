@@ -33,6 +33,7 @@ export const validationAreas = Object.freeze([
 export type ValidationGroup = (typeof fastGroups)[number];
 export type ValidationArea = (typeof validationAreas)[number];
 export type ValidationPlatform = "primary-host" | (typeof qualificationPlatforms)[number];
+export type ReleaseQualificationProfile = "full" | "initial-beta-win-linux";
 export interface ValidationChange {
   status: string;
   oldMode: string | null;
@@ -72,6 +73,7 @@ export interface ValidationPlan {
   groups: readonly ValidationGroup[];
   platforms: readonly ValidationPlatform[];
   qualification_required: boolean;
+  release_profile?: "initial-beta-win-linux";
   fallback: { kind: "all-fast-groups"; paths: string[] } | null;
   identities: {
     base: string | null;
@@ -129,6 +131,13 @@ export const qualificationPlatforms = Object.freeze([
   "macos-x86_64",
   "windows-x86_64",
 ] as const);
+
+export function qualificationPlatformsForProfile(profile: string = "full") {
+  if (profile === "full") return qualificationPlatforms;
+  if (profile === "initial-beta-win-linux")
+    return Object.freeze(["linux-x86_64", "windows-x86_64"] as const);
+  throw new Error("unknown release qualification profile");
+}
 
 function withNodeTestCompanions(files: readonly string[]) {
   return new Set(
@@ -249,6 +258,10 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-semantic-reader-server.mts",
   "scripts/release-semantic-broker.mts",
   "scripts/semantic-review-sandbox.ps1",
+  "scripts/semantic-review-linux-supervisor.py",
+  "scripts/semantic-review-linux-supervisor.test.py",
+  "scripts/semantic-review-linux-supervisor.test.mts",
+  "scripts/qualify-semantic-linux.mts",
   "scripts/fixtures/semantic-review-appcontainer.cs.txt",
   "scripts/release-capacity-operation.mts",
   "scripts/release-input-protections.mts",
@@ -280,6 +293,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-coordinator.mts",
   "scripts/release-coordinator-state.mts",
   "scripts/release-coordinator-remote.mts",
+  "scripts/release-prepared-transport.mts",
   "scripts/release-coordinator-recovery.mts",
   "scripts/release-run-evidence.mts",
   "scripts/release-source-changes.mts",
@@ -973,6 +987,8 @@ function assertPlanShape(plan: unknown): asserts plan is ValidationPlan {
     throw new Error("validation plan reason is missing");
   if (typeof plan.qualification_required !== "boolean")
     throw new Error("validation qualification authority is invalid");
+  if (Object.hasOwn(plan, "release_profile") && plan.release_profile !== "initial-beta-win-linux")
+    throw new Error("invalid release qualification profile");
   assertStringArray(plan.changed_files, [], "changed_files");
   assertStringArray(plan.areas, validationAreas, "area");
   assertStringArray(plan.groups, fastGroups, "group");
@@ -1136,6 +1152,13 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
     throw new Error("failed discovery cannot authorize validation");
   if (plan.mode !== "blocked" && plan.discovery !== "complete")
     throw new Error("active validation requires complete discovery");
+  if (
+    plan.release_profile !== undefined &&
+    (plan.mode !== "qualification" ||
+      plan.reason !== "explicit-reusable-qualification" ||
+      plan.paths.length !== 0)
+  )
+    throw new Error("release profile requires explicit reusable qualification");
   if (plan.mode === "blocked") {
     if (
       plan.changed_files.length ||
@@ -1158,7 +1181,8 @@ function validatePlanSemantics(plan: ValidationPlan): ValidationPlan {
   if (
     plan.mode === "qualification" &&
     (JSON.stringify(plan.groups) !== JSON.stringify(fastGroups) ||
-      JSON.stringify(plan.platforms) !== JSON.stringify(qualificationPlatforms))
+      JSON.stringify(plan.platforms) !==
+        JSON.stringify(qualificationPlatformsForProfile(plan.release_profile)))
   )
     throw new Error("qualification plan must include every protected group and platform");
   if (plan.platforms.length === 0) throw new Error("active validation plan must select a platform");
@@ -1249,12 +1273,17 @@ export function validateQualificationBinding({
   plan: input,
   digest,
   checkout,
+  releaseProfile = "full",
 }: {
   plan: unknown;
   digest: string | undefined;
   checkout: string | undefined;
+  releaseProfile?: string;
 }) {
   const plan = validateValidationPlan(input);
+  const expectedPlatforms = qualificationPlatformsForProfile(releaseProfile);
+  if ((plan.release_profile ?? "full") !== releaseProfile)
+    throw new Error("reusable qualification release profile mismatch");
   if (plan.mode !== "qualification" || !plan.qualification_required)
     throw new Error("reusable result is not a qualification plan");
   if (plan.digest !== digest) throw new Error("reusable qualification digest mismatch");
@@ -1267,7 +1296,7 @@ export function validateQualificationBinding({
     throw new Error("reusable qualification omitted a protected group");
   if (
     JSON.stringify([...plan.platforms].sort(compareStrings)) !==
-    JSON.stringify([...qualificationPlatforms].sort(compareStrings))
+    JSON.stringify([...expectedPlatforms].sort(compareStrings))
   )
     throw new Error("reusable qualification omitted a platform");
   return plan;
@@ -1284,6 +1313,7 @@ function main() {
     plan: input,
     digest: process.env.PORTCOVE_PLAN_DIGEST,
     checkout: process.env.PORTCOVE_EXPECTED_CHECKOUT,
+    releaseProfile: process.env.PORTCOVE_RELEASE_PROFILE ?? "full",
   });
   console.log(`Reusable qualification ${plan.digest} is bound to ${plan.identities.checkout}.`);
 }

@@ -24,7 +24,7 @@ import {
   digestValidationPlan,
   fastGroups,
   isInformationalPath,
-  qualificationPlatforms,
+  qualificationPlatformsForProfile,
   validateValidationPlan,
 } from "./validation-plan.mts";
 
@@ -50,6 +50,16 @@ export function fastPlatformMatrix(plan: Pick<ValidationPlan, "platforms">) {
       if (!runner) throw new Error(`validation platform has no runner: ${platform}`);
       return { platform, runner };
     });
+}
+
+export function qualificationMatrices(plan: ValidationPlan) {
+  const platforms = fastPlatformMatrix(plan);
+  return {
+    native: platforms
+      .filter(({ platform }) => platform === "linux-x86_64" || platform === "macos-aarch64")
+      .map((entry) => ({ ...entry, partition: "hash:1/1" })),
+    docs: platforms,
+  };
 }
 
 function normalizePath(value: unknown) {
@@ -111,6 +121,9 @@ interface CiDiscoveryOptions {
   proseOnlyEnabled?: boolean;
   fastValidationEnabled?: boolean;
   forceQualification?: boolean;
+  releaseProfile?: string;
+  qualificationCaller?: string;
+  callerWorkflow?: string;
 }
 type CiGitRunner = (args: string[], options?: ExecFileSyncOptions) => string | Buffer;
 
@@ -123,11 +136,23 @@ export function discoverCiPlan(
     proseOnlyEnabled = false,
     fastValidationEnabled = false,
     forceQualification = false,
+    releaseProfile = "full",
+    qualificationCaller = "",
+    callerWorkflow = "",
   }: CiDiscoveryOptions,
   runGit: CiGitRunner = (args, options = {}) =>
     execFileSync("git", args, { cwd: projectRoot, ...options }),
 ): ValidationPlan {
   const checkout = checkedSha(checkoutSha, "checkout SHA");
+  const releasePlatforms = qualificationPlatformsForProfile(releaseProfile);
+  if (
+    releaseProfile !== "full" &&
+    (!forceQualification ||
+      qualificationCaller !== "release" ||
+      callerWorkflow !== "release.yml" ||
+      !["workflow_call", "workflow_dispatch", "push"].includes(eventName))
+  )
+    throw new Error("reduced profile requires explicitly forced release reusable qualification");
   const qualify = (
     plan: ValidationPlan,
     reason = "explicit-reusable-qualification",
@@ -138,8 +163,9 @@ export function discoverCiPlan(
       mode: "qualification",
       reason,
       groups: fastGroups,
-      platforms: qualificationPlatforms,
+      platforms: releasePlatforms,
       qualification_required: true,
+      ...(releaseProfile === "initial-beta-win-linux" ? { release_profile: releaseProfile } : {}),
     };
     delete replacement.digest;
     return { ...replacement, digest: digestValidationPlan(replacement) };
@@ -211,6 +237,7 @@ export async function writeGithubOutputs(
   reuse: PostmergeReuseBinding | null = null,
 ) {
   if (!outputPath) throw new Error("GITHUB_OUTPUT is required");
+  validateValidationPlan(plan);
   const { classifyChanges: classifyLocalChanges } = await import("./ordinary-validation.mts");
   const selection = classifyLocalChanges(
     plan.changes.flatMap((change) => [
@@ -242,6 +269,9 @@ export async function writeGithubOutputs(
     groups_json: JSON.stringify(plan.groups),
     platforms_json: JSON.stringify(plan.platforms),
     platform_matrix_json: JSON.stringify(fastPlatformMatrix(plan)),
+    qualification_native_matrix_json: JSON.stringify(qualificationMatrices(plan).native),
+    qualification_docs_matrix_json: JSON.stringify(qualificationMatrices(plan).docs),
+    release_profile: plan.release_profile ?? "full",
     qualification_required: String(plan.qualification_required),
     plan_digest: plan.digest,
     plan_json: JSON.stringify(plan),
@@ -272,6 +302,9 @@ async function main() {
     proseOnlyEnabled: process.env.PORTCOVE_PROSE_POLICY_ACTIVATED === "true",
     fastValidationEnabled: process.env.PORTCOVE_FAST_VALIDATION_ACTIVATED === "true",
     forceQualification: process.env.PORTCOVE_FORCE_QUALIFICATION === "true",
+    releaseProfile: process.env.PORTCOVE_RELEASE_PROFILE ?? "full",
+    qualificationCaller: process.env.PORTCOVE_QUALIFICATION_CALLER ?? "",
+    callerWorkflow: process.env.PORTCOVE_CALLER_WORKFLOW ?? "",
   });
   validateValidationPlan(plan);
   const reuse = discoverPostmergeReuse(plan, {

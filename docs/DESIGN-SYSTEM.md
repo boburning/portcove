@@ -613,6 +613,12 @@ for work the application did not perform.
 
 ### Add games composition
 
+The genuine first-use Library omits collection layout, sorting and filter tools
+until there is content or a browsing constraint to operate on. Keep its mascot
+compact (4rem) and Add games visible at the supported minimum window, including
+the initial application-update choice notice. Filtered no-results retains its
+reset and filtering controls; hiding first-use tools must not clear preferences.
+
 Library's contextual Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
 review action together. The initial stage list is orientation, not a claim that

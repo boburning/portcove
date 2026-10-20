@@ -411,7 +411,7 @@ export function PortBrowser({
       {renderDropAnnouncement()}
       {renderConnectPrompt()}
       {renderContinue()}
-      {view === "library" && (
+      {view === "library" && !firstUseEmpty && (
         <div
           className="collection-tools mb-4 flex flex-wrap items-end justify-end gap-3"
           data-focus-group
@@ -466,12 +466,14 @@ export function PortBrowser({
           These filters are not supported. Reset filters to choose a supported query.
         </p>
       )}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        {renderFilters()}
-        {renderDeclaredFilters()}
-        {renderSort()}
-        {renderSteamBatch()}
-      </div>
+      {!firstUseEmpty && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {renderFilters()}
+          {renderDeclaredFilters()}
+          {renderSort()}
+          {renderSteamBatch()}
+        </div>
+      )}
       <BrowserResults
         layout={view === "library" ? collectionLayout : "covers"}
         view={view}
@@ -680,11 +682,10 @@ function BrowserEmptyState({
     return (
       <EmptyState
         visual={
-          <span className="empty-mascot-stage grid h-40 w-52 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)] shadow-(--shadow-raised)">
+          <span className="empty-mascot-stage grid size-16 place-items-center overflow-hidden rounded-pc-lg border border-[var(--color-border-strong)] bg-[var(--color-brand-stage)]">
             <BrandMascot className="size-full" decorative />
           </span>
         }
-        eyebrow="EMPTY LIBRARY"
         title="Your library is empty"
         description="Add games using your original files, search a chosen folder, or find a port. You can also copy a supported installation without changing its original folder."
         action={

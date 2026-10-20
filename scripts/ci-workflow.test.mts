@@ -8,6 +8,7 @@ import type {
 } from "node:child_process";
 import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
+import { discoverCiPlan, qualificationMatrices, writeGithubOutputs } from "./select-ci-plan.mts";
 import { parseDocument } from "yaml";
 import { spawn, spawnSync } from "node:child_process";
 import { EventEmitter } from "node:events";
@@ -798,7 +799,10 @@ void test("required CI keeps its cancellation and least-privilege contracts", ()
   ]) {
     assert.notEqual(section, "");
     assert.match(section, /^ {4}needs: (?:classify|\[classify, intel_build\])$/m);
-    assert.match(section, /^ {4}if: .*classify\.outputs\.mode == 'qualification'$/m);
+    assert.match(
+      section,
+      /^ {4}if: .*classify\.outputs\.mode == 'qualification'(?: && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\))?$/m,
+    );
   }
   assert.match(classify, /fetch-depth: 0/);
   assert.match(classify, /node scripts\/select-ci-plan\.mts/);
@@ -1999,19 +2003,82 @@ void test("native Rust runs the full workspace on every supported Unix architect
     nativeRust,
     /^ {4}name: native-rust \(\$\{\{ matrix\.platform \}\}, \$\{\{ matrix\.partition \}\}\)$/m,
   );
-  for (const [platform, runner] of [
-    ["linux-x86_64", "ubuntu-22.04"],
-    ["macos-aarch64", "macos-15"],
-  ] as const) {
-    assert.match(nativeRust, new RegExp(`platform: ${platform}\\r?\\n\\s+runner: ${runner}`));
-  }
+  assert.match(
+    nativeRust,
+    /include: \$\{\{ fromJSON\(needs\.classify\.outputs\.qualification_native_matrix_json\) \}\}/,
+  );
+  const full = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+  });
+  assert.deepEqual(qualificationMatrices(full).native, [
+    { platform: "linux-x86_64", runner: "ubuntu-22.04", partition: "hash:1/1" },
+    { platform: "macos-aarch64", runner: "macos-15", partition: "hash:1/1" },
+  ]);
   assert.match(nativeRust, /if: runner\.os == 'Linux'/);
   assert.match(nativeRust, /echo "TMPDIR=\$RUNNER_TEMP" >> "\$GITHUB_ENV"/);
   assert.match(nativeRust, /run: \.\/scripts\/install-linux-desktop-prerequisites\.sh/);
   assert.match(nativeRust, /cargo nextest run --locked --workspace/);
   assert.match(nativeRust, /--partition "\$\{\{ matrix\.partition \}\}"/);
-  assert.equal((nativeRust.match(/partition: hash:1\/1/g) ?? []).length, 2);
   assert.doesNotMatch(nativeRust, /continue-on-error/);
+});
+
+void test("release qualification profile connects bounded matrices and skips only absent macOS coverage", () => {
+  assert.match(
+    workflow,
+    /PORTCOVE_RELEASE_PROFILE: \$\{\{ inputs\.release_profile \|\| 'full' \}\}/,
+  );
+  assert.match(
+    workflow,
+    /PORTCOVE_QUALIFICATION_CALLER: \$\{\{ inputs\.qualification_caller \|\| '' \}\}/,
+  );
+  assert.match(workflow, /PORTCOVE_CALLER_WORKFLOW: \$\{\{ inputs\.caller_workflow \|\| '' \}\}/);
+  assert.match(
+    qualificationWorkflow,
+    /release_profile: \$\{\{ inputs\.release_profile \|\| 'full' \}\}/,
+  );
+  assert.match(
+    rustDocs,
+    /include: \$\{\{ fromJSON\(needs\.classify\.outputs\.qualification_docs_matrix_json\) \}\}/,
+  );
+  for (const body of [intelBuild, intelTests])
+    assert.match(
+      body,
+      /if: needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-x86_64'\)/,
+    );
+  const portability = workflow.split("  frontend_portability:")[1] ?? "";
+  assert.match(
+    portability,
+    /if: \(needs\.classify\.outputs\.mode == 'qualification' && contains\(fromJSON\(needs\.classify\.outputs\.platforms_json\), 'macos-aarch64'\)\)/,
+  );
+  const beta = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: "a".repeat(40),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-win-linux",
+  });
+  assert.deepEqual(
+    qualificationMatrices(beta).native.map(({ platform }) => platform),
+    ["linux-x86_64"],
+  );
+  assert.deepEqual(
+    qualificationMatrices(beta).docs.map(({ platform }) => platform),
+    ["linux-x86_64", "windows-x86_64"],
+  );
+  for (const body of [
+    rustTests,
+    rustWorkspaceTests,
+    windowsStorage,
+    nativeRust,
+    rustDocs,
+    rustQuality,
+    frontend,
+    catalog,
+  ])
+    assert.match(body, /if: needs\.classify\.outputs\.mode == 'qualification'/);
 });
 
 void test("Intel tests build once and retries preserve their attempt-scoped producer chain", async () => {
@@ -2897,7 +2964,7 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
   }
 });
 
-void test("Rust reports slow tests, terminates hangs and retains documentation coverage", async () => {
+void test("Rust reports slow tests, terminates hangs and retains documentation coverage", async (t) => {
   const config = await readFile(new URL("../.config/nextest.toml", import.meta.url), "utf8");
   // Parse the actual configuration consumed by nextest, using the same TOML
   // implementation already used by production nextest-equivalence selection.
@@ -3003,8 +3070,40 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   assert.match(rustDocs, /cargo test --locked --workspace --exclude portcove-desktop --doc/);
   assert.match(rustDocs, /cargo test --locked -p portcove-desktop --doc/);
   assert.doesNotMatch(rustDocs, /--no-default-features|--no-deps|--exclude (?!portcove-desktop)/);
-  for (const platform of ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-aarch64"]) {
-    assert.ok(rustDocs.includes(`platform: ${platform}`));
+  assert.match(
+    rustDocs,
+    /include: \$\{\{ fromJSON\(needs\.classify\.outputs\.qualification_docs_matrix_json\) \}\}/,
+  );
+  const matrixRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-doc-qualification-"));
+  t.after(() => rm(matrixRoot, { recursive: true, force: true }));
+  for (const [releaseProfile, expected] of [
+    ["full", ["linux-x86_64", "macos-aarch64", "macos-x86_64", "windows-x86_64"]],
+    ["initial-beta-win-linux", ["linux-x86_64", "windows-x86_64"]],
+  ] as const) {
+    const selected = discoverCiPlan({
+      eventName: "workflow_dispatch",
+      checkoutSha: "a".repeat(40),
+      forceQualification: true,
+      qualificationCaller: "release",
+      callerWorkflow: "release.yml",
+      releaseProfile,
+    });
+    const output = path.join(matrixRoot, releaseProfile);
+    await writeGithubOutputs(output, selected);
+    const line = (await readFile(output, "utf8"))
+      .split("\n")
+      .find((line) => line.startsWith("qualification_docs_matrix_json="));
+    assert.ok(line);
+    const matrix: unknown = JSON.parse(line.slice(line.indexOf("=") + 1));
+    assert.ok(Array.isArray(matrix));
+    assert.deepEqual(
+      matrix.map((entry: unknown) => {
+        assert.ok(isRecord(entry));
+        return entry.platform;
+      }),
+      expected,
+    );
+    assert.deepEqual(matrix, qualificationMatrices(selected).docs);
   }
   assert.ok(rust.includes(`"rust_docs":"` + '${{ needs.rust_docs.result }}"'));
   for (const section of [rustTests, rustWorkspaceTests, nativeRust, intelBuild, intelTests]) {
@@ -3770,13 +3869,13 @@ void test("export refuses links and oversized evidence instead of silently dropp
     assert.equal(report.request_plan.status, "admitted");
     assert.equal(report.limits.requests, 130);
     const atCeiling = await collect(
-      catalog(...Array.from({ length: 256 }, (_, i) => port(`ceiling-${i}`))),
+      catalog(...Array.from({ length: 320 }, (_, i) => port(`ceiling-${i}`))),
     );
-    assert.equal(atCeiling.consumed.requests, 256);
+    assert.equal(atCeiling.consumed.requests, 320);
     assert.equal(atCeiling.request_plan.status, "admitted");
     let overflowCalls = 0;
     const overflow = await collect(
-      catalog(...Array.from({ length: 257 }, (_, i) => port(`overflow-${i}`))),
+      catalog(...Array.from({ length: 321 }, (_, i) => port(`overflow-${i}`))),
       async () => {
         overflowCalls += 1;
         assert.fail("overflow must refuse before network");
@@ -3785,7 +3884,7 @@ void test("export refuses links and oversized evidence instead of silently dropp
     assert.equal(overflow.request_plan.status, "overflow");
     assert.equal(overflow.consumed.requests, 0);
     assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 257);
+    assert.equal(overflow.observations.length, 321);
     assert.ok(
       overflow.observations.every(
         (record) => record.reason === "budget" && record.attempted === false,

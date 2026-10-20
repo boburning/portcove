@@ -598,6 +598,31 @@ for the selected boundary, retained provider observation and resource estimate.
 
 ### Inactive remote checkpoint transport
 
+`publishPreparedCoordinatorCheckpoint` in `scripts/release-prepared-transport.mts`
+connects the existing deterministic version preparation to remote object custody
+and then to the existing checkpoint CAS below. Its read-only export reconstructs
+the four authorized version edits (`Cargo.toml`, `Cargo.lock`, desktop package
+metadata and Tauri configuration), verifies the sole source parent, canonical
+intent, actors/date and exact raw commit identity, and refuses extra tree edits.
+Lazy fetching is disabled; missing application objects in sparse recovery refuse.
+
+The fixed repository's source commit/tree must already exist remotely. The
+adapter stages only four bounded blobs, their overlay over that base tree, and
+the exact prepared commit. It verifies returned OIDs and fresh commit readback
+before using the unchanged checkpoint/ref transaction. Replay creates no objects
+or refs when the same complete state already exists. Lost object acknowledgments
+require exact readback; unresolved outcomes retain original errors/known OIDs and
+stop before later effects. No blind retry, alternate allocator or ref writer is
+introduced. Local allocation and partial immutable remote objects remain retained.
+
+Local export is capped at 64 Git reads/120 seconds, 8 MiB per blob and 16 MiB
+total; raw commits are capped at 128 KiB. Remote staging has 32 requests/120 seconds
+plus 30 seconds for failure collection. The injected synchronous transport must
+itself enforce per-request time/response bounds. Its separately ratified identity,
+credential and execution boundary are still required; no CLI/default credential
+lookup or production activation is added. Object custody is not admission,
+semantic acceptance, qualification or an execution grant.
+
 `exportCoordinatorCheckpoint(repository, expected)` exports the existing journal's
 exact blob, tree and commit from a caller-owned bare coordinator. It validates
 physical UTF-8 and canonical state bytes, fixed commit metadata, the preceding
@@ -717,6 +742,25 @@ producing run/attempt/job and exact artifact/attestation binding through the
 existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
+
+The trusted `initial-beta-win-linux` profile declares exactly six distributions:
+Windows x86-64 current-user NSIS and CLI ZIP; ordinary Linux x86-64 AppImage,
+DEB, RPM and CLI tar.gz. NSIS/AppImage retain application-updater ownership;
+DEB/RPM retain package-manager ownership. The complete repository package policy
+is validated before selecting this fixed subset; missing selected packages refuse.
+Default `full` builds and qualification retain all four platforms and ten packages.
+
+The Release identity job validates the named profile and emits its fixed build
+matrix. Reusable qualification binds the same profile into the plan digest and
+requires all applicable Windows/Linux checks. The reduced profile is available
+only to explicitly forced Release qualification, not PRs or nightly qualification.
+The result gate requires macOS jobs to be skipped for that profile; it still
+requires every applicable producer. An expected-full consumer refuses a reduced
+qualification plan. Assembly schema 2 and ratified admission configuration schema
+2 bind `release_profile`; historical schema 1 still means the complete full matrix.
+Provider archive selection, verified aggregation, aggregate attestation and download
+guidance consume the selected inventory. Selecting a distribution profile grants
+no execution, signing, publication, native acceptance or catalog authority.
 
 Release workflow uploads use immutable attempt names:
 `release-build-<platform>-<run-id>-<attempt>` and

@@ -9,6 +9,7 @@ import { artworkState } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { collectionLayoutKey } from "../features/browsing/use-collection-layout";
+import { ApplicationUpdateNotices } from "../features/application-update/ApplicationUpdateNotices";
 import "../styles/index.css";
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
@@ -36,6 +37,63 @@ async function mount(theme: string) {
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }
+
+it.each([
+  ["dark", 960],
+  ["light", 960],
+  ["dark", 320],
+  ["light", 320],
+] as const)(
+  "prioritizes first-use actions with the update choice at %s/%ipx",
+  async (theme, width) => {
+    await page.viewport(width, 640);
+    document.documentElement.dataset.theme = theme;
+    const add = vi.fn();
+    const connect = vi.fn();
+    await render(
+      <main style={{ width: width === 960 ? 768 : "100%", padding: 20, boxSizing: "border-box" }}>
+        <h1>Your library</h1>
+        <ApplicationUpdateNotices
+          updateNotice={undefined}
+          updateChoiceRequired
+          productionTransitionRequired={false}
+          productionTransitionBusy={false}
+          reviewUpdate={() => {}}
+          dismissUpdate={async () => {}}
+          dismissUpdateChoice={() => {}}
+          useStable={() => {}}
+          keepPreview={() => {}}
+          dismissProductionTransition={() => {}}
+        />
+        <PortBrowser
+          view="library"
+          ports={[]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          setCollectionLayout={() => {}}
+          onSelect={() => {}}
+          onBrowseCatalog={add}
+          onConnectGameFiles={connect}
+          loading={false}
+        />
+      </main>,
+    );
+    expect(document.querySelector('[aria-label="Collection view"]')).toBeNull();
+    expect(document.querySelector(".collection-tools")).toBeNull();
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
+    const action = document.querySelector<HTMLElement>(".empty-state [data-add-games-trigger]")!;
+    expect(action.getBoundingClientRect().top).toBeGreaterThan(0);
+    expect(action.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      width === 960 ? 640 : document.documentElement.scrollHeight,
+    );
+    await page.getByRole("button", { name: "Add games", exact: true }).click();
+    expect(add).toHaveBeenCalledOnce();
+    await page.getByRole("button", { name: "Connect game-file folder", exact: true }).click();
+    expect(connect).toHaveBeenCalledOnce();
+  },
+);
 
 it.each([
   ["dark", true],

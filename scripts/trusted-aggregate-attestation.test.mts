@@ -18,8 +18,8 @@ import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-async function fixture(t: test.TestContext) {
-  const f = await trustedAssemblyFixture(t);
+async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
+  const f = await trustedAssemblyFixture(t, profile);
   const aggregate = await assembleTrustedRelease(f.root, f.input, f.request);
   const entries = await Promise.all(
     aggregate.output_files.map(
@@ -106,6 +106,21 @@ void test("new opaque aggregate members bind fresh signed own-job identity witho
     result.predicate.output_files,
     f.aggregate.output_files.sort((a, b) => a.filename.localeCompare(b.filename)),
   );
+});
+
+void test("beta attestation binds the selected two-platform aggregate without inventing compiler acceptance", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const result = await prepareAggregateAttestation(
+    f.identity.token,
+    expected,
+    f.request,
+    [1, 2],
+    f.upload,
+    f.options,
+  );
+  assert.equal(result.predicate.output_files.length, 7);
+  assert.equal(result.predicate.original_compiler, null);
+  assert.equal(result.authority, "none");
 });
 
 void test("old artifact IDs, wrong member bytes, forged identity and provider drift cannot form an accepted aggregate binding", async (t) => {

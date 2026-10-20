@@ -9,6 +9,8 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
   releaseLabels,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
 import { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -35,9 +37,14 @@ function hex(value: unknown, length: number): asserts value is string {
 function request(raw: unknown) {
   if (
     !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "files,run_attempt,run_id,schema_version,source_commit,source_tree,version" ||
-    raw.schema_version !== 1 ||
+    !(
+      (raw.schema_version === 1 &&
+        Object.keys(raw).sort().join(",") ===
+          "files,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
+      (raw.schema_version === 2 &&
+        Object.keys(raw).sort().join(",") ===
+          "files,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version")
+    ) ||
     typeof raw.version !== "string" ||
     raw.version.length > 128 ||
     typeof raw.run_id !== "string" ||
@@ -84,7 +91,10 @@ function request(raw: unknown) {
   )
     throw new Error("duplicate assembly input identity");
   return {
-    schema_version: 1 as const,
+    schema_version: raw.schema_version === 2 ? (2 as const) : (1 as const),
+    ...(raw.schema_version === 2
+      ? { release_profile: inspectReleaseProfile(raw.release_profile) }
+      : {}),
     version: raw.version,
     source_commit: raw.source_commit,
     source_tree: raw.source_tree,
@@ -200,7 +210,10 @@ async function outputIdentity(filename: string, maximum: number, withinBound: ()
 export async function inspectTrustedAssemblyInput(rawRequest: unknown) {
   const accepted = request(rawRequest);
   // The policy is loaded only from this fixed trusted checkout, never inputs.
-  const policy = await loadPackagePolicy(trustedProject);
+  const policy = selectReleasePackagePolicy(
+    await loadPackagePolicy(trustedProject),
+    accepted.release_profile,
+  );
   const labels = releaseLabels(policy);
   const expected = labels
     .flatMap((label) => [

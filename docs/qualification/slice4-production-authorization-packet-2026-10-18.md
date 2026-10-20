@@ -11,6 +11,15 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+October 20: the [non-elevated Linux runtime implementation](slice4-534-linux-runtime-implementation-2026-10-20.md)
+adds a fixed direct-capture backend, bounded useful reader and credential-free
+qualification entry point under the selected rootless route. It is preparation,
+not native/runtime/authentication acceptance. Current ordinary WSL readback lacks
+both system and user systemd buses; no elevated repair or repeated VHD diagnostic
+is proposed. Complete independent engineering before the consolidated setup.
+Historical consumed Windows grants below remain historical and cannot authorize
+another attempt.
+
 October 19, after #2179: the owner approved and completed its one-observation
 sequence. The [actual storage-access result](slice4-storage-access-result-2026-10-19.md)
 records verified privilege lookup/impersonation followed by metadata error 5 on

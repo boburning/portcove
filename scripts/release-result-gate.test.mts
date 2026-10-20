@@ -16,6 +16,25 @@ void test("accepts only the complete successful release dependency set", () => {
   assert.equal(evaluateReleaseResults(success), true);
 });
 
+void test("named beta requires every applicable validator/build and explicit inapplicable mac jobs", () => {
+  const beta = { ...success, build_intel: "skipped", verify_intel: "skipped" };
+  assert.equal(evaluateReleaseResults(beta, "initial-beta-win-linux"), true);
+  assert.throws(() => evaluateReleaseResults(beta), /build_intel=success/);
+  assert.throws(
+    () => evaluateReleaseResults(success, "initial-beta-win-linux"),
+    /build_intel=skipped/,
+  );
+  assert.throws(
+    () => evaluateReleaseResults(beta, "windows-only"),
+    /unknown trusted release profile/,
+  );
+  for (const name of ["identity", "qualification", "validate", "build"])
+    assert.throws(
+      () => evaluateReleaseResults({ ...beta, [name]: "skipped" }, "initial-beta-win-linux"),
+      new RegExp(`${name}=success`),
+    );
+});
+
 for (const result of ["failure", "cancelled", "timed_out", "skipped"]) {
   void test(`rejects ${result} release dependencies`, () => {
     assert.throws(

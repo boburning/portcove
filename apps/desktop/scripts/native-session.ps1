@@ -183,8 +183,10 @@ if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
             $owned = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
             if (-not $owned) { continue }
             try {
-                if ($owned.StartTime.ToFileTimeUtc() -ne $record.started_filetime -or
-                    -not [string]::Equals($owned.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured isolated process identity changed before termination.' }
+                # A reused PID belongs to a different process. The captured
+                # process has exited; never terminate its replacement.
+                if ($owned.StartTime.ToFileTimeUtc() -ne $record.started_filetime) { continue }
+                if (-not [string]::Equals($owned.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured isolated process path changed before termination.' }
                 $owned.Kill($true)
                 $terminated += $owned.Id
             } catch [InvalidOperationException] {

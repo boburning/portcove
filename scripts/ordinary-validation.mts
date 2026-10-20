@@ -299,6 +299,17 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...[
+    "scripts/semantic-review-linux-supervisor.py",
+    "scripts/semantic-review-linux-supervisor.test.py",
+    "scripts/qualify-semantic-linux.mts",
+  ].map((name): [string, string[]] => [
+    name,
+    [
+      "scripts/semantic-review-linux-supervisor.test.mts",
+      "scripts/release-semantic-broker.test.mts",
+    ],
+  ]),
   ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
     (name): [string, string[]] => [
       `scripts/release-semantic-${name}.mts`,
@@ -560,6 +571,7 @@ const releaseContractTests = Object.freeze([
   "scripts/select-release-channel.test.mts",
   "scripts/release-coordinator.test.mts",
   "scripts/release-coordinator-state.test.mts",
+  "scripts/release-prepared-transport.test.mts",
   "scripts/release-run-evidence.test.mts",
   "scripts/reconstruct-application-update-records.test.mts",
   "scripts/release-workflow.test.mts",
