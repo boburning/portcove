@@ -325,6 +325,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-attempt.mts",
   "scripts/release-native-source-contract.mts",
   "scripts/release-native-pre-sign-report.mts",
+  "scripts/release-native-check-broker.mts",
   "scripts/release-native-worker.mts",
   "scripts/release-native-windows-capture.mts",
   "scripts/release-native-windows-driver.ps1",

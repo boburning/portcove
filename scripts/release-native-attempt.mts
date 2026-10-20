@@ -224,12 +224,18 @@ async function readSettled(selection: object, directory: string, id: string) {
   }
   // An attempted remote write is never treated as absent because its response
   // was lost. Reuse the original wire through GET-only, appointed-issuer reads.
-  if (!(await absent(path.join(directory, "check-attempt.jsonl"))))
-    await reconcileActualNativeCheck(
-      selection,
-      original.request,
-      await json(directory, "expected-check.json"),
+  if (!(await absent(path.join(directory, "check-attempt.jsonl")))) {
+    const { inspectNativeCheckAttempt } = await import("./release-native-check-broker.mts");
+    const wire = await json(directory, "expected-check.json");
+    if (!isRecord(wire)) throw new Error("native original Check wire missing");
+    const phase = inspectNativeCheckAttempt(
+      (await readBoundedPublicBuildInputFile(directory, "check-attempt.jsonl", 32768)).toString(
+        "utf8",
+      ),
+      { invocation_id: id, body_sha256: digest(wire.body) },
     );
+    if (phase.post_attempted) await reconcileActualNativeCheck(selection, original.request, wire);
+  }
   return marker;
 }
 const claiming = new Set<object>();

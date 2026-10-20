@@ -6,6 +6,8 @@ import { establishActualNativeParent } from "./release-native-parent.mts";
 import { acquireActualNativeCandidate } from "./release-native-candidate.mts";
 import { claimActualNativeInvocation } from "./release-native-attempt.mts";
 import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
+import { prepareActualNativePreSignReport } from "./release-native-pre-sign-report.mts";
+import { publishActualNativePreSignReport } from "./release-native-check-broker.mts";
 
 export async function runInstalledNativeWorker(configuration: string, configurationSha256: string) {
   const parent = await establishActualNativeParent(configuration, configurationSha256);
@@ -23,11 +25,15 @@ export async function runInstalledNativeWorker(configuration: string, configurat
       authority: "none",
     };
   const capture = await captureActualWindowsNativeInvocation(claim);
+  const report = await prepareActualNativePreSignReport(capture);
+  const handoff = await publishActualNativePreSignReport(report);
   return {
     decision: "hold",
     reason:
-      "actual driver capture retained; complete stage observations and Check handoff remain required",
+      "native pre-sign Check handoff retained; independent hosted acceptance and later stages remain required",
     capture,
+    report,
+    handoff,
     authority: "none",
   };
 }
