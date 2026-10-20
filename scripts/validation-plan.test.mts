@@ -40,6 +40,69 @@ const plan = (
   });
 const redigest = <Plan extends object>(p: Plan) => ({ ...p, digest: digestValidationPlan(p) });
 
+void test("qualification profile is digest-bound and cannot satisfy a different expected profile", () => {
+  const beta = discoverCiPlan({
+    eventName: "workflow_dispatch",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+    qualificationCaller: "release",
+    callerWorkflow: "release.yml",
+    releaseProfile: "initial-beta-win-linux",
+  });
+  assert.equal(
+    validateQualificationBinding({
+      plan: beta,
+      digest: beta.digest,
+      checkout: sha("d"),
+      releaseProfile: "initial-beta-win-linux",
+    }),
+    beta,
+  );
+  assert.throws(
+    () => validateQualificationBinding({ plan: beta, digest: beta.digest, checkout: sha("d") }),
+    /profile mismatch/,
+  );
+  const full = discoverCiPlan({
+    eventName: "workflow_call",
+    checkoutSha: sha("d"),
+    forceQualification: true,
+  });
+  assert.throws(
+    () =>
+      validateQualificationBinding({
+        plan: full,
+        digest: full.digest,
+        checkout: sha("d"),
+        releaseProfile: "initial-beta-win-linux",
+      }),
+    /profile mismatch/,
+  );
+  assert.throws(
+    () =>
+      validateQualificationBinding({
+        plan: full,
+        digest: full.digest,
+        checkout: sha("d"),
+        releaseProfile: "foreign",
+      }),
+    /unknown/,
+  );
+  assert.throws(
+    () => validateValidationPlan({ ...beta, release_profile: undefined }),
+    /profile|digest/,
+  );
+  for (const mutation of [
+    { release_profile: "foreign" },
+    { release_profile: "full" },
+    { mode: "fast", qualification_required: false },
+    { reason: "schedule" },
+    { groups: beta.groups.filter((group) => group !== "catalog") },
+    { platforms: qualificationPlatforms },
+    { release_profile: undefined },
+  ])
+    assert.throws(() => validateValidationPlan(redigest({ ...beta, ...mutation })));
+});
+
 void test("regular executable modes route by ownership while nonregular inputs block", () => {
   for (const modes of [
     { oldMode: "100755", newMode: "100755" },

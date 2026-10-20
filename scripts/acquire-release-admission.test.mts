@@ -27,8 +27,8 @@ function commit(tree: string, parents: string[], message: string) {
     committer: actor,
   };
 }
-async function fixture(t: test.TestContext) {
-  const f = await trustedAssemblyFixture(t);
+async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
+  const f = await trustedAssemblyFixture(t, profile);
   const sourceFacts = releaseSourceFixture();
   const original = sourceFacts.original;
   const intent = JSON.stringify({
@@ -342,7 +342,10 @@ async function fixture(t: test.TestContext) {
     faults,
     calls,
     options,
-    config: { schema_version: 1, namespace: "portcove-fixture" },
+    config:
+      profile === "full"
+        ? { schema_version: 1, namespace: "portcove-fixture" }
+        : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
   };
 }
 
@@ -362,6 +365,17 @@ void test("read-only acquisition constructs the full internally observed matrix 
   assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
   assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 4);
   assert.ok((await readdir(f.root)).some((name) => name.startsWith("release-admission-")));
+});
+
+void test("ratified beta acquisition consumes exactly the two declared platform archives without clearing remaining holds", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const result = await acquireReleaseAdmission(f.root, f.config, f.options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.archives.length, 2);
+  assert.equal(result.assembly.release_profile, "initial-beta-win-linux");
+  assert.equal(result.assembly.files.length, f.request.files.length);
+  assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 2);
 });
 
 void test("frozen net source facts bind the original classification and preparation despite a newer queued opportunity", async (t) => {

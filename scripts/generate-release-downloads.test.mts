@@ -33,6 +33,15 @@ const inventory = {
   }),
 };
 
+void test("Windows/Linux beta guidance does not invent a required Mac distribution", () => {
+  const beta = { ...inventory, packages: inventory.packages.filter((p) => p.os !== "macos") };
+  const section = renderDownloadSection(beta);
+  assert.match(section, /Windows/);
+  assert.match(section, /Linux/);
+  assert.doesNotMatch(section, /macOS:|Mac —/);
+  assert.match(section, /\.deb|\.rpm/);
+});
+
 void test("renders desktop first with readable labels and exact tag-bound links", () => {
   const section = renderDownloadSection(inventory);
   assert(section.indexOf("## Download the desktop app") < section.indexOf("## Command-line tools"));

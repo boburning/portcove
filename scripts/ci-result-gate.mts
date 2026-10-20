@@ -125,7 +125,33 @@ export function evaluateCiResults({
     requireResults(fast, "skipped", "qualification");
     if (Object.keys(targeted ?? {}).length)
       requireResults(targeted, "skipped", "qualification targeted-platform");
-    requireResults(qualification, "success", "qualification");
+    if (plan.release_profile === "initial-beta-win-linux" && group === "rust") {
+      const required = [
+        "intel_build",
+        "intel_tests",
+        "native_rust",
+        "rust_clippy",
+        "rust_docs",
+        "rust_tests",
+        "rust_workspace_tests",
+        "windows_storage",
+      ].sort();
+      if (
+        !qualification ||
+        JSON.stringify(Object.keys(qualification).sort()) !== JSON.stringify(required)
+      )
+        throw new Error("release qualification requires every applicable Rust producer result");
+      for (const [name, result] of Object.entries(qualification)) {
+        const expected = name === "intel_build" || name === "intel_tests" ? "skipped" : "success";
+        if (result !== expected)
+          throw resultFailure(
+            `${name} was ${result || "missing"}, expected ${expected} for release qualification`,
+            name,
+            result,
+            expected,
+          );
+      }
+    } else requireResults(qualification, "success", "qualification");
   } else if (plan.mode === "fast") {
     if (prose !== "skipped")
       throw new Error(`prose lane was ${prose || "missing"}, expected skipped`);

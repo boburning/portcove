@@ -33,8 +33,8 @@ void test("opaque transport discards real subprocess output overflow and timeout
   }
 });
 
-async function fixture(t: test.TestContext) {
-  const f = await trustedAssemblyFixture(t);
+async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
+  const f = await trustedAssemblyFixture(t, profile);
   const stage = path.join(f.root, "stage");
   await mkdir(stage);
   const platform = f.request.files[0]!.platform_label;
@@ -278,8 +278,11 @@ void test("opaque transfer fixes github.com and bounds collection before returni
     );
 });
 
-async function integration(t: test.TestContext) {
-  const f = await fixture(t);
+async function integration(
+  t: test.TestContext,
+  profile: "full" | "initial-beta-win-linux" = "full",
+) {
+  const f = await fixture(t, profile);
   const workflow = Buffer.from("inert release workflow fixture; never execute");
   const expected = {
     schema_version: 1 as const,
@@ -432,6 +435,21 @@ void test("complete admitted opaque artifacts stage into a fresh aggregate with 
       name.startsWith("release-build-"),
     ),
   );
+});
+
+void test("beta provider archives produce the complete six-package aggregate through the real consumer path", async (t) => {
+  const f = await integration(t, "initial-beta-win-linux");
+  assert.equal(f.archives.length, 2);
+  const result = await assembleReleaseArtifacts(
+    f.stage,
+    f.request,
+    f.archives,
+    f.expected,
+    f.options,
+  );
+  assert.equal(result.aggregate.output_files.length, 7);
+  assert.equal(result.original_compiler, null);
+  assert.equal(result.authority, "none");
 });
 
 void test("artifact matrix and run mismatch refuse before transport or private output", async (t) => {

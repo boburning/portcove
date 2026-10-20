@@ -156,7 +156,7 @@ export function renderDownloadSection(inventory: unknown) {
   const windows = desktop.find((entry) => entry.os === "windows");
   const linux = desktop.find((entry) => entry.os === "linux" && entry.format === "appimage");
   const mac = desktop.find((entry) => entry.os === "macos" && entry.architecture === "aarch64");
-  if (!windows || !linux || !mac) throw new Error("release inventory lacks verification examples");
+  if (!windows || !linux) throw new Error("release inventory lacks verification examples");
   const preview = inventory.version.includes("-")
     ? "> [!WARNING]\n> **Technical preview.** Use a disposable or fully backed-up Portcove library. A matching checksum is not publisher identity or a malware assessment; keep operating-system protections enabled and review the signing, qualification, and upgrade limitations below."
     : "> [!NOTE]\n> Review the known limitations and upgrade guidance for this release before replacing an existing installation.";
@@ -190,9 +190,7 @@ Linux:
 
 ${unixExample(linux.filename, inventory.checksum_manifest, "sha256sum --check --strict -")}
 
-macOS:
-
-${unixExample(mac.filename, inventory.checksum_manifest, "shasum -a 256 --check -")}
+${mac ? `macOS:\n\n${unixExample(mac.filename, inventory.checksum_manifest, "shasum -a 256 --check -")}` : ""}
 
 The [SPDX 2.3 SBOM](${inventory.sbom.download_url}) inventories the release build context and is itself covered by \`${inventory.checksum_manifest}\`. GitHub build-provenance and SBOM attestations bind the final release payloads to this repository and workflow. Verify a downloaded package with \`gh attestation verify <FILE> --repo ${inventory.repository}\` in addition to checking its SHA-256.
 
