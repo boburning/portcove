@@ -182,7 +182,7 @@ function OpenCommandPalette({
                   )
                     event.preventDefault();
                 }}
-                onMouseEnter={() => setSelectedId(command.id)}
+                onMouseMove={() => setSelectedId(command.id)}
                 onClick={() => run(command)}
               >
                 <span className="palette-command-icon grid h-[2rem] w-[2rem] [place-items:center] rounded-pc-sm bg-[var(--color-bg-raised)] text-[var(--color-interactive-text)]">

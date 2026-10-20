@@ -128,6 +128,8 @@ pub enum PortActionReason {
     IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
+    SharedPreferencesReviewRequired,
+    SharedPreferencesUnavailable,
     InvalidInstallation,
     DefinitionIneligible,
     MissingData,

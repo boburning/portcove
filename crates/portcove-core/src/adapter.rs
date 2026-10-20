@@ -346,6 +346,7 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || port
                     .release
@@ -798,10 +799,12 @@ fn prepare_runtime_source_input(
 
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
-        RuntimeSourceMaterialization::Copy => match &admitted_zip {
-            Some(copy) => copy.materialize(destination, checkpoint)?,
-            None => copy_runtime_source(source, destination)?,
-        },
+        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc => {
+            match &admitted_zip {
+                Some(copy) => copy.materialize(destination, checkpoint)?,
+                None => copy_runtime_source(source, destination)?,
+            }
+        }
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso_with_tool(
             source,
             destination,
@@ -962,11 +965,13 @@ fn prepare_runtime_source_set_member(
             checkpoint,
         );
     }
-    if materialization != RuntimeSourceMaterialization::Copy
-        || source_root
-            .extension()
-            .and_then(|value| value.to_str())
-            .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
+    if !matches!(
+        materialization,
+        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc
+    ) || source_root
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
     {
         return Err(PortcoveError::source(format!(
             "file-set archives only support copied ZIP members: {}",

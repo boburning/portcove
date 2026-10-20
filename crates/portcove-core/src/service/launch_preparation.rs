@@ -57,6 +57,7 @@ impl PortcoveService {
         }
         let catalog = self.installed_catalog(active)?;
         let port = catalog.port(&active.port_id)?;
+        self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
         let qualification = self.installed_mutability_qualification(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
