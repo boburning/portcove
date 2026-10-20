@@ -316,6 +316,11 @@ describe("core-owned failure presentation", () => {
       await act(async () => {
         await state.perform("prepare", () => Promise.reject(cancelled));
       });
+      // A later, proven quiet cancellation cannot erase another invocation's
+      // retained failure. Only dismissing that exact feedback removes it.
+      expect(state.error).toBe(error);
+      const failed = [...state.invocations.values()].find((record) => record.failure === error)!;
+      await act(async () => state.dismissInvocation(failed.id));
       expect(state.error).toBeUndefined();
     } finally {
       await act(async () => root.unmount());

@@ -75,6 +75,10 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
 import { focusAndReveal, navigationScope } from "../focus";
 
 export interface DetailActions {
@@ -170,7 +174,15 @@ export function DetailPanel(props: DetailPanelProps) {
     actions,
   } = props;
   const [outputApplying, setOutputApplying] = useState(false);
-  const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
+  const operationOwner = useOperationPresentation();
+  const actionState = presentPortAction(
+    operationOwner,
+    port.id,
+    status,
+    status?.active || status?.external_runtime ? "launch" : "install",
+    busy,
+  );
+  const effectiveBusy = actionState.busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? defaultReleaseChannel(port);
   const policy = status?.update_policy ?? "notify";
   const {
@@ -180,7 +192,8 @@ export function DetailPanel(props: DetailPanelProps) {
     installed,
     pendingSetup,
   } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
+  // Pending work excludes controls without rewriting observed readiness.
+  const actionPresentation = actionState.readiness;
   const launchReady = readinessLaunchReady && (!installed || !actionPresentation.blocked);
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
@@ -320,7 +333,7 @@ export function DetailPanel(props: DetailPanelProps) {
       backupReadState={backupReadState}
       retryBackupRead={retryBackupRead}
       busy={effectiveBusy}
-      outputExternalBusy={busy}
+      outputExternalBusy={actionState.busy}
       libraryGeneration={props.libraryGeneration ?? 0}
       outputLocationChanged={props.outputLocationChanged}
       externalRuntimeChanged={props.externalRuntimeChanged}

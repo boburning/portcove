@@ -108,6 +108,9 @@ import {
   summarizeLibrary,
   type DetailDestination,
 } from "./view-model";
+import { gameIdentityLabel } from "./port-identity";
+import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
   code: "state",
@@ -118,7 +121,9 @@ export const missingBootstrapError = {
 export default function App() {
   return (
     <InterfaceSizeProvider>
-      <PortcoveApp />
+      <InvocationOwnerProvider>
+        <PortcoveApp />
+      </InvocationOwnerProvider>
     </InterfaceSizeProvider>
   );
 }
@@ -368,6 +373,8 @@ function Workspace({
   const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
+    libraryGeneration: bootstrap.generation,
+    libraryLabel: bootstrap.library_root ?? "Current library",
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
@@ -486,9 +493,11 @@ function Workspace({
     open: openPortDetails,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
+  const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
       const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
+      if (nextView === "updates") setActivitySection("tasks");
       if (nextView !== "settings") setPendingToolId(undefined);
       const detailReturn = invalidatePortDetails();
       switchView(
@@ -503,7 +512,7 @@ function Workspace({
         },
       );
     },
-    [invalidatePortDetails, setSelectedId, setView, switchView, ui.view],
+    [invalidatePortDetails, setSelectedId, setView, switchView, ui.view, setActivitySection],
   );
   const openHostTool = (toolId: string) => {
     setPendingToolId(toolId);
@@ -521,8 +530,14 @@ function Workspace({
     setAdoptOpen: ui.setAdoptOpen,
     setSelectedId: (portId) => openPortDetails(portId, `command-trigger:${ui.view}`),
     checkAll: updates.checkAll,
+    openUpdates: () => {
+      setPrimaryView("updates");
+      ui.setActivitySection("updates");
+    },
   });
-  const adopting = [...operations.pendingOperations.values()].includes("adopt");
+  const adopting = [...operations.pendingOperations.values()].some(
+    (record) => record.name === "adopt",
+  );
   const { open: commandOpen, setOpen: setCommandOpen } = commandSurface;
   const handleBack = useCallback(() => {
     const action = overlayBackAction({
@@ -655,6 +670,7 @@ function Workspace({
         hostToolActions={hostToolActions}
         applicationUpdates={
           <ApplicationUpdateSettings
+            perform={operations.perform}
             currentVersion={desktopPackage.version}
             generation={bootstrap.generation}
             disabled={Boolean(operations.busy)}
@@ -694,99 +710,109 @@ function Workspace({
         hostToolActions={hostToolActions}
       />
     );
-  const recoveryPort = preparationRecoveryPort(
-    operations.error,
-    data.catalog?.ports ?? [],
-    data.statuses,
-  );
   return (
-    <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
-      <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
-        <Sidebar
-          view={ui.view}
-          setView={setPrimaryView}
-          controller={controller}
-          installedCount={model.overview.installed}
-          updateCount={
-            data.statuses.filter((status) => currentUpdateSnapshot(status)?.check.update_available)
-              .length
-          }
-          activities={data.activities}
-          onAdopt={() => ui.setAdoptOpen(true)}
-          onAbout={() => {
-            ui.setSettingsCategory("about");
-            setPrimaryView("settings");
-            window.requestAnimationFrame(() => {
-              const heading = document.getElementById("settings-about-heading");
-              heading?.scrollIntoView({ block: "start" });
-              heading?.focus({ preventScroll: true });
-            });
-          }}
-        />
-        <main
-          className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
-          ref={workspace}
-          data-focus-region="workspace"
-          tabIndex={-1}
-        >
-          {renderPageHeader()}
-          <StatusLayer
-            error={operations.error}
-            clearError={() => operations.setError(undefined)}
-            reviewCurrentState={data.retryRefresh}
-            reviewPreparation={
-              recoveryPort
-                ? () => {
-                    const id = recoveryPort;
-                    if (id) openPortDetails(id, "error:preparation-review");
+    <OperationPresentationProvider
+      generation={bootstrap.generation}
+      pending={operations.pendingOperations}
+    >
+      <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
+        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
+          <Sidebar
+            view={ui.view}
+            setView={setPrimaryView}
+            controller={controller}
+            installedCount={model.overview.installed}
+            updateCount={
+              data.statuses.filter(
+                (status) => currentUpdateSnapshot(status)?.check.update_available,
+              ).length
+            }
+            activities={data.activities}
+            onAdopt={() => ui.setAdoptOpen(true)}
+            onAbout={() => {
+              ui.setSettingsCategory("about");
+              setPrimaryView("settings");
+              window.requestAnimationFrame(() => {
+                const heading = document.getElementById("settings-about-heading");
+                heading?.scrollIntoView({ block: "start" });
+                heading?.focus({ preventScroll: true });
+              });
+            }}
+          />
+          <main
+            className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+            ref={workspace}
+            data-focus-region="workspace"
+            tabIndex={-1}
+          >
+            {renderPageHeader()}
+            <StatusLayer
+              invocations={operations.invocations}
+              operationEvents={operations.operationEvents}
+              dismissInvocation={operations.dismissInvocation}
+              openActivity={(id) => {
+                ui.setReviewedActivityId(id);
+                setPrimaryView("updates");
+              }}
+              error={operations.error}
+              clearError={() => operations.setError(undefined)}
+              reviewCurrentState={data.retryRefresh}
+              preparationRecovery={(record) => {
+                const id = preparationRecoveryPort(
+                  record.failure,
+                  data.catalog?.ports ?? [],
+                  data.statuses,
+                );
+                return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+              }}
+              operation={operations.operation}
+              busy={operations.busy}
+              featureNotices={
+                <ApplicationUpdateNotices
+                  updateNotice={applicationUpdate.notice}
+                  updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                  productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
+                  productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                  reviewUpdate={reviewApplicationUpdate}
+                  dismissUpdate={applicationUpdate.dismiss}
+                  dismissUpdateChoice={dismissApplicationUpdateChoice}
+                  useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
+                  keepPreview={() =>
+                    void completeApplicationUpdateProductionTransition("keep-preview")
                   }
-                : undefined
-            }
-            operation={operations.operation}
-            busy={operations.busy}
-            featureNotices={
-              <ApplicationUpdateNotices
-                updateNotice={applicationUpdate.notice}
-                updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-                productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
-                productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                reviewUpdate={reviewApplicationUpdate}
-                dismissUpdate={applicationUpdate.dismiss}
-                dismissUpdateChoice={dismissApplicationUpdateChoice}
-                useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
-                keepPreview={() =>
-                  void completeApplicationUpdateProductionTransition("keep-preview")
-                }
-                dismissProductionTransition={dismissApplicationUpdateProductionTransition}
-              />
-            }
+                  dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                />
+              }
+            />
+            <WorkspaceRefreshNotice
+              failure={data.refreshFailure}
+              recoveryFailure={data.recoveryFailure}
+              hasSnapshot={Boolean(data.catalog)}
+              refreshing={data.refreshing}
+              retry={data.retryRefresh}
+              retryRecovery={data.retryRecovery}
+              subscriptionFailure={
+                data.subscriptionFailure?.error ?? operations.subscriptionFailure
+              }
+            />
+            {renderPreferenceFailure()}
+            {renderWorkspaceView()}
+          </main>
+          <AdoptionOverlay
+            ui={ui}
+            operations={operations}
+            libraryGeneration={bootstrap.generation}
+            ports={data.catalog?.ports ?? []}
           />
-          <WorkspaceRefreshNotice
-            failure={data.refreshFailure}
-            recoveryFailure={data.recoveryFailure}
-            hasSnapshot={Boolean(data.catalog)}
-            refreshing={data.refreshing}
-            retry={data.retryRefresh}
-            retryRecovery={data.retryRecovery}
-            subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
+          <CommandPalette
+            open={commandSurface.open}
+            commands={commandSurface.commands}
+            close={() => commandSurface.setOpen(false)}
           />
-          {renderPreferenceFailure()}
-          {renderWorkspaceView()}
-        </main>
-        <AdoptionOverlay
-          ui={ui}
-          operations={operations}
-          libraryGeneration={bootstrap.generation}
-          ports={data.catalog?.ports ?? []}
-        />
-        <CommandPalette
-          open={commandSurface.open}
-          commands={commandSurface.commands}
-          close={() => commandSurface.setOpen(false)}
-        />
-        {renderSourceIntake()}
-      </div>
-    </ArtworkProvider>
+          {renderSourceIntake()}
+        </div>
+      </ArtworkProvider>
+    </OperationPresentationProvider>
   );
 }
 
@@ -999,6 +1025,9 @@ function CurrentView({
   if (ui.view === "updates")
     return (
       <UpdateCenter
+        operationEvents={operations.operationEvents}
+        section={ui.activitySection}
+        onSectionChange={ui.setActivitySection}
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
         sourceProfiles={data.catalog?.source_profiles ?? []}
@@ -1021,9 +1050,20 @@ function CurrentView({
         checkAll={updates.checkAll}
         perform={operations.perform}
         onLaunch={(portId) => {
-          void operations.perform("launch", () =>
-            desktopApi.launch(portId, "", bootstrap.generation),
-          );
+          const port = data.catalog?.ports.find((port) => port.id === portId);
+          if (port)
+            void operations.perform(
+              "launch",
+              () => desktopApi.launch(portId, "", bootstrap.generation),
+              {
+                context: {
+                  action: "Launch",
+                  target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+                  libraryGeneration: bootstrap.generation,
+                  exclusionScope: "target",
+                },
+              },
+            );
         }}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
@@ -1060,6 +1100,7 @@ function CurrentView({
         onCatalogChanged={data.refreshAfterMutation}
         onOpenGameUpdates={() => {
           ui.setView("updates");
+          ui.setActivitySection("updates");
           window.requestAnimationFrame(() => {
             const heading = document.querySelector<HTMLElement>("main h1");
             heading?.scrollIntoView({ block: "start" });
@@ -1154,9 +1195,20 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        void operations.perform("launch", () =>
-          desktopApi.launch(portId, "", bootstrap.generation),
-        );
+        const port = data.catalog?.ports.find((port) => port.id === portId);
+        if (port)
+          void operations.perform(
+            "launch",
+            () => desktopApi.launch(portId, "", bootstrap.generation),
+            {
+              context: {
+                action: "Launch",
+                target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+                libraryGeneration: bootstrap.generation,
+                exclusionScope: "target",
+              },
+            },
+          );
       }}
       onBrowseCatalog={() => ui.setView("catalog")}
       onConnectGameFiles={() => {
@@ -1245,8 +1297,17 @@ function SelectedPortPanel({
     <DetailPanel
       perform={operations.perform}
       prepare={(expectedPlan, onEvent) =>
-        operations.perform("prepare game data", () =>
-          desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
+        operations.perform(
+          "prepare game data",
+          () => desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
+          {
+            context: {
+              action: "Prepare game data",
+              target: { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
+              libraryGeneration,
+              exclusionScope: "target",
+            },
+          },
         )
       }
       port={model.port}

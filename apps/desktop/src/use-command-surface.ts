@@ -24,6 +24,7 @@ interface CommandSurfaceOptions {
   checkAll: () => Promise<void>;
   focusSearch: () => void;
   focusLibrarySearch: () => void;
+  openUpdates?: () => void;
 }
 
 export function commandSurfaceCommands({
@@ -36,6 +37,7 @@ export function commandSurfaceCommands({
   checkAll,
   focusSearch,
   focusLibrarySearch,
+  openUpdates,
 }: CommandSurfaceOptions): PaletteCommand[] {
   return [
     {
@@ -49,7 +51,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "catalog",
-      label: "Open port catalog",
+      label: "Open Find games",
       description: "Browse native game ports",
       icon: Boxes,
       shortcut: commandShortcut("2"),
@@ -65,19 +67,27 @@ export function commandSurfaceCommands({
     },
     {
       id: "search",
-      label: "Search port catalog",
+      label: "Search Find games",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
       action: focusSearch,
     },
     {
       id: "updates",
-      label: "Go to Updates",
-      description: "Review updates and recent activity",
+      label: "Open Activity",
+      description: "Review tasks, history and recovery",
       icon: Download,
       shortcut: commandShortcut("3"),
       keywords: "navigate activity",
       action: () => setView("updates"),
+    },
+    {
+      id: "game-updates",
+      label: "Review game updates",
+      description: "Open the Updates section in Activity",
+      icon: Download,
+      keywords: "installed versions update",
+      action: openUpdates ?? (() => setView("updates")),
     },
     {
       id: "check",
@@ -134,6 +144,7 @@ export function useCommandSurface({
   setAdoptOpen,
   setSelectedId,
   checkAll,
+  openUpdates,
 }: {
   view: View;
   recent?: RecentPort | undefined;
@@ -143,6 +154,7 @@ export function useCommandSurface({
   setAdoptOpen: (open: boolean) => void;
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
+  openUpdates?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const openSearch = useCallback(
@@ -171,6 +183,7 @@ export function useCommandSurface({
         checkAll,
         focusSearch,
         focusLibrarySearch,
+        ...(openUpdates ? { openUpdates } : {}),
       }),
     [
       busy,
@@ -178,6 +191,7 @@ export function useCommandSurface({
       focusLibrarySearch,
       focusSearch,
       installedCount,
+      openUpdates,
       recent,
       setAdoptOpen,
       setSelectedId,

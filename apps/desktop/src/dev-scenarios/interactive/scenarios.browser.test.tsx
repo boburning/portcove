@@ -94,7 +94,7 @@ it("returns to the exact older recovery activity after opening its game", async 
     },
   });
   await mount("library");
-  await page.getByRole("button", { name: /^Updates & activity/ }).click();
+  await page.getByRole("button", { name: /^Activity/ }).click();
   await page.getByRole("button", { name: "Review activity", exact: true }).click();
   await expect
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
@@ -183,9 +183,10 @@ it("opens the Updates category before focusing an application-update notice", as
   expect(document.activeElement?.closest("[hidden]")).toBeNull();
 });
 
-it("opens application updates from Updates & activity without entering custom catalog settings", async () => {
+it("opens application updates from Activity without entering custom catalog settings", async () => {
   await mount("library");
-  await page.getByRole("button", { name: /^Updates & activity/ }).click();
+  await page.getByRole("button", { name: /^Activity/ }).click();
+  await page.getByRole("button", { name: "Updates", exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(

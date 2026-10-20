@@ -15,7 +15,7 @@ const commands: [PaletteCommand, PaletteCommand] = [
   },
   {
     id: "catalog",
-    label: "Open port catalog",
+    label: "Open Find games",
     description: "Browse supported ports",
     keywords: "discover",
     icon: Boxes,
@@ -433,7 +433,10 @@ describe("command input ownership", () => {
     await act(async () =>
       root.render(createElement(CommandPalette, { open: true, commands: available, close })),
     );
+    // Let the reopened dialog complete its initial-focus lifecycle before input.
+    await vi.waitFor(() => expect(document.activeElement).toBe(search()));
     await key("ArrowDown");
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-catalog");
     await key("Enter");
     expect(close).toHaveBeenCalledTimes(2);
     expect(available[0].action).toHaveBeenCalledOnce();

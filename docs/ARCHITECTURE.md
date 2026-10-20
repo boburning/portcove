@@ -1,5 +1,6 @@
 # Architecture
 
+Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
 Desktop interface enlargement is presentation authority: `InterfaceSizeController`
 serializes the existing Tauri WebView zoom API and persists acknowledged choices
 within the browser profile, independently of library generations. React owns

@@ -3,7 +3,6 @@ import { ActivityDiagnostic } from "./ActivityDiagnostic";
 import { RecoveryReview } from "./RecoveryReview";
 import { GameUpdateControl } from "./GameUpdates";
 import type { Perform } from "../features/operations/use-operation-state";
-import { portActionPresentation } from "../features/port-actions/port-action-presentation";
 import { focusAndReveal } from "../focus";
 import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { controlFocus } from "./ui/control-style";
@@ -18,6 +17,7 @@ import {
   releaseChannelPresentation,
 } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
+import { OperationProgress } from "./OperationProgress";
 import type { LucideIcon } from "lucide-react";
 import {
   AlertTriangle,
@@ -34,6 +34,7 @@ import type {
   ActivityFeed,
   ActivityOperation,
   ActivityRecord,
+  OperationEvent,
   DoctorReport,
   PortDefinition,
   PortStatus,
@@ -46,6 +47,10 @@ import { Button } from "./ui/button";
 import { useEffect, useId, useRef, useState } from "react";
 import type { UpdateBatchRead } from "../features/port-updates/use-update-center";
 import type { ActivitySettingsTarget } from "../features/app-shell/focus-settings-target";
+import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
@@ -125,8 +130,14 @@ export function UpdateCenter({
   onReviewActivity,
   perform,
   onLaunch,
+  section,
+  onSectionChange,
+  operationEvents,
 }: {
+  operationEvents?: ReadonlyMap<string, OperationEvent> | undefined;
   generation: number;
+  section?: "tasks" | "updates";
+  onSectionChange?: (section: "tasks" | "updates") => void;
   repair?: DoctorReport["repair"] | undefined;
   diagnosticsRefreshing: boolean;
   diagnosticsStale: boolean;
@@ -149,6 +160,10 @@ export function UpdateCenter({
   onSelect: (portId: string, originKey?: string, destination?: DetailDestination) => void;
   onOpenSettings: (target: ActivitySettingsTarget, sourceProfileId?: string) => void;
 }) {
+  const operationOwner = useOperationPresentation();
+  const [localSection, setLocalSection] = useState<"tasks" | "updates">("tasks");
+  const selectedSection = section ?? localSection;
+  const panelId = useId();
   const earlierBatch =
     batchRead !== undefined && ["pending", "failed", "cancelled"].includes(batchRead.status);
   const [nowSeconds, setNowSeconds] = useState(initialActivityNowSeconds);
@@ -226,252 +241,293 @@ export function UpdateCenter({
   );
   return (
     <section className="update-center">
-      <div
-        className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
-        data-focus-group
+      <nav aria-label="Activity sections" className="mb-4 flex flex-wrap gap-2">
+        {(
+          [
+            ["tasks", "Tasks & history"],
+            ["updates", "Updates"],
+          ] as const
+        ).map(([value, label]) => (
+          <Button
+            key={value}
+            data-focusable
+            variant={selectedSection === value ? "selected" : "outline"}
+            aria-pressed={selectedSection === value}
+            aria-controls={`${panelId}-${value}`}
+            onClick={() => {
+              setLocalSection(value);
+              onSectionChange?.(value);
+            }}
+          >
+            {label}
+          </Button>
+        ))}
+      </nav>
+      <section
+        id={`${panelId}-updates`}
+        aria-label="Game updates"
+        hidden={selectedSection !== "updates"}
       >
-        {renderStatistics()}
-        <UpdateCheckControl
-          busy={busy}
-          status={batchRead?.status}
-          hasInstalled={installed.length > 0}
-          checkAll={checkAll}
-        />
-      </div>
-      <UpdateBatchNotice read={batchRead} />
-      <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-        Checking only looks for updates. Review an available update before downloading or installing
-        it. Play keeps using your current version.
-      </p>
-      <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-        Looking for Portcove or catalog updates?{" "}
-        <Button
-          data-focusable
-          variant="link"
-          size="xs"
-          onClick={() => onOpenSettings("application-updates")}
+        <h2 className="mb-3 text-xl">Updates</h2>
+        <div
+          className="update-toolbar mb-3.5 flex flex-wrap items-stretch justify-between gap-5 max-[75rem]:flex-col max-[75rem]:items-start"
+          data-focus-group
         >
-          Open Portcove update settings
-        </Button>
-      </p>
-      {installed.length > 0 && (
+          {renderStatistics()}
+          <UpdateCheckControl
+            busy={busy}
+            status={batchRead?.status}
+            hasInstalled={installed.length > 0}
+            checkAll={checkAll}
+          />
+        </div>
+        <UpdateBatchNotice read={batchRead} />
         <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-          {earlierBatch ? "Earlier update results cover " : "Update results cover "}
-          {checked.length} of {installed.length} installed games.
-          {latestSavedCheck > 0 && ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
+          Checking only looks for updates. Review an available update before downloading or
+          installing it. Play keeps using your current version.
         </p>
-      )}
-      {installed.length === 0 ? (
-        <EmptyState
-          icon={RefreshCw}
-          eyebrow="UPDATE CENTER"
-          title="No managed installations to check"
-          description={
-            external.length > 0
-              ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
-              : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
-          }
-        />
-      ) : (
-        <div className="update-list grid gap-2" data-focus-group>
-          {installed.map((port) => {
-            const status = statuses.get(port.id)!;
-            const outcome = byPort.get(port.id);
-            const savedCheck = savedByPort.get(port.id)?.check;
-            const state = updateState(status, outcome, savedCheck, earlierBatch);
-            const failure = failurePresentation(outcome?.error);
-            const renderActions = () => (
-              <div
-                className="flex flex-wrap items-start justify-end gap-2"
-                aria-label={`Actions for ${gameIdentityLabel(port)}`}
-              >
-                {Boolean(status.staged || effectiveCheck(port.id)?.update_available) && perform && (
-                  <GameUpdateControl
-                    key={JSON.stringify([
-                      generation,
-                      port.id,
-                      status.active?.id,
-                      status.active?.version,
-                      status.active?.artifact.sha256,
-                      status.staged?.id,
-                      status.channel,
-                    ])}
-                    portId={port.id}
-                    generation={generation}
-                    policy={status.update_policy}
-                    busy={Boolean(busy)}
-                    perform={perform}
-                    compact
-                    gameName={gameIdentityLabel(port)}
-                    reviewScope={{
-                      active: reviewingUpdate === port.id,
-                      claim: () => {
-                        updateReviewOwner.current = port.id;
-                        setReviewingUpdate(port.id);
-                      },
-                      current: () => updateReviewOwner.current === port.id,
-                    }}
-                  />
-                )}
-                {onLaunch &&
-                  status.readiness?.launchable &&
-                  !status.readiness.pending_setup &&
-                  status.readiness.blockers.length === 0 &&
-                  !portActionPresentation(status, "launch").blocked && (
-                    <Button
-                      data-focusable
-                      variant="primary"
-                      disabled={Boolean(busy)}
-                      onClick={() => onLaunch(port.id)}
-                    >
-                      {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
-                    </Button>
-                  )}
-              </div>
-            );
-            return (
-              <div key={port.id} className="grid min-w-0 gap-2">
-                <button
-                  data-focusable
-                  data-detail-origin={`updates:installed:${port.id}`}
-                  className={updateRowClass}
-                  onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
+        <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+          Looking for Portcove or catalog updates?{" "}
+          <Button
+            data-focusable
+            variant="link"
+            size="xs"
+            onClick={() => onOpenSettings("application-updates")}
+          >
+            Open Portcove update settings
+          </Button>
+        </p>
+        {installed.length > 0 && (
+          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+            {earlierBatch ? "Earlier update results cover " : "Update results cover "}
+            {checked.length} of {installed.length} installed games.
+            {latestSavedCheck > 0 &&
+              ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
+          </p>
+        )}
+        {installed.length === 0 ? (
+          <EmptyState
+            icon={RefreshCw}
+            eyebrow="UPDATE CENTER"
+            title="No managed installations to check"
+            description={
+              external.length > 0
+                ? "Registered runtimes are updated externally. Install a managed port or copy in an existing installation to check it for updates here."
+                : "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here."
+            }
+          />
+        ) : (
+          <div className="update-list grid gap-2" data-focus-group>
+            {installed.map((port) => {
+              const status = statuses.get(port.id)!;
+              const action = presentPortAction(operationOwner, port.id, status, "launch", busy);
+              const outcome = byPort.get(port.id);
+              const savedCheck = savedByPort.get(port.id)?.check;
+              const state = updateState(status, outcome, savedCheck, earlierBatch);
+              const failure = failurePresentation(outcome?.error);
+              const renderActions = () => (
+                <div
+                  className="flex flex-wrap items-start justify-end gap-2"
+                  aria-label={`Actions for ${gameIdentityLabel(port)}`}
                 >
-                  <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
-                    {gameTitle(port).slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="update-title min-w-0">
-                    <strong className="block text-sm">{gameTitle(port)}</strong>
-                    <small className="block text-xs text-pc-muted-foreground">
-                      {gameProjectLabel(port)}
-                    </small>
-                    <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
-                      {releaseChannelPresentation(status.channel).label} ·{" "}
-                      {policyLabel(status.update_policy)}
-                    </small>
-                  </div>
-                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                    <div className="update-version min-w-0">
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        Installed
-                      </small>
-                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                        {status.active?.version}
-                      </span>
-                    </div>
-                    <div className="update-version min-w-0">
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
-                      </small>
-                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                        {releaseLabel(effectiveCheck(port.id), outcome)}
-                      </span>
-                    </div>
-                  </div>
-                  <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
-                    {state.label}
-                  </span>
-                </button>
-                {renderActions()}
-                {outcome?.error && (
-                  <section
-                    aria-label={`Update check failure for ${port.name}`}
-                    data-update-check-failure={port.id}
-                    className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
-                  >
-                    <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
-                    {failure && (
-                      <FailureDetails
-                        key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
-                        presentation={failure}
-                        code={outcome.error.code}
-                        showMutationSummary={false}
+                  {Boolean(status.staged || effectiveCheck(port.id)?.update_available) &&
+                    perform && (
+                      <GameUpdateControl
+                        key={JSON.stringify([
+                          generation,
+                          port.id,
+                          status.active?.id,
+                          status.active?.version,
+                          status.active?.artifact.sha256,
+                          status.staged?.id,
+                          status.channel,
+                        ])}
+                        portId={port.id}
+                        generation={generation}
+                        policy={status.update_policy}
+                        busy={Boolean(action.busy)}
+                        perform={perform}
+                        compact
+                        gameName={gameIdentityLabel(port)}
+                        reviewScope={{
+                          active: reviewingUpdate === port.id,
+                          claim: () => {
+                            updateReviewOwner.current = port.id;
+                            setReviewingUpdate(port.id);
+                          },
+                          current: () => updateReviewOwner.current === port.id,
+                        }}
                       />
                     )}
-                  </section>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {external.length > 0 && (
-        <section className="external-update-section mt-6" aria-label="Externally updated games">
-          <h3 className="mb-2 text-base">Externally updated games</h3>
-          <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
-            You prepare updates for these registered runtimes outside Portcove. Open a game to
-            review its saved location and launch details.
-          </p>
-          <div className="update-list grid gap-2" data-focus-group>
-            {external.map((port) => {
-              const runtime = statuses.get(port.id)!.external_runtime!;
+                  {onLaunch &&
+                    status.readiness?.launchable &&
+                    !status.readiness.pending_setup &&
+                    status.readiness.blockers.length === 0 &&
+                    !action.readiness.blocked && (
+                      <Button
+                        data-focusable
+                        variant="primary"
+                        disabled={Boolean(action.busy)}
+                        title={action.assessment.reason}
+                        onClick={() => onLaunch(port.id)}
+                      >
+                        {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
+                      </Button>
+                    )}
+                </div>
+              );
               return (
-                <button
-                  data-focusable
-                  data-detail-origin={`updates:external:${port.id}`}
-                  className={updateRowClass}
-                  key={port.id}
-                  onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
-                >
-                  <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
-                    {gameTitle(port).slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="update-title min-w-0">
-                    <strong className="block text-sm">{gameTitle(port)}</strong>
-                    <small className="block text-xs text-pc-muted-foreground">
-                      {gameProjectLabel(port)}
-                    </small>
-                    <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
-                      Registered user-prepared runtime
-                    </small>
-                  </div>
-                  <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
-                    <div className="update-version min-w-0">
-                      <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
-                        Registered version
-                      </small>
-                      <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
-                        {runtime.version}
-                      </span>
+                <div key={port.id} className="grid min-w-0 gap-2">
+                  <button
+                    data-focusable
+                    data-detail-origin={`updates:installed:${port.id}`}
+                    className={updateRowClass}
+                    onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
+                  >
+                    <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>
+                      {gameTitle(port).slice(0, 2).toUpperCase()}
                     </div>
-                  </div>
-                  <span className={`${updateStateClass} ${updateStateTones.muted}`}>
-                    Updated externally
-                  </span>
-                </button>
+                    <div className="update-title min-w-0">
+                      <strong className="block text-sm">{gameTitle(port)}</strong>
+                      <small className="block text-xs text-pc-muted-foreground">
+                        {gameProjectLabel(port)}
+                      </small>
+                      <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                        {releaseChannelPresentation(status.channel).label} ·{" "}
+                        {policyLabel(status.update_policy)}
+                      </small>
+                    </div>
+                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                      <div className="update-version min-w-0">
+                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                          Installed
+                        </small>
+                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+                          {status.active?.version}
+                        </span>
+                      </div>
+                      <div className="update-version min-w-0">
+                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                          {earlierBatch ? "Latest eligible at last check" : "Latest eligible"}
+                        </small>
+                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+                          {releaseLabel(effectiveCheck(port.id), outcome)}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`${updateStateClass} ${updateStateTones[state.tone]}`}>
+                      {state.label}
+                    </span>
+                  </button>
+                  {renderActions()}
+                  {outcome?.error && (
+                    <section
+                      aria-label={`Update check failure for ${port.name}`}
+                      data-update-check-failure={port.id}
+                      className="min-w-0 rounded-pc-md border border-pc-danger bg-pc-danger-subtle px-3 py-2 text-xs break-words"
+                    >
+                      <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
+                      {failure && (
+                        <FailureDetails
+                          key={JSON.stringify({ code: outcome.error.code, presentation: failure })}
+                          presentation={failure}
+                          code={outcome.error.code}
+                          showMutationSummary={false}
+                        />
+                      )}
+                    </section>
+                  )}
+                </div>
               );
             })}
           </div>
-        </section>
-      )}
-      <RecoveryReview
-        generation={generation}
-        repair={repair}
-        ports={ports}
-        refreshing={diagnosticsRefreshing}
-        stale={diagnosticsStale}
-        failure={diagnosticFailure}
-        refresh={refreshDiagnostics}
-        cleanupChanged={cleanupChanged}
-        onSelect={onSelect}
-        onOpenStorage={() => onOpenSettings("library-storage")}
-        availableActivityIds={new Set(activities.map((activity) => activity.id))}
-        onReviewActivity={(id) => {
-          onReviewActivity?.(id);
-          setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
-        }}
-      />
-      <ActivityHistory
-        ports={ports}
-        sourceProfiles={sourceProfiles}
-        activities={activities}
-        activityFeed={activityFeed}
-        onSelect={onSelect}
-        onOpenSettings={onOpenSettings}
-        generation={generation}
-        nowSeconds={nowSeconds}
-        reviewedActivityId={onReviewActivity ? reviewedActivityId : reviewedActivity?.id}
-      />
+        )}
+        {external.length > 0 && (
+          <section className="external-update-section mt-6" aria-label="Externally updated games">
+            <h3 className="mb-2 text-base">Externally updated games</h3>
+            <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
+              You prepare updates for these registered runtimes outside Portcove. Open a game to
+              review its saved location and launch details.
+            </p>
+            <div className="update-list grid gap-2" data-focus-group>
+              {external.map((port) => {
+                const runtime = statuses.get(port.id)!.external_runtime!;
+                return (
+                  <button
+                    data-focusable
+                    data-detail-origin={`updates:external:${port.id}`}
+                    className={updateRowClass}
+                    key={port.id}
+                    onClick={() => onSelect(port.id, `updates:external:${port.id}`)}
+                  >
+                    <div className={`${updateMarkClass} ${updateMarkTones.muted}`}>
+                      {gameTitle(port).slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="update-title min-w-0">
+                      <strong className="block text-sm">{gameTitle(port)}</strong>
+                      <small className="block text-xs text-pc-muted-foreground">
+                        {gameProjectLabel(port)}
+                      </small>
+                      <small className="mt-1 block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+                        Registered user-prepared runtime
+                      </small>
+                    </div>
+                    <div className="update-versions grid min-w-0 grid-cols-2 gap-3.5 max-[65rem]:grid-cols-1 max-[65rem]:gap-2">
+                      <div className="update-version min-w-0">
+                        <small className="mt-1 block text-xs text-[var(--color-text-secondary)] capitalize">
+                          Registered version
+                        </small>
+                        <span className="mt-[3px] block text-sm [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
+                          {runtime.version}
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`${updateStateClass} ${updateStateTones.muted}`}>
+                      Updated externally
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+      </section>
+      <section
+        id={`${panelId}-tasks`}
+        aria-label="Tasks and history"
+        hidden={selectedSection !== "tasks"}
+      >
+        <h2 className="mb-3 text-xl">Tasks &amp; history</h2>
+        <RecoveryReview
+          generation={generation}
+          repair={repair}
+          ports={ports}
+          refreshing={diagnosticsRefreshing}
+          stale={diagnosticsStale}
+          failure={diagnosticFailure}
+          refresh={refreshDiagnostics}
+          cleanupChanged={cleanupChanged}
+          onSelect={onSelect}
+          onOpenStorage={() => onOpenSettings("library-storage")}
+          availableActivityIds={new Set(activities.map((activity) => activity.id))}
+          onReviewActivity={(id) => {
+            onReviewActivity?.(id);
+            setReviewedActivity((previous) => ({ id, request: (previous?.request ?? 0) + 1 }));
+          }}
+        />
+        <ActivityHistory
+          operationEvents={operationEvents}
+          ports={ports}
+          sourceProfiles={sourceProfiles}
+          activities={activities}
+          activityFeed={activityFeed}
+          onSelect={onSelect}
+          onOpenSettings={onOpenSettings}
+          generation={generation}
+          nowSeconds={nowSeconds}
+          reviewedActivityId={onReviewActivity ? reviewedActivityId : reviewedActivity?.id}
+        />
+      </section>
     </section>
   );
 }
@@ -557,6 +613,7 @@ function releaseLabel(check?: UpdateCheck | null, outcome?: UpdateCheckOutcome) 
 }
 
 function ActivityHistory({
+  operationEvents,
   ports,
   sourceProfiles,
   activities,
@@ -567,6 +624,7 @@ function ActivityHistory({
   nowSeconds,
   reviewedActivityId,
 }: {
+  operationEvents?: ReadonlyMap<string, OperationEvent> | undefined;
   generation: number;
   nowSeconds: number;
   reviewedActivityId?: string | undefined;
@@ -637,6 +695,7 @@ function ActivityHistory({
         <div className="activity-list grid gap-1.5">
           {visibleActivities.map((activity) => (
             <ActivityRow
+              operation={operationEvents?.get(activity.id)}
               activity={activity}
               names={names}
               sourceNames={sourceNames}
@@ -654,6 +713,7 @@ function ActivityHistory({
 }
 
 function ActivityRow({
+  operation,
   activity,
   names,
   sourceNames,
@@ -662,6 +722,7 @@ function ActivityRow({
   generation,
   nowSeconds,
 }: {
+  operation?: OperationEvent | undefined;
   generation: number;
   nowSeconds: number;
   activity: ActivityRecord;
@@ -713,6 +774,11 @@ function ActivityRow({
         <p className={activityDetailsClass}>
           This task has not reported completion. Review its details before retrying.
         </p>
+      )}
+      {activity.status === "running" && operation && operation.type !== "finished" && (
+        <div className={activityDetailsClass}>
+          <OperationProgress operation={operation} busy={activity.operation} />
+        </div>
       )}
       {activity.operation === "launch" && presentation.state === "succeeded" && (
         <p className={activityDetailsClass}>

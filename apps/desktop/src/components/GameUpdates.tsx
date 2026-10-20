@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { GameUpdatePlan, PortStatus, UpdatePolicy } from "../types";
 import type { Perform } from "../features/operations/use-operation-state";
+import { targetInvocationContext } from "../features/operations/invocation-state";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
 import {
   errorText,
@@ -170,32 +171,42 @@ function useGameUpdateControl({
     let failed = false;
     let acceptingEvents = true;
     try {
-      const result = await perform("run reviewed game update", async () => {
-        try {
-          return await desktopApi.applyGameUpdate(
-            portId,
-            plan.activate,
-            plan.plan_sha256,
-            generation,
-            (event) => {
-              if (!acceptingEvents || !requests.current.isCurrent(current)) return;
-              if (event.type === "started") setOperation(event.operation_id);
-              if (event.type === "message") setMessage(event.message);
-            },
-          );
-        } catch (value) {
-          failed = true;
-          if (requests.current.isCurrent(current)) {
-            setFailure({ value });
-            setMessage(undefined);
+      const result = await perform(
+        "run reviewed game update",
+        async () => {
+          try {
+            return await desktopApi.applyGameUpdate(
+              portId,
+              plan.activate,
+              plan.plan_sha256,
+              generation,
+              (event) => {
+                if (!acceptingEvents || !requests.current.isCurrent(current)) return;
+                if (event.type === "started") setOperation(event.operation_id);
+                if (event.type === "message") setMessage(event.message);
+              },
+            );
+          } catch (value) {
+            failed = true;
+            if (requests.current.isCurrent(current)) {
+              setFailure({ value });
+              setMessage(undefined);
+            }
+            // The shared operation owner still handles refresh and the global error.
+            throw value;
+          } finally {
+            acceptingEvents = false;
+            if (requests.current.isCurrent(current)) setOperation(undefined);
           }
-          // The shared operation owner still handles refresh and the global error.
-          throw value;
-        } finally {
-          acceptingEvents = false;
-          if (requests.current.isCurrent(current)) setOperation(undefined);
-        }
-      });
+        },
+        {
+          context: targetInvocationContext(
+            "Update game",
+            { kind: "port", id: portId, label: gameName ?? portId },
+            generation,
+          ),
+        },
+      );
       if (requests.current.isCurrent(current) && !failed)
         setMessage(
           result

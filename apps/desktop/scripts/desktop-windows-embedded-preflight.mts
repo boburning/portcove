@@ -53,7 +53,7 @@ try {
   assert.ok(expectedLibrary);
   assert.equal(path.resolve(raw.library_root), path.resolve(expectedLibrary));
   await browser.wait(
-    until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
+    until.elementLocated(By.xpath('//h1[normalize-space(.)="Find games"]')),
     15_000,
   );
   assert.ok((await browser.findElements(By.css("button.port-card-selectable"))).length > 0);

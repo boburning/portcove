@@ -91,7 +91,7 @@ export async function hostPublicationScenario(context: Context) {
     artifacts.push(file);
   };
   async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
     const card = By.xpath(
