@@ -17,6 +17,7 @@ void test("journal transport shares one role deadline and refuses late write res
     calls = 0;
   t.mock.method(performance, "now", () => clock);
   assert.throws(() => createCoordinatorJournalApi(root, clock - 1), /phase deadline/);
+  assert.throws(() => createCoordinatorJournalApi(root, Infinity), /must be finite/);
   assert.deepEqual(await readdir(root), []);
   t.mock.method(
     childProcess,

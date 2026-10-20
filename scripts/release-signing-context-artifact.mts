@@ -6,6 +6,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { performance } from "node:perf_hooks";
+import { setTimeout as delay } from "node:timers/promises";
 import { spawnSync } from "node:child_process";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -284,6 +285,92 @@ export function signingContextRemaining(deadline: number, maximum: number) {
   if (!Number.isFinite(deadline) || remaining < 1 || remaining > 600000)
     throw new Error("signing context total phase deadline exhausted");
   return Math.min(maximum, remaining);
+}
+
+/** The fixed upload step is released only by a caller already inside the
+ * existing durable pending effect. Locators alone never establish custody. */
+export async function handoffSigningContextArtifact(
+  receipt: object,
+  rawIdentity: unknown,
+  rawPending: { checkpoint: string; operation_id: string },
+  deadline: number,
+) {
+  signingContextRemaining(deadline, 15000);
+  const owned = prepared.get(receipt);
+  if (!owned) throw new Error("actual private signing context upload required");
+  const pending = structuredClone(rawPending);
+  exact(pending, "checkpoint,operation_id");
+  if (!/^[a-f0-9]{40}$/u.test(pending.checkpoint))
+    throw new Error("context pending checkpoint differs");
+  sha(pending.operation_id);
+  const actual = await requireReleaseSigningContext(owned.context);
+  const name = `trusted-payload-signing-context-${actual.tools.identity.run_id}-${actual.tools.identity.run_attempt}`;
+  await writeFile(
+    path.join(owned.directory, "context-ready.json"),
+    JSON.stringify({
+      name,
+      pending,
+      manifest_sha256: owned.manifest_sha256,
+      files: ["signing-context-manifest.json", "signing-context-bytes.bin"],
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  let phase = "await-fixed-context-upload";
+  try {
+    let uploaded: unknown;
+    while (uploaded === undefined) {
+      signingContextRemaining(deadline, 15000);
+      try {
+        uploaded = JSON.parse(
+          (
+            await readControllerToolFile(path.join(owned.directory, "context-uploaded.json"), 4096)
+          ).toString("utf8"),
+        );
+      } catch (error) {
+        if (!isRecord(error) || error.code !== "ENOENT")
+          throw new Error("context upload locator malformed");
+        await delay(Math.min(100, signingContextRemaining(deadline, 100)));
+      }
+    }
+    exact(uploaded, "artifact_id,sha256");
+    if (
+      typeof uploaded.artifact_id !== "number" ||
+      !Number.isSafeInteger(uploaded.artifact_id) ||
+      uploaded.artifact_id < 1
+    )
+      throw new Error("context upload numeric artifact unavailable");
+    sha(uploaded.sha256);
+    phase = "verify-original-context-upload";
+    const predicate = await prepareSigningContextPredicate(
+      receipt,
+      { artifact_id: uploaded.artifact_id, sha256: uploaded.sha256 },
+      rawIdentity,
+      deadline,
+    );
+    return Object.freeze({
+      artifact_id: uploaded.artifact_id,
+      sha256: uploaded.sha256,
+      predicate_sha256: digest(predicate.predicate),
+      manifest_sha256: owned.manifest_sha256,
+      directory: owned.directory,
+      attestation: "pending" as const,
+      authority: "none" as const,
+    });
+  } catch {
+    await writeFile(
+      path.join(owned.directory, "context-handoff-refusal.json"),
+      JSON.stringify({
+        phase,
+        directory: owned.directory,
+        pending,
+        authority: "none",
+        automatic_retry: false,
+      }),
+      { flag: "wx", mode: 0o600 },
+    ).catch(() => {});
+    throw new Error(`actual context handoff refused; retain ${owned.directory}`);
+  }
 }
 
 /** Only the fixed payload producer may describe the actual uploaded context.

@@ -112,13 +112,21 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   );
   assert.equal(ready.status, 2);
   assert.match(ready.stderr, /fixed reader readiness refused/);
+  const context = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(context.status, 2);
+  assert.match(context.stderr, /fixed payload\/context controller refused/);
+  assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
     ).includes("semver"),
     true,
   );
-  assert.equal(controllerToolEntries.length, 5);
+  assert.equal(controllerToolEntries.length, 6);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
   const env = controllerBootstrapEnvironment("/owned/home", "/owned/target");

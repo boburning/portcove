@@ -153,6 +153,13 @@ export async function waitForControlArtifact(
   const phaseProfile = releaseControlPhaseProfile(input.phase);
   const now = options.now ?? Date.now;
   const start = now();
+  if (
+    options.deadline !== undefined &&
+    (!Number.isSafeInteger(options.deadline) ||
+      options.deadline <= start ||
+      options.deadline > start + 240000)
+  )
+    throw new Error("control handshake deadline must tighten the existing finite wait");
   let requests = 0;
   // Waiting precedes observation. The separate 60-second protection freshness
   // guard still applies after the actual report arrives.

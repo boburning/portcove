@@ -16,9 +16,21 @@ import {
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
   signingContextPredicateType,
+  handoffSigningContextArtifact,
 } from "./release-signing-context-artifact.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("context upload handoff cannot start from imported custody or renew an expired phase", async () => {
+  const pending = { checkpoint: "a".repeat(40), operation_id: "b".repeat(64) };
+  await assert.rejects(
+    handoffSigningContextArtifact({}, {}, pending, performance.now() + 1000),
+    /actual private/,
+  );
+  await assert.rejects(
+    handoffSigningContextArtifact({}, {}, pending, performance.now() - 1),
+    /deadline/,
+  );
+});
 function fixture() {
   const files = new Map(
     [

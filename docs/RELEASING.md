@@ -1649,6 +1649,21 @@ three immutable public JSON sources and the initial setup/preimage digests under
 the same ratified configuration/grant; the complete signing caller requires it.
 This source preparation neither fetches private keys nor changes settings.
 
+`release-signing-controller` is the fixed bundled payload/context continuation.
+After actual payload signatures settle, it derives that prior and record set,
+then opens a second existing pending upload operation for the fixed
+`payload-signing-context` output. Only then does it expose the exact two public
+upload files. Original opaque provider readback and fresh payload-job OIDC bind
+the resulting predicate before journal settlement. It keeps the payload role's
+single 570-second working deadline and allocates subsequent observer rounds from
+the same private counter, bounded at twelve. Executor identity and dedicated
+journal transports inherit that deadline; late write replies remain unresolved.
+The context still needs its fixed attestation step and actual five-role
+consumers. The sixth tool bundle has local isolated refusal smoke evidence;
+its new complete hosted artifact and consolidated job wiring remain pending.
+Secret jobs must launch the authenticated bundle rather than install checkout
+dependencies or execute the unbundled entry. No role settings are activated.
+
 The context artifact preparation additionally requires actual complete public-site
 custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
 manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact

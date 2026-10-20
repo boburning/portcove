@@ -122,6 +122,14 @@ async function fixture(
 
 void test("the caller's monotonic phase deadline survives handshake pagination and refuses before another read", async (t) => {
   const f = await fixture(t);
+  const epoch = f.options.now();
+  for (const deadline of [epoch - 1, epoch + 240001, Infinity]) {
+    await assert.rejects(
+      waitForControlArtifact(f.root, "ready", f.input, { ...f.options, deadline }),
+      /must tighten/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
   let clock = 1000;
   t.mock.method(performance, "now", () => clock);
   await assert.rejects(
