@@ -214,7 +214,7 @@ describe("Library empty browsing context", () => {
         .click(),
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("use an existing installation");
+    expect(host.textContent).toContain("copy a supported installation");
     expect(host.textContent).not.toContain("Clear search and filters");
   });
 });
