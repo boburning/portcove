@@ -293,3 +293,25 @@ returned `ETIMEDOUT`, not Linux OS, tool, interop or native evidence. At
 no global WSL shutdown or reset was performed. The query was not repeated. A
 cold-start timeout does not establish an unsupported host; the actual Linux
 account, cgroup, GUI and minimum-platform route remain unobserved.
+
+The native invocation claim is now prepared around the existing coordinator's
+bounded counters. Initial setup must create the protected capture root's
+`.native-capture-custody.jsonl` with one line containing only
+`{"schema_version":1,"kind":"native-capture-custody","setup_grant_sha256":"EXACT_APPROVED_GRANT_SHA256"}`
+and a final newline. The worker cannot create or replace this initial marker.
+Each deterministic invocation is appended and synced before its fixed
+`native-attempt-INVOCATION_SHA256` directory and original request claim are
+created. A missing directory, marker, capture or contradictory append refuses
+continuation; it does not reset a retry counter. The claim contains the actual
+frozen request, coordinator checkpoint and bounded counters.
+
+Repeating an invocation returns readback-only after validating its original
+capture and positive owned-root/shared-group teardown. Every retained stream
+must still match its exact byte count and digest. A possible Check POST requires
+the original fixed wire and GET-only issuer/source/report reconciliation before
+any later invocation. Missing, duplicate or incomplete provider inventory holds;
+there is no POST replay or automatic native retry. Reused consumer observations
+remain explicitly unbranded and cannot clear native admission. Focused fixture
+coverage passes nine tests, including lost custody, changed counters, ambiguous
+cleanup, changed wire and imported-receipt refusals. Actual task, native launch,
+Check issuance and scheduler/account qualification remain unobserved.

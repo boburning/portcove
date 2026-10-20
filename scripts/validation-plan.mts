@@ -322,6 +322,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-scheduler.mts",
   "scripts/release-native-parent.mts",
   "scripts/release-native-candidate.mts",
+  "scripts/release-native-attempt.mts",
   "scripts/release-local-native-setup.mts",
   "scripts/read-native-scheduler.ps1",
   "scripts/native-qualification-account.cs.txt",

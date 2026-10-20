@@ -19,6 +19,11 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  prepareNativeQualificationCheck,
+  collectNativeReleaseQualification,
+} from "./release-native-acceptance.mts";
+import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 type Parent = Awaited<ReturnType<typeof requireActualNativeParent>>;
@@ -281,6 +286,7 @@ const selections = new WeakMap<
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
+    api: GitHubApiClient;
   }
 >();
 
@@ -406,9 +412,139 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     recovery: invocation.counters,
     recover: source.recover,
     recheckSource: source.recheck,
+    api: source.api,
   });
   packages.clear();
   return receipt;
+}
+
+/** Incoming files are locators/data only. Reconstruction binds the original
+ * request to the currently appointed producer, host and compatibility scope. */
+export function inspectNativeCheckRecoveryPlan(
+  rawRequest: unknown,
+  rawExpectedCheck: unknown,
+  rawAuthorities: unknown,
+) {
+  if (
+    !isRecord(rawRequest) ||
+    !isRecord(rawRequest.request) ||
+    !isRecord(rawExpectedCheck) ||
+    Object.keys(rawExpectedCheck).sort().join(",") !== "body,endpoint,method" ||
+    rawExpectedCheck.method !== "POST" ||
+    rawExpectedCheck.endpoint !== "repos/boburning/portcove/check-runs" ||
+    !isRecord(rawExpectedCheck.body) ||
+    !isRecord(rawExpectedCheck.body.output) ||
+    typeof rawExpectedCheck.body.output.summary !== "string" ||
+    Buffer.byteLength(rawExpectedCheck.body.output.summary) > 64 * 1024
+  )
+    throw new Error("native original Check request is missing or malformed");
+  const prior = rawRequest.request;
+  const prepared = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: prior.stage,
+      platform_label: prior.platform_label,
+      candidate: prior.candidate,
+      journey: prior.journey,
+      invocation_id: prior.invocation_id,
+      setup_descriptor_sha256: prior.setup_descriptor_sha256,
+    },
+    rawAuthorities,
+  );
+  if (
+    prepared.request_sha256 !== rawRequest.request_sha256 ||
+    digest(prepared.request) !== digest(prior)
+  )
+    throw new Error("native original Check request differs from current appointed inputs");
+  const summary: unknown = JSON.parse(rawExpectedCheck.body.output.summary);
+  if (!isRecord(summary)) throw new Error("native original Check report is absent");
+  const wire = prepareNativeQualificationCheck(summary.report);
+  const report = wire.report;
+  if (
+    digest(rawExpectedCheck.body) !== digest(wire.body) ||
+    report.stage !== prepared.request.stage ||
+    report.platform_label !== prepared.request.platform_label ||
+    digest(report.candidate) !== digest(prepared.request.candidate) ||
+    report.producer.invocation_id !== prepared.request.invocation_id ||
+    digest(report.journey) !== digest(prepared.request.journey)
+  )
+    throw new Error("native retained Check wire differs from its original invocation");
+  return { prepared, wire, authority: "none" as const };
+}
+
+/** GET-only reconciliation through this parent's privately owned real source
+ * transport. The reused consumer remains injected-provider/unbranded, so these
+ * observations cannot clear admission or mint native acceptance. */
+export async function reconcileActualNativeCheck(
+  selection: object,
+  originalRequest: unknown,
+  expectedCheck: unknown,
+) {
+  const retained = selections.get(selection);
+  if (!retained) throw new Error("actual parent-owned native selection required for readback");
+  const value = await requireActualNativeCandidate(selection);
+  const plan = inspectNativeCheckRecoveryPlan(
+    originalRequest,
+    expectedCheck,
+    value.parent.authority_configuration,
+  );
+  const { report } = plan.wire;
+  const endpoint = `repos/boburning/portcove/commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  const response = retained.api.request("GET", endpoint);
+  if (
+    response.status !== 200 ||
+    !isRecord(response.body) ||
+    !Number.isSafeInteger(response.body.total_count) ||
+    typeof response.body.total_count !== "number" ||
+    response.body.total_count < 0 ||
+    response.body.total_count > 100 ||
+    !Array.isArray(response.body.check_runs) ||
+    response.body.check_runs.length !== response.body.total_count
+  )
+    throw new Error("native Check readback inventory is incomplete; preserve original attempt");
+  const issuer = value.parent.authority_configuration.apps.native_qualification.app_id;
+  const matches = response.body.check_runs.filter(
+    (raw: unknown) =>
+      isRecord(raw) &&
+      isRecord(raw.app) &&
+      raw.app.id === issuer &&
+      raw.head_sha === report.candidate.source_commit &&
+      raw.name === nativeQualificationCheckName &&
+      raw.external_id === plan.wire.body.external_id,
+  );
+  if (matches.length !== 1 || !isRecord(matches[0]))
+    throw new Error("native Check outcome remains missing or ambiguous; no replay");
+  const id = matches[0].id;
+  if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1)
+    throw new Error("native Check readback identity is invalid");
+  const fixed = plan.prepared.request.expected;
+  const receipt = await collectNativeReleaseQualification(
+    retained.directory,
+    {
+      schema_version: 1,
+      check_id: id,
+      native_app_id: issuer,
+      semantic_app_id: value.parent.authority_configuration.apps.semantic.app_id,
+      classification_app_id: value.parent.authority_configuration.apps.classification.app_id,
+      stage: report.stage,
+      platform_label: report.platform_label,
+      candidate: plan.prepared.request.candidate,
+      producer: { ...fixed.producer, invocation_id: plan.prepared.request.invocation_id },
+      host: fixed.host,
+      compatibility: fixed.compatibility,
+      journey: plan.prepared.request.journey,
+    },
+    { api: retained.api },
+  );
+  await retained.recheckSource();
+  return Object.freeze({
+    check_id: receipt.check_id,
+    report_sha256: receipt.report_sha256,
+    directory: receipt.directory,
+    consumer_scope: receipt.evidence_scope,
+    scope: "real parent-owned GET readback only; no admission/native acceptance",
+    authority: "none" as const,
+  });
 }
 
 export async function requireActualNativeCandidate(receipt: object) {
