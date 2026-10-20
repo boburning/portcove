@@ -4,6 +4,7 @@ import {
   inspectMetadataRenewalDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 import {
   inspectReleaseReviewRequest,
   inspectReleaseReviewDisposition,
@@ -301,7 +302,7 @@ function validateActive(active: unknown) {
       "transient_retries",
       "substantive_repairs",
     ],
-    ["release_run", "frozen_opportunity"],
+    ["release_run", "frozen_opportunity", "stage_evidence"],
     "active candidate",
   );
   for (const field of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -358,6 +359,9 @@ function validateActive(active: unknown) {
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: validateOpportunity(active.frozen_opportunity) }
       : {}),
+    ...(Object.hasOwn(active, "stage_evidence")
+      ? { stage_evidence: inspectCandidateStageEvidence(active.stage_evidence, active) }
+      : {}),
   };
 }
 
@@ -403,6 +407,7 @@ function activePlan(
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: active.frozen_opportunity }
       : {}),
+    ...(Object.hasOwn(active, "stage_evidence") ? { stage_evidence: active.stage_evidence } : {}),
   };
   if (active.phase !== "failed")
     return plan(
