@@ -17,6 +17,7 @@ import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-e
 import { resolveDesktopSelection, desktopHarnessDeadlineMs } from "./desktop-scenarios.mts";
 import { buildDesktopVerifyPlan } from "./desktop-verify.mts";
 import { runOwnedFixtureJourneys } from "../apps/desktop/scripts/desktop-owned-fixture-journeys.mts";
+import { OwnedNativeSession } from "../apps/desktop/scripts/desktop-owned-native-session.mts";
 import baseline from "./testdata/desktop-execution-baseline.json" with { type: "json" };
 import type { DesktopSelection } from "./desktop-scenarios.mts";
 type KnownGap = DesktopSelection["known_gaps"][number];
@@ -28,6 +29,116 @@ const executableNames = {
   "preparation-cli": "baseline-cli.exe",
   "preparation-tool": "baseline-tool.exe",
 };
+
+void test("Windows final custody gate retains failed current exit without fixture or lease release", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const first = source.indexOf("async function releaseNativeResources()");
+  const last = source.indexOf("async function retainNativeCustody(", first);
+  assert.ok(first >= 0 && last > first);
+  assert.match(
+    source.slice(source.lastIndexOf("  } finally {")),
+    /await releaseNativeResources\(\);/,
+  );
+  for (const positive of [false, true]) {
+    const session = new OwnedNativeSession();
+    session.beginLaunch();
+    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
+    session.inventory = "current.json";
+    if (positive)
+      session.cleanup = {
+        stopped: { method: "observed-child-exit", exit_code: 0 },
+        exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+        snapshot: "current.json",
+      };
+    const calls: string[] = [];
+    const retained = new Error("retained runner");
+    const release = callable(
+      runInNewContext(`${source.slice(first, last)}; releaseNativeResources`, {
+        process: { platform: "win32" },
+        identityBoundSession: true,
+        ownedSession: session,
+        installFixture: {
+          close: async () => {
+            calls.push("install-close");
+          },
+        },
+        originFixture: {
+          close: async () => {
+            calls.push("origin-close");
+          },
+        },
+        nativeLock: {
+          release: async () => {
+            calls.push("release");
+          },
+        },
+        retainNativeCustody: async (error: unknown) => {
+          assert.match(String(error), /Positive current owned/);
+          calls.push("retain");
+          throw retained;
+        },
+      }),
+    );
+    if (positive) {
+      await release();
+      assert.deepEqual(calls, ["install-close", "origin-close", "release"]);
+    } else {
+      await assert.rejects(
+        async () => release(),
+        (error: unknown) => error === retained,
+      );
+      assert.deepEqual(calls, ["retain"]);
+    }
+  }
+});
+
+void test("Windows retained custody keeps its hold even when failure evidence cannot be published", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const first = source.indexOf("async function retainNativeCustody(");
+  const last = source.indexOf("async function stopDriver()", first);
+  assert.ok(first >= 0 && last > first);
+  const calls: string[] = [];
+  const holding = new Error("injected retained hold");
+  class HoldPromise {
+    constructor() {
+      return Promise.reject(holding);
+    }
+  }
+  const retain = callable(
+    runInNewContext(`${source.slice(first, last)}; retainNativeCustody`, {
+      process: { exitCode: 0 },
+      path,
+      output: "/owned",
+      cleanupName: "fixture",
+      ownedSession: {},
+      errorMessage: String,
+      writeFile: async () => {
+        calls.push("publish");
+        throw new Error("disk failure");
+      },
+      console: {
+        error: () => {
+          calls.push("report");
+        },
+      },
+      setInterval: () => {
+        calls.push("hold");
+      },
+      Promise: HoldPromise,
+    }),
+  );
+  await assert.rejects(
+    async () => retain(new Error("Wait failed")),
+    (error: unknown) => error === holding,
+  );
+  assert.deepEqual(calls, ["publish", "report", "report", "hold"]);
+});
 
 void test("native interface enlargement retains its exact assertion source without changing ordinary profiles", () => {
   const id = "native-interface-size";
