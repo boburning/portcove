@@ -560,6 +560,7 @@ type Received = {
   public_evidence: { path: string; bytes: number; sha256: string }[];
   active: () => void;
   refresh: () => void;
+  tighten: (deadline: number) => void;
 };
 const received = new WeakMap<object, Received>();
 
@@ -866,6 +867,10 @@ export async function receiveSigningContextArtifact(
           signingContextRemaining(deadline, 15000);
         },
         refresh,
+        tighten: (phaseDeadline) => {
+          signingContextRemaining(phaseDeadline, 15000);
+          deadline = Math.min(deadline, phaseDeadline);
+        },
       });
     return receipt;
   } catch {
@@ -878,9 +883,10 @@ export async function receiveSigningContextArtifact(
   }
 }
 
-export async function requireReceivedSigningContext(receipt: object) {
+export async function requireReceivedSigningContext(receipt: object, phaseDeadline?: number) {
   const actual = received.get(receipt);
   if (!actual) throw new Error("actual authenticated signing context receiver required");
+  if (phaseDeadline !== undefined) actual.tighten(phaseDeadline);
   actual.active();
   for (const file of actual.public_evidence) {
     const destination = await assertOwnedUnlinkedPath(

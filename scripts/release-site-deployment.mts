@@ -384,7 +384,7 @@ export async function bindSiteDeploymentToPublicationResult(
   const prepared = sessions.get(session);
   if (!prepared?.publication) throw new Error("actual authenticated site composition required");
   remaining(prepared.deadline, 15000);
-  const result = await requireReceivedPublicationResult(resultReceipt);
+  const result = await requireReceivedPublicationResult(resultReceipt, prepared.deadline);
   const tools = await verifiedControllerToolPaths(toolsReceipt);
   const controller = result.record.controller;
   if (
@@ -517,9 +517,9 @@ export async function publishPreparedSiteDeployment(
       throw new Error(
         "feed publication requires actual promoting reservation and publisher binding",
       );
-    const result = await requireReceivedPublicationResult(binding.result);
+    const result = await requireReceivedPublicationResult(binding.result, prepared.deadline);
     const tools = await verifiedControllerToolPaths(binding.tools);
-    const context = await requireReceivedSigningContext(result.context_receipt);
+    const context = await requireReceivedSigningContext(result.context_receipt, prepared.deadline);
     const record = result.record;
     const controller = record.controller;
     const facts = context.manifest.facts;

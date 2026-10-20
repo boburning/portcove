@@ -11,7 +11,21 @@ import {
   preparePublicationResultPredicate,
   receivePublicationResultArtifact,
   requireReceivedPublicationResult,
+  intersectPublicationResultDeadline,
 } from "./release-publication-result-artifact.mts";
+
+void test("a downstream phase can tighten the retained acquisition budget and cannot extend or invalidate it", () => {
+  const retained = performance.now() + 10000,
+    earlier = retained - 9000;
+  assert.equal(intersectPublicationResultDeadline(retained), retained);
+  assert.equal(intersectPublicationResultDeadline(retained, earlier), earlier);
+  assert.equal(intersectPublicationResultDeadline(earlier, retained), earlier);
+  assert.equal(intersectPublicationResultDeadline(retained, -1), -1);
+  for (const invalid of [NaN, Infinity, -Infinity]) {
+    assert.throws(() => intersectPublicationResultDeadline(retained, invalid), /deadline invalid/);
+    assert.throws(() => intersectPublicationResultDeadline(invalid, retained), /deadline invalid/);
+  }
+});
 
 void test("publication result handoff admits one bounded UTF-8 member and rejects alternate inventory, CRC, and expansion", () => {
   const bytes = Buffer.from('{"scope":"fixture-integrity-only"}\n');

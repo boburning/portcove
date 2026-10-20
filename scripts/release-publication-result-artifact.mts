@@ -36,6 +36,12 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const reportName = "immutable-release-result.json";
 const bundleName = "immutable-release-result-attestation.json";
 const reportLimit = 65536;
+/** Deadline arithmetic only, never permission to create or resume a session. */
+export function intersectPublicationResultDeadline(retained: number, proposed?: number) {
+  if (!Number.isFinite(retained) || (proposed !== undefined && !Number.isFinite(proposed)))
+    throw new Error("publication result phase deadline invalid");
+  return Math.min(retained, proposed ?? retained);
+}
 function remaining(deadline: number, maximum = 15000) {
   const value = Math.floor(deadline - performance.now());
   if (!Number.isFinite(deadline) || value < 1)
@@ -206,13 +212,13 @@ function predicate(
     authority: "none",
   };
 }
-function provider(api: GitHubRestReader, controller: Controller, deadline: number) {
+function provider(api: GitHubRestReader, controller: Controller, deadline: () => number) {
   let reads = 0;
   const get = (suffix: string) => {
-    remaining(deadline);
+    remaining(deadline());
     if (++reads > 48) throw new Error("publication result readback budget exhausted");
     const response = api.request("GET", repository + suffix);
-    remaining(deadline);
+    remaining(deadline());
     if (response.status !== 200) throw new Error("publication result provider unavailable");
     return response.body;
   };
@@ -270,7 +276,7 @@ export async function preparePublicationResultPredicate(
       maxBuffer: 128 * 1024,
     })([...args, "--hostname", "github.com"], input),
   );
-  const source = provider(api, controller, deadline),
+  const source = provider(api, controller, () => deadline),
     before = source.artifact(uploaded, false);
   const archive = readGitHubArtifactArchive(`${repository}actions/artifacts/${before.id}/zip`, {
     cwd: actual.directory,
@@ -307,11 +313,16 @@ type Received = {
   context: object;
   refresh: () => void;
   deadline: number;
+  tighten: (deadline: number) => void;
   evidence: { name: string; bytes: Buffer }[];
 };
 const received = new WeakMap<object, Received>();
-async function contextAssociation(record: ReturnType<typeof reportInput>, contextReceipt: object) {
-  const context = await requireReceivedSigningContext(contextReceipt);
+async function contextAssociation(
+  record: ReturnType<typeof reportInput>,
+  contextReceipt: object,
+  deadline: number,
+) {
+  const context = await requireReceivedSigningContext(contextReceipt, deadline);
   const bytes = await readControllerToolFile(
     path.join(context.directory, "signing-context-manifest.json"),
     1024 ** 2,
@@ -376,7 +387,7 @@ export async function receivePublicationResultArtifact(
             spawnSync(command, argv, { ...settings, env: environment }),
         })([...args, "--hostname", "github.com"], input),
       );
-    const source = provider(api, expected, deadline);
+    const source = provider(api, expected, () => deadline);
     const run = (raw: unknown) => {
       if (
         !isRecord(raw) ||
@@ -483,7 +494,7 @@ export async function receivePublicationResultArtifact(
       if (digest(snapshot()) !== digest(before) || digest(readJob()) !== digest(job))
         throw new Error("publication result provider custody changed");
     };
-    await contextAssociation(record, contextReceipt);
+    await contextAssociation(record, contextReceipt, deadline);
     refresh();
     remaining(deadline);
     const evidence = [
@@ -509,6 +520,9 @@ export async function receivePublicationResultArtifact(
         context: contextReceipt,
         refresh,
         deadline,
+        tighten: (next) => {
+          deadline = intersectPublicationResultDeadline(deadline, next);
+        },
         evidence,
       });
     return receipt;
@@ -522,9 +536,11 @@ export async function receivePublicationResultArtifact(
   }
 }
 
-export async function requireReceivedPublicationResult(receipt: object) {
+export async function requireReceivedPublicationResult(receipt: object, phaseDeadline?: number) {
   const actual = received.get(receipt);
   if (!actual) throw new Error("actual authenticated immutable publication result required");
+  actual.deadline = intersectPublicationResultDeadline(actual.deadline, phaseDeadline);
+  actual.tighten(actual.deadline);
   remaining(actual.deadline);
   for (const item of actual.evidence) {
     const bytes = await readControllerToolFile(
@@ -534,7 +550,7 @@ export async function requireReceivedPublicationResult(receipt: object) {
     if (!bytes.equals(item.bytes)) throw new Error("retained publication result evidence changed");
     remaining(actual.deadline);
   }
-  await contextAssociation(actual.record, actual.context);
+  await contextAssociation(actual.record, actual.context, actual.deadline);
   actual.refresh();
   // An authenticated historical report is not current provider enforcement.
   // Reuse the existing complete draft-inclusive Release/tag/asset readback.
