@@ -80,7 +80,9 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.managed_initialization.is_some() {
+    let version = if typed.runtime_data_policy.is_some() {
+        13
+    } else if typed.managed_initialization.is_some() {
         12
     } else if typed.windows_runtime_path_policy.is_some() {
         11

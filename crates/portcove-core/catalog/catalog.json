@@ -17347,7 +17347,7 @@
     {
       "id": "wave-race-64-racewave46",
       "name": "RaceWave46",
-      "summary": "Native Wave Race 64 recompilation with managed Windows setup. Gameplay remains untested.",
+      "summary": "Native Wave Race 64 recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/DomazinUS/RaceWave46",
       "support_tier": "beta",
       "channels": [

@@ -7,15 +7,15 @@ external registration evidence retains its own non-owning scope.
 
 ## Exact inputs
 
-| Input | Identity |
-| --- | --- |
-| Official package | DomazinUS/RaceWave46 v1.0.0, `RaceWave46-Windows-x64-v1.0.0.zip` |
-| Archive | 35,768,574 bytes; SHA256 `f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028` |
-| Source archive | 47,827,235 bytes; SHA256 `dde1a882fb3a24e072da1b16c09dcae2100f509d99ffb04ecddca546bed19ccd` |
-| Owned original | Wave Race64 USA RevA, 8,388,608 bytes; SHA256 `f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999` |
-| Compiled source | `71ec71f89d3fbb23914e8185a03b102b1af80886`, tree `a101be297637494a3452838c173126c4c857eeae` |
-| Retained CLI | 47,985,664 bytes; SHA256 `771c7e6049af1cb1f5937f1480297835e957299db218f2bfa0f2afaeb1a4f3c5`; API76 |
-| Catalog at build | SHA256 `f4f570c25a09fb06b9b49a2913fe355fb4ed5ab66ef6ab238728ce5641c0cd06` |
+| Input            | Identity                                                                                                         |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Official package | DomazinUS/RaceWave46 v1.0.0, `RaceWave46-Windows-x64-v1.0.0.zip`                                                 |
+| Archive          | 35,768,574 bytes; SHA256 `f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028`                      |
+| Source archive   | 47,827,235 bytes; SHA256 `dde1a882fb3a24e072da1b16c09dcae2100f509d99ffb04ecddca546bed19ccd`                      |
+| Owned original   | Wave Race64 USA RevA, 8,388,608 bytes; SHA256 `f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999` |
+| Compiled source  | `71ec71f89d3fbb23914e8185a03b102b1af80886`, tree `a101be297637494a3452838c173126c4c857eeae`                      |
+| Retained CLI     | 47,985,664 bytes; SHA256 `771c7e6049af1cb1f5937f1480297835e957299db218f2bfa0f2afaeb1a4f3c5`; API76               |
+| Catalog at build | SHA256 `f4f570c25a09fb06b9b49a2913fe355fb4ed5ab66ef6ab238728ce5641c0cd06`                                        |
 
 The complete current-tag tree was read at
 `5c34f3711426978107707a8f06af9c2af4ee5401`. The release target's `fa495...`
