@@ -23,6 +23,11 @@ import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  readImmutableReleaseState,
+  proposeImmutableReleaseTransition,
+} from "./release-immutable-publication.mts";
+import { immutableReleaseProgressDigest } from "./release-candidate-progress-contract.mts";
 
 export const publicationResultPredicateType =
   "https://portcove.dev/attestations/immutable-release-result/v1";
@@ -531,12 +536,44 @@ export async function requireReceivedPublicationResult(receipt: object) {
   }
   await contextAssociation(actual.record, actual.context);
   actual.refresh();
+  // An authenticated historical report is not current provider enforcement.
+  // Reuse the existing complete draft-inclusive Release/tag/asset readback.
+  const identity = {
+    version: String(actual.record.release.version),
+    source_commit: String(actual.record.release.source_commit),
+    assets: actual.record.release.assets.map(({ filename, bytes, sha256 }) => ({
+      filename,
+      bytes,
+      sha256,
+    })),
+  };
+  const api = new GitHubApiClient((args, input) => {
+    const output = createGitHubRunner({
+      cwd: actual.directory,
+      timeoutMs: remaining(actual.deadline),
+      maxBuffer: 2 * 1024 ** 2,
+    })([...args, "--hostname", "github.com"], input);
+    remaining(actual.deadline);
+    return output;
+  });
+  const observed = readImmutableReleaseState(api, identity);
+  const transition = proposeImmutableReleaseTransition(identity, observed.release, observed.assets);
+  if (transition.decision !== "complete")
+    throw new Error("attested immutable Release is no longer complete");
+  const release = {
+    ...transition,
+    version: identity.version,
+    source_commit: identity.source_commit,
+  };
+  if (immutableReleaseProgressDigest(release) !== actual.record.immutable_identity_sha256)
+    throw new Error("attested immutable Release provider identity changed");
   remaining(actual.deadline);
   return {
     directory: actual.directory,
     record: structuredClone(actual.record),
     report_sha256: hash(actual.bytes),
     context_receipt: actual.context,
+    release,
     authority: "none" as const,
     scope:
       "authenticated settled immutable publication; current site eligibility and public journey remain separate",
