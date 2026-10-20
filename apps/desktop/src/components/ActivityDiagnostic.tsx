@@ -10,9 +10,7 @@ import {
 } from "../view-model";
 import { FailureDetails } from "./FailureDetails";
 import { Button } from "./ui/button";
-
-const diagnosticTextareaClass =
-  "min-h-20 max-h-96 w-full resize-y overflow-auto whitespace-pre-wrap [overflow-wrap:anywhere] [font:inherit]";
+import { ReadOnlyTextField } from "./ui/read-only-text-field";
 
 export function ActivityDiagnostic({
   activityId,
@@ -145,17 +143,13 @@ function ActivityDiagnosticSession({
           )}
           <p>Last saved: {new Date(phase.updated_at * 1000).toLocaleString()}</p>
           <h4>Standard output</h4>
-          <textarea
-            readOnly
-            className={diagnosticTextareaClass}
-            aria-label="Preparation standard output"
+          <ReadOnlyTextField
+            label="Preparation standard output"
             value={phase.stdout.text || "No standard output was captured."}
           />
           <h4>Standard error</h4>
-          <textarea
-            readOnly
-            className={diagnosticTextareaClass}
-            aria-label="Preparation standard error"
+          <ReadOnlyTextField
+            label="Preparation standard error"
             value={phase.stderr.text || "No standard error was captured."}
           />
         </section>
@@ -197,12 +191,7 @@ function ActivityDiagnosticSession({
       {copyOutcome === "failed" && (
         <>
           <p role="alert">Clipboard unavailable. Select and copy the retained log below.</p>
-          <textarea
-            readOnly
-            className={diagnosticTextareaClass}
-            aria-label="Retained log for manual copy"
-            value={technical}
-          />
+          <ReadOnlyTextField label="Retained log for manual copy" value={technical} />
         </>
       )}
     </details>
