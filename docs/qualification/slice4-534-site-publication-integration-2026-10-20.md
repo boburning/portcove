@@ -56,12 +56,48 @@ Existing site/archive/readback contracts pass 11/11; executor and validation
 registration contracts pass 19/19. These tests retain their local transport and
 identity scopes.
 
-The fixed executor integration is continuing through the existing coordinator
-journal. Durable pending intent, exclusive actual job ownership, fresh controls,
-exact completed effects, independent readback and confirmed remote settlement
-must precede later operations. Metadata renewal uses its own authenticated
-published-component lifecycle and never invents a release candidate. Availability
-and headroom remain Unknown and no capacity reservation is asserted.
+The fixed executor now authenticates its exact coordinator, immutable-Release or
+site-publication job through current OIDC and numeric provider job/check identity.
+The site role uses the actual immutable-owner/repository `github-pages` subject.
+It confirms remote pending intent before its single logical effect, retains the
+exact result and records independent readback before confirmed remote settlement.
+Stable logical destinations preserve retry accounting across regenerated IDs.
+Fresh provider controls are required; an injected control source cannot publish.
+
+The site continuation checks the existing prior public generation and complete
+prepared archive. Application publication also requires a private actual Release
+preparation and fresh complete immutable Release/tag/asset readback. Maintenance
+uses its own authenticated published-component lifecycle without a candidate or
+new semantic review. Availability and headroom remain Unknown; no capacity
+reservation is asserted.
+
+The report-capable Rust verifier built from `2a9f379f4ac48d87620410485468b99ab205c78b`
+has SHA-256 `ed5811dc5e58e602196067a50ee4b815c34fe1c51adc5e44377a3e73ed0abdcb`.
+An actual invocation against the retained disposable public renewal fixture
+passed, and its publication facts were checked against emitted root, timestamp,
+snapshot, offline Targets and complete public-component bytes. All 19 focused
+site/provider contracts passed with this actual verifier case enabled. Nine
+immutable Release contracts and twelve OIDC/session contracts passed separately.
+These remain local tests, not protected execution or production custody evidence.
+
+After successful provider settlement, the actual private verifier facts and
+public generation advance `published_metadata` through the existing journal.
+A later handoff failure does not permit another deployment. A separate actual
+coordinator may complete this handoff only after observing the original exact
+publisher terminal, independently reading all expected public bytes and matching
+the existing settled operation/effect. Its path performs zero provider mutations.
+An unresolved operation remains subject to the existing separate recovery path;
+missing acknowledgement or effect evidence cannot be invented by this handoff.
+
+Two real local Git-journal integration tests passed in
+`work/slice4/executor-published-handoff-recovery.log` (50,690 ms). They demonstrate
+remote pending intent before an effect; exact settled effects; a live-publisher
+refusal before recovery readback; terminal-publisher handoff with an unchanged
+active candidate; and retention/refusal after a simulated lost provider response.
+The GitHub/JWKS/OIDC transport and metadata facts in these journal tests are
+fixtures. The separate actual Rust case supplies the cryptographic component
+evidence. Earlier URL-object fixture failure and the subsequent passing runs are
+retained separately; no test grants provider or production authority.
 
 Actual hosted site publication, the final controller revision/digest and resource
 ratification, applicable custody, provider protections and consolidated setup

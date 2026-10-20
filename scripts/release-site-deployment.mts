@@ -23,6 +23,7 @@ import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
+  recoverOwnedPublishedMetadata,
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
@@ -580,4 +581,49 @@ export async function publishPreparedSiteDeployment(
     checkpoint: advanced.checkpoint,
     site_generation_sha256: prepared.generation.generation,
   };
+}
+
+/** Re-read an already settled publication after a lost journal handoff. This
+ * path has no Pages POST or upload and cannot create an initial metadata seed.
+ * Reconstruct the same signed public component with the pinned verifier first. */
+export async function recoverPublishedSiteHandoff(
+  session: DeploymentSession,
+  executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+) {
+  const prepared = sessions.get(session);
+  if (!prepared?.publication)
+    throw new Error("actual authenticated public component required for site handoff recovery");
+  return recoverOwnedPublishedMetadata(executor, raw, async (operation) => {
+    const effects = operation.completed_effects;
+    const effect: unknown = Array.isArray(effects) ? effects[0] : null;
+    if (
+      !isRecord(effect) ||
+      typeof effect.remote_identity !== "string" ||
+      !/^github-pages:boburning\/portcove:[A-Za-z0-9_-]{1,128}$/u.test(effect.remote_identity)
+    )
+      throw new Error("settled effect is not the exact retained Pages publication");
+    const publicReadback = await readBackSiteDeployment(session);
+    const attempt = await mkdtemp(path.join(prepared.directory, "published-handoff-readback-"));
+    await writeFile(
+      path.join(attempt, "readback.json"),
+      JSON.stringify({
+        operation_id: operation.id,
+        original_effect: effect,
+        public_readback: publicReadback,
+        authority: "none",
+        provider_mutations: 0,
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+    return {
+      ...prepared.publication,
+      operation_id: operation.id,
+      publication: {
+        remote_identity: effect.remote_identity,
+        evidence_sha256: effect.evidence_sha256,
+        site_generation_sha256: prepared.generation.generation,
+      },
+    };
+  });
 }

@@ -39,6 +39,7 @@ import { syncBuiltinESMExports } from "node:module";
 import {
   authenticateCapacityExecutor,
   executeOwnedCapacityEffect,
+  recoverOwnedPublishedMetadata,
 } from "./release-capacity-executor.mts";
 import {
   assemblerIdentityFixture,
@@ -1387,6 +1388,17 @@ for (const lost of [false, true])
         {},
         { workflow: productionControllerWorkflow, job: "Publish authenticated application site" },
       );
+      let activeIdentity = signed;
+      let publisherTerminal = false;
+      const metadata = metadataFixture();
+      const seeded = lost
+        ? f.migrated
+        : await recordPublishedMetadata(
+            f.bare,
+            f.migrated.checkpoint,
+            metadata.published,
+            f.options,
+          );
       const savedEnv = new Map(
         ["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"].map((k) => [
           k,
@@ -1412,7 +1424,7 @@ for (const lost of [false, true])
           url,
           "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
         );
-        return new Response(JSON.stringify({ value: signed.token }));
+        return new Response(JSON.stringify({ value: activeIdentity.token }));
       });
       const original = childProcess.spawnSync;
       const command = t.mock.method(
@@ -1421,8 +1433,22 @@ for (const lost of [false, true])
         (name: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
           if (name !== "gh") return original(name, args, options);
           assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
+          if (activeIdentity !== signed && args[2]?.endsWith("/actions/jobs/501"))
+            return {
+              status: 0,
+              stdout: `HTTP/2 200\r\n\r\n${JSON.stringify({
+                id: 501,
+                run_id: 9988,
+                run_attempt: 2,
+                head_sha: identityExpected.controller_revision,
+                status: publisherTerminal ? "completed" : "in_progress",
+                conclusion: publisherTerminal ? "failure" : null,
+                check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
+              })}`,
+              stderr: "",
+            };
           if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
-            return signed.transport.spawn(name, args, options);
+            return activeIdentity.transport.spawn(name, args, options);
           let body: unknown;
           let status: number;
           if (args[1] === "graphql") {
@@ -1470,7 +1496,7 @@ for (const lost of [false, true])
       );
       const request = {
         repository: f.bare,
-        checkpoint: f.migrated.checkpoint,
+        checkpoint: seeded.checkpoint,
         remote_configuration: f.config,
         request: {
           kind: "upload" as const,
@@ -1545,6 +1571,71 @@ for (const lost of [false, true])
         assert.equal(operation.recovery.executor_identity.job_id, 501);
         assert.equal(result.evidence_sha256, "d".repeat(64));
         assert.deepEqual(settled.input.active_candidate, f.input.active_candidate);
+        activeIdentity = assemblerIdentityFixture(
+          { aud: "portcove-capacity-executor" },
+          {},
+          {
+            workflow: productionControllerWorkflow,
+            job: "Coordinate application release",
+            jobId: 502,
+            checkRunId: 779,
+          },
+        );
+        const recoveryExpected = { ...identityExpected, audience: "portcove-capacity-executor" };
+        let readbacks = 0;
+        const observed = async () => {
+          readbacks++;
+          return {
+            ...metadata.published,
+            repository_sha256: "9".repeat(64),
+            versions: metadata.descriptor.next_versions,
+            expires: metadata.descriptor.next_expires,
+            operation_id: result.operation_id,
+            publication: {
+              remote_identity: "github-pages:boburning/portcove:fixture-deployment",
+              evidence_sha256: result.evidence_sha256,
+              site_generation_sha256: "a".repeat(64),
+            },
+          };
+        };
+        const liveRecovery = await authenticateCapacityExecutor(
+          "coordinator",
+          recoveryExpected,
+          f.repository,
+        );
+        await assert.rejects(
+          recoverOwnedPublishedMetadata(
+            liveRecovery,
+            {
+              repository: f.bare,
+              checkpoint: result.checkpoint,
+              remote_configuration: f.config,
+            },
+            observed,
+          ),
+          /not observed terminal/,
+        );
+        assert.equal(readbacks, 0);
+        publisherTerminal = true;
+        const recovery = await authenticateCapacityExecutor(
+          "coordinator",
+          recoveryExpected,
+          f.repository,
+        );
+        const completed = await recoverOwnedPublishedMetadata(
+          recovery,
+          {
+            repository: f.bare,
+            checkpoint: result.checkpoint,
+            remote_configuration: f.config,
+          },
+          observed,
+        );
+        const final = await recoverReleaseOpportunity(f.bare, completed.checkpoint);
+        assert.equal(readbacks, 1);
+        assert.equal(f.refs.get(f.stateRef), completed.checkpoint);
+        assert.deepEqual(final.input.active_candidate, f.input.active_candidate);
+        assert.deepEqual(final.input.published_metadata, await observed());
       }
       assert.equal(effects, 1);
     },

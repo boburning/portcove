@@ -13,7 +13,9 @@ import {
   recordCapacityReadback,
   runBoundedCapacityOperation,
   runBoundedMetadataRenewalOperation,
+  recordPublishedMetadata,
 } from "./release-capacity-operation.mts";
+import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export interface CapacityExecutorIdentity {
@@ -381,6 +383,121 @@ export async function recoverOwnedCapacityEffect(
     if (!("durable_checkpoint" in settled) || settled.durable_checkpoint !== settled.checkpoint)
       throw new Error("recovery remote settlement unresolved");
     return { checkpoint: settled.checkpoint, operation_id: operation.id, ...resolution };
+  } catch (error) {
+    state.failed = true;
+    throw error;
+  } finally {
+    state.busy = false;
+  }
+}
+
+/** Complete a lost post-publication journal handoff without another provider
+ * mutation. The separately authenticated coordinator must re-read the exact
+ * public result after the original publisher has become terminal. */
+export async function recoverOwnedPublishedMetadata(
+  session: ExecutorSession,
+  raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+  readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
+) {
+  const value = sessions.get(session);
+  if (!value || value.role !== "coordinator")
+    throw new Error("actual coordinator required for published-state recovery");
+  const input = structuredClone(raw);
+  let state = effectStates.get(session);
+  if (!state) {
+    state = { busy: false, failed: false };
+    effectStates.set(session, state);
+  }
+  if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
+  state.busy = true;
+  const runner = createGitHubRunner({
+    cwd: value.directory,
+    timeoutMs: 15000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  const api = new GitHubApiClient((args, body) =>
+    runner([...args, "--hostname", "github.com"], body),
+  );
+  const remote = { configuration: input.remote_configuration, api };
+  try {
+    const current = await refreshCapacityExecutor(session);
+    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
+      api,
+    });
+    const actual = await recoverReleaseOpportunity(input.repository, input.checkpoint);
+    const controller = actual.input.controller;
+    const capacity =
+      isRecord(controller) && isRecord(controller.capacity_attempt)
+        ? controller.capacity_attempt
+        : null;
+    const operation = capacity && isRecord(capacity.operation) ? capacity.operation : null;
+    if (
+      !operation ||
+      operation.destination !== "github-pages:boburning/portcove:complete-site" ||
+      operation.kind !== "upload" ||
+      operation.outcome !== "recovered" ||
+      !isRecord(operation.recovery) ||
+      operation.recovery.resolution !== "effect-completed" ||
+      !Array.isArray(operation.completed_effects) ||
+      operation.completed_effects.length !== 1
+    )
+      throw new Error("exact settled site operation required for published-state recovery");
+    const original = inspectCapacityExecutorIdentity(operation.executor_identity);
+    if (
+      original.role !== "site-publication" ||
+      (original.run_id === current.run_id && original.job_id === current.job_id)
+    )
+      throw new Error("separate terminal site publisher required");
+    const terminal = () => {
+      const result = api.request(
+        "GET",
+        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
+      );
+      const job = result.body;
+      if (
+        result.status !== 200 ||
+        !isRecord(job) ||
+        job.id !== original.job_id ||
+        String(job.run_id) !== original.run_id ||
+        job.run_attempt !== original.run_attempt ||
+        job.head_sha !== original.controller_revision ||
+        job.status !== "completed" ||
+        typeof job.conclusion !== "string" ||
+        !job.conclusion ||
+        job.check_run_url !==
+          `https://api.github.com/repos/boburning/portcove/check-runs/${String(original.check_run_id)}`
+      )
+        throw new Error("original exact publisher is not observed terminal");
+    };
+    terminal();
+    const published = inspectPublishedMetadata(await readback(structuredClone(operation)));
+    const effect: unknown = operation.completed_effects[0];
+    if (
+      !published ||
+      !isRecord(effect) ||
+      published.operation_id !== operation.id ||
+      published.publication.remote_identity !== effect.remote_identity ||
+      published.publication.evidence_sha256 !== effect.evidence_sha256
+    )
+      throw new Error("public readback differs from exact settled effect");
+    await refreshCapacityExecutor(session);
+    terminal();
+    await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
+      api,
+    });
+    const recovered = await recordPublishedMetadata(input.repository, input.checkpoint, published, {
+      remote,
+    });
+    if (
+      !("durable_checkpoint" in recovered) ||
+      recovered.durable_checkpoint !== recovered.checkpoint
+    )
+      throw new Error("published-state recovery handoff unresolved");
+    return {
+      checkpoint: recovered.checkpoint,
+      operation_id: operation.id,
+      site_generation_sha256: published.publication.site_generation_sha256,
+    };
   } catch (error) {
     state.failed = true;
     throw error;
