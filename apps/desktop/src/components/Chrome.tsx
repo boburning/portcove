@@ -65,8 +65,7 @@ import { FailureDetails } from "./FailureDetails";
 import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
-import { LibraryMoveButton } from "./LibraryMove";
-import { LibraryImportButton } from "./LibraryImport";
+import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
 import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
@@ -1491,6 +1490,8 @@ export function SettingsView({
   setSetupSource,
   onCatalogChanged,
   onOpenGameUpdates,
+  onOpenActivity,
+  onReviewSaves,
   hostToolActions,
   openSourceEvidence,
   applicationUpdates,
@@ -1534,6 +1535,8 @@ export function SettingsView({
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
+  onOpenActivity?: () => void;
+  onReviewSaves?: (portId: string, origin: string) => void;
   hostToolActions?: HostToolActions | undefined;
   applicationUpdates?: ReactNode;
   diagnosticsRefreshing?: boolean;
@@ -1584,11 +1587,16 @@ export function SettingsView({
         switchLibrary={switchLibrary}
         reset={resetLibrary}
       />
-      <StorageCard
+      <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+      <LibraryRecovery
+        key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
-        storage={storage}
+        ports={ports}
+        statuses={statuses}
         busy={busy}
         exportMetadata={exportMetadata}
+        onOpenActivity={onOpenActivity}
+        onReviewSaves={onReviewSaves}
       />
     </SettingsSection>
   );
@@ -2252,15 +2260,10 @@ export function HostToolRow({
 function StorageCard({
   libraryRoot,
   storage,
-  busy,
-  exportMetadata,
 }: {
   libraryRoot: string;
   storage?: StorageSummary | undefined;
-  busy?: string | undefined;
-  exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
 }) {
-  const [exported, setExported] = useState<LibraryMetadataFile>();
   const total = storage?.volume_total_bytes;
   const available = storage?.volume_available_bytes;
   const measurable =
@@ -2312,28 +2315,6 @@ function StorageCard({
         <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
         saves and settings.
       </p>
-      <Button
-        data-focusable
-        variant="outline"
-        size="sm"
-        disabled={Boolean(busy) || !exportMetadata}
-        onClick={() => {
-          void exportMetadata?.().then(setExported);
-        }}
-      >
-        Export metadata
-      </Button>
-      <p>
-        Export saved file locations and installed-version settings. Game files, BIOS files, saves,
-        backups, toolchains, and credentials are not included.
-      </p>
-      {exported && (
-        <p role="status">
-          Exported to <code className="[overflow-wrap:anywhere]">{exported.path}</code>
-        </p>
-      )}
-      <LibraryMoveButton disabled={Boolean(busy)} />
-      <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
     </SettingsRow>
   );
 }

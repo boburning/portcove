@@ -1100,6 +1100,14 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
         onOpenPort={openPortDetails}
+        onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
+        onOpenActivity={() => {
+          ui.setView("updates");
+          ui.setActivitySection("tasks");
+          window.requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>("main h1")?.focus(),
+          );
+        }}
         setupSource={setupSource}
         setSetupSource={setSetupSource}
         onCatalogChanged={data.refreshAfterMutation}
