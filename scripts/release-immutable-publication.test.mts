@@ -8,7 +8,33 @@ import {
   performImmutableReleaseEffect,
   advanceImmutableReleasePublication,
   verifyPreparedImmutableRelease,
+  advanceOwnedImmutableReleasePublication,
 } from "./release-immutable-publication.mts";
+
+void test("owned publication refuses copied publication or signing-stage claims before any provider request", async (t) => {
+  t.mock.method(globalThis, "fetch", () => assert.fail("no admitted publication context"));
+  for (const stage of ["payload-signing", "release-publication"] as const) {
+    await assert.rejects(
+      advanceOwnedImmutableReleasePublication(
+        { identity: fixture().identity } as never,
+        { kind: "authenticated-capacity-executor" },
+        Object.freeze({
+          stage,
+          admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
+          native_qualifications: [],
+          pending_obligations: [],
+          checkpoint: "a".repeat(40),
+        }),
+        { phase: "release-publication", evidence_scope: "github.com" } as never,
+        {
+          repository: process.cwd(),
+          remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
+        },
+      ),
+      /actual same-process/,
+    );
+  }
+});
 
 void test("feed prerequisite cannot import a serialized release preparation or acceptance receipt", () => {
   assert.throws(
