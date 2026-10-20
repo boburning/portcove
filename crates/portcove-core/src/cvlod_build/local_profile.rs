@@ -202,23 +202,23 @@ pub(super) fn copy_into(work: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Res
     Ok(destination)
 }
 
-fn copy_member(
+pub(super) fn copy_member(
     source: &Path,
     output_path: &Path,
     expected: &FileIdentity,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
-    crate::path::refuse_symlink_ancestors(source).map_err(unavailable)?;
-    let mut input = fs::File::open(source).map_err(unavailable)?;
-    let metadata = input.metadata().map_err(unavailable)?;
+    crate::path::refuse_symlink_ancestors(source).map_err(copy_failure)?;
+    let mut input = fs::File::open(source).map_err(copy_failure)?;
+    let metadata = input.metadata().map_err(copy_failure)?;
     if !metadata.is_file()
         || metadata.len() != expected.size
         || expected.size > 256 * 1024 * 1024
-        || crate::external_runtime::link_count(&input).map_err(unavailable)? != 1
+        || crate::external_runtime::link_count(&input).map_err(copy_failure)? != 1
     {
-        return Err(unavailable(
-            "local toolchain input is not a single regular file",
+        return Err(copy_failure(
+            "input is not a single regular file with the exact manifest size",
         ));
     }
     crate::path::refuse_symlink_ancestors(output_path)?;
@@ -235,14 +235,14 @@ fn copy_member(
             .map_err(|_| PortcoveError::verification("local toolchain chunk overflow"))?;
         let read = input.read(&mut buffer[..limit])?;
         if read == 0 {
-            return Err(unavailable("local toolchain input shortened during copy"));
+            return Err(copy_failure("input shortened during copy"));
         }
         hash.update(&buffer[..read]);
         output.write_all(&buffer[..read])?;
         remaining -= read as u64;
     }
     if input.read(&mut buffer[..1])? != 0 || hex::encode(hash.finalize()) != expected.sha256 {
-        return Err(unavailable("local toolchain input changed during copy"));
+        return Err(copy_failure("input changed during copy"));
     }
     output.sync_all()?;
     let (sha, size) =
@@ -253,6 +253,11 @@ fn copy_member(
         ));
     }
     checkpoint()
+}
+
+fn copy_failure(error: impl std::fmt::Display) -> PortcoveError {
+    PortcoveError::verification("CVLoD private toolchain copy failed")
+        .detail("cause", error.to_string())
 }
 
 #[cfg(test)]

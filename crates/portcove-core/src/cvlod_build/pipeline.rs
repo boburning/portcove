@@ -821,8 +821,17 @@ fn prepare_clang(work: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()>
             "CVLoD complete LLVM resource closure differs",
         ));
     }
-    fs::create_dir(work.join("clang-cl"))?;
-    for input in llvm.bin {
+    prepare_clang_binaries(&toolchain, &work.join("clang-cl"), &llvm.bin, checkpoint)
+}
+
+fn prepare_clang_binaries(
+    toolchain: &Path,
+    destination: &Path,
+    binaries: &[FileIdentity],
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    fs::create_dir(destination)?;
+    for input in binaries {
         let from = toolchain.join(&input.path);
         let (sha, size) =
             crate::adapter::hash_file_bounded_with_checkpoint(&from, input.size, checkpoint)?;
@@ -835,13 +844,53 @@ fn prepare_clang(work: &Path, checkpoint: &dyn Fn() -> Result<()>) -> Result<()>
             .file_name()
             .ok_or_else(|| PortcoveError::verification("CVLoD LLVM tool name is absent"))?;
         let target = if input.path == "bin/clang-22.exe" {
-            work.join("clang-cl/clang-cl.exe")
+            destination.join("clang-cl.exe")
         } else {
-            work.join("clang-cl").join(name)
+            destination.join(name)
         };
-        copy_verified(&from, &target, checkpoint)?;
+        local_profile::copy_member(&from, &target, input, checkpoint)
+            .map_err(|error| error.detail("fixed_llvm_input", &input.path))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod llvm_copy_tests {
+    use super::*;
+
+    #[test]
+    fn cvlod_llvm_preparation_copies_large_exact_members_without_runtime_output_limits() {
+        let temp = tempfile::tempdir().unwrap();
+        let toolchain = temp.path().join("toolchain");
+        fs::create_dir_all(toolchain.join("bin")).unwrap();
+        let source = toolchain.join("bin/libLLVM-22.dll");
+        let size = 64 * 1024 * 1024 + 1;
+        fs::File::create(&source).unwrap().set_len(size).unwrap();
+        let (sha256, observed_size) =
+            crate::adapter::hash_file_bounded_with_checkpoint(&source, size, &|| Ok(())).unwrap();
+        assert_eq!(observed_size, size);
+        let expected = FileIdentity {
+            path: "bin/libLLVM-22.dll".into(),
+            size,
+            sha256,
+        };
+        let destination = temp.path().join("clang-cl");
+        prepare_clang_binaries(&toolchain, &destination, &[expected.clone()], &|| Ok(())).unwrap();
+        assert_eq!(
+            crate::adapter::hash_file_bounded_with_checkpoint(
+                &destination.join("libLLVM-22.dll"),
+                size,
+                &|| Ok(())
+            )
+            .unwrap(),
+            (expected.sha256.clone(), size)
+        );
+        let mut changed = expected;
+        changed.sha256 = "0".repeat(64);
+        let refused = temp.path().join("changed-clang-cl");
+        assert!(prepare_clang_binaries(&toolchain, &refused, &[changed], &|| Ok(())).is_err());
+        assert!(!refused.join("libLLVM-22.dll").exists());
+    }
 }
 
 struct Executor<'a, 'b> {
