@@ -33,7 +33,6 @@ import { performance } from "node:perf_hooks";
 import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
 import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
-import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
@@ -519,7 +518,7 @@ export async function publishPreparedSiteDeployment(
       );
     const result = await requireReceivedPublicationResult(binding.result, prepared.deadline);
     const tools = await verifiedControllerToolPaths(binding.tools);
-    const context = await requireReceivedSigningContext(result.context_receipt, prepared.deadline);
+    const context = result.context;
     const record = result.record;
     const controller = record.controller;
     const facts = context.manifest.facts;

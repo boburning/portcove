@@ -550,7 +550,7 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
     if (!bytes.equals(item.bytes)) throw new Error("retained publication result evidence changed");
     remaining(actual.deadline);
   }
-  await contextAssociation(actual.record, actual.context, actual.deadline);
+  const context = await contextAssociation(actual.record, actual.context, actual.deadline);
   actual.refresh();
   // An authenticated historical report is not current provider enforcement.
   // Reuse the existing complete draft-inclusive Release/tag/asset readback.
@@ -589,6 +589,7 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
     record: structuredClone(actual.record),
     report_sha256: hash(actual.bytes),
     context_receipt: actual.context,
+    context,
     release,
     authority: "none" as const,
     scope:
