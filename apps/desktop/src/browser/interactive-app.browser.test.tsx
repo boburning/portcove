@@ -28,24 +28,47 @@ afterEach(() => {
 it("uses real App search, readiness filters, chips, artwork fallback, and details/back navigation", async () => {
   mount("library");
   await expect
-    .element(page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }))
+    .element(
+      page.getByRole("button", {
+        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await expect
-    .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
+    .element(
+      page.getByRole("button", {
+        name: "View details for Orchard Quest Port: Orchard Quest",
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
   await expect
-    .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
+    .element(
+      page.getByRole("button", {
+        name: "View details for Orchard Quest Port: Orchard Quest",
+        exact: true,
+      }),
+    )
     .not.toBeInTheDocument();
   await userEvent.click(page.getByRole("button", { name: "Ready (1)", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
   await expect
-    .element(page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }))
+    .element(
+      page.getByRole("button", {
+        name: "View details for Harbor Adventure Port: Harbor Adventure",
+        exact: true,
+      }),
+    )
     .toBeVisible();
   await userEvent.click(
-    page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }),
+    page.getByRole("button", {
+      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      exact: true,
+    }),
   );
   await expect
     .element(page.getByRole("button", { name: "Back to previous workspace", exact: true }))
@@ -64,14 +87,22 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await userEvent.fill(page.getByPlaceholder("Game or port name"), "");
   await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("");
   await expect
-    .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
+    .element(
+      page.getByRole("button", {
+        name: "View details for Orchard Quest Port: Orchard Quest",
+        exact: true,
+      }),
+    )
     .toBeVisible();
 });
 
 it("reviews preparation through desktopApi, waits for progress, cancels, fails and completes a fresh review", async () => {
   mount("setup");
   await userEvent.click(
-    page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }),
+    page.getByRole("button", {
+      name: "View details for Harbor Adventure Port: Harbor Adventure",
+      exact: true,
+    }),
   );
   await expect
     .element(page.getByRole("button", { name: "Prepare game data first", exact: true }))

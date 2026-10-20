@@ -174,7 +174,10 @@ it.each([
         .not.toBeInTheDocument();
       const details =
         view === "library"
-          ? page.getByRole("button", { name: `View details for ${name}`, exact: true })
+          ? page.getByRole("button", {
+              name: `View details for ${name} Port: ${name}`,
+              exact: true,
+            })
           : card;
       await expect.element(details).toBeEnabled();
       await expect.element(details).toHaveAccessibleDescription(new RegExp(reason));
