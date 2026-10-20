@@ -228,6 +228,12 @@ export async function assembleIsolatedTufPublication(
       publication,
       records: report.records,
       files: inventory(files),
+      input_files: inventory(source),
+      signed_files: signed.map(({ filename, bytes, sha256 }) => ({
+        path: filename,
+        bytes,
+        sha256,
+      })),
       report_sha256: hash(reportBytes),
       authority: "none" as const,
     });
@@ -332,6 +338,16 @@ export async function requireActualTufPublication(receipt: object, phaseDeadline
     tools = await verifiedControllerToolPaths(actual.tools);
   for (const role of actual.roles) await requireReceivedTufRoleArtifact(role, actual.deadline);
   if (
+    digest(
+      inventory(
+        await readBoundedReleaseContextFiles(path.join(actual.result.directory, "public-inputs")),
+      ),
+    ) !== digest(actual.result.input_files) ||
+    digest(
+      inventory(
+        await readBoundedReleaseContextFiles(path.join(actual.result.directory, "signed-roles")),
+      ),
+    ) !== digest(actual.result.signed_files) ||
     digest(inventory(await readBoundedReleaseContextFiles(actual.result.repository))) !==
       digest(actual.result.files) ||
     hash(
@@ -349,6 +365,9 @@ export async function requireActualTufPublication(receipt: object, phaseDeadline
     context,
     tools,
     repository: actual.result.repository,
+    input_root: path.join(actual.result.directory, "public-inputs"),
+    context_path: path.join(actual.result.directory, "public-inputs", "context.json"),
+    signed_roles: path.join(actual.result.directory, "signed-roles"),
     publication: structuredClone(actual.result.publication),
     records: actual.result.records,
     authority: "none" as const,
