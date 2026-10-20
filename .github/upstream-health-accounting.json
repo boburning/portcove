@@ -376,6 +376,40 @@
       "asset_id": 600784963,
       "asset_facts_sha256": "c0c54d0777e4a998df6db1e31d8eef595c4f7666f21e4885a28bdeace1536146",
       "release_facts_sha256": "a5c67a3ce1736e5fa48b41d8b11ae0e9923c8f9dba25a609a3d2fc986aab67c3"
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "port_contract_sha256": "fdb83e4d0d20f992e9490908b7cd152a89bf9f04e7767a385ddd16510a8efe96",
+      "platform": "windows-x86-64",
+      "repository": "mstan/SuperMetroidRecomp",
+      "tag": "v0.3.12",
+      "name": "supermetroid-0.3.12-windows-x64.zip",
+      "url": "https://github.com/mstan/SuperMetroidRecomp/releases/download/v0.3.12/supermetroid-0.3.12-windows-x64.zip",
+      "size": 13802349,
+      "sha256": "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+      "repository_id": 1263295135,
+      "archived": false,
+      "release_id": 416097665,
+      "asset_id": 651733446,
+      "release_facts_sha256": "47d7fee99aafb4dca3efff7f646dca8f4c62c97e90f99db4dd62699adc808441",
+      "asset_facts_sha256": "37cf31913688d332da95698d66258f3cc605acd9a0b360ac47e7d41801155b3d"
+    },
+    {
+      "port_id": "mega-man-x2-snes-recomp",
+      "port_contract_sha256": "994d0cffb8f7de89f12a035a0a3c2a08b9189ef66e8ffe12589be38eebe61169",
+      "platform": "windows-x86-64",
+      "repository": "mstan/MegaManX2Recomp",
+      "tag": "v0.1.4",
+      "name": "MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+      "url": "https://github.com/mstan/MegaManX2Recomp/releases/download/v0.1.4/MegaManX2SNESRecomp-windows-x64-v0.1.4.zip",
+      "size": 13043789,
+      "sha256": "17629394f1e5704c962d4cff0d6bebe15b0a19f34e9aa690536f7a57dfdb3e07",
+      "repository_id": 1313258581,
+      "archived": false,
+      "release_id": 416702429,
+      "asset_id": 654443273,
+      "release_facts_sha256": "3bd900ef802414ed58381873ee78d083db49fc74dcc8cfb2e17e296dcf64dca6",
+      "asset_facts_sha256": "1213e1a08825df8c6079e55b62b3b9f9c94fd418e6639e4058a0b08780ba0ebb"
     }
   ],
   "original_conditions": [
