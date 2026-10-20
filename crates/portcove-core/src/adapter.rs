@@ -218,6 +218,7 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
             crate::managed_tfe::validate(port)?;
             if platform != Platform::WindowsX86_64 {
@@ -345,6 +346,7 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                || port.runtime_data_policy.is_some()
                 || port
                     .release
                     .managed_build
@@ -373,6 +375,7 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_data_policy::validate(port)?;
         if port.managed_initialization.is_some() {
             crate::managed_tfe::validate(port)?;
             if platform != Platform::WindowsX86_64 {

@@ -17219,7 +17219,7 @@
     {
       "id": "wave-race-64-racewave46",
       "name": "RaceWave46",
-      "summary": "Native Wave Race 64 recompilation using a player-prepared runtime.",
+      "summary": "Native Wave Race 64 recompilation with managed Windows setup. Gameplay remains untested.",
       "project_url": "https://github.com/DomazinUS/RaceWave46",
       "support_tier": "beta",
       "channels": [
@@ -17228,24 +17228,17 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "n64-recomp-portable",
+      "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "DomazinUS/RaceWave46",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v1.0.0",
-            "archive_name": "RaceWave46-Windows-x64-v1.0.0.zip",
-            "archive_size": 35768574,
-            "archive_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
-            "executable": "WaveRace64Recompiled.exe",
-            "immutable_tree_sha256": "77dc97d78610f5cbb3258991af44e834bff912d4ab0bfe904f477e01a32a4663",
-            "source_argument_extension": "z64",
-            "mutable_paths": [
-              ".runtime"
-            ]
+            "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
+            "size": 35768574,
+            "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
           }
         }
       },
@@ -17256,11 +17249,12 @@
         ]
       },
       "launch_arguments": [
+        "game.z64",
         "--launch"
       ],
       "presentation": {
         "original_game_title": "Wave Race 64",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -17269,8 +17263,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the complete official v1.0.0 Windows ZIP into a writable folder, keeping the executable, DLLs, assets and notices together. Choose that folder for review, then select and validate your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove. Portcove uses the reviewed original when you choose Play. The game keeps its imported data, settings and saves in .runtime beside the executable. You manage runtime updates; preserve .runtime when updating outside Portcove.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose your own Wave Race 64 (USA Rev A) original. Portcove installs the unchanged official Windows package and manages saves and settings. RetroAchievements sign-in stays with each installed version, is excluded from backups and is deleted when that version is removed. Sign in again after installing another version. Existing external copies remain yours to manage. Windows gameplay remains untested.",
         "artwork": {
           "game_id": 3629,
           "cover_id": 478764,
@@ -17278,28 +17272,21 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the complete official v1.0.0 Windows ZIP into a writable folder outside your Portcove library. Keep its DLLs, assets and notices together."
-            },
-            {
-              "title": "Connect the original",
-              "instruction": "Choose and check your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove."
-            },
-            {
-              "title": "Review the port folder",
-              "instruction": "Choose the extracted folder below. Portcove will use the checked original when you launch the game."
-            }
-          ],
-          "warnings": [
-            "Preserve the .runtime folder when updating outside Portcove; it contains imported game data, settings and saves."
-          ]
         }
       },
-      "persistent_paths": []
+      "persistent_paths": [
+        ".runtime"
+      ],
+      "runtime_data_policy": "racewave46-v1.0.0-windows",
+      "runtime_source_filename": "game.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "game.z64": "f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999"
+      },
+      "launch_from_install_root": true,
+      "runtime_mutable_paths": [
+        "game.z64"
+      ]
     },
     {
       "id": "f-zero-snes-recomp",

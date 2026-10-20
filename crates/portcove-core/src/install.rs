@@ -43,6 +43,7 @@ struct AssetAcquisition<'a> {
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
+    runtime_data_policy: Option<crate::RuntimeDataPolicy>,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
     native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
@@ -154,6 +155,7 @@ impl InstallQualification {
         }
         Ok(Self {
             strict_staged_source: port.adapter == AdapterKind::StagedSourcePortable,
+            runtime_data_policy: port.runtime_data_policy,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             native_build_preparation: None,
             acquisition: None,
@@ -640,10 +642,40 @@ impl Installer {
         &self,
         request: &InstallRequest,
     ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        if request.qualification.runtime_data_policy.is_some()
+            && request.qualification.retained_contract.is_none()
+        {
+            return Err(PortcoveError::verification(
+                "version-local credential policy requires its retained catalog before acquisition",
+            ));
+        }
         let catalog = match &request.qualification.retained_contract {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
+        if request.qualification.runtime_data_policy.is_some()
+            || request.release.asset.sha256
+                == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+        {
+            if request.qualification.retained_contract.is_none()
+                || request.qualification.runtime_data_policy
+                    != catalog.port(&request.port_id)?.runtime_data_policy
+            {
+                return Err(PortcoveError::verification(
+                    "credential-safe acquisition requires the matching retained qualification",
+                ));
+            }
+            crate::runtime_data_policy::require_artifact(
+                catalog.port(&request.port_id)?,
+                &request.release.version,
+                &ArtifactIdentity {
+                    asset_name: request.release.asset.name.clone(),
+                    sha256: request.release.asset.sha256.clone(),
+                    size: request.release.asset.size,
+                },
+                Some(request.qualification.platform),
+            )?;
+        }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &catalog,
@@ -1811,7 +1843,18 @@ fn write_manifest(
             "manifest and retained port identity differ",
         ));
     }
-    retained_contract.catalog(port_id)?;
+    let catalog = retained_contract.catalog(port_id)?;
+    if qualification.runtime_data_policy != catalog.port(port_id)?.runtime_data_policy {
+        return Err(PortcoveError::verification(
+            "credential policy differs from the retained qualification",
+        ));
+    }
+    crate::runtime_data_policy::require_artifact(
+        catalog.port(port_id)?,
+        version,
+        artifact,
+        Some(qualification.platform),
+    )?;
     validate_artifact(artifact)?;
     let selected = resolve_declared_executable(root, qualification)?;
     let selected_relative = manifest_relative(root, &selected)?;
@@ -2168,6 +2211,12 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        crate::runtime_data_policy::require_artifact(
+            catalog.port(&install.port_id)?,
+            &install.version,
+            &install.artifact,
+            manifest.platform,
+        )?;
         if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
             if manifest.platform != Some(Platform::WindowsX86_64) {
                 return Err(PortcoveError::verification(

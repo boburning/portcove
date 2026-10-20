@@ -95,6 +95,25 @@ async function click(label: string) {
   await act(async () => button(label).click());
 }
 
+it("shows preservation limits before installing the reviewed release", async () => {
+  const install = vi.fn();
+  const notice = "Sign-in stays with each installed version and is excluded from backups.";
+  await root.rerender(
+    <InstallAction
+      ready
+      sourceReady
+      biosReady
+      plan={{ ...plan, preservation_notices: [notice] }}
+      install={install}
+      review={vi.fn()}
+      dismiss={vi.fn()}
+    />,
+  );
+  expect(container.textContent).toContain(notice);
+  expect(install).not.toHaveBeenCalled();
+  expect(button("Install ·").disabled).toBe(false);
+});
+
 async function pressEscape() {
   await act(async () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));

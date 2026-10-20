@@ -1052,13 +1052,17 @@ impl Catalog {
                 });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
-                        matches!(
+                        (matches!(
                             port.adapter,
                             AdapterKind::N64RecompPortable
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
-                        ) && filename.ends_with(".z64")
-                            && (source_is_persistent || crate::preparation::managed(port))
+                        ) || (port.adapter == AdapterKind::StagedSourcePortable
+                            && port.runtime_data_policy.is_some()))
+                            && filename.ends_with(".z64")
+                            && (source_is_persistent
+                                || crate::preparation::managed(port)
+                                || port.runtime_data_policy.is_some())
                     }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)

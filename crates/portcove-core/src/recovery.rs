@@ -73,6 +73,10 @@ pub(crate) fn recover_published_install(
         &operation.id,
         &staging,
     )?;
+    if operation.kind == LifecycleOperationKind::Adopt {
+        crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
+        crate::runtime_data_policy::refuse_sensitive_tree(&install.path)?;
+    }
     if matches!(
         operation.phase,
         LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
@@ -202,6 +206,7 @@ pub(crate) fn recover_published_install(
             }
         }
         if staging.exists() {
+            crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
             fs::remove_dir_all(&staging)?;
         }
         store.remove(&operation.id)?;

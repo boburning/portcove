@@ -1,5 +1,17 @@
 # Catalog policy
 
+## Managed RaceWave46 sign-in boundary
+
+The exact official Windows v1.0.0 package uses a closed retained runtime-data
+policy requiring staged-source capability 13. Ordinary `.runtime` saves and
+settings are managed; RetroAchievements credentials stay inside each version.
+They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
+known credential names before reading payloads and again before publication.
+See [data ownership and manual recovery](reference/managed-racewave46.md).
+This user-side acquisition route does not authorize redistribution or remove
+upstream contribution-license caveats. Existing external registrations retain
+their historical contract.
+
 ## Exact relative-file sources and managed TFE
 
 `relative-file-set` is an explicit source representation and projected source

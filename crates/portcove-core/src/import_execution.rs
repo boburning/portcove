@@ -203,6 +203,11 @@ fn continue_import(
     journal.phase = TransferPhase::Verified;
     journal.write(true)?;
     checkpoint(TransferPhase::Verified)?;
+    crate::transfer_copy::refuse_sensitive_content(
+        &journal.plan.content_root,
+        target.root(),
+        &journal.plan.content,
+    )?;
     target.finish_activity_once(
         &journal.transfer_id,
         ActivityStatus::Succeeded,

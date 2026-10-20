@@ -132,6 +132,16 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        if port.runtime_data_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 13
+            })
+        {
+            return Err(PortcoveError::verification(
+                "version-local credentials require staged-source capability version 13",
+            ));
+        }
         if port.managed_initialization.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

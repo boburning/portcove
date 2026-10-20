@@ -1110,6 +1110,7 @@ impl PortcoveService {
             temporary_space,
             storage: self.library.storage_summary()?,
             output_location,
+            preservation_notices: crate::runtime_data_policy::notices(port),
         })
     }
 
@@ -2083,6 +2084,7 @@ impl PortcoveService {
         catalog: &Catalog,
         port: &PortDefinition,
     ) -> Result<()> {
+        crate::runtime_data_policy::refuse_adoption(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
             catalog,
@@ -3159,6 +3161,9 @@ impl PortcoveService {
             [only] => Some(only.clone()),
             _ => None,
         };
+        if let Some(id) = &selected {
+            crate::runtime_data_policy::refuse_adoption(self.catalog.port(id)?)?;
+        }
         let copy_plan = adoption_copy_plan(source)?;
         let destination = selected
             .as_deref()
@@ -3430,6 +3435,8 @@ impl PortcoveService {
             store.put(&mut lifecycle)?;
             self.faults.check(LifecycleFaultPoint::AdoptionPrepared)?;
             self.require_definition_adoption(&self.catalog, port)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(&payload_root)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(&staged_user)?;
             fs::create_dir_all(
                 destination
                     .parent()
@@ -3447,6 +3454,7 @@ impl PortcoveService {
             if staged_user.exists() {
                 copy_tree(&staged_user, &self.library.user_dir(&port_id))?;
             }
+            crate::runtime_data_policy::refuse_sensitive_tree(&operation_root)?;
             if let Err(error) = fs::remove_dir_all(operation_root) {
                 lifecycle.phase = LifecyclePhase::CleanupPending;
                 lifecycle.last_error = Some(error.to_string());
@@ -3461,6 +3469,9 @@ impl PortcoveService {
                 let cleanup = if let Some(operation_root) = &operation_root {
                     self.faults
                         .check(LifecycleFaultPoint::AdoptionPrivateCleanup)
+                        .and_then(|()| {
+                            crate::runtime_data_policy::refuse_sensitive_tree(operation_root)
+                        })
                         .and_then(|()| match fs::remove_dir_all(operation_root) {
                             Ok(()) => Ok(()),
                             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -4117,6 +4128,12 @@ impl PortcoveService {
                     crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
                         operation.checkpoint()
                     })?;
+                    crate::runtime_data_policy::check_launch(
+                        retained_port,
+                        &spec.working_directory,
+                        &self.library.user_dir(&install.port_id),
+                        &spec.arguments,
+                    )?;
                     if retained_port.managed_initialization.is_some() && !spec.arguments.is_empty()
                     {
                         return Err(PortcoveError::verification(
@@ -4948,7 +4965,15 @@ impl PortcoveService {
                     let destination = persistent_root.join(&relative);
                     refuse_symlink_ancestors(&source)?;
                     refuse_symlink_ancestors(&destination)?;
-                    if source.exists() {
+                    if port.runtime_data_policy.is_some() {
+                        crate::runtime_data_policy::mirror(
+                            port,
+                            &source,
+                            &destination,
+                            &user_root,
+                            crate::runtime_data_policy::CanonicalSide::Source,
+                        )?;
+                    } else if source.exists() {
                         sync_entry(&source, &destination)?;
                     } else if destination.exists() {
                         remove_managed_entry(&destination)?;
@@ -4988,7 +5013,18 @@ impl PortcoveService {
                 }
                 continue;
             }
-            if source.exists() {
+            if port.runtime_data_policy.is_some() {
+                crate::runtime_data_policy::mirror(
+                    port,
+                    &source,
+                    &destination,
+                    &user_root,
+                    crate::runtime_data_policy::CanonicalSide::Destination,
+                )?;
+                if destination.exists() {
+                    copied.push(destination);
+                }
+            } else if source.exists() {
                 sync_entry(&source, &destination)?;
                 copied.push(destination);
             } else if destination.exists() {
@@ -5012,13 +5048,26 @@ impl PortcoveService {
         let marker = install_root.join(LAUNCH_MARKER);
         refuse_symlink_ancestors(&marker)?;
         let previously_launched = marker.is_file();
+        if port.runtime_data_policy.is_some() {
+            crate::runtime_data_policy::refuse_sensitive_tree(&user_root)?;
+        }
         if !contract.writes_directly {
             for relative in crate::persistence::entries(port, &[&user_root, &persistent_root])? {
                 let source = user_root.join(&relative);
                 let destination = persistent_root.join(&relative);
                 refuse_symlink_ancestors(&source)?;
                 refuse_symlink_ancestors(&destination)?;
-                if source.exists() {
+                if port.runtime_data_policy.is_some() {
+                    if source.exists() || previously_launched {
+                        crate::runtime_data_policy::mirror(
+                            port,
+                            &source,
+                            &destination,
+                            &user_root,
+                            crate::runtime_data_policy::CanonicalSide::Source,
+                        )?;
+                    }
+                } else if source.exists() {
                     sync_entry(&source, &destination)?;
                 } else if previously_launched && destination.exists() {
                     remove_managed_entry(&destination)?;
@@ -5185,6 +5234,7 @@ fn adoption_plan_fingerprint(
 }
 
 pub(crate) fn adoption_copy_plan(source: &Path) -> Result<AdoptionCopyPlan> {
+    crate::runtime_data_policy::refuse_sensitive_tree(source)?;
     #[cfg(test)]
     ADOPTION_COPY_PLAN_PASSES.with(|passes| {
         *passes.borrow_mut().entry(source.to_path_buf()).or_default() += 1;
@@ -5218,6 +5268,7 @@ fn collect_adoption_entries(
     entries.sort_by_key(std::fs::DirEntry::file_name);
     for entry in entries {
         let path = entry.path();
+        crate::runtime_data_policy::refuse_sensitive_entry(&path)?;
         let relative = path
             .strip_prefix(root)
             .map_err(|_| PortcoveError::state("adoption entry escaped its source root"))?
@@ -5255,23 +5306,30 @@ fn collect_adoption_entries(
 }
 
 fn copy_adoption_plan(source: &Path, destination: &Path, plan: &AdoptionCopyPlan) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_tree(source)?;
+    crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
     fs::create_dir_all(destination)?;
     for relative in &plan.directories {
+        crate::runtime_data_policy::refuse_sensitive_entry(&source.join(relative))?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&destination.join(relative))?;
         fs::create_dir_all(destination.join(relative))?;
     }
     for file in &plan.files {
         let source_file = source.join(&file.relative_path);
         let destination_file = destination.join(&file.relative_path);
+        crate::runtime_data_policy::refuse_sensitive_entry(&source_file)?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&destination_file)?;
         if let Some(parent) = destination_file.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(source_file, destination_file)?;
+        crate::runtime_data_policy::copy_ordinary_file(&source_file, &destination_file)?;
     }
     Ok(())
 }
 
 pub(crate) fn sha256_file(path: &Path) -> Result<String> {
-    let mut file = fs::File::open(path)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(path)?;
+    let mut file = crate::external_runtime::open_single_link_file(path)?;
     let mut digest = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
     loop {
@@ -5285,10 +5343,19 @@ pub(crate) fn sha256_file(path: &Path) -> Result<String> {
 }
 
 pub(crate) fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_tree(source)?;
+    crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
+    copy_tree_checked(source, destination)
+}
+
+fn copy_tree_checked(source: &Path, destination: &Path) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_entry(source)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(destination)?;
     refuse_symlink_ancestors(destination)?;
     fs::create_dir_all(destination)?;
     for entry in fs::read_dir(source)? {
         let entry = entry?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&entry.path())?;
         if entry.file_type()?.is_symlink() {
             continue;
         }
@@ -5298,17 +5365,19 @@ pub(crate) fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
 }
 
 fn copy_entry(source: &Path, destination: &Path) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_entry(source)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(destination)?;
     if fs::symlink_metadata(source)?.file_type().is_symlink() {
         return Ok(());
     }
     if source.is_dir() {
-        copy_tree(source, destination)
+        copy_tree_checked(source, destination)
     } else if source.is_file() {
         refuse_symlink_ancestors(destination)?;
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(source, destination)?;
+        crate::runtime_data_policy::copy_ordinary_file(source, destination)?;
         Ok(())
     } else {
         Ok(())
@@ -5316,6 +5385,14 @@ fn copy_entry(source: &Path, destination: &Path) -> Result<()> {
 }
 
 fn sync_entry(source: &Path, destination: &Path) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_tree(source)?;
+    crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
+    sync_entry_checked(source, destination)
+}
+
+fn sync_entry_checked(source: &Path, destination: &Path) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_entry(source)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(destination)?;
     if fs::symlink_metadata(source)?.file_type().is_symlink() {
         return Ok(());
     }
@@ -5333,7 +5410,7 @@ fn sync_entry(source: &Path, destination: &Path) -> Result<()> {
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        fs::copy(source, destination)?;
+        crate::runtime_data_policy::copy_ordinary_file(source, destination)?;
         return Ok(());
     }
     if !source.is_dir() {
@@ -5345,13 +5422,15 @@ fn sync_entry(source: &Path, destination: &Path) -> Result<()> {
     fs::create_dir_all(destination)?;
     for entry in fs::read_dir(source)? {
         let entry = entry?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&entry.path())?;
         if entry.file_type()?.is_symlink() {
             continue;
         }
-        sync_entry(&entry.path(), &destination.join(entry.file_name()))?;
+        sync_entry_checked(&entry.path(), &destination.join(entry.file_name()))?;
     }
     for entry in fs::read_dir(destination)? {
         let entry = entry?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&entry.path())?;
         let source_entry = source.join(entry.file_name());
         if !source_entry.exists() {
             remove_managed_entry(&entry.path())?;

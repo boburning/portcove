@@ -1544,7 +1544,7 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         .collect::<Vec<_>>()
         .join("; ");
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}{}",
         clean(&plan.port_id),
         install_action(plan.action),
         release_channel(plan.channel),
@@ -1570,6 +1570,10 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         ),
         output_location_source(plan.output_location.selection_source),
         format_bytes(plan.storage.volume_available_bytes),
+        plan.preservation_notices
+            .iter()
+            .map(|notice| format!("\n{}", clean(notice)))
+            .collect::<String>(),
     )
 }
 

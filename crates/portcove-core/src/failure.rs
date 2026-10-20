@@ -96,6 +96,9 @@ pub(crate) struct FailureContext {
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
 #[derive(Debug)]
 pub(crate) enum KnownFailureCause {
+    HostLocalCredential {
+        path: std::path::PathBuf,
+    },
     CatalogValidity,
     CatalogReplay,
     NewerLibrary,
@@ -134,6 +137,15 @@ pub(crate) enum FailureProvider {
 impl KnownFailureCause {
     fn presentation(&self) -> (&'static str, String) {
         let (key, summary) = match self {
+            Self::HostLocalCredential { path } => {
+                return (
+                    "host_local_credential_transfer_refused",
+                    format!(
+                        "Portcove cannot transfer this file because its name is reserved for RetroAchievements sign-in. Sign out in that installed version and close it before retrying. If it cannot run, preserve the listed file privately on this Windows host and remove it manually from the listed transfer or recovery tree. Temporary credential files can remain after sign-out and need the same treatment. Do not upload these files.\nFile to preserve or remove: {}",
+                        path.display()
+                    ),
+                );
+            }
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
