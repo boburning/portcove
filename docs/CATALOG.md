@@ -1033,6 +1033,14 @@ Registrations without structured member observations retain legacy selection
 until checked again. The bounded ZIP32 source-reader limits and unsupported
 container recovery are documented in the architecture contract.
 
+For an `archive-member` representation, `extensions` is matched against the
+decompressed original's extension, just like `member_extensions`; the reader
+recognizes the ZIP container separately. For example, an unchanged Genesis
+original stored as `.bin` or `.md` uses those extensions in both lists and
+`archive-member` digest scope. Putting `zip` in `extensions` does not admit a
+`.md` member. The outer ZIP hash is a container observation, never the expected
+original-byte identity.
+
 File-set representations match only when every declared member has exactly one
 top-level filename match and one conjunctive digest identity. Directory
 symlinks and nested or traversal-shaped ZIP entries cannot satisfy a member.
