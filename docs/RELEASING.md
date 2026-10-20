@@ -598,6 +598,31 @@ for the selected boundary, retained provider observation and resource estimate.
 
 ### Inactive remote checkpoint transport
 
+`publishPreparedCoordinatorCheckpoint` in `scripts/release-prepared-transport.mts`
+connects the existing deterministic version preparation to remote object custody
+and then to the existing checkpoint CAS below. Its read-only export reconstructs
+the four authorized version edits (`Cargo.toml`, `Cargo.lock`, desktop package
+metadata and Tauri configuration), verifies the sole source parent, canonical
+intent, actors/date and exact raw commit identity, and refuses extra tree edits.
+Lazy fetching is disabled; missing application objects in sparse recovery refuse.
+
+The fixed repository's source commit/tree must already exist remotely. The
+adapter stages only four bounded blobs, their overlay over that base tree, and
+the exact prepared commit. It verifies returned OIDs and fresh commit readback
+before using the unchanged checkpoint/ref transaction. Replay creates no objects
+or refs when the same complete state already exists. Lost object acknowledgments
+require exact readback; unresolved outcomes retain original errors/known OIDs and
+stop before later effects. No blind retry, alternate allocator or ref writer is
+introduced. Local allocation and partial immutable remote objects remain retained.
+
+Local export is capped at 64 Git reads/120 seconds, 8 MiB per blob and 16 MiB
+total; raw commits are capped at 128 KiB. Remote staging has 32 requests/120 seconds
+plus 30 seconds for failure collection. The injected synchronous transport must
+itself enforce per-request time/response bounds. Its separately ratified identity,
+credential and execution boundary are still required; no CLI/default credential
+lookup or production activation is added. Object custody is not admission,
+semantic acceptance, qualification or an execution grant.
+
 `exportCoordinatorCheckpoint(repository, expected)` exports the existing journal's
 exact blob, tree and commit from a caller-owned bare coordinator. It validates
 physical UTF-8 and canonical state bytes, fixed commit metadata, the preceding

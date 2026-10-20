@@ -32,6 +32,7 @@ function namespace(configuration: unknown): string {
     throw new Error("remote coordinator requires separately ratified destination configuration");
   return configuration.namespace;
 }
+export { namespace as inspectCoordinatorRemoteNamespace };
 
 function changes(checkpoint: Export, scope: string): RefChange[] {
   if (checkpoint.previous === null)
