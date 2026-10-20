@@ -249,7 +249,6 @@ async function main() {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
       const config: unknown = JSON.parse(process.env.PORTCOVE_REVIEW_PRODUCER ?? "null");
-      const opportunity: unknown = JSON.parse(process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null");
       if (mode === "persist-request") {
         const { requireReviewedInputsReleaseAuthorities } =
           await import("./release-authority-configuration.mts");
@@ -303,6 +302,9 @@ async function main() {
         result = persistReviewedClassificationForRequest(api, producer, request, beforeMutation);
         beforeMutation();
       } else if (mode === "persist") {
+        const opportunity: unknown = JSON.parse(
+          process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
+        );
         // Only the fixed held workflow maps this from needs.protection_observation.
         // No workflow_dispatch inputs are declared. A cross-workflow receipt is
         // not accepted, and aggregate admission remains independently held.
@@ -321,7 +323,10 @@ async function main() {
             config.writer_app_id as number,
           );
         });
-      } else
+      } else {
+        const opportunity: unknown = JSON.parse(
+          process.env.PORTCOVE_REVIEWED_OPPORTUNITY ?? "null",
+        );
         result = {
           classification: readReviewedClassification(api, config, opportunity),
           pause: readPublicationPause(api),
@@ -329,6 +334,7 @@ async function main() {
           capacity: "unconfigured",
           protection_handoff: "unconfigured",
         };
+      }
     }
     await receipt.writeFile(
       JSON.stringify({

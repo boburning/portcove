@@ -11,6 +11,14 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [coordinator and initial empty-feed continuation](slice4-534-coordinator-and-initial-feed-2026-10-20.md)
+connects existing journal recovery, exact-request classification discovery,
+prepared transport and bounded dispatch, and adds an explicit no-prior empty TUF
+bootstrap through the same operation journal. Disposable fixtures exercise
+remote pending/readback recovery without inventing a previous feed or candidate.
+Automatic renewal, final candidate completion, actual setup controls and the
+protected execution grant remain separate; no runtime is activated here.
+
 The October 20 [request-bound semantic handoff](slice4-534-request-bound-semantic-handoff-2026-10-20.md)
 connects neutral coordinator requests, direct proposal/full-review capture,
 isolated issuer preparation and complete GET-only Check reconciliation. It also
