@@ -158,3 +158,25 @@ production provider enforcement or clear the new-release record binding hold.
 The final fixed caller and coordinator local-Git deadline composition remain
 separate integration work. No setup, credential, signing or publication action
 was performed by these checks.
+
+## Owned immutable Release completion handoff
+
+The publisher now has a private completion observer/getter for the subsequent
+phase writer and attested feed handoff. It requires the actual publication-stage
+admission and executor, actual native/SPDX custody, fresh publication controls,
+the current remote checkpoint, full immutable Release/tag/asset readback and the
+exact recovered publish operation for the same candidate. An earlier publisher
+job must be positively terminal before its settled effect is reused. The private
+receipt retains the original context and operation; it is neither current feed
+admission nor a generic imported success flag. Readback alone cannot mint it.
+
+The same optional deadline now caps immutable mutation/readback transports and
+their surrounding guards. A late successful response remains unresolved and
+requires recovery. Thirteen focused contracts pass in
+`work/slice4/owned-publication-completion-tests-1.log`; typed checks pass in
+`work/slice4/owned-publication-completion-lint-2.log`. The tests cover actual
+bounded transport behavior with inert HTTP and refusal of imported completion
+claims. They do not demonstrate a positive protected publisher, native report,
+production settlement or attested public handoff. The fixed publisher caller,
+record-set association, result attestation and feed consumer are still being
+connected through the existing machinery.
