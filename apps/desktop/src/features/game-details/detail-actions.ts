@@ -6,6 +6,22 @@ import type { PortDefinition, PortStatus } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
+const actionLabels: Readonly<Record<string, string>> = {
+  "activate staged update": "Use saved update",
+  "back up data": "Back up saved data",
+  check: "Check for game updates",
+  install: "Install game",
+  launch: "Launch game",
+  "open data folder": "Open saves and settings folder",
+  remove: "Remove installation",
+  "delete backup": "Delete save backup",
+  rollback: "Use previous version",
+  "restore backup": "Restore save backup",
+  channel: "Change release channel",
+  policy: "Save update preferences",
+  verify: "Verify installation",
+};
+
 export interface DetailActionContext {
   port: PortDefinition;
   status: PortStatus | undefined;
@@ -38,7 +54,7 @@ export function detailActions({
     execute(name, task, {
       ...options,
       context: targetInvocationContext(
-        name,
+        actionLabels[name] ?? name,
         { kind: "port", id: port.id, label: gameIdentityLabel(port) },
         libraryGeneration,
       ),

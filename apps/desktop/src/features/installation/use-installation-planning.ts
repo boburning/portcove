@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
-import type { PortStatus } from "../../types";
+import type { PortDefinition, PortStatus } from "../../types";
+import { gameIdentityLabel } from "../../port-identity";
 import type { Perform } from "../operations/use-operation-state";
+import { targetInvocationContext, type InvocationContext } from "../operations/invocation-state";
 
 // Review data is ephemeral UI intent; core still authorizes every mutation.
 function useReviewRequest<T>(identity: string, perform: Perform) {
@@ -15,7 +17,7 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
       requests.begin();
     };
   }, [identity]);
-  const review = async (name: string, task: () => Promise<T>) => {
+  const review = async (name: string, task: () => Promise<T>, context: InvocationContext) => {
     const request = generation.current.begin();
     setReviewed(undefined);
     const current = () => generation.current.isCurrent(request);
@@ -29,7 +31,7 @@ function useReviewRequest<T>(identity: string, perform: Perform) {
           return undefined;
         }
       },
-      { refresh: "none", invalidateDiagnostics: false },
+      { refresh: "none", invalidateDiagnostics: false, context },
     );
     if (result !== undefined && current()) setReviewed({ identity, value: result });
   };
@@ -57,14 +59,15 @@ export function useInstallPlanning(
   portId: string | undefined,
   channel: PortStatus["channel"] | undefined,
   perform: Perform,
+  context: InvocationContext | undefined,
 ) {
   const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.plan>>>(
-    JSON.stringify([portId, channel]),
+    JSON.stringify([portId, channel, context?.libraryGeneration]),
     perform,
   );
   const review = async () => {
-    if (portId && channel)
-      await request.review("review install", () => desktopApi.plan(portId, channel));
+    if (portId && channel && context)
+      await request.review("review install", () => desktopApi.plan(portId, channel), context);
   };
   return { plan: request.value, review, invalidate: request.invalidate };
 }
@@ -76,6 +79,7 @@ export function useAdoptionPlanning(
   generation: number,
   perform: Perform,
   done: () => void,
+  ports: readonly PortDefinition[],
 ) {
   const identity = JSON.stringify([path, portId, open, generation]);
   const request = useReviewRequest<Awaited<ReturnType<typeof desktopApi.previewAdoption>>>(
@@ -85,12 +89,25 @@ export function useAdoptionPlanning(
   const [failedIdentity, setFailedIdentity] = useState<string>();
   const [completedIdentity, setCompletedIdentity] = useState<string>();
   const notifiedCompletion = useRef<string | undefined>(undefined);
+  const context = (action: string, selected?: string) => {
+    const port = ports.find((candidate) => candidate.id === selected);
+    return targetInvocationContext(
+      action,
+      port
+        ? { kind: "port", id: port.id, label: gameIdentityLabel(port) }
+        : { kind: "source", id: path, label: "Selected installation folder" },
+      generation,
+      "library",
+    );
+  };
   const review = async (selectedPortId?: string) => {
     if (selectedPortId && !request.value?.detected_port_ids.includes(selectedPortId)) return;
     setFailedIdentity(undefined);
     if (open && path.trim())
-      await request.review("preview adoption", () =>
-        desktopApi.previewAdoption(path, generation, selectedPortId ?? portId),
+      await request.review(
+        "preview adoption",
+        () => desktopApi.previewAdoption(path, generation, selectedPortId ?? portId),
+        context("Review existing installation", selectedPortId ?? portId),
       );
   };
   const inFlight = useRef(false);
@@ -112,13 +129,16 @@ export function useAdoptionPlanning(
     request.invalidate(preview);
     let adopted: Awaited<ReturnType<typeof desktopApi.adopt>> | undefined;
     try {
-      adopted = await perform("adopt", () =>
-        desktopApi.adopt(
-          path,
-          preview.plan_sha256,
-          generation,
-          preview.selected_port_id ?? undefined,
-        ),
+      adopted = await perform(
+        "adopt",
+        () =>
+          desktopApi.adopt(
+            path,
+            preview.plan_sha256,
+            generation,
+            preview.selected_port_id ?? undefined,
+          ),
+        { context: context("Copy existing installation", preview.selected_port_id) },
       );
     } finally {
       inFlight.current = false;
