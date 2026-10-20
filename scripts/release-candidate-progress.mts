@@ -25,8 +25,10 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { requireOwnedImmutableReleaseCompletion } from "./release-immutable-publication.mts";
 
-type Phase = "building" | "publishing";
+type Phase = "building" | "publishing" | "promoting";
+type Locator = { kind: string; id: string; sha256: string | null };
 async function actualProof(receipt: object, target: Phase) {
   if (target === "building") {
     const proof = await requireActualCandidateBuildingEligibility(receipt);
@@ -37,26 +39,35 @@ async function actualProof(receipt: object, target: Phase) {
       controller_revision: proof.reader.admitted.revision,
       control_phase: "admission" as const,
       native_stage: "payload-signing" as const,
+      original_context: receipt,
+      additional_locators: [] as Locator[],
       recheck: async () => {
         await requireActualCandidateBuildingEligibility(receipt);
       },
     };
   }
-  const context = requireActualReleaseAdmissionContext(receipt, "release-publication");
+  const completed =
+    target === "promoting" ? await requireOwnedImmutableReleaseCompletion(receipt) : null;
+  const originalContext = completed?.original_context ?? receipt;
+  const context = requireActualReleaseAdmissionContext(originalContext, "release-publication");
   const configuration = context.facts.configuration;
   if (!isRecord(configuration)) throw new Error("actual publication namespace unavailable");
   const namespace = inspectCoordinatorRemoteNamespace({
     schema_version: 1,
     namespace: configuration.namespace,
   });
-  const current = await recoverReleaseOpportunity(
-    context.coordinator_repository,
-    context.checkpoint,
-  );
+  const checkpoint = completed?.checkpoint ?? context.checkpoint;
+  const current = await recoverReleaseOpportunity(context.coordinator_repository, checkpoint);
+  if (
+    completed &&
+    releaseCanonicalDigest(current.input.active_candidate) !==
+      releaseCanonicalDigest(completed.candidate)
+  )
+    throw new Error("settled immutable publication candidate changed");
   await requireReservedAggregate(
     JSON.stringify({
       schema_version: 1,
-      checkpoint: context.checkpoint,
+      checkpoint,
       coordinator: { schema_version: 1, namespace },
       assembly: context.facts.assembly,
       archives: context.facts.archives,
@@ -67,7 +78,17 @@ async function actualProof(receipt: object, target: Phase) {
   if (!isRecord(current.input.active_candidate) || !context.admission.controls)
     throw new Error("actual publication reservation unavailable");
   const recheck = async () => {
-    requireActualReleaseAdmissionContext(receipt, "release-publication");
+    requireActualReleaseAdmissionContext(originalContext, "release-publication");
+    if (completed) {
+      const again = await requireOwnedImmutableReleaseCompletion(receipt);
+      if (
+        again.checkpoint !== checkpoint ||
+        again.original_context !== originalContext ||
+        releaseCanonicalDigest(again.operation) !== releaseCanonicalDigest(completed.operation) ||
+        releaseCanonicalDigest(again.release) !== releaseCanonicalDigest(completed.release)
+      )
+        throw new Error("owned immutable publication completion changed");
+    }
     await requireNativeReleaseQualificationPair(
       context.native_qualifications,
       context.facts.assembly,
@@ -80,12 +101,28 @@ async function actualProof(receipt: object, target: Phase) {
   await recheck();
   return {
     ...context,
+    checkpoint,
     repository: context.coordinator_repository,
     namespace,
     candidate: current.input.active_candidate,
     controller_revision: context.admission.controls.reader.controller_revision,
     control_phase: "release-publication" as const,
     native_stage: "release-publication" as const,
+    original_context: originalContext,
+    additional_locators: completed
+      ? [
+          {
+            kind: "operation",
+            id: completed.operation.id,
+            sha256: releaseCanonicalDigest(completed.operation),
+          },
+          {
+            kind: "immutable-release",
+            id: String(completed.release.release_id),
+            sha256: releaseCanonicalDigest(completed.release),
+          },
+        ]
+      : ([] as Locator[]),
     recheck,
   };
 }
@@ -123,6 +160,14 @@ export async function advanceActualCandidateToPublishing(
 ) {
   return advance(receipt, "publishing", options);
 }
+/** Actual settled publisher custody plus fresh post-sign controls, never mere
+ * Release presence. Site publication and final completion remain separate. */
+export async function advanceActualCandidateToPromoting(
+  receipt: object,
+  options: { deadline?: number } = {},
+) {
+  return advance(receipt, "promoting", options);
+}
 async function advance(receipt: object, target: Phase, options: { deadline?: number }) {
   const deadline = options.deadline;
   const work = () => advanceWithinDeadline(receipt, target, options);
@@ -144,7 +189,8 @@ async function advanceWithinDeadline(
   const proof = await actualProof(receipt, target);
   remaining();
   requireAuthenticatedReleaseControlSource(proof.controls, proof.control_phase);
-  if (proof.candidate.phase !== (target === "building" ? "qualifying" : "building"))
+  const preceding = { building: "qualifying", publishing: "building", promoting: "publishing" };
+  if (proof.candidate.phase !== preceding[target])
     throw new Error("candidate progress requires its exact preceding phase");
   const current = await recoverReleaseOpportunity(proof.repository, proof.checkpoint);
   if (
@@ -208,6 +254,7 @@ async function advanceWithinDeadline(
     },
     { kind: "semantic-check", id: String(observed.classification.review_check_id), sha256: null },
     { kind: "sbom", id: sbom.run_id, sha256: sbom.sha256 },
+    ...proof.additional_locators,
   ].sort((a, b) => {
     const left = `${a.kind}:${a.id}`,
       right = `${b.kind}:${b.id}`;
@@ -275,7 +322,7 @@ async function advanceWithinDeadline(
     scope: "actual phase-specific proof; later effects require their own admission",
   });
   advances.set(result, {
-    original_context: receipt,
+    original_context: proof.original_context,
     phase: target,
     checkpoint: saved.checkpoint,
     previous_checkpoint: proof.checkpoint,

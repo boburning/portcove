@@ -120,3 +120,35 @@ void test("bounded public locators cannot hide altered bytes, counters or duplic
     ),
   );
 });
+
+void test("all three phase proofs retain their original checkpoints and immutable publication locators", () => {
+  let current = {
+    ...candidate(),
+    stage_evidence: [] as { phase: string; attempts: ReturnType<typeof attempt>[] }[],
+  };
+  for (const [index, phase] of ["building", "publishing", "promoting"].entries()) {
+    const cp = String(index + 1).repeat(40);
+    const added = attempt(current, cp);
+    if (phase === "promoting") {
+      added.proof.locators = [{ kind: "immutable-release", id: "1234", sha256: "8".repeat(64) }];
+      added.evidence_sha256 = releaseCanonicalDigest(added.proof);
+    }
+    const next = {
+      ...current,
+      phase,
+      stage_evidence: [...current.stage_evidence, { phase, attempts: [added] }],
+    };
+    const old: Record<string, unknown> = { ...current };
+    if (old.phase === "qualifying") delete old.stage_evidence;
+    validateCandidateStageTransition(old, next, cp);
+    current = next;
+  }
+  assert.equal(inspectCandidateStageEvidence(current.stage_evidence, current).length, 3);
+  validateCandidateStageTransition(current, { ...current }, "a".repeat(40));
+  const rewritten = structuredClone(current);
+  rewritten.stage_evidence[0]!.attempts[0]!.previous_checkpoint = "b".repeat(40);
+  assert.throws(
+    () => validateCandidateStageTransition(current, rewritten, "a".repeat(40)),
+    /changed without phase advance/,
+  );
+});

@@ -1635,6 +1635,12 @@ handoff. A prepared publication may bind that exact original context to the
 returned phase checkpoint; an imported receipt or caller-updated hash cannot
 rebind it. This handoff does not establish a published Release, a public TUF
 generation or candidate completion.
+The promoting writer separately consumes the actual owned immutable-Release
+completion receipt, retains the exact settled publish operation and Release
+identity in its projection, and rechecks post-sign custody and current controls
+before the same journal CAS. Public Release presence or an imported completion
+object cannot select this route. The active reservation remains intact for the
+later independently authenticated TUF/site publication and completion proof.
 
 Optional candidate `stage_evidence` retains at most three phase histories with
 six attempts each, matching the initial attempt plus two transient retries and

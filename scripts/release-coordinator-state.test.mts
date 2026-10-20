@@ -101,10 +101,38 @@ void test(
       ),
       capacityDigest(building.plan),
     );
+    let latest = building.checkpoint;
+    for (const phase of ["publishing", "promoting"]) {
+      const prior = latest;
+      active.phase = phase;
+      assert.ok(Array.isArray(active.stage_evidence));
+      active.stage_evidence.push({
+        phase,
+        attempts: [
+          {
+            previous_checkpoint: prior,
+            evidence_sha256: capacityDigest(proof),
+            proof,
+            release_run: active.release_run,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      });
+      latest = (await checkpointReleaseOpportunity(f.bare, prior, f.input)).checkpoint;
+    }
+    const final = await recoverReleaseOpportunity(f.bare, latest);
+    assert.deepEqual(
+      isRecord(final.input.active_candidate) && final.input.active_candidate.stage_evidence,
+      active.stage_evidence,
+    );
+    const exported = await exportCoordinatorCheckpoint(f.bare, latest);
+    assert.equal(exported.commit.oid, latest);
+    assert.ok(exported.blob.contents.includes('"stage_evidence"'));
     const original = structuredClone(active.stage_evidence);
     delete active.stage_evidence;
     await assert.rejects(
-      checkpointReleaseOpportunity(f.bare, building.checkpoint, f.input),
+      checkpointReleaseOpportunity(f.bare, latest, f.input),
       /history cannot be removed/,
     );
     active.stage_evidence = original;
@@ -113,7 +141,7 @@ void test(
     assert.ok(isRecord(slot) && Array.isArray(slot.attempts));
     slot.attempts.push(structuredClone(slot.attempts[0]));
     await assert.rejects(
-      checkpointReleaseOpportunity(f.bare, building.checkpoint, f.input),
+      checkpointReleaseOpportunity(f.bare, latest, f.input),
       /duplicated|regressed/,
     );
     assert.equal(
@@ -121,7 +149,7 @@ void test(
         encoding: "utf8",
         windowsHide: true,
       }).trim(),
-      building.checkpoint,
+      latest,
     );
   },
 );

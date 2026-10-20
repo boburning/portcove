@@ -97,6 +97,7 @@ export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<st
             "records",
             "sbom",
             "site-generation",
+            "immutable-release",
           ].includes(String(locator.kind)) ||
           typeof locator.id !== "string" ||
           !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(locator.id) ||
