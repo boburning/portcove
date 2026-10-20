@@ -166,7 +166,9 @@ async function main() {
     }
     let result: unknown;
     if (observing) {
-      result = observeReleaseInputProtections(api);
+      result = observeReleaseInputProtections(api, {
+        releasePublication: phase === "release-publication",
+      });
       if (productionObservation)
         result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
       const encoded = JSON.stringify(result);

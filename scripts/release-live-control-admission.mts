@@ -9,7 +9,10 @@ import {
   controllerOidcSubject,
   verifyReleaseControlReaderJobIdentity,
 } from "./assembler-job-identity.mts";
-import { requireReleaseInputWriterPolicy } from "./release-input-protections.mts";
+import {
+  requireReleaseInputWriterPolicy,
+  requireReleaseImmutabilityPolicy,
+} from "./release-input-protections.mts";
 import {
   inspectReviewProducerConfiguration,
   readPublicationPause,
@@ -187,7 +190,17 @@ export async function authenticateReleaseControlSource(
   const guard = () => {
     if (now() >= Date.parse(identity.expires_at))
       throw new Error("control reader identity expired");
-    return requireReleaseInputWriterPolicy(handoff.observation, config.writer_app_id, now());
+    const policy = requireReleaseInputWriterPolicy(
+      handoff.observation,
+      config.writer_app_id,
+      now(),
+    );
+    return {
+      ...policy,
+      ...(phase === "release-publication"
+        ? { release_immutability: requireReleaseImmutabilityPolicy(handoff.observation, now()) }
+        : {}),
+    };
   };
   guard();
   const requireObservedRefs = (refs: readonly (readonly [string, string])[]) => {
