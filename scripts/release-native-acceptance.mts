@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
@@ -43,6 +44,7 @@ type BoundReceipt = {
   check_identity: unknown;
   suite_identity: unknown;
   get: (route: string) => unknown;
+  active: () => void;
 };
 const qualifications = new WeakMap<object, BoundReceipt>();
 export type VerifiedNativeReleaseQualification = Readonly<
@@ -313,10 +315,20 @@ export async function collectNativeReleaseQualification(
   options: {
     api?: GitHubRestReader;
     spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    deadline?: number;
   } = {},
 ) {
   const injectedApi = options.api,
-    injectedSpawn = options.spawn;
+    injectedSpawn = options.spawn,
+    deadline = options.deadline;
+  const remaining = () => {
+    if (deadline === undefined) return 15000;
+    const left = Math.floor(deadline - performance.now());
+    if (!Number.isFinite(deadline) || left < 1)
+      throw new Error("native qualification phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   const injected = injectedApi !== undefined || injectedSpawn !== undefined;
   const expected = inspectNativeQualificationExpectation(rawExpected);
   if (!path.isAbsolute(outputParent))
@@ -340,12 +352,17 @@ export async function collectNativeReleaseQualification(
     timeoutMs: 15000,
     maxBuffer: 512 * 1024,
     spawn: (command, args, settings) =>
-      (injectedSpawn ?? spawnSync)(command, args, { ...settings, env: environment }),
+      (injectedSpawn ?? spawnSync)(command, args, {
+        ...settings,
+        timeout: remaining(),
+        env: environment,
+      }),
   });
   const api =
     injectedApi ??
     new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const get = (route: string) => {
+    remaining();
     if (
       !/^check-runs\/[1-9][0-9]*$|^check-suites\/[1-9][0-9]*$|^git\/commits\/[a-f0-9]{40}$|^contents\/scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1\?ref=[a-f0-9]{40}$/u.test(
         route,
@@ -353,17 +370,20 @@ export async function collectNativeReleaseQualification(
     )
       throw new Error("native provider route is outside fixed read-only inputs");
     const response = api.request("GET", `${repository}/${route}`);
+    remaining();
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 512 * 1024)
       throw new Error("native provider readback is unavailable or oversized");
     return structuredClone(response.body);
   };
   const files: BoundReceipt["files"] = [];
   const retainBytes = async (name: string, bytes: Buffer) => {
+    remaining();
     if (bytes.length < 1 || bytes.length > 512 * 1024)
       throw new Error("native retained proof exceeds bound");
     const filename = path.join(directory, name);
     await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
     files.push({ path: filename, bytes: bytes.length, sha256: hash(bytes) });
+    remaining();
   };
   const retain = (name: string, value: unknown) =>
     retainBytes(name, Buffer.from(JSON.stringify(value)));
@@ -456,6 +476,9 @@ export async function collectNativeReleaseQualification(
         check_identity: check,
         suite_identity: suite,
         get,
+        active: () => {
+          remaining();
+        },
       });
     return receipt;
   } catch {
@@ -474,10 +497,12 @@ export async function verifiedNativeReleaseQualification(
   const bound = qualifications.get(receipt);
   if (!bound)
     throw new Error("native qualification was not authenticated by this actual provider process");
+  bound.active();
   for (const file of bound.files) {
     const bytes = await readControllerToolFile(file.path, 512 * 1024);
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("native retained proof changed");
+    bound.active();
   }
   const check = checkIdentity(bound.get(`check-runs/${bound.expected.check_id}`), bound.expected);
   const suite = suiteIdentity(bound.get(`check-suites/${check.suite_id}`), bound.expected);
@@ -507,5 +532,6 @@ export async function verifiedNativeReleaseQualification(
     }
   };
   freeze(result);
+  bound.active();
   return result;
 }

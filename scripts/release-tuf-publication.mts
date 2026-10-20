@@ -320,9 +320,13 @@ export async function prepareActualTufPublication(
   await requireActualTufPublication(receipt);
   return receipt;
 }
-export async function requireActualTufPublication(receipt: object) {
+export async function requireActualTufPublication(receipt: object, phaseDeadline?: number) {
   const actual = publications.get(receipt);
   if (!actual) throw new Error("actual keyless TUF publication required");
+  if (phaseDeadline !== undefined) {
+    remaining(phaseDeadline);
+    actual.deadline = Math.min(actual.deadline, phaseDeadline);
+  }
   remaining(actual.deadline);
   const context = await requireReceivedSigningContext(actual.context, actual.deadline),
     tools = await verifiedControllerToolPaths(actual.tools);

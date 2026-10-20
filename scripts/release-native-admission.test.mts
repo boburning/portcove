@@ -8,7 +8,24 @@ import {
   collectNativeReleaseQualificationPair,
   deriveNativeQualificationExpectations,
 } from "./release-native-admission.mts";
-import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
+import {
+  inspectPublicationAuthorities,
+  inspectReleaseAuthorityConfiguration,
+  inspectNativePrepublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import {
+  inspectNativePublicationPredecessor,
+  inspectNativeInitialPublicationJourney,
+  collectConfiguredNativePublicationQualificationPair,
+} from "./release-native-publication-admission.mts";
+import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
+import { metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
+import { mkdtemp, rm, readdir } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { performance } from "node:perf_hooks";
 
 void test("publication configuration pins only distinct immutable public data and setup identities", () => {
   const file = (path: string) => ({ path, bytes: 123, sha256: "a".repeat(64) });
@@ -43,6 +60,114 @@ void test("publication configuration pins only distinct immutable public data an
     },
   ])
     assert.throws(() => inspectPublicationAuthorities(changed));
+});
+void test("historical native attribution requires the exact Tough-record reference and every source/package/run field", () => {
+  const report = nativeQualificationFixture(),
+    prepared = prepareNativeQualificationCheck(report),
+    check = { id: 123, ...prepared.body },
+    record = {
+      source_commit: report.candidate.source_commit,
+      source_tree: report.candidate.source_tree,
+      target: report.platform_label,
+      qualified_run: {
+        run_id: Number(report.candidate.run_id),
+        attempt: report.candidate.run_attempt,
+      },
+      artifact: {
+        url: `https://github.com/boburning/portcove/releases/download/v0.1.0/${report.candidate.package.filename}`,
+        sha256: report.candidate.package.sha256,
+        bytes: report.candidate.package.bytes,
+      },
+      evidence_ids: [`native-check:123:${releaseCanonicalDigest(prepared.report)}`],
+    };
+  assert.deepEqual(inspectNativePublicationPredecessor(record, check), report.candidate);
+  for (const changed of [
+    { ...record, source_tree: "f".repeat(40) },
+    { ...record, qualified_run: { ...record.qualified_run, attempt: 3 } },
+    { ...record, artifact: { ...record.artifact, sha256: "f".repeat(64) } },
+    { ...record, evidence_ids: [...record.evidence_ids, ...record.evidence_ids] },
+    { ...record, evidence_ids: [`native-check:123:${"f".repeat(64)}`] },
+  ])
+    assert.throws(() => inspectNativePublicationPredecessor(changed, check));
+  assert.throws(() => inspectNativePublicationPredecessor(record, { ...check, id: 124 }));
+});
+void test("initial native journey data binds completed exact bootstrap site effect, ratified anchors and empty prior only", () => {
+  const f = metadataBootstrapFixture(),
+    operation = "f".repeat(64),
+    file = (name: string, sha256: unknown) => ({
+      path: `release-public/${name}.json`,
+      bytes: 1,
+      sha256,
+    }),
+    pins = {
+      public_source: {
+        commit: "a".repeat(40),
+        root: file("root", f.descriptor.root_sha256),
+        offline_targets: file("targets", f.descriptor.offline_targets_sha256),
+        payload_key_registry: file("payload", f.descriptor.payload_key_registry_sha256),
+      },
+      setup_plan_sha256: f.descriptor.setup_plan_sha256,
+      initial_site_preimage_sha256: f.descriptor.initial_site_preimage_sha256,
+    },
+    group = {
+      summary_schema_version: 1,
+      subject: { kind: "metadata-bootstrap", identity: releaseCanonicalDigest(f.descriptor) },
+      kind: "upload",
+      destination_sha256: releaseCanonicalDigest("github-pages:boburning/portcove:complete-site"),
+      transient_retries: 0,
+      substantive_repairs: 0,
+      completed: true,
+      attempts: [{ checkpoint: "e".repeat(40), id: operation, operation_sha256: "1".repeat(64) }],
+    },
+    input = {
+      bootstrap: f.descriptor,
+      published: { ...f.published, operation_id: operation },
+      capacity_groups: [group],
+      public_pins: pins,
+      payload_sha256: String(f.descriptor.payload_key_registry_sha256),
+      signed_context_sha256: "2".repeat(64),
+      signatures_sha256: "3".repeat(64),
+      prior_records_sha256: releaseCanonicalDigest([]),
+    };
+  const result = inspectNativeInitialPublicationJourney(input);
+  assert.equal(result.kind, "initial-empty-feed");
+  assert.equal(result.signed_context_sha256, input.signed_context_sha256);
+  for (const changed of [
+    { ...input, prior_records_sha256: "4".repeat(64) },
+    { ...input, published: { ...input.published, records_sha256: "4".repeat(64) } },
+    { ...input, capacity_groups: [] },
+    { ...input, capacity_groups: [{ ...group, completed: false }] },
+    {
+      ...input,
+      capacity_groups: [
+        {
+          ...group,
+          destination_sha256: releaseCanonicalDigest(
+            "github-actions:boburning/portcove:metadata-bootstrap-context",
+          ),
+        },
+      ],
+    },
+    { ...input, public_pins: { ...pins, setup_plan_sha256: "4".repeat(64) } },
+  ])
+    assert.throws(() => inspectNativeInitialPublicationJourney(changed));
+});
+void test("configured post-sign native entry refuses imported TUF/context before authority/provider/output", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-postsign-import-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(
+    collectConfiguredNativePublicationQualificationPair(
+      root,
+      [],
+      {},
+      [],
+      {},
+      {},
+      performance.now() + 10000,
+    ),
+    /actual keyless/u,
+  );
+  assert.deepEqual(await readdir(root), []);
 });
 
 void test("actual native collection rejects incomplete or imported expectations before provider collection", async () => {
