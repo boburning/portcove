@@ -46,6 +46,8 @@ mod ghostship_persistence_tests;
 mod ghostship_recovery;
 mod ghostship_recovery_execution;
 mod ghostship_safety;
+#[cfg(test)]
+mod shipwright_persistence_tests;
 pub(crate) use backups::{BackupDeletionPhase, RestorePhase};
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
@@ -5108,6 +5110,29 @@ impl PortcoveService {
             // The pinned Windows runtime ignores SHIP_HOME and uses its CWD.
             crate::preparation::legacy_execution_contract(&port, install, Platform::current()?)?;
             false
+        } else if shipwright_windows_cwd_persistence(&port, install, Platform::current()?) {
+            // The verified portable Windows payload ignores SHIP_HOME. Keep
+            // this closed compatibility interpretation outside catalog facts.
+            // Assessment and mutation share the same non-writing shape check.
+            for root in [
+                self.persistence_root(&port, &install.path)?,
+                self.library.user_dir(&port.id),
+            ] {
+                let saves = root.join("Save");
+                refuse_symlink_ancestors(&saves)?;
+                match fs::symlink_metadata(&saves) {
+                    Ok(metadata) if !metadata.is_dir() => {
+                        return Err(PortcoveError::conflict(format!(
+                            "Shipwright Save root is not a directory; preserve it and review the conflict: {}",
+                            saves.display()
+                        )));
+                    }
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => return Err(error.into()),
+                    Ok(_) => {}
+                }
+            }
+            false
         } else {
             writes_directly_to_user_root(&port)
         };
@@ -5441,6 +5466,25 @@ fn writes_directly_to_user_root(port: &PortDefinition) -> bool {
     port.user_data_environment.is_some()
         || (port.adapter == crate::AdapterKind::LibultrashipPortable
             && (!cfg!(windows) || !crate::preparation::managed(port)))
+}
+
+fn shipwright_windows_cwd_persistence(
+    port: &PortDefinition,
+    install: &InstallRecord,
+    platform: Platform,
+) -> bool {
+    // Official 9.3.1 portable Win64 uses CWD/Save, not SHIP_HOME. Neither a
+    // future version nor another Libultraship payload inherits this evidence.
+    platform == Platform::WindowsX86_64
+        && port.id == "shipwright"
+        && install.port_id == port.id
+        && port.adapter == crate::AdapterKind::LibultrashipPortable
+        && port.user_data_environment.is_none()
+        && install.version == "9.3.1"
+        && install.artifact.asset_name == "SoH-Dewey-Bravo-Win64.zip"
+        && install.artifact.size == 72_980_600
+        && install.artifact.sha256
+            == "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c"
 }
 
 fn data_version(connection: &rusqlite::Connection) -> Result<i64> {
@@ -7677,7 +7721,7 @@ mod tests {
         }
     }
 
-    fn create_adoption_test_symlink(target: &Path, link: &Path, directory: bool) {
+    pub(super) fn create_adoption_test_symlink(target: &Path, link: &Path, directory: bool) {
         #[cfg(unix)]
         {
             let _ = directory;

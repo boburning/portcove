@@ -2747,6 +2747,22 @@ Post-exit collection compares canonical install and versions-directory paths aft
 
 Persistent-data synchronization skips a redundant file copy only when lengths and complete SHA-256 content match. Timestamps alone never authorize reuse, and a same-size changed save still replaces its collected copy. Existing ancestor checks, port locking, and deletion propagation remain in force.
 
+The official Shipwright 9.3.1 portable Windows x64 artifact
+(`SoH-Dewey-Bravo-Win64.zip`, SHA-256
+`429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c`,
+72,980,600 bytes) ignores `SHIP_HOME` and writes `Save` beneath its working
+directory. Core's installation persistence contract interprets only that exact
+version/artifact route as synchronized persistence; other Libultraship versions,
+ports and platforms keep their existing behavior. An explicit dynamic user-data
+environment remains authoritative. Current catalog `Save` admission uses the
+existing checked additive-mutability rules, without rewriting retained contracts
+or manifests. Backup assessment reads the same contract without collecting data;
+backup creation, launch preparation, activation, rollback and removal collect
+launched working data before replacing or removing it. An existing non-directory
+`Save` root on either side holds the operation without overwriting it. Ordinary
+changed regular save bytes retain normal synchronization and safety-backup rules.
+This bounded compatibility repair does not qualify another release or platform.
+
 ZIP readers decode raw entry names as UTF-8 when valid, otherwise CP437, including archives whose producer omitted the UTF-8 flag. Source inspection retains that decoded member name alongside independently verified content and outer-container identities; multiple matching members remain ambiguous. Installer extraction still rejects every non-ASCII path before writes.
 
 ZIP entry names from Windows producers are normalized from DOS separators to forward slashes before the shared portable validator and collision inventory run. This is one platform-independent output namespace: mixed-separator aliases collide, and traversal, drive/UNC roots, reserved names, links, special files, and resource limits still fail before extraction writes. Catalog and TAR paths retain their forward-slash requirement.
