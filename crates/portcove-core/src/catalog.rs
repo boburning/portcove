@@ -1052,13 +1052,17 @@ impl Catalog {
                 });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
-                        matches!(
+                        (matches!(
                             port.adapter,
                             AdapterKind::N64RecompPortable
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
-                        ) && filename.ends_with(".z64")
-                            && (source_is_persistent || crate::preparation::managed(port))
+                        ) || (port.adapter == AdapterKind::StagedSourcePortable
+                            && port.runtime_data_policy.is_some()))
+                            && filename.ends_with(".z64")
+                            && (source_is_persistent
+                                || crate::preparation::managed(port)
+                                || port.runtime_data_policy.is_some())
                     }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
@@ -1596,6 +1600,36 @@ mod tests {
                 .manually_validated_platforms
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn managed_racewave_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| {
+                row.scope.check_version.as_deref() == Some("racewave46-managed-windows-v1")
+            })
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("wave-race-64-racewave46").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
     }
     use sha2::{Digest, Sha256};
 
@@ -2506,7 +2540,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 39);
+        assert_eq!(qualification.len(), 41);
         assert_eq!(
             qualification
                 .iter()
@@ -2787,8 +2821,13 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 4);
+        assert_eq!(prepared.len(), 3);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "wave-race-64-racewave46")
+        );
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
             let guide = presentation.manual_setup.as_ref().unwrap();

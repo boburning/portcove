@@ -563,6 +563,22 @@ pub(crate) fn read_single_link_metadata(path: &Path, limit: u64) -> Result<Vec<u
     read_metadata(path, limit, true)
 }
 
+/// Open an ordinary transferable file without following its final link. Refuse
+/// hard-link aliases before any payload read, including aliases of credentials.
+pub(crate) fn open_single_link_file(path: &Path) -> Result<fs::File> {
+    crate::runtime_data_policy::refuse_sensitive_entry(path)?;
+    crate::path::refuse_symlink_ancestors(path)?;
+    let canonical = fs::canonicalize(path)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(&canonical)?;
+    let file = open_object(&canonical, false)?;
+    if !file.metadata()?.is_file() || link_count(&file)? != 1 {
+        return Err(PortcoveError::verification(
+            "runtime data must be a single-link regular file",
+        ));
+    }
+    Ok(file)
+}
+
 fn read_metadata(path: &Path, limit: u64, single_link: bool) -> Result<Vec<u8>> {
     crate::path::refuse_symlink_ancestors(path)?;
     let canonical = fs::canonicalize(path)?;

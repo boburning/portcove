@@ -522,6 +522,13 @@ pub enum ManagedInitialization {
     TfeDarkForces122420,
 }
 
+/// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum RuntimeDataPolicy {
+    #[serde(rename = "racewave46-v1.0.0-windows")]
+    Racewave46V100Windows,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -562,6 +569,8 @@ pub struct PortDefinition {
     pub n64_windows_initial_d3d12: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub managed_initialization: Option<ManagedInitialization>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_data_policy: Option<RuntimeDataPolicy>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -1302,6 +1311,8 @@ pub struct InstallPlan {
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
     pub output_location: PortOutputLocation,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preservation_notices: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

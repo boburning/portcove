@@ -8262,6 +8262,16 @@
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
           },
+          "runtime_data_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeDataPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "runtime_mutable_file_patterns": {
             "items": {
               "$ref": "#/$defs/PersistentFilePattern"
@@ -8986,6 +8996,13 @@
           "asset"
         ],
         "type": "object"
+      },
+      "RuntimeDataPolicy": {
+        "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
+        "enum": [
+          "racewave46-v1.0.0-windows"
+        ],
+        "type": "string"
       },
       "RuntimeIdentity": {
         "properties": {

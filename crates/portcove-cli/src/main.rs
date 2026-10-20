@@ -2257,6 +2257,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 let port_id = args
                     .port_id
                     .ok_or_else(|| PortcoveError::usage("provide PORT_ID or --all"))?;
+                if mode == OutputMode::Human {
+                    for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                        println!("{notice}");
+                    }
+                }
                 let mut progress = progress_renderer(mode);
                 render_success(
                     mode,
@@ -2312,6 +2317,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let activate = !args.stage && status.update_policy != UpdatePolicy::Stage;
                     let mut progress = progress_renderer(mode);
                     let port_id = status.port_id;
+                    if mode == OutputMode::Human {
+                        for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                            println!("{notice}");
+                        }
+                    }
                     updated.push(
                         match service
                             .update(&port_id, None, None, activate, &mut progress)
@@ -2368,7 +2378,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 println!("{}", human::document(&preview)?);
             }
             require_confirmation(
-                &format!("Remove managed versions for {port_id}? Persistent data will be kept."),
+                &format!(
+                    "Remove managed versions for {port_id}? Persistent data will be kept. Sign-ins stored only in installed versions will be deleted."
+                ),
                 yes,
                 cli.non_interactive,
             )?;

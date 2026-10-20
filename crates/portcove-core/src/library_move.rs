@@ -240,6 +240,11 @@ fn continue_move(
     journal.phase = TransferPhase::Verified;
     journal.write()?;
     checkpoint(TransferPhase::Verified)?;
+    crate::transfer_copy::refuse_sensitive_content(
+        &journal.plan.source_root,
+        &journal.plan.destination_root,
+        &journal.plan.content,
+    )?;
     library_authority::write_authority(
         source.root(),
         &authority(journal, AuthorityState::Moved),
@@ -248,6 +253,11 @@ fn continue_move(
     journal.phase = TransferPhase::Published;
     journal.write()?;
     checkpoint(TransferPhase::Published)?;
+    crate::transfer_copy::refuse_sensitive_content(
+        &journal.plan.source_root,
+        &journal.plan.destination_root,
+        &journal.plan.content,
+    )?;
     library_authority::activate_destination(destination, &journal.transfer_id)?;
     checkpoint(TransferPhase::Complete)?;
     finish_move(&target, journal)
@@ -473,6 +483,38 @@ mod tests {
                 .code,
             ErrorCode::Conflict
         );
+    }
+
+    #[test]
+    fn late_credentials_hold_move_before_authority_or_destination_activation() {
+        for phase in [TransferPhase::Verified, TransferPhase::Published] {
+            let temporary = tempfile::tempdir().unwrap();
+            let source = temporary.path().join("source");
+            let destination = temporary.path().join("destination");
+            let service = fixture(&source);
+            let plan = service.plan_library_move(&destination).unwrap();
+            drop(service);
+            let credential = destination.join("user/starship/retroachievements.credentials");
+            let error = crate::test_fixture::phase("credential move: publication attempt", || {
+                start_move(&source, &destination, &plan.plan_sha256, &|at| {
+                    if at == phase {
+                        fs::write(&credential, b"synthetic-no-account")?;
+                    }
+                    Ok(())
+                })
+            })
+            .unwrap_err();
+            assert!(error.details.contains_key("host_local_credential_path"));
+            assert!(credential.exists());
+            assert_eq!(
+                library_authority::authority(&destination)
+                    .unwrap()
+                    .unwrap()
+                    .state,
+                AuthorityState::Pending
+            );
+            assert!(destination.join("user/starship/data.bin").exists());
+        }
     }
 
     fn assert_move_boundary_recovery(fault: TransferPhase) {

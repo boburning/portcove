@@ -1,4 +1,5 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
+import { usePreparationCompletionFocus } from "../features/preparation/use-preparation-completion-focus";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
@@ -79,7 +80,6 @@ import {
   presentPortAction,
   useOperationPresentation,
 } from "../features/operations/operation-presentation";
-import { focusAndReveal, navigationScope } from "../focus";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -696,6 +696,12 @@ function StatusActionsGroup({
 }) {
   const gameActions = useRef<HTMLElement>(null);
   const nextStep = useRef<HTMLHeadingElement>(null);
+  const preparedFocus = usePreparationCompletionFocus({
+    owner: gameActions,
+    nextStep,
+    identity: `${port.id}:${libraryGeneration}`,
+    busy: Boolean(busy),
+  });
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   const trial =
     hasUnconfirmedLaunchInput(status, port) ||
@@ -797,27 +803,7 @@ function StatusActionsGroup({
             generation={libraryGeneration}
             disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
             run={prepare}
-            onPrepared={() => {
-              const owner = gameActions.current;
-              const identity = `${port.id}:${libraryGeneration}`;
-              requestAnimationFrame(() => {
-                const active = document.activeElement;
-                if (
-                  !owner?.isConnected ||
-                  gameActions.current !== owner ||
-                  owner.dataset.taskOwner !== identity ||
-                  navigationScope() !== document ||
-                  (active !== document.body &&
-                    active !== nextStep.current &&
-                    active !== owner.querySelector("[data-launch-action]"))
-                )
-                  return;
-                focusAndReveal(
-                  owner.querySelector<HTMLElement>("[data-launch-action]:not(:disabled)") ??
-                    nextStep.current,
-                );
-              });
-            }}
+            onPrepared={preparedFocus}
             focusFallback={() =>
               gameActions.current?.querySelector<HTMLElement>(
                 "[data-launch-action]:not(:disabled)",
@@ -2267,6 +2253,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           )}
         </div>
       )}
+      {plan.preservation_notices?.map((notice) => (
+        <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
+          {notice}
+        </p>
+      ))}
     </div>
   );
 }
