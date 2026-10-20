@@ -110,6 +110,7 @@ import {
 } from "./view-model";
 import { gameIdentityLabel } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
   code: "state",
@@ -120,7 +121,9 @@ export const missingBootstrapError = {
 export default function App() {
   return (
     <InterfaceSizeProvider>
-      <PortcoveApp />
+      <InvocationOwnerProvider>
+        <PortcoveApp />
+      </InvocationOwnerProvider>
     </InterfaceSizeProvider>
   );
 }

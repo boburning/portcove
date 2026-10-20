@@ -328,7 +328,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   }),
   scenario(
     "native-preparation-cancellation",
-    "Preparation stays discoverable across navigation, cancellation and renderer restart.",
+    "Preparation survives renderer restart, excludes a competing CLI target, permits unrelated native verification and settles cancellation authoritatively.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-test.mts",

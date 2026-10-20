@@ -5,6 +5,7 @@ import { useOperationState } from "./use-operation-state";
 import { targetInvocationContext } from "./invocation-state";
 import { failureReport } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
+import { InvocationOwnerProvider } from "./invocation-owner";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -242,7 +243,14 @@ it("suppresses continuation when the library changes during readback", async () 
   expect(state.invocations.size).toBe(0);
 });
 
-it("retains application exclusion across library replacement and retires it on actual settlement", async () => {
+it("retains application exclusion across the keyed workspace remount and retires it on actual settlement", async () => {
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <Fixture key={7} generation={7} />
+      </InvocationOwnerProvider>,
+    ),
+  );
   const held = deferred<string>();
   const nextTask = vi.fn().mockResolvedValue("current library result");
   let running!: Promise<unknown>;
@@ -255,7 +263,13 @@ it("retains application exclusion across library replacement and retires it on a
       },
     });
   });
-  await act(async () => root.render(<Fixture generation={8} />));
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <Fixture key={8} generation={8} />
+      </InvocationOwnerProvider>,
+    ),
+  );
   expect(state.pendingOperations.size).toBe(1);
   const currentContext = { ...context("B", "Check"), libraryGeneration: 8 };
   await act(async () => {

@@ -2234,6 +2234,7 @@ export async function preparationScenarios({
   });
   const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
+    const other = !probeListener ? await seed("opengoal-jak1", "success") : undefined;
     await open(port);
     interface PhaseObservation {
       phase: string;
@@ -2255,6 +2256,7 @@ export async function preparationScenarios({
       }[];
       failure?: { message: string; observed_at: string };
       listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
+      overlap?: { cli_refusal: unknown; unrelated_verification?: ActivityRecord };
     } = { port_id: port.id, phases: [], inputs: [] };
     const preparationIds = (items: readonly ActivityRecord[]) =>
       items
@@ -2296,6 +2298,7 @@ export async function preparationScenarios({
         path.join(activePath, required(required(port.setup_executable_hints[host])[0])),
         path.join(activePath, "owned-setup-mode"),
         path.join(activePath, ".portcove-manifest.json"),
+        ...(other ? [path.join(output, `${other.port.id}.iso`)] : []),
       ].entries()) {
         const bytes = await readFile(input);
         const retained = path.join(output, `live-reload-input-${index}.original`);
@@ -2338,7 +2341,60 @@ export async function preparationScenarios({
         running.activities.find((item) => item.id === required(activity).id)?.status,
         "running",
       );
-      await open(port, false);
+      if (other) {
+        // A separate CLI process must still refuse this target while the native
+        // host owns preparation. Availability never grants a filesystem lock.
+        const refused = spawnCommand(
+          cli,
+          ["--library", library, "--json", "--non-interactive", "verify", port.id],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 15_000,
+            env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
+          },
+        );
+        assert.notEqual(refused.status, 0);
+        assert.equal(typeof refused.stdout, "string");
+        const refusal = object(JSON.parse(String(refused.stdout)));
+        assert.equal(refusal.ok, false);
+        assert.equal(object(refusal.error).code, "conflict");
+        observations.overlap = { cli_refusal: refusal };
+        // Reload discards renderer continuations, but the same Core preparation
+        // remains running. Perform a real unrelated native UI verification.
+        await open(other.port, false);
+        const verify = await browser.findElement(button("Verify installation"));
+        if (!(await verify.isDisplayed()))
+          await clickVisible(
+            browser,
+            await browser.findElement(
+              By.xpath('//summary[contains(., "Commands and maintenance")]'),
+            ),
+          );
+        await browser.wait(until.elementIsEnabled(verify), 5000);
+        await clickVisible(browser, verify);
+        const verified = await browser.wait(
+          async () =>
+            (await activities()).find(
+              (item) =>
+                item.operation === "verify_install" &&
+                item.target_id === other.port.id &&
+                item.status === "succeeded",
+            ),
+          15_000,
+        );
+        observations.overlap.unrelated_verification = required(verified);
+        assert.equal(required((await status(other.port.id)).active).id, other.install.id);
+        assert.equal(
+          (await activities()).find((item) => item.id === required(activity).id)?.status,
+          "running",
+        );
+        await browser
+          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
+          .click();
+        await browser.findElement(By.xpath(`//button[@data-detail-game-id="${port.id}"]`)).click();
+        await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
+      } else await open(port, false);
       const restored = await observe("live-after-reload");
       assert.equal(restored.bootstrap.library_root, before.bootstrap.library_root);
       assert.equal(restored.bootstrap.generation, before.bootstrap.generation);

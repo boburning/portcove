@@ -251,7 +251,7 @@ export function UpdateCenter({
           <Button
             key={value}
             data-focusable
-            variant={selectedSection === value ? "secondary" : "outline"}
+            variant={selectedSection === value ? "selected" : "outline"}
             aria-pressed={selectedSection === value}
             aria-controls={`${panelId}-${value}`}
             onClick={() => {

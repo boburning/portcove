@@ -9,6 +9,7 @@ import {
   type InvocationRecord,
 } from "./invocation-state";
 import { startManagedSubscription } from "../../shared/subscription-lifecycle";
+import { useInvocationOwner } from "./invocation-owner";
 import {
   activityIsTerminal,
   applyOperationEvent,
@@ -42,10 +43,8 @@ export function useOperationState(configuration: {
   const refresh = configuration.refresh;
   const refreshActivities = configuration.refreshActivities ?? configuration.refresh;
   const invalidateDiagnostics = configuration.invalidateDiagnostics;
-  const [invocations, setInvocations] = useState<ReadonlyMap<number, InvocationRecord>>(new Map());
-  // Synchronous ownership prevents two same-turn clicks from passing the same
-  // local exclusion before React commits. This remains ephemeral presentation.
-  const currentInvocations = useRef<ReadonlyMap<number, InvocationRecord>>(invocations);
+  const { invocations, currentInvocations, nextId, active, updateInvocations } =
+    useInvocationOwner();
   const generation = configuration.libraryGeneration ?? 0;
   const activeOwner = useRef<number | undefined>(generation);
   useLayoutEffect(() => {
@@ -54,22 +53,9 @@ export function useOperationState(configuration: {
       activeOwner.current = undefined;
     };
   }, [generation]);
-  const updateInvocations = useCallback(
-    (
-      update: (
-        current: ReadonlyMap<number, InvocationRecord>,
-      ) => ReadonlyMap<number, InvocationRecord>,
-    ) => {
-      const next = update(currentInvocations.current);
-      currentInvocations.current = next;
-      setInvocations(next);
-    },
-    [],
-  );
   const pendingOperations = new Map(
     [...invocations].filter(([, record]) => record.phase === "pending"),
   );
-  const nextPendingId = useRef(0);
   const busy = [...pendingOperations.values()].at(-1)?.name;
   // Compatibility selector for feature-specific recovery. The records, rather
   // than this projection, own all independently attributable failures.
@@ -106,7 +92,7 @@ export function useOperationState(configuration: {
       updateInvocations((current) => {
         if (value === undefined)
           return new Map([...current].filter(([, record]) => record.phase === "pending"));
-        const id = ++nextPendingId.current;
+        const id = nextId();
         return new Map(current).set(id, {
           id,
           name: "review",
@@ -117,7 +103,7 @@ export function useOperationState(configuration: {
         });
       });
     },
-    [defaultContext, generation, updateInvocations],
+    [defaultContext, generation, nextId, updateInvocations],
   );
   const [operationEvents, setOperationEvents] = useState<ReadonlyMap<string, OperationEvent>>(
     new Map(),
@@ -128,7 +114,7 @@ export function useOperationState(configuration: {
   // Remember only observed event identities retired by durable readback, until
   // this workspace owner ends. History pagination must not revive queued events.
   const retiredOperations = useRef(new Set<string>());
-  const observedGeneration = useRef(generation);
+  const observedGeneration = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     if (observedGeneration.current !== generation) {
       observedGeneration.current = generation;
@@ -137,7 +123,11 @@ export function useOperationState(configuration: {
       updateInvocations(
         (current) =>
           new Map(
-            [...current].filter(([, record]) => record.context.exclusionScope === "application"),
+            [...current].filter(
+              ([, record]) =>
+                record.context.exclusionScope === "application" ||
+                record.context.libraryGeneration === generation,
+            ),
           ),
       );
       retiredOperations.current.clear();
@@ -183,10 +173,9 @@ export function useOperationState(configuration: {
       const isCurrent = () =>
         activeOwner.current === generation && context.libraryGeneration === generation;
       const isOwned = () =>
-        activeOwner.current !== undefined &&
-        (context.exclusionScope === "application" || isCurrent());
+        active.current && (context.exclusionScope === "application" || isCurrent());
       if (!isCurrent()) return undefined;
-      const pendingId = ++nextPendingId.current;
+      const pendingId = nextId();
       const record: InvocationRecord = { id: pendingId, name, context, phase: "pending" };
       const conflict = pendingInvocationConflict(currentInvocations.current, context);
       if (conflict) {
@@ -253,6 +242,9 @@ export function useOperationState(configuration: {
     },
     [
       defaultContext,
+      active,
+      currentInvocations,
+      nextId,
       generation,
       invalidateDiagnostics,
       refresh,
