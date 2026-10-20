@@ -15,6 +15,7 @@ import {
 } from "./release-coordinator-recovery.mts";
 import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
+import { collectReleaseSbomEvidence } from "./release-acceptance-evidence.mts";
 import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
@@ -742,6 +743,17 @@ export async function acquireReleaseAdmission(
       files,
     };
     await inspectTrustedAssemblyInput(assembly);
+    phase = "signed-SBOM-document-acquisition";
+    const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
+      download: options.download,
+      preparedNamespace: config.namespace,
+      maximumArchiveBytes: Math.min(
+        512 * 1024 * 1024,
+        2 * 1024 * 1024 * 1024 -
+          archives.reduce((sum, item) => sum + item.bytes, 0) -
+          (publicBinding?.artifacts.reduce((sum, item) => sum + item.bytes, 0) ?? 0),
+      ),
+    });
     if (options.establishControls) {
       if (!frozenControlsOpportunity)
         throw new Error("late control acquisition requires the actual frozen complete opportunity");
@@ -858,7 +870,18 @@ export async function acquireReleaseAdmission(
     else if (controlsAfter.pause.publication_paused)
       holds.add("publication-paused-by-owner-source");
     holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
-    holds.add("strict-release-SBOM-and-native-authorization-not-evaluated");
+    // The existing attester authenticates the exact SPDX document and package
+    // subjects. It cannot substitute for the compiler or a native journey.
+    if (
+      sbomEvidence.state !== "verified-document" ||
+      sbomEvidence.evidence_scope !== "github.com" ||
+      options.api ||
+      options.recover ||
+      options.download ||
+      options.now
+    )
+      holds.add("strict-release-SBOM-document-unverified");
+    holds.add("strict-release-native-authorization-not-evaluated");
     const publication = {
       complete: publishedSources.length === publishedVersions.length,
       observed_at: new Date((options.now ?? Date.now)()).toISOString(),
@@ -902,6 +925,7 @@ export async function acquireReleaseAdmission(
       archives,
       public_build_inputs: publicBuildInputs,
       declared_producers: declarations,
+      sbom_evidence: sbomEvidence,
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
@@ -952,14 +976,27 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     facts: Readonly<PreparedReleaseAdmissionFacts>,
     factsSha256: string,
   ) => Promise<string>,
+  onAdmitted?: (
+    context: Readonly<{
+      facts: Readonly<PreparedReleaseAdmissionFacts>;
+      controls: AuthenticatedReleaseControlSource;
+      admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+      checkpoint: string;
+    }>,
+  ) => Promise<void>,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, { phase });
-  return acquireReleaseAdmission(root, configuration, {
+  const retained: {
+    facts: Readonly<PreparedReleaseAdmissionFacts> | null;
+    controls: AuthenticatedReleaseControlSource | null;
+  } = { facts: null, controls: null };
+  const admission = await acquireReleaseAdmission(root, configuration, {
     controlPhase: phase,
     establishControls: async (factsSha256, facts) => {
+      retained.facts = facts;
       const readyDigest = additionalFacts ? await additionalFacts(facts, factsSha256) : factsSha256;
       if (!/^[a-f0-9]{64}$/u.test(readyDigest))
         throw new Error("prepared continuation requires its exact facts digest");
@@ -975,9 +1012,40 @@ export async function acquireReleaseAdmissionWithControlHandshake(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       });
-      return authenticateReleaseControlSource(env, workflow, { phase, observedArtifact });
+      retained.controls = await authenticateReleaseControlSource(env, workflow, {
+        phase,
+        observedArtifact,
+      });
+      return retained.controls;
     },
   });
+  // Current independent holds deliberately make this unreachable. A future
+  // actual positive acquisition may continue only in this same private process;
+  // no JSON descriptor, injected provider or fixture brand can call this seam.
+  if (onAdmitted && admission.decision === "admitted" && admission.holds.length === 0) {
+    const { facts, controls } = retained;
+    if (
+      admission.evidence_scope !== "github.com" ||
+      !admission.controls ||
+      !facts ||
+      !controls ||
+      controls.evidence_scope !== "github.com" ||
+      facts.checkpoint !== admission.checkpoint
+    )
+      throw new Error(
+        "positive continuation requires actual same-process facts/control/reservation binding",
+      );
+    requireAuthenticatedReleaseControlSource(controls, phase);
+    await onAdmitted(
+      Object.freeze({
+        facts,
+        controls,
+        admission: freezePreparedFacts(structuredClone(admission)),
+        checkpoint: admission.checkpoint,
+      }),
+    );
+  }
+  return admission;
 }
 
 async function main() {

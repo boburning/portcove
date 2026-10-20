@@ -152,6 +152,18 @@ $sentinelHash = (Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
 
 $evidence = [ordered]@{
     schema_version = $evidenceContract.schema_version
+    observation_identity = [ordered]@{
+        schema_version = 1
+        harness = "scripts/test-linux-appimage-update.ps1"
+        harness_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        source_commit = (& git rev-parse HEAD | Out-String).Trim()
+        source_tree = (& git rev-parse 'HEAD^{tree}' | Out-String).Trim()
+        started_at = [DateTime]::UtcNow.ToString('o')
+        host_os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+        host_architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+        powershell = $PSVersionTable.PSVersion.ToString()
+        authority = "none; local native observation requires independently authenticated handoff"
+    }
     phase = "preparing"
     source_commit = (& git rev-parse HEAD | Out-String).Trim()
     platform = "linux-x86_64"
@@ -167,6 +179,7 @@ $evidence = [ordered]@{
         desktop_entry = $desktopEntry
         desktop_entry_sha256 = $desktopEntryHash
         preserved_user_paths = $preservedDataPaths
+        preserved_user_sha256 = $preservedDataHashes
         update_desktop_entry_preserved = $false
         update_user_paths_preserved = $false
         uninstall_stable_removed = $false

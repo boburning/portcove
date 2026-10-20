@@ -367,7 +367,12 @@ void test("Release beta wiring pins public inputs outside candidate content, ret
     /matrix.label.*github.run_id.*github.run_attempt/,
   );
   const build = record(steps.find((step) => step.name === "Build desktop bundles"));
-  assert.match(text(build.run), /--no-sign.*--config/);
+  assert.match(text(build.run), /node ..\/..\/scripts\/release-compiler-capture.mts/);
+  const capture = await readFile(
+    path.join(project, "scripts/release-compiler-capture.mts"),
+    "utf8",
+  );
+  assert.match(capture, /"--no-sign",\s*"--config"/);
   assert.match(text(build.run), /PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION/);
   assert.doesNotMatch(JSON.stringify(jobs.build), /secrets\.|TAURI_SIGNING_PRIVATE_KEY/);
   const packageJson = jsonRecord(

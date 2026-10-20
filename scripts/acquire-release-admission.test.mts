@@ -418,7 +418,8 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
   assert.equal(result.holds.includes("admitted-spending-boundary-source-unconfigured"), false);
   assert.equal(result.holds.includes("publication-paused-by-owner-source"), false);
   assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
-  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(result.holds.includes("strict-release-SBOM-document-unverified"));
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
   assert.ok(
     result.holds.includes(
       "current-controller-workflow-differs-from-ratified-capacity-resource-policy",
@@ -720,7 +721,8 @@ void test("bounded capacity eligibility cannot clear unrelated admission holds o
   assert.equal(result.descriptor, null);
   assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
   assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
-  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(result.holds.includes("strict-release-SBOM-document-unverified"));
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
 });
 
 void test("capacity bracketing snapshots aliased observations and initial ratification", async (t) => {
