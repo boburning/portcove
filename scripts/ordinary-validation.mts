@@ -340,6 +340,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
   ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
+  ["scripts/release-native-admission.mts", ["scripts/release-native-admission.test.mts"]],
+  ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  [
+    "scripts/release-authority-configuration.mts",
+    ["scripts/production-controller-admission.test.mts"],
+  ],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",
@@ -615,6 +621,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-compiler-source.test.mts",
   "scripts/release-native-qualification-contract.test.mts",
   "scripts/release-native-acceptance.test.mts",
+  "scripts/release-native-admission.test.mts",
   "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
   "scripts/release-live-control-admission.test.mts",
@@ -622,6 +629,7 @@ const releaseContractTests = Object.freeze([
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
+  "scripts/release-signing-handoff.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

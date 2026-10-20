@@ -11,6 +11,15 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [native stage and payload signing join preparation](slice4-534-native-stage-signing-join-2026-10-20.md)
+connects genuine two-platform native receipts and authenticated compiler/SPDX
+custody to the private pre-sign continuation. The actual payload role places
+key release, signing and immutable output readback inside the existing owned
+pending/settlement operation. Fixed signing-role profiles do not grant signing
+authority. Cross-job attestation, the complete TUF/context join, genuine native
+producer capture and final held-workflow integration remain pending; no protected
+execution or publication acceptance is claimed.
+
 The October 20 [native Check consumer preparation](slice4-534-native-check-consumer-2026-10-20.md)
 binds separate candidate and local native producer identities to the distinct
 configured issuer, stage, host/account, exact source/harness and positive teardown

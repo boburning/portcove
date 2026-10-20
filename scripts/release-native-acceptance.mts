@@ -16,7 +16,7 @@ import type { NativeReleaseQualification } from "./release-native-qualification-
 
 const repository = "repos/boburning/portcove";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-type NativeExpectation = {
+export type NativeQualificationExpectation = {
   schema_version: 1;
   check_id: number;
   native_app_id: number;
@@ -38,7 +38,7 @@ type NativeExpectation = {
 type BoundReceipt = {
   directory: string;
   files: { path: string; bytes: number; sha256: string }[];
-  expected: NativeExpectation;
+  expected: NativeQualificationExpectation;
   report: NativeReleaseQualification;
   check_identity: unknown;
   suite_identity: unknown;
@@ -78,7 +78,9 @@ function version(value: unknown): bigint[] {
     throw new Error("observed native engine version is unavailable");
   return value.split(".").map((part) => BigInt(part));
 }
-function expectedInput(raw: unknown): NativeExpectation {
+export function inspectNativeQualificationExpectation(
+  raw: unknown,
+): NativeQualificationExpectation {
   const value: unknown = structuredClone(raw);
   exact(
     value,
@@ -184,7 +186,7 @@ function expectedInput(raw: unknown): NativeExpectation {
   }
   // Every member is explicitly validated above; the actual report inspector
   // additionally validates the complete observed fields before any receipt.
-  return value as unknown as NativeExpectation;
+  return value as unknown as NativeQualificationExpectation;
 }
 export function prepareNativeQualificationCheck(raw: unknown) {
   const report = inspectNativeReleaseQualification(raw),
@@ -209,7 +211,7 @@ export function prepareNativeQualificationCheck(raw: unknown) {
     },
   };
 }
-function suiteIdentity(raw: unknown, expected: NativeExpectation) {
+function suiteIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   if (
     !isRecord(raw) ||
     !isRecord(raw.app) ||
@@ -228,7 +230,7 @@ function suiteIdentity(raw: unknown, expected: NativeExpectation) {
     repository_id: raw.repository.id,
   };
 }
-function checkIdentity(raw: unknown, expected: NativeExpectation) {
+function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   if (
     !isRecord(raw) ||
     raw.id !== expected.check_id ||
@@ -316,7 +318,7 @@ export async function collectNativeReleaseQualification(
   const injectedApi = options.api,
     injectedSpawn = options.spawn;
   const injected = injectedApi !== undefined || injectedSpawn !== undefined;
-  const expected = expectedInput(rawExpected);
+  const expected = inspectNativeQualificationExpectation(rawExpected);
   if (!path.isAbsolute(outputParent))
     throw new Error("native evidence output parent must be absolute");
   const directory = await mkdtemp(path.join(outputParent, "native-qualification-"));

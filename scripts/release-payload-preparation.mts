@@ -7,7 +7,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { crc32, inflateRawSync } from "node:zlib";
-import { acquireReleaseAdmissionWithControlHandshake } from "./acquire-release-admission.mts";
+import {
+  acquireReleaseAdmissionWithControlHandshake,
+  requireActualReleaseAdmissionContext,
+} from "./acquire-release-admission.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { collectConfiguredNativeReleaseQualificationPair } from "./release-native-admission.mts";
+import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
+import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
+import {
+  authenticateCapacityExecutor,
+  capacityExecutorIdentity,
+  executeOwnedCapacityEffect,
+} from "./release-capacity-executor.mts";
+import { handoffSigningOutput } from "./release-signing-handoff.mts";
+import { performance } from "node:perf_hooks";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
@@ -272,6 +287,73 @@ type PreparedPayloads = {
   requests: ReturnType<typeof inspectPayloadSigningRequest>[];
   verification: Awaited<ReturnType<typeof verifyUploadedAggregate>>;
 };
+type PrivateSignatures = {
+  context: PositiveContext;
+  prepared: PreparedPayloads;
+  tools: object;
+  directory: string;
+  signatures: Awaited<ReturnType<typeof signReleasePayload>>[];
+  settlement: Awaited<ReturnType<typeof executeOwnedCapacityEffect>>;
+  handoff: Awaited<ReturnType<typeof handoffSigningOutput>>;
+};
+const actualSignatures = new WeakMap<object, PrivateSignatures>();
+
+/** Genuine local crypto, immutable output readback and existing journal
+ * settlement. Cross-job attestation and post-sign qualification remain required;
+ * this cannot authorize publishing. */
+export async function requirePreparedPayloadSignatures(raw: object) {
+  const retained = actualSignatures.get(raw);
+  if (!retained) throw new Error("actual same-process payload signatures required");
+  const context = requireActualReleaseAdmissionContext(retained.context, "payload-signing");
+  const tools = await verifiedControllerToolPaths(retained.tools);
+  const native = await requireNativeReleaseQualificationPair(
+    context.native_qualifications,
+    context.facts.assembly,
+    context.facts.archives,
+    "payload-signing",
+  );
+  const sbom = await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
+  const signatures = [];
+  for (const item of retained.signatures) {
+    const file = path.join(
+      retained.directory,
+      `signature-${item.request.platform_label}`,
+      item.signature.filename,
+    );
+    const bytes = await readBounded(file, 16 * 1024);
+    if (bytes.length !== item.signature.bytes || hash(bytes) !== item.signature.sha256)
+      throw new Error("actual retained payload signature changed");
+    signatures.push(Object.freeze({ ...structuredClone(item), path: file }));
+  }
+  const publicKeyPath = path.join(retained.directory, "public.key");
+  const publicKey = await readBounded(publicKeyPath, 16 * 1024);
+  // Request pins the decoded Tauri public key, whereas the retained file uses
+  // the existing outer base64 encoding consumed by the actual Rust verifier.
+  if (
+    hash(Buffer.from(publicKey.toString("utf8").trim(), "base64")) !==
+    retained.prepared.requests[0]!.public_key_sha256
+  )
+    throw new Error("actual retained public payload key changed");
+  return Object.freeze({
+    context,
+    tools,
+    native,
+    sbom,
+    signatures: Object.freeze(signatures),
+    public_key: Object.freeze({
+      path: publicKeyPath,
+      bytes: publicKey.length,
+      sha256: hash(publicKey),
+    }),
+    aggregate: Object.freeze(structuredClone(retained.prepared.verification)),
+    pending_obligations: context.pending_obligations,
+    settlement: Object.freeze(structuredClone(retained.settlement)),
+    handoff: Object.freeze(structuredClone(retained.handoff)),
+    scope:
+      "actual signature custody and settled immutable output; cross-job attestation/post-sign qualification still required",
+    authority: "none" as const,
+  });
+}
 async function preparePayloadSigning(
   rawConfig: unknown,
   options: NonNullable<Parameters<typeof prepareControllerPayloadSigning>[1]>,
@@ -280,6 +362,10 @@ async function preparePayloadSigning(
     prepared: PreparedPayloads,
     directory: string,
   ) => Promise<void>,
+  prerequisites?: {
+    compiler: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[5]>;
+    establishNative: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[6]>;
+  },
 ) {
   for (const key of [
     "TAURI_SIGNING_PRIVATE_KEY",
@@ -427,6 +513,8 @@ async function preparePayloadSigning(
           throw new Error("private admitted payloads differ from the current reservation");
         await onAdmitted?.(context, prepared, directory);
       },
+      prerequisites?.compiler,
+      prerequisites?.establishNative,
     );
     const admissionBytes = JSON.stringify(admission);
     if (Buffer.byteLength(admissionBytes) > 2 * 1024 ** 2)
@@ -474,7 +562,16 @@ export async function runPayloadSigningController(
   config: unknown,
   signerExpected: Parameters<typeof verifyPayloadSignerJobIdentity>[1],
   toolsReceipt: object,
+  nativeLocators?: unknown,
 ) {
+  const capturedNativeLocators: unknown = structuredClone(nativeLocators);
+  // Includes acquisition, controls, signing and immutable output handoff, with
+  // thirty seconds reserved for key-channel/process and runner cleanup.
+  const deadline = performance.now() + 570000;
+  const withinBudget = () => {
+    if (performance.now() >= deadline)
+      throw new Error("payload role total phase deadline exhausted");
+  };
   const identityExpected = inspectAssemblerIdentityExpectation(structuredClone(signerExpected));
   const tools = await verifiedControllerToolPaths(toolsReceipt);
   if (
@@ -485,6 +582,9 @@ export async function runPayloadSigningController(
   )
     throw new Error("payload signer and verified fixed tools differ");
   const selected = inspectPayloadPreparationConfiguration(config);
+  const authorities = await requireControllerReleaseAuthorities("payload");
+  if (authorities.namespace !== selected.admission_configuration.namespace)
+    throw new Error("payload authority and actual coordinator namespace differ");
   if (
     selected.projectRoot !== tools.root ||
     selected.aggregate.controller_revision !== tools.identity.controller_revision ||
@@ -493,6 +593,13 @@ export async function runPayloadSigningController(
     selected.aggregate.run_attempt !== tools.identity.run_attempt
   )
     throw new Error("payload preparation and verified controller custody differ");
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse((await readBounded(tools.compiler_source_closure, 64 * 1024)).toString("utf8")),
+  );
+  if (closure.source_commit !== tools.identity.controller_revision)
+    throw new Error("compiler closure differs from authenticated fixed controller source");
+  if (!Array.isArray(capturedNativeLocators) || capturedNativeLocators.length !== 2)
+    throw new Error("fixed controller requires exactly two native invocation locators");
   const pinned = {
     node: { path: tools.node, sha256: hash(await readBounded(tools.node, 128 * 1024 ** 2)) },
     tauriAddon: {
@@ -502,10 +609,12 @@ export async function runPayloadSigningController(
     verifier: { path: tools.rust, sha256: hash(await readBounded(tools.rust, 128 * 1024 ** 2)) },
   };
   let signatures: Awaited<ReturnType<typeof signReleasePayload>>[] | undefined;
+  let completed: Omit<PrivateSignatures, "signatures"> | undefined;
   const observation = await preparePayloadSigning(
     selected,
     {},
     async (context, prepared, directory) => {
+      requireActualReleaseAdmissionContext(context, "payload-signing");
       const token = await requestAssemblerToken("portcove-payload-signing");
       const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
         transport: { cwd: directory },
@@ -514,6 +623,21 @@ export async function runPayloadSigningController(
         throw new Error("actual payload signer required");
       const admitted = context.admission.controls;
       if (!admitted) throw new Error("actual admitted control snapshot required");
+      const executor = await authenticateCapacityExecutor(
+        "payload-signing",
+        {
+          ...identityExpected,
+          audience: "portcove-capacity-executor",
+        },
+        directory,
+      );
+      const actualExecutor = capacityExecutorIdentity(executor);
+      if (
+        actualExecutor.job_id !== identity.job_id ||
+        actualExecutor.check_run_id !== identity.check_run_id
+      )
+        throw new Error("payload signer and capacity executor are different actual jobs");
+      let currentCheckpoint = context.checkpoint;
       let round = 0;
       const factsDigest = hash(
         JSON.stringify(
@@ -525,26 +649,9 @@ export async function runPayloadSigningController(
           }),
         ),
       );
-      const guard = async () => {
+      const freshControls = async () => {
+        withinBudget();
         await verifiedControllerToolPaths(toolsReceipt);
-        const coordinator = {
-          schema_version: 1,
-          namespace: selected.admission_configuration.namespace,
-        };
-        const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory },
-        });
-        await requireReservedAggregate(
-          JSON.stringify({
-            schema_version: 1,
-            checkpoint: context.checkpoint,
-            coordinator,
-            assembly: context.facts.assembly,
-            archives: context.facts.archives,
-            evidence: {},
-          }),
-          snapshot,
-        );
         const source = await authenticateReleaseControlRound(
           path.join(directory, `payload-controls-r${++round}`),
           factsDigest,
@@ -592,41 +699,162 @@ export async function runPayloadSigningController(
           !isDeepStrictEqual(current.capacity, admitted.capacity)
         )
           throw new Error("current payload controls differ from actual admission");
+        withinBudget();
+        return current;
+      };
+      const guard = async () => {
+        await freshControls();
+        await requireNativeReleaseQualificationPair(
+          context.native_qualifications,
+          context.facts.assembly,
+          context.facts.archives,
+          "payload-signing",
+        );
+        await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
+        const coordinator = { schema_version: 1, namespace: authorities.namespace };
+        const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
+          transport: { cwd: directory },
+        });
+        await requireReservedAggregate(
+          JSON.stringify({
+            schema_version: 1,
+            checkpoint: currentCheckpoint,
+            coordinator,
+            assembly: context.facts.assembly,
+            archives: context.facts.archives,
+            evidence: {},
+          }),
+          snapshot,
+        );
+        withinBudget();
       };
       await guard();
       const temporary = process.env.RUNNER_TEMP;
       if (!temporary || !path.isAbsolute(temporary))
         throw new Error("private runner key channel root unavailable");
-      signatures = await receiveIsolatedRoleKey(
-        path.join(temporary, "payload-role-key"),
-        "payload",
-        Date.now() + 30000,
-        async (key, password) => {
-          const results = [];
-          for (const request of prepared.requests) {
-            results.push(
-              await signReleasePayload(
-                {
-                  projectRoot: tools.root,
-                  request,
-                  payload: path.join(directory, "payloads", request.filename),
-                  publicKey: path.join(directory, "public.key"),
-                  output: path.join(directory, `signature-${request.platform_label}`),
-                  tools: pinned,
-                },
-                { beforeSign: guard, keyMaterial: async () => ({ key, password }) },
-              ),
-            );
-          }
+      let handoff: Awaited<ReturnType<typeof handoffSigningOutput>> | undefined;
+      const settlement = await executeOwnedCapacityEffect(
+        executor,
+        {
+          repository: context.coordinator_repository,
+          checkpoint: context.checkpoint,
+          remote_configuration: { schema_version: 1, namespace: authorities.namespace },
+          request: {
+            kind: "upload",
+            destination: `github-actions:boburning/portcove:${prepared.requests[0]!.version}:payload-signatures`,
+          },
+        },
+        async () => (await freshControls()).capacity_source.capacity.boundary,
+        async (pending) => {
+          currentCheckpoint = pending.checkpoint;
           await guard();
-          return results;
+          signatures = await receiveIsolatedRoleKey(
+            path.join(temporary, "payload-role-key"),
+            "payload",
+            Date.now() + 30000,
+            async (key, password) => {
+              const results = [];
+              for (const request of prepared.requests) {
+                results.push(
+                  await signReleasePayload(
+                    {
+                      projectRoot: tools.root,
+                      request,
+                      payload: path.join(directory, "payloads", request.filename),
+                      publicKey: path.join(directory, "public.key"),
+                      output: path.join(directory, `signature-${request.platform_label}`),
+                      tools: pinned,
+                    },
+                    { beforeSign: guard, keyMaterial: async () => ({ key, password }), deadline },
+                  ),
+                );
+              }
+              await guard();
+              return results;
+            },
+          );
+          if (!signatures) throw new Error("actual payload signatures missing");
+          const { path: _privateSbomPath, ...publicSbom } =
+            await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
+          const inputBinding = Buffer.from(
+            JSON.stringify({
+              schema_version: 1,
+              requests: prepared.requests,
+              assembly: context.facts.assembly,
+              aggregate: {
+                artifact_id: prepared.verification.artifact_id,
+                archive_sha256: prepared.verification.sha256,
+              },
+              native: context.facts.native_evidence,
+              compiler_evidence_sha256: hash(
+                JSON.stringify(orderedJsonValue(context.facts.compiler_evidence)),
+              ),
+              sbom: publicSbom,
+              pending_obligations: context.pending_obligations,
+            }),
+          );
+          if (inputBinding.length > 64 * 1024)
+            throw new Error("payload signature input binding exceeds bound");
+          const bindingFile = path.join(directory, "payload-signing-inputs.json");
+          await writeFile(bindingFile, inputBinding, { flag: "wx", mode: 0o600 });
+          handoff = await handoffSigningOutput(
+            path.join(directory, "signature-handoff"),
+            {
+              producer: actualExecutor,
+              pending,
+              input_binding_sha256: hash(inputBinding),
+              files: [
+                ...signatures.map((item) => ({
+                  ...item.signature,
+                  path: path.join(
+                    directory,
+                    `signature-${item.request.platform_label}`,
+                    item.signature.filename,
+                  ),
+                })),
+                {
+                  filename: "payload-signing-inputs.json",
+                  path: bindingFile,
+                  bytes: inputBinding.length,
+                  sha256: hash(inputBinding),
+                },
+              ],
+            },
+            deadline,
+          );
+          await guard();
+          return {
+            remote_identity: `github-actions:boburning/portcove:artifact:${String(handoff.artifact.id)}`,
+            evidence_sha256: hash(JSON.stringify(orderedJsonValue(handoff))),
+          };
         },
       );
+      if (!handoff) throw new Error("actual immutable payload output custody missing");
+      currentCheckpoint = settlement.checkpoint;
+      completed = { context, prepared, tools: toolsReceipt, directory, settlement, handoff };
+    },
+    {
+      compiler: {
+        controller_tools: toolsReceipt,
+        controller_source: {
+          source_commit: closure.source_commit,
+          source_tree: closure.source_tree,
+        },
+      },
+      establishNative: (facts) =>
+        collectConfiguredNativeReleaseQualificationPair(
+          selected.output,
+          capturedNativeLocators,
+          facts.assembly,
+          facts.archives,
+        ),
     },
   );
-  return signatures
+  const result = signatures
     ? { ...observation, decision: "signed", signatures, authority: "none" }
     : observation;
+  if (signatures && completed) actualSignatures.set(result, { ...completed, signatures });
+  return result;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -643,7 +871,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       !isRecord(raw.tools.artifact) ||
       !isRecord(raw.tools.bundle) ||
       !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
-      !isDeepStrictEqual(Object.keys(raw).sort(), ["configuration", "signer_identity", "tools"])
+      !isDeepStrictEqual(Object.keys(raw).sort(), [
+        "configuration",
+        "native_locators",
+        "signer_identity",
+        "tools",
+      ])
     )
       throw new Error("fixed payload caller configuration differs");
     const receipt = await receiveControllerTools(
@@ -667,6 +900,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       },
       raw.signer_identity,
       receipt,
+      raw.native_locators,
     );
     process.exitCode = result.decision === "signed" ? 0 : 2;
   } catch {
