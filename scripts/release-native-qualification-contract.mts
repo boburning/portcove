@@ -8,6 +8,14 @@ export const nativePrepublicationScenarios = Object.freeze([
   "retained-state",
   "package-rollback",
 ] as const);
+export const nativeInitialPackageScenarios = Object.freeze([
+  "fresh-install",
+  "candidate-launch",
+  "retained-state",
+  "signature-cryptography",
+] as const);
+export const nativeEmptyRecordsSha256 =
+  "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945";
 export const nativePrepublicationPending = Object.freeze([
   "ordinary-public-discovery-and-download",
   "ordinary-updater-journal-and-recovery",
@@ -120,7 +128,49 @@ function candidateIdentity(raw: unknown) {
     package: { filename, bytes: positive(raw.package.bytes), sha256: hex(raw.package.sha256) },
   };
 }
-export { candidateIdentity as inspectNativeQualificationCandidate };
+export const inspectNativeQualificationCandidate = candidateIdentity;
+
+/** Data-only temporal binding. The fixed caller must independently derive an
+ * initial-empty-feed expectation from actual bootstrap journal/Tough custody;
+ * accepting this schema never authenticates absence or appoints a branch. */
+export function inspectNativeQualificationJourney(
+  raw: unknown,
+  stage: NativeQualificationStage,
+  candidate: ReturnType<typeof candidateIdentity>,
+  temporal = false,
+) {
+  if (stage === "payload-signing") {
+    if (raw !== null)
+      throw new Error("pre-sign native capture cannot assert a signed update journey");
+    return null;
+  }
+  if (temporal && isRecord(raw) && raw.kind === "initial-empty-feed") {
+    exact(
+      raw,
+      "empty_records_sha256,initial_site_preimage_sha256,kind,metadata_bootstrap_sha256,setup_plan_sha256,signatures_sha256,signed_context_sha256",
+    );
+    if (raw.empty_records_sha256 !== nativeEmptyRecordsSha256)
+      throw new Error("native initial branch must bind empty logical records");
+    return {
+      kind: "initial-empty-feed" as const,
+      metadata_bootstrap_sha256: hex(raw.metadata_bootstrap_sha256),
+      setup_plan_sha256: hex(raw.setup_plan_sha256),
+      initial_site_preimage_sha256: hex(raw.initial_site_preimage_sha256),
+      empty_records_sha256: nativeEmptyRecordsSha256,
+      signed_context_sha256: hex(raw.signed_context_sha256),
+      signatures_sha256: hex(raw.signatures_sha256),
+    };
+  }
+  exact(raw, "predecessor,signatures_sha256,signed_context_sha256");
+  const predecessor = candidateIdentity(raw.predecessor);
+  if (predecessor.package.sha256 === candidate.package.sha256)
+    throw new Error("post-sign native journey requires a distinct predecessor");
+  return {
+    predecessor,
+    signed_context_sha256: hex(raw.signed_context_sha256),
+    signatures_sha256: hex(raw.signatures_sha256),
+  };
+}
 
 /** A bounded wire contract only. Passing this inspector cannot authenticate the
  * native host, its observations, a producer, or an admission decision. The
@@ -154,24 +204,7 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   const stage: NativeQualificationStage = raw.stage;
   const platform: "windows-x86_64" | "linux-x86_64" = raw.platform_label;
   const candidate = candidateIdentity(raw.candidate);
-  let journey: null | {
-    predecessor: ReturnType<typeof candidateIdentity>;
-    signed_context_sha256: string;
-    signatures_sha256: string;
-  } = null;
-  if (stage === "payload-signing") {
-    if (raw.journey !== null)
-      throw new Error("pre-sign native capture cannot assert a signed update journey");
-  } else {
-    exact(raw.journey, "predecessor,signatures_sha256,signed_context_sha256");
-    journey = {
-      predecessor: candidateIdentity(raw.journey.predecessor),
-      signed_context_sha256: hex(raw.journey.signed_context_sha256),
-      signatures_sha256: hex(raw.journey.signatures_sha256),
-    };
-    if (journey.predecessor.package.sha256 === candidate.package.sha256)
-      throw new Error("post-sign native journey requires a distinct predecessor");
-  }
+  const journey = inspectNativeQualificationJourney(raw.journey, stage, candidate, temporal);
   exact(raw.producer, "harness,invocation_id,source_commit,source_tree,started_at");
   exact(raw.producer.harness, "path,sha256");
   const harnessPath = text(raw.producer.harness.path, 192);
@@ -275,7 +308,9 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     },
   };
   const requiredScenarios = temporal
-    ? nativePrepublicationScenarios
+    ? journey && "kind" in journey
+      ? nativeInitialPackageScenarios
+      : nativePrepublicationScenarios
     : nativeQualificationScenarios[stage];
   if (!Array.isArray(raw.scenarios) || raw.scenarios.length !== requiredScenarios.length)
     throw new Error("native stage scenario coverage is incomplete");

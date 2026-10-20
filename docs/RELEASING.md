@@ -1641,6 +1641,31 @@ execution and post-sign qualification remain separate requirements. This
 preparation neither publishes nor turns pre-sign qualification into publication
 admission, and it cannot accept imported context or qualification JSON.
 
+The prepared `signed-package-compatibility-v1` temporal profile requires global
+authority configuration schema 2, explicitly ratified under its existing source,
+configuration and grant digests. Native report schema 1 keeps its original
+interpretation. Report schema 2 binds the exact signed context, signatures and a
+distinct predecessor to install-over-prior, candidate-launch, retained-state and
+package-rollback observations. A report cannot select the profile for its reader.
+The configured native reader must independently expect the same profile and pair.
+
+Only an independently established initial empty feed can use the distinct report-2
+`initial-empty-feed` journey: it binds the metadata-bootstrap descriptor, setup,
+initial site preimage and empty logical-record digest, with fresh-install,
+candidate-launch, retained-state and signature-cryptography observations. The
+fixed caller must derive that expectation from the actual bootstrap journal,
+authenticated Tough empty prior and current published seed. Parsing its public
+digest fields cannot establish absence. It cannot assert rollback or supply an
+invented predecessor; a noninitial release retains the distinct predecessor rule.
+
+Both report-2 branches retain the three explicit obligations for ordinary public
+discovery/download, updater journal/recovery and the public manifest journey.
+Package compatibility is a prepublication predicate; actual public V0-to-V1 proof
+remains necessary for #534 acceptance after publication. These contracts prepare
+the consolidated conditional setup selection. They grant no signing, host,
+credential, publication or native acceptance authority and do not clear current
+holds without genuine fixed producer and consumer evidence.
+
 The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
 the current journal at the settled payload checkpoint and derives the complete
 public-site pins from its published seed. It acquires the whole site, invokes

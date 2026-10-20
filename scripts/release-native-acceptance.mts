@@ -12,6 +12,8 @@ import {
   inspectNativeReleaseQualification,
   nativeQualificationCheckName,
   nativePrepublicationProfile,
+  inspectNativeQualificationJourney,
+  inspectNativeQualificationCandidate,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
 
@@ -185,15 +187,12 @@ export function inspectNativeQualificationExpectation(
   range(value.compatibility.library.read);
   positive(value.compatibility.library.write_schema);
   bounded(value.compatibility.library.lock_protocol, 128);
-  if (value.stage === "payload-signing") {
-    if (value.journey !== null)
-      throw new Error("native pre-sign expectation cannot import a signed journey");
-  } else {
-    exact(value.journey, "predecessor,signatures_sha256,signed_context_sha256");
-    candidate(value.journey.predecessor);
-    digest(value.journey.signatures_sha256);
-    digest(value.journey.signed_context_sha256);
-  }
+  inspectNativeQualificationJourney(
+    value.journey,
+    value.stage as NativeReleaseQualification["stage"],
+    inspectNativeQualificationCandidate(value.candidate),
+    value.schema_version === 2,
+  );
   // Every member is explicitly validated above; the actual report inspector
   // additionally validates the complete observed fields before any receipt.
   return value as unknown as NativeQualificationExpectation;

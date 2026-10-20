@@ -6,6 +6,8 @@ import {
   nativePrepublicationScenarios,
   nativePrepublicationProfile,
   nativePrepublicationPending,
+  nativeInitialPackageScenarios,
+  nativeEmptyRecordsSha256,
 } from "./release-native-qualification-contract.mts";
 
 function report(stage: "payload-signing" | "release-publication" = "payload-signing") {
@@ -161,12 +163,70 @@ void test("schema2 prepublication wire keeps package compatibility separate from
     nativeQualificationScenarios["release-publication"],
   );
 });
+void test("initial report2 schema binds explicit empty-feed bootstrap and never fabricates predecessor or rollback", () => {
+  const ordinary = report("release-publication");
+  const initial = {
+    ...ordinary,
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+    pending_obligations: [...nativePrepublicationPending],
+    journey: {
+      kind: "initial-empty-feed",
+      metadata_bootstrap_sha256: "5".repeat(64),
+      setup_plan_sha256: "6".repeat(64),
+      initial_site_preimage_sha256: "7".repeat(64),
+      empty_records_sha256: nativeEmptyRecordsSha256,
+      signed_context_sha256: "8".repeat(64),
+      signatures_sha256: "9".repeat(64),
+    },
+    scenarios: nativeInitialPackageScenarios.map((name, index) => ({
+      ...ordinary.scenarios[index]!,
+      name,
+    })),
+  };
+  const result = inspectNativeReleaseQualification(initial);
+  assert.equal(result.journey?.kind, "initial-empty-feed");
+  assert.equal(result.journey?.predecessor, undefined);
+  assert.deepEqual(
+    result.scenarios.map((scenario) => scenario.name),
+    nativeInitialPackageScenarios,
+  );
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  for (const changed of [
+    { ...initial, schema_version: 1 },
+    { ...initial, journey: null },
+    { ...initial, journey: { ...initial.journey, empty_records_sha256: "0".repeat(64) } },
+    { ...initial, journey: { ...initial.journey, metadata_bootstrap_sha256: "" } },
+    { ...initial, journey: { ...initial.journey, predecessor: ordinary.journey!.predecessor } },
+    { ...initial, scenarios: ordinary.scenarios },
+    {
+      ...initial,
+      scenarios: nativePrepublicationScenarios.map((name, index) => ({
+        ...ordinary.scenarios[index]!,
+        name,
+      })),
+    },
+  ])
+    assert.throws(() => inspectNativeReleaseQualification(changed));
+  // A noninitial journey still requires different exact predecessor bytes.
+  assert.throws(() =>
+    inspectNativeReleaseQualification({
+      ...initial,
+      journey: { ...ordinary.journey, predecessor: ordinary.candidate },
+      scenarios: nativePrepublicationScenarios.map((name, index) => ({
+        ...ordinary.scenarios[index]!,
+        name,
+      })),
+    }),
+  );
+});
 void test("post-sign native captures bind exact predecessor and signed context while empty required capabilities remain valid", () => {
   const value = report("release-publication");
   value.compatibility.required_capabilities = [];
   const parsed = inspectNativeReleaseQualification(value);
   assert.deepEqual(parsed.compatibility.required_capabilities, []);
-  assert.equal(parsed.journey?.predecessor.run_id, "12222");
+  assert.ok(parsed.journey?.predecessor);
+  assert.equal(parsed.journey.predecessor.run_id, "12222");
   assert.equal(parsed.runtime.root_creation.value, "133000000000000000");
   for (const mutation of [
     (v: ReturnType<typeof report>) => {
