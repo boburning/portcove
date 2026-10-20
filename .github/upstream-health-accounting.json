@@ -5,7 +5,7 @@
   "pins": [
     {
       "port_id": "road-rash-64-recompiled",
-      "port_contract_sha256": "305a7659fa7bfb00a213316bf3d0e062822e0755bef0dc836fef5f8ff4f600fa",
+      "port_contract_sha256": "88ed43f44f03207800a58c3602e24d48483d840c560fc55ab8ea033df1d764c6",
       "platform": "windows-x86-64",
       "repository": "linkssy2/RoadRash64Recompiled",
       "tag": "v1.4.3",
@@ -22,7 +22,7 @@
     },
     {
       "port_id": "alexbeav-ape-escape-recomp",
-      "port_contract_sha256": "dbd4cbb161caf4bbce61ddc5006c7d8810d0ff2fd72391fdfb83a98b3ade91ab",
+      "port_contract_sha256": "166e5c7bd33ac6dcbff3df33690203d84ef8d759795ad9fd0d7a784ffb5e03c9",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/ape-escape-recomp",
       "tag": "v0.3.6",
@@ -39,7 +39,7 @@
     },
     {
       "port_id": "alexbeav-alundra-recomp",
-      "port_contract_sha256": "73a9622a0269cc88cf977b272ba63ecb386e122982058702545f367d5e95ebb9",
+      "port_contract_sha256": "7dd0be4a412611e8e1eb16ca0d9a57282b85b54ffde3f4af33a5b0dbf32c53c7",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/alundra-recomp",
       "tag": "v0.3.6",
@@ -56,7 +56,7 @@
     },
     {
       "port_id": "alexbeav-armored-core-recomp",
-      "port_contract_sha256": "284662070e868b50b0b3ffbe0fbe9481e3e6037041170c43ed3714f7fcf2ec56",
+      "port_contract_sha256": "67f17130e1147bc072ecf52fa5ac6430caa5133d9019aadf1044c18cabaa7dd0",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/armored-core-recomp",
       "tag": "v0.3.6",
@@ -73,7 +73,7 @@
     },
     {
       "port_id": "alexbeav-blood-omen-legacy-of-kain-recomp",
-      "port_contract_sha256": "d11dd2936a177e7938edfd09735436ce066d4fd550485fcf28ef39237a5febb6",
+      "port_contract_sha256": "19e51d0dd7eb282aeb51a7d39504599143687d6c198242e93a85a4432e427d98",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
       "tag": "v0.3.6",
@@ -90,7 +90,7 @@
     },
     {
       "port_id": "alexbeav-digimon-world-2003-recomp",
-      "port_contract_sha256": "6517965d8ffa3a3776eaa46ed8e47a4a7f4a45543999ad61adf89cf697ce90f1",
+      "port_contract_sha256": "7447485094a14cbc01caa43e95fe2ab397a286867b72d73df5915e8fc9a3806b",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/digimon-world-2003-recomp",
       "tag": "v0.3.6",
@@ -107,7 +107,7 @@
     },
     {
       "port_id": "alexbeav-duke-nukem-land-of-the-babes-recomp",
-      "port_contract_sha256": "bc7e3a00bb0ec1b9ed92bd4baf69eafce4d879b7796d248f29eb842cedf653a3",
+      "port_contract_sha256": "703b9b13f575bd400d6381989be02a76ea48520711095d9b583a9f33d35d7278",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
       "tag": "v0.3.6",
@@ -124,7 +124,7 @@
     },
     {
       "port_id": "alexbeav-driver-recomp",
-      "port_contract_sha256": "3b1eb7f5b2dd8910c44766b0b8be398c88ef660bb0290854d5dd2ee0663d7216",
+      "port_contract_sha256": "d2c5cc8374f906d8d8095e2be7624f01792d76df2cb6e4f40e9c70917b5cf151",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/driver-recomp",
       "tag": "v0.3.6",
@@ -141,7 +141,7 @@
     },
     {
       "port_id": "alexbeav-duke-nukem-time-to-kill-recomp",
-      "port_contract_sha256": "a02e040f0f27fe81bb9c156a7ca26a0fc6a709d3c2ff54495c7f31aab4059afc",
+      "port_contract_sha256": "5d3996606224a665cfd6f80c6c9cd2457ce88cfcf46bf79a591578769a4cb71a",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
       "tag": "v0.3.6",
@@ -158,7 +158,7 @@
     },
     {
       "port_id": "alexbeav-fade-to-black-recomp",
-      "port_contract_sha256": "12270d5faeac7b6035729806ea4882a14d90662ab4b01bc88617c54ece3f89e1",
+      "port_contract_sha256": "2b07bf0b8d8175d2b97004a2a37d9e8753f49a3c10c775d9186e240bd335ae1d",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/fade-to-black-recomp",
       "tag": "v0.3.6",
@@ -175,7 +175,7 @@
     },
     {
       "port_id": "alexbeav-diablo-recomp",
-      "port_contract_sha256": "090c888bd55061481516843acb151258290cf9465a72e1e2d5621107446e548e",
+      "port_contract_sha256": "74da9a1a222c27216f22876a1e4ea668b1c45c1136c964fe87a7b3308f2980e7",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/diablo-recomp",
       "tag": "v0.1.4",
@@ -192,7 +192,7 @@
     },
     {
       "port_id": "alexbeav-diablo-recomp",
-      "port_contract_sha256": "090c888bd55061481516843acb151258290cf9465a72e1e2d5621107446e548e",
+      "port_contract_sha256": "74da9a1a222c27216f22876a1e4ea668b1c45c1136c964fe87a7b3308f2980e7",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/diablo-recomp",
       "tag": "v0.1.4",
@@ -209,7 +209,7 @@
     },
     {
       "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
-      "port_contract_sha256": "57690918e02f91e795bd2cf5cb7122d581f5dd88b81b321b5f333cee1867ad31",
+      "port_contract_sha256": "e2c750fa042eb19faf0b5349eea6041ca39e67b4ae8cf6c517e3617f298abcc3",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
       "tag": "v0.3.6",
@@ -226,7 +226,7 @@
     },
     {
       "port_id": "alexbeav-ace-combat-3-electrosphere-recomp",
-      "port_contract_sha256": "57690918e02f91e795bd2cf5cb7122d581f5dd88b81b321b5f333cee1867ad31",
+      "port_contract_sha256": "e2c750fa042eb19faf0b5349eea6041ca39e67b4ae8cf6c517e3617f298abcc3",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp",
       "tag": "v0.3.6",
@@ -243,7 +243,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-recomp",
-      "port_contract_sha256": "9803631a45a07ddfd439deebd40a258ce8945ab754cd191c69824254f45eeb76",
+      "port_contract_sha256": "5279ddc17de8d4a76f82e929f11022a5df047ec0526b6f4e0af53e216b9975c5",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
       "tag": "v0.1.1",
@@ -260,7 +260,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-recomp",
-      "port_contract_sha256": "9803631a45a07ddfd439deebd40a258ce8945ab754cd191c69824254f45eeb76",
+      "port_contract_sha256": "5279ddc17de8d4a76f82e929f11022a5df047ec0526b6f4e0af53e216b9975c5",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-recomp",
       "tag": "v0.1.1",
@@ -277,7 +277,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-2-recomp",
-      "port_contract_sha256": "37ae545f15676581f4e4c73d776c5604800d7b08de082fe4cd8ecd353696e359",
+      "port_contract_sha256": "a11550bdcf63aeca89210ce48b3316ad979953808ef2715d62241d72751e9eae",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
       "tag": "v0.1.1",
@@ -294,7 +294,7 @@
     },
     {
       "port_id": "alexbeav-dino-crisis-2-recomp",
-      "port_contract_sha256": "37ae545f15676581f4e4c73d776c5604800d7b08de082fe4cd8ecd353696e359",
+      "port_contract_sha256": "a11550bdcf63aeca89210ce48b3316ad979953808ef2715d62241d72751e9eae",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/dino-crisis-2-recomp",
       "tag": "v0.1.1",
@@ -311,7 +311,7 @@
     },
     {
       "port_id": "alexbeav-alien-resurrection-recomp",
-      "port_contract_sha256": "cb37d2eed96ea7904e97866e8ca2d960f63ad37e86dab5485a59ccf71c07cbae",
+      "port_contract_sha256": "e78011088bfdf6dfceec15b55844a75515a4525c28a75d97a2d8d7195ebe5fa6",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
       "tag": "v0.1.4",
@@ -328,7 +328,7 @@
     },
     {
       "port_id": "alexbeav-alien-resurrection-recomp",
-      "port_contract_sha256": "cb37d2eed96ea7904e97866e8ca2d960f63ad37e86dab5485a59ccf71c07cbae",
+      "port_contract_sha256": "e78011088bfdf6dfceec15b55844a75515a4525c28a75d97a2d8d7195ebe5fa6",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/alien-resurrection-recomp",
       "tag": "v0.1.4",
@@ -345,7 +345,7 @@
     },
     {
       "port_id": "alexbeav-brave-fencer-musashi-recomp",
-      "port_contract_sha256": "de7072892369cb7cb2522bbea6d2041b5f4ac3c33a6b9c51bddfe2a8d59011e6",
+      "port_contract_sha256": "05b2e89b35747291a994461bf9d9a481540f7ac90f5d39054f1339200123c33e",
       "platform": "windows-x86-64",
       "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
       "tag": "v0.1.3",
@@ -362,7 +362,7 @@
     },
     {
       "port_id": "alexbeav-brave-fencer-musashi-recomp",
-      "port_contract_sha256": "de7072892369cb7cb2522bbea6d2041b5f4ac3c33a6b9c51bddfe2a8d59011e6",
+      "port_contract_sha256": "05b2e89b35747291a994461bf9d9a481540f7ac90f5d39054f1339200123c33e",
       "platform": "linux-x86-64",
       "repository": "alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
       "tag": "v0.1.3",
@@ -415,7 +415,7 @@
   "original_conditions": [
     {
       "port_id": "mortal-kombat-4-recompiled",
-      "port_contract_sha256": "b516f9d6ff5af77edadf296fda14f6194195e3d7544b7721c4709f4eef642b8e",
+      "port_contract_sha256": "07ee2647f19defec5c8e745909e8b71af113244945d4adfdf735c4f479612c52",
       "provider": "github",
       "repository": "Alexbeav/mortal-kombat-4-recomp",
       "operation": "observe-availability",
@@ -427,7 +427,7 @@
     },
     {
       "port_id": "alexbeav-ape-escape-recomp",
-      "port_contract_sha256": "dbd4cbb161caf4bbce61ddc5006c7d8810d0ff2fd72391fdfb83a98b3ade91ab",
+      "port_contract_sha256": "166e5c7bd33ac6dcbff3df33690203d84ef8d759795ad9fd0d7a784ffb5e03c9",
       "provider": "github",
       "repository": "Alexbeav/ape-escape-recomp",
       "operation": "observe-availability",
@@ -439,7 +439,7 @@
     },
     {
       "port_id": "alexbeav-alundra-recomp",
-      "port_contract_sha256": "73a9622a0269cc88cf977b272ba63ecb386e122982058702545f367d5e95ebb9",
+      "port_contract_sha256": "7dd0be4a412611e8e1eb16ca0d9a57282b85b54ffde3f4af33a5b0dbf32c53c7",
       "provider": "github",
       "repository": "Alexbeav/alundra-recomp",
       "operation": "observe-availability",
@@ -451,7 +451,7 @@
     },
     {
       "port_id": "star-fox-enhanced",
-      "port_contract_sha256": "75294598b6a0d8680aa55294c65335184da86c9663d1f33e9387a0e0d1214c81",
+      "port_contract_sha256": "ae6ff0d8f6c45c15085504c2375353b8856a45beaeb4a27ed60d1a017e5b4e63",
       "provider": "github",
       "repository": "kandowontu/starfox-enhanced",
       "operation": "observe-availability",
