@@ -5,7 +5,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { SourceRemovalPreview } from "../types";
-import { SourceRemovalControl, SourceRemovalDialog } from "./SourceRemoval";
+import { SourceRemovalControl, SourceRemovalReview } from "./SourceRemoval";
+import "../styles/index.css";
 
 const ports = [
   { ...portDefinition(), id: "installed", name: "Installed game" },
@@ -37,6 +38,7 @@ afterEach(async () => {
   container.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  document.documentElement.removeAttribute("dir");
 });
 function button(label: string) {
   const result = [...document.body.querySelectorAll("button")].find(
@@ -48,18 +50,64 @@ function button(label: string) {
 async function click(label: string) {
   await act(async () => button(label).click());
 }
-function dialog() {
-  const result = document.body.querySelector<HTMLElement>('[data-slot="dialog-content"]');
+function impact() {
+  const result = document.body.querySelector<HTMLElement>(
+    '[aria-label="Saved-location removal impact"]',
+  );
   expect(result).not.toBeNull();
   return result!;
 }
+
+it("isolates a mixed-script Windows path in an RTL layout without changing its text", async () => {
+  const path = "D:\\Originals ü\\العربية\\game.iso";
+  document.documentElement.dir = "rtl";
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue({
+    ...preview,
+    source: { ...preview.source, path },
+  });
+  await root.rerender(
+    <SourceRemovalReview
+      profileId="source"
+      generation={3}
+      ports={ports}
+      close={vi.fn()}
+      onRemoved={vi.fn()}
+    />,
+  );
+  const code = impact().querySelector("code")!;
+  expect(code.textContent).toBe(path);
+  expect(getComputedStyle(code).direction).toBe("ltr");
+  expect(getComputedStyle(code).unicodeBidi).toBe("isolate");
+});
+
+it("requires fresh intent after location identity changes and never opens renderer approval", async () => {
+  const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
+  const remove = vi.spyOn(desktopApi, "removeSource");
+  const control = (source = preview.source) => (
+    <SourceRemovalControl source={source} generation={3} ports={ports} disabled={false} />
+  );
+  await root.rerender(control());
+  expect(read).not.toHaveBeenCalled();
+  await click("Review saved location removal");
+  expect(read).toHaveBeenCalledOnce();
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+  expect(impact().textContent).toContain(preview.source.path);
+  await root.rerender(control({ ...preview.source, path: "新しい場所/game.bin" }));
+  expect(document.body.querySelector('[aria-label="Saved-location removal impact"]')).toBeNull();
+  await root.rerender(control());
+  expect(document.body.querySelector('[aria-label="Saved-location removal impact"]')).toBeNull();
+  expect(read).toHaveBeenCalledOnce();
+  expect(remove).not.toHaveBeenCalled();
+  await click("Review saved location removal");
+  expect(read).toHaveBeenCalledTimes(2);
+});
 
 it("shows the original path, installed impact and all dependents without removing anything", async () => {
   const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
   const remove = vi.spyOn(desktopApi, "removeSource");
   const close = vi.fn();
   await root.rerender(
-    <SourceRemovalDialog
+    <SourceRemovalReview
       profileId="source"
       generation={3}
       ports={ports}
@@ -73,12 +121,12 @@ it("shows the original path, installed impact and all dependents without removin
     "Installed game",
     "Another compatible game",
     "Only this library's location",
-    "will not move or delete files at",
+    "does not move or delete files at",
     "If interrupted, reopen Settings",
   ])
-    expect(dialog().textContent).toContain(text);
-  expect(dialog().textContent).not.toContain("will stay at");
-  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Keep location");
+    expect(impact().textContent).toContain(text);
+  expect(impact().textContent).not.toContain("will stay at");
+  expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   await click("Keep location");
   expect(close).toHaveBeenCalledOnce();
   expect(remove).not.toHaveBeenCalled();
@@ -90,7 +138,7 @@ it("binds application to the review and does not treat native cancellation as re
   const close = vi.fn();
   const removed = vi.fn();
   await root.rerender(
-    <SourceRemovalDialog
+    <SourceRemovalReview
       profileId="source"
       generation={3}
       ports={ports}
@@ -98,7 +146,7 @@ it("binds application to the review and does not treat native cancellation as re
       onRemoved={removed}
     />,
   );
-  await click("Continue to removal confirmation");
+  await click("Remove saved location…");
   expect(remove).toHaveBeenCalledExactlyOnceWith("source", "reviewed-source-impact", 3);
   expect(close).toHaveBeenCalledOnce();
   expect(removed).not.toHaveBeenCalled();
@@ -120,7 +168,7 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
   const close = vi.fn();
   const removed = vi.fn().mockResolvedValue(undefined);
   await root.rerender(
-    <SourceRemovalDialog
+    <SourceRemovalReview
       profileId="source"
       generation={3}
       ports={ports}
@@ -129,7 +177,7 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
     />,
   );
   await act(async () => {
-    const submit = button("Continue to removal confirmation");
+    const submit = button("Remove saved location…");
     submit.click();
     submit.click();
   });
@@ -137,13 +185,17 @@ it("blocks duplicate submissions within one event batch and requires fresh inten
   expect(remove).toHaveBeenCalledOnce();
   expect(close).not.toHaveBeenCalled();
   await act(async () => reject(new Error("Source or dependents changed")));
-  expect(dialog().querySelector('[role="alert"]')?.textContent).toContain(
+  expect(impact().querySelector('[role="alert"]')?.textContent).toContain(
     "Source or dependents changed",
   );
-  expect(dialog().textContent).not.toContain("Continue to removal confirmation");
+  expect(
+    [...impact().querySelectorAll("button")].some(
+      (button) => button.textContent === "Remove saved location…",
+    ),
+  ).toBe(false);
   await click("Check saved location again");
   expect(read).toHaveBeenCalledTimes(2);
-  await click("Continue to removal confirmation");
+  await click("Remove saved location…");
   expect(removed).toHaveBeenCalledOnce();
   expect(close).toHaveBeenCalledOnce();
 });
@@ -169,7 +221,7 @@ it("ignores a late preview from a previous source or library", async () => {
   const close = vi.fn();
   const removed = vi.fn();
   await root.rerender(
-    <SourceRemovalDialog
+    <SourceRemovalReview
       profileId="source"
       generation={3}
       ports={ports}
@@ -178,7 +230,7 @@ it("ignores a late preview from a previous source or library", async () => {
     />,
   );
   await root.rerender(
-    <SourceRemovalDialog
+    <SourceRemovalReview
       profileId="new"
       generation={4}
       ports={ports}
@@ -187,9 +239,9 @@ it("ignores a late preview from a previous source or library", async () => {
     />,
   );
   await act(async () => finish(preview));
-  expect(dialog().textContent).toContain("new-original/game.bin");
-  expect(dialog().textContent).toContain("No installed game currently depends");
-  expect(dialog().textContent).not.toContain("Reference to remove: source");
+  expect(impact().textContent).toContain("new-original/game.bin");
+  expect(impact().textContent).toContain("No installed game currently depends");
+  expect(impact().textContent).not.toContain("Reference to remove: source");
 });
 
 it("retries only the list refresh after a completed removal has a refresh failure", async () => {
@@ -208,8 +260,8 @@ it("retries only the list refresh after a completed removal has a refresh failur
       onRemoved={refresh}
     />,
   );
-  await click("Remove saved location");
-  await click("Continue to removal confirmation");
+  await click("Review saved location removal");
+  await click("Remove saved location…");
   expect(container.querySelector('[role="status"]')?.textContent).toContain(
     "The saved location was removed",
   );
@@ -232,7 +284,7 @@ it("never commits an old source preview under a new identity", async () => {
       observations.push(document.body.textContent ?? "");
     }, [profileId]);
     return (
-      <SourceRemovalDialog
+      <SourceRemovalReview
         profileId={profileId}
         generation={3}
         ports={ports}
@@ -242,8 +294,12 @@ it("never commits an old source preview under a new identity", async () => {
     );
   }
   await root.rerender(<Context profileId="source" />);
-  expect(dialog().textContent).toContain("original/game.bin");
+  expect(impact().textContent).toContain("original/game.bin");
   await root.rerender(<Context profileId="new" />);
   expect(observations.at(-1)).not.toContain("original/game.bin");
-  expect(dialog().textContent).not.toContain("Continue to removal confirmation");
+  expect(
+    [...impact().querySelectorAll("button")].some(
+      (button) => button.textContent === "Remove saved location…",
+    ),
+  ).toBe(false);
 });
