@@ -65,6 +65,25 @@ void test("provider-byte discovery derives fixed matrix facts while retaining no
   assert.equal(found.archive_sha256, expected.sha256);
 });
 
+void test("current attempt identity refuses older declared producer bytes in discovery and provider staging", async (t) => {
+  const f = await fixture(t);
+  const archive = createAuditZip(f.entries);
+  const current = { ...f.request, run_attempt: 2 };
+  await assert.rejects(
+    discoverReleaseArtifactFiles(archive, identity(archive), f.platform, current),
+    /producer attempt differs/,
+  );
+  await assert.rejects(
+    stageReleaseArtifact(f.stage, archive, current, f.platform, identity(archive), {
+      exactProducerAttempt: true,
+    }),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      error.cause.message === "release artifact producer attempt differs from artifact identity",
+  );
+});
+
 void test("discovery refuses changed checksum declarations, producer identity and oversized metadata", async (t) => {
   const f = await fixture(t);
   for (const fault of ["checksum", "producer", "oversized"]) {
@@ -329,7 +348,7 @@ async function integration(t: test.TestContext) {
           total_count: archives.length,
           artifacts: archives.map((a) => ({
             id: a.artifact_id,
-            name: `release-build-${a.platform}`,
+            name: `release-build-${a.platform}-12345-1`,
             size_in_bytes: a.bytes,
             digest: `sha256:${drift && inventoryReads > 1 ? "0".repeat(64) : a.sha256}`,
             expired: false,

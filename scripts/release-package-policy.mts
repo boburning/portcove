@@ -247,6 +247,19 @@ export function releaseLabels(policy: ReleasePackagePolicy) {
   return [...new Set(policy.packages.map((entry) => entry.platform_label))];
 }
 
+/** Provider artifact names identify one immutable producer attempt. Local
+ * verified staging directories deliberately retain their platform-only layout. */
+export function releaseBuildArtifactName(platform: string, runId: string, attempt: number) {
+  if (
+    !allowedPlatforms.has(platform) ||
+    !/^[1-9][0-9]{0,15}$/u.test(runId) ||
+    !Number.isSafeInteger(attempt) ||
+    attempt < 1
+  )
+    throw new Error("release artifact requires exact platform/run/attempt identity");
+  return `release-build-${platform}-${runId}-${attempt}`;
+}
+
 export async function workspaceVersion(projectRoot = defaultProjectRoot) {
   const cargo = await readFile(path.join(projectRoot, "Cargo.toml"), "utf8");
   const table = cargo.match(/(?:^|\r?\n)\[workspace\.package\]\r?\n([\s\S]*?)(?=\r?\n\[|$)/)?.[1];

@@ -124,6 +124,8 @@ export async function discoverReleaseArtifactFiles(
     expected.version,
     { runId: expected.run_id, revision: expected.source_commit, maxAttempt: expected.run_attempt },
   );
+  if (declared.run_attempt !== expected.run_attempt)
+    throw new Error("release discovery producer attempt differs from artifact identity");
   return {
     files,
     declared_producer: {
@@ -150,8 +152,10 @@ export async function stageReleaseArtifact(
   rawRequest: unknown,
   platform: string,
   archiveIdentity: unknown,
+  options: { exactProducerAttempt?: boolean } = {},
 ) {
   const started = performance.now();
+  const exactProducerAttempt = options.exactProducerAttempt === true;
   // Take exclusive custody before the first asynchronous operation. Copying a
   // shared or externally mutable buffer must reproduce the accepted digest.
   const { archive: retainedArchive, sha256: archiveSha256 } = retainArchive(
@@ -221,6 +225,20 @@ export async function stageReleaseArtifact(
       )
         throw new Error("release artifact bytes or CRC differ from accepted input");
       active();
+      if (exactProducerAttempt && filename === `release-producer-${platform}.json`) {
+        const declared = inspectReleaseProducer(
+          JSON.parse(bytes.toString("utf8")),
+          platform,
+          accepted.version,
+          {
+            runId: accepted.run_id,
+            revision: accepted.source_commit,
+            maxAttempt: accepted.run_attempt,
+          },
+        );
+        if (declared.run_attempt !== accepted.run_attempt)
+          throw new Error("release artifact producer attempt differs from artifact identity");
+      }
       await writeFile(path.join(directory, filename), bytes, { flag: "wx", mode: 0o600 });
       active();
       files.push({ filename, bytes: bytes.length, sha256: expectedFile.sha256 });

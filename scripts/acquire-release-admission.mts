@@ -20,7 +20,11 @@ import {
   requiredContextsFromConfigs,
   PullRequestDeliveryClient,
 } from "./pr-delivery.mts";
-import { loadPackagePolicy, releaseLabels } from "./release-package-policy.mts";
+import {
+  loadPackagePolicy,
+  releaseLabels,
+  releaseBuildArtifactName,
+} from "./release-package-policy.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -572,7 +576,15 @@ export async function acquireReleaseAdmission(
     const labels = releaseLabels(policy);
     const archives = [];
     for (const platform of labels) {
-      const matches = evidence.artifacts.filter((a) => a.name === `release-build-${platform}`);
+      const matches = evidence.artifacts.filter(
+        (a) =>
+          a.name ===
+          releaseBuildArtifactName(
+            platform,
+            String(evidenceRequest.run_id),
+            evidenceRequest.attempt,
+          ),
+      );
       const artifact = matches[0];
       if (
         matches.length !== 1 ||

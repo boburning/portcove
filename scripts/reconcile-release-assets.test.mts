@@ -1,6 +1,15 @@
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test, { type TestContext } from "node:test";
@@ -13,6 +22,7 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
   releaseLabels,
+  releaseBuildArtifactName,
 } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
@@ -81,6 +91,41 @@ async function addProducerRecords(paths: FixturePaths, overrides: Record<string,
     );
   }
 }
+
+void test("attempt-named provider downloads reconcile with exact lineage and reject relabelled producers", async (t) => {
+  const paths = await fixture(t);
+  await addProducerRecords(paths, { run_attempt: 2 });
+  const lineage = { runId: "34727305533", revision: "a".repeat(40), maxAttempt: 2 };
+  for (const label of releaseLabels(policy))
+    await rename(
+      path.join(paths.input, `release-build-${label}`),
+      path.join(paths.input, releaseBuildArtifactName(label, lineage.runId, 2)),
+    );
+  const result = await reconcile(paths, { lineage, artifactLayout: "attempt" });
+  assert.equal(result.inventory.packages.length, policy.packages.length);
+  await assert.rejects(
+    reconcile(paths, { artifactLayout: "attempt" }),
+    /requires exact consumer lineage/,
+  );
+  await assert.rejects(
+    reconcile(paths, { lineage: { ...lineage, maxAttempt: 1 }, artifactLayout: "attempt" }),
+    /must contain exactly/,
+  );
+  const label = releaseLabels(policy)[0]!;
+  const record = path.join(
+    paths.input,
+    releaseBuildArtifactName(label, lineage.runId, 2),
+    "release-upload",
+    `release-producer-${label}.json`,
+  );
+  const producer: unknown = JSON.parse(await readFile(record, "utf8"));
+  assert.ok(isRecord(producer));
+  await writeFile(record, JSON.stringify({ ...producer, run_attempt: 1 }));
+  await assert.rejects(
+    reconcile(paths, { lineage, artifactLayout: "attempt" }),
+    /producer attempt differs/,
+  );
+});
 
 void test("reconciles the exact matrix, keeps platform manifests internal, and is deterministic", async (t) => {
   const { input, output, inventoryPath } = await fixture(t);
