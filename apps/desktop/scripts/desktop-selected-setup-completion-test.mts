@@ -981,6 +981,10 @@ export async function selectedSetupCompletionScenario({
       await browser.wait(until.elementLocated(queue), 5_000);
       assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       await screenshot("selected-setup-queue-return");
+      await click(
+        By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Settings")]'),
+      );
+      await selectGameFilesSettings(browser);
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
       const accessibilityValue: unknown = JSON.parse(await readFile(accessibilityFile, "utf8"));
@@ -1004,6 +1008,11 @@ export async function selectedSetupCompletionScenario({
         [],
         "The visible source result must not retain prohibited or unresolved ARIA attributes",
       );
+      await click(
+        By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Library")]'),
+      );
+      await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
+      assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       // The game remains registered outside this new root. Only a newly found
       // BIOS can associate the incomplete port with the next setup selection.
       const biosOnly = path.join(owned.directory, "bios-only");
