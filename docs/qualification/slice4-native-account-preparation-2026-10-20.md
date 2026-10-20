@@ -277,6 +277,14 @@ configuration, candidate work/profile or capture storage. This closes the gap
 between a matching tool hash and a candidate-writable executable path, without
 adding a global installation or changing an existing host ACL.
 
+The bridge capture now also retains each actual returned root's image path,
+verified launch digest and UTC startup time alongside PID/creation and teardown.
+The digest comes from the fixed verified-launch operation's deny-write/delete
+custody, not from an imported report. A missing teardown remains null. A focused
+inert root-projection test passes; its first assertion incorrectly compared a
+PowerShell 7.6 automatically parsed JSON DateTime with a string, and now checks
+the exact retained wire timestamp. No candidate was launched by this fixture.
+
 One bounded, read-only WSL capability inspection saw Ubuntu and docker-desktop
 registered as stopped WSL2 distributions. The single fixed Ubuntu owner/tool
 query then reached its 20-second child timeout without stdout or stderr. It
