@@ -31,7 +31,9 @@ it("announces repeated task outcomes without creating duplicate landmarks", asyn
   let state!: ReturnType<typeof useOperationState>;
   function Fixture() {
     state = useOperationState({ refresh: async () => {} });
-    return <StatusLayer clearError={state.clearError} invocations={state.invocations} />;
+    return (
+      <StatusLayer clearError={() => state.setError(undefined)} invocations={state.invocations} />
+    );
   }
   try {
     await act(async () => root.render(<Fixture />));
