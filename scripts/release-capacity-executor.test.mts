@@ -36,6 +36,40 @@ void test("serialized job claims or a copied kind cannot create an executor sess
 });
 
 void test("signing executors can hand off only their own immutable output, never another role or publication", () => {
+  const contextDestination =
+    "github-actions:boburning/portcove:0.1.0-beta.1:payload-signing-context";
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("payload-signing", {
+      kind: "upload",
+      destination: contextDestination,
+    }),
+  );
+  for (const role of [
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+    "coordinator",
+    "release-publication",
+    "site-publication",
+  ] as const)
+    assert.throws(
+      () =>
+        assertCapacityExecutorEffectScope(role, {
+          kind: "upload",
+          destination: contextDestination,
+        }),
+      /fixed scope/,
+    );
+  assert.throws(
+    () =>
+      assertCapacityExecutorEffectScope("payload-signing", {
+        kind: "upload",
+        destination: contextDestination + ":2",
+      }),
+    /fixed scope/,
+  );
   const roles = [
     "payload-signing",
     "tuf-releases",
