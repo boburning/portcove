@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { performance } from "node:perf_hooks";
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -267,8 +268,17 @@ export async function receiveControllerTools(
     api?: GitHubRestReader;
     download?: typeof readGitHubArtifactArchive;
     spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    deadline?: number;
   } = {},
 ) {
+  const deadline = options.deadline;
+  const remaining = (maximum: number) => {
+    const left = deadline === undefined ? maximum : Math.floor(deadline - performance.now());
+    if (!Number.isFinite(left) || left < 1 || (deadline !== undefined && left > 600000))
+      throw new Error("controller tool receiver phase deadline exhausted");
+    return Math.min(maximum, left);
+  };
+  remaining(15000);
   const expected = expectedInput(raw),
     bundle = structuredClone(rawBundle);
   if (
@@ -300,16 +310,25 @@ export async function receiveControllerTools(
       cwd: directory,
       maxBuffer: 128 * 1024,
       timeoutMs: 15000,
-      spawn: (command, args, settings) =>
-        spawnSync(command, args, { ...settings, env: environment }),
+      spawn: (command, args, settings) => {
+        const result = spawnSync(command, args, {
+          ...settings,
+          env: environment,
+          timeout: remaining(15000),
+        });
+        remaining(15000);
+        return result;
+      },
     });
     const api =
       options.api ??
       new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
     let requests = 0;
     const get = (route: string) => {
+      remaining(15000);
       if (++requests > 12) throw new Error("bootstrap provider request bound exhausted");
       const response = api.request("GET", `${base}/${route}`);
+      remaining(15000);
       if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 128 * 1024)
         throw new Error("bootstrap provider unavailable");
       return response.body;
@@ -357,11 +376,12 @@ export async function receiveControllerTools(
         {
           cwd: directory,
           maxBytes: item.bytes,
-          timeoutMs: 120000,
+          timeoutMs: remaining(120000),
           spawn: (command, args, settings) =>
             spawnSync(command, args, { ...settings, env: environment }),
         },
       );
+      remaining(120000);
       if (bytes.length !== item.bytes || hash(bytes) !== item.sha256)
         throw new Error("bootstrap opaque archive differs");
       return Buffer.from(bytes);
@@ -491,6 +511,7 @@ export async function receiveControllerTools(
     const tools = path.join(directory, "tools");
     await mkdir(tools, { mode: 0o700 });
     for (const [name, bytes] of inspected.files) {
+      remaining(15000);
       await mkdir(path.dirname(path.join(tools, name)), { recursive: true, mode: 0o700 });
       await writeFile(path.join(tools, name), bytes, {
         flag: "wx",
@@ -516,6 +537,7 @@ export async function receiveControllerTools(
       flag: "wx",
       mode: 0o600,
     });
+    remaining(15000);
     receivedTools.set(result, {
       tools,
       files: structuredClone(inspected.manifest.files),

@@ -3,11 +3,25 @@ import { lstatSync, mkdtempSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
+import { performance } from "node:perf_hooks";
 
 /** Credential transport only. The existing remote verifier owns repository,
  * namespace, object and CAS checks; this API grants no caller/job authority.
  * Journal credentials are never borrowed from the provider GH_TOKEN/config. */
-export function createCoordinatorJournalApi(directory: string): CoordinatorRemoteApi {
+export function createCoordinatorJournalApi(
+  directory: string,
+  deadline?: number,
+): CoordinatorRemoteApi {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new Error("journal role phase deadline must be finite");
+  const remaining = () => {
+    const timeout =
+      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
+    if (!Number.isFinite(timeout) || timeout < 1)
+      throw new Error("journal role phase deadline exhausted");
+    return timeout;
+  };
+  remaining();
   const token = process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN;
   if (
     typeof token !== "string" ||
@@ -58,7 +72,11 @@ export function createCoordinatorJournalApi(directory: string): CoordinatorRemot
     timeoutMs: 15000,
     maxBuffer: 2 * 1024 * 1024,
     spawn(command, args, options) {
-      const result = spawnSync(command, args, { ...options, env: environment });
+      const result = spawnSync(command, args, {
+        ...options,
+        timeout: remaining(),
+        env: environment,
+      });
       const error = result.error
         ? Object.assign(new Error("journal subprocess failed"), {
             code:
@@ -75,9 +93,12 @@ export function createCoordinatorJournalApi(directory: string): CoordinatorRemot
       };
     },
   });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
+  const api = new GitHubApiClient((args, body) => {
+    remaining();
+    const result = runner([...args, "--hostname", "github.com"], body);
+    remaining();
+    return result;
+  });
   return {
     request(method, endpoint, body) {
       if (
