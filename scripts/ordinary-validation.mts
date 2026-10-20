@@ -548,7 +548,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/native-qualification-account-client.mts",
     [
       "scripts/native-qualification-account-client.test.mts",
-      "apps/desktop/scripts/desktop-native-account-session.test.mts",
+      "scripts/desktop-native-account-session.test.mts",
     ],
   ],
   [
@@ -562,7 +562,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "apps/desktop/scripts/desktop-native-account-session.mts",
     [
-      "apps/desktop/scripts/desktop-native-account-session.test.mts",
+      "scripts/desktop-native-account-session.test.mts",
       "scripts/native-helper-dependencies.test.mts",
     ],
   ],
