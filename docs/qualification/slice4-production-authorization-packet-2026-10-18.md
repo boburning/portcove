@@ -11,6 +11,14 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
+connects actual SPDX verification, beta dispatch attestation and supervised CLI/
+desktop invocation capture, adds exact identities to the existing native outer
+journals and prepares a same-process positive continuation. It preserves the
+remaining compiler/native execution and authenticated-handoff holds; fixtures
+and signed document bytes do not establish those obligations. Final source,
+workflow/resource ratification and protected acceptance remain pending.
+
 The October 20 [authenticated metadata-renewal connection](slice4-534-metadata-renewal-2026-10-20.md)
 adds actual public-feed Tough authentication, unchanged-target renewal, verified
 assembler publication facts and metadata-only operations in the existing remote
