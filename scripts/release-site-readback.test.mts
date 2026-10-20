@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
+  materializePublishedApplicationComponent,
 } from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
@@ -34,6 +39,156 @@ function response(url: string, bytes: Buffer, status = 200) {
   Object.defineProperty(result, "url", { value: url });
   return result;
 }
+
+function componentFixture() {
+  const files = new Map([
+    [".nojekyll", Buffer.alloc(0)],
+    ["application/metadata/1.root.json", Buffer.from("independently-pinned-root")],
+    ["application/metadata/timestamp.json", Buffer.from("actual-verifier-still-required")],
+    ["application/targets/retained.json", Buffer.from("unchanged-target")],
+    ["catalog/targets/separate.json", Buffer.from("never-download-for-application-renewal")],
+  ]);
+  const inventory = [...files].map(([path, bytes]) => ({
+    path,
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  }));
+  const root = inventory.find((file) => file.path.endsWith("1.root.json"))!.sha256;
+  const unsigned = {
+    schema_version: 1,
+    previous_generation: null,
+    application_root_sha256: root,
+    files: inventory,
+  };
+  const marker = { ...unsigned, generation: capacityDigest(unsigned) };
+  files.set("publication.json", Buffer.from(JSON.stringify(marker)));
+  return {
+    files,
+    marker,
+    expected: {
+      site_generation_sha256: marker.generation,
+      root_sha256: root,
+      repository_sha256: capacityDigest(
+        inventory
+          .filter((file) => file.path.startsWith("application/"))
+          .map((file) => ({ ...file, path: file.path.slice(12) })),
+      ),
+    },
+  };
+}
+
+void test("fresh renewal materialization pins complete component, preserves history and never reads catalog", async (t) => {
+  const f = componentFixture();
+  const parent = await mkdtemp(path.join(os.tmpdir(), "public-component-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, options: RequestInit) => {
+    assert.equal(options.credentials, "omit");
+    assert.equal(options.redirect, "error");
+    calls.push(url);
+    return response(url, f.files.get(url.slice(origin.length))!);
+  });
+  const result = await materializePublishedApplicationComponent(f.expected, parent);
+  assert.equal(result.receipt.authority, "none");
+  assert.equal(await readFile(result.root_path, "utf8"), "independently-pinned-root");
+  assert.equal(
+    await readFile(path.join(result.directory, "targets/retained.json"), "utf8"),
+    "unchanged-target",
+  );
+  assert.equal(calls.length, 5);
+  assert.equal(
+    calls.some((url) => url.includes("/catalog/")),
+    false,
+  );
+  assert.equal(
+    await readFile(path.join(path.dirname(result.directory), "readback.json"), "utf8"),
+    JSON.stringify(result.receipt),
+  );
+});
+
+void test("wrong journal pins, changed bytes and changed generation retain partial materialization and refuse", async (t) => {
+  for (const mode of ["generation", "root", "repository", "bytes", "bracket"] as const) {
+    const f = componentFixture();
+    const parent = await mkdtemp(path.join(os.tmpdir(), "public-component-refusal-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    let markerReads = 0;
+    const mocked = t.mock.method(globalThis, "fetch", async (url: string) => {
+      const name = url.slice(origin.length);
+      if (name === "publication.json") markerReads++;
+      return response(
+        url,
+        mode === "bytes" && name.endsWith("retained.json")
+          ? Buffer.from("tampered")
+          : mode === "bracket" && markerReads === 2
+            ? Buffer.from("changed")
+            : f.files.get(name)!,
+      );
+    });
+    const expected = { ...f.expected };
+    if (mode === "generation") expected.site_generation_sha256 = "f".repeat(64);
+    if (mode === "root") expected.root_sha256 = "f".repeat(64);
+    if (mode === "repository") expected.repository_sha256 = "f".repeat(64);
+    await assert.rejects(materializePublishedApplicationComponent(expected, parent), /retain /u);
+    const [retained] = await readdir(parent);
+    const failure: unknown = JSON.parse(
+      await readFile(path.join(parent, retained!, "refusal.json"), "utf8"),
+    );
+    assert.ok(isRecord(failure));
+    assert.equal(failure.completed, false);
+    assert.equal(failure.authority, "none");
+    if (mode === "bracket")
+      assert.equal(
+        await readFile(path.join(parent, retained!, "repository/targets/retained.json"), "utf8"),
+        "unchanged-target",
+      );
+    mocked.mock.restore();
+  }
+});
+
+void test("renewal bounds and a missing pinned root refuse before component downloads", async (t) => {
+  for (const mode of ["oversize", "missing-root"] as const) {
+    const f = componentFixture();
+    const parent = await mkdtemp(path.join(os.tmpdir(), "public-component-bounds-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    const unsigned = {
+      schema_version: 1,
+      previous_generation: null,
+      application_root_sha256: f.expected.root_sha256,
+      files: f.marker.files
+        .filter((file) => mode !== "missing-root" || !file.path.endsWith("1.root.json"))
+        .map((file) =>
+          mode === "oversize" && file.path.endsWith("timestamp.json")
+            ? { ...file, bytes: 1024 * 1024 + 1 }
+            : file,
+        ),
+    };
+    const generation = capacityDigest(unsigned);
+    const repository = capacityDigest(
+      unsigned.files
+        .filter((file) => file.path.startsWith("application/"))
+        .map((file) => ({ ...file, path: file.path.slice(12) })),
+    );
+    let calls = 0;
+    const mocked = t.mock.method(globalThis, "fetch", async (url: string) => {
+      calls++;
+      assert.equal(url, `${origin}publication.json`);
+      return response(url, Buffer.from(JSON.stringify({ ...unsigned, generation })));
+    });
+    await assert.rejects(
+      materializePublishedApplicationComponent(
+        {
+          ...f.expected,
+          site_generation_sha256: generation,
+          repository_sha256: repository,
+        },
+        parent,
+      ),
+      /retain /u,
+    );
+    assert.equal(calls, 1);
+    mocked.mock.restore();
+  }
+});
 
 void test("late marker bracket reads only the fixed marker, refuses stale/error responses and claims no file readback", async (context) => {
   const { files, marker } = fixture();
