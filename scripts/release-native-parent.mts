@@ -90,6 +90,7 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     capture: descriptor.capture_root,
     native_issuer: transport.native_issuer.private_key,
     source_reader: transport.source_read_token,
+    source_tool: transport.github_cli.path,
   };
   // The hash-pinned installed action supplies this immutable descriptor. Its
   // argument strings cannot select a candidate report or alternate worker.

@@ -83,12 +83,12 @@ function inspectExpected(raw: unknown) {
   exact(raw.powershell, "path,sha256");
   exact(
     raw.protected_paths,
-    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader",
+    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
   );
   const protectedPaths = Object.fromEntries(
     Object.entries(raw.protected_paths).map(([key, value]) => [key, winPath(value)]),
   );
-  if (new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !== 8)
+  if (new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !== 9)
     throw new Error("native scheduler custody paths overlap");
   return {
     task_path: taskPath,
@@ -115,7 +115,7 @@ export function inspectNativeSchedulerObservation(
     throw new Error("native scheduler reader identity/elevation differs");
   exact(
     raw.custody,
-    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader",
+    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
   );
   for (const [key, pathname] of Object.entries(expected.protected_paths)) {
     const observed = raw.custody[key];

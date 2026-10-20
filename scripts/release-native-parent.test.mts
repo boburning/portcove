@@ -31,7 +31,7 @@ function fixture() {
   const transport = {
     schema_version: 1,
     source_read_token: "C:\\Portcove\\credentials\\read.token",
-    github_cli: { path: "C:\\Program Files\\GitHub CLI\\gh.exe", sha256: "4".repeat(64) },
+    github_cli: { path: "C:\\Portcove\\tools\\gh.exe", sha256: "4".repeat(64) },
     native_issuer: {
       private_key: "C:\\Portcove\\credentials\\native.pem",
       public_key_sha256: "4".repeat(64),
@@ -46,6 +46,7 @@ function fixture() {
     capture: descriptor.capture_root,
     native_issuer: transport.native_issuer.private_key,
     source_reader: transport.source_read_token,
+    source_tool: transport.github_cli.path,
   };
   const scheduler = {
     task_path: descriptor.scheduler_identity.name,

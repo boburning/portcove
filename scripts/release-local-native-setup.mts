@@ -186,6 +186,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     await linuxOwnerPath(descriptor.capture_root, true);
     await linuxOwnerPath(transport.source_read_token);
     await linuxOwnerPath(transport.native_issuer.private_key);
+    await linuxOwnerPath(transport.github_cli.path);
   }
   const authority = inspectReleaseAuthorityConfiguration(
     JSON.parse(
@@ -224,6 +225,18 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
         )
       : []),
   ];
+  if (
+    [...credentials, ...publicFiles].some(
+      (file) => normalize(file) === normalize(transport.github_cli.path),
+    ) ||
+    candidateRoots
+      .filter((root) => root !== checkout)
+      .some((root) => {
+        const relative = parser.relative(normalize(root), normalize(transport.github_cli.path));
+        return relative === "" || (!relative.startsWith("..") && !parser.isAbsolute(relative));
+      })
+  )
+    throw new Error("native source tool overlaps credential, candidate or capture custody");
   for (const file of credentials) {
     if (
       publicFiles.some((value) => normalize(file) === normalize(value)) ||

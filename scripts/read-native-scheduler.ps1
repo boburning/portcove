@@ -43,9 +43,9 @@ function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected, [bo
 $pathsBytes = [Convert]::FromBase64String($ProtectedPathsBase64)
 if ($pathsBytes.Length -gt 8192) { throw 'Native custody path inventory exceeds bound' }
 $paths = [Text.UTF8Encoding]::new($false,$true).GetString($pathsBytes) | ConvertFrom-Json
-if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader') { throw 'Native custody path inventory differs' }
+if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool') { throw 'Native custody path inventory differs' }
 $custody = [ordered]@{}
-foreach ($name in @('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader')) {
+foreach ($name in @('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader','source_tool')) {
     $isDirectory = $name -in @('capture','controller')
     $custody[$name] = Assert-OwnerPath ([string]$paths.$name) $isDirectory $isDirectory ($name -in @('native_issuer','source_reader'))
 }

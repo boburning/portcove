@@ -42,6 +42,7 @@ function fixture() {
     installation: "C:\\Portcove\\installation.json",
     native_issuer: "C:\\Portcove\\credentials\\native.pem",
     source_reader: "C:\\Portcove\\credentials\\read.token",
+    source_tool: "C:\\Portcove\\tools\\gh.exe",
   };
   const expected = {
     task_path: "\\PortcoveNative",
@@ -211,6 +212,9 @@ void test("scheduler refuses wrong instance, elevated/foreign principal, replace
     },
     (raw) => {
       raw.custody.native_issuer!.private = false;
+    },
+    (raw) => {
+      raw.custody.source_tool!.owner_sid = "S-1-5-18";
     },
   ];
   for (const change of changes) {

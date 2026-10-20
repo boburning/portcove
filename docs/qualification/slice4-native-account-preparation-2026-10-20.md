@@ -269,6 +269,14 @@ it only through its private selection map with fresh parent/package/checkpoint
 readback. Native execution and Check issuance remain unimplemented by this
 selection component. No post-sign or public journey is inferred from it.
 
+The pinned source CLI is an owned copy under the prepared protected tools
+storage. Its path is the ninth Windows scheduler custody observation, with the
+same owner/ancestor and foreign-write refusal used for public fixed inputs;
+Linux requires owner-only file custody. It cannot overlap credentials, public
+configuration, candidate work/profile or capture storage. This closes the gap
+between a matching tool hash and a candidate-writable executable path, without
+adding a global installation or changing an existing host ACL.
+
 One bounded, read-only WSL capability inspection saw Ubuntu and docker-desktop
 registered as stopped WSL2 distributions. The single fixed Ubuntu owner/tool
 query then reached its 20-second child timeout without stdout or stderr. It
