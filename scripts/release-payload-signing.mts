@@ -33,6 +33,8 @@ export interface PayloadSigningRequest {
   bytes: number;
   public_key_sha256: string;
   qualification_inventory_sha256: string;
+  reservation_checkpoint: string;
+  aggregate_archive_sha256: string;
   producer: { run_id: string; run_attempt: number; job_id: string; artifact_id: string };
 }
 export interface SignPayloadOptions {
@@ -48,13 +50,16 @@ export function inspectPayloadSigningRequest(value: unknown): PayloadSigningRequ
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
-      "bytes,filename,platform_label,producer,public_key_sha256,qualification_inventory_sha256,repository,schema_version,sha256,source_commit,version" ||
+      "aggregate_archive_sha256,bytes,filename,platform_label,producer,public_key_sha256,qualification_inventory_sha256,repository,reservation_checkpoint,schema_version,sha256,source_commit,version" ||
     value.schema_version !== 1 ||
     value.repository !== "boburning/portcove" ||
     typeof value.version !== "string" ||
+    value.version.length > 128 ||
     !versionPattern.test(value.version) ||
     typeof value.source_commit !== "string" ||
     !commit.test(value.source_commit) ||
+    typeof value.reservation_checkpoint !== "string" ||
+    !commit.test(value.reservation_checkpoint) ||
     !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label)) ||
     typeof value.filename !== "string" ||
     value.filename !== path.basename(value.filename) ||
@@ -75,9 +80,12 @@ export function inspectPayloadSigningRequest(value: unknown): PayloadSigningRequ
     }) ||
     !Number.isSafeInteger(value.producer.run_attempt) ||
     Number(value.producer.run_attempt) < 1 ||
-    !["sha256", "public_key_sha256", "qualification_inventory_sha256"].every(
-      (key) => typeof value[key] === "string" && digest.test(value[key]),
-    )
+    ![
+      "sha256",
+      "public_key_sha256",
+      "qualification_inventory_sha256",
+      "aggregate_archive_sha256",
+    ].every((key) => typeof value[key] === "string" && digest.test(value[key]))
   )
     throw new Error("invalid independently admitted payload signing request");
   // Freeze a detached snapshot before any asynchronous work.
@@ -112,8 +120,11 @@ async function copyBounded(source: string, destination: string, max: number, tru
         const chunk = buffer.subarray(0, result.bytesRead);
         hash.update(chunk);
         let offset = 0;
-        while (offset < chunk.length)
-          offset += (await output.write(chunk.subarray(offset))).bytesWritten;
+        while (offset < chunk.length) {
+          const { bytesWritten } = await output.write(chunk.subarray(offset));
+          if (!bytesWritten) throw new Error("signing output write made no progress");
+          offset += bytesWritten;
+        }
       }
       const after = await input.stat();
       if (

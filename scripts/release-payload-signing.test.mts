@@ -62,6 +62,8 @@ function request(): PayloadSigningRequest {
     bytes: 180321,
     public_key_sha256: "c".repeat(64),
     qualification_inventory_sha256: "d".repeat(64),
+    reservation_checkpoint: "e".repeat(40),
+    aggregate_archive_sha256: "f".repeat(64),
     producer: { run_id: "123", run_attempt: 1, job_id: "456", artifact_id: "789" },
   };
 }

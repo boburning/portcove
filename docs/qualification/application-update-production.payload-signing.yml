@@ -1,0 +1,39 @@
+# Inert fragment for the existing fixed protected controller. This file is not
+# under .github/workflows. Merge only after exact owner review/provisioning.
+jobs:
+  payload_signing:
+    if: ${{ false }}
+    needs: [admission, independent_admission, aggregate, attest, verify]
+    name: Sign admitted updater payloads
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - name: Hold missing authenticated positive admission and fixed configuration producer
+        shell: bash
+        run: |
+          echo 'HOLD: current independent admission has no positive signing disposition or configuration producer'
+          exit 2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: package.json
+      - name: Install only fixed trusted controller dependencies without candidate caches or hooks
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Reacquire admission, reservation and verified aggregate before any role-key access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release-payload-preparation.mts "$RUNNER_TEMP/payload-controller.json"
+      # No payload key/environment, signing continuation or upload action exists
+      # here. Future integration must independently bind immutable signature IDs,
+      # seven-day retention/no overwrite and consumption before feed assembly.
