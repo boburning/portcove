@@ -3166,6 +3166,27 @@ mod tests {
                 .is_err()
         );
         assert!(root.is_dir());
+        // Synthetic launch marker exercises the real keep-data removal path;
+        // no game, account identity or global preferences are changed here.
+        fs::create_dir_all(root.join("saves")).unwrap();
+        fs::write(
+            root.join("saves/recovery-probe.bin"),
+            b"local recovery data",
+        )
+        .unwrap();
+        fs::write(root.join(".portcove-launched"), b"synthetic test marker").unwrap();
+        let preview = service.preview_removal(id).unwrap();
+        assert!(preview.persistent_data_will_be_preserved);
+        let authorization = service
+            .authorize_removal(id, &preview.preview_sha256)
+            .unwrap();
+        service.remove(id, &authorization.token).unwrap();
+        assert!(!root.exists());
+        assert_eq!(
+            fs::read(library.user_dir(id).join("saves/recovery-probe.bin")).unwrap(),
+            b"local recovery data"
+        );
+        assert!(library.all_installs().unwrap().is_empty());
     }
 
     #[tokio::test]

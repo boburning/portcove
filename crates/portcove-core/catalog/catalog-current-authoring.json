@@ -17347,7 +17347,7 @@
     {
       "id": "wave-race-64-racewave46",
       "name": "RaceWave46",
-      "summary": "Native Wave Race 64 recompilation with managed Windows setup. Gameplay remains untested.",
+      "summary": "Native Wave Race 64 recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/DomazinUS/RaceWave46",
       "support_tier": "beta",
       "channels": [
@@ -20402,7 +20402,7 @@
     {
       "id": "resident-evil-gaiden-recomp",
       "name": "Resident Evil Gaiden Recompiled",
-      "summary": "Managed Windows setup with an explicit review of shared preferences. Gameplay remains untested.",
+      "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
       "support_tier": "beta",
       "channels": [

@@ -2830,8 +2830,18 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 4);
+        assert_eq!(prepared.len(), 2);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "resident-evil-gaiden-recomp")
+        );
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "wave-race-64-racewave46")
+        );
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
             let guide = presentation.manual_setup.as_ref().unwrap();

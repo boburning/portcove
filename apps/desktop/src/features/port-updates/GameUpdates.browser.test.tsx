@@ -98,6 +98,8 @@ async function pressEscape() {
   });
 }
 
+// The retained cold-browser trace completed the UI save but spent >15s in browser
+// attachment/transport. Keep every assertion and a finite budget; no test retries.
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
   const save = vi.fn().mockResolvedValue({ ...portStatus(), update_policy: "automatic" });
   const review = vi.spyOn(desktopApi, "planGameUpdate");
@@ -111,7 +113,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("No update was run");
-});
+}, 45_000);
 
 it("does not report a settings save as successful after failure", async () => {
   const save = vi.fn().mockRejectedValue(new Error("Library changed"));
