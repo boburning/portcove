@@ -25,6 +25,7 @@ function report(stage: "payload-signing" | "release-publication" = "payload-sign
       source_commit: "e".repeat(40),
       source_tree: "f".repeat(40),
       harness: { path: "scripts/qualify-native-release.ps1", sha256: sha },
+      started_at: "2026-10-20T11:59:59.000Z",
     },
     host: {
       machine_id_sha256: sha,
@@ -38,6 +39,7 @@ function report(stage: "payload-signing" | "release-publication" = "payload-sign
     },
     runtime: {
       root_pid: 123,
+      root_creation: { kind: "windows-filetime", value: "133000000000000000" },
       started_at: "2026-10-20T12:00:00.000Z",
       completed_at: "2026-10-20T12:00:05.000Z",
       capture_sha256: sha,
@@ -63,6 +65,25 @@ function report(stage: "payload-signing" | "release-publication" = "payload-sign
       completed_at: "2026-10-20T12:00:04.000Z",
       capture_sha256: sha,
     })),
+    journey:
+      stage === "payload-signing"
+        ? null
+        : {
+            predecessor: {
+              source_commit: "0".repeat(40),
+              source_tree: "1".repeat(40),
+              run_id: "12222",
+              run_attempt: 1,
+              artifact_id: 122,
+              package: {
+                filename: "Portcove_0.1.0-alpha.2_x64-setup.exe",
+                bytes: 1200,
+                sha256: "2".repeat(64),
+              },
+            },
+            signed_context_sha256: "3".repeat(64),
+            signatures_sha256: "4".repeat(64),
+          },
   };
 }
 void test("inert native contract keeps signing and publication stages distinct and detaches mutable input", () => {
@@ -82,9 +103,41 @@ void test("inert native contract keeps signing and publication stages distinct a
   );
   const wrong = report();
   wrong.stage = "release-publication";
-  assert.throws(() => inspectNativeReleaseQualification(wrong), /coverage/u);
+  assert.throws(() => inspectNativeReleaseQualification(wrong));
   assert.equal(Object.hasOwn(actual, "accepted"), false);
   assert.equal(Object.hasOwn(actual, "authority"), false);
+});
+void test("post-sign native captures bind exact predecessor and signed context while empty required capabilities remain valid", () => {
+  const value = report("release-publication");
+  value.compatibility.required_capabilities = [];
+  const parsed = inspectNativeReleaseQualification(value);
+  assert.deepEqual(parsed.compatibility.required_capabilities, []);
+  assert.equal(parsed.journey?.predecessor.run_id, "12222");
+  assert.equal(parsed.runtime.root_creation.value, "133000000000000000");
+  for (const mutation of [
+    (v: ReturnType<typeof report>) => {
+      v.journey = null;
+    },
+    (v: ReturnType<typeof report>) => {
+      v.journey!.signed_context_sha256 = "";
+    },
+    (v: ReturnType<typeof report>) => {
+      v.journey!.predecessor.package.sha256 = v.candidate.package.sha256;
+    },
+    (v: ReturnType<typeof report>) => {
+      v.runtime.root_creation.value = "";
+    },
+    (v: ReturnType<typeof report>) => {
+      v.producer.started_at = "2026-10-20T12:00:01.000Z";
+    },
+  ]) {
+    const bad = report("release-publication");
+    mutation(bad);
+    assert.throws(() => inspectNativeReleaseQualification(bad));
+  }
+  const premature = report();
+  premature.journey = value.journey;
+  assert.throws(() => inspectNativeReleaseQualification(premature), /pre-sign/u);
 });
 void test("inert native contract requires complete actual scenario capture, chronology and teardown", () => {
   const cases: ((value: ReturnType<typeof report>) => void)[] = [

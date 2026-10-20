@@ -68,8 +68,8 @@ function range(raw: unknown) {
   if (min > max) throw new Error("native compatibility range is reversed");
   return { min, max };
 }
-function unique<T>(raw: unknown, inspect: (value: unknown) => T, maximum = 32): T[] {
-  if (!Array.isArray(raw) || raw.length < 1 || raw.length > maximum)
+function unique<T>(raw: unknown, inspect: (value: unknown) => T, maximum = 32, minimum = 1): T[] {
+  if (!Array.isArray(raw) || raw.length < minimum || raw.length > maximum)
     throw new Error("native qualification inventory exceeds bound");
   const values = raw.map(inspect);
   if (new Set(values).size !== values.length)
@@ -93,6 +93,21 @@ function account(raw: unknown) {
     throw new Error("candidate account is not independently isolated");
   return { kind: raw.kind, broker, qualification };
 }
+function candidateIdentity(raw: unknown) {
+  exact(raw, "artifact_id,package,run_attempt,run_id,source_commit,source_tree");
+  exact(raw.package, "bytes,filename,sha256");
+  const filename = text(raw.package.filename, 192);
+  if (!/^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(filename))
+    throw new Error("native package filename is unsafe");
+  return {
+    source_commit: hex(raw.source_commit, git),
+    source_tree: hex(raw.source_tree, git),
+    run_id: numericId(raw.run_id),
+    run_attempt: positive(raw.run_attempt),
+    artifact_id: positive(raw.artifact_id),
+    package: { filename, bytes: positive(raw.package.bytes), sha256: hex(raw.package.sha256) },
+  };
+}
 
 /** A bounded wire contract only. Passing this inspector cannot authenticate the
  * native host, its observations, a producer, or an admission decision. The
@@ -101,7 +116,7 @@ function account(raw: unknown) {
 export function inspectNativeReleaseQualification(raw: unknown) {
   exact(
     raw,
-    "candidate,compatibility,host,platform_label,producer,runtime,scenarios,schema_version,stage",
+    "candidate,compatibility,host,journey,platform_label,producer,runtime,scenarios,schema_version,stage",
   );
   if (
     raw.schema_version !== 1 ||
@@ -111,24 +126,26 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     throw new Error("native qualification stage/platform is unsupported");
   const stage = raw.stage,
     platform = raw.platform_label;
-  exact(raw.candidate, "artifact_id,package,run_attempt,run_id,source_commit,source_tree");
-  exact(raw.candidate.package, "bytes,filename,sha256");
-  const filename = text(raw.candidate.package.filename, 192);
-  if (!/^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(filename))
-    throw new Error("native package filename is unsafe");
-  const candidate = {
-    source_commit: hex(raw.candidate.source_commit, git),
-    source_tree: hex(raw.candidate.source_tree, git),
-    run_id: numericId(raw.candidate.run_id),
-    run_attempt: positive(raw.candidate.run_attempt),
-    artifact_id: positive(raw.candidate.artifact_id),
-    package: {
-      filename,
-      bytes: positive(raw.candidate.package.bytes),
-      sha256: hex(raw.candidate.package.sha256),
-    },
-  };
-  exact(raw.producer, "harness,invocation_id,source_commit,source_tree");
+  const candidate = candidateIdentity(raw.candidate);
+  let journey: null | {
+    predecessor: ReturnType<typeof candidateIdentity>;
+    signed_context_sha256: string;
+    signatures_sha256: string;
+  } = null;
+  if (stage === "payload-signing") {
+    if (raw.journey !== null)
+      throw new Error("pre-sign native capture cannot assert a signed update journey");
+  } else {
+    exact(raw.journey, "predecessor,signatures_sha256,signed_context_sha256");
+    journey = {
+      predecessor: candidateIdentity(raw.journey.predecessor),
+      signed_context_sha256: hex(raw.journey.signed_context_sha256),
+      signatures_sha256: hex(raw.journey.signatures_sha256),
+    };
+    if (journey.predecessor.package.sha256 === candidate.package.sha256)
+      throw new Error("post-sign native journey requires a distinct predecessor");
+  }
+  exact(raw.producer, "harness,invocation_id,source_commit,source_tree,started_at");
   exact(raw.producer.harness, "path,sha256");
   const harnessPath = text(raw.producer.harness.path, 192);
   if (!/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(harnessPath))
@@ -138,6 +155,7 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     source_commit: hex(raw.producer.source_commit, git),
     source_tree: hex(raw.producer.source_tree, git),
     harness: { path: harnessPath, sha256: hex(raw.producer.harness.sha256) },
+    started_at: instant(raw.producer.started_at),
   };
   exact(
     raw.host,
@@ -162,7 +180,17 @@ export function inspectNativeReleaseQualification(raw: unknown) {
       sha256: hex(raw.host.loaded_engine.sha256),
     },
   };
-  exact(raw.runtime, "capture_sha256,completed_at,root_pid,started_at,teardown");
+  exact(raw.runtime, "capture_sha256,completed_at,root_creation,root_pid,started_at,teardown");
+  exact(raw.runtime.root_creation, "kind,value");
+  if (
+    raw.runtime.root_creation.kind !==
+    (platform === "windows-x86_64" ? "windows-filetime" : "linux-starttime-ticks")
+  )
+    throw new Error("native process creation identity kind differs");
+  const rootCreation = {
+    kind: raw.runtime.root_creation.kind,
+    value: numericId(raw.runtime.root_creation.value),
+  };
   exact(raw.runtime.teardown, "capture_sha256,completed_at,remaining_pids,root_exited,tree_empty");
   if (
     raw.runtime.teardown.root_exited !== true ||
@@ -174,10 +202,17 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   const started = instant(raw.runtime.started_at),
     completed = instant(raw.runtime.completed_at);
   const settled = instant(raw.runtime.teardown.completed_at);
-  if (Date.parse(started) > Date.parse(completed) || Date.parse(completed) > Date.parse(settled))
+  if (
+    Date.parse(producer.started_at) > Date.parse(started) ||
+    Date.parse(started) > Date.parse(completed) ||
+    Date.parse(completed) > Date.parse(settled)
+  )
     throw new Error("native runtime/teardown chronology differs");
   const runtime = {
     root_pid: positive(raw.runtime.root_pid),
+    // started_at is the retained root process creation time, not the invocation
+    // start (producer.started_at), harness start, or observation clock.
+    root_creation: rootCreation,
     started_at: started,
     completed_at: completed,
     capture_sha256: hex(raw.runtime.capture_sha256),
@@ -196,7 +231,12 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   exact(raw.compatibility.library, "lock_protocol,read,write_schema");
   const compatibility = {
     minimum_os_version: text(raw.compatibility.minimum_os_version, 128),
-    required_capabilities: unique(raw.compatibility.required_capabilities, (v) => text(v, 128)),
+    required_capabilities: unique(
+      raw.compatibility.required_capabilities,
+      (v) => text(v, 128),
+      32,
+      0,
+    ),
     cli_protocol: range(raw.compatibility.cli_protocol),
     catalog_formats: unique(raw.compatibility.catalog_formats, positive),
     library: {
@@ -235,6 +275,7 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     stage,
     platform_label: platform,
     candidate,
+    journey,
     producer,
     host,
     runtime,
