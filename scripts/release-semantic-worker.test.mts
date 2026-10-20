@@ -1,14 +1,86 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { inspectSemanticWorkerConfiguration } from "./release-semantic-worker.mts";
+import {
+  inspectSemanticWorkerConfiguration,
+  renderSemanticWorkerUnits,
+} from "./release-semantic-worker.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
+import {
+  claimSemanticTechnicalAttempt,
+  inspectSemanticTechnicalRecovery,
+} from "./release-semantic-worker-recovery.mts";
+
+void test("technical recovery permits failed auth only after retained teardown plus current exact empty unit; never acceptance", () => {
+  const stopped = {
+    schema_version: 1,
+    mode: "codex",
+    scope: "held-linux-semantic-runtime-preparation",
+    authority: "none",
+    unit: `portcove-semantic-${"a".repeat(32)}.service`,
+    cgroup_empty: true,
+    unit_settled: true,
+    network_settled: true,
+    cleanup_errors: [],
+    auth_refreshed: false,
+    exit_code: 1,
+    failure: "explicit authentication refusal",
+  };
+  const current = {
+    MainPID: "0",
+    ControlGroup: "",
+    LoadState: "not-found",
+    ActiveState: "inactive",
+  };
+  assert.equal(inspectSemanticTechnicalRecovery(stopped, current).scope, "technical recovery only");
+  for (const change of [
+    { cgroup_empty: false },
+    { network_settled: false },
+    { unit: "foreign.service" },
+    { cleanup_errors: ["unknown"] },
+  ])
+    assert.throws(() => inspectSemanticTechnicalRecovery({ ...stopped, ...change }, current));
+  for (const change of [
+    { MainPID: "123" },
+    { ControlGroup: "/live" },
+    { LoadState: "loaded", ActiveState: "active" },
+  ])
+    assert.throws(() => inspectSemanticTechnicalRecovery(stopped, { ...current, ...change }));
+});
+
+void test("persistent technical exclusion resumes pre-launch failure twice, retains originals and refuses budget/reset/POST ambiguity", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-technical-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const request = path.join(parent, "request-fixed");
+  await mkdir(request);
+  for (let index = 0; index < 3; index++) {
+    const current = await claimSemanticTechnicalAttempt(request, "a".repeat(64));
+    assert.equal(path.basename(current), `technical-${index}`);
+    await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)));
+    await writeFile(
+      path.join(current, "technical-stop.json"),
+      JSON.stringify({ outcome: "technical-failure", invocations: [] }),
+    );
+  }
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /budget exhausted/);
+  await rm(path.join(request, "technical-2"), { recursive: true });
+  await assert.rejects(claimSemanticTechnicalAttempt(request, "a".repeat(64)), /custody missing/);
+  const another = path.join(parent, "request-post");
+  await mkdir(another);
+  const first = await claimSemanticTechnicalAttempt(another, "a".repeat(64));
+  await writeFile(
+    path.join(first, "technical-stop.json"),
+    JSON.stringify({ outcome: "technical-failure", invocations: [] }),
+  );
+  await writeFile(path.join(first, "expected-check.json"), "original");
+  await assert.rejects(claimSemanticTechnicalAttempt(another, "a".repeat(64)), /GET-only/);
+});
 
 function configuration() {
   return {
@@ -54,6 +126,20 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
   const result = inspectSemanticWorkerConfiguration(raw);
   assert.equal(result.namespace, raw.namespace);
   assert.notEqual(result.source_read_token, result.issuer.private_key);
+  const units = renderSemanticWorkerUnits(
+    raw,
+    "/owned/config.json",
+    "a".repeat(64),
+    "/owned/controller",
+  );
+  assert.match(units.service, /Type=oneshot/u);
+  assert.match(units.service, /Restart=no/u);
+  assert.match(units.service, /KillMode=control-group/u);
+  assert.match(units.timer, /OnUnitInactiveSec=5min/u);
+  assert.equal(units.initial_state.setup_grant_sha256, raw.setup_grant_sha256);
+  assert.throws(() =>
+    renderSemanticWorkerUnits(raw, "/owned/%h.json", "a".repeat(64), "/owned/controller"),
+  );
   for (const changed of [
     { ...raw, accepted: true },
     { ...raw, source_read_token: "ambient" },

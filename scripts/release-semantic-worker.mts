@@ -27,6 +27,7 @@ import type { SemanticIssuerCustody } from "./release-semantic-issuer.mts";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { claimSemanticTechnicalAttempt } from "./release-semantic-worker-recovery.mts";
 
 const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 const repository = "repos/boburning/portcove";
@@ -42,6 +43,40 @@ const absolute = (value: unknown): string => {
     throw new Error("semantic worker requires fixed absolute Linux paths");
   return value;
 };
+
+/** Reviewable initial setup output only. Installing/enabling these units and
+ * authentication/custody are separate setup actions, never done by this code. */
+export function renderSemanticWorkerUnits(
+  raw: unknown,
+  configurationPath: string,
+  configurationSha256: string,
+  workerCheckout: string,
+) {
+  const config = inspectSemanticWorkerConfiguration(raw);
+  const paths = [
+    config.runtime.node_executable,
+    absolute(configurationPath),
+    absolute(workerCheckout),
+  ];
+  if (
+    !paths.every((value) => /^\/[A-Za-z0-9_./-]+$/u.test(value)) ||
+    !/^[a-f0-9]{64}$/u.test(configurationSha256)
+  )
+    throw new Error("fixed systemd unit paths/digest require literal safe configuration");
+  return {
+    service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
+    timer:
+      "[Unit]\nDescription=Observe Portcove semantic requests automatically\n\n[Timer]\nOnBootSec=2min\nOnUnitInactiveSec=5min\nRandomizedDelaySec=30s\nUnit=portcove-semantic-worker.service\n\n[Install]\nWantedBy=timers.target\n",
+    initial_state: {
+      schema_version: 1,
+      kind: "portcove-semantic-worker-custody",
+      namespace: config.namespace,
+      setup_grant_sha256: config.setup_grant_sha256,
+      worker_revision: config.worker_revision,
+    },
+    authority: "none",
+  };
+}
 
 /** Setup configuration only, never a supplied report, outcome or grant. The
  * fixed user unit independently pins its bytes after the consolidated setup. */
@@ -186,6 +221,22 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   };
   const config = await readConfiguration();
   await requirePrivateOwnerPath(config.output_parent, false);
+  const setupState: unknown = JSON.parse(
+    (
+      await readBoundedPublicBuildInputFile(config.output_parent, "worker-state.json", 4096)
+    ).toString("utf8"),
+  );
+  if (
+    capacityDigest(setupState) !==
+    capacityDigest({
+      schema_version: 1,
+      kind: "portcove-semantic-worker-custody",
+      namespace: config.namespace,
+      setup_grant_sha256: config.setup_grant_sha256,
+      worker_revision: config.worker_revision,
+    })
+  )
+    throw new Error("installed semantic worker custody missing or changed; do not reset counters");
   if (
     git(checkout, ["rev-parse", "HEAD"]) !== config.worker_revision ||
     git(checkout, ["status", "--porcelain", "--untracked-files=no"]) !== ""
@@ -258,7 +309,19 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     writer_app_id: config.issuer.issuer.writer_app_id,
     review_check_name: semanticReviewCheckName,
   };
-  const attempt = path.join(config.output_parent, `request-${request.request_id}`);
+  const requestDirectory = path.join(config.output_parent, `request-${request.request_id}`);
+  const existingLocators: string[] = [];
+  for (let index = 0; index < 3; index++) {
+    const directory = path.join(requestDirectory, `technical-${index}`);
+    try {
+      await lstat(path.join(directory, "expected-check.json"));
+      existingLocators.push(directory);
+    } catch (error) {
+      if (!isRecord(error) || error.code !== "ENOENT") throw error;
+    }
+  }
+  if (existingLocators.length > 1)
+    throw new Error("multiple original Check requests require reconciliation");
   const inventory = readIndependentSemanticCheckInventory(api, producer, request.source_commit);
   const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
   if (matches.accepted.length || matches.negative.length) {
@@ -280,7 +343,11 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     try {
       const retained: unknown = JSON.parse(
         (
-          await readBoundedPublicBuildInputFile(attempt, "expected-check.json", 128 * 1024)
+          await readBoundedPublicBuildInputFile(
+            existingLocators[0] ?? requestDirectory,
+            "expected-check.json",
+            128 * 1024,
+          )
         ).toString("utf8"),
       );
       if (
@@ -297,7 +364,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       if (!isRecord(error) || error.code !== "ENOENT") throw error;
       let attemptPresent = true;
       try {
-        await lstat(attempt);
+        await lstat(requestDirectory);
       } catch (missing) {
         if (isRecord(missing) && missing.code === "ENOENT") attemptPresent = false;
         else throw missing;
@@ -333,10 +400,20 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     };
   }
   inventory.assertUnchanged();
-  // Technical duplicate-execution exclusion only; the existing remote journal
-  // remains the request/recovery authority. A previous directory means HOLD,
-  // including a lost POST response or a startup failure. Never replay a report.
-  await mkdir(attempt, { mode: 0o700 });
+  // An original POST locator selects GET-only reconciliation even when the
+  // provider has not yet exposed a matching Check. Never infer no remote effect.
+  if (existingLocators.length) throw new Error("original Check POST requires readback; no repeat");
+  try {
+    await mkdir(requestDirectory, { mode: 0o700 });
+  } catch (error) {
+    if (!isRecord(error) || error.code !== "EEXIST") throw error;
+  }
+  await requirePrivateOwnerPath(requestDirectory, false);
+  const attempt = await claimSemanticTechnicalAttempt(
+    requestDirectory,
+    config.runtime.tools_sha256.systemctl,
+  );
+  const invocations: { root: string; invocation_sha256: string }[] = [];
   const record = await open(path.join(attempt, "worker-attempt.jsonl"), "wx", 0o600);
   const retain = async (phase: string, evidence: unknown = null) => {
     await record.write(
@@ -421,8 +498,13 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       runtime: {
         ...config.runtime,
         backend: "linux-rootless",
+        output_parent: attempt,
         auth_cache: config.auth_cache,
         requireIsolationReady: guard,
+        onInvocationPrepared: async (value) => {
+          invocations.push(structuredClone(value));
+          await retain("runtime-prepared-no-process-yet", value);
+        },
       },
       requireCurrentRequestAndProvisioning: guard,
       retainOriginalCheckRequest: async (value) => {
@@ -443,6 +525,15 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       category: error instanceof Error ? error.name : "unknown",
       message: error instanceof Error ? error.message.slice(0, 4096) : "unknown",
     });
+    const stop = await open(path.join(attempt, "technical-stop.json"), "wx", 0o600);
+    try {
+      await stop.writeFile(
+        JSON.stringify({ schema_version: 1, outcome: "technical-failure", invocations }),
+      );
+      await stop.sync();
+    } finally {
+      await stop.close();
+    }
     throw error;
   } finally {
     await record.close();
