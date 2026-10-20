@@ -1103,6 +1103,36 @@ export async function preparationScenarios({
       );
       assert.equal(await confirm.isDisplayed(), true);
       assert.equal(await confirm.isEnabled(), true);
+      const visibleAction = async (element: WebElement) => {
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (control) => {
+                const bounds = control.getBoundingClientRect();
+                const hit = document.elementFromPoint(
+                  bounds.x + bounds.width / 2,
+                  bounds.y + bounds.height / 2,
+                );
+                return (
+                  document.activeElement === control &&
+                  bounds.top >= 0 &&
+                  bounds.bottom <= innerHeight + 1 &&
+                  bounds.left >= 0 &&
+                  bounds.right <= innerWidth + 1 &&
+                  (hit === control || (hit !== null && control.contains(hit)))
+                );
+              },
+              element,
+            ),
+          5_000,
+          "Enlarged review action is not focused, in the viewport and unobscured",
+        );
+      };
+      await visibleAction(confirm);
+      await browser.actions().sendKeys(Key.TAB).perform();
+      const cancel = await browser.findElement(button("Cancel review"));
+      await visibleAction(cancel);
       const enlarged = path.join(output, "preparation-native-400-observation.json");
       await writeFile(
         enlarged,
@@ -1121,6 +1151,18 @@ export async function preparationScenarios({
         { flag: "wx" },
       );
       artifacts.push(enlarged);
+      // Exercise the real dismissal at enlargement; focus and geometry alone
+      // do not establish that the action can actually be used.
+      await cancel.click();
+      await browser.wait(
+        async () => (await browser.findElements(preparationDialog)).length === 0,
+        5_000,
+      );
+      assert.equal(
+        required((await status(port.id)).active).id,
+        install.id,
+        "Enlarged dismissal must not prepare",
+      );
     } finally {
       await shortcut("0");
       await browser.wait(
@@ -1133,6 +1175,8 @@ export async function preparationScenarios({
       );
       await browser.manage().window().setRect(reviewWindow);
     }
+    await clickVisible(browser, await browser.findElement(button("Review game preparation")));
+    await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(preparationDialog)).length === 0,
