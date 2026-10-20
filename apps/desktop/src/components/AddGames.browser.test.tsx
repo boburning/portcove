@@ -8,6 +8,7 @@ import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { sourceProfile } from "../test-fixtures";
+vi.mock("../file-picker", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 beforeEach(() => localStorage.clear());
@@ -17,8 +18,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
   delete document.documentElement.dataset.theme;
 });
-async function mount() {
-  transport = installInteractiveTransport("library", () => {});
+async function mount(journey: "library" | "collection" = "library") {
+  transport = installInteractiveTransport(journey, () => {});
   initializeLocalization(["en"]);
   await render(
     <LocalizationProvider api={desktopApi}>
@@ -42,7 +43,10 @@ it("retains the selected game and search through details, navigation and closing
     .element(page.getByRole("button", { name: "Review setup for Harbor Adventure" }))
     .toHaveFocus();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: /^Library/ }).click();
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("button", { name: /^Library/ })
+    .click();
   await expect
     .element(page.getByRole("textbox", { name: "Find a game or port" }))
     .toHaveValue("Harbor");
@@ -90,3 +94,25 @@ it.each(["dark", "light"])(
       .toBeVisible();
   },
 );
+
+it.each([320, 240])("returns to the actual document reading position at %spx", async (width) => {
+  await page.viewport(width, 800);
+  transport = installInteractiveTransport("collection", () => {});
+  initializeLocalization(["en"]);
+  await render(
+    <LocalizationProvider api={desktopApi}>
+      <App />
+    </LocalizationProvider>,
+  );
+  const origin = page.getByRole("button", { name: "Add games", exact: true });
+  await expect.element(origin).toBeVisible();
+  origin.element().scrollIntoView({ block: "center" });
+  const top = document.scrollingElement!.scrollTop;
+  expect(top).toBeGreaterThan(0);
+  await origin.click();
+  await expect.element(page.getByRole("heading", { name: "Add games", level: 1 })).toHaveFocus();
+  await page.getByRole("button", { name: "Back to library", exact: true }).click();
+  await expect.element(origin).toHaveFocus();
+  expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
+  expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
+});
