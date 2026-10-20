@@ -33,6 +33,42 @@ namespace Portcove.NativeQualification {
         public string ObservedAt;
     }
 
+    // All simultaneously active launch roots, including the profile keeper and
+    // WebDriver, join this same finite job before their first instruction.
+    public sealed class AccountGroup : IDisposable {
+        internal IntPtr Handle { get; private set; }
+        internal readonly string BrokerSid;
+        internal readonly string AccountSid;
+        int stopped;
+        internal AccountGroup(AccountConfiguration config) {
+            BrokerSid = config.BrokerSid; AccountSid = config.AccountSid;
+            Handle = Native.CreateBoundedJob();
+        }
+        internal void Assign(AccountConfiguration config, IntPtr process) {
+            if (Handle == IntPtr.Zero || Volatile.Read(ref stopped) != 0 || config.BrokerSid != BrokerSid || config.AccountSid != AccountSid)
+                throw new InvalidOperationException("Closed or mismatched native attempt group");
+            if (!Native.AssignProcessToJobObject(Handle, process)) throw Native.Error("Assign shared native attempt job");
+        }
+        public uint[] RemainingPids() {
+            if (Handle == IntPtr.Zero) throw new ObjectDisposedException("AccountGroup");
+            return Native.JobPids(Handle);
+        }
+        public uint[] StopAndObserve(int milliseconds) {
+            if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
+            if (Interlocked.CompareExchange(ref stopped, 1, 0) != 0) throw new InvalidOperationException("Group termination is one-shot; use readback");
+            if (!Native.TerminateJobObject(Handle, 125)) throw Native.Error("Terminate shared native attempt job");
+            Stopwatch clock = Stopwatch.StartNew(); uint[] remaining;
+            do {
+                remaining = RemainingPids(); if (remaining.Length == 0) return remaining;
+                Thread.Sleep(25);
+            } while (clock.ElapsedMilliseconds < milliseconds);
+            return remaining;
+        }
+        public void Dispose() {
+            if (Handle != IntPtr.Zero) { Native.CloseHandle(Handle); Handle = IntPtr.Zero; }
+        }
+    }
+
     // Raw evidence survives decoding and size refusals. A snapshot is detached
     // and bounded; it is failure evidence, never a successful textual report.
     public sealed class NativePipeCapture {
@@ -206,6 +242,11 @@ namespace Portcove.NativeQualification {
 
     public static class AccountLauncher {
         public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
+        public static AccountGroup CreateGroup(AccountConfiguration config) {
+            if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User) || config.BrokerSid == config.AccountSid)
+                throw new ArgumentException("Distinct configured account and actual broker required");
+            return new AccountGroup(config);
+        }
         // Called only by the configured broker after its setup/grant guard.
         // This never reads a GitHub App, semantic, signing or publication key.
         public static SecureString ReadAccountCredential(AccountConfiguration config) {
@@ -233,6 +274,14 @@ namespace Portcove.NativeQualification {
         }
         static readonly HashSet<string> EnvironmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
             "SystemRoot", "WINDIR", "PATH", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"
+        };
+        static readonly HashSet<string> RuntimePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+            "PORTCOVE_APPLICATION_UPDATE_SCHEDULE", "PORTCOVE_APPLICATION_UPDATE_STAGING",
+            "WEBVIEW2_USER_DATA_FOLDER", "PORTCOVE_QUALIFICATION_CATALOG", "PORTCOVE_QUALIFICATION_CHECKPOINT"
+        };
+        static readonly HashSet<string> RuntimeValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL", "TAURI_WEBDRIVER_PORT", "PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE"
         };
         public static string Quote(string value) {
             if (value == null || value.IndexOf('\0') >= 0) throw new ArgumentException("Invalid argument");
@@ -279,23 +328,40 @@ namespace Portcove.NativeQualification {
             if (!Path.GetFullPath(directory).StartsWith(work, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Working directory outside qualification root");
             string command = String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (command.Length >= 1024) throw new ArgumentException("CreateProcessWithLogonW command exceeds fixed limit");
-            if (environment.Count != EnvironmentNames.Count || environment.Keys.Any(key => !EnvironmentNames.Contains(key))) throw new ArgumentException("Exact credential-free environment required");
+            if (EnvironmentNames.Any(key => !environment.ContainsKey(key)) || environment.Keys.Any(key => !EnvironmentNames.Contains(key) && !RuntimePaths.Contains(key) && !RuntimeValues.Contains(key))) throw new ArgumentException("Explicit credential-free environment required");
             foreach (var item in environment) if (item.Value == null || item.Value.IndexOf('\0') >= 0) throw new ArgumentException("Invalid environment");
             if (!String.Equals(environment["USERPROFILE"], config.ProfileRoot, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Profile mismatch");
             string profile = Path.GetFullPath(config.ProfileRoot);
             if (!String.Equals(environment["HOMEDRIVE"], Path.GetPathRoot(profile).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["HOMEPATH"], profile.Substring(Path.GetPathRoot(profile).Length - 1), StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Home path mismatch");
             string system = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
             if (!String.Equals(environment["SystemRoot"], system, StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["WINDIR"], system, StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["PATH"], Path.Combine(system, "System32"), StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Untrusted executable search path");
-            foreach (string name in new [] { "TEMP", "TMP", "APPDATA", "LOCALAPPDATA" })
-                if (!Path.GetFullPath(environment[name]).StartsWith(work, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Writable environment path outside qualification root");
+            foreach (string name in new [] { "TEMP", "TMP", "APPDATA", "LOCALAPPDATA" }.Concat(RuntimePaths.Where(environment.ContainsKey))) {
+                string value = environment[name];
+                if (!Path.IsPathFullyQualified(value) || value.StartsWith("\\\\") || value.IndexOf(':', 2) >= 0 || !Path.GetFullPath(value).StartsWith(work, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Runtime state path outside qualification work");
+                for (string cursor = Path.GetFullPath(value); !String.IsNullOrEmpty(cursor); cursor = Path.GetDirectoryName(cursor))
+                    if ((File.Exists(cursor) || Directory.Exists(cursor)) && (File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0) throw new ArgumentException("Runtime state reparse ancestry refused");
+            }
+            string optional;
+            if (environment.TryGetValue("PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE", out optional) && optional != "closed") throw new ArgumentException("Unsupported Steam fixture state");
+            if (environment.TryGetValue("TAURI_WEBDRIVER_PORT", out optional)) {
+                ushort port; if (!UInt16.TryParse(optional, out port) || port == 0 || optional != port.ToString(System.Globalization.CultureInfo.InvariantCulture)) throw new ArgumentException("Invalid fixed driver port");
+            }
+            if (environment.TryGetValue("PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL", out optional)) {
+                Uri fixture;
+                if (!Uri.TryCreate(optional, UriKind.Absolute, out fixture) || fixture.Scheme != "http" || fixture.Host != "127.0.0.1" || fixture.Port < 1 || fixture.UserInfo.Length != 0 || fixture.Fragment.Length != 0 || fixture.Query.Length != 0) throw new ArgumentException("Only credential-free local HTTP fixture origin permitted");
+            }
         }
         public static AccountProcess Start(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
-            return StartCore(config, password, executable, arguments, directory, environment, false);
+            return StartCore(config, password, executable, arguments, directory, environment, false, null);
         }
         public static AccountProcess StartNsis(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
-            return StartCore(config, password, executable, arguments, directory, environment, true);
+            return StartCore(config, password, executable, arguments, directory, environment, true, null);
         }
-        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
+        public static AccountProcess StartInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
+            if (group == null) throw new ArgumentException("Shared attempt group required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group);
+        }
+        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group) {
             Validate(config, executable, arguments, directory, environment);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
@@ -308,12 +374,7 @@ namespace Portcove.NativeQualification {
                 // This fixed helper must run in its own noninteractive owner process:
                 // SetProcessWindowStation is process-wide and never targets WinSta0.
                 Native.CreatePrivateDesktop(config, out station, out desktop);
-                job = Native.CreateJobObjectW(IntPtr.Zero, null);
-                if (job == IntPtr.Zero) throw Native.Error("CreateJobObjectW");
-                var limits = new Native.ExtendedLimitInformation();
-                limits.basic.limitFlags = 0x2000 | 0x8; // Kill-on-close, total active processes <=64. No breakaway flags.
-                limits.basic.activeProcessLimit = 64;
-                if (!Native.SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf(limits))) throw Native.Error("SetInformationJobObject");
+                job = Native.CreateBoundedJob();
                 var pipeAttributes = new Native.SecurityAttributes { length = (uint)Marshal.SizeOf(typeof(Native.SecurityAttributes)), inherit = 1 };
                 if (!Native.CreatePipe(out outputRead, out outputWrite, ref pipeAttributes, 0) || !Native.SetHandleInformation(outputRead, 1, 0)) throw Native.Error("stdout pipe");
                 if (!Native.CreatePipe(out errorRead, out errorWrite, ref pipeAttributes, 0) || !Native.SetHandleInformation(errorRead, 1, 0)) throw Native.Error("stderr pipe");
@@ -328,6 +389,7 @@ namespace Portcove.NativeQualification {
                 var command = new StringBuilder(commandText);
                 if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, 0x4 | 0x400, block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");
                 // No candidate thread has run. Assign job before token inspection/resume.
+                if (group != null) group.Assign(config, info.process);
                 if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
                 IntPtr token;
                 if (!Native.OpenProcessToken(info.process, 8, out token)) throw Native.Error("OpenProcessToken");
@@ -364,6 +426,17 @@ namespace Portcove.NativeQualification {
     }
 
     internal static class Native {
+        internal static IntPtr CreateBoundedJob() {
+            IntPtr job = CreateJobObjectW(IntPtr.Zero, null);
+            if (job == IntPtr.Zero) throw Error("CreateJobObjectW");
+            var limits = new ExtendedLimitInformation();
+            limits.basic.limitFlags = 0x2000 | 0x8; // Kill-on-close, <=64 active processes, no breakaway.
+            limits.basic.activeProcessLimit = 64;
+            if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf(limits))) {
+                Exception failure = Error("SetInformationJobObject"); CloseHandle(job); throw failure;
+            }
+            return job;
+        }
         [StructLayout(LayoutKind.Sequential)] internal struct Credential { public uint flags,type; public IntPtr target,comment; public long written; public uint blobSize; public IntPtr blob; public uint persist,attributeCount; public IntPtr attributes,alias,user; }
         [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool CredReadW(string target, uint type, uint flags, out IntPtr credential);
         [DllImport("advapi32")] internal static extern void CredFree(IntPtr credential);

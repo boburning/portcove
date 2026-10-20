@@ -61,6 +61,30 @@ $configuration.BrokerSid = $owner
 Refuses { [Portcove.NativeQualification.AccountLauncher]::Validate($configuration, $executable, [string[]]@('x' * 1024), $directory, $environment) }
 Refuses { [Portcove.NativeQualification.AccountLauncher]::Validate($configuration, $executable, [string[]]@('/user'), $env:TEMP, $environment) }
 Refuses { [Portcove.NativeQualification.AccountLauncher]::Start($configuration, $null, $executable, [string[]]@('/user'), $directory, $environment) }
+$environment['PORTCOVE_LIBRARY'] = $configuration.WorkRoot + '\\library'
+$environment['PORTCOVE_PREFERENCES'] = $configuration.WorkRoot + '\\preferences.json'
+$environment['WEBVIEW2_USER_DATA_FOLDER'] = $configuration.WorkRoot + '\\webview'
+$environment['TAURI_WEBDRIVER_PORT'] = '4445'
+$environment['PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL'] = 'http://127.0.0.1:4446/fixture'
+& $validate
+$environment['PORTCOVE_LIBRARY'] = $env:TEMP
+Refuses $validate
+$environment['PORTCOVE_LIBRARY'] = $configuration.WorkRoot + '\\library'
+$environment['TAURI_WEBDRIVER_PORT'] = '04445'
+Refuses $validate
+$environment['TAURI_WEBDRIVER_PORT'] = '4445'
+$environment['PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL'] = 'https://example.com/fixture'
+Refuses $validate
+$environment['PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL'] = 'http://secret@127.0.0.1:4446/fixture'
+Refuses $validate
+$environment.Remove('PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL') | Out-Null
+$environment['PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE'] = 'running'
+Refuses $validate
+$environment['PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE'] = 'closed'
+& $validate
+$environment['PORTCOVE_UNREVIEWED_EXECUTION_MODE'] = 'inert'
+Refuses $validate
+$environment.Remove('PORTCOVE_UNREVIEWED_EXECUTION_MODE') | Out-Null
 $nsisTarget = $configuration.WorkRoot + '\\install with spaces'
 $nsis = [Portcove.NativeQualification.AccountLauncher]::NsisCommandLine($executable, [string[]]@('/S', ('/D=' + $nsisTarget)), $configuration.WorkRoot)
 Refuses { [Portcove.NativeQualification.AccountLauncher]::NsisCommandLine($executable, [string[]]@('/NCRC'), $configuration.WorkRoot) }
@@ -84,7 +108,7 @@ Refuses { [Portcove.NativeQualification.AccountLauncher]::NsisCommandLine($execu
     assert.equal(result.status, 0, result.stderr);
     const observed: unknown = JSON.parse(result.stdout);
     assert.deepEqual(observed, {
-      refusals: 12,
+      refusals: 18,
       nsis_tail: true,
       quote: '"a\\"b\\\\"',
       logon_attempted: false,
@@ -170,6 +194,80 @@ $openInvalid = [InertNativePipeFixture]::InvalidWhileWriterOpen()
       overflow: "REFUSED:IOException:4194304",
       open_invalid: "41-FF",
       scope: "same-owner anonymous pipe only",
+    });
+  },
+);
+
+void test(
+  "shared native job settles one inert root separately and both roots at attempt teardown",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = `
+$ErrorActionPreference = 'Stop'
+Add-Type -TypeDefinition (Get-Content -LiteralPath $env:PORTCOVE_TEST_NATIVE_HELPER -Raw)
+$config = [Portcove.NativeQualification.AccountConfiguration]::new()
+$config.BrokerSid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+$config.AccountSid = 'S-1-5-21-100-200-300-9999'
+$group = [Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
+$native = $group.GetType().Assembly.GetType('Portcove.NativeQualification.Native')
+$flags = [Reflection.BindingFlags]'Static,NonPublic'
+$inner = $native.GetMethod('CreateBoundedJob', $flags).Invoke($null, @())
+$roots = @()
+function Read-GroupUntil([scriptblock]$Predicate) {
+  $deadline = [DateTime]::UtcNow.AddSeconds(5)
+  do {
+    $observed = @($group.RemainingPids())
+    if (& $Predicate $observed) { return ,$observed }
+    Start-Sleep -Milliseconds 25
+  } while ([DateTime]::UtcNow -lt $deadline)
+  throw ('inert job readback did not settle: ' + ($observed -join ','))
+}
+try {
+  foreach ($index in 1..2) {
+    $start = [Diagnostics.ProcessStartInfo]::new((Join-Path $env:SystemRoot 'System32\\WindowsPowerShell\\v1.0\\powershell.exe'))
+    $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+    foreach ($argument in @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 30')) { $start.ArgumentList.Add($argument) }
+    $start.Environment.Clear(); $start.Environment['SystemRoot'] = $env:SystemRoot
+    $process = [Diagnostics.Process]::Start($start); $roots += $process
+    $group.GetType().GetMethod('Assign', [Reflection.BindingFlags]'Instance,NonPublic').Invoke($group, @($config, $process.Handle)) | Out-Null
+    if ($index -eq 1) {
+      if (-not $native.GetMethod('AssignProcessToJobObject', $flags).Invoke($null, @($inner, $process.Handle))) { throw 'nested job assignment refused' }
+    }
+  }
+  $initial = Read-GroupUntil { param($observed) $roots[0].Id -in $observed -and $roots[1].Id -in $observed }
+  if (-not $native.GetMethod('TerminateJobObject', $flags).Invoke($null, @($inner, [uint32]125))) { throw 'inner termination refused' }
+  if (-not $roots[0].WaitForExit(5000)) { throw 'first inert root did not exit' }
+  $remaining = Read-GroupUntil { param($observed) $roots[0].Id -notin $observed -and $roots[1].Id -in $observed }
+  $final = @($group.StopAndObserve(5000))
+  if ($final.Count -ne 0 -or -not $roots[1].WaitForExit(5000)) { throw 'shared job did not settle all roots' }
+  $latched = $false
+  try { $group.StopAndObserve(5000) | Out-Null } catch { $latched = $true }
+  if (-not $latched) { throw 'group repeated a termination effect' }
+  [ordered]@{ observed_roots = 2; retained_other_root = ($roots[1].Id -in $remaining); after_group = $final.Count; scope = 'same-owner inert nested jobs; no logon or GUI' } | ConvertTo-Json -Compress
+} finally {
+  $group.Dispose()
+  $native.GetMethod('CloseHandle', $flags).Invoke($null, @($inner)) | Out-Null
+  foreach ($process in $roots) { if (-not $process.HasExited) { $process.Kill($true); $process.WaitForExit(5000) | Out-Null }; $process.Dispose() }
+}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
+          new URL("./native-qualification-account.cs.txt", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      observed_roots: 2,
+      retained_other_root: true,
+      after_group: 0,
+      scope: "same-owner inert nested jobs; no logon or GUI",
     });
   },
 );

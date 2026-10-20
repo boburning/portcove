@@ -61,6 +61,22 @@ The final multi-root bridge must reconcile total process admission and the
 existing resource supervisor before claiming a whole-attempt limit. Ordinary
 outer deadlines and proposed filesystem boundaries are not observed enforcement.
 
+The prepared `AccountGroup` adds one shared 64-process job across all supplied
+roots before their threads resume, followed by each root's nested cleanup job.
+One actual same-owner inert fixture observes two roots in the shared job,
+terminates the first nested job without terminating the second root, then
+observes an empty shared job after final teardown. Initial fixture assertions
+incorrectly required exactly two total processes; the observed descendant PIDs
+made that fail. The corrected fixture retains the root identities and permits
+their actual descendants. It does not establish cross-account job assignment.
+
+The validation-only checks now cover eighteen refusals. Besides the required
+ten environment fields, the helper admits only enumerated runtime state paths
+inside qualification work and explicit local fixture URL/port/state values.
+It refuses an unknown `PORTCOVE_` field, external writable state, an ambiguous
+port spelling and a remote or credential-bearing fixture URL. There is no
+inherited environment or wildcard runtime-variable permission.
+
 `scripts/fixtures/native-account-gui-probe.ps1` is prepared for the single inert
 post-setup test. It creates a basic private-desktop WinForms window and a bounded
 inert descendant, reports its account/profile/PIDs, and leaves all descendant
