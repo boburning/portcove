@@ -219,21 +219,21 @@ namespace Portcove.NativeQualification {
             if (!before.SequenceEqual(Native.JobPids(job).OrderBy(value => value))) throw new InvalidOperationException("Owned job inventory changed during capture; no stable snapshot");
             return result.ToArray();
         }
-        IntPtr FindRootWindow() {
+        IntPtr FindWindow(uint target) {
             IntPtr found = IntPtr.Zero;
             Native.DesktopWindowCallback callback = delegate(IntPtr window, IntPtr unused) {
                 uint owner; Native.GetWindowThreadProcessId(window, out owner);
-                if (owner == pid && Native.IsWindowVisible(window)) { found = window; return false; }
+                if (owner == target && Native.IsWindowVisible(window)) { found = window; return false; }
                 return true;
             };
             Native.EnumDesktopWindows(desktop, callback, IntPtr.Zero);
             GC.KeepAlive(callback);
             return found;
         }
-        public IntPtr MainWindowHandle { get { return FindRootWindow(); } }
+        public IntPtr MainWindowHandle { get { return FindWindow(pid); } }
         public string MainWindowTitle {
             get {
-                IntPtr window = FindRootWindow();
+                IntPtr window = FindWindow(pid);
                 if (window == IntPtr.Zero) return String.Empty;
                 var title = new StringBuilder(1024); Native.GetWindowTextW(window, title, title.Capacity);
                 return title.ToString();
@@ -241,14 +241,25 @@ namespace Portcove.NativeQualification {
         }
         public bool Responding {
             get {
-                IntPtr window = FindRootWindow(); if (window == IntPtr.Zero) return false;
+                IntPtr window = FindWindow(pid); if (window == IntPtr.Zero) return false;
                 UIntPtr result;
                 return Native.SendMessageTimeoutW(window, 0, UIntPtr.Zero, IntPtr.Zero, 3, 1000, out result) != IntPtr.Zero;
             }
         }
         public bool CloseMainWindow() {
-            IntPtr window = FindRootWindow();
+            IntPtr window = FindWindow(pid);
             return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
+        }
+        public bool CloseOwnedWindow(uint target, long expectedCreated) {
+            if (!SnapshotOwnedJob().Any(member => member.Pid == target && member.CreatedFileTime == expectedCreated)) throw new InvalidOperationException("Close target is not an exact owned job member");
+            IntPtr handle = Native.OpenProcess(0x1000, false, target);
+            if (handle == IntPtr.Zero) throw Native.Error("Open exact owned close target");
+            try {
+                long created, ignored1, ignored2, ignored3;
+                if (!Native.GetProcessTimes(handle, out created, out ignored1, out ignored2, out ignored3) || created != expectedCreated) throw new InvalidOperationException("Close target creation changed");
+                IntPtr window = FindWindow(target);
+                return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
+            } finally { Native.CloseHandle(handle); }
         }
         public void Kill(bool entireProcessTree) {
             if (!entireProcessTree) throw new ArgumentException("Native qualification always terminates the whole owned job");

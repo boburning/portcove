@@ -95,9 +95,10 @@ try {
             Start-Sleep -Milliseconds 25
         }
         $request = $reading.GetAwaiter().GetResult() | ConvertFrom-Json
-        Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch')
+        Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch','target')
         if ($request.schema_version -ne 1 -or $request.invocation_id -cne $InvocationId -or $request.sequence -ne $sequence -or $request.id -cnotmatch '^[a-z][a-z0-9-]{0,63}$') { throw 'Bridge command identity mismatch' }
         Assert-CaptureHealthy
+        if ($request.operation -cne 'close' -and $request.target -ne $null) { throw 'Only close accepts an exact owned child target' }
         $value = $null
         switch -CaseSensitive ($request.operation) {
             'start' {
@@ -124,7 +125,14 @@ try {
             }
             'close' {
                 if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
-                $value=[ordered]@{ accepted=$roots[$request.id].CloseMainWindow() }
+                if ($request.target -eq $null) { $accepted=$roots[$request.id].CloseMainWindow() }
+                else {
+                    Assert-ExactMembers $request.target @('pid','started_filetime')
+                    if ($request.target.pid -isnot [long] -and $request.target.pid -isnot [int]) { throw 'Exact positive close PID required' }
+                    if ($request.target.pid -lt 1 -or $request.target.pid -gt [int]::MaxValue -or $request.target.started_filetime -cnotmatch '^[1-9][0-9]+$') { throw 'Invalid close identity' }
+                    $accepted=$roots[$request.id].CloseOwnedWindow([uint32]$request.target.pid,[long]$request.target.started_filetime)
+                }
+                $value=[ordered]@{ accepted=$accepted }
             }
             'stop' {
                 if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }

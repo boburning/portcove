@@ -122,6 +122,17 @@ loaded-profile keeper, installer/desktop-test adapter, native report or account
 setup from this checkpoint. In particular, the launch API is transport plumbing
 and cannot grant native acceptance or release an issuer credential.
 
+The maintained TypeScript harness client binds the retained broker/configuration
+tuple and the configured PowerShell image, supplies no credential environment,
+and latches a failed or mismatched response as ambiguous. It will not repeat a
+launch, close or stop after that failure. Its three injected-transport tests
+cover successful tuple handling, changed state/runtime, forbidden credential
+fields and retained ambiguity. Those fixtures do not establish a real pipe or
+native acceptance. A close operation can now identify the exact owned child
+PID and creation time, because an application's window belongs to the WebDriver
+descendant rather than the driver root; the helper verifies current job
+membership and a retained child handle before sending the close message.
+
 After those independent changes and exact setup/recovery preparation are
 reviewed, one credentialed inert capability test must establish the actual
 cross-account private-desktop GUI/profile/capture/teardown route. Its result may
