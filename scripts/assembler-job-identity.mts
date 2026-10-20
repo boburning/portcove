@@ -580,7 +580,15 @@ export async function requestAssemblerToken(
   audience: string,
   environment: NodeJS.ProcessEnv = process.env,
   fetcher: typeof fetch = fetch,
+  deadline?: number,
 ) {
+  const remaining = () => {
+    const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
+    if (!Number.isFinite(left) || left < 1 || (deadline !== undefined && left > 600000))
+      throw new Error("runner OIDC phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   // These are runner-issued control variables, never dispatch/candidate values.
   const endpoint = new URL(environment.ACTIONS_ID_TOKEN_REQUEST_URL ?? "");
   const bearer = environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
@@ -598,16 +606,19 @@ export async function requestAssemblerToken(
   const response = await fetcher(endpoint, {
     headers: { Authorization: `Bearer ${bearer}` },
     redirect: "error",
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(remaining()),
   });
+  remaining();
   if (response.status !== 200 || !response.body) throw new Error("runner OIDC request refused");
   const chunks: Buffer[] = [];
   let length = 0;
   for await (const chunk of response.body as AsyncIterable<Uint8Array>) {
+    remaining();
     length += chunk.byteLength;
     if (length > 32 * 1024) throw new Error("runner OIDC response exceeds bound");
     chunks.push(Buffer.from(chunk));
   }
+  remaining();
   const result: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
   if (!isRecord(result) || typeof result.value !== "string" || result.value.length > 16384)
     throw new Error("runner OIDC response is invalid");

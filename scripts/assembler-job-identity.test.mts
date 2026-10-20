@@ -12,7 +12,33 @@ import {
   verifyReleaseInputReaderJobIdentity,
   verifyReleaseControlReaderJobIdentity,
   controllerOidcSubject,
+  requestAssemblerToken,
 } from "./assembler-job-identity.mts";
+
+void test("OIDC token acquisition cannot start or return after its existing monotonic phase deadline", async (t) => {
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  let calls = 0;
+  const fetcher: typeof fetch = async () => {
+    calls++;
+    clock = 2001;
+    return new Response(JSON.stringify({ value: "inert-token" }));
+  };
+  const env = {
+    ACTIONS_ID_TOKEN_REQUEST_URL: "https://fixture.actions.githubusercontent.com/token",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "inert-runner-bearer",
+  };
+  await assert.rejects(
+    requestAssemblerToken("fixture-audience", env, fetcher, 999),
+    /phase deadline/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    requestAssemblerToken("fixture-audience", env, fetcher, 2000),
+    /phase deadline/,
+  );
+  assert.equal(calls, 1);
+});
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   releaseControlPhaseProfile,
