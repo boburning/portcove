@@ -21,11 +21,42 @@ function Assert-OwnerFile([string]$Path) {
         if ($rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $write) -and
             $rule.IdentityReference.Value -notin @($script:owner,'S-1-5-18','S-1-5-32-544')) { throw 'Bridge input writable by another identity' }
     }
+    $ancestor=[IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Path))
+    $ancestorWrite=[Security.AccessControl.FileSystemRights]'DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
+    $depth=0
+    while ($ancestor) {
+        if (++$depth -gt 64) { throw 'Bridge input ancestry exceeds bound' }
+        $item=Get-Item -LiteralPath $ancestor -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Bridge input ancestor reparse point refused' }
+        foreach ($rule in (Get-Acl -LiteralPath $ancestor).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
+            if (($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
+                $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $ancestorWrite) -and
+                $rule.IdentityReference.Value -notin @($script:owner,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')) {
+                throw 'Bridge input ancestor permits replacement by another identity'
+            }
+        }
+        $parent=[IO.Path]::GetDirectoryName($ancestor)
+        if (-not $parent -or $parent -eq $ancestor) { break }
+        $ancestor=$parent
+    }
 }
 function Write-Capture([string]$Id, $Process) {
     foreach ($stream in @(@('stdout',$Process.OutputCapture),@('stderr',$Process.ErrorCapture))) {
         $path = Join-Path $configurationValue.capture_root ($Id + '.' + $stream[0] + '.bin')
-        [IO.File]::WriteAllBytes($path, $stream[1].Snapshot())
+        $snapshot=$stream[1].Snapshot()
+        $known=$captureLengths.ContainsKey($path)
+        $offset=if ($known) { $captureLengths[$path] } else { 0L }
+        if ($snapshot.Length -lt $offset) { throw 'Native capture cannot shrink' }
+        # Retain each byte once. Rewriting an unchanged 4 MiB stream on every
+        # observation would multiply bounded capture into gigabytes of I/O.
+        $mode=if ($known) { [IO.FileMode]::Open } else { [IO.FileMode]::CreateNew }
+        $file=[IO.FileStream]::new($path,$mode,[IO.FileAccess]::Write,[IO.FileShare]::Read)
+        try {
+            if ($file.Length -ne $offset) { throw 'Native capture retained length changed' }
+            $file.Position=$offset
+            if ($snapshot.Length -gt $offset) { $file.Write($snapshot,[int]$offset,$snapshot.Length-[int]$offset); $file.Flush($true) }
+            $captureLengths[$path]=[long]$snapshot.Length
+        } finally { $file.Dispose() }
     }
 }
 function Convert-Teardown($Value) {
@@ -49,11 +80,17 @@ function Assert-CaptureHealthy {
 }
 
 $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+Assert-OwnerFile $PSCommandPath
 Assert-OwnerFile $Configuration
 if ((Get-FileHash -LiteralPath $Configuration -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedConfigurationSha256) { throw 'Bridge configuration changed' }
 $configurationValue = Get-Content -LiteralPath $Configuration -Raw | ConvertFrom-Json
-Assert-ExactMembers $configurationValue @('schema_version','broker_sid','account_sid','account_name','profile_root','work_root','capture_root','helper_sha256')
+Assert-ExactMembers $configurationValue @('schema_version','broker_sid','account_sid','account_name','profile_root','work_root','capture_root','helper_sha256','controller_root')
 if ($configurationValue.schema_version -ne 1 -or $configurationValue.broker_sid -cne $owner -or $configurationValue.account_sid -eq $owner) { throw 'Unratified bridge account boundary' }
+Assert-OwnerFile $configurationValue.controller_root
+if (-not (Get-Acl -LiteralPath $configurationValue.controller_root).AreAccessRulesProtected -or
+    -not [string]::Equals([IO.Path]::GetFullPath((Join-Path $configurationValue.controller_root 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Fixed native helper must execute from the protected controller staging root'
+}
 $helper = Join-Path $PSScriptRoot 'native-qualification-account.cs.txt'
 Assert-OwnerFile $helper
 if ($configurationValue.helper_sha256 -cnotmatch '^[a-f0-9]{64}$' -or
@@ -67,6 +104,7 @@ $config.UserName=$configurationValue.account_name; $config.AccountSid=$configura
 $config.ProfileRoot=$configurationValue.profile_root; $config.WorkRoot=$configurationValue.work_root
 $config.PrivateDesktop='PortcoveNative_' + $InvocationId.Substring(0,32) + '\Qualification'
 $roots = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+$captureLengths = [Collections.Generic.Dictionary[string,long]]::new([StringComparer]::OrdinalIgnoreCase)
 $group = [Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
 $credential = $null; $pipe = $null; $groupStopped = $false; $finished = $false
 $clock = [Diagnostics.Stopwatch]::StartNew()
@@ -121,7 +159,8 @@ try {
                 $process=$roots[$request.id]
                 $exited=$process.HasExited
                 $identities=@($process.SnapshotOwnedJob() | ForEach-Object { [ordered]@{ pid=$_.Pid; path=$_.Path; started_filetime=$_.CreatedFileTime.ToString() } })
-                $value=[ordered]@{ exited=$exited; exit_code=$(if ($exited) {$process.ExitCode} else {$null}); processes=$identities; responding=$process.Responding; window_title=$process.MainWindowTitle }
+                $value=[ordered]@{ exited=$exited; exit_code=$(if ($exited) {$process.ExitCode} else {$null}); processes=$identities;
+                    responding=$process.Responding; window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
             }
             'close' {
                 if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }

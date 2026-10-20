@@ -133,6 +133,46 @@ PID and creation time, because an application's window belongs to the WebDriver
 descendant rather than the driver root; the helper verifies current job
 membership and a retained child handle before sending the close message.
 
+The following adapter checkpoint adds the selected account route to the
+installer's central launch seam and the ordinary desktop-test WebDriver seam.
+It never falls back to owner-account candidate execution. The installer reads
+the qualification SID's actual loaded HKEY_USERS hive while its fixed inert
+profile keeper remains positively alive. NSIS completion uses the broker's
+retained nested job, exact self-copy hash and exact-root empty readback instead
+of a recyclable parent PID. The selected desktop route separates writable
+library/profile/preferences/update state from owner-only output and projects
+actual job identities into the existing native-session assertions. It does not
+forge local kernel handles or accept imported native reports.
+The installer invokes that ordinary client while the installed image still
+exists, before its uninstall/persistence observations. A shared parent stage
+still must bind those observations to the required qualification assertions.
+
+The selected binding also fixes the Node, Tauri driver and WebView driver paths
+and hashes. Those bytes are checked before use and after owned driver teardown;
+the ambient cache does not appoint qualified tools. The bridge requires its
+fixed protected controller staging root and refuses replaceable ancestors,
+including the known broad writable E: ancestry. All dynamically consumed helper
+and driver inputs must therefore be staged and read back under the protected
+root before candidate execution. That staging/setup has not occurred.
+
+Four new adapter tests pass: exact identity/environment handling and one-shot
+stop/readback, NSIS job completion and changed-root refusal, desktop job/snapshot
+binding and forbidden owner fallback, and append-only bounded stream capture.
+Those observations are injected/inert plumbing evidence, not cross-account GUI
+execution. Twelve existing native dependency/custody tests also pass. The
+declared helper inventory captures the new backend and its client/C# sources.
+Capture appends only newly observed bytes rather than rewriting up to 4 MiB per
+stream on every poll; unexpected retained length refuses without overwriting the
+partial evidence.
+
+This remains an incomplete stage adapter. Direct application-recovery and
+private-key fixture renderer modes are explicitly refused in the selected route;
+a real public signed-context update/rollback/journal adapter still has to replace
+that legacy fixture path. The default owner-side harness route is unchanged.
+Actual parent-owned stage capture/report serialization, protected controller
+staging, exact setup/readback/recovery and the single cross-account capability
+observation remain required before any native acceptance or Check issuance.
+
 After those independent changes and exact setup/recovery preparation are
 reviewed, one credentialed inert capability test must establish the actual
 cross-account private-desktop GUI/profile/capture/teardown route. Its result may

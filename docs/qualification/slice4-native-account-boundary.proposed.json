@@ -22,6 +22,7 @@
   },
   "filesystem": {
     "proposed_root": "C:\\ProgramData\\PortcoveNativeQualification",
+    "controller_staging": "C:\\ProgramData\\PortcoveNativeQualification\\inputs\\controller; complete fixed harness/client dependency closure and qualified Node/Tauri/WebView drivers; owner-only writes, qualification SID RX; never execute mutable E: worktree helper code after candidate launch",
     "inputs": "broker/SYSTEM write; qualification SID read and execute only; exact source/package/helper hashes before launch",
     "work": "qualification SID modify; separate per-attempt paths; persistent state retained through the exact journey",
     "capture": "broker/SYSTEM only; candidate has no write or delete access",

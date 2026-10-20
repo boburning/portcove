@@ -480,7 +480,21 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/upstream-observer.mts", ["scripts/discovery-checkpoint.test.mts"]],
   ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
-  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/test-windows-installer.ps1",
+    ["scripts/repository-skills.test.mts", "scripts/native-qualification-account-adapter.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account-adapter.psm1",
+    ["scripts/native-qualification-account-adapter.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      "apps/desktop/scripts/desktop-native-account-session.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
   [
     "scripts/native-qualification-account.cs.txt",

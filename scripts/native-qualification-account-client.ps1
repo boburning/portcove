@@ -32,5 +32,5 @@ try {
     $response=$responseText | ConvertFrom-Json
     if ($response.schema_version -ne 1 -or $response.invocation_id -cne $InvocationId -or
         $response.sequence -ne $request.sequence -or $response.broker_pid -ne $BrokerPid) { throw 'Ambiguous native reply identity mismatch; no retry' }
-    [Console]::Out.WriteLine($responseText)
+    Write-Output $responseText
 } finally { $pipe.Dispose() }
