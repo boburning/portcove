@@ -19,6 +19,61 @@ const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex")
 const base = "repos/boburning/portcove";
 export type SigningOutputFile = { filename: string; bytes: number; sha256: string };
 
+/** Inert bounded parsing only. Caller must authenticate the complete expected
+ * inventory separately before these bytes can carry provenance or authority. */
+export function inspectSigningOutputArchive(raw: Buffer, rawFiles: readonly SigningOutputFile[]) {
+  if (
+    !Buffer.isBuffer(raw) ||
+    raw.length < 22 ||
+    raw.length > 2 * 1024 * 1024 ||
+    !Array.isArray(rawFiles) ||
+    rawFiles.length < 1 ||
+    rawFiles.length > 8
+  )
+    throw new Error("bounded signing archive required");
+  const archive = Buffer.from(raw);
+  const files: readonly SigningOutputFile[] = structuredClone(rawFiles);
+  if (
+    new Set(files.map((file) => file.filename)).size !== files.length ||
+    files.some(
+      (file) =>
+        !isRecord(file) ||
+        Object.keys(file).sort().join(",") !== "bytes,filename,sha256" ||
+        typeof file.filename !== "string" ||
+        !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,191}$/u.test(file.filename) ||
+        typeof file.bytes !== "number" ||
+        !Number.isSafeInteger(file.bytes) ||
+        file.bytes < 1 ||
+        file.bytes > 512 * 1024 ||
+        typeof file.sha256 !== "string" ||
+        !/^[a-f0-9]{64}$/u.test(file.sha256),
+    )
+  )
+    throw new Error("bounded exact signing archive inventory required");
+  const entries = inspectBoundedZip(archive, {
+    compressedBytes: 2 * 1024 * 1024,
+    expandedBytes: 1024 * 1024,
+    files: files.length,
+    nameBytes: 192,
+    allowedPaths: new Set(files.map((file) => file.filename)),
+  }).entries;
+  if (entries.length !== files.length) throw new Error("signing output inventory incomplete");
+  const output = new Map<string, Buffer>();
+  for (const entry of entries) {
+    const file = files.find((value) => value.filename === entry.name);
+    if (!file || entry.bytes !== file.bytes) throw new Error("signing output member differs");
+    const compressed = archive.subarray(entry.data, entry.dataEnd);
+    const bytes =
+      entry.method === 0
+        ? Buffer.from(compressed)
+        : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
+    if (bytes.length !== file.bytes || crc32(bytes) !== entry.crc || hash(bytes) !== file.sha256)
+      throw new Error("signing output member bytes differ");
+    output.set(file.filename, bytes);
+  }
+  return output;
+}
+
 /** Fixed reviewed upload action owns uploaded.json; its output is only a
  * locator. Direct provider/full-byte readback below supplies the custody proof.
  * There is no POST, retry, key or candidate execution in this protocol. */
@@ -170,6 +225,8 @@ export async function readSigningOutputArtifact(
     deadline?: number;
     spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
     archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
+    /** Data custody lifecycle only, never an authority or retry grant. */
+    producerState?: "completed";
   } = {},
 ) {
   const expected = structuredClone(raw),
@@ -181,6 +238,7 @@ export async function readSigningOutputArtifact(
     options.spawn !== undefined ||
     options.archiveSpawn !== undefined;
   const deadline = options.deadline,
+    completedProducer = options.producerState === "completed",
     apiSpawn = options.spawn ?? spawnSync,
     archiveSpawn = options.archiveSpawn ?? spawnSync;
   const remaining = (maximum: number) => {
@@ -274,8 +332,22 @@ export async function readSigningOutputArtifact(
       run.head_sha !== producer.controller_revision ||
       run.path !== productionControllerWorkflow ||
       run.event !== "workflow_dispatch" ||
-      run.status !== "in_progress" ||
-      run.conclusion !== null ||
+      !(
+        (run.status === "in_progress" && run.conclusion === null) ||
+        (completedProducer &&
+          run.status === "completed" &&
+          [
+            "success",
+            "failure",
+            "cancelled",
+            "timed_out",
+            "action_required",
+            "neutral",
+            "skipped",
+            "stale",
+            "startup_failure",
+          ].includes(String(run.conclusion)))
+      ) ||
       !isRecord(run.repository) ||
       run.repository.id !== 1354613114 ||
       run.repository.full_name !== "boburning/portcove" ||
@@ -288,8 +360,8 @@ export async function readSigningOutputArtifact(
       job.head_sha !== producer.controller_revision ||
       job.check_run_url !==
         `https://api.github.com/repos/boburning/portcove/check-runs/${String(producer.check_run_id)}` ||
-      job.status !== "in_progress" ||
-      job.conclusion !== null ||
+      job.status !== (completedProducer ? "completed" : "in_progress") ||
+      job.conclusion !== (completedProducer ? "success" : null) ||
       !isRecord(artifact) ||
       artifact.id !== expected.artifact_id ||
       artifact.name !== expected.name ||
@@ -342,25 +414,9 @@ export async function readSigningOutputArtifact(
     });
     remaining(15000);
     phase = "complete-output-inventory";
-    const entries = inspectBoundedZip(archive, {
-      compressedBytes: 2 * 1024 * 1024,
-      expandedBytes: 1024 * 1024,
-      files: files.length,
-      nameBytes: 192,
-      allowedPaths: new Set(files.map((file: SigningOutputFile) => file.filename)),
-    }).entries;
-    if (entries.length !== files.length) throw new Error("signing output inventory incomplete");
-    for (const entry of entries) {
+    for (const [filename, bytes] of inspectSigningOutputArchive(archive, files)) {
       remaining(15000);
-      const file = files.find((item: SigningOutputFile) => item.filename === entry.name);
-      if (!file || entry.bytes !== file.bytes) throw new Error("signing output member differs");
-      const compressed = archive.subarray(entry.data, entry.dataEnd);
-      const bytes =
-        entry.method === 0
-          ? Buffer.from(compressed)
-          : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
-      if (bytes.length !== file.bytes || crc32(bytes) !== entry.crc || hash(bytes) !== file.sha256)
-        throw new Error("signing output member bytes differ");
+      const file = files.find((item) => item.filename === filename)!;
       const local = await readControllerToolFile(
         path.join(directory, "output", file.filename),
         file.bytes,
