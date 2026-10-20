@@ -16,11 +16,14 @@ import {
   nativePrepublicationProfile,
   nativePrepublicationPending,
   nativePrepublicationScenarios,
+  nativeInitialPackageScenarios,
+  nativeEmptyRecordsSha256,
 } from "./release-native-qualification-contract.mts";
 
 function fixture(
   stage: "payload-signing" | "release-publication" = "payload-signing",
   temporal = false,
+  initial = false,
 ) {
   const harnessBytes = Buffer.from("inert native fixture source\n"),
     input = nativeQualificationFixture(stage);
@@ -32,10 +35,25 @@ function fixture(
           schema_version: 2,
           native_prepublication_profile: nativePrepublicationProfile,
           pending_obligations: [...nativePrepublicationPending],
-          scenarios: nativePrepublicationScenarios.map((name, index) => ({
-            ...input.scenarios[index],
-            name,
-          })),
+          ...(initial
+            ? {
+                journey: {
+                  kind: "initial-empty-feed",
+                  metadata_bootstrap_sha256: "5".repeat(64),
+                  setup_plan_sha256: "6".repeat(64),
+                  initial_site_preimage_sha256: "7".repeat(64),
+                  empty_records_sha256: nativeEmptyRecordsSha256,
+                  signed_context_sha256: "8".repeat(64),
+                  signatures_sha256: "9".repeat(64),
+                },
+              }
+            : {}),
+          scenarios: (initial ? nativeInitialPackageScenarios : nativePrepublicationScenarios).map(
+            (name, index) => ({
+              ...input.scenarios[index],
+              name,
+            }),
+          ),
         }
       : input,
   );
@@ -148,6 +166,34 @@ void test("schema2 native Check consumer requires independently selected exact t
     { ...f.expected, journey: { ...f.expected.journey, signed_context_sha256: "0".repeat(64) } },
   ])
     await assert.rejects(collectNativeReleaseQualification(root, changed, { api: f.api }));
+});
+void test("initial native Check binds fixed caller bootstrap expectation and cannot satisfy ordinary predecessor expectation", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-initial-inert-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture("release-publication", true, true);
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  assert.equal(receipt.evidence_scope, "injected-provider");
+  await assert.rejects(verifiedNativeReleaseQualification(receipt), /actual provider/u);
+  const ordinary = fixture("release-publication", true);
+  await assert.rejects(
+    collectNativeReleaseQualification(
+      root,
+      { ...f.expected, journey: ordinary.expected.journey },
+      { api: f.api },
+    ),
+  );
+  if (!f.expected.journey || !("kind" in f.expected.journey))
+    throw new Error("fixture initial journey missing");
+  await assert.rejects(
+    collectNativeReleaseQualification(
+      root,
+      {
+        ...f.expected,
+        journey: { ...f.expected.journey, metadata_bootstrap_sha256: "0".repeat(64) },
+      },
+      { api: f.api },
+    ),
+  );
 });
 void test("native Check accepts provider timestamp normalization but refuses wrong issuer, inputs and incomplete capture", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-refusals-"));
