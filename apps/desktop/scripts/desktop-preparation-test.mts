@@ -1312,6 +1312,22 @@ export async function preparationScenarios({
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
     );
+    // Core launch settlement can trigger a workspace refresh after navigation.
+    // Observe the authoritative presentation becoming actionable; never bypass
+    // its pending/conflict state to take the geometry measurement.
+    await browser.wait(
+      async () => {
+        const current = await browser.findElement(
+          By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`),
+        );
+        const launch = await current.findElements(
+          By.xpath('.//button[normalize-space(.)="Try launch"]'),
+        );
+        return launch.length === 1 && (await launch[0]!.isEnabled());
+      },
+      15_000,
+      "Library launch must settle before the card composition check",
+    );
     const cardActions = await executeBrowserScript(
       browser,
       (element) => {

@@ -340,7 +340,7 @@ export async function workspaceRefreshScenario({
       await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
       await browser.wait(until.elementLocated(By.css('b[aria-label="1 in library"]')), 15_000);
       const cardLocator = By.xpath(
-        `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+        `//article[contains(@class,"port-card") and .//button[@data-detail-game-id="${port.id}"]]`,
       );
       const card = await browser.wait(until.elementLocated(cardLocator), 15_000);
       const beforeSource = await card.getAttribute("aria-label");

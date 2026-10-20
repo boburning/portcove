@@ -34,6 +34,14 @@ controls. Both themes share semantic roles. This supersedes earlier Library
 card-density assumptions; Find games retains its discovery composition and
 dated audit/reference evidence remains retained.
 
+Find games currently uses a whole-card details button. Its accessible name comes
+from its content, including the visible game/port, state and action; do not
+replace it with a shorter synthesized label that omits visible card text.
+Decorative artwork remains hidden from the accessibility tree. Library keeps
+its separate identity and action controls. The discovery card's longer natural
+name is a consequence of that composition, not a reason to hide meaningful
+content or give it a conflicting speech-input label.
+
 ## Activity and contextual task feedback
 
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.

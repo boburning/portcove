@@ -136,7 +136,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     );
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
-    assert.ok(reviewed.includes("add"));
+    assert.ok(reviewed.includes("Add or repair shortcut"));
     assert.ok(reviewed.includes("Keep Steam closed until this finishes"));
     const accessibility = path.join(output, "steam-entry-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);

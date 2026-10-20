@@ -289,7 +289,7 @@ export async function interruptedPreparationScenario({
     assert.equal(required(required(recovered).failure).details.cancel_requested, "true");
     const repair = doctor.repair.items.find((item) => item.operation_id === activity.id);
     assert.equal(required(repair).kind, "retained_preparation");
-    assert.match(required(repair).proposed_action, /cannot be resumed/);
+    assert.match(required(repair).proposed_action, /this interrupted setup cannot resume/);
     assert.equal(required(repair).path, required(privatePath));
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
@@ -473,7 +473,7 @@ export async function interruptedPreparationScenario({
     await review.findElement(By.css("summary")).click();
     assert.match(await review.getText(), /Retained preparation files/);
     assert.ok((await review.getText()).includes(required(privatePath)));
-    assert.match(await review.getText(), /cannot be resumed/);
+    assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),

@@ -300,3 +300,23 @@ it("keeps failed artwork feedback outside the details action name", async () => 
   });
   expect(labels.violations).toEqual([]);
 });
+
+it("includes visible Find games card content in its accessible name when artwork fails", async () => {
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => ({
+    ...artworkState(id, slot),
+    availability: "unavailable",
+  }));
+  await page.viewport(1280, 800);
+  await mount("dark");
+  await page.getByRole("button", { name: "Find games", exact: true }).click();
+  await expect
+    .poll(() => document.querySelectorAll('[data-detail-origin^="catalog:card:"]').length)
+    .toBe(12);
+  await expect
+    .poll(() => document.querySelector(".artwork-image-note")?.textContent)
+    .toContain("Image unavailable");
+  const labels = await axe.run(document.querySelector("main")!, {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(labels.violations).toEqual([]);
+});

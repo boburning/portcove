@@ -10,6 +10,7 @@ import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import type { BoundaryInvoke } from "./desktop-main-webview-boundary.mts";
 import type { ActivityStatus, InstallRecord } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { gameIdentityLabel } from "../src/port-identity.ts";
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
 type FixturePort = InstallFixture["port"];
 interface InstallContext extends ScenarioContext {
@@ -648,9 +649,11 @@ export async function installScenarios({
     const libraryCard = await browser.wait(async () => {
       return executeBrowserScript(
         browser,
-        (name) => {
-          const card = [...document.querySelectorAll("article.port-card")].find((item) =>
-            item.getAttribute("aria-label")?.startsWith(`${name}.`),
+        (portId) => {
+          const card = [...document.querySelectorAll("article.port-card")].find(
+            (item) =>
+              item.querySelector<HTMLButtonElement>("[data-detail-game-id]")?.dataset
+                .detailGameId === portId,
           );
           if (!card || card.querySelector(".readiness")?.textContent?.trim() !== "Ready to play")
             return null;
@@ -662,15 +665,12 @@ export async function installScenarios({
             ),
           };
         },
-        port.name,
+        port.id,
       );
     }, 15_000);
     assert.ok(libraryCard);
     assert.equal(libraryCard.state, "Ready to play");
-    assert.equal(
-      libraryCard.label,
-      `${port.name}. Ready to play. Update downloaded. View details.`,
-    );
+    assert.equal(libraryCard.label, `${gameIdentityLabel(port)}. Ready to play.`);
     assert.ok(libraryCard.attention.includes("Update downloaded"));
     assert.equal(
       libraryCard.attention.includes("Update available"),

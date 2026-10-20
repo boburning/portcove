@@ -52,7 +52,9 @@ export async function artworkScenario({
         ownedRelative && !ownedRelative.startsWith("..") && !path.isAbsolute(ownedRelative),
         "Artwork tests require the owned qualification library",
       );
-      const portId = "zelda64-recomp";
+      // This owned fixture deliberately has no catalog artwork mapping. Real
+      // ports can gain a default cover without changing fallback semantics.
+      const portId = "portcove-install-fixture";
       const port = transportValue(
         "port",
         command(["catalog", "show", portId], required(bootstrap.library_root)),
