@@ -438,10 +438,16 @@ fn unrelated_catalog_port_does_not_change_generic_entry_or_index_bytes() {
     assert_eq!(fixture(), original);
 }
 
+fn historical_prepared_catalog() -> crate::Catalog {
+    crate::Catalog::from_json(include_str!(
+        "../tests/fixtures/dkc3-006-prepared-historical.json"
+    ))
+    .unwrap()
+}
+
 #[test]
 fn prepared_private_data_requires_version_two_without_widening_legacy_entries() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -462,8 +468,7 @@ fn prepared_private_data_requires_version_two_without_widening_legacy_entries() 
 
 #[test]
 fn shared_preferences_require_v8_and_preserve_unknown_variant_refusal() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -486,8 +491,7 @@ fn shared_preferences_require_v8_and_preserve_unknown_variant_refusal() {
 
 #[test]
 fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -501,7 +505,7 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
     entry["required_capabilities"][0]["minimum_version"] = json!(3);
     assert!(inspect(&entry).is_ok());
     port.adapter = crate::AdapterKind::N64RecompPortable;
-    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut document = historical_prepared_catalog().authoritative_document();
     *document
         .ports
         .iter_mut()
@@ -517,7 +521,7 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
 
 #[test]
 fn prepared_settings_require_version_five_and_narrow_declaration() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = historical_prepared_catalog();
     let mut port = catalog.port("dkc3-recomp").unwrap().clone();
     for runtime in port.release.user_prepared.values_mut() {
         runtime.version = "1.22.420".into();
@@ -582,8 +586,7 @@ fn prepared_settings_require_version_five_and_narrow_declaration() {
 
 #[test]
 fn prepared_required_mutable_files_require_version_four_and_complete_projection() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -608,7 +611,7 @@ fn prepared_required_mutable_files_require_version_four_and_complete_projection(
     assert!(inspect(&entry).is_err());
     assert!(inspect(&legacy).is_ok());
     port.adapter = crate::AdapterKind::N64RecompPortable;
-    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut document = historical_prepared_catalog().authoritative_document();
     *document
         .ports
         .iter_mut()
