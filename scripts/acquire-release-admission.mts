@@ -16,7 +16,15 @@ import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
-import { collectReleaseSbomEvidence } from "./release-acceptance-evidence.mts";
+import {
+  collectReleaseSbomEvidence,
+  requireVerifiedReleaseSbomDocument,
+} from "./release-acceptance-evidence.mts";
+import { compareVerifiedReleaseCompilerSource } from "./release-compiler-source-admission.mts";
+import {
+  collectReleaseCompilerEvidence,
+  requireVerifiedReleaseCompilerEvidence,
+} from "./release-compiler-evidence.mts";
 import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
@@ -76,6 +84,49 @@ export interface PreparedReleaseAdmissionFacts {
   evidence: ReturnType<typeof collectReleaseRunEvidence>;
   contexts: unknown;
   allocations: unknown;
+  compiler_evidence?: unknown;
+}
+export interface ReleaseCompilerAdmissionPrerequisite {
+  controller_tools: object;
+  controller_source: { source_commit: string; source_tree: string };
+}
+export interface ActualReleaseAdmissionContext {
+  stage: "payload-signing" | "release-publication";
+  facts: Readonly<PreparedReleaseAdmissionFacts>;
+  controls: AuthenticatedReleaseControlSource;
+  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+  checkpoint: string;
+  native_qualifications: readonly object[];
+  sbom_receipt: object;
+  pending_obligations: readonly string[];
+}
+const actualAdmissionContexts = new WeakMap<
+  object,
+  { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
+>();
+const acquiredSbomReceipts = new WeakMap<object, object>();
+/** Same-process authority continuation only. Serialization, imported snapshots,
+ * fixture source brands and an assembly artifact cannot mint this context. Each
+ * protected consumer must still perform its own fresh controls/reservation check. */
+export function requireActualReleaseAdmissionContext(
+  raw: object,
+  expectedStage: ActualReleaseAdmissionContext["stage"],
+): Readonly<ActualReleaseAdmissionContext> {
+  const retained = actualAdmissionContexts.get(raw);
+  if (
+    !retained ||
+    !["payload-signing", "release-publication"].includes(expectedStage) ||
+    retained.context.stage !== expectedStage ||
+    retained.context.admission.decision !== "admitted" ||
+    retained.context.admission.holds.length !== 0 ||
+    retained.context.admission.evidence_scope !== "github.com" ||
+    retained.context.controls.evidence_scope !== "github.com" ||
+    retained.context.facts.checkpoint !== retained.context.checkpoint ||
+    retained.context.admission.checkpoint !== retained.context.checkpoint
+  )
+    throw new Error("actual same-process zero-hold release admission context required");
+  requireAuthenticatedReleaseControlSource(retained.context.controls, retained.phase);
+  return retained.context;
 }
 export interface ActualReleaseAdmissionContext {
   stage: "payload-signing" | "release-publication";
@@ -180,6 +231,7 @@ export async function acquireReleaseAdmission(
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
+    compiler?: ReleaseCompilerAdmissionPrerequisite;
     // Called once after all large immutable archives have been privately
     // validated. The same process retains its facts; no serialized facts import.
     establishControls?: (
@@ -538,6 +590,7 @@ export async function acquireReleaseAdmission(
     phase = "archive-acquisition";
     const files = [];
     const declarations = [];
+    const cliPackages = new Map<string, Buffer>();
     for (const archive of archives) {
       if (performance.now() - started > 15 * 60 * 1000)
         throw new Error("admission archive acquisition deadline exhausted");
@@ -555,6 +608,13 @@ export async function acquireReleaseAdmission(
           run_attempt: evidenceRequest.attempt,
           source_commit: active.prepared_commit,
         },
+        options.compiler
+          ? {
+              retainCliPackage: async (identity, bytes) => {
+                cliPackages.set(identity.filename, bytes);
+              },
+            }
+          : {},
       );
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
@@ -588,6 +648,39 @@ export async function acquireReleaseAdmission(
       files,
     };
     await inspectTrustedAssemblyInput(assembly);
+    phase = "actual-compiler-source-and-output-acquisition";
+    let compilerEvidence: Awaited<ReturnType<typeof collectReleaseCompilerEvidence>> | null = null;
+    if (options.compiler && publicBuildInputs) {
+      if (options.api || options.recover || options.download || options.now)
+        throw new Error("actual compiler acceptance cannot use injected admission sources");
+      const sourceBinding = await compareVerifiedReleaseCompilerSource(
+        options.compiler.controller_tools,
+        {
+          source_commit: active.source_commit,
+          source_tree: active.source_tree,
+          prepared_commit: active.prepared_commit,
+          prepared_tree: active.prepared_tree,
+          version,
+        },
+        options.compiler.controller_source,
+      );
+      compilerEvidence = await collectReleaseCompilerEvidence(
+        root,
+        assembly,
+        evidence,
+        publicBuildInputs,
+        cliPackages,
+        sourceBinding,
+        { preparedNamespace: config.namespace },
+      );
+      if (
+        compilerEvidence.state === "verified-compiler-output-bindings" &&
+        compilerEvidence.evidence_scope === "github.com"
+      ) {
+        await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
+      }
+    }
+    cliPackages.clear();
     phase = "signed-SBOM-document-acquisition";
     const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
       download: options.download,
@@ -596,6 +689,9 @@ export async function acquireReleaseAdmission(
         512 * 1024 * 1024,
         2 * 1024 * 1024 * 1024 -
           archives.reduce((sum, item) => sum + item.bytes, 0) -
+          (compilerEvidence?.state === "verified-compiler-output-bindings"
+            ? compilerEvidence.archive_bytes
+            : 0) -
           (publicBinding?.artifacts.reduce((sum, item) => sum + item.bytes, 0) ?? 0),
       ),
     });
@@ -614,6 +710,7 @@ export async function acquireReleaseAdmission(
         evidence,
         contexts,
         allocations,
+        compiler_evidence: compilerEvidence,
       };
       controls = await options.establishControls(
         hash(JSON.stringify(facts)),
@@ -714,7 +811,13 @@ export async function acquireReleaseAdmission(
       );
     else if (controlsAfter.pause.publication_paused)
       holds.add("publication-paused-by-owner-source");
-    holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
+    if (
+      !compilerEvidence ||
+      compilerEvidence.state !== "verified-compiler-output-bindings" ||
+      compilerEvidence.evidence_scope !== "github.com"
+    )
+      holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
+    else await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
     // The existing attester authenticates the exact SPDX document and package
     // subjects. It cannot substitute for the compiler or a native journey.
     if (
@@ -752,7 +855,7 @@ export async function acquireReleaseAdmission(
             },
           })
         : null;
-    return {
+    const result = {
       schema_version: 1,
       decision: "hold",
       descriptor: null,
@@ -771,6 +874,7 @@ export async function acquireReleaseAdmission(
       public_build_inputs: publicBuildInputs,
       declared_producers: declarations,
       sbom_evidence: sbomEvidence,
+      compiler_evidence: compilerEvidence,
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
@@ -785,6 +889,11 @@ export async function acquireReleaseAdmission(
           : "github.com",
       authority: "none",
     };
+    if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
+      await requireVerifiedReleaseSbomDocument(sbomEvidence);
+      acquiredSbomReceipts.set(result, sbomEvidence);
+    }
+    return result;
   } catch {
     const evidence = {
       schema_version: 1,
@@ -822,6 +931,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     factsSha256: string,
   ) => Promise<string>,
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
+  compiler?: ReleaseCompilerAdmissionPrerequisite,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
@@ -832,6 +942,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     controls: AuthenticatedReleaseControlSource | null;
   } = { facts: null, controls: null };
   const admission = await acquireReleaseAdmission(root, configuration, {
+    ...(compiler ? { compiler } : {}),
     controlPhase: phase,
     establishControls: async (factsSha256, facts) => {
       retained.facts = facts;
@@ -874,6 +985,9 @@ export async function acquireReleaseAdmissionWithControlHandshake(
         "positive continuation requires actual same-process facts/control/reservation binding",
       );
     requireAuthenticatedReleaseControlSource(controls, phase);
+    const sbomReceipt = acquiredSbomReceipts.get(admission);
+    if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
+    await requireVerifiedReleaseSbomDocument(sbomReceipt);
     if (phase !== "release-publication")
       throw new Error("full admission context cannot appoint another execution stage");
     const context = Object.freeze({
@@ -883,6 +997,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       admission: freezePreparedFacts(structuredClone(admission)),
       checkpoint: admission.checkpoint,
       native_qualifications: Object.freeze([] as object[]),
+      sbom_receipt: sbomReceipt,
       pending_obligations: Object.freeze(["post-publication-full-public-V0-to-V1-acceptance"]),
     });
     actualAdmissionContexts.set(context, { context, phase });

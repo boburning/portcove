@@ -20,6 +20,7 @@ import {
 } from "./release-public-build-inputs.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { runResourceCommand } from "./resource-command.mts";
+import { collectReleaseArtifacts } from "./write-release-checksums.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const members = [
@@ -132,7 +133,8 @@ export interface CompilerCaptureOptions {
   manifestSha256: string;
   runId: string;
   runAttempt: number;
-  retainDirectory?: (directory: string) => Promise<void>;
+  targetDirectory?: string;
+  retainDirectory?: (directory: string, targetDirectory: string) => Promise<void>;
   /** Test seam never yields original compiler acceptance. */
   invoke?: (
     executable: string,
@@ -194,6 +196,45 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
   )
     throw new Error("compiler checkout differs from exact reviewed source/tree");
   git(["diff", "--quiet", "--no-ext-diff", "--no-textconv", "HEAD", "--"]);
+  // A beta build never consumes a restored/shared Cargo target. The CLI creates
+  // this private attempt directory; desktop must reuse that exact owned target.
+  const targetParent = path.join(root, "target");
+  await assertOwnedUnlinkedPath(root, targetParent, "private compiler target parent");
+  await mkdir(targetParent, { recursive: true });
+  const targetOwner = {
+    source_commit: options.expectedRevision,
+    source_tree: options.expectedTree,
+    run_id: options.runId,
+    run_attempt: options.runAttempt,
+    producer_job: process.env.GITHUB_JOB ?? null,
+    platform: options.platform,
+  };
+  let targetDirectory: string;
+  if (options.targetDirectory) {
+    targetDirectory = await assertOwnedUnlinkedPath(
+      targetParent,
+      options.targetDirectory,
+      "private compiler target",
+    );
+    const owner: unknown = JSON.parse(
+      (
+        await readBoundedPublicBuildInputFile(targetDirectory, "compiler-target-owner.json", 4096)
+      ).toString("utf8"),
+    );
+    if (!isDeepStrictEqual(owner, targetOwner))
+      throw new Error("compiler target belongs to a different source/run/attempt");
+    if (options.interface !== "desktop")
+      throw new Error("CLI compilation requires a new private target");
+  } else {
+    if (options.interface !== "cli" && !options.invoke)
+      throw new Error("desktop compilation requires the same attempt's CLI target");
+    targetDirectory = await mkdtemp(path.join(targetParent, "release-attempt-"));
+    await writeFile(
+      path.join(targetDirectory, "compiler-target-owner.json"),
+      JSON.stringify(targetOwner),
+      { flag: "wx", mode: 0o600 },
+    );
+  }
   const directory = await mkdtemp(path.join(options.outputRoot, "release-compiler-"));
   const before = await Promise.all(
     members.map((name) => identity(options.inputDirectory, name, 512 * 1024)),
@@ -263,6 +304,9 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
     ...releaseCompilerEnvironment(process.env),
     ...prepared.environment,
     RUSTUP_AUTO_INSTALL: "0",
+    CARGO_TARGET_DIR: targetDirectory,
+    CARGO_BUILD_JOBS: "4",
+    CARGO_INCREMENTAL: "0",
   };
   const channelText = (
     await readBoundedPublicBuildInputFile(root, "rust-toolchain.toml", 16 * 1024)
@@ -337,15 +381,22 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
   const workingDirectory = options.interface === "cli" ? root : path.join(root, "apps/desktop");
   const started = new Date().toISOString();
   const report = {
-    schema_version: 1,
+    schema_version: 2,
     authority: "none",
     evidence_scope: options.invoke ? "injected-executor" : "direct-build-process",
+    producer_job: process.env.GITHUB_JOB ?? null,
     source_commit: options.expectedRevision,
     source_tree: options.expectedTree,
     run_id: options.runId,
     run_attempt: options.runAttempt,
     platform: options.platform,
     interface: options.interface,
+    target_directory: targetDirectory,
+    cargo_resource_policy: { jobs: 4, incremental: false, shared_target_cache: false },
+    capture_module_sha256: (
+      await identity(root, "scripts/release-compiler-capture.mts", 256 * 1024)
+    ).sha256,
+    outputs: [] as { filename: string; bytes: number; sha256: string }[],
     public_input_use:
       options.interface === "cli"
         ? "updater inputs not applicable to CLI compilation"
@@ -361,6 +412,7 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       args,
       cwd: workingDirectory,
       started_at: started,
+      finished_at: null as string | null,
     },
     state: "started",
     exit_code: null as number | null,
@@ -368,9 +420,10 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
     original_compiler_acceptance:
       "unproven; build-job process observation is not independent authenticated execution acceptance",
   };
-  const filename = path.join(directory, "compiler-observation.json");
+  const suffix = `${options.interface}-${options.platform}`;
+  const filename = path.join(directory, `compiler-observation-${suffix}.json`);
   await writeFile(filename, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx", mode: 0o600 });
-  await options.retainDirectory?.(directory);
+  await options.retainDirectory?.(directory, targetDirectory);
   try {
     const code = await (
       options.invoke ??
@@ -394,13 +447,45 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       throw new Error("compiler checkout source/tree changed during actual invocation");
     if (code !== 0)
       throw new Error(`compiler process exited ${code}; partial outputs remain unaccepted`);
+    if (!options.invoke) {
+      const outputFiles =
+        options.interface === "cli"
+          ? [
+              path.join(
+                targetDirectory,
+                "release",
+                options.platform === "windows-x86_64" ? "portcove.exe" : "portcove",
+              ),
+            ]
+          : (
+              await collectReleaseArtifacts(root, options.platform, undefined, targetDirectory)
+            ).filter((filename) => !filename.endsWith(".zip") && !filename.endsWith(".tar.gz"));
+      report.outputs = await Promise.all(
+        outputFiles.map(async (filename) => {
+          const captured = await identity(
+            targetDirectory,
+            path.relative(targetDirectory, filename),
+            512 * 1024 * 1024,
+            "tool",
+          );
+          return {
+            filename: path.basename(filename),
+            bytes: captured.bytes,
+            sha256: captured.sha256,
+          };
+        }),
+      );
+      if (!report.outputs.length)
+        throw new Error("actual compiler produced no complete selected outputs");
+    }
     report.state = "completed";
   } catch (error) {
     report.state = "failed";
     report.failure = error instanceof Error ? error.message : "compiler invocation failed";
   }
+  report.invocation.finished_at = new Date().toISOString();
   await writeFile(
-    path.join(directory, "compiler-result.json"),
+    path.join(directory, `compiler-result-${suffix}.json`),
     `${JSON.stringify(report, null, 2)}\n`,
     { flag: "wx", mode: 0o600 },
   );
@@ -425,7 +510,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     manifestSha256: env.PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256 ?? "",
     runId: env.GITHUB_RUN_ID ?? "",
     runAttempt: Number(env.GITHUB_RUN_ATTEMPT),
-    retainDirectory: async (directory) => {
+    ...(env.PORTCOVE_RELEASE_TARGET_ROOT
+      ? { targetDirectory: env.PORTCOVE_RELEASE_TARGET_ROOT }
+      : {}),
+    retainDirectory: async (directory, targetDirectory) => {
       if (!env.GITHUB_ENV || /[\r\n\0]/u.test(directory))
         throw new Error("compiler receipt handoff unavailable");
       if (!["cli", "desktop"].includes(env.PORTCOVE_RELEASE_INTERFACE ?? ""))
@@ -434,6 +522,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
         env.GITHUB_ENV,
         `PORTCOVE_RELEASE_COMPILER_${env.PORTCOVE_RELEASE_INTERFACE!.toUpperCase()}_DIRECTORY=${directory}\n`,
       );
+      await appendFile(env.GITHUB_ENV, `PORTCOVE_RELEASE_TARGET_ROOT=${targetDirectory}\n`);
     },
   });
   if (result.report.state !== "completed") process.exitCode = 1;

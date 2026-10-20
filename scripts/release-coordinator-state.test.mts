@@ -1354,10 +1354,10 @@ async function capacityStateFixture(t: Parameters<typeof fixture>[0]) {
   const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
   return { ...f, capacity, migrated };
 }
-async function remoteCapacityFixture(t: test.TestContext) {
+async function remoteCapacityFixture(t: test.TestContext, modern = false) {
   const f = await remoteFixture(t);
   await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api });
-  const capacity = capacityFixture();
+  const capacity = { ...capacityFixture(), schema_version: modern ? 2 : 1 };
   const input = {
     ...f.input,
     schema_version: 2,
@@ -1380,7 +1380,7 @@ for (const lost of [false, true])
     async (t) => {
       // Real local Git journal with simulated GitHub/JWKS/OIDC transport. No real
       // issuer credential, GitHub request, publication or protected grant is used.
-      const f = await remoteCapacityFixture(t);
+      const f = await remoteCapacityFixture(t, true);
       const signed = assemblerIdentityFixture(
         {
           aud: "portcove-capacity-executor",
@@ -1392,8 +1392,10 @@ for (const lost of [false, true])
       );
       let activeIdentity = signed;
       let publisherTerminal = false;
-      const coordinatorSubject =
-        "repo:boburning@43177418/portcove@1354613114:environment:production-release-coordinator";
+      const coordinatorSubject = controllerOidcSubject(
+        identityExpected.controller_ref,
+        "production-release-coordinator",
+      );
       const coordinatorIdentity = () =>
         assemblerIdentityFixture(
           {
@@ -1574,6 +1576,7 @@ for (const lost of [false, true])
         );
         assert.ok(isRecord(retained.input.controller.capacity_attempt.operation));
         assert.equal(retained.input.controller.capacity_attempt.operation.outcome, "ambiguous");
+        assert.equal(retained.input.controller.capacity_attempt.operation.receipt_limit, 1);
         assert.deepEqual(
           retained.input.controller.capacity_attempt.operation.completed_effects,
           [],

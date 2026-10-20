@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { createGitHubRunner, GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   inspectImmutableReleaseSettlement,
   proposeImmutableReleaseTransition,
@@ -8,7 +9,33 @@ import {
   performImmutableReleaseEffect,
   advanceImmutableReleasePublication,
   verifyPreparedImmutableRelease,
+  advanceOwnedImmutableReleasePublication,
 } from "./release-immutable-publication.mts";
+
+void test("owned publication refuses copied publication or signing-stage claims before any provider request", async (t) => {
+  t.mock.method(globalThis, "fetch", () => assert.fail("no admitted publication context"));
+  for (const stage of ["payload-signing", "release-publication"] as const) {
+    await assert.rejects(
+      advanceOwnedImmutableReleasePublication(
+        { identity: fixture().identity } as never,
+        { kind: "authenticated-capacity-executor" },
+        Object.freeze({
+          stage,
+          admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
+          native_qualifications: [],
+          pending_obligations: [],
+          checkpoint: "a".repeat(40),
+        }),
+        { phase: "release-publication", evidence_scope: "github.com" } as never,
+        {
+          repository: process.cwd(),
+          remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
+        },
+      ),
+      /actual same-process/,
+    );
+  }
+});
 
 void test("feed prerequisite cannot import a serialized release preparation or acceptance receipt", () => {
   assert.throws(
@@ -131,6 +158,49 @@ void test("complete inventory finds a retained draft and verifies actual version
   assert.ok(calls.every((call) => !call.includes("releases/tags/")));
   f.publish();
   assert.throws(() => readImmutableReleaseState(api, f.identity), /actual version tag/u);
+});
+
+void test("actual gh nonzero missing-tag response permits only the absent draft-first transition", () => {
+  const f = fixture();
+  let responseStatus = 404;
+  let timeout = false;
+  const api = new GitHubApiClient(
+    createGitHubRunner({
+      spawn: (_command, args) => {
+        assert.equal(args[0], "api");
+        assert.equal(args[4], "GET");
+        const endpoint = args[2]!;
+        const missingTag = endpoint.includes("/git/ref/tags/");
+        const status = missingTag ? responseStatus : 200;
+        const body = missingTag ? { message: "Not Found" } : [];
+        return {
+          status: status === 200 ? 0 : 1,
+          stdout: `HTTP/2.0 ${status} Response\r\n\r\n${JSON.stringify(body)}`,
+          stderr: status === 200 ? "" : "gh: provider refused request",
+          ...(timeout && missingTag
+            ? { error: Object.assign(new Error("request timed out"), { code: "ETIMEDOUT" }) }
+            : {}),
+        };
+      },
+    }),
+  );
+  const absent = readImmutableReleaseState(api, f.identity);
+  assert.deepEqual(absent, { release: null, assets: [], tag_commit: null });
+  const proposed = proposeImmutableReleaseTransition(f.identity, absent.release, absent.assets);
+  assert.ok(proposed.decision === "effect" && proposed.effect.kind === "create-draft");
+  for (const status of [401, 403, 429, 500]) {
+    responseStatus = status;
+    assert.throws(
+      () => readImmutableReleaseState(api, f.identity),
+      (error) => error instanceof GitHubApiError && error.status === status,
+    );
+  }
+  responseStatus = 404;
+  timeout = true;
+  assert.throws(
+    () => readImmutableReleaseState(api, f.identity),
+    (error) => error instanceof GitHubApiError && error.status === null,
+  );
 });
 
 void test("fixed write transport sends one bounded binary effect and never follows a redirect or retries refusal", async () => {

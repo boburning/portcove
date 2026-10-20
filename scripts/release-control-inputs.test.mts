@@ -14,7 +14,9 @@ import {
 import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
+  requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
+import { capacityDigest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import {
   releaseControlInputsFixture as fixture,
@@ -91,8 +93,18 @@ void test("immutable conflicts, CAS refusal and ambiguous acknowledgment never o
   assert.equal(recovered.mutations(), 1);
 });
 void test("isolated observer only GETs and refuses hidden bypass, inherited coverage and drift", () => {
-  for (const fault of ["", "bypass", "inherited", "drift"]) {
+  for (const fault of [
+    "",
+    "bypass",
+    "inherited",
+    "drift",
+    "release-ok",
+    "release-disabled",
+    "release-drift",
+  ]) {
     let refReads = 0;
+    let settingReads = 0;
+    const publication = fault.startsWith("release-");
     const api = {
       request(method: string, endpoint: string) {
         assert.equal(method, "GET");
@@ -110,7 +122,14 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
         };
         if (endpoint === "repos/boburning/portcove")
           body = { id: 1354613114, full_name: "boburning/portcove" };
-        else if (endpoint.includes("/rulesets?")) body = [rule];
+        else if (endpoint.endsWith("/immutable-releases")) {
+          settingReads++;
+          body = {
+            enabled:
+              fault !== "release-disabled" && !(fault === "release-drift" && settingReads === 2),
+            enforced_by_owner: false,
+          };
+        } else if (endpoint.includes("/rulesets?")) body = [rule];
         else if (endpoint.includes("/rulesets/1?"))
           body = fault === "bypass" ? { ...rule, bypass_actors: undefined } : rule;
         else if (endpoint.includes("/git/ref/heads/")) {
@@ -125,13 +144,41 @@ void test("isolated observer only GETs and refuses hidden bypass, inherited cove
         return { status: 200, headers: new Map<string, string>(), body };
       },
     };
-    if (fault) assert.throws(() => observeReleaseInputProtections(api));
+    if ((fault && !publication) || fault === "release-drift")
+      assert.throws(() => observeReleaseInputProtections(api, { releasePublication: publication }));
     else {
-      const result = observeReleaseInputProtections(api);
+      const result = observeReleaseInputProtections(api, { releasePublication: publication });
       assert.equal(result.admission, "hold");
       assert.equal(result.enforcement, "uninterpreted");
+      if (fault === "release-ok") {
+        assert.equal(requireReleaseImmutabilityPolicy(result).enabled, true);
+        assert.equal(settingReads, 2);
+      } else assert.throws(() => requireReleaseImmutabilityPolicy(result));
     }
   }
+});
+
+void test("release immutability requires fresh complete isolated setting, not an imported enabled flag", () => {
+  const now = Date.now();
+  const inventory = { immutable_releases: { enabled: true, enforced_by_owner: false } };
+  const proof = {
+    schema_version: 1,
+    repository_id: 1354613114,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    observed_at: new Date(now).toISOString(),
+    inventory,
+    inventory_sha256: capacityDigest(inventory),
+  };
+  assert.equal(requireReleaseImmutabilityPolicy(proof, now).enforced_by_owner, false);
+  for (const value of [
+    { enabled: true },
+    { ...proof, coverage: "current-repository-input-branches-only" },
+    { ...proof, observed_at: new Date(now - 60001).toISOString() },
+    { ...proof, observed_at: new Date(now + 1).toISOString() },
+    { ...proof, inventory_sha256: "0".repeat(64) },
+    { ...proof, inventory: { immutable_releases: { enabled: true } } },
+  ])
+    assert.throws(() => requireReleaseImmutabilityPolicy(value, now));
 });
 
 void test("writer policy requires fresh exact per-ref principals and unbypassable immutable ref rules", () => {

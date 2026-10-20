@@ -11,6 +11,22 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
+connects isolated fresh immutable-release observation, dedicated journal
+credential transport, observed-effect recovery and actual publication-stage
+executor admission. Release preparation consumes all six packages directly from
+its verified retained aggregate; fresh renewal workers can reconstruct the
+journal-pinned public application component. Fixture evidence does not supply
+native/semantic/signer acceptance, live credentials or protected execution.
+The final controller, initial feed bootstrap and consolidated setup remain
+pending; no recurring elevated diagnostic is introduced.
+
+The October 20 [compiler tool-source preparation](slice4-534-compiler-tool-source-2026-10-20.md)
+adds the generated source closure to the existing authenticated tool inventory
+and separates pre-sign from post-sign native wire evidence. Actual compiler-use,
+native Check authentication and stage-specific record/context joins remain
+separate obligations. No imported report becomes acceptance or execution authority.
+
 The October 20 [isolated role continuation](slice4-isolated-role-continuation-2026-10-20.md)
 connects the genuine private admission callback to current-control checks and
 one-use job-local payload key transport, expands the fixed tool inventory with
@@ -27,6 +43,18 @@ Release readback before application feed publication, verifier-bound TUF facts,
 and zero-deployment recovery of a lost published-state handoff. Local real Git
 and Rust evidence retains its exact scope. Final runnable orchestration, custody,
 resource ratification, observed protections and protected execution remain pending.
+
+The October 20 [compiler output binding preparation](slice4-534-compiler-output-binding-2026-10-20.md)
+connects actual compiler reports, the existing isolated report-byte attester,
+complete fixed producer-source closure and exact staged package output checks.
+It uses fresh private beta Cargo targets and preserves the general full profile.
+The generated tool-manifest asset and actual receiver getter are connected;
+observed candidate proofs remain separate, and native/security/semantic/history
+holds are retained. Signed SPDX publication bytes retain private same-process
+custody with bounded readback, without importing summary authority. Candidate build
+costs and the four seven-day report archives are explicit, with no increase to
+the 100-minute controller ceiling or claim of capacity/headroom. Older affected
+workflow/resource ratification must be replaced before execution.
 
 The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
 connects actual SPDX verification, beta dispatch attestation and supervised CLI/
