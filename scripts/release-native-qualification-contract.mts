@@ -108,6 +108,7 @@ function candidateIdentity(raw: unknown) {
     package: { filename, bytes: positive(raw.package.bytes), sha256: hex(raw.package.sha256) },
   };
 }
+export { candidateIdentity as inspectNativeQualificationCandidate };
 
 /** A bounded wire contract only. Passing this inspector cannot authenticate the
  * native host, its observations, a producer, or an admission decision. The
