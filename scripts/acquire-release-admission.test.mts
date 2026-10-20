@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
+import {
+  acquireReleaseAdmission,
+  requireActualReleaseAdmissionContext,
+} from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
@@ -13,6 +16,23 @@ import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+void test("imported or frozen zero-hold descriptors cannot mint an actual stage-specific admission continuation", () => {
+  for (const raw of [
+    {},
+    Object.freeze({
+      stage: "release-publication",
+      facts: {},
+      controls: { evidence_scope: "github.com" },
+      admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
+      checkpoint: "a".repeat(40),
+      pending_obligations: [],
+    }),
+    { stage: "payload-signing", decision: "eligible-for-payload-signing" },
+  ]) {
+    for (const stage of ["payload-signing", "release-publication"] as const)
+      assert.throws(() => requireActualReleaseAdmissionContext(raw, stage), /actual same-process/);
+  }
+});
 import {
   releaseControlInputsFixture,
   config as reviewProducer,
