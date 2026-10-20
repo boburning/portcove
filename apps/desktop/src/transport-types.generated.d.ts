@@ -306,7 +306,8 @@ export type CartridgeBuildRecipe =
   | "dr-mario-nes-cycle-v1.3.0-usa"
   | "advance-wars-gba-source-cb3facb53b6b-usa-rev1"
   | "earthbound-snes-source-fe1155dc26ff-usa"
-  | "render96-us-source-48da5c491c8a";
+  | "render96-us-source-48da5c491c8a"
+  | "gundam-wing-snes-source-c7aaaa152192-japan-offline";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.

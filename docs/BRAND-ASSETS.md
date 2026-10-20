@@ -49,6 +49,15 @@ Before promotion, inspect the standalone files for spelling, provenance, rights,
 
 ## Currently shipped V2 set and transition
 
+The owner-approved October 19 implementation explicitly allows an original
+AI-assisted vector successor, departing from the earlier preference for human-made
+finals. Its [candidate family](../apps/desktop/assets/brand/vector/original-2d-20261019/README.md)
+is unapproved and has no runtime placement. Original outlined geometry and the
+build-only pinned renderer replace font-dependent or raster-derived exports for
+that candidate. The optional vector-family manifest reference adds verification;
+it does not replace V2 byte/model integrity or grant creative/production approval.
+See [the transition decision](adr/0004-original-vector-brand-and-deterministic-exports.md).
+
 | Role                          | Current source and runtime use                                                                                                                                                              |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Wordmark                      | `assets/brand/generated/v2/portcove-logo-v2-transparent.png` is the approved raster master and README image; `public/brand/logo/portcove-logo-v2-transparent.png` serves startup and About. |

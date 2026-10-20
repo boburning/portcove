@@ -14,7 +14,7 @@ directory in private installation staging, and launches the fixed executable fro
 the installation root with `--rom game.gbc --save-dir saves`. Only this exact
 artifact and closed route support the new `regaiden-gbc` materialization. Older
 engines cannot parse it. Definition capability 16 and API77 describe the contract;
-Render96 capability13 and RaceWave capability14 cannot authorize shared preferences.
+Render96 capability13, Gundam capability14 and RaceWave capability15 cannot authorize shared preferences.
 Historical qualification retains its original engine identity;
 schema7 installation manifests retain the reviewed account/path binding. Earlier
 manifest readers refuse schema7 instead of dropping consent.

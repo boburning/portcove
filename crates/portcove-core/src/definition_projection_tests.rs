@@ -83,7 +83,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let version = if typed.managed_shared_preferences.is_some() {
         16
     } else if typed.runtime_data_policy.is_some() {
-        14
+        15
     } else if typed.managed_initialization.is_some() {
         12
     } else if typed.windows_runtime_path_policy.is_some() {
@@ -110,6 +110,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
             crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
             | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
             crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
+            crate::CartridgeBuildRecipe::GundamWingSnesSourceV1 => 14,
         })
         .max()
     {
@@ -190,7 +191,7 @@ fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
     let contract = serde_json::to_vec(&document).unwrap();
     for (id, version) in [
         ("resident-evil-gaiden-recomp", 16),
-        ("wave-race-64-racewave46", 14),
+        ("wave-race-64-racewave46", 15),
         ("render96ex", 13),
         ("f-zero-snes-recomp", 11),
     ] {

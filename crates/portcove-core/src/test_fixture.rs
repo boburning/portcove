@@ -102,7 +102,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         let capability_version = if port.managed_shared_preferences.is_some() {
             16
         } else if port.runtime_data_policy.is_some() {
-            14
+            15
         } else if port.managed_initialization.is_some() {
             12
         } else if port.windows_runtime_path_policy.is_some() {
@@ -184,7 +184,7 @@ fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
         ("resident-evil-gaiden-recomp", 16),
-        ("wave-race-64-racewave46", 14),
+        ("wave-race-64-racewave46", 15),
         ("render96ex", 13),
     ] {
         let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);

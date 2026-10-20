@@ -84,6 +84,10 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
+            contract_version: 15,
+        });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
             contract_version: 16,
         });
         supported
@@ -347,15 +351,15 @@ mod tests {
     }
 
     #[test]
-    fn managed_preferences_require_v16_beyond_credential_only_v14() {
+    fn managed_preferences_require_v16_beyond_credential_only_v15() {
         let credential_only: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 14
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 15
             })
             .collect();
         assert!(
-            check_with_inventory(&request("staged-source-portable", 14, 14), &credential_only)
+            check_with_inventory(&request("staged-source-portable", 15, 15), &credential_only)
                 .unwrap()
                 .compatible
         );
@@ -363,7 +367,7 @@ mod tests {
             check_with_inventory(&request("staged-source-portable", 16, 16), &credential_only)
                 .unwrap();
         assert!(!refused.compatible);
-        assert_eq!(refused.checks[0].installed_version, Some(14));
+        assert_eq!(refused.checks[0].installed_version, Some(15));
         assert!(
             check_definition_capabilities(&request("staged-source-portable", 16, 16))
                 .unwrap()
@@ -372,47 +376,24 @@ mod tests {
     }
 
     #[test]
-    fn unassigned_v15_is_not_advertised_or_negotiated() {
-        assert!(
-            !EngineTemplateCapability::current()
-                .iter()
-                .any(|entry| entry.template == AdapterKind::StagedSourcePortable
-                    && entry.contract_version == 15)
-        );
-        let report =
-            check_definition_capabilities(&request("staged-source-portable", 15, 15)).unwrap();
-        assert!(!report.compatible);
-        assert_eq!(
-            report.checks[0].outcome,
-            DefinitionCapabilityOutcome::UnsupportedVersion
-        );
-        assert!(
-            check_definition_capabilities(&request("staged-source-portable", 16, 16))
-                .unwrap()
-                .compatible
-        );
-    }
-
-    #[test]
-    fn runtime_credentials_require_v14_beyond_render96_only_v13() {
-        let render96_only: Vec<_> = EngineTemplateCapability::current()
+    fn runtime_credentials_require_v15_beyond_gundam_only_v14() {
+        let gundam_only: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 13
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 14
             })
             .collect();
         assert!(
-            check_with_inventory(&request("staged-source-portable", 13, 13), &render96_only)
+            check_with_inventory(&request("staged-source-portable", 14, 14), &gundam_only)
                 .unwrap()
                 .compatible
         );
         let refused =
-            check_with_inventory(&request("staged-source-portable", 14, 14), &render96_only)
-                .unwrap();
+            check_with_inventory(&request("staged-source-portable", 15, 15), &gundam_only).unwrap();
         assert!(!refused.compatible);
-        assert_eq!(refused.checks[0].installed_version, Some(13));
+        assert_eq!(refused.checks[0].installed_version, Some(14));
         assert!(
-            check_definition_capabilities(&request("staged-source-portable", 14, 14))
+            check_definition_capabilities(&request("staged-source-portable", 15, 15))
                 .unwrap()
                 .compatible
         );
@@ -446,6 +427,35 @@ mod tests {
                 .unwrap()
                 .compatible
         );
+    }
+
+    #[test]
+    fn gundam_native_source_recipe_requires_v14_and_preserves_v13() {
+        let required = request("staged-source-portable", 14, 14);
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 14
+            })
+            .collect();
+        let report = check_with_inventory(&required, &previous).unwrap();
+        assert!(!report.compatible);
+        assert_eq!(report.checks[0].installed_version, Some(13));
+        assert_eq!(
+            report.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        for version in [13, 12, 11, 9] {
+            assert!(
+                check_with_inventory(
+                    &request("staged-source-portable", version, version),
+                    &previous
+                )
+                .unwrap()
+                .compatible
+            );
+        }
     }
 
     #[test]
