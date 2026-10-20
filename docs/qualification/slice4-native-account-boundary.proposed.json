@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "status": "implementation-preparation-only-unprovisioned",
+  "repository": "boburning/portcove",
+  "repository_id": 1354613114,
+  "candidate_platform": "windows-x86_64",
+  "broker": {
+    "owner_sid": "S-1-5-21-1007133822-4277289207-646028416-1001",
+    "runtime": "fixed noninteractive owner-side parent; candidate code runs only in the separate account",
+    "helper": "scripts/native-qualification-account.cs.txt",
+    "candidate_code_in_broker": false,
+    "issuer_credential_in_candidate": false
+  },
+  "qualification_account": {
+    "proposed_name": "PortcoveNativeQualification",
+    "observed_sid": null,
+    "administrator_membership": false,
+    "logon": "CreateProcessWithLogonW LOGON_WITH_PROFILE; no network-credentials-only mode",
+    "proposed_owner_credential_target": "Portcove/native-qualification/local-account/v1",
+    "credential_transport": "owner-only Windows Credential Manager to SecureString; no password argument, environment or capture",
+    "profile": "actual GetUserProfileDirectoryW result must match ratified configuration before resume"
+  },
+  "filesystem": {
+    "proposed_root": "C:\\ProgramData\\PortcoveNativeQualification",
+    "controller_staging": "C:\\ProgramData\\PortcoveNativeQualification\\inputs\\controller; complete fixed harness/client dependency closure and qualified Node/Tauri/WebView drivers; owner-only writes, qualification SID RX; never execute mutable E: worktree helper code after candidate launch",
+    "inputs": "broker/SYSTEM write; qualification SID read and execute only; exact source/package/helper hashes before launch",
+    "work": "qualification SID modify; separate per-attempt paths; persistent state retained through the exact journey",
+    "capture": "broker/SYSTEM only; candidate has no write or delete access",
+    "known_host_interaction": "E:\\ currently grants Authenticated Users FullControl; a new standard account alone is insufficient",
+    "required_setup": "one-time qualification-SID deny of write/delete/ACL/ownership changes outside its explicit work/profile, with owner/system rights and unrelated ACL entries preserved; exact protected-root and exception readback before any package execution",
+    "not_observed": "no account, filesystem ACL or credential-store provisioning has occurred"
+  },
+  "process_boundary": {
+    "desktop": "new per-invocation PortcoveNative_<32-hex>\\Qualification station/desktop; never WinSta0\\Default",
+    "gui_permissions": "broker and SYSTEM control DACL; qualification SID gets GUI object rights without WRITE_DAC/WRITE_OWNER",
+    "launch": "explicit absolute application and working directory; exact scrubbed ten-member environment; suspended creation before job assignment and token/profile/session verification",
+    "resource_limit": "JobObject active-process limit 64; kill-on-close; no breakaway flags; existing outer native deadlines remain required",
+    "positive_teardown": "retained root process handle and creation FILETIME; bounded job PID readback after termination; root exited and zero job descendants",
+    "scope_limit": "job descendant readback does not establish that every possible account process or service-mediated launch is contained; final broker must not expand this claim",
+    "credential_release": "native Check issuer remains unavailable throughout candidate lifetime; only the fixed parent may request it after complete stage observations and positive applicable teardown"
+  },
+  "native_issuer": {
+    "distinct_from": [
+      "semantic producer",
+      "classification writer",
+      "protection observer",
+      "GitHub Actions App"
+    ],
+    "app_id": null,
+    "installation_id": null,
+    "permissions": { "checks": "write", "metadata": "read" },
+    "repository_scope": "boburning/portcove only",
+    "check_name": "Portcove isolated native release qualification",
+    "appointment": "prepared for the final consolidated setup grant; no creation or provisioning authorized here"
+  },
+  "remaining_engineering": [
+    "connect fixed account process objects to the existing trusted outer installer harness and its exact process journal",
+    "read the qualification account's real HKCU registration while its loaded profile is positively available; do not substitute the broker HKCU",
+    "bind fixed native producer capture, host/loaded-engine/protocol and stage scenarios to the shared native qualification contract",
+    "complete exact account/ACL/profile/desktop setup readback and recovery implementation before presenting a setup command"
+  ],
+  "single_post_setup_capability_test": {
+    "credential": "the narrowly scoped local qualification account credential, not a GitHub or signing credential",
+    "operation": "one fixed inert cross-account GUI/profile/process-tree probe under the same private-desktop and JobObject boundary",
+    "required_observations": [
+      "actual SID and non-admin token",
+      "actual loaded profile and HKCU identity",
+      "private desktop GUI startup",
+      "owner-side capture route",
+      "bounded descendant termination and zero job PID readback"
+    ],
+    "failure": "retain the original attempt and partial effects; no blind retry or successful native Check"
+  },
+  "authority": "none; no account creation, logon, credential provisioning, ACL mutation, package execution, signing, publication or issue closure"
+}
