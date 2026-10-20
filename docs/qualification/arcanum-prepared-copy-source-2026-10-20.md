@@ -1,0 +1,151 @@
+# Arcanum selected prepared-copy source treatment — October 20, 2026
+
+Owning issue: [#828](https://github.com/boburning/portcove/issues/828).
+This delivers a source preparation component for the selected Windows x64
+player-owned full-copy route. It does not establish catalog admission, actual
+user delivery or operation acceptance. The owner currently has no commercial
+Arcanum data. That leaves an exact acceptance prerequisite; it does not remove
+this integration from slice 6.
+
+## Selected identity and permission boundary
+
+The [source patch](patches/slice6-arcanum-prepared-copy.patch) modifies
+[alexbatalov/arcanum-ce at a7ff41b300ef712f0e7d088183a3d08957110cdd](https://github.com/alexbatalov/arcanum-ce/tree/a7ff41b300ef712f0e7d088183a3d08957110cdd),
+tree `c541c5fe54f03f9a485bdf101671d5a1bf986031`.
+It is a Portcove modification, not an upstream release. The upstream
+[Sustainable Use License](patches/slice6-arcanum-SUSTAINABLE-USE-LICENSE.md)
+is included with this source treatment. Preserve that license, upstream notices
+and this modification notice with modified copies. The selected work is a private
+personal-use build. No modified executable or original game data is published.
+Expired Actions artifact metadata is not used as retrievable binary evidence.
+
+The source README requires an owned GOG/Steam installation and identifies
+`arcanum1.dat` through `arcanum4.dat`, `tig.dat`, the stock Arcanum module,
+patch and media tree. This is a source-supported member description, not an
+accepted edition/revision/hash allowlist. No commercial file identity is invented.
+The precise owned-data contract and its acceptance/rejection observations remain
+required before admitting a prepared installation.
+
+## What the patch changes
+
+Windows startup requires one argument (the executable itself), an ASCII physical
+copy root and an executable directory matching the working directory. The root
+is held open. Settings and TIG file-layer physical opens and mutations use contained
+paths and held ordinary objects. File opens refuse reparse points and multiple
+hard links before truncation, preserving CRT read/write/append modes. Rename
+refuses overwrite. Recursive cleanup is bounded to depth 32 and 65,536 objects.
+
+Only the stock Arcanum module can be selected. Existing fixed path builders stop
+on overflow; checked formatters reject truncation before opening an output.
+Windows enumeration is incremental, validates each returned name/path, refuses
+reparse entries and stops on unsafe or unexpected enumeration failures. It does
+not silently report an incomplete list as success. Non-Windows behavior is not
+qualified by this Windows treatment.
+
+The save reader validates the complete bounded raw index before creating an
+output tree. It bounds record count, depth, component/path lengths and aggregate
+payload, and refuses traversal, reserved/aliased names, collisions, malformed
+nesting and trailing input. Slot index/data files must be direct matching siblings
+of the same physical Save directory. They cannot come from Current or from
+another repository. The root `data.sav` must be nonempty.
+
+Extraction streams into a new sibling tree, flushes/closes it and its sources,
+then moves prior Current aside and activates the new tree using non-overwriting
+renames. The Windows load caller no longer destroys Current before validation.
+A failed second rename attempts restoration; failed restoration retains the old
+backup and staging with a diagnostic. This is **not** a journaled two-rename
+transaction: a crash between renames can leave Current absent and its prior
+cache in the retained backup. Canonical slot pairs are never extracted over or
+removed. Old backup cleanup can retain a backup after successful activation.
+Ordinary save creation retains upstream behavior; transactional slot replacement
+is not established by this component.
+
+Save/load coordinates retain the existing eight-byte slot basename. Metadata
+filename components and fixed fields are bounded before copies/opens. A refused
+PC-name copy releases the allocated name and thumbnail. These restrictions can
+refuse long/non-ASCII names and unsupported modified layouts; no general mod
+support or filesystem sandbox is claimed.
+
+## Exact source and build evidence
+
+The original authenticated tree contains 431 regular files. The treatment changes
+seven files and adds six parser/guard/extractor files. The selected private
+437-file CRLF/mixed source manifest is
+`f737994afe49a74b9f13df1e41431c03e857315fb813eefb9f2500675734a680`.
+A fresh whole-game Release x64 build of those exact inputs passed, producing
+4,637,696-byte EXE SHA256
+`233792c4f30ccf2c45b486990883721b0279e6db2947ce8bc2e52f6023771361`.
+That executable was not run.
+
+The repository patch uses LF, SHA256
+`acfcfa4907b5951683cae0c574c27fff786c993df50412f22094a4f33a254a01`.
+Fresh application to the authenticated base produced 437 checked postimages.
+Export replay manifest SHA256:
+`f8b2e0f9b738064edb3bd12707c8fad9b293ff1ef7ebd762216457b11d486de3`.
+The first byte comparison correctly refused three additional carriage returns
+before newlines in file.c; the normalized export and all 437 postimages were then
+verified exactly. The original private mixed-line-ending inputs and intermediate
+patch-build receipts remain separate. A fresh whole-game Release x64 build of
+the exact exported postimages passed, producing a 4,637,696-byte EXE SHA256
+`cccb977811df1e341c8e24a3d8709276283fff3e07aefb967f4266dae18c01d2`.
+That executable was not run. The retained receipt is
+`evidence/arcanum-patch-build-a2/result.json` beneath the evidence root below.
+
+The build uses MSVC 14.44.35207, Windows SDK 10.0.19041.0 and complete before/after
+checks of the selected 5,621-file, 908,859,619-byte SDK profile. Both selected
+compiler-host binaries are authenticated. Source and copied compile roots are
+checked before configure, between configure/build and after build. Configuration
+uses explicit offline dependency roots and ordinary compiler probes. Two compile
+workers, finite harnesses and no MSBuild node reuse bound the private build.
+
+| Dependency      | Exact source commit                        |
+| --------------- | ------------------------------------------ |
+| fpattern        | `992b9685380ebb6bfd037856ececec1da2e3742e` |
+| SDL 3.4.8       | `d9d5536704d585616d4db3c8ba3c4ff6fc2757e1` |
+| SDL_mixer 3.2.2 | `a5e1890afc5115ffd16cefdbb4d50f74bf4970ce` |
+| zlib 1.3.2      | `da607da739fa6047df13e66a2af6b8bec7c2a498` |
+
+WAVE and vendored dr_mp3 support are enabled. Unselected external codecs and
+macOS symlinks are never fetched/materialized. This is a selected build closure,
+not source-commit-only executable trust or a general reproducible-build claim.
+
+Actual focused evidence includes 51 parser cases, 87 actual metadata-loader
+cases, 108 filesystem/CRT guard cases in each normal and extended path form,
+37 actual stock-module cases with mocked mount witnesses, 15 actual extraction
+filesystem cases and actual compat/enumeration boundaries plus ten hooked
+fail-stop refusals. The extraction failure injection refuses a staged **open**;
+it does not prove short-write/flush failure handling. SDL metadata in the
+standalone enumeration fixture uses a Win32-backed mock. Whole-game compilation
+and these fixtures are distinct from commercial-data/native acceptance.
+
+Detailed manifests, requests, stdout/stderr, original failed attempts and
+independent reviews remain in `H:/pc6-qualification-20261019-a3`. Retained build
+receipts are not signing, publication, installed-client or gameplay evidence.
+
+## Preparation and return point
+
+The selected route uses a separately prepared **complete physical copy** of
+qualified owned data. Never mount or write into the original installation, share
+files by hard links/junctions, or replace its `arcanum.exe`. The selected patched
+executable belongs beside the copied data, with that directory as working root,
+no forwarded arguments and the modification/license notices retained. The copy
+remains player-owned, including saves, configuration, logs and modifications.
+This source treatment supplies no copy/staging or update/delete authority over
+an original installation.
+
+After the missing owned-data identity contract is qualified, the return point is
+the existing reviewed UserPrepared/StagedSourcePortable flow: inspect the exact
+prepared executable/companions and complete immutable/mutable inventory, obtain
+explicit review consent, register, launch, ordinary-close, restart/read back,
+then remove only registration while proving all external files and saves remain.
+PR [#2280](https://github.com/boburning/portcove/pull/2280) supplies Core's two-sweep
+mutable-file hardlink refusal for that future fit. It does not qualify this title.
+User-managed updates require fresh exact review/revalidation; arbitrary selected
+binaries cannot be made trusted by hashing them.
+
+Issue #828 remains open. The precise remaining requirements are owned supported
+data/representation identities, complete runtime/output classification and exact
+prepared build/companion identity, followed by actual consent, startup/ordinary
+close/restart/readback and registration-only removal acceptance. Any necessary
+engineering revealed there remains assigned. Optional gameplay is not used as a
+substitute gate, and no managed update/rollback/backup operation is offered here.
