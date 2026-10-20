@@ -10,6 +10,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   inspectPublicBuildInputIdentity,
   prepareReleasePublicBuildInputs,
+  readBoundedPublicBuildInputFile,
 } from "./release-public-build-inputs.mts";
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -26,6 +27,30 @@ const members = new Map([
   ["tauri.release-public.conf.json", 64 * 1024],
   ["build-inputs.json", 16 * 1024],
 ]);
+const verifiedPublicInputs = new WeakMap<
+  object,
+  {
+    snapshot: string;
+    directory: string;
+    artifacts: { platform: string; bytes: number; sha256: string }[];
+  }
+>();
+/** Later acceptance consumers must retain the actual default-provider result,
+ * not import a serialized public recipe or a fixture's successful parser result. */
+export async function requireVerifiedReleasePublicBuildInputs(receipt: object) {
+  const retained = verifiedPublicInputs.get(receipt);
+  if (!retained || digest(Buffer.from(JSON.stringify(receipt))) !== retained.snapshot)
+    throw new Error("actual same-process public build input verification required");
+  for (const artifact of retained.artifacts) {
+    const bytes = await readBoundedPublicBuildInputFile(
+      retained.directory,
+      `${artifact.platform}.zip`,
+      artifact.bytes,
+    );
+    if (bytes.length !== artifact.bytes || digest(bytes) !== artifact.sha256)
+      throw new Error("retained public build input archive changed before use");
+  }
+}
 const digest = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function releasePublicBuildArtifactName(platform: string, runId: string, attempt: number) {
@@ -178,6 +203,7 @@ export async function verifyReleasePublicBuildInputs(
   let phase = "download";
   try {
     const receipts = [];
+    const compilerInputs = [];
     for (const item of binding.artifacts) {
       const received = (options.download ?? readGitHubArtifactArchive)(
         `repos/boburning/portcove/actions/artifacts/${item.artifact_id}/zip`,
@@ -250,16 +276,34 @@ export async function verifyReleasePublicBuildInputs(
       )
         throw new Error("public build generated configuration or receipt differs");
       receipts.push({ platform: item.platform, ...prepared.receipt });
+      compilerInputs.push({
+        platform: item.platform,
+        members: [...decoded.entries()]
+          .map(([filename, bytes]) => ({ filename, bytes: bytes.length, sha256: digest(bytes) }))
+          .sort((a, b) => a.filename.localeCompare(b.filename)),
+      });
     }
-    return {
+    const result = {
       directory,
       binding,
       receipts,
+      compiler_inputs: compilerInputs,
       evidence_scope: options.download ? "injected-provider" : "github.com",
       scope:
         "public configuration bytes and archive provenance only; no compiler-content or execution claim",
       authority: "none",
     };
+    if (!options.download)
+      verifiedPublicInputs.set(result, {
+        snapshot: digest(Buffer.from(JSON.stringify(result))),
+        directory,
+        artifacts: binding.artifacts.map(({ platform, bytes, sha256 }) => ({
+          platform,
+          bytes,
+          sha256,
+        })),
+      });
+    return result;
   } catch {
     const retained = { directory, phase, binding, authority: "none" };
     await writeFile(path.join(directory, "failure.json"), JSON.stringify(retained), {

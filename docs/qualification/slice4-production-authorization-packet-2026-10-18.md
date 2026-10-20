@@ -38,6 +38,16 @@ and zero-deployment recovery of a lost published-state handoff. Local real Git
 and Rust evidence retains its exact scope. Final runnable orchestration, custody,
 resource ratification, observed protections and protected execution remain pending.
 
+The October 20 [compiler output binding preparation](slice4-534-compiler-output-binding-2026-10-20.md)
+connects actual compiler reports, the existing isolated report-byte attester,
+complete fixed producer-source closure and exact staged package output checks.
+It uses fresh private beta Cargo targets and preserves the general full profile.
+Actual tool-manifest asset integration and observed candidate proofs remain
+separate; native/security/semantic/history holds are retained. Candidate build
+costs and the four seven-day report archives are explicit, with no increase to
+the 100-minute controller ceiling or claim of capacity/headroom. Older affected
+workflow/resource ratification must be replaced before execution.
+
 The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
 connects actual SPDX verification, beta dispatch attestation and supervised CLI/
 desktop invocation capture, adds exact identities to the existing native outer
