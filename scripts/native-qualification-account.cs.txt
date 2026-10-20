@@ -1,0 +1,623 @@
+// Loaded only by the fixed owner-side native broker. No candidate assembly is loaded here.
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security;
+using System.Security.Principal;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
+
+namespace Portcove.NativeQualification {
+    public static class OwnerCommandReader {
+        // The named pipe is owner-only. Still bound framing before parsing so a
+        // malformed client cannot allocate an unbounded line in the broker.
+        public static Task<string> ReadOne(Stream stream) {
+            return ReadBounded(stream, 32768);
+        }
+        public static Task<string> ReadResponse(Stream stream) {
+            return ReadBounded(stream, 65536);
+        }
+        static Task<string> ReadBounded(Stream stream, int bound) {
+            return Task.Run(async () => {
+                using (var retained = new MemoryStream()) {
+                    byte[] buffer = new byte[1024];
+                    while (true) {
+                        int count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (count == 0) throw new IOException("Incomplete owner command");
+                        if (retained.Length + count > bound) throw new IOException("Owner frame exceeds fixed byte bound");
+                        int newline = Array.IndexOf(buffer, (byte)10, 0, count);
+                        if (newline >= 0) {
+                            if (newline != count - 1) throw new IOException("One command per connection required");
+                            retained.Write(buffer, 0, newline);
+                            return new UTF8Encoding(false, true).GetString(retained.ToArray());
+                        }
+                        retained.Write(buffer, 0, count);
+                    }
+                }
+            });
+        }
+        public static void VerifyServer(IntPtr pipe, uint expectedPid, long expectedCreated) {
+            uint server;
+            if (!Native.GetNamedPipeServerProcessId(pipe, out server) || server != expectedPid) throw new InvalidOperationException("Owner pipe server PID mismatch");
+            IntPtr process = Native.OpenProcess(0x1000, false, server);
+            if (process == IntPtr.Zero) throw Native.Error("Open retained owner pipe server");
+            try {
+                long created, ignored1, ignored2, ignored3;
+                if (!Native.GetProcessTimes(process, out created, out ignored1, out ignored2, out ignored3) || created != expectedCreated) throw new InvalidOperationException("Owner pipe server creation identity mismatch");
+                IntPtr token;
+                if (!Native.OpenProcessToken(process, 8, out token)) throw Native.Error("Read owner pipe server token");
+                try {
+                    using (var identity = new WindowsIdentity(token)) {
+                        if (!identity.User.Equals(WindowsIdentity.GetCurrent().User)) throw new InvalidOperationException("Pipe server is not the actual owner");
+                    }
+                } finally { Native.CloseHandle(token); }
+            } finally { Native.CloseHandle(process); }
+        }
+    }
+    public sealed class AccountConfiguration {
+        public string UserName;
+        public string AccountSid;
+        public string BrokerSid;
+        public string ProfileRoot;
+        public string WorkRoot;
+        public string PrivateDesktop;
+    }
+
+    public sealed class TeardownObservation {
+        public uint RootPid;
+        public long RootCreatedFileTime;
+        public uint ExitCode;
+        public bool RootExited;
+        public bool JobEmpty;
+        public uint[] RemainingPids;
+        public string ObservedAt;
+    }
+    public sealed class AccountProcessIdentity {
+        public uint Pid;
+        public long CreatedFileTime;
+        public string Path;
+    }
+
+    // All simultaneously active launch roots, including the profile keeper and
+    // WebDriver, join this same finite job before their first instruction.
+    public sealed class AccountGroup : IDisposable {
+        internal IntPtr Handle { get; private set; }
+        internal readonly string BrokerSid;
+        internal readonly string AccountSid;
+        int stopped;
+        internal AccountGroup(AccountConfiguration config) {
+            BrokerSid = config.BrokerSid; AccountSid = config.AccountSid;
+            Handle = Native.CreateBoundedJob();
+        }
+        internal void Assign(AccountConfiguration config, IntPtr process) {
+            if (Handle == IntPtr.Zero || Volatile.Read(ref stopped) != 0 || config.BrokerSid != BrokerSid || config.AccountSid != AccountSid)
+                throw new InvalidOperationException("Closed or mismatched native attempt group");
+            if (!Native.AssignProcessToJobObject(Handle, process)) throw Native.Error("Assign shared native attempt job");
+        }
+        public uint[] RemainingPids() {
+            if (Handle == IntPtr.Zero) throw new ObjectDisposedException("AccountGroup");
+            return Native.JobPids(Handle);
+        }
+        public uint[] StopAndObserve(int milliseconds) {
+            if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
+            if (Interlocked.CompareExchange(ref stopped, 1, 0) != 0) throw new InvalidOperationException("Group termination is one-shot; use readback");
+            if (!Native.TerminateJobObject(Handle, 125)) throw Native.Error("Terminate shared native attempt job");
+            Stopwatch clock = Stopwatch.StartNew(); uint[] remaining;
+            do {
+                remaining = RemainingPids(); if (remaining.Length == 0) return remaining;
+                Thread.Sleep(25);
+            } while (clock.ElapsedMilliseconds < milliseconds);
+            return remaining;
+        }
+        public void Dispose() {
+            if (Handle != IntPtr.Zero) { Native.CloseHandle(Handle); Handle = IntPtr.Zero; }
+        }
+    }
+
+    // Raw evidence survives decoding and size refusals. A snapshot is detached
+    // and bounded; it is failure evidence, never a successful textual report.
+    public sealed class NativePipeCapture {
+        const int Bound = 4 * 1024 * 1024;
+        readonly object sync = new object();
+        readonly MemoryStream retained = new MemoryStream();
+        public Task<string> Completion { get; private set; }
+        internal NativePipeCapture(IntPtr pipe) {
+            Completion = Task.Run(async () => {
+                using (var stream = new FileStream(new SafeFileHandle(pipe, true), FileAccess.Read, 4096, false)) {
+                    var decoder = new UTF8Encoding(false, true).GetDecoder();
+                    byte[] buffer = new byte[4096]; char[] characters = new char[4098];
+                    while (true) {
+                        int count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (count == 0) {
+                            decoder.GetChars(buffer, 0, 0, characters, 0, true);
+                            return new UTF8Encoding(false, true).GetString(Snapshot());
+                        }
+                        int accepted;
+                        lock (sync) {
+                            accepted = Math.Min(count, Bound - checked((int)retained.Length));
+                            retained.Write(buffer, 0, accepted);
+                        }
+                        if (accepted != count) throw new IOException("Native output exceeded fixed four-MiB bound; no successful capture");
+                        // Reject invalid bytes while the writer is still alive;
+                        // retain them first so refusal evidence is not discarded.
+                        decoder.GetChars(buffer, 0, count, characters, 0, false);
+                    }
+                }
+            });
+        }
+        public byte[] Snapshot() { lock (sync) { return retained.ToArray(); } }
+    }
+
+    public sealed class AccountProcess : IDisposable {
+        IntPtr job, process, station, desktop;
+        readonly uint pid;
+        readonly long created;
+        readonly string executable;
+        public Task<string> Output { get; private set; }
+        public Task<string> ErrorOutput { get; private set; }
+        public NativePipeCapture OutputCapture { get; private set; }
+        public NativePipeCapture ErrorCapture { get; private set; }
+        int stopAttempted;
+        internal AccountProcess(IntPtr jobHandle, IntPtr processHandle, uint processId, IntPtr stationHandle, IntPtr desktopHandle, string executablePath, IntPtr outputRead, IntPtr errorRead) {
+            job = jobHandle; process = processHandle; pid = processId;
+            station = stationHandle; desktop = desktopHandle;
+            executable = executablePath;
+            long ignored1, ignored2, ignored3;
+            if (!Native.GetProcessTimes(process, out created, out ignored1, out ignored2, out ignored3))
+                throw Native.Error("GetProcessTimes");
+            OutputCapture = new NativePipeCapture(outputRead); ErrorCapture = new NativePipeCapture(errorRead);
+            Output = OutputCapture.Completion; ErrorOutput = ErrorCapture.Completion;
+        }
+        static Task<string> Capture(IntPtr pipe) {
+            return new NativePipeCapture(pipe).Completion;
+        }
+        public uint Pid { get { return pid; } }
+        public int Id { get { return checked((int)pid); } }
+        public long CreatedFileTime { get { return created; } }
+        public DateTime StartTime { get { return DateTime.FromFileTimeUtc(created); } }
+        public IntPtr Handle { get { return process; } }
+        public ProcessStartInfo StartInfo { get { return new ProcessStartInfo(executable); } }
+        public bool HasExited { get { return WaitForExit(0); } }
+        public int ExitCode {
+            get {
+                if (!HasExited) throw new InvalidOperationException("Root process has not exited");
+                uint exit; if (!Native.GetExitCodeProcess(process, out exit)) throw Native.Error("GetExitCodeProcess");
+                return unchecked((int)exit);
+            }
+        }
+        public string Path {
+            get {
+                uint length = 32768; var result = new StringBuilder((int)length);
+                if (!Native.QueryFullProcessImageNameW(process, 0, result, ref length)) throw Native.Error("QueryFullProcessImageNameW");
+                return result.ToString();
+            }
+        }
+        public void Refresh() { /* Each property reads the retained native handle. */ }
+        public TeardownObservation LastTeardown { get; private set; }
+        public AccountProcessIdentity[] SnapshotOwnedJob() {
+            RefuseFaultedCapture();
+            uint[] before = Native.JobPids(job).OrderBy(value => value).ToArray();
+            var result = new List<AccountProcessIdentity>();
+            foreach (uint member in before) {
+                IntPtr handle = Native.OpenProcess(0x1000, false, member); // QUERY_LIMITED_INFORMATION, no debug authority.
+                if (handle == IntPtr.Zero) throw Native.Error("Open exact owned job member");
+                try {
+                    long creation, ignored1, ignored2, ignored3;
+                    if (!Native.GetProcessTimes(handle, out creation, out ignored1, out ignored2, out ignored3)) throw Native.Error("Read owned member creation");
+                    uint length = 32768; var path = new StringBuilder((int)length);
+                    if (!Native.QueryFullProcessImageNameW(handle, 0, path, ref length)) throw Native.Error("Read owned member image");
+                    result.Add(new AccountProcessIdentity { Pid = member, CreatedFileTime = creation, Path = path.ToString() });
+                } finally { Native.CloseHandle(handle); }
+            }
+            if (!before.SequenceEqual(Native.JobPids(job).OrderBy(value => value))) throw new InvalidOperationException("Owned job inventory changed during capture; no stable snapshot");
+            return result.ToArray();
+        }
+        IntPtr FindWindow(uint target) {
+            IntPtr found = IntPtr.Zero;
+            Native.DesktopWindowCallback callback = delegate(IntPtr window, IntPtr unused) {
+                uint owner; Native.GetWindowThreadProcessId(window, out owner);
+                if (owner == target && Native.IsWindowVisible(window)) { found = window; return false; }
+                return true;
+            };
+            Native.EnumDesktopWindows(desktop, callback, IntPtr.Zero);
+            GC.KeepAlive(callback);
+            return found;
+        }
+        public IntPtr MainWindowHandle { get { return FindWindow(pid); } }
+        public string MainWindowTitle {
+            get {
+                IntPtr window = FindWindow(pid);
+                if (window == IntPtr.Zero) return String.Empty;
+                var title = new StringBuilder(1024); Native.GetWindowTextW(window, title, title.Capacity);
+                return title.ToString();
+            }
+        }
+        public bool Responding {
+            get {
+                IntPtr window = FindWindow(pid); if (window == IntPtr.Zero) return false;
+                UIntPtr result;
+                return Native.SendMessageTimeoutW(window, 0, UIntPtr.Zero, IntPtr.Zero, 3, 1000, out result) != IntPtr.Zero;
+            }
+        }
+        public bool CloseMainWindow() {
+            IntPtr window = FindWindow(pid);
+            return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
+        }
+        public bool CloseOwnedWindow(uint target, long expectedCreated) {
+            if (!SnapshotOwnedJob().Any(member => member.Pid == target && member.CreatedFileTime == expectedCreated)) throw new InvalidOperationException("Close target is not an exact owned job member");
+            IntPtr handle = Native.OpenProcess(0x1000, false, target);
+            if (handle == IntPtr.Zero) throw Native.Error("Open exact owned close target");
+            try {
+                long created, ignored1, ignored2, ignored3;
+                if (!Native.GetProcessTimes(handle, out created, out ignored1, out ignored2, out ignored3) || created != expectedCreated) throw new InvalidOperationException("Close target creation changed");
+                IntPtr window = FindWindow(target);
+                return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
+            } finally { Native.CloseHandle(handle); }
+        }
+        public void Kill(bool entireProcessTree) {
+            if (!entireProcessTree) throw new ArgumentException("Native qualification always terminates the whole owned job");
+            StopAndObserve(5000);
+        }
+        public bool WaitForExit(int milliseconds) {
+            if (milliseconds < 0 || milliseconds > 600000) throw new ArgumentOutOfRangeException("milliseconds");
+            Stopwatch clock = Stopwatch.StartNew();
+            do {
+                RefuseFaultedCapture();
+                uint outcome = Native.WaitForSingleObject(process, (uint)Math.Min(25, Math.Max(0, milliseconds - clock.ElapsedMilliseconds)));
+                if (outcome == 0xffffffff) throw Native.Error("WaitForSingleObject");
+                if (outcome == 0) { RefuseFaultedCapture(); return true; }
+            } while (clock.ElapsedMilliseconds < milliseconds);
+            return false;
+        }
+        public void RefuseFaultedCapture() {
+            Task<string> fault = Output.IsFaulted ? Output : ErrorOutput.IsFaulted ? ErrorOutput : null;
+            if (fault == null) return;
+            // A failed stream must not leave a blocked writer alive until the
+            // ordinary native deadline. Ambiguous termination is read back,
+            // never retried; snapshots remain available even when readback fails.
+            if (Volatile.Read(ref stopAttempted) == 0) StopAndObserve(5000);
+            else ReadTeardown(5000);
+            throw new IOException("Native stream capture refused; retain both raw snapshots and teardown", fault.Exception);
+        }
+        // The job stays open until positive empty readback. Unknown teardown never permits credential release.
+        public TeardownObservation StopAndObserve(int milliseconds) {
+            if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
+            if (Interlocked.CompareExchange(ref stopAttempted, 1, 0) != 0) throw new InvalidOperationException("Termination attempt is one-shot; use readback for ambiguous outcomes");
+            if (!Native.TerminateJobObject(job, 125)) throw Native.Error("TerminateJobObject");
+            return ReadTeardown(milliseconds);
+        }
+        public TeardownObservation ReadTeardown(int milliseconds) {
+            if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
+            Stopwatch clock = Stopwatch.StartNew();
+            uint[] remaining;
+            do {
+                remaining = Native.JobPids(job);
+                if (remaining.Length == 0) break;
+                Thread.Sleep(25);
+            } while (clock.ElapsedMilliseconds < milliseconds);
+            bool exited = Native.WaitForSingleObject(process, 0) == 0;
+            uint exit;
+            if (!Native.GetExitCodeProcess(process, out exit)) throw Native.Error("GetExitCodeProcess");
+            LastTeardown = new TeardownObservation {
+                RootPid = pid, RootCreatedFileTime = created, ExitCode = exit,
+                RootExited = exited, JobEmpty = remaining.Length == 0 && exited, RemainingPids = remaining,
+                ObservedAt = DateTime.UtcNow.ToString("o")
+            };
+            return LastTeardown;
+        }
+        public void Dispose() {
+            // Kill-on-close is a last resort, never a positive teardown assertion.
+            if (job != IntPtr.Zero) { Native.CloseHandle(job); job = IntPtr.Zero; }
+            if (process != IntPtr.Zero) { Native.CloseHandle(process); process = IntPtr.Zero; }
+            if (desktop != IntPtr.Zero) { Native.CloseDesktop(desktop); desktop = IntPtr.Zero; }
+            if (station != IntPtr.Zero) { Native.CloseWindowStation(station); station = IntPtr.Zero; }
+        }
+    }
+
+    public static class AccountLauncher {
+        public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
+        public static AccountGroup CreateGroup(AccountConfiguration config) {
+            if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User) || config.BrokerSid == config.AccountSid)
+                throw new ArgumentException("Distinct configured account and actual broker required");
+            return new AccountGroup(config);
+        }
+        // Called only by the configured broker after its setup/grant guard.
+        // This never reads a GitHub App, semantic, signing or publication key.
+        public static SecureString ReadAccountCredential(AccountConfiguration config) {
+            if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User)) throw new ArgumentException("Wrong credential owner");
+            IntPtr record;
+            if (!Native.CredReadW(CredentialTarget, 1, 0, out record)) throw Native.Error("fixed local account credential unavailable");
+            Native.Credential credential = new Native.Credential();
+            try {
+                credential = Marshal.PtrToStructure<Native.Credential>(record);
+                string user = Marshal.PtrToStringUni(credential.user);
+                if (!String.Equals(user, config.UserName, StringComparison.OrdinalIgnoreCase) && !String.Equals(user, Environment.MachineName + "\\" + config.UserName, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Stored local credential account differs");
+                if (credential.type != 1 || credential.blobSize == 0 || credential.blobSize > 512 || credential.blobSize % 2 != 0 || credential.blob == IntPtr.Zero) throw new InvalidOperationException("Local credential format exceeds fixed boundary");
+                var secret = new SecureString();
+                for (int index = 0; index < credential.blobSize; index += 2) {
+                    char value = (char)Marshal.ReadInt16(credential.blob, index);
+                    if (value == '\0') { secret.Dispose(); throw new InvalidOperationException("Null local credential character refused"); }
+                    secret.AppendChar(value);
+                }
+                secret.MakeReadOnly(); return secret;
+            } finally {
+                if (credential.blob != IntPtr.Zero && credential.blobSize <= 512)
+                    for (int index = 0; index < credential.blobSize; index++) Marshal.WriteByte(credential.blob, index, 0);
+                Native.CredFree(record);
+            }
+        }
+        static readonly HashSet<string> EnvironmentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "SystemRoot", "WINDIR", "PATH", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "TEMP", "TMP"
+        };
+        static readonly HashSet<string> RuntimePaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "PORTCOVE_LIBRARY", "PORTCOVE_PREFERENCES", "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
+            "PORTCOVE_APPLICATION_UPDATE_SCHEDULE", "PORTCOVE_APPLICATION_UPDATE_STAGING",
+            "WEBVIEW2_USER_DATA_FOLDER", "PORTCOVE_QUALIFICATION_CATALOG", "PORTCOVE_QUALIFICATION_CHECKPOINT"
+        };
+        static readonly HashSet<string> RuntimeValues = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
+            "PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL", "TAURI_WEBDRIVER_PORT", "PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE"
+        };
+        public static string Quote(string value) {
+            if (value == null || value.IndexOf('\0') >= 0) throw new ArgumentException("Invalid argument");
+            if (value.Length > 0 && !value.Any(item => item == ' ' || item == '\t' || item == '"')) return value;
+            StringBuilder result = new StringBuilder("\""); int slashes = 0;
+            foreach (char item in value) {
+                if (item == '\\') { slashes++; continue; }
+                result.Append('\\', item == '"' ? slashes * 2 + 1 : slashes);
+                slashes = 0; result.Append(item);
+            }
+            return result.Append('\\', slashes * 2).Append('"').ToString();
+        }
+        public static string NsisCommandLine(string executable, string[] arguments, string workRoot) {
+            if (arguments == null || arguments.Length < 1 || arguments.Length > 3) throw new ArgumentException("Fixed NSIS arguments required");
+            string tail = arguments[arguments.Length - 1];
+            bool destination = tail.StartsWith("/D=", StringComparison.Ordinal) || tail.StartsWith("_?=", StringComparison.Ordinal);
+            var flags = destination ? arguments.Take(arguments.Length - 1) : arguments;
+            if (flags.Any(flag => flag != "/S" && flag != "/P" && flag != "/UPDATE") || flags.Distinct().Count() != flags.Count()) throw new ArgumentException("Unexpected NSIS switch");
+            string command = Quote(executable) + " " + String.Join(" ", flags);
+            if (destination) {
+                string target = tail.Substring(3);
+                if (target.Any(item => item < 32 || item == '"') || !System.IO.Path.IsPathFullyQualified(target) || target.StartsWith("\\\\") || !System.IO.Path.GetFullPath(target).StartsWith(System.IO.Path.GetFullPath(workRoot).TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("NSIS destination must stay in qualification work");
+                // NSIS explicitly requires /D= and _?= last and unquoted even
+                // when their absolute path contains spaces. No shell is used.
+                command += " " + tail;
+            }
+            if (command.Length >= 1024) throw new ArgumentException("NSIS command exceeds fixed logon limit");
+            return command;
+        }
+        public static void Validate(AccountConfiguration config, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
+            if (config == null || environment == null || arguments == null) throw new ArgumentException("Missing configuration");
+            if (config.UserName == null || !System.Text.RegularExpressions.Regex.IsMatch(config.UserName, "^[A-Za-z][A-Za-z0-9_-]{1,31}$")) throw new ArgumentException("Fixed local account required");
+            var account = new SecurityIdentifier(config.AccountSid);
+            var broker = new SecurityIdentifier(config.BrokerSid);
+            if (account.Equals(broker) || account.IsWellKnown(WellKnownSidType.LocalSystemSid)) throw new ArgumentException("Distinct non-system account required");
+            if (!broker.Equals(WindowsIdentity.GetCurrent().User)) throw new ArgumentException("Wrong broker owner");
+            if (String.IsNullOrEmpty(config.PrivateDesktop) || !System.Text.RegularExpressions.Regex.IsMatch(config.PrivateDesktop, "^PortcoveNative_[0-9a-f]{32}\\\\Qualification$")) throw new ArgumentException("Private desktop required");
+            foreach (string path in new [] { executable, directory, config.ProfileRoot, config.WorkRoot }) {
+                if (String.IsNullOrEmpty(path) || !Path.IsPathFullyQualified(path) || path.StartsWith("\\\\") || path.IndexOf('\0') >= 0) throw new ArgumentException("Local absolute path required");
+                for (string cursor = Path.GetFullPath(path); !String.IsNullOrEmpty(cursor); cursor = Path.GetDirectoryName(cursor))
+                    if ((File.Exists(cursor) || Directory.Exists(cursor)) && (File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0) throw new ArgumentException("Reparse ancestry refused");
+            }
+            string work = Path.GetFullPath(config.WorkRoot).TrimEnd('\\') + "\\";
+            if (!Path.GetFullPath(directory).StartsWith(work, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Working directory outside qualification root");
+            string command = String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
+            if (command.Length >= 1024) throw new ArgumentException("CreateProcessWithLogonW command exceeds fixed limit");
+            if (EnvironmentNames.Any(key => !environment.ContainsKey(key)) || environment.Keys.Any(key => !EnvironmentNames.Contains(key) && !RuntimePaths.Contains(key) && !RuntimeValues.Contains(key))) throw new ArgumentException("Explicit credential-free environment required");
+            foreach (var item in environment) if (item.Value == null || item.Value.IndexOf('\0') >= 0) throw new ArgumentException("Invalid environment");
+            if (!String.Equals(environment["USERPROFILE"], config.ProfileRoot, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Profile mismatch");
+            string profile = Path.GetFullPath(config.ProfileRoot);
+            if (!String.Equals(environment["HOMEDRIVE"], Path.GetPathRoot(profile).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["HOMEPATH"], profile.Substring(Path.GetPathRoot(profile).Length - 1), StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Home path mismatch");
+            string system = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+            if (!String.Equals(environment["SystemRoot"], system, StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["WINDIR"], system, StringComparison.OrdinalIgnoreCase) || !String.Equals(environment["PATH"], Path.Combine(system, "System32"), StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Untrusted executable search path");
+            foreach (string name in new [] { "TEMP", "TMP", "APPDATA", "LOCALAPPDATA" }.Concat(RuntimePaths.Where(environment.ContainsKey))) {
+                string value = environment[name];
+                if (!Path.IsPathFullyQualified(value) || value.StartsWith("\\\\") || value.IndexOf(':', 2) >= 0 || !Path.GetFullPath(value).StartsWith(work, StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Runtime state path outside qualification work");
+                for (string cursor = Path.GetFullPath(value); !String.IsNullOrEmpty(cursor); cursor = Path.GetDirectoryName(cursor))
+                    if ((File.Exists(cursor) || Directory.Exists(cursor)) && (File.GetAttributes(cursor) & FileAttributes.ReparsePoint) != 0) throw new ArgumentException("Runtime state reparse ancestry refused");
+            }
+            string optional;
+            if (environment.TryGetValue("PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE", out optional) && optional != "closed") throw new ArgumentException("Unsupported Steam fixture state");
+            if (environment.TryGetValue("TAURI_WEBDRIVER_PORT", out optional)) {
+                ushort port; if (!UInt16.TryParse(optional, out port) || port == 0 || optional != port.ToString(System.Globalization.CultureInfo.InvariantCulture)) throw new ArgumentException("Invalid fixed driver port");
+            }
+            if (environment.TryGetValue("PORTCOVE_WEBVIEW_BOUNDARY_FIXTURE_URL", out optional)) {
+                Uri fixture;
+                if (!Uri.TryCreate(optional, UriKind.Absolute, out fixture) || fixture.Scheme != "http" || fixture.Host != "127.0.0.1" || fixture.Port < 1 || fixture.UserInfo.Length != 0 || fixture.Fragment.Length != 0 || fixture.Query.Length != 0) throw new ArgumentException("Only credential-free local HTTP fixture origin permitted");
+            }
+        }
+        public static AccountProcess Start(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
+            return StartCore(config, password, executable, arguments, directory, environment, false, null, null);
+        }
+        public static AccountProcess StartNsis(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
+            return StartCore(config, password, executable, arguments, directory, environment, true, null, null);
+        }
+        public static AccountProcess StartInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
+            if (group == null) throw new ArgumentException("Shared attempt group required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, null);
+        }
+        public static AccountProcess StartVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
+            if (group == null || expectedSha256 == null || !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$")) throw new ArgumentException("Shared group and exact executable hash required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256);
+        }
+        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256) {
+            Validate(config, executable, arguments, directory, environment);
+            string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
+            if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
+            IntPtr job = IntPtr.Zero, secret = IntPtr.Zero, block = IntPtr.Zero;
+            IntPtr station = IntPtr.Zero, desktop = IntPtr.Zero;
+            IntPtr outputRead = IntPtr.Zero, outputWrite = IntPtr.Zero;
+            IntPtr errorRead = IntPtr.Zero, errorWrite = IntPtr.Zero, input = IntPtr.Zero;
+            FileStream executableCustody = null;
+            Native.ProcessInformation info = new Native.ProcessInformation(); bool transferred = false;
+            try {
+                if (expectedSha256 != null) {
+                    // Keep deny-write/delete custody through suspended creation,
+                    // identity checks and resume; no hash/path replacement race.
+                    executableCustody = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    if (executableCustody.Length < 1 || executableCustody.Length > 512L * 1024 * 1024) throw new IOException("Native executable exceeds bounded identity read");
+                    using (var hasher = SHA256.Create()) {
+                        string observed = BitConverter.ToString(hasher.ComputeHash(executableCustody)).Replace("-", "").ToLowerInvariant();
+                        if (observed != expectedSha256) throw new IOException("Native executable bytes changed before launch");
+                    }
+                }
+                // This fixed helper must run in its own noninteractive owner process:
+                // SetProcessWindowStation is process-wide and never targets WinSta0.
+                Native.CreatePrivateDesktop(config, out station, out desktop);
+                job = Native.CreateBoundedJob();
+                var pipeAttributes = new Native.SecurityAttributes { length = (uint)Marshal.SizeOf(typeof(Native.SecurityAttributes)), inherit = 1 };
+                if (!Native.CreatePipe(out outputRead, out outputWrite, ref pipeAttributes, 0) || !Native.SetHandleInformation(outputRead, 1, 0)) throw Native.Error("stdout pipe");
+                if (!Native.CreatePipe(out errorRead, out errorWrite, ref pipeAttributes, 0) || !Native.SetHandleInformation(errorRead, 1, 0)) throw Native.Error("stderr pipe");
+                input = Native.CreateFileW("NUL", 0x80000000, 3, ref pipeAttributes, 3, 0, IntPtr.Zero);
+                if (input == new IntPtr(-1)) throw Native.Error("credential-free null stdin");
+                secret = Marshal.SecureStringToGlobalAllocUnicode(password);
+                string environmentBlock = String.Join("\0", environment.OrderBy(item => item.Key, StringComparer.OrdinalIgnoreCase).Select(item => item.Key + "=" + item.Value)) + "\0\0";
+                block = Marshal.StringToHGlobalUni(environmentBlock);
+                var startup = new Native.StartupInfo(); startup.cb = (uint)Marshal.SizeOf(startup);
+                startup.desktop = config.PrivateDesktop; startup.flags = 1 | 0x100; startup.showWindow = 0;
+                startup.input = input; startup.output = outputWrite; startup.error = errorWrite;
+                var command = new StringBuilder(commandText);
+                if (!Native.CreateProcessWithLogonW(config.UserName, ".", secret, 1, executable, command, 0x4 | 0x400, block, directory, ref startup, out info)) throw Native.Error("CreateProcessWithLogonW");
+                // No candidate thread has run. Assign job before token inspection/resume.
+                if (group != null) group.Assign(config, info.process);
+                if (!Native.AssignProcessToJobObject(job, info.process)) throw Native.Error("AssignProcessToJobObject");
+                IntPtr token;
+                if (!Native.OpenProcessToken(info.process, 8, out token)) throw Native.Error("OpenProcessToken");
+                try {
+                    using (var identity = new WindowsIdentity(token)) {
+                        if (!identity.User.Equals(new SecurityIdentifier(config.AccountSid))) throw new InvalidOperationException("Launched account SID mismatch");
+                        if (identity.Groups.Any(group => group.Equals(new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null)))) throw new InvalidOperationException("Administrator account refused, including filtered administrator tokens");
+                    }
+                    uint profileLength = 32768; var loadedProfile = new StringBuilder((int)profileLength);
+                    if (!Native.GetUserProfileDirectoryW(token, loadedProfile, ref profileLength)) throw Native.Error("GetUserProfileDirectoryW");
+                    if (!String.Equals(Path.GetFullPath(loadedProfile.ToString()).TrimEnd('\\'), Path.GetFullPath(config.ProfileRoot).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Actual loaded account profile mismatch");
+                    uint childSession, brokerSession;
+                    if (!Native.ProcessIdToSessionId(info.pid, out childSession) || !Native.ProcessIdToSessionId(Native.GetCurrentProcessId(), out brokerSession) || childSession != brokerSession) throw new InvalidOperationException("Native GUI session mismatch");
+                } finally { Native.CloseHandle(token); }
+                var session = new AccountProcess(job, info.process, info.pid, station, desktop, executable, outputRead, errorRead);
+                outputRead = IntPtr.Zero; errorRead = IntPtr.Zero;
+                if (!String.Equals(System.IO.Path.GetFullPath(session.Path), System.IO.Path.GetFullPath(executable), StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Suspended process image differs from exact requested path");
+                if (Native.ResumeThread(info.thread) == 0xffffffff) throw Native.Error("ResumeThread");
+                transferred = true; return session;
+            } finally {
+                if (executableCustody != null) executableCustody.Dispose();
+                if (secret != IntPtr.Zero) Marshal.ZeroFreeGlobalAllocUnicode(secret);
+                if (block != IntPtr.Zero) Marshal.FreeHGlobal(block);
+                if (info.thread != IntPtr.Zero) Native.CloseHandle(info.thread);
+                foreach (IntPtr handle in new [] { outputRead, errorRead, outputWrite, errorWrite, input })
+                    if (handle != IntPtr.Zero && handle != new IntPtr(-1)) Native.CloseHandle(handle);
+                if (!transferred) {
+                    if (info.process != IntPtr.Zero) { Native.TerminateProcess(info.process, 125); Native.WaitForSingleObject(info.process, 30000); Native.CloseHandle(info.process); }
+                    if (job != IntPtr.Zero) Native.CloseHandle(job);
+                    if (desktop != IntPtr.Zero) Native.CloseDesktop(desktop);
+                    if (station != IntPtr.Zero) Native.CloseWindowStation(station);
+                }
+            }
+        }
+    }
+
+    internal static class Native {
+        internal static IntPtr CreateBoundedJob() {
+            IntPtr job = CreateJobObjectW(IntPtr.Zero, null);
+            if (job == IntPtr.Zero) throw Error("CreateJobObjectW");
+            var limits = new ExtendedLimitInformation();
+            limits.basic.limitFlags = 0x2000 | 0x8; // Kill-on-close, <=64 active processes, no breakaway.
+            limits.basic.activeProcessLimit = 64;
+            if (!SetInformationJobObject(job, 9, ref limits, (uint)Marshal.SizeOf(limits))) {
+                Exception failure = Error("SetInformationJobObject"); CloseHandle(job); throw failure;
+            }
+            return job;
+        }
+        [StructLayout(LayoutKind.Sequential)] internal struct Credential { public uint flags,type; public IntPtr target,comment; public long written; public uint blobSize; public IntPtr blob; public uint persist,attributeCount; public IntPtr attributes,alias,user; }
+        [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool CredReadW(string target, uint type, uint flags, out IntPtr credential);
+        [DllImport("advapi32")] internal static extern void CredFree(IntPtr credential);
+        [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)] internal struct StartupInfo { public uint cb; public string reserved, desktop, title; public uint x,y,xSize,ySize,xChars,yChars,fill,flags; public ushort showWindow,reservedBytes; public IntPtr reserved2,input,output,error; }
+        [StructLayout(LayoutKind.Sequential)] internal struct ProcessInformation { public IntPtr process,thread; public uint pid,tid; }
+        [StructLayout(LayoutKind.Sequential)] internal struct BasicLimitInformation { public long processTime,jobTime; public uint limitFlags; public UIntPtr minSet,maxSet; public uint activeProcessLimit; public UIntPtr affinity; public uint priority,scheduling; }
+        [StructLayout(LayoutKind.Sequential)] internal struct IoCounters { public ulong a,b,c,d,e,f; }
+        [StructLayout(LayoutKind.Sequential)] internal struct ExtendedLimitInformation { public BasicLimitInformation basic; public IoCounters io; public UIntPtr processMemory,jobMemory,peakProcessMemory,peakJobMemory; }
+        [StructLayout(LayoutKind.Sequential)] internal struct SecurityAttributes { public uint length; public IntPtr descriptor; public int inherit; }
+        [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool ConvertStringSecurityDescriptorToSecurityDescriptorW(string text, uint revision, out IntPtr descriptor, out uint size);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateWindowStationW(string name, uint flags, uint access, ref SecurityAttributes attributes);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateDesktopW(string name, IntPtr device, IntPtr mode, uint flags, uint access, ref SecurityAttributes attributes);
+        [DllImport("user32", SetLastError=true)] internal static extern IntPtr GetProcessWindowStation();
+        [DllImport("user32", SetLastError=true)] internal static extern bool SetProcessWindowStation(IntPtr station);
+        [DllImport("user32", SetLastError=true)] internal static extern bool CloseWindowStation(IntPtr station);
+        [DllImport("user32", SetLastError=true)] internal static extern bool CloseDesktop(IntPtr desktop);
+        internal delegate bool DesktopWindowCallback(IntPtr window, IntPtr parameter);
+        [DllImport("user32", SetLastError=true)] internal static extern bool EnumDesktopWindows(IntPtr desktop, DesktopWindowCallback callback, IntPtr parameter);
+        [DllImport("user32")] internal static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
+        [DllImport("user32")] internal static extern bool IsWindowVisible(IntPtr window);
+        [DllImport("user32", CharSet=CharSet.Unicode)] internal static extern int GetWindowTextW(IntPtr window, StringBuilder title, int count);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr SendMessageTimeoutW(IntPtr window, uint message, UIntPtr first, IntPtr second, uint flags, uint milliseconds, out UIntPtr result);
+        [DllImport("user32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool PostMessageW(IntPtr window, uint message, UIntPtr first, IntPtr second);
+        [DllImport("kernel32")] internal static extern IntPtr LocalFree(IntPtr memory);
+        [DllImport("advapi32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool CreateProcessWithLogonW(string user, string domain, IntPtr password, uint logonFlags, string application, StringBuilder command, uint flags, IntPtr environment, string directory, ref StartupInfo startup, out ProcessInformation info);
+        [DllImport("advapi32", SetLastError=true)] internal static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+        [DllImport("userenv", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool GetUserProfileDirectoryW(IntPtr token, StringBuilder directory, ref uint size);
+        [DllImport("kernel32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateJobObjectW(IntPtr attributes, string name);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool CreatePipe(out IntPtr read, out IntPtr write, ref SecurityAttributes attributes, uint size);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool SetHandleInformation(IntPtr handle, uint mask, uint flags);
+        [DllImport("kernel32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern IntPtr CreateFileW(string name, uint access, uint share, ref SecurityAttributes attributes, uint disposition, uint flags, IntPtr template);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool SetInformationJobObject(IntPtr job, int kind, ref ExtendedLimitInformation limits, uint size);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool QueryInformationJobObject(IntPtr job, int kind, IntPtr buffer, uint size, out uint returned);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateJobObject(IntPtr job, uint exit);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateProcess(IntPtr process, uint exit);
+        [DllImport("kernel32", SetLastError=true)] internal static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool GetNamedPipeServerProcessId(IntPtr pipe, out uint pid);
+        [DllImport("kernel32", SetLastError=true)] internal static extern uint ResumeThread(IntPtr thread);
+        [DllImport("kernel32", SetLastError=true)] internal static extern uint WaitForSingleObject(IntPtr process, uint milliseconds);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool GetExitCodeProcess(IntPtr process, out uint exit);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool GetProcessTimes(IntPtr process, out long created, out long exited, out long kernel, out long user);
+        [DllImport("kernel32", CharSet=CharSet.Unicode, SetLastError=true)] internal static extern bool QueryFullProcessImageNameW(IntPtr process, uint flags, StringBuilder path, ref uint size);
+        [DllImport("kernel32")] internal static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32")] internal static extern uint GetCurrentProcessId();
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool ProcessIdToSessionId(uint pid, out uint session);
+        internal static Exception Error(string operation) { return new Win32Exception(Marshal.GetLastWin32Error(), operation + " failed"); }
+        internal static void CreatePrivateDesktop(AccountConfiguration config, out IntPtr station, out IntPtr desktop) {
+            station = IntPtr.Zero; desktop = IntPtr.Zero;
+            IntPtr descriptor = IntPtr.Zero, previous = GetProcessWindowStation();
+            if (previous == IntPtr.Zero) throw Error("GetProcessWindowStation");
+            uint size;
+            // Only the broker and SYSTEM control the object DACL. Candidate
+            // receives specific GUI rights and READ_CONTROL, no WRITE_DAC/OWNER.
+            string prefix = "O:" + config.BrokerSid + "D:P(A;;GA;;;" + config.BrokerSid + ")(A;;GA;;;SY)";
+            try {
+                if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(prefix + "(A;;0x0002037f;;;" + config.AccountSid + ")", 1, out descriptor, out size)) throw Error("window station security descriptor");
+                var attributes = new SecurityAttributes { length = (uint)Marshal.SizeOf(typeof(SecurityAttributes)), descriptor = descriptor, inherit = 0 };
+                station = CreateWindowStationW(config.PrivateDesktop.Split('\\')[0], 0, 0x000f037f, ref attributes);
+                int error = Marshal.GetLastWin32Error();
+                if (station == IntPtr.Zero || error == 183) throw new Win32Exception(error, "private window station must be new");
+                LocalFree(descriptor); descriptor = IntPtr.Zero;
+                if (!SetProcessWindowStation(station)) throw Error("SetProcessWindowStation(private)");
+                try {
+                    if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(prefix + "(A;;0x000201ff;;;" + config.AccountSid + ")", 1, out descriptor, out size)) throw Error("desktop security descriptor");
+                    attributes.descriptor = descriptor;
+                    desktop = CreateDesktopW("Qualification", IntPtr.Zero, IntPtr.Zero, 0, 0x000f01ff, ref attributes);
+                    if (desktop == IntPtr.Zero) throw Error("CreateDesktopW");
+                } finally {
+                    if (!SetProcessWindowStation(previous)) throw Error("SetProcessWindowStation(restore)");
+                }
+            } finally { if (descriptor != IntPtr.Zero) LocalFree(descriptor); }
+        }
+        internal static uint[] JobPids(IntPtr job) {
+            int size = 8 + 64 * IntPtr.Size; IntPtr buffer = Marshal.AllocHGlobal(size);
+            try {
+                uint returned;
+                if (!QueryInformationJobObject(job, 3, buffer, (uint)size, out returned)) throw Error("QueryInformationJobObject");
+                int assigned = Marshal.ReadInt32(buffer, 0), count = Marshal.ReadInt32(buffer, 4);
+                if (assigned != count || count < 0 || count > 64) throw new InvalidOperationException("Incomplete job process inventory");
+                uint[] pids = new uint[count];
+                for (int index = 0; index < count; index++) pids[index] = checked((uint)Marshal.ReadIntPtr(buffer, 8 + index * IntPtr.Size).ToInt64());
+                return pids;
+            } finally { Marshal.FreeHGlobal(buffer); }
+        }
+    }
+}

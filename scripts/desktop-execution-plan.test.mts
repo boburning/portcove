@@ -127,6 +127,7 @@ void test("Windows admission refusal preserves former exit proof until a replace
         assert,
         linuxPackagedInspector: false,
         linuxSelectedSession: false,
+        nativeAccount: undefined,
         admission: {
           verify: async () => {
             calls.push("verify");
