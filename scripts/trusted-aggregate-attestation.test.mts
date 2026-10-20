@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { assemblerIdentityFixture, expected } from "./fixtures/assembler-identity-fixture.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 import {
@@ -194,15 +195,29 @@ void test("old artifact IDs, wrong member bytes, forged identity and provider dr
   );
 });
 
-async function verificationFixture(t: test.TestContext) {
-  const f = await fixture(t);
+async function verificationFixture(t: test.TestContext, withPublic = false) {
+  const f = await fixture(t, withPublic ? "initial-beta-win-linux" : "full");
+  const publicInputs = withPublic ? await releasePublicBuildProvenanceFixture(t) : null;
+  const candidate = publicInputs
+    ? { ...f.request, schema_version: 3, public_build_inputs: publicInputs.binding }
+    : f.request;
+  const ids = withPublic ? [1, 2] : [1, 2, 3, 4];
+  const options = publicInputs
+    ? {
+        ...f.options,
+        evidenceRequest: publicInputs.expected,
+        evidence: { api: publicInputs.api },
+        download: (endpoint: string) =>
+          endpoint.includes("/99/") ? f.state.payload : publicInputs.download(endpoint),
+      }
+    : f.options;
   const prepared = await prepareAggregateAttestation(
     f.identity.token,
     expected,
-    f.request,
-    [1, 2, 3, 4],
+    candidate,
+    ids,
     f.upload,
-    f.options,
+    options,
   );
   // Synthetic successful CLI boundary, never cryptographic/production evidence.
   const predicate = { ...prepared.predicate, evidence_scope: "github.com" };
@@ -240,8 +255,8 @@ async function verificationFixture(t: test.TestContext) {
     artifact_id: 99,
     sha256: f.upload.sha256,
     bytes: f.archive.length,
-    candidate: f.request,
-    candidate_artifact_ids: [1, 2, 3, 4],
+    candidate,
+    candidate_artifact_ids: ids,
   };
   const calls: readonly string[][] = [];
   const spawn = (
@@ -262,8 +277,60 @@ async function verificationFixture(t: test.TestContext) {
     assert.ok(args.includes("--bundle") && args.includes("--deny-self-hosted-runners"));
     return { status: 0, stdout: JSON.stringify(value), stderr: "" };
   };
-  return { ...f, value, verificationExpected, calls, spawn };
+  return { ...f, value, verificationExpected, calls, spawn, publicInputs };
 }
+
+void test("schema3 aggregate attestation independently verifies public archives and binds their exact provenance into verification", async (t) => {
+  const f = await verificationFixture(t, true);
+  assert.ok(f.publicInputs);
+  assert.equal(f.publicInputs.state.reads, 2);
+  const result = await verifyAggregateAttestation(
+    f.root,
+    f.archive,
+    Buffer.from("synthetic bundle"),
+    f.verificationExpected,
+    { spawn: f.spawn },
+  );
+  assert.equal(result.authority, "none");
+  const predicate = f.value[0]!.verificationResult.statement.predicate;
+  assert.deepEqual(predicate.public_build_inputs, f.publicInputs.binding);
+  assert.match(predicate.public_build_inputs_scope!, /no compiler-content or execution claim/);
+  const changed = structuredClone(f.verificationExpected);
+  assert.ok("public_build_inputs" in changed.candidate);
+  changed.candidate.public_build_inputs.manifest_sha256 = "f".repeat(64);
+  await assert.rejects(
+    verifyAggregateAttestation(f.root, f.archive, Buffer.from("synthetic bundle"), changed, {
+      spawn: f.spawn,
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error && error.cause instanceof Error);
+      assert.match(error.cause.message, /association differs/);
+      return true;
+    },
+  );
+});
+
+void test("schema3 attester refuses altered public build bytes before obtaining its assembler identity", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const p = await releasePublicBuildProvenanceFixture(t);
+  p.publicFiles.set(
+    "tauri.release-public.conf.json",
+    Buffer.from('{"bundle":{"createUpdaterArtifacts":false}}'),
+  );
+  p.replacePublicArchive();
+  await assert.rejects(
+    prepareAggregateAttestation(
+      f.identity.token,
+      expected,
+      { ...f.request, schema_version: 3, public_build_inputs: p.binding },
+      [1, 2],
+      f.upload,
+      { ...f.options, evidenceRequest: p.expected, evidence: { api: p.api }, download: p.download },
+    ),
+    CoordinatorRemoteError,
+  );
+  assert.deepEqual(f.identity.counts(), { requests: 0, keyReads: 0 });
+});
 
 void test("missing or changed aggregate checksum manifest and excess member length refuse before identity verification", async (t) => {
   const f = await fixture(t);

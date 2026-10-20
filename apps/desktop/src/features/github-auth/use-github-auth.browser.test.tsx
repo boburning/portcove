@@ -37,10 +37,10 @@ describe("GitHub authentication read owner", () => {
   let host: HTMLDivElement;
   let state!: ReturnType<typeof useGithubAuth>;
   let perform: Parameters<typeof useGithubAuth>[0];
-  let setError: ReturnType<typeof vi.fn<(error?: string) => void>>;
+  let setError: ReturnType<typeof vi.fn<(error: unknown) => void>>;
 
   function Fixture() {
-    state = useGithubAuth(perform, setError);
+    state = useGithubAuth(perform, setError, 7);
     return <span>{state.status?.login ?? "anonymous"}</span>;
   }
 
@@ -84,7 +84,12 @@ describe("GitHub authentication read owner", () => {
       .mockResolvedValueOnce(authenticated);
 
     await root.rerender(<Fixture />);
-    expect(setError).toHaveBeenCalledExactlyOnceWith("offline");
+    expect(setError).toHaveBeenCalledExactlyOnceWith("offline", {
+      action: "Check account status",
+      target: { kind: "application", id: "github-account", label: "GitHub account" },
+      libraryGeneration: 7,
+      exclusionScope: "application",
+    });
     await act(async () => state.refresh());
 
     expect(state.status).toBe(authenticated);

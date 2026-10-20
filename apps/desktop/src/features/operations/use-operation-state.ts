@@ -26,6 +26,8 @@ export type PerformOptions = {
   context?: InvocationContext;
 };
 
+export type ReportError = (value: unknown, context?: InvocationContext) => void;
+
 export type Perform = <T>(
   name: string,
   task: () => Promise<T>,
@@ -87,8 +89,9 @@ export function useOperationState(configuration: {
     [updateInvocations],
   );
   const setError = useCallback(
-    (value: unknown) => {
-      if (activeOwner.current !== generation) return;
+    (value: unknown, suppliedContext?: InvocationContext) => {
+      const context = suppliedContext ?? defaultContext("Review");
+      if (activeOwner.current !== generation || context.libraryGeneration !== generation) return;
       updateInvocations((current) => {
         if (value === undefined)
           return new Map([...current].filter(([, record]) => record.phase === "pending"));
@@ -96,7 +99,7 @@ export function useOperationState(configuration: {
         return new Map(current).set(id, {
           id,
           name: "review",
-          context: defaultContext("Review"),
+          context,
           phase: "settled",
           outcome: "failed",
           failure: value,

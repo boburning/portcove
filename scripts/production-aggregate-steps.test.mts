@@ -8,6 +8,7 @@ import test from "node:test";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import {
   inspectAggregateDescriptor,
   requireReservedAggregate,
@@ -139,6 +140,42 @@ void test("descriptor transport refuses absent oversized unknown or unratified d
     JSON.stringify({ schema_version: 1, candidate_self_approved: true }),
   ])
     assert.throws(() => inspectAggregateDescriptor(raw));
+});
+
+void test("protected beta reservation requires the independently bound public build inputs", async (t) => {
+  const f = await releasePublicBuildProvenanceFixture(t);
+  const descriptor = {
+    schema_version: 1,
+    checkpoint: "c".repeat(40),
+    coordinator: { schema_version: 1, namespace: "portcove-fixture" },
+    assembly: f.request,
+    archives: f.archives,
+    evidence: f.expected,
+  };
+  const state = {
+    checkpoint: descriptor.checkpoint,
+    input: {
+      active_candidate: {
+        prepared_commit: f.request.source_commit,
+        prepared_tree: f.request.source_tree,
+        version: f.request.version,
+        phase: "building",
+        release_run: { run_id: 12345, attempt: 1, revision: f.request.source_commit },
+      },
+    },
+  };
+  assert.ok(
+    (await requireReservedAggregate(JSON.stringify(descriptor), state)).accepted
+      .public_build_inputs,
+  );
+  const { public_build_inputs: _binding, ...legacy } = f.request;
+  await assert.rejects(
+    requireReservedAggregate(
+      JSON.stringify({ ...descriptor, assembly: { ...legacy, schema_version: 2 } }),
+      state,
+    ),
+    /independently bound public build inputs/,
+  );
 });
 
 void test("fresh own-job token request is bounded, nonredirecting and never emitted", async () => {

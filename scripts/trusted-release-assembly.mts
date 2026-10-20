@@ -13,6 +13,7 @@ import {
   selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
 import { reconcileReleaseAssets } from "./reconcile-release-assets.mts";
+import { inspectPublicBuildInputBinding } from "./release-public-build-provenance.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -43,7 +44,11 @@ function request(raw: unknown) {
           "files,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
       (raw.schema_version === 2 &&
         Object.keys(raw).sort().join(",") ===
-          "files,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version")
+          "files,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version") ||
+      (raw.schema_version === 3 &&
+        raw.release_profile === "initial-beta-win-linux" &&
+        Object.keys(raw).sort().join(",") ===
+          "files,public_build_inputs,release_profile,run_attempt,run_id,schema_version,source_commit,source_tree,version")
     ) ||
     typeof raw.version !== "string" ||
     raw.version.length > 128 ||
@@ -91,8 +96,16 @@ function request(raw: unknown) {
   )
     throw new Error("duplicate assembly input identity");
   return {
-    schema_version: raw.schema_version === 2 ? (2 as const) : (1 as const),
-    ...(raw.schema_version === 2
+    schema_version:
+      raw.schema_version === 3
+        ? (3 as const)
+        : raw.schema_version === 2
+          ? (2 as const)
+          : (1 as const),
+    ...(raw.schema_version === 3
+      ? { public_build_inputs: inspectPublicBuildInputBinding(raw.public_build_inputs) }
+      : {}),
+    ...(raw.schema_version === 2 || raw.schema_version === 3
       ? { release_profile: inspectReleaseProfile(raw.release_profile) }
       : {}),
     version: raw.version,

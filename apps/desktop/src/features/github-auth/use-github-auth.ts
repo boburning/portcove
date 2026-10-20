@@ -3,14 +3,20 @@ import { desktopApi } from "../../api";
 import { LatestRequestGeneration } from "../../shared/concurrency-state";
 import type { GithubAuthStatus, GithubDeviceLogin } from "../../types";
 import { errorText } from "../../view-model";
+import type { Perform, ReportError } from "../operations/use-operation-state";
+import { targetInvocationContext } from "../operations/invocation-state";
 
-type AuthOperation = <T>(
-  name: string,
-  task: () => Promise<T>,
-  options: { refresh: "none"; invalidateDiagnostics: false },
-) => Promise<T | undefined>;
-
-export function useGithubAuth(perform: AuthOperation, setError: (error?: string) => void) {
+export function useGithubAuth(perform: Perform, setError: ReportError, libraryGeneration: number) {
+  const accountContext = useCallback(
+    (action: string) =>
+      targetInvocationContext(
+        action,
+        { kind: "application", id: "github-account", label: "GitHub account" },
+        libraryGeneration,
+        "application",
+      ),
+    [libraryGeneration],
+  );
   const [status, setStatus] = useState<GithubAuthStatus>();
   const [token, setToken] = useState("");
   const [deviceLogin, setDeviceLogin] = useState<GithubDeviceLogin>();
@@ -30,9 +36,10 @@ export function useGithubAuth(perform: AuthOperation, setError: (error?: string)
       const next = await desktopApi.githubAuthStatus();
       if (mounted.current && statusReads.current.isCurrent(request)) setStatus(next);
     } catch (value) {
-      if (mounted.current && statusReads.current.isCurrent(request)) setError(errorText(value));
+      if (mounted.current && statusReads.current.isCurrent(request))
+        setError(errorText(value), accountContext("Check account status"));
     }
-  }, [setError]);
+  }, [accountContext, setError]);
   const retireDeviceLogin = useCallback(async () => {
     deviceSession.current += 1;
     setDeviceLogin(undefined);
@@ -62,13 +69,14 @@ export function useGithubAuth(perform: AuthOperation, setError: (error?: string)
         if (mounted.current && requests.isCurrent(request)) setStatus(next);
       })
       .catch((value: unknown) => {
-        if (mounted.current && requests.isCurrent(request)) setError(errorText(value));
+        if (mounted.current && requests.isCurrent(request))
+          setError(errorText(value), accountContext("Check account status"));
       });
     return () => {
       mounted.current = false;
       requests.begin();
     };
-  }, [setError]);
+  }, [accountContext, setError]);
   useEffect(() => {
     if (!deviceLogin) return;
     const session = ++deviceSession.current;
@@ -89,7 +97,7 @@ export function useGithubAuth(perform: AuthOperation, setError: (error?: string)
           }
         } catch (value) {
           if (!cancelled && deviceSession.current === session) {
-            setError(errorText(value));
+            setError(errorText(value), accountContext("Sign in"));
             setDeviceLogin(undefined);
           }
         }
@@ -105,37 +113,40 @@ export function useGithubAuth(perform: AuthOperation, setError: (error?: string)
       window.clearTimeout(timer);
       if (deviceSession.current === session) deviceSession.current += 1;
     };
-  }, [acceptStatus, deviceLogin, setError]);
+  }, [acceptStatus, accountContext, deviceLogin, setError]);
   const saveToken = useCallback(async () => {
     const result = await runAuthOperation(() =>
       perform("GitHub authentication", () => desktopApi.setGithubToken(token), {
         refresh: "none",
         invalidateDiagnostics: false,
+        context: accountContext("Save access token"),
       }),
     );
     if (result) {
       acceptStatus(result);
       setToken("");
     }
-  }, [acceptStatus, perform, runAuthOperation, token]);
+  }, [acceptStatus, accountContext, perform, runAuthOperation, token]);
   const logout = useCallback(async () => {
     const result = await runAuthOperation(() =>
       perform("GitHub logout", desktopApi.logoutGithub, {
         refresh: "none",
         invalidateDiagnostics: false,
+        context: accountContext("Sign out"),
       }),
     );
     if (result) acceptStatus(result);
-  }, [acceptStatus, perform, runAuthOperation]);
+  }, [acceptStatus, accountContext, perform, runAuthOperation]);
   const beginDeviceLogin = useCallback(async () => {
     const result = await runAuthOperation(() =>
       perform("GitHub login", desktopApi.beginGithubDeviceLogin, {
         refresh: "none",
         invalidateDiagnostics: false,
+        context: accountContext("Sign in"),
       }),
     );
     if (result && mounted.current) setDeviceLogin(result);
-  }, [perform, runAuthOperation]);
+  }, [accountContext, perform, runAuthOperation]);
   return {
     status,
     token,
