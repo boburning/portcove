@@ -177,6 +177,44 @@ it("shows per-version sign-in limits in update review before confirmation", asyn
   expect(apply).not.toHaveBeenCalled();
 });
 
+it("shows shared and local preference paths before an update without accepting them", async () => {
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    plan: {
+      ...plan.plan,
+      shared_preferences: {
+        binding: {
+          contract: "regaiden041-windows",
+          account_sid_sha256: "a".repeat(64),
+          path: "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+        },
+        local_fallback_path: "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+        shared_present: false,
+        local_fallback_present: false,
+      },
+    },
+  });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain(
+    "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain(
+    "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain("requires acceptance");
+  expect(apply).not.toHaveBeenCalled();
+});
+
 it("reviews an immediate update in place and obtains new consent before keeping it for later", async () => {
   const review = vi
     .spyOn(desktopApi, "planGameUpdate")
