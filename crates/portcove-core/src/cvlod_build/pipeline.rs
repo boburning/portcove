@@ -125,6 +125,13 @@ fn generate(
     checkpoint: &dyn Fn() -> Result<()>,
     quiesced: &mut bool,
 ) -> Result<serde_json::Value> {
+    // The authenticated source tree has no tracked resources directory. The
+    // fixed step6 helper writes its extended original there without creating it.
+    // Create only this fresh private output directory; never reuse a preimage.
+    checkpoint()?;
+    let resources = executor.project.join("resources");
+    crate::path::refuse_symlink_ancestors(&resources)?;
+    fs::create_dir(&resources)?;
     let python = executor.toolchain().join("python/python.exe");
     for step in [
         "step1_dump_table",
