@@ -8,6 +8,7 @@ import { inspectBoundedZip } from "./bounded-zip.mts";
 import { createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import { loadPackagePolicy } from "./release-package-policy.mts";
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -246,7 +247,8 @@ export async function collectReleaseSbomEvidence(
     (file) =>
       !file.filename.startsWith("SHA256SUMS-") && !file.filename.startsWith("release-producer-"),
   );
-  const names = [...packages.map((file) => file.filename), "SHA256SUMS", "Portcove-SBOM.spdx.json"];
+  const checksumName = (await loadPackagePolicy()).checksum_manifest;
+  const names = [...packages.map((file) => file.filename), checksumName, "Portcove-SBOM.spdx.json"];
   const { entries } = inspectBoundedZip(bytes, {
     compressedBytes: 512 * 1024 * 1024,
     expandedBytes: 2 * 1024 * 1024 * 1024,
