@@ -135,6 +135,82 @@ async function fixture(t: test.TestContext, mode = "valid") {
     expected: { source_commit: commit, source_tree: tree },
   };
 }
+
+void test("a second off-main publication transforms the actual frozen source version while retaining the published base", async (t) => {
+  const f = await fixture(t);
+  const first = await prepareReleaseVersion(f.source, f.classification, ["0.1.0-alpha.2"]);
+  assert.equal(first.version, "0.1.0-alpha.3");
+  await writeFile(path.join(f.source, "next-source.txt"), "next independently reviewed source\n");
+  f.git(f.source, ["add", "next-source.txt"]);
+  f.git(f.source, ["commit", "-qm", "next application source"]);
+  const commit = f.git(f.source, ["rev-parse", "HEAD"]);
+  const tree = f.git(f.source, ["rev-parse", "HEAD^{tree}"]);
+  const before = f.git(f.source, ["status", "--porcelain=v1"]);
+  const second = await prepareReleaseVersion(
+    f.source,
+    {
+      ...f.classification,
+      source_commit: commit,
+      reviewed_commit: commit,
+      source_tree: tree,
+      reviewed_tree: tree,
+      base_version: first.version,
+    },
+    ["0.1.0-alpha.2", first.version],
+  );
+  assert.equal(second.version, "0.1.0-alpha.4");
+  assert.equal(second.base_version, first.version);
+  assert.equal(
+    f.git(f.source, ["show", `${commit}:Cargo.toml`]).includes('version = "0.1.0-alpha.2"'),
+    true,
+  );
+  assert.equal(
+    f
+      .git(f.source, ["show", `${second.prepared_commit}:Cargo.toml`])
+      .includes('version = "0.1.0-alpha.4"'),
+    true,
+  );
+  assert.equal(
+    f.git(f.source, ["show", `${second.prepared_commit}:next-source.txt`]),
+    "next independently reviewed source",
+  );
+  assert.equal(f.git(f.source, ["rev-parse", "HEAD"]), commit);
+  assert.equal(f.git(f.source, ["status", "--porcelain=v1"]), before);
+  assert.deepEqual(
+    f
+      .git(f.source, [
+        "diff-tree",
+        "--no-commit-id",
+        "--name-only",
+        "-r",
+        commit,
+        second.prepared_commit,
+      ])
+      .split("\n")
+      .sort(),
+    [
+      "Cargo.lock",
+      "Cargo.toml",
+      "apps/desktop/package.json",
+      "apps/desktop/src-tauri/tauri.conf.json",
+    ],
+  );
+  const exportedRepository = path.join(f.parent, "second-export.git");
+  f.git(f.parent, ["clone", "--quiet", "--bare", f.source, exportedRepository]);
+  const exported = exportPreparedReleaseVersion(exportedRepository, {
+    source_commit: commit,
+    source_tree: tree,
+    prepared_commit: second.prepared_commit,
+    prepared_tree: second.prepared_tree,
+    version: second.version,
+    intent_sha256: second.intent_sha256,
+  });
+  assert.match(exported.raw_commit, /"base_version":"0\.1\.0-alpha\.3"/);
+  assert.throws(() =>
+    f.git(f.source, ["merge-base", "--is-ancestor", first.prepared_commit, commit]),
+  );
+});
+
 void test(
   "fresh sparse source custody prepares byte-identical objects without unrelated blobs or Git history",
   { timeout: 60000 },
