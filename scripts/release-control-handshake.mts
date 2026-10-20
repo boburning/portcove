@@ -163,7 +163,8 @@ export async function waitForControlArtifact(
   let requests = 0;
   // Waiting precedes observation. The separate 60-second protection freshness
   // guard still applies after the actual report arrives.
-  const limit = options.deadline === undefined ? 240000 : options.deadline - start;
+  const limit =
+    options.deadline === undefined ? 240000 : Math.min(240000, options.deadline - start);
   const phaseDeadline = options.phaseDeadline;
   const remaining = (maximum = 240000) => {
     const phase = phaseDeadline === undefined ? Infinity : phaseDeadline - performance.now();
