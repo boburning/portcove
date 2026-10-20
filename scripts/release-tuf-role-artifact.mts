@@ -114,7 +114,7 @@ function unpack(raw: Buffer, allowed: ReadonlySet<string>, maximum = 2 * 1024 * 
 
 /** Read-only public verification. Injected boundaries can never populate the
  * actual outer receiver's private map. No POST/retry/candidate execution. */
-const refreshReaders = new WeakMap<object, () => void>();
+const refreshReaders = new WeakMap<object, (phaseDeadline?: number) => void>();
 export async function readAttestedTufRoleArtifact(
   parent: string,
   raw: unknown,
@@ -131,7 +131,7 @@ export async function readAttestedTufRoleArtifact(
     selected = { ...options };
   const remaining = (max = 15000) => {
     const left = Math.floor(deadline - performance.now());
-    if (!Number.isFinite(deadline) || left < 1 || left > 120000)
+    if (!Number.isFinite(deadline) || left < 1 || left > 600000)
       throw new Error("TUF role receiver deadline exhausted");
     return Math.min(max, left);
   };
@@ -385,7 +385,13 @@ export async function readAttestedTufRoleArtifact(
       evidence_scope: injected ? "injected-provider" : "github.com",
       authority: "none",
     });
-    refreshReaders.set(result, () => {
+    refreshReaders.set(result, (phaseDeadline) => {
+      if (phaseDeadline !== undefined) {
+        if (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+          throw new Error("TUF role receiver deadline exhausted");
+        deadline = Math.min(deadline, phaseDeadline);
+      }
+      remaining();
       const fresh = {
         artifact: artifact(expected.artifact, false),
         bundle: artifact(expected.bundle, true),
@@ -413,6 +419,13 @@ const received = new WeakMap<
     deadline: number;
   }
 >();
+/** Refreshes provider custody only. This cannot mint a received-role brand. A
+ * tighter deadline permanently bounds this data session's live transports. */
+export function recheckTufRoleArtifactCustody(data: object, phaseDeadline?: number) {
+  const refresh = refreshReaders.get(data);
+  if (!refresh) throw new Error("known TUF role custody session required");
+  refresh(phaseDeadline);
+}
 async function assertRoleProofInventory(directory: string, files: readonly { path: string }[]) {
   const rootNames = [
     ...new Set(files.map((file) => path.relative(directory, file.path).split(path.sep)[0]!)),
@@ -440,7 +453,7 @@ export async function receiveTufRoleArtifact(
   raw: unknown,
   deadline: number,
 ) {
-  const context = await requireReceivedSigningContext(contextReceipt),
+  const context = await requireReceivedSigningContext(contextReceipt, deadline),
     expected = inspectTufRoleArtifactExpected(raw);
   exact(
     context.manifest.controller,
@@ -463,7 +476,7 @@ export async function receiveTufRoleArtifact(
     throw new Error("TUF role differs from actual authenticated context");
   const data = await readAttestedTufRoleArtifact(parent, expected, deadline);
   if (data.evidence_scope !== "github.com") throw new Error("actual TUF role custody required");
-  await requireReceivedSigningContext(contextReceipt);
+  await requireReceivedSigningContext(contextReceipt, deadline);
   const files = [];
   for (const name of [
     "provider-before.json",
@@ -493,11 +506,16 @@ export async function receiveTufRoleArtifact(
   received.set(receipt, { context: contextReceipt, data, files, deadline });
   return receipt;
 }
-export async function requireReceivedTufRoleArtifact(receipt: object) {
+export async function requireReceivedTufRoleArtifact(receipt: object, phaseDeadline?: number) {
   const actual = received.get(receipt);
+  if (actual && phaseDeadline !== undefined) {
+    if (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+      throw new Error("TUF role phase deadline exhausted");
+    actual.deadline = Math.min(actual.deadline, phaseDeadline);
+  }
   if (!actual || performance.now() >= actual.deadline)
     throw new Error("actual current TUF role custody required");
-  await requireReceivedSigningContext(actual.context);
+  await requireReceivedSigningContext(actual.context, actual.deadline);
   await assertRoleProofInventory(actual.data.directory, actual.files);
   for (const file of actual.files) {
     await assertOwnedUnlinkedPath(actual.data.directory, file.path, "TUF role retained evidence");
@@ -505,7 +523,7 @@ export async function requireReceivedTufRoleArtifact(receipt: object) {
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("TUF role retained proof changed");
   }
-  refreshReaders.get(actual.data)!();
+  recheckTufRoleArtifactCustody(actual.data, actual.deadline);
   if (performance.now() >= actual.deadline) throw new Error("TUF role phase deadline exhausted");
   return Object.freeze({
     role: actual.data.expected.role,
