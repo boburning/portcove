@@ -95,6 +95,30 @@ status text without decorative movement. Business logic never waits on a
 stylesheet animation. `tw-animate-css` and cross-framework state aliases are
 retired.
 
+## Whole-interface enlargement and reflow
+
+Appearance offers 100, 125, 150, 175, 200, 250, 300 and 400 percent interface sizes.
+`InterfaceSizeProvider` owns the picker, Ctrl/Command plus/minus and zero reset,
+including while a dialog is open. It changes the whole WebView through Tauri's
+existing zoom API, rather than changing root font size or maintaining a second
+CSS scale. Independent native zoom hotkeys stay disabled. OS display scaling is
+a separate input and is not inferred from this preference.
+
+`InterfaceSizeController` serializes calls and coalesces waiting intent. The
+profile-local `portcove.appearance.interface-size` preference is independent of
+the active library; only acknowledged native applications are saved. Missing,
+invalid or unreadable preferences start at 100 percent. A write failure keeps
+the applied size for the session. A native failure retains the last confirmed
+preference and exposes retry/reset without asserting an unobserved actual size.
+
+`styles/adaptive.css`, assembled by the existing stylesheet entry, owns the
+shared below-48rem reading flow. Navigation wraps in the document, the workspace
+does not require a side pane, Settings navigation stops sticking, and shared
+dialog footers remain in their scrolling flow. The native 960 by 640 minimum
+stays intact. Actual 320 CSS-pixel and 240 by 160 authored-content checks are
+distinct from observing native 400-percent zoom and other platforms. These
+layouts do not announce phone-platform support.
+
 ## Composition and validation
 
 Settings rows and notices are real reusable patterns. Grid/flex and size container

@@ -373,11 +373,11 @@ export function PortBrowser({
     );
   return (
     <div ref={browserRoot} className="contents">
-      <p className="sr-only" role="status">
+      <p className="sr-only" role="status" aria-label="Search results">
         {firstUseEmpty
           ? "Your library is empty."
           : resultsUnavailable
-            ? "Ports unavailable"
+            ? "Search results unavailable"
             : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
       </p>
       {renderDropAnnouncement()}

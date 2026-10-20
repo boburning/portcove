@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { View } from "./view-model";
-import { focusRegion, navigationScope } from "./focus";
+import { focusAndReveal, focusRegion, navigationScope } from "./focus";
+import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { recordKeyboardInput } from "./gamepad";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
@@ -107,11 +108,10 @@ function resolveWorkspaceFocus(workspace: HTMLElement, focus: WorkspaceFocus) {
 }
 
 function restoreWorkspaceSnapshot(workspace: HTMLElement, snapshot: WorkspaceSnapshot) {
-  workspace.scrollTo({ top: snapshot.scrollTop });
+  scrollWorkspaceTo(workspace, snapshot.scrollTop);
   if (!snapshot.focus) return;
   const target = resolveWorkspaceFocus(workspace, snapshot.focus);
-  if (target && !target.matches(":disabled, [aria-disabled=true]"))
-    target.focus({ preventScroll: true });
+  if (target && !target.matches(":disabled, [aria-disabled=true]")) focusAndReveal(target);
   else focusRegion("workspace");
 }
 
@@ -137,7 +137,7 @@ export function useWorkspaceContinuity(
         view,
         snapshot,
         anchor: document.activeElement,
-        scrollTop: workspace.current?.scrollTop ?? 0,
+        scrollTop: workspaceScrollTop(workspace.current),
       };
       return;
     }
@@ -155,7 +155,7 @@ export function useWorkspaceContinuity(
       if (pending.current !== restore) return;
       pending.current = undefined;
       const targetWorkspace = workspace.current;
-      if (!targetWorkspace || targetWorkspace.scrollTop !== restore.scrollTop) return;
+      if (!targetWorkspace || workspaceScrollTop(targetWorkspace) !== restore.scrollTop) return;
       if (restore.anchor) {
         if (document.activeElement !== restore.anchor) return;
       } else if (targetWorkspace.contains(document.activeElement)) return;
@@ -183,7 +183,7 @@ export function useWorkspaceContinuity(
     return {
       ...snapshots.current,
       [view]: {
-        scrollTop: currentWorkspace?.scrollTop ?? 0,
+        scrollTop: workspaceScrollTop(currentWorkspace),
         focus:
           currentWorkspace && active instanceof HTMLElement
             ? workspaceFocus(active, currentWorkspace)
@@ -203,7 +203,7 @@ export function useWorkspaceContinuity(
               : undefined,
           }
         : {
-            scrollTop: currentWorkspace?.scrollTop ?? 0,
+            scrollTop: workspaceScrollTop(currentWorkspace),
             focus:
               currentWorkspace && active instanceof HTMLElement
                 ? workspaceFocus(active, currentWorkspace)
@@ -229,11 +229,11 @@ export function useWorkspaceContinuity(
         const nextWorkspace = workspace.current;
         if (!nextWorkspace) return;
         if (!ready) {
-          nextWorkspace.scrollTo({ top: 0 });
+          scrollWorkspaceTo(nextWorkspace, 0);
           return;
         }
         if (nextSnapshot) restoreWorkspaceSnapshot(nextWorkspace, nextSnapshot);
-        else nextWorkspace.scrollTo({ top: 0 });
+        else scrollWorkspaceTo(nextWorkspace, 0);
       });
     },
     [ready, view],

@@ -80,6 +80,7 @@ import { selectedSetupCompletionScenario } from "./desktop-selected-setup-comple
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
+import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -4140,6 +4141,15 @@ try {
   await controllerScenario({ browser: required(browser), scenario, output, artifacts });
   if (!linuxPackagedInspector) {
     await accessibleNavigationScenario({ browser: driverBrowser(), scenario, output, artifacts });
+    await interfaceSizeScenario({
+      browser: driverBrowser,
+      scenario,
+      output,
+      artifacts,
+      restart: restartApplication,
+      setTheme: selectSettingsTheme,
+      capture: captureScenarioScreenshot,
+    });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
       invoke,
