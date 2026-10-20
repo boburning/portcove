@@ -128,13 +128,17 @@ export async function handoffSigningOutput(
     )
       throw new Error("signing upload action returned an invalid locator");
     phase = "independent-provider-byte-readback";
-    const result = await readSigningOutputArtifact(directory, {
-      producer,
-      artifact_id: uploaded.artifact_id,
-      archive_sha256: uploaded.sha256,
-      name,
-      files,
-    });
+    const result = await readSigningOutputArtifact(
+      directory,
+      {
+        producer,
+        artifact_id: uploaded.artifact_id,
+        archive_sha256: uploaded.sha256,
+        name,
+        files,
+      },
+      { deadline },
+    );
     active();
     if (result.evidence_scope !== "github.com")
       throw new Error("actual signing output readback required");
@@ -160,12 +164,33 @@ export async function readSigningOutputArtifact(
     name: string;
     files: readonly SigningOutputFile[];
   },
-  options: { api?: GitHubRestReader; download?: typeof readGitHubArtifactArchive } = {},
+  options: {
+    api?: GitHubRestReader;
+    download?: typeof readGitHubArtifactArchive;
+    deadline?: number;
+    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
+  } = {},
 ) {
   const expected = structuredClone(raw),
     producer = inspectCapacityExecutorIdentity(expected.producer);
   const files: readonly SigningOutputFile[] = expected.files;
-  const injected = options.api !== undefined || options.download !== undefined;
+  const injected =
+    options.api !== undefined ||
+    options.download !== undefined ||
+    options.spawn !== undefined ||
+    options.archiveSpawn !== undefined;
+  const deadline = options.deadline,
+    apiSpawn = options.spawn ?? spawnSync,
+    archiveSpawn = options.archiveSpawn ?? spawnSync;
+  const remaining = (maximum: number) => {
+    if (deadline === undefined) return maximum;
+    const value = Math.ceil(deadline - performance.now());
+    if (!Number.isFinite(deadline) || value < 1 || value > 600000)
+      throw new Error("signing readback total phase deadline exhausted");
+    return Math.min(maximum, value);
+  };
+  remaining(15000);
   const apiOption = options.api ? { request: options.api.request.bind(options.api) } : undefined,
     download = options.download ?? readGitHubArtifactArchive;
   if (
@@ -217,18 +242,22 @@ export async function readSigningOutputArtifact(
     GH_HOST: "github.com",
     GH_PROMPT_DISABLED: "1",
   });
-  const runner = createGitHubRunner({
-    cwd: directory,
-    maxBuffer: 128 * 1024,
-    timeoutMs: 15000,
-    spawn: (command, args, settings) => spawnSync(command, args, { ...settings, env: environment }),
-  });
   const api =
     apiOption ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: directory,
+        maxBuffer: 128 * 1024,
+        timeoutMs: remaining(15000),
+        spawn: (command, arguments_, settings) =>
+          apiSpawn(command, arguments_, { ...settings, env: environment }),
+      })([...args, "--hostname", "github.com"], input),
+    );
   let phase = "provider-before";
   const get = (route: string) => {
+    remaining(15000);
     const response = api.request("GET", `${base}/${route}`);
+    remaining(15000);
     if (response.status !== 200) throw new Error("signing output provider read refused");
     return response.body;
   };
@@ -296,19 +325,22 @@ export async function readSigningOutputArtifact(
       { flag: "wx", mode: 0o600 },
     );
     phase = "opaque-output-download";
+    remaining(30000);
     const archive = download(`${base}/actions/artifacts/${expected.artifact_id}/zip`, {
       cwd: directory,
       maxBytes: before.artifact.bytes,
-      timeoutMs: 30000,
+      timeoutMs: remaining(30000),
       spawn: (command, args, settings) =>
-        spawnSync(command, args, { ...settings, env: environment }),
+        archiveSpawn(command, args, { ...settings, env: environment }),
     });
+    remaining(15000);
     if (archive.length !== before.artifact.bytes || hash(archive) !== expected.archive_sha256)
       throw new Error("opaque signing output differs");
     await writeFile(path.join(directory, "signing-output.zip"), archive, {
       flag: "wx",
       mode: 0o600,
     });
+    remaining(15000);
     phase = "complete-output-inventory";
     const entries = inspectBoundedZip(archive, {
       compressedBytes: 2 * 1024 * 1024,
@@ -319,6 +351,7 @@ export async function readSigningOutputArtifact(
     }).entries;
     if (entries.length !== files.length) throw new Error("signing output inventory incomplete");
     for (const entry of entries) {
+      remaining(15000);
       const file = files.find((item: SigningOutputFile) => item.filename === entry.name);
       if (!file || entry.bytes !== file.bytes) throw new Error("signing output member differs");
       const compressed = archive.subarray(entry.data, entry.dataEnd);
@@ -332,6 +365,7 @@ export async function readSigningOutputArtifact(
         path.join(directory, "output", file.filename),
         file.bytes,
       );
+      remaining(15000);
       if (!bytes.equals(local)) throw new Error("local signing output changed during handoff");
     }
     phase = "provider-after";
@@ -342,6 +376,7 @@ export async function readSigningOutputArtifact(
       JSON.stringify(after),
       { flag: "wx", mode: 0o600 },
     );
+    remaining(15000);
     const result = {
       schema_version: 1,
       artifact: before.artifact,
@@ -354,6 +389,7 @@ export async function readSigningOutputArtifact(
       flag: "wx",
       mode: 0o600,
     });
+    remaining(15000);
     return result;
   } catch {
     await writeFile(

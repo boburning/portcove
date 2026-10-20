@@ -236,3 +236,78 @@ void test("missing fixed upload output has a finite deadline and retains only pu
     ),
   );
 });
+void test("actual default REST and opaque archive paths cap every child timeout to the remaining phase budget", async (t) => {
+  const f = await fixture(t),
+    timeouts: number[] = [],
+    previousHost = process.env.GH_HOST;
+  process.env.GH_HOST = "ambient.invalid";
+  t.after(() => {
+    if (previousHost === undefined) delete process.env.GH_HOST;
+    else process.env.GH_HOST = previousHost;
+  });
+  const deadline = performance.now() + 2000;
+  const result = await readSigningOutputArtifact(f.directory, f.expected, {
+    deadline,
+    spawn: (command, args, settings) => {
+      assert.equal(command, "gh");
+      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
+      assert.equal(args[args.indexOf("--method") + 1], "GET");
+      assert.equal(settings.env?.GH_HOST, "github.com");
+      assert.equal(settings.env?.NODE_OPTIONS, undefined);
+      assert.equal(settings.env?.HTTPS_PROXY, undefined);
+      assert.ok(
+        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 2000,
+      );
+      timeouts.push(settings.timeout);
+      const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+      assert.ok(endpoint);
+      const body = f.options.api.request("GET", endpoint).body;
+      return {
+        status: 0,
+        stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+        stderr: "",
+      };
+    },
+    archiveSpawn: (command, args, settings) => {
+      assert.equal(command, "gh");
+      assert.equal(args[args.indexOf("--hostname") + 1], "github.com");
+      assert.equal(settings.env?.GH_HOST, "github.com");
+      assert.equal(settings.env?.NODE_OPTIONS, undefined);
+      assert.ok(
+        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 2000,
+      );
+      timeouts.push(settings.timeout);
+      assert.equal(settings.maxBuffer, f.archive.length);
+      return { status: 0, stdout: Buffer.from(f.archive) };
+    },
+  });
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(timeouts.length, 7);
+  assert.ok(timeouts.every((timeout, index) => index === 0 || timeout <= timeouts[index - 1]!));
+});
+void test("exhausted readback budget refuses before any transport and expiration during a read cannot continue", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    readSigningOutputArtifact(f.directory, f.expected, {
+      ...f.options,
+      deadline: performance.now() - 1,
+    }),
+    /deadline/u,
+  );
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.downloads(), 0);
+  let calls = 0;
+  await assert.rejects(
+    readSigningOutputArtifact(f.directory, f.expected, {
+      deadline: performance.now() + 50,
+      spawn: (_command, _args, settings) => {
+        assert.ok(typeof settings.timeout === "number" && settings.timeout <= 50);
+        calls++;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 80);
+        return { status: 0, stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(f.run)}`, stderr: "" };
+      },
+    }),
+    /retain owned directory/u,
+  );
+  assert.equal(calls, 1);
+});

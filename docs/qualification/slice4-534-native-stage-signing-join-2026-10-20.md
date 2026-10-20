@@ -42,7 +42,9 @@ Actual native, SPDX and tool custody are rechecked before signing. Capacity-only
 reads preserve the existing operation's own pending-ownership checks; subsequent
 reservation checks use the actual pending checkpoint rather than the original
 pre-effect checkpoint. Payload subprocesses share a fixed total phase deadline
-with thirty seconds reserved under the proposed ten-minute job ceiling.
+with thirty seconds reserved under the proposed ten-minute job ceiling. Every
+signing-output REST and opaque-download timeout is capped by the remaining
+fixed phase budget; expiration during collection cannot produce a success.
 
 The fixed upload handoff publishes only public signatures and their exact input
 binding. A reviewed upload step must upload `signature-handoff/output/*` once,
@@ -70,7 +72,7 @@ payload nor a metadata executor can dispatch Release, publish a Release, deploy
 Pages or use another role's output scope. Metadata-only renewal remains explicit
 and uses the existing authenticated unchanged-feed descriptor.
 
-Local focused validation currently covers 80 passing contracts, including
+Local focused validation currently covers 82 passing contracts, including
 actual-default/injected-provider separation, the two native stages, immutable
 package association, all signing-role identities/scopes, exhausted deadlines,
 malformed upload locators, complete ZIP/member checks, changed local output,
