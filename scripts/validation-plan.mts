@@ -250,6 +250,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-site-composer.mts",
   "scripts/release-site-readback.mts",
   "scripts/release-site-deployment.mts",
+  "scripts/release-pages-provider.mts",
+  "scripts/release-capacity-executor.mts",
   "scripts/assembler-job-identity.mts",
   "scripts/release-control-inputs.mts",
   "scripts/release-capacity.mts",
