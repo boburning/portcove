@@ -162,9 +162,12 @@ export function assertCapacityExecutorEffectScope(
               ).test(request.destination)
             : role === "release-publication" &&
               request.kind === "upload" &&
-              /^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+              (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                 request.destination,
-              );
+              ) ||
+                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result$/u.test(
+                  request.destination,
+                ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
 }
 
