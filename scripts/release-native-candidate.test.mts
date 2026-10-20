@@ -8,7 +8,7 @@ import {
   inspectNativeSourceCommand,
 } from "./release-native-candidate.mts";
 
-void test("selection reconstructs exact real-package identities without native or admission authority", async (t) => {
+void test("selection reconstructs exact package identities without native or admission authority", async (t) => {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
   const facts = {
     assembly: f.request,
