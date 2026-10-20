@@ -8,12 +8,31 @@ import { parseDocument } from "yaml";
 import {
   stageAggregateSigningInputs,
   prepareControllerPayloadSigning,
+  runPayloadSigningController,
 } from "./release-payload-preparation.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("positive payload continuation rejects imported tool receipts before identity or key access", async () => {
+  await assert.rejects(
+    runPayloadSigningController(
+      {},
+      {
+        audience: "portcove-payload-signing",
+        subject: "fixed-independent-subject",
+        controller_revision: "a".repeat(40),
+        controller_ref: "refs/tags/portcove-production-controller-test",
+        actor_id: "123",
+        run_id: "456",
+        run_attempt: 1,
+      },
+      {},
+    ),
+    /actual same-process controller tool verification required/u,
+  );
+});
 void test("standalone signer fragment stays held and uses only the connected controller entrypoint without keys", async () => {
   const text = await readFile(
     new URL(

@@ -200,7 +200,36 @@ void test(
       output: path.join(root, "signed"),
       tools,
     };
-    const receipt = await signReleasePayload(options);
+    let keyReads = 0,
+      guards = 0;
+    const privateKey = process.env.TAURI_SIGNING_PRIVATE_KEY;
+    await assert.rejects(
+      signReleasePayload(
+        { ...options, output: path.join(root, "revoked-before-key") },
+        {
+          beforeSign: async () => {
+            throw new Error("fixture current controls revoked");
+          },
+          keyMaterial: async () => {
+            keyReads++;
+            return { key: privateKey, password: "" };
+          },
+        },
+      ),
+      /current controls revoked/u,
+    );
+    assert.equal(keyReads, 0);
+    const receipt = await signReleasePayload(options, {
+      beforeSign: async () => {
+        guards++;
+      },
+      keyMaterial: async () => {
+        keyReads++;
+        assert.equal(guards, 1);
+        return { key: privateKey, password: "" };
+      },
+    });
+    assert.equal(keyReads, 1);
     assert.equal(receipt.authority, "none");
     assert.deepEqual(await readdir(options.output), [`${admitted.filename}.sig`]);
     assert.deepEqual(await readFile(payloadPath), payload);

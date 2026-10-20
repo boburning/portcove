@@ -330,6 +330,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/updater-artifact-inventory.mts",
   "scripts/release-payload-signing.mts",
   "scripts/release-payload-preparation.mts",
+  "scripts/release-role-key-channel.mts",
   "scripts/verify-macos-release.ps1",
   "scripts/windows-qualification-session.ps1",
   "scripts/windows-qualification-session.integration.test.mts",
