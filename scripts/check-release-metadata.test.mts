@@ -1,9 +1,60 @@
 import type { DesktopCargoFeatures } from "./check-release-metadata.mts";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import {
+  canonicalBrandIcns,
+  readVectorFamily,
+  validateVectorSource,
+  verifyVectorFamily,
+} from "./brand-vector-contract.mts";
+
+void test("ICNS export order is repeatable without changing encoded payloads", () => {
+  const types = [
+    "is32",
+    "s8mk",
+    "il32",
+    "l8mk",
+    "ic11",
+    "ic12",
+    "ic07",
+    "ic08",
+    "ic13",
+    "ic09",
+    "ic14",
+    "ic10",
+  ];
+  const element = (type: string) => {
+    const bytes = Buffer.alloc(12);
+    bytes.write(type);
+    bytes.writeUInt32BE(12, 4);
+    bytes.write(type, 8);
+    return bytes;
+  };
+  const container = (entries: Buffer[]) => {
+    const header = Buffer.alloc(8);
+    header.write("icns");
+    header.writeUInt32BE(8 + entries.reduce((size, entry) => size + entry.length, 0), 4);
+    return Buffer.concat([header, ...entries]);
+  };
+  const expected = container(types.map(element));
+  const reordered = container([...types].reverse().map(element));
+  assert.deepEqual(canonicalBrandIcns(reordered), expected);
+  assert.deepEqual(canonicalBrandIcns(expected), expected);
+  assert.throws(() => canonicalBrandIcns(expected.subarray(0, expected.length - 1)), /header/);
+  assert.throws(() => canonicalBrandIcns(container(types.slice(1).map(element))), /Incomplete/);
+  assert.throws(
+    () => canonicalBrandIcns(container([...types, types[0]!].map(element))),
+    /duplicate/,
+  );
+  assert.throws(
+    () => canonicalBrandIcns(container([...types.slice(1), "new!"].map(element))),
+    /Unexpected/,
+  );
+});
 
 import {
   inspectPng,
@@ -35,6 +86,56 @@ function fixtureElement<T>(values: readonly T[], index: number): T {
   assert.ok(value !== undefined);
   return value;
 }
+
+void test("candidate vector family retains transparent derivatives without implying owner approval", async () => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const verified = await verifyVectorFamily(root);
+  assert.equal(verified.family.status, "candidate");
+  assert.equal(verified.family.production_approval, null);
+  assert.equal(verified.family.masters.length, 20);
+  assert.equal(verified.family.derivatives.length, 76);
+  assert.throws(
+    () => readVectorFamily({ ...verified.family, status: "approved" }),
+    /Production approval/,
+  );
+  assert.throws(
+    () =>
+      readVectorFamily({
+        ...verified.family,
+        production_approval: {
+          owner: "placeholder",
+          evidence: "placeholder",
+          candidate_sha256: verified.family.candidate_sha256,
+        },
+      }),
+    /cannot imply production approval/,
+  );
+  assert.throws(
+    () => readVectorFamily({ ...verified.family, candidate_sha256: "0".repeat(64) }),
+    /candidate identity changed/,
+  );
+  const historical: unknown = JSON.parse(
+    await readFile(path.join(root, "apps/desktop/assets/brand/manifest.json"), "utf8"),
+  );
+  assert.deepEqual(validateBrandManifestDefinition(historical), []);
+});
+
+void test("authored vector sources cannot depend on fonts, raster embedding or linked resources", () => {
+  const svg = (body: string) => `<svg viewBox="0 0 64 64">${body}</svg>`;
+  validateVectorSource(svg('<path d="M1 1H4V4Z" fill="#15171c"/>'), [64, 64]);
+  for (const body of [
+    "<text>Portcove</text>",
+    '<image href="data:image/png;base64,AAAA"/>',
+    '<path fill="url(https://example.com/fill.svg)"/>',
+    '<use href="#other"/>',
+    "<script/>",
+    "<foreignObject/>",
+    '<path onclick="run()"/>',
+    '<!ENTITY remote SYSTEM "outside">',
+  ])
+    assert.throws(() => validateVectorSource(svg(body), [64, 64]));
+  assert.throws(() => validateVectorSource(svg(""), [128, 128]), /natural aspect ratio/);
+});
 interface MetadataFixture {
   cargo: Required<ReturnType<typeof parseWorkspacePackage>>;
   repositoryPackage: { packageManager: string };
