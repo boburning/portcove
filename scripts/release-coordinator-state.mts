@@ -192,7 +192,10 @@ function readCheckpoint(git: Git, commit: string) {
   if (canonical(parents) !== canonical(expectedParents) || canonical(state) !== raw)
     throw new Error("coordinator checkpoint history or canonical bytes disagree");
   const checked = checkedInput(state.input);
-  if (state.previous === null && checked.input.review_request != null)
+  if (
+    state.previous === null &&
+    (checked.input.review_request != null || checked.input.review_disposition != null)
+  )
     throw new Error("initial coordinator cannot invent a frozen review request");
   return { previous: state.previous, ...checked };
 }
@@ -453,7 +456,7 @@ export async function checkpointReleaseOpportunity(
   if (previous) transition(previous, input, expectedPrevious!);
   else if (active(input))
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
-  else if (input.review_request != null)
+  else if (input.review_request != null || input.review_disposition != null)
     throw new Error("first coordinator checkpoint cannot invent a frozen review request");
   const verifies = preparationVerifies(git, input);
   // Clearing a completed active candidate still verifies its exact allocation.

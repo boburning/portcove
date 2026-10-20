@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
-import { readIndependentSemanticDisposition } from "./release-semantic-disposition-reader.mts";
+import {
+  readIndependentSemanticDisposition,
+  discoverIndependentSemanticDisposition,
+} from "./release-semantic-disposition-reader.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -124,4 +127,94 @@ void test("foreign issuer/input, success, malformed report, future time and chan
     ),
   );
   assert.equal(f.calls.length, 0);
+});
+
+function discoveryFixture(mode = "valid") {
+  const f = fixture();
+  let suiteReads = 0;
+  const calls: string[] = [];
+  const row = (index: number) => ({
+    ...f.check,
+    id: index === 0 ? 99 : 1000 + index,
+    conclusion: (index === 0 && mode !== "absent") || mode === "ambiguous" ? "failure" : "success",
+    check_suite: { id: 700 },
+  });
+  return {
+    ...f,
+    discoveryCalls: calls,
+    api: {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        calls.push(endpoint);
+        if (endpoint.includes(`/commits/${f.wire.request.source_commit}/check-suites?`)) {
+          suiteReads++;
+          assert.ok(endpoint.endsWith(`?app_id=${config.review_app_id}&per_page=100&page=1`));
+          const suites = [
+            {
+              id: 700,
+              app: { id: mode === "suite-app" ? 456 : config.review_app_id },
+              head_sha: f.wire.request.source_commit,
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+            },
+          ];
+          return {
+            status: 200,
+            headers: new Map<string, string>(),
+            body: { total_count: mode === "suite-bound" ? 17 : 1, check_suites: suites },
+          };
+        }
+        if (endpoint.includes("/check-suites/700/check-runs?")) {
+          const url = new URL(`https://api.github.com/${endpoint}`);
+          assert.equal(url.searchParams.get("filter"), "all");
+          assert.equal(url.searchParams.get("check_name"), semanticReviewCheckName);
+          const page = Number(url.searchParams.get("page"));
+          const total = mode === "ceiling" ? 1000 : 101;
+          const rows = Array.from({ length: Math.min(100, total - (page - 1) * 100) }, (_, index) =>
+            row((page - 1) * 100 + index),
+          );
+          if (mode === "duplicate" && page === 2) rows[0] = row(0);
+          if (mode === "omitted" && page === 2) rows.pop();
+          if (mode === "drift" && suiteReads > 1) rows[0] = { ...rows[0]!, external_id: "changed" };
+          return {
+            status: 200,
+            headers: new Map<string, string>(),
+            body: { total_count: total, check_runs: rows },
+          };
+        }
+        return f.api.request(method, endpoint);
+      },
+    },
+  };
+}
+void test("automatic discovery enumerates complete suites and 101 fixed-App checks before exact bracketed GET", () => {
+  const f = discoveryFixture();
+  const result = discoverIndependentSemanticDisposition(f.api, config, f.wire.request);
+  assert.equal(result.check_run_id, 99);
+  assert.deepEqual(result.wire, f.wire);
+  assert.equal(
+    f.discoveryCalls.filter((endpoint) => endpoint.includes("/check-suites?")).length,
+    2,
+  );
+  assert.equal(
+    f.discoveryCalls.filter(
+      (endpoint) => endpoint.includes("/check-runs?") && endpoint.endsWith("page=2"),
+    ).length,
+    2,
+  );
+});
+void test("automatic discovery never chooses missing/duplicate/changed/capped or incomplete check inventory", () => {
+  for (const mode of [
+    "absent",
+    "ambiguous",
+    "suite-app",
+    "suite-bound",
+    "ceiling",
+    "duplicate",
+    "omitted",
+    "drift",
+  ]) {
+    const f = discoveryFixture(mode);
+    assert.throws(() => discoverIndependentSemanticDisposition(f.api, config, f.wire.request));
+    assert.ok(f.discoveryCalls.length <= 10);
+  }
 });
