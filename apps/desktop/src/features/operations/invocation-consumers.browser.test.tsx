@@ -1,4 +1,4 @@
-import { act } from "react";
+import { controlledAct as act } from "../../../test/controlled-react-act";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
@@ -91,6 +91,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -242,5 +243,194 @@ it("treats cancelled source selection as neutral without an invocation", async (
     addRequiredSource(profile, false, "game", state.perform, state.setError, 7),
   );
   expect(add).not.toHaveBeenCalled();
+  expect(state.invocations.size).toBe(0);
+});
+
+it.each(["add", "relink"] as const)(
+  "attributes %s picker failure without replacing it with an exclusion conflict",
+  async (action) => {
+    let complete!: (value: Awaited<ReturnType<typeof desktopApi.plan>>) => void;
+    vi.spyOn(desktopApi, "plan").mockReturnValue(
+      new Promise((resolve) => {
+        complete = resolve;
+      }),
+    );
+    let pending!: Promise<void>;
+    await act(async () => {
+      pending = install.review();
+    });
+    vi.mocked(pickSourcePath).mockRejectedValue(new Error("Picker could not open"));
+    await act(async () => {
+      if (action === "add")
+        await addRequiredSource(profile, false, "game", state.perform, state.setError, 7);
+      else
+        await replaceRegisteredSource(
+          profile,
+          {
+            profile_id: profile.id,
+            path: "E:/old.z64",
+            sha256: "a".repeat(64),
+            size: 1,
+            storage_sha256: "a".repeat(64),
+            storage_size: 1,
+            updated_at: 1,
+          },
+          "game",
+          state.perform,
+          state.setError,
+          7,
+        );
+    });
+    const failure = [...state.invocations.values()].find((record) => record.failure)!;
+    expect(failure.failure).toBe("Picker could not open");
+    expect(failure.context).toMatchObject({
+      target: { id: profile.id, label: profile.label },
+      libraryGeneration: 7,
+      exclusionScope: "library",
+    });
+    expect(failure.context.activityId).toBeUndefined();
+    expect(state.pendingOperations.size).toBe(1);
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(profile.label);
+    await act(async () => {
+      complete({} as Awaited<ReturnType<typeof desktopApi.plan>>);
+      await pending;
+    });
+  },
+);
+it("names a missing requirements profile truthfully without opening the picker", async () => {
+  vi.mocked(pickSourcePath).mockClear();
+  await act(async () =>
+    replaceRegisteredSource(
+      undefined,
+      {
+        profile_id: "removed-profile",
+        path: "E:/old.z64",
+        sha256: "a".repeat(64),
+        size: 1,
+        storage_sha256: "a".repeat(64),
+        storage_size: 1,
+        updated_at: 1,
+      },
+      "game",
+      state.perform,
+      state.setError,
+      7,
+    ),
+  );
+  expect(pickSourcePath).not.toHaveBeenCalled();
+  expect([...state.invocations.values()][0]?.context).toMatchObject({
+    action: "Update game-file location",
+    target: { kind: "source", id: "removed-profile", label: "Selected game-file location" },
+  });
+});
+it("drops a picker error from an outgoing library", async () => {
+  let fail!: (error: Error) => void;
+  vi.mocked(pickSourcePath).mockReturnValue(
+    new Promise((_, reject) => {
+      fail = reject;
+    }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = addRequiredSource(profile, false, "game", state.perform, state.setError, 7);
+  });
+  await act(async () => root.render(<Fixture generation={8} />));
+  await act(async () => {
+    fail(new Error("Outgoing picker failure"));
+    await pending;
+  });
+  expect(state.invocations.size).toBe(0);
+});
+it("attributes account-status failures on initial read and explicit refresh", async () => {
+  vi.mocked(desktopApi.githubAuthStatus).mockRejectedValue(new Error("Account status unavailable"));
+  await act(async () => root.render(<Fixture generation={8} />));
+  await act(async () => auth.refresh());
+  const records = [...state.invocations.values()];
+  expect(records).toHaveLength(2);
+  for (const record of records) {
+    expect(record.context).toMatchObject({
+      action: "Check account status",
+      target: { label: "GitHub account" },
+      libraryGeneration: 8,
+      exclusionScope: "application",
+    });
+    expect(record.context.activityId).toBeUndefined();
+  }
+  expect(host.querySelectorAll('[role="alert"]')).toHaveLength(2);
+});
+it("does not publish an outgoing account-status failure", async () => {
+  let fail!: (error: Error) => void;
+  vi.mocked(desktopApi.githubAuthStatus).mockReturnValueOnce(
+    new Promise((_, reject) => {
+      fail = reject;
+    }),
+  );
+  let pending!: Promise<void>;
+  await act(async () => {
+    pending = auth.refresh();
+  });
+  await act(async () => root.render(<Fixture generation={8} />));
+  await act(async () => {
+    fail(new Error("Outgoing account failure"));
+    await pending;
+  });
+  expect(state.invocations.size).toBe(0);
+});
+it.each([false, true])(
+  "attributes a device-login poll failure only to its current owner (replacement %s)",
+  async (replace) => {
+    vi.useFakeTimers();
+    vi.spyOn(desktopApi, "beginGithubDeviceLogin").mockResolvedValue({
+      expires_at: 60,
+      interval_seconds: 1,
+      session_id: "synthetic-session",
+      user_code: "TEST",
+      verification_uri: "https://github.com/login/device",
+    });
+    let fail!: (error: Error) => void;
+    vi.spyOn(desktopApi, "pollGithubDeviceLogin").mockReturnValue(
+      new Promise((_, reject) => {
+        fail = reject;
+      }),
+    );
+    await act(async () => auth.beginDeviceLogin());
+    await act(async () => vi.advanceTimersByTimeAsync(1000));
+    if (replace) await act(async () => root.render(<Fixture generation={8} />));
+    await act(async () => {
+      fail(new Error("Device login unavailable"));
+      await Promise.resolve();
+    });
+    const failures = [...state.invocations.values()].filter((record) => record.failure);
+    expect(failures.map((record) => record.context)).toEqual(
+      replace
+        ? []
+        : [
+            targetInvocationContext(
+              "Sign in",
+              { kind: "application", id: "github-account", label: "GitHub account" },
+              7,
+              "application",
+            ),
+          ],
+    );
+    expect(
+      [...host.querySelectorAll('[role="alert"]')].map((alert) =>
+        alert.textContent?.includes("Sign in · GitHub account"),
+      ),
+    ).toEqual(replace ? [] : [true]);
+  },
+);
+it("rejects a supplied stale context even through the current error setter", async () => {
+  await act(async () =>
+    state.setError(
+      "Old failure",
+      targetInvocationContext(
+        "Add game files",
+        { kind: "source", id: profile.id, label: profile.label },
+        6,
+        "library",
+      ),
+    ),
+  );
   expect(state.invocations.size).toBe(0);
 });

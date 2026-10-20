@@ -2,7 +2,7 @@ import { desktopApi } from "../../api";
 import { errorText } from "../../view-model";
 import { pickSourceArchivePath, pickSourcePath, type SourcePickerPurpose } from "../../file-picker";
 import type { SourceProfile, SourceRecord } from "../../types";
-import type { Perform } from "../operations/use-operation-state";
+import type { Perform, ReportError } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
 
 export async function replaceRegisteredSource(
@@ -10,11 +10,23 @@ export async function replaceRegisteredSource(
   source: SourceRecord,
   purpose: SourcePickerPurpose,
   perform: Perform,
-  setError: (error?: string) => void,
+  setError: ReportError,
   libraryGeneration: number,
 ) {
+  const context = targetInvocationContext(
+    purpose === "bios" ? "Update BIOS location" : "Update game-file location",
+    {
+      kind: "source",
+      id: profile?.id ?? source.profile_id,
+      label:
+        profile?.label ??
+        (purpose === "bios" ? "Selected BIOS location" : "Selected game-file location"),
+    },
+    libraryGeneration,
+    "library",
+  );
   if (!profile) {
-    setError("The selected file’s requirements are missing from the current catalog.");
+    setError("The selected file’s requirements are missing from the current catalog.", context);
     return;
   }
   try {
@@ -27,16 +39,11 @@ export async function replaceRegisteredSource(
           return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
         },
         {
-          context: targetInvocationContext(
-            purpose === "bios" ? "Update BIOS location" : "Update game-file location",
-            { kind: "source", id: profile.id, label: profile.label },
-            libraryGeneration,
-            "library",
-          ),
+          context,
         },
       );
   } catch (value) {
-    setError(errorText(value));
+    setError(errorText(value), context);
   }
 }
 
@@ -45,23 +52,24 @@ export async function addRequiredSource(
   archive: boolean,
   purpose: SourcePickerPurpose,
   perform: Perform,
-  setError: (error?: string) => void,
+  setError: ReportError,
   libraryGeneration: number,
 ) {
+  const context = targetInvocationContext(
+    purpose === "bios" ? "Add BIOS file" : "Add game files",
+    { kind: "source", id: profile.id, label: profile.label },
+    libraryGeneration,
+    "library",
+  );
   try {
     const path = await (archive
       ? pickSourceArchivePath("", purpose)
       : pickSourcePath(profile, "", purpose));
     if (path)
       await perform("add game files", () => desktopApi.addSource(profile.id, path), {
-        context: targetInvocationContext(
-          purpose === "bios" ? "Add BIOS file" : "Add game files",
-          { kind: "source", id: profile.id, label: profile.label },
-          libraryGeneration,
-          "library",
-        ),
+        context,
       });
   } catch (value) {
-    setError(errorText(value));
+    setError(errorText(value), context);
   }
 }
