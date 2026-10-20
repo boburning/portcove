@@ -337,7 +337,7 @@ namespace Portcove.ReferenceClient
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
-            var presentation = Json.OptionalObjectField(catalog, "presentation");
+            var presentation = SetupInstructions.ForRuntime(status, catalog);
             var preparationText = SetupInstructions.Summary(presentation);
             preparationNotes.Text = SetupInstructions.TechnicalNotes(presentation) ?? "";
             preparationNotesSection.Visibility = externalRoute && !string.IsNullOrWhiteSpace(preparationNotes.Text)
