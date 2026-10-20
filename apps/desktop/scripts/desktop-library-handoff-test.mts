@@ -405,9 +405,17 @@ export async function libraryHandoffScenario({
     await click(button("Review move"));
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
     const beforeRecovery = await bootstrap();
-    await click(button("Move to this folder"));
-    await waitForFile(path.join(restoreRoot, ".portcove-authority.json"));
-    await writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`);
+    // Arm the witness before the click: a fast copy may publish before WebDriver's
+    // click response returns. Drain both branches before cleanup on any failure.
+    const changeDuringCopy = waitForFile(path.join(restoreRoot, ".portcove-authority.json")).then(
+      async () =>
+        writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`),
+    );
+    const intervention = await Promise.allSettled([
+      changeDuringCopy,
+      click(button("Move to this folder")),
+    ]);
+    for (const result of intervention) if (result.status === "rejected") throw result.reason;
     await browser.wait(until.elementLocated(button("Keep using original library")), 15_000);
     assert.ok(
       (
