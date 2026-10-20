@@ -11,13 +11,15 @@ import { isRecord } from "./runtime-values.mts";
 import {
   inspectNativeReleaseQualification,
   nativeQualificationCheckName,
+  nativePrepublicationProfile,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
 
 const repository = "repos/boburning/portcove";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export type NativeQualificationExpectation = {
-  schema_version: 1;
+  schema_version: 1 | 2;
+  native_prepublication_profile?: typeof nativePrepublicationProfile;
   check_id: number;
   native_app_id: number;
   semantic_app_id: number;
@@ -84,15 +86,23 @@ export function inspectNativeQualificationExpectation(
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage",
+    isRecord(value) && value.schema_version === 2
+      ? "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,native_prepublication_profile,platform_label,producer,schema_version,semantic_app_id,stage"
+      : "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage",
   );
   if (
     Buffer.byteLength(JSON.stringify(value)) > 16 * 1024 ||
-    value.schema_version !== 1 ||
+    (value.schema_version !== 1 && value.schema_version !== 2) ||
     !["payload-signing", "release-publication"].includes(String(value.stage)) ||
     !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label))
   )
     throw new Error("native qualification expected stage/platform is invalid");
+  if (
+    value.schema_version === 2 &&
+    (value.stage !== "release-publication" ||
+      value.native_prepublication_profile !== nativePrepublicationProfile)
+  )
+    throw new Error("native expected ratified prepublication profile differs");
   for (const key of [
     "check_id",
     "native_app_id",
@@ -191,7 +201,11 @@ export function inspectNativeQualificationExpectation(
 export function prepareNativeQualificationCheck(raw: unknown) {
   const report = inspectNativeReleaseQualification(raw),
     reportSha = releaseCanonicalDigest(report);
-  const summary = JSON.stringify({ schema_version: 1, report_sha256: reportSha, report });
+  const summary = JSON.stringify({
+    schema_version: report.schema_version,
+    report_sha256: reportSha,
+    report,
+  });
   if (Buffer.byteLength(summary) > 64 * 1024) throw new Error("native Check summary exceeds bound");
   return {
     report,
@@ -200,7 +214,7 @@ export function prepareNativeQualificationCheck(raw: unknown) {
     body: {
       name: nativeQualificationCheckName,
       head_sha: report.candidate.source_commit,
-      external_id: `portcove-native-qualification-v1:${reportSha}`,
+      external_id: `portcove-native-qualification-v${report.schema_version}:${reportSha}`,
       status: "completed",
       conclusion: "success",
       // Checks' documented wire format has whole UTC seconds. The full native
@@ -253,7 +267,7 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   const report = inspectNativeReleaseQualification(summary.report),
     prepared = prepareNativeQualificationCheck(report);
   if (
-    summary.schema_version !== 1 ||
+    summary.schema_version !== report.schema_version ||
     summary.report_sha256 !== releaseCanonicalDigest(report) ||
     raw.external_id !== prepared.body.external_id ||
     typeof raw.started_at !== "string" ||
@@ -271,6 +285,8 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   };
   const { engine, ...expectedHost } = expected.host;
   if (
+    report.schema_version !== expected.schema_version ||
+    report.native_prepublication_profile !== expected.native_prepublication_profile ||
     report.stage !== expected.stage ||
     report.platform_label !== expected.platform_label ||
     !isDeepStrictEqual(report.candidate, expected.candidate) ||
