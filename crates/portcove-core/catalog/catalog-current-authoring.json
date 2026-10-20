@@ -892,6 +892,16 @@
         "claim": "The pinned v0.1.1 source accepts the exact stock headerless Super Bomberman USA payload and direct positional invocation; the checked official package contains the native Windows x64 host. Package, source and original identities are separate from operation/gameplay acceptance.",
         "immutable_url": "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c",
         "live_url": "https://github.com/elliotttate/BombermanRecomp/blob/main/runner/verified_rom.c"
+      },
+      {
+        "id": "gundam-wing-endless-duel-recomp-source-contract-2026-10-20",
+        "role": "upstream_support",
+        "authority": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+        "authority_ref": "c7aaaa152192db5d750db3fb190e8f93b6240c19",
+        "reviewed_at": "2026-10-20",
+        "claim": "The pinned generator declares the exact raw Japanese original SHA256 and CRC32. The closed offline managed recipe verifies this identity, authenticates its fixed build inputs and selects positional game.sfc. Source identity and private build evidence do not establish game operation acceptance or redistribution permission.",
+        "immutable_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/c7aaaa152192db5d750db3fb190e8f93b6240c19/src/codegen_setup.c",
+        "live_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/main/src/codegen_setup.c"
       }
     ],
     "identities": [
@@ -6963,6 +6973,46 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "gundam-wing-endless-duel-snes-japan",
+        "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "japan-stock",
+            "title": "Shin Kidou Senki Gundam W: Endless Duel",
+            "region": "Japan",
+            "revision": "Stock Japan",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
       }
     ],
     "contracts": [
@@ -9961,6 +10011,33 @@
           {
             "upstream_ref": "v0.1.1",
             "artifact_sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "gundam-wing-endless-duel-recomp-game-source",
+        "port_id": "gundam-wing-endless-duel-recomp",
+        "role": "game",
+        "profile_id": "gundam-wing-endless-duel-snes-japan",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "japan-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+        ],
+        "authority_ref": "c7aaaa152192db5d750db3fb190e8f93b6240c19",
+        "reviewed_at": "2026-10-20",
+        "immutable_review_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/c7aaaa152192db5d750db3fb190e8f93b6240c19/src/codegen_setup.c",
+        "live_review_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/main/src/codegen_setup.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "source-c7aaaa152192",
+            "artifact_sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee"
           }
         ],
         "aliases": [],
@@ -20852,6 +20929,73 @@
         "saves"
       ],
       "runtime_mutable_paths": []
+    },
+    {
+      "id": "gundam-wing-endless-duel-recomp",
+      "name": "Gundam Wing: Endless Duel Recomp",
+      "summary": "Build and play Gundam Wing: Endless Duel from your own Japanese original.",
+      "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+        "direct": {
+          "windows-x86-64": {
+            "version": "source-c7aaaa152192",
+            "url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/archive/c7aaaa152192db5d750db3fb190e8f93b6240c19.zip",
+            "size": 3363589,
+            "sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee",
+            "published_at": null
+          }
+        },
+        "managed_build": {
+          "windows-x86-64": "gundam-wing-snes-source-c7aaaa152192-japan-offline"
+        }
+      },
+      "source_profile": "gundam-wing-endless-duel-snes-japan",
+      "executable_hints": {
+        "windows-x86-64": [
+          "GundamWingEndlessDuelSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "gundam-wing-endless-duel-snes-japan",
+            "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own stock headerless Japanese original. Portcove builds the fixed offline source recipe with optional mods, setup and netplay disabled. Use a short library path with basic Latin characters. Close the game with its titlebar close button. Your original remains separate from managed settings and saves; gameplay completion and populated save/load remain unverified."
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "persistent_paths": [
+        "config.ini",
+        "config.local.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves"
+      ],
+      "runtime_mutable_paths": [
+        ".snesrecomp_write_probe"
+      ],
+      "runtime_mutable_file_patterns": [],
+      "launch_environment": {}
     }
   ]
 }
