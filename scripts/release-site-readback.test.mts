@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { capacityDigest } from "./release-capacity.mts";
-import { readPublicApplicationSite } from "./release-site-readback.mts";
+import {
+  readPublicApplicationSite,
+  readPublicApplicationSiteMarker,
+} from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
 function fixture() {
@@ -31,6 +34,38 @@ function response(url: string, bytes: Buffer, status = 200) {
   Object.defineProperty(result, "url", { value: url });
   return result;
 }
+
+void test("late marker bracket reads only the fixed marker, refuses stale/error responses and claims no file readback", async (context) => {
+  const { files, marker } = fixture();
+  for (const mode of ["current", "stale", "refused"] as const) {
+    let calls = 0;
+    const mocked = context.mock.method(
+      globalThis,
+      "fetch",
+      async (input: string, options: RequestInit) => {
+        calls++;
+        assert.equal(input, `${origin}publication.json`);
+        assert.equal(options.credentials, "omit");
+        assert.equal(options.redirect, "error");
+        return response(
+          input,
+          mode === "stale"
+            ? Buffer.from(JSON.stringify({ ...marker, generation: "f".repeat(64) }))
+            : files.get("publication.json")!,
+          mode === "refused" ? 403 : 200,
+        );
+      },
+    );
+    if (mode === "current") {
+      const result = await readPublicApplicationSiteMarker(marker);
+      assert.equal(result.generation, marker.generation);
+      assert.equal(result.scope, "expected generation marker only");
+      assert.equal(Object.hasOwn(result, "files"), false);
+    } else await assert.rejects(readPublicApplicationSiteMarker(marker), /public /u);
+    assert.equal(calls, 1);
+    mocked.mock.restore();
+  }
+});
 
 void test("public readback checks every expected file, brackets generation and forwards no credentials", async (context) => {
   const { files, marker } = fixture();

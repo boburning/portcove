@@ -6,12 +6,26 @@ import {
   isSafeSitePath,
   readComposedSite,
 } from "./release-site-composer.mts";
-import { readPublicApplicationSite } from "./release-site-readback.mts";
+import {
+  readPublicApplicationSite,
+  readPublicApplicationSiteMarker,
+} from "./release-site-readback.mts";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
+import { capacityDigest } from "./release-capacity.mts";
+import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import {
+  capacityExecutorIdentity,
+  executeOwnedCapacityEffect,
+} from "./release-capacity-executor.mts";
+import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
+import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import { performance } from "node:perf_hooks";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const block = 512;
@@ -84,6 +98,8 @@ interface DeploymentSession {
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
   generation: Composed["generation"];
+  previous_generation: Composed["generation"] | null;
+  prior_public_readback?: { generation: string; evidence_sha256: string };
   archive_sha256: string;
   archive_bytes: number;
   directory: string;
@@ -308,7 +324,18 @@ export async function prepareSiteDeployment(
     Object.freeze(generation.files);
     Object.freeze(generation);
   }
-  sessions.set(session, retained);
+  const prior =
+    request.previous_site === null
+      ? null
+      : await readComposedSite(
+          request.previous_site,
+          request.expected_previous_generation!,
+          request.trusted_root_sha256,
+        );
+  sessions.set(session, {
+    ...retained,
+    previous_generation: prior ? structuredClone(prior.generation) : null,
+  });
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
 }
 
@@ -318,4 +345,169 @@ export async function readBackSiteDeployment(session: DeploymentSession) {
   const prepared = sessions.get(session);
   if (!prepared) throw new Error("imported deployment sessions cannot establish public completion");
   return readPublicApplicationSite(prepared.generation);
+}
+
+/** Heavy acquisition precedes the fresh observer handshake. This receipt is
+ * private continuation state; a later marker bracket cannot create it. */
+export async function verifyPriorPublicSite(session: DeploymentSession) {
+  const prepared = sessions.get(session);
+  if (!prepared?.previous_generation)
+    throw new Error("actual prepared prior site session required");
+  const readback = await readPublicApplicationSite(prepared.previous_generation);
+  prepared.prior_public_readback = {
+    generation: readback.generation,
+    evidence_sha256: readback.evidence_sha256,
+  };
+  await writeFile(
+    path.join(prepared.directory, "prior-public-readback.json"),
+    JSON.stringify(readback),
+    { flag: "wx", mode: 0o600 },
+  );
+  return structuredClone(readback);
+}
+
+/** Connected routine publisher. Initial publication/seed is deliberately a
+ * separate consolidated-setup operation; this routine path requires an actual
+ * authenticated published generation in the existing journal. It never calls
+ * a signing process, installs dependencies or receives a role private key. */
+export async function publishPreparedSiteDeployment(
+  session: DeploymentSession,
+  executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  controls: AuthenticatedReleaseControlSource,
+  raw: {
+    repository: string;
+    checkpoint: string;
+    remote_configuration: unknown;
+    metadata_renewal?: unknown;
+    recovery?: "transient" | "substantive-repair";
+  },
+) {
+  const prepared = sessions.get(session);
+  if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
+    throw new Error("actual authenticated composition and provider upload session required");
+  requireAuthenticatedReleaseControlSource(controls, "site-publication");
+  const input = structuredClone(raw);
+  const executorIdentity = capacityExecutorIdentity(executor);
+  if (
+    executorIdentity.role !== "site-publication" ||
+    Number(executorIdentity.run_id) !== prepared.upload.run_id ||
+    executorIdentity.run_attempt !== prepared.upload.run_attempt ||
+    executorIdentity.controller_revision !== prepared.upload.controller_revision
+  )
+    throw new Error("site artifact is not associated with the actual fixed same-attempt executor");
+  const checkpoint = await recoverReleaseOpportunity(input.repository, input.checkpoint);
+  const published = checkpoint.input.published_metadata;
+  const publication =
+    isRecord(published) && isRecord(published.publication) ? published.publication : null;
+  if (
+    !publication ||
+    !prepared.previous_generation ||
+    publication.site_generation_sha256 !== prepared.previous_generation.generation ||
+    prepared.generation.previous_generation !== prepared.previous_generation.generation ||
+    prepared.prior_public_readback?.generation !== prepared.previous_generation.generation
+  )
+    throw new Error("actual independent prior site generation/initial seed is required");
+  const candidate = checkpoint.input.active_candidate;
+  const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
+  if (input.metadata_renewal === undefined && !isRecord(frozen))
+    throw new Error("release site requires the existing complete frozen opportunity");
+  const runner = createGitHubRunner({
+    cwd: prepared.directory,
+    timeoutMs: 15_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  const api = new GitHubApiClient((args, body) =>
+    runner([...args, "--hostname", "github.com"], body),
+  );
+  const readBoundary = async () => {
+    requireAuthenticatedReleaseControlSource(controls, "site-publication");
+    const facts =
+      input.metadata_renewal === undefined
+        ? controls.read(api, frozen)
+        : controls.readMaintenance(api);
+    if (
+      facts.pause.publication_paused !== false ||
+      facts.resource_policy_matches_controller !== true ||
+      !isRecord(facts.capacity_source.capacity)
+    )
+      throw new Error("fresh actual publication controls hold the site attempt");
+    return structuredClone(facts.capacity_source.capacity.boundary);
+  };
+  const provider = createPagesProviderTransport(prepared.directory);
+  if (provider.evidence_scope !== "github.com")
+    throw new Error("actual Pages provider transport required");
+  return executeOwnedCapacityEffect(
+    executor,
+    {
+      ...input,
+      request: { kind: "upload", destination: "github-pages:boburning/portcove:complete-site" },
+    },
+    readBoundary,
+    async (pending) => {
+      // A complete independent prior readback and freshly guarded controls occur
+      // before the sole POST. No provider CAS guarantee is inferred from them.
+      await readPublicApplicationSiteMarker(prepared.previous_generation!);
+      await readBoundary();
+      const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
+      const write = async (name: string, value: unknown) =>
+        writeFile(path.join(attempt, name), JSON.stringify(value), { flag: "wx", mode: 0o600 });
+      await write("pending.json", {
+        ...pending,
+        generation: prepared.generation.generation,
+        previous_generation: prepared.previous_generation!.generation,
+        artifact_id: prepared.upload!.artifact_id,
+      });
+      try {
+        const accepted = await provider.create({
+          artifact_id: prepared.upload!.artifact_id,
+          controller_revision: executorIdentity.controller_revision,
+          generation: prepared.generation.generation,
+        });
+        await write("acknowledgement.json", accepted);
+        const deadline = performance.now() + 150_000;
+        let status: ReturnType<typeof provider.observe> | null = null;
+        for (let count = 0; count < 30; count++) {
+          if (performance.now() >= deadline)
+            throw new Error("Pages observation deadline exhausted; retain pending intent");
+          status = provider.observe({
+            id: accepted.id,
+            artifact_id: accepted.artifact_id,
+            controller_revision: accepted.controller_revision,
+            generation: accepted.generation,
+          });
+          await write(`status-${count}.json`, status);
+          if (performance.now() >= deadline)
+            throw new Error("Pages observation arrived after deadline; retain pending intent");
+          if (status.status === "succeed") break;
+          if (["cancelled", "failed", "deployment_failed"].includes(status.status))
+            throw new Error("Pages provider stopped the affected attempt; retain all effects");
+          await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+        if (status?.status !== "succeed")
+          throw new Error("Pages acknowledgement has no completed result; retain pending intent");
+        const publicReadback = await readBackSiteDeployment(session);
+        const evidence = {
+          ...pending,
+          provider: accepted,
+          status,
+          public_readback: publicReadback,
+          site_generation_sha256: prepared.generation.generation,
+          authority: "none",
+        };
+        await write("public-readback.json", evidence);
+        return {
+          remote_identity: `github-pages:boburning/portcove:${accepted.id}`,
+          evidence_sha256: capacityDigest(evidence),
+        };
+      } catch {
+        await write("failure.json", {
+          ...pending,
+          outcome: "ambiguous-or-partial",
+          retry: "forbidden",
+          authority: "none",
+        });
+        throw new Error(`site publication stopped; preserve and reconcile ${attempt}`);
+      }
+    },
+  );
 }

@@ -65,18 +65,9 @@ function marker(value: unknown, expected: string) {
   return { ...unsigned, generation: expected };
 }
 
-/** Independent credential-free HTTP readback of the exact already-authenticated
- * complete site. The expected marker must come from actual trusted composition,
- * never from the server being checked. This does not enumerate unlisted URLs,
- * authenticate a deployment actor or grant publication/settlement authority. */
-export async function readPublicApplicationSite(expectedMarker: unknown) {
-  if (!isRecord(expectedMarker) || !digest(expectedMarker.generation))
-    throw new Error("independently expected site generation unavailable");
-  const expected = marker(expectedMarker, expectedMarker.generation);
-  const deadline = performance.now() + 120_000;
-  const observations: { path: string; bytes: number; sha256: string }[] = [];
+function publicReader(deadline: number) {
   let consumed = 0;
-  const read = async (name: string, limit: number) => {
+  return async (name: string, limit: number) => {
     const timeout = Math.floor(Math.min(30_000, deadline - performance.now()));
     if (timeout <= 0) throw new Error("public site readback deadline exceeded");
     const url = new URL(name, origin).href;
@@ -116,6 +107,19 @@ export async function readPublicApplicationSite(expectedMarker: unknown) {
     }
     return Buffer.concat(chunks);
   };
+}
+
+/** Independent credential-free HTTP readback of the exact already-authenticated
+ * complete site. The expected marker must come from actual trusted composition,
+ * never from the server being checked. This does not enumerate unlisted URLs,
+ * authenticate a deployment actor or grant publication/settlement authority. */
+export async function readPublicApplicationSite(expectedMarker: unknown) {
+  if (!isRecord(expectedMarker) || !digest(expectedMarker.generation))
+    throw new Error("independently expected site generation unavailable");
+  const expected = marker(expectedMarker, expectedMarker.generation);
+  const deadline = performance.now() + 120_000;
+  const observations: { path: string; bytes: number; sha256: string }[] = [];
+  const read = publicReader(deadline);
   const first = await read("publication.json", 4 * 1024 * 1024);
   const observed: unknown = JSON.parse(first.toString("utf8"));
   if (JSON.stringify(marker(observed, expected.generation)) !== JSON.stringify(expected))
@@ -138,5 +142,23 @@ export async function readPublicApplicationSite(expectedMarker: unknown) {
     files: observations,
     evidence_sha256: capacityDigest({ generation: expected.generation, files: observations }),
     scope: "exact expected public bytes; no unlisted-path or deployment-actor claim",
+  };
+}
+
+/** Lightweight late bracket over a previously independently verified complete
+ * generation. Marker equality is not a substitute for that prior byte readback. */
+export async function readPublicApplicationSiteMarker(expectedMarker: unknown) {
+  if (!isRecord(expectedMarker) || !digest(expectedMarker.generation))
+    throw new Error("independently expected site generation unavailable");
+  const expected = marker(expectedMarker, expectedMarker.generation);
+  const bytes = await publicReader(performance.now() + 30_000)("publication.json", 4 * 1024 * 1024);
+  const observed: unknown = JSON.parse(bytes.toString("utf8"));
+  if (JSON.stringify(marker(observed, expected.generation)) !== JSON.stringify(expected))
+    throw new Error("public marker differs from trusted expected site");
+  return {
+    generation: expected.generation,
+    marker_sha256: hash(bytes),
+    authority: "none",
+    scope: "expected generation marker only",
   };
 }
