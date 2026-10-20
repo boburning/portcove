@@ -398,6 +398,35 @@ mod tests {
     }
 
     #[test]
+    fn gundam_native_source_recipe_requires_v14_and_preserves_v13() {
+        let required = request("staged-source-portable", 14, 14);
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 14
+            })
+            .collect();
+        let report = check_with_inventory(&required, &previous).unwrap();
+        assert!(!report.compatible);
+        assert_eq!(report.checks[0].installed_version, Some(13));
+        assert_eq!(
+            report.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        for version in [13, 12, 11, 9] {
+            assert!(
+                check_with_inventory(
+                    &request("staged-source-portable", version, version),
+                    &previous
+                )
+                .unwrap()
+                .compatible
+            );
+        }
+    }
+
+    #[test]
     fn cartridge_build_preserves_v5_and_refuses_v5_readers() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()

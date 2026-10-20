@@ -594,6 +594,32 @@ letters, digits, slash, colon, dot, underscore or hyphen. A different source
 revision or ambiguous path requires a reviewed compatible recipe. Source and
 private build evidence establish no redistribution, signing or publication grant.
 
+Staged-source version 14 adds the closed Windows x64 recipe
+`gundam-wing-snes-source-c7aaaa152192-japan-offline`. It pins the game,
+framework and UI source trees, SDL2 SDK, toolchain and official setup package.
+Only the package-authenticated native analyzer is selected from that kit; the
+setup host and bundled build commands never run. Its directory must contain
+exactly the admitted analyzer, whose imports are checked independently from
+runtime imports. The fixed generator receives its explicit path and cannot
+fall back to a Cargo or network build. Generation and compilation reuse Core's
+supervised worker, finite deadline, compiler batches, quiescence and publication
+fences. The measured larger inputs require a separate 4 GiB temporary allowance.
+
+The recipe requires the headerless 2,097,152-byte Japanese original, SHA256
+`dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1`.
+It generates C with the pinned project's recipe and builds a stock offline
+runtime. Exact preimage-bound patches disable launcher/setup, netplay, optional
+mods and diagnostics, keep the real presentation/state-digest helpers, restrict
+configuration resolution to `config.ini` in the runtime directory, and identify
+the offline build truthfully. Launch takes only the owned `game.sfc`; forwarded
+arguments and inherited `SDL_DYNAMIC_API` are refused. Persistent paths are
+`config.ini`, `config.local.ini`, `keybinds.ini`, `rom.cfg` and `saves`; the
+transient writable-directory probe is the only other declared runtime write.
+Configuration `!include` can read additional data files; this is not a filesystem
+sandbox or ownership of those external files. Four-input Advance Wars and
+EarthBound storage identities remain unchanged. Capability 14 does not imply
+catalog admission, actual offered-operation acceptance or protected delivery.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
