@@ -7,6 +7,8 @@ import {
 } from "./release-review-request.mts";
 import { inspectNegativeSemanticDisposition } from "./release-semantic-disposition.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
+import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
+import { validateOpportunity } from "./release-coordinator.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -123,14 +125,13 @@ export function readIndependentSemanticDisposition(
  * the producer's local POST response. GitHub's ref/check-runs endpoint silently
  * limits coverage to the most recent 1000 suites, so enumerate suites first.
  * Missing, duplicated or excessive history stays Unknown; never re-POST here. */
-export function discoverIndependentSemanticDisposition(
+export function readIndependentSemanticCheckInventory(
   api: GitHubRestReader,
   rawConfiguration: unknown,
-  rawRequest: unknown,
+  sourceCommit: string,
 ) {
   const config = inspectReviewProducerConfiguration(structuredClone(rawConfiguration));
-  const request = inspectReleaseReviewRequest(rawRequest);
-  if (!request || config.review_check_name !== semanticReviewCheckName)
+  if (!/^[a-f0-9]{40}$/u.test(sourceCommit) || config.review_check_name !== semanticReviewCheckName)
     throw new Error("negative semantic discovery requires fixed producer/request identity");
   const start = performance.now();
   let requests = 0,
@@ -157,7 +158,7 @@ export function discoverIndependentSemanticDisposition(
   const snapshot = () => {
     const suitesResponse = bounded.request(
       "GET",
-      `repos/boburning/portcove/commits/${request.source_commit}/check-suites?app_id=${config.review_app_id}&per_page=100&page=1`,
+      `repos/boburning/portcove/commits/${sourceCommit}/check-suites?app_id=${config.review_app_id}&per_page=100&page=1`,
     );
     const body = suitesResponse.body;
     if (
@@ -173,7 +174,7 @@ export function discoverIndependentSemanticDisposition(
     const suiteIds = new Set<number>();
     const checkIds = new Set<number>();
     const inventory: { suite_id: number; checks_sha256: string }[] = [];
-    const matches: number[] = [];
+    const records: Record<string, unknown>[] = [];
     for (const suite of body.check_suites) {
       if (
         !isRecord(suite) ||
@@ -181,7 +182,7 @@ export function discoverIndependentSemanticDisposition(
         !Number.isSafeInteger(suite.id) ||
         suite.id < 1 ||
         suiteIds.has(suite.id) ||
-        suite.head_sha !== request.source_commit ||
+        suite.head_sha !== sourceCommit ||
         !isRecord(suite.app) ||
         suite.app.id !== config.review_app_id ||
         !isRecord(suite.repository) ||
@@ -220,7 +221,7 @@ export function discoverIndependentSemanticDisposition(
             !Number.isSafeInteger(value.id) ||
             value.id < 1 ||
             checkIds.has(value.id) ||
-            value.head_sha !== request.source_commit ||
+            value.head_sha !== sourceCommit ||
             value.name !== semanticReviewCheckName ||
             !isRecord(value.app) ||
             value.app.id !== config.review_app_id ||
@@ -231,7 +232,8 @@ export function discoverIndependentSemanticDisposition(
           checkIds.add(value.id);
           rows.push({
             id: value.id,
-            app: value.app.id,
+            app: { id: value.app.id },
+            check_suite: { id: suite.id },
             head_sha: value.head_sha,
             name: value.name,
             status: value.status,
@@ -240,19 +242,6 @@ export function discoverIndependentSemanticDisposition(
             external_id: value.external_id,
             output: value.output,
           });
-          if (value.status !== "completed" || value.conclusion !== "failure") continue;
-          if (
-            !isRecord(value.output) ||
-            typeof value.output.summary !== "string" ||
-            Buffer.byteLength(value.output.summary) > 64 * 1024
-          )
-            throw new Error("negative semantic discovery report incomplete");
-          const wire = inspectNegativeSemanticDisposition(JSON.parse(value.output.summary));
-          if (
-            wire.request_id === request.request_id &&
-            capacityDigest(wire.request) === capacityDigest(request)
-          )
-            matches.push(value.id);
         }
         if (rows.length > total) throw new Error("semantic suite inventory exceeds declared count");
         if (rows.length === total) break;
@@ -260,17 +249,144 @@ export function discoverIndependentSemanticDisposition(
       }
       if (rows.length !== total) throw new Error("semantic suite inventory coverage incomplete");
       inventory.push({ suite_id: suite.id, checks_sha256: capacityDigest(rows) });
+      records.push(...rows);
+      if (records.length > 1600) throw new Error("semantic check inventory record bound exceeded");
     }
-    return { inventory, matches };
+    return { inventory, records };
   };
+  const repository = () => {
+    const value = bounded.request("GET", "repos/boburning/portcove").body;
+    if (
+      !isRecord(value) ||
+      value.id !== 1354613114 ||
+      value.full_name !== "boburning/portcove" ||
+      typeof value.node_id !== "string" ||
+      !value.node_id
+    )
+      throw new Error("semantic inventory repository differs");
+    return { id: value.id, name: value.full_name, node_id: value.node_id };
+  };
+  const originalRepository = repository();
   const first = snapshot();
-  if (first.matches.length !== 1)
+  const assertUnchanged = () => {
+    if (
+      capacityDigest(first) !== capacityDigest(snapshot()) ||
+      capacityDigest(repository()) !== capacityDigest(originalRepository)
+    )
+      throw new Error("semantic suite/run/repository inventory changed during readback");
+  };
+  assertUnchanged();
+  return {
+    records: structuredClone(first.records),
+    inventory_sha256: capacityDigest(first.inventory),
+    assertUnchanged,
+    authority: "none" as const,
+  };
+}
+
+/** Match complete fixed-App provider records to an exact neutral request. This
+ * projection grants no authority; callers still use the existing specific Check
+ * consumer and current protected source. Conflicting outcomes always hold. */
+export function inspectSemanticRequestCheckMatches(
+  records: readonly Record<string, unknown>[],
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("semantic Check selection requires exact neutral request");
+  const accepted: { check_run_id: number; opportunity: ReturnType<typeof validateOpportunity> }[] =
+    [];
+  const negative: number[] = [];
+  for (const value of records) {
+    if (
+      value.status !== "completed" ||
+      (value.conclusion !== "success" && value.conclusion !== "failure")
+    )
+      continue;
+    if (
+      typeof value.id !== "number" ||
+      !Number.isSafeInteger(value.id) ||
+      value.id < 1 ||
+      !isRecord(value.output) ||
+      typeof value.output.summary !== "string" ||
+      Buffer.byteLength(value.output.summary) > 64 * 1024 ||
+      value.output.annotations_count !== 0 ||
+      (value.output.text != null && value.output.text !== "")
+    )
+      throw new Error("semantic request Check report incomplete");
+    const summary: unknown = JSON.parse(value.output.summary);
+    if (value.conclusion === "failure") {
+      const wire = inspectNegativeSemanticDisposition(summary);
+      if (
+        wire.request_id !== request.request_id ||
+        capacityDigest(wire.request) !== capacityDigest(request)
+      )
+        continue;
+      if (
+        value.output.title !== "Portcove independent release review disposition v1" ||
+        value.completed_at !== wire.review.completed_at ||
+        value.external_id !== `portcove-release-review-negative-v1:${capacityDigest(wire)}`
+      )
+        throw new Error("negative request Check report identity differs");
+      negative.push(value.id);
+    } else {
+      if (
+        !isRecord(summary) ||
+        Object.keys(summary).sort().join(",") !==
+          "opportunity,opportunity_sha256,review,schema_version" ||
+        summary.schema_version !== 2
+      )
+        throw new Error("accepted request Check report schema differs");
+      const opportunity = validateOpportunity(summary.opportunity);
+      const review = inspectSemanticReviewEvidence(summary.review);
+      if (
+        summary.opportunity_sha256 !== capacityDigest(opportunity) ||
+        value.completed_at !== review.completed_at ||
+        value.output.title !== "Portcove independent release review v1" ||
+        value.external_id !== `portcove-release-review-v2:${capacityDigest(opportunity)}`
+      )
+        throw new Error("accepted request Check report identity differs");
+      if (
+        opportunity.source_commit !== request.source_commit ||
+        opportunity.source_tree !== request.source_tree ||
+        opportunity.base_commit !== request.base_commit ||
+        opportunity.change_set_sha256 !== request.change_set_sha256 ||
+        opportunity.requested_channel !== request.requested_channel ||
+        opportunity.classification.base_version !== request.base_version ||
+        opportunity.classification.change_set_scope !== request.change_set_scope
+      )
+        continue;
+      accepted.push({ check_run_id: value.id, opportunity });
+    }
+  }
+  if (accepted.length > 1 || negative.length > 1 || (accepted.length > 0 && negative.length > 0))
+    throw new Error("semantic request Check outcomes duplicate or conflict");
+  return { accepted, negative, authority: "none" as const };
+}
+
+export function discoverIndependentSemanticDisposition(
+  api: GitHubRestReader,
+  rawConfiguration: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request) throw new Error("negative semantic discovery requires exact request");
+  const inventory = readIndependentSemanticCheckInventory(
+    api,
+    rawConfiguration,
+    request.source_commit,
+  );
+  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
     throw new Error(
       "negative semantic disposition absent or ambiguous; retain request without POST",
     );
-  const result = readIndependentSemanticDisposition(bounded, config, request, first.matches[0]!);
-  if (capacityDigest(first) !== capacityDigest(snapshot()))
-    throw new Error("semantic suite/run inventory changed during exact readback");
+  const result = readIndependentSemanticDisposition(
+    api,
+    rawConfiguration,
+    request,
+    matches.negative[0]!,
+  );
+  inventory.assertUnchanged();
   return result;
 }
 

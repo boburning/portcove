@@ -6,7 +6,10 @@ import {
   readIndependentSemanticDisposition,
   discoverIndependentSemanticDisposition,
 } from "./release-semantic-disposition-reader.mts";
-import { semanticReviewCheckName } from "./release-semantic-review.mts";
+import {
+  semanticReviewCheckName,
+  prepareSemanticReviewHandoff,
+} from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 
 const config = {
@@ -131,10 +134,34 @@ void test("foreign issuer/input, success, malformed report, future time and chan
 
 function discoveryFixture(mode = "valid") {
   const f = fixture();
+  assert.ok(f.wire.opportunity);
+  const acceptedOpportunity =
+    mode === "conflict"
+      ? f.wire.opportunity
+      : {
+          ...f.wire.opportunity,
+          base_commit: "e".repeat(40),
+          classification: { ...f.wire.opportunity.classification, base_version: "0.1.0-alpha.1" },
+        };
+  const accepted = prepareSemanticReviewHandoff(acceptedOpportunity, {
+    accepted_opportunity: acceptedOpportunity,
+    scope: "complete-release-opportunity",
+    runtime: "codex-independent-local-review",
+    session_ref: "fixture:accepted-other-baseline",
+    completed_at: f.wire.review.completed_at,
+    coverage: { accumulated_changes: true, classification: true, compatibility: true },
+    report: "Fixture accepted different published baseline; no runtime authority.",
+  });
   let suiteReads = 0;
   const calls: string[] = [];
   const row = (index: number) => ({
     ...f.check,
+    ...((index > 0 && mode !== "ambiguous") || mode === "absent"
+      ? {
+          ...accepted.proposed_request.body,
+          output: { ...accepted.proposed_request.body.output, annotations_count: 0, text: "" },
+        }
+      : {}),
     id: index === 0 ? 99 : 1000 + index,
     conclusion: (index === 0 && mode !== "absent") || mode === "ambiguous" ? "failure" : "success",
     check_suite: { id: 700 },
@@ -193,13 +220,13 @@ void test("automatic discovery enumerates complete suites and 101 fixed-App chec
   assert.deepEqual(result.wire, f.wire);
   assert.equal(
     f.discoveryCalls.filter((endpoint) => endpoint.includes("/check-suites?")).length,
-    2,
+    3,
   );
   assert.equal(
     f.discoveryCalls.filter(
       (endpoint) => endpoint.includes("/check-runs?") && endpoint.endsWith("page=2"),
     ).length,
-    2,
+    3,
   );
 });
 void test("automatic discovery never chooses missing/duplicate/changed/capped or incomplete check inventory", () => {
@@ -212,9 +239,10 @@ void test("automatic discovery never chooses missing/duplicate/changed/capped or
     "duplicate",
     "omitted",
     "drift",
+    "conflict",
   ]) {
     const f = discoveryFixture(mode);
     assert.throws(() => discoverIndependentSemanticDisposition(f.api, config, f.wire.request));
-    assert.ok(f.discoveryCalls.length <= 10);
+    assert.ok(f.discoveryCalls.length <= 14);
   }
 });
