@@ -338,20 +338,58 @@ and the corresponding versioned `channels/preview` and `channels/stable` paths.
 Bootstrap is an offline custody operation; this tooling does not grant production
 custody or signing authority.
 
-For a routine schema-2 build, omit `keys.targets` and provide `offline_targets`
-as the exact signed `<version>.targets.json` produced by bootstrap. Supply only
-the five snapshot, timestamp, releases, Preview and Stable private keys. The
-targets version and expiration must match bootstrap. The tool authenticates the
-offline metadata against the configured root before every build, including an
-exact retry, and preserves its bytes unchanged. It refuses changed payload
-registry bytes, delegation keys/policy, unsupported target/package namespaces,
-and ambiguous bootstrap/online configurations. Routine signing can allocate a
-new version within those namespaces without loading the targets private key.
-Renewing targets, changing delegation keys, or changing the payload registry
-requires a new independently authorized offline bootstrap.
+The older schema-2 `build-tuf` mode can omit `keys.targets` and consume exact
+`offline_targets` bytes with the other five keys together. That consolidated
+builder remains an offline setup/qualification tool, not the routine production
+custody path. Initial setup must supply a valid signed empty Stable role and
+complete public seed repository. Root and top-level targets keys stay offline.
+Renewing targets, changing delegation keys or changing the payload registry
+requires independently authorized offline setup.
+
+Routine role jobs use `portcove-release-tools sign-tuf-role ROLE CONFIG.json`,
+where `ROLE` is exactly `releases`, `preview`, `stable`, `snapshot` or `timestamp`.
+Each strict schema-1 configuration contains `context`, `signing_key` and `output`;
+there is no other private-key field. Paths resolve relative to the configuration.
+Snapshot and timestamp additionally require `signed_roles`, a directory containing
+the public `releases.json`, `preview.json` and `stable.json` envelopes. Timestamp
+also requires `snapshot.json`. Signed inputs must match the exact expected
+version, expiry, content and upstream envelope byte hashes before signing.
+
+The public context is a separate strict schema-1 JSON document with
+`generated_at`, `trusted_root`, `offline_targets`, `payload_key_registry`,
+`reconstructed_records`, `previous_repository`, `versions` and `expires`.
+The last two objects use the six names `targets`, `snapshot`, `timestamp`,
+`releases`, `preview` and `stable`, as in the existing builder. The caller must
+independently ratify the root and complete prior repository; a path or digest
+alone does not authenticate their provenance. The prior repository is bounded,
+snapshotted and verified by Tough, including current expiration, before any
+private-key read. Each online version must advance its authenticated prior floor.
+Expired current state refuses routine renewal and needs separate recovery
+authority. Offline targets bytes, version, expiry, delegations and payload registry
+remain exact. Previously published releases cannot disappear or change.
+
+`portcove-release-tools assemble-tuf CONFIG.json` consumes strict schema 1 with
+only `context`, `signed_roles` and `output`. The public directory must contain all
+five envelopes, including `timestamp.json`; extra files refuse. Assembly loads no
+private keys. It verifies role signatures and exact content, then verifies the
+assembled current repository through Tough. The output retains the existing
+metadata/targets layout and `repository-manifest.json`, including authenticated
+prior versioned metadata and immutable target bytes. Versioned path collisions
+must be byte-identical; only timestamp and the derived inventory are replaced.
+Historical envelopes may be expired, but are signature/hash verified and never
+serve as current freshness evidence. Existing file/byte limits bound retained
+history; exceeding them refuses rather than deleting it. Routine root/top-level
+rotation is outside this unchanged-anchor path.
+
+For the bounded beta, Stable signing and assembly require both the authenticated
+prior Stable target map and the new map to be empty. This only renews an unchanged
+empty map; it cannot promote a release or erase a populated Stable channel.
+Each signer reports its role/output digest and `authority: "none"`; assembly
+reports exact public file identities. Repeating exact output reuses it; a changed
+existing output refuses. Payload signing remains a separate operation.
 
 The unchanged reconstruction step still requires the complete retained inventory
-history and protects existing immutable releases. Schema 2 changes local signing
+history and protects existing immutable releases. Role isolation changes local signing
 custody, not allocation, qualification, controller, publication or platform
 acceptance. The same file/byte/record, expiry, distinct-key and atomic-output guards
 apply. Schema 1 remains available for existing explicit all-key fixtures.
