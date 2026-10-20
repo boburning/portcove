@@ -800,8 +800,8 @@ interface SettingsRows {
 }
 function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
   const expectedRows: Record<string, number> = {
-    appearance: 2,
-    "library-storage": 2,
+    appearance: 3,
+    "library-storage": 3,
     "game-files": 3,
     updates: 2,
     integrations: 1,
@@ -2667,14 +2667,16 @@ try {
     await captureScenarioScreenshot("first-use-port-catalog", true);
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
     const browse = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      until.elementLocated(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      ),
       15_000,
     );
     assert.equal(await browse.getAttribute("data-slot"), "button");
     assert.equal(await browse.getAttribute("data-variant"), "primary");
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /Your library is empty[\s\S]*use an existing installation/,
+      /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
     const updateChoice = await browser.wait(
@@ -2698,7 +2700,7 @@ try {
     await captureScenarioScreenshot("empty-library-compact-first-use", true);
     assert.ok(
       firstUseAction.top >= 0 && firstUseAction.bottom <= firstUseAction.viewportHeight,
-      `Browse port catalog must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
+      `Add games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
     );
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     const search = await browser.findElement(By.id("port-search"));
@@ -2715,10 +2717,30 @@ try {
     await clearSearch.click();
     assert.equal(await search.getAttribute("value"), "");
     await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Browse port catalog"]')),
+      until.elementLocated(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      ),
       5000,
     );
     assert.equal((await browser.findElements(By.css(".filter-row"))).length, 0);
+    await browser
+      .findElement(
+        By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
+      )
+      .click();
+    await browser.wait(
+      until.elementIsVisible(
+        await browser.findElement(By.css('[aria-label="Add games workspace"]')),
+      ),
+      5_000,
+    );
+    for (const name of ["Choose game files", "Search game-file folders", "Browse Find games"])
+      assert.equal(
+        await browser.findElement(By.xpath(`//button[normalize-space(.)="${name}"]`)).isDisplayed(),
+        true,
+        `Add games route is missing: ${name}`,
+      );
+    await browser.findElement(By.xpath('//button[normalize-space(.)="Back to library"]')).click();
     await browser
       .findElement(By.xpath('//button[normalize-space(.)="Connect game-file folder"]'))
       .click();
@@ -2782,7 +2804,7 @@ try {
     const defaultRoot = await invoke("get_default_library_root");
     assert.ok(defaultRoot.ok);
     assert.ok(defaultRoot.value);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await selectSettingsCategory("library-storage");
     const card = await browser.wait(
       until.elementLocated(By.xpath('//article[.//h2[normalize-space(.)="Library at startup"]]')),
       15_000,
@@ -3407,13 +3429,20 @@ try {
       ),
       "port-detail-title",
     );
-    assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.activeElement?.classList.contains("detail-back"),
-      ),
-      true,
+    await browser.wait(
+      () =>
+        executeBrowserScript(browser, () =>
+          document.activeElement?.classList.contains("detail-back"),
+        ),
+      5_000,
+      "Detail navigation did not focus Back",
     );
     const verifyDetailActionHierarchy = async () => {
+      await executeBrowserScript(browser, () =>
+        document
+          .querySelector(".detail-hero")
+          ?.scrollIntoView({ block: "start", behavior: "instant" }),
+      );
       const hierarchy = await executeBrowserScript(browser, () => {
         const hero = document.querySelector(".detail-hero");
         const title = document.querySelector(".detail-title");
@@ -3467,12 +3496,24 @@ try {
       );
       assert.equal(hierarchy.actionText, "Choose game files");
       assert.match(hierarchy.requirementText, /Required for setup: Super Mario 64 \(US\) source/u);
-      assert.equal(hierarchy.titleFits, true);
-      assert.equal(hierarchy.reasonFits, true);
-      assert.equal(hierarchy.requirementFits, true);
-      assert.equal(hierarchy.reasonInHero, true);
-      assert.equal(hierarchy.requirementInHero, true);
-      assert.equal(hierarchy.requirementVisible, true);
+      assert.equal(hierarchy.titleFits, true, `Title fit: ${JSON.stringify(hierarchy)}`);
+      assert.equal(hierarchy.reasonFits, true, `Reason fit: ${JSON.stringify(hierarchy)}`);
+      assert.equal(
+        hierarchy.requirementFits,
+        true,
+        `Requirement fit: ${JSON.stringify(hierarchy)}`,
+      );
+      assert.equal(hierarchy.reasonInHero, true, `Reason grouping: ${JSON.stringify(hierarchy)}`);
+      assert.equal(
+        hierarchy.requirementInHero,
+        true,
+        `Requirement grouping: ${JSON.stringify(hierarchy)}`,
+      );
+      assert.equal(
+        hierarchy.requirementVisible,
+        true,
+        `Requirement visibility after scroll: ${JSON.stringify(hierarchy)}`,
+      );
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Release and update choices for later", open: false },
         { title: "Folder for a future install", open: false },

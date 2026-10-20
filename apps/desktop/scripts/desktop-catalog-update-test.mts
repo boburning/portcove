@@ -38,6 +38,9 @@ export async function catalogUpdateScenario({
     const { button, click } = reviewControls(browser);
 
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-advanced"]'),
+    );
     const trigger = await browser.wait(
       until.elementLocated(button("Manage catalog updates")),
       15_000,
