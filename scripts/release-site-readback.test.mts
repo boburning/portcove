@@ -10,6 +10,7 @@ function fixture() {
     [".nojekyll", Buffer.alloc(0)],
     ["application/metadata/timestamp.json", Buffer.from("signed-disposable-timestamp")],
     ["catalog/metadata/1.root.json", Buffer.from("unchanged-independent-catalog")],
+    ["catalog/targets/game+variant.json", Buffer.from("valid-composer-path")],
   ]);
   const unsigned = {
     schema_version: 1,
@@ -103,6 +104,8 @@ void test("caller-supplied malformed, unordered, duplicate or escaped inventorie
     { files: [...marker.files].reverse() },
     { files: [marker.files[0], marker.files[0]] },
     { files: [{ ...marker.files[0], path: "catalog/../secrets" }] },
+    { files: [{ ...marker.files[0], path: "catalog/.hidden/file" }] },
+    { files: [{ ...marker.files[0], path: `catalog/${"a/".repeat(16)}file` }] },
     { files: [{ ...marker.files[0], bytes: 64 * 1024 * 1024 + 1 }] },
     { schema_version: 2 },
     { unknown: true },

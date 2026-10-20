@@ -62,7 +62,7 @@ async function boundedFile(file: string, maximum: number, qualifiedTool = false)
     await handle.close();
   }
 }
-const safePath = (name: string) =>
+export const isSafeSitePath = (name: string) =>
   name === ".nojekyll" ||
   (name.length <= 512 &&
     name.split("/").length <= 16 &&
@@ -84,7 +84,8 @@ async function tree(root: string): Promise<Files> {
     for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
       if (++entries > maximumFiles + 128) throw new Error("site input entry bound exceeded");
       const name = relative ? `${relative}/${entry.name}` : entry.name;
-      if (!safePath(name)) throw new Error("site input path differs from fixed publication layout");
+      if (!isSafeSitePath(name))
+        throw new Error("site input path differs from fixed publication layout");
       await assertOwnedUnlinkedPath(root, path.join(root, name), "site input");
       if (entry.isDirectory()) await walk(name, depth + 1);
       else {

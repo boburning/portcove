@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
+import { isSafeSitePath } from "./release-site-composer.mts";
 
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
@@ -32,10 +33,8 @@ function marker(value: unknown, expected: string) {
       Object.keys(file).sort().join(",") !== "bytes,path,sha256" ||
       typeof file.path !== "string" ||
       file.path.length > 512 ||
-      !/^(?:\.nojekyll|(?:application\/(?:metadata|targets)|catalog)\/[A-Za-z0-9_./-]+)$/u.test(
-        file.path,
-      ) ||
-      file.path.split("/").some((part) => !part || part === "." || part === "..") ||
+      !/^(?:\.nojekyll|(?:application\/(?:metadata|targets)|catalog)\/)/u.test(file.path) ||
+      !isSafeSitePath(file.path) ||
       seen.has(file.path) ||
       !digest(file.sha256) ||
       typeof file.bytes !== "number" ||
