@@ -299,8 +299,12 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
   ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
+  ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",

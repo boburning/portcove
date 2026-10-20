@@ -7,7 +7,19 @@ import {
   readImmutableReleaseState,
   performImmutableReleaseEffect,
   advanceImmutableReleasePublication,
+  verifyPreparedImmutableRelease,
 } from "./release-immutable-publication.mts";
+
+void test("feed prerequisite cannot import a serialized release preparation or acceptance receipt", () => {
+  assert.throws(
+    () =>
+      verifyPreparedImmutableRelease({ identity: fixture().identity } as never, {
+        prepared_commit: "a".repeat(40),
+        version: "0.1.0-beta.1",
+      }),
+    /actual immutable Release preparation/,
+  );
+});
 
 import { capacityDigest } from "./release-capacity.mts";
 

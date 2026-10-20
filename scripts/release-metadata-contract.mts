@@ -105,6 +105,53 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     unchanged_records_sha256: raw.unchanged_records_sha256,
   };
 }
+/** Shape/binding only. The admitted caller must obtain these facts from the
+ * actual pinned keyless verifier, never an imported report or artifact label. */
+export function inspectTufPublicationFacts(raw: unknown) {
+  exact(
+    raw,
+    "expires,offline_targets_sha256,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
+  );
+  if (raw.schema_version !== 1) throw new Error("unsupported authenticated TUF publication facts");
+  for (const key of [
+    "offline_targets_sha256",
+    "records_sha256",
+    "repository_sha256",
+    "root_sha256",
+    "snapshot_sha256",
+    "timestamp_sha256",
+  ] as const)
+    sha(raw[key]);
+  return {
+    schema_version: 1 as const,
+    root_sha256: raw.root_sha256,
+    offline_targets_sha256: raw.offline_targets_sha256,
+    repository_sha256: raw.repository_sha256,
+    timestamp_sha256: raw.timestamp_sha256,
+    snapshot_sha256: raw.snapshot_sha256,
+    records_sha256: raw.records_sha256,
+    versions: versions(raw.versions),
+    expires: expires(raw.expires),
+  };
+}
+
+/** Match actual verifier output to the exact frozen maintenance opportunity
+ * before any public mutation. Valid signatures alone cannot authorize different
+ * records, offline anchors, versions or expirations. */
+export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFacts: unknown) {
+  const descriptor = inspectMetadataRenewalDescriptor(rawDescriptor);
+  const facts = inspectTufPublicationFacts(rawFacts);
+  if (
+    facts.root_sha256 !== descriptor.root_sha256 ||
+    facts.offline_targets_sha256 !== descriptor.offline_targets_sha256 ||
+    facts.records_sha256 !== descriptor.unchanged_records_sha256 ||
+    digest(facts.versions) !== digest(descriptor.next_versions) ||
+    digest(facts.expires) !== digest(descriptor.next_expires)
+  )
+    throw new Error("assembled publication differs from frozen metadata renewal");
+  return descriptor;
+}
+
 export function inspectPublishedMetadata(raw: unknown) {
   if (raw === null || raw === undefined) return null;
   exact(

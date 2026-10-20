@@ -21,6 +21,13 @@ immutable signature handoffs, job-bound effect settlement, native/compatibility
 record reconstruction and the final hosted graph remain pending. No environment,
 credential, production execution or acceptance is activated here.
 
+The October 20 [connected site/executor integration](slice4-534-site-publication-integration-2026-10-20.md)
+adds durable pending-before-effect ownership, fresh role identity, actual immutable
+Release readback before application feed publication, verifier-bound TUF facts,
+and zero-deployment recovery of a lost published-state handoff. Local real Git
+and Rust evidence retains its exact scope. Final runnable orchestration, custody,
+resource ratification, observed protections and protected execution remain pending.
+
 The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
 connects actual SPDX verification, beta dispatch attestation and supervised CLI/
 desktop invocation capture, adds exact identities to the existing native outer
@@ -45,7 +52,7 @@ remaining role wrappers still require explicit integration. Protected
 tool execution and all independent acceptance remain pending. The
 [OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
 owner/repository IDs and each existing fixed environment without changing provider
-settings. Site capacity-profile composition remains a separate integration; no
+settings. The site capacity profile uses its fixed `github-pages` subject; no
 production job, credential, setting or owning-issue closure is activated here.
 
 The October 20 [immutable Release preparation](slice4-534-immutable-release-preparation-2026-10-20.md)
