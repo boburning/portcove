@@ -2379,6 +2379,12 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
     desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "presentation" })),
     180_000,
   );
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: ["native-library-move-invalidates-prior-reviews"] }),
+    ),
+    300_000,
+  );
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
 });
 

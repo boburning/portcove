@@ -840,10 +840,13 @@ export function desktopHarnessDeadlineMs(
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
   // Includes source verification of the owned256MiB intervention fixture,
   // manual-content restore and its preparation/adoption prerequisites.
-  if (selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews"))
-    return 300_000;
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
-  const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
+  const ordinary = Math.max(
+    executed > 8 ? 10 * 60_000 : 3 * 60_000,
+    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
+      ? 300_000
+      : 0,
+  );
   const cacheConditions = selection.selected_scenarios.includes(
     "native-default-cover-cache-conditions",
   );
