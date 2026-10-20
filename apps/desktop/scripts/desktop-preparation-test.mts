@@ -20,6 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { gameTitle } from "../src/port-identity.ts";
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -390,7 +391,7 @@ async function assertIndividualUpdateFailure({
       await browser.findElement(By.css(`[data-detail-origin="updates:installed:${port.id}"]`)),
     );
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
-    assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), port.name);
+    assert.equal(await browser.findElement(By.id("port-detail-title")).getText(), gameTitle(port));
     observations.navigation_verified = true;
     observations.after = transportValue("status", command(["status", port.id]));
     observations.sources_after = transportValues("source", command(["source", "list"]));
@@ -2357,7 +2358,7 @@ export async function preparationScenarios({
       await browser.wait(
         async () => {
           const titles = await browser.findElements(By.css("#port-detail-title"));
-          return titles.length === 1 && (await required(titles[0]).getText()) === port.name;
+          return titles.length === 1 && (await required(titles[0]).getText()) === gameTitle(port);
         },
         15_000,
         "The direct error action must open its actual affected game",
