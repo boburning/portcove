@@ -269,11 +269,19 @@ export async function libraryHandoffScenario({
     await click(restoreTrigger);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
     const missingContent = path.join(output, "missing-recovery-content");
-    await mkdir(missingContent);
     await browser.findElement(By.id("import-content")).sendKeys(missingContent);
     await click(button("Review restore"));
     await browser.wait(until.elementLocated(By.css('[role="dialog"] [role="alert"]')), 15_000);
     assert.equal((await browser.findElements(button("Restore this library"))).length, 0);
+    // An existing empty root is reviewable; review is not payload verification.
+    // Core's separate missing-payload execution refusal is retained in the
+    // qualification receipt. Do not execute an incomplete copy in this UI root.
+    await mkdir(missingContent);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
+    const emptyContentImage = path.join(output, "native-empty-content-review.png");
+    await writeFile(emptyContentImage, await browser.takeScreenshot(), { flag: "wx" });
+    artifacts.push(emptyContentImage);
     await browser.findElement(By.id("import-content")).clear();
     await browser.findElement(By.id("import-content")).sendKeys(contentCopy);
     await click(button("Review restore"));
@@ -418,7 +426,8 @@ export async function libraryHandoffScenario({
             restored_save: restoredSave,
             restored_backup_snapshot: restoredBackup,
             manually_copied_content: contentCopy,
-            missing_content_refused_before_execution: true,
+            missing_content_root_refused_during_review: true,
+            existing_empty_root_review_is_not_payload_verification: true,
             disconnected_original_reference_retained: true,
             original_source_identity: originalSourceIdentity,
             before: beforeRestore,
