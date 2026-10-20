@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { focusAndReveal, navigationScope } from "../../focus";
 
 /** Retain completion intent across status publication and popup teardown. */
@@ -13,11 +13,24 @@ export function usePreparationCompletionFocus({
   identity: string;
   busy: boolean;
 }) {
-  const [intent, setIntent] = useState<string>();
+  const [context, setContext] = useState({ identity, epoch: 0 });
+  if (context.identity !== identity) setContext({ identity, epoch: context.epoch + 1 });
+  const epoch = context.epoch;
+  const committedContext = useRef(context);
+  useLayoutEffect(() => {
+    committedContext.current = context;
+  }, [context]);
+  const [intent, setIntent] = useState<{
+    identity: string;
+    epoch: number;
+    owner: HTMLElement;
+    popup: Element | null;
+  }>();
   useEffect(() => {
-    if (intent !== identity) return;
+    if (intent?.identity !== identity || intent.epoch !== epoch) return;
     const element = owner.current;
-    if (!element?.isConnected || element.dataset.taskOwner !== identity) return;
+    if (!element?.isConnected || element !== intent.owner || element.dataset.taskOwner !== identity)
+      return;
     let frame = 0;
     let settled = false;
     const stop = () => {
@@ -32,7 +45,13 @@ export function usePreparationCompletionFocus({
       if (!element.isConnected || element.dataset.taskOwner !== identity) return stop();
       // The popup owns focus until it finishes restoration. Its DOM removal or
       // focus event schedules another observation, without a fixed timer.
-      if (navigationScope() !== document) return;
+      const scope = navigationScope();
+      if (scope !== document) {
+        if (scope === intent.popup) return;
+        stop();
+        setIntent(undefined);
+        return;
+      }
       const active = document.activeElement;
       const launch = element.querySelector<HTMLElement>("[data-launch-action]");
       if (
@@ -70,6 +89,21 @@ export function usePreparationCompletionFocus({
     document.addEventListener("focusin", schedule);
     schedule();
     return stop;
-  }, [intent, identity, busy, owner, nextStep]);
-  return () => setIntent(identity);
+  }, [intent, identity, epoch, busy, owner, nextStep]);
+  return () => {
+    const element = owner.current;
+    if (
+      committedContext.current.epoch !== epoch ||
+      committedContext.current.identity !== identity ||
+      !element?.isConnected ||
+      element.dataset.taskOwner !== identity
+    )
+      return;
+    setIntent({
+      identity,
+      epoch,
+      owner: element,
+      popup: document.querySelector('[aria-labelledby="preparation-review-title"]'),
+    });
+  };
 }
