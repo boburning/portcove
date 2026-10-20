@@ -177,7 +177,9 @@ export async function verifyUploadedSiteArchive(
     new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`;
   const identity = () => {
-    const value = api.request("GET", endpoint).body;
+    const response = api.request("GET", endpoint);
+    if (response.status !== 200) throw new Error("site artifact provider readback unavailable");
+    const value = response.body;
     if (
       !isRecord(value) ||
       value.id !== expected.artifact_id ||
@@ -269,6 +271,7 @@ export async function verifyUploadedSiteArchive(
 export async function prepareSiteDeployment(
   request: Parameters<typeof assembleAuthenticatedApplicationSite>[0],
 ) {
+  request = structuredClone(request);
   const composed = await assembleAuthenticatedApplicationSite(request);
   if (!composed.changed) return { changed: false as const, generation: composed.generation };
   const { files } = await readComposedSite(
@@ -299,7 +302,13 @@ export async function prepareSiteDeployment(
   const session: DeploymentSession = Object.freeze({
     kind: "prepared-application-site-deployment",
   });
-  sessions.set(session, receipt);
+  const retained = structuredClone(receipt);
+  for (const generation of [retained.generation, receipt.generation]) {
+    for (const file of generation.files) Object.freeze(file);
+    Object.freeze(generation.files);
+    Object.freeze(generation);
+  }
+  sessions.set(session, retained);
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
 }
 
