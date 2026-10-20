@@ -52,7 +52,9 @@ Five TUF reader phases have separate fixed role environments and OIDC subjects.
 The payload reader/signer requires `production-payload-signing`, and the
 coordinator reader requires `production-release-coordinator`; both bind the exact
 immutable repository/environment subject alongside the unchanged tag/source/run
-claims. These are proposed initial setup environments with exact protected tag
+claims. The Release publisher reader and effect executor share their separate
+`production-release-publication` environment and subject. These are proposed
+initial setup environments with exact protected tag
 policies, not repository-wide secrets available to arbitrary workflow refs. No
 environment or secret is provisioned by this source. The coordinator's existing
 pause/capacity-only planning read reports `metadata-coordinator-controls`; it

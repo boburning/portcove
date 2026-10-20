@@ -34,7 +34,7 @@ void test("capacity executor roles require their exact signed job, not another t
         ? "github-pages"
         : role === "coordinator"
           ? "production-release-coordinator"
-          : undefined;
+          : "production-release-publication";
     const subject = controllerOidcSubject(expected.controller_ref, environment);
     const binding = { ...expected, subject };
     const f = fixture(
@@ -131,6 +131,43 @@ void test("coordinator controls require their exact isolated job, subject and en
     );
   }
   assert.equal(isMaintenanceReleaseControlPhase("coordinator"), true);
+});
+
+void test("Release publication reader requires its own protected environment and refuses tag-only or another role", async () => {
+  const profile = releaseControlPhaseProfile("release-publication");
+  const wanted = {
+    ...expected,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const claims = {
+    aud: wanted.audience,
+    sub: wanted.subject,
+    environment: profile.reader_environment,
+  };
+  const job = { workflow: productionControllerWorkflow, job: profile.reader_name };
+  const actual = fixture(claims, {}, job);
+  assert.equal(
+    (
+      await verifyReleaseControlReaderJobIdentity(
+        "release-publication",
+        actual.token,
+        wanted,
+        actual,
+      )
+    ).job_id,
+    501,
+  );
+  for (const change of [
+    { environment: "production-payload-signing" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture({ ...claims, ...change }, {}, job);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("release-publication", wrong.token, wanted, wrong),
+    );
+  }
 });
 
 void test("signed check-run identity resolves the independent numeric job through complete attempt pages", async () => {

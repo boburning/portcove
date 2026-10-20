@@ -14,6 +14,7 @@ export type ControllerOidcEnvironment =
   | "github-pages"
   | "production-payload-signing"
   | "production-release-coordinator"
+  | "production-release-publication"
   | "production-release-classification"
   | "production-release-protection-observer"
   | "production-tuf-releases"
@@ -30,6 +31,7 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
       "github-pages",
       "production-payload-signing",
       "production-release-coordinator",
+      "production-release-publication",
       "production-release-classification",
       "production-release-protection-observer",
       "production-tuf-releases",
@@ -403,6 +405,7 @@ const capacityExecutorProfiles = Object.freeze({
   "release-publication": {
     workflow: productionControllerWorkflow,
     job: "Publish immutable application release",
+    environment: "production-release-publication" as const,
   },
   "site-publication": {
     workflow: productionControllerWorkflow,

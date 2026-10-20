@@ -85,7 +85,7 @@ const phases = Object.freeze({
     reader_job: "release_publication",
     reader_name: "Publish immutable application release",
     reader_audience: "portcove-release-publication-reader-v1",
-    reader_environment: undefined,
+    reader_environment: "production-release-publication",
     observer_environment: "production-release-protection-observer",
     observer_job: "release_protection_observation",
     observer_name: "Observe immutable application release publication protections",
