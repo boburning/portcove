@@ -332,7 +332,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
   try {
     result = await run(executable, ["assemble-tuf", assembly], {
       cwd: work,
-      timeout: 120000,
+      timeout: 300000,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       env: {
@@ -345,6 +345,23 @@ export async function assembleAuthenticatedApplicationSite(request: {
       },
     });
   } catch (error) {
+    // Keep bounded process facts as well as streams. A silent timeout, signal or
+    // spawn refusal must not be reported as an observed TUF validation failure.
+    await writeFile(
+      path.join(work, "verifier.failure.json"),
+      JSON.stringify({
+        stage: "keyless-TUF-process",
+        timeout_ms: 300000,
+        code:
+          isRecord(error) && (typeof error.code === "string" || typeof error.code === "number")
+            ? error.code
+            : null,
+        signal: isRecord(error) && typeof error.signal === "string" ? error.signal : null,
+        killed: isRecord(error) && typeof error.killed === "boolean" ? error.killed : null,
+        authority: "none",
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
     for (const name of ["stdout", "stderr"] as const)
       if (isRecord(error) && typeof error[name] === "string")
         await writeFile(
