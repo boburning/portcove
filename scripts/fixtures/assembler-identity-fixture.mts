@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, sign } from "node:crypto";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { productionControllerWorkflow } from "../production-controller-admission.mts";
+import { controllerOidcSubject } from "../assembler-job-identity.mts";
 
 // Disposable in-memory test signing key. No production key or token is used.
 const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
@@ -13,7 +14,7 @@ export const jwk = {
 };
 export const expected = {
   audience: "portcove-trusted-assembly",
-  subject: "fixture independently expected subject",
+  subject: controllerOidcSubject("refs/tags/portcove-production-controller-fixture"),
   controller_revision: "a".repeat(40),
   controller_ref: "refs/tags/portcove-production-controller-fixture",
   actor_id: "1122",
@@ -36,6 +37,8 @@ export function assemblerIdentityFixture(
     iat: now - 2,
     repository: "boburning/portcove",
     repository_id: "1354613114",
+    repository_owner: "boburning",
+    repository_owner_id: "43177418",
     actor_id: expected.actor_id,
     ref: expected.controller_ref,
     ref_type: "tag",

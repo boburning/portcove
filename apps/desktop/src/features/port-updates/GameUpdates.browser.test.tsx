@@ -411,8 +411,36 @@ it("shows only the newest game review when two row requests complete out of orde
   expect(document.activeElement).toBe(reviewButtons[1]);
 });
 
+it.each([
+  ["notify", false],
+  ["stage", false],
+  ["automatic", true],
+] as const)(
+  "retains the %s policy default for the first identified review",
+  async (policy, activate) => {
+    const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({ ...plan, activate });
+    const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+    await root.rerender(
+      <GameUpdateControl
+        portId="sample"
+        generation={9}
+        policy={policy}
+        busy={false}
+        perform={perform}
+      />,
+    );
+    expect(container.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(dialog()).toBeNull();
+    await click("Review game update");
+    expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
+    expect(dialog()?.textContent).toContain("2.0");
+    expect(apply).not.toHaveBeenCalled();
+  },
+);
+
 it("requires another review when the chosen action changes and binds activation to that review", async () => {
-  vi.spyOn(desktopApi, "planGameUpdate")
+  const review = vi
+    .spyOn(desktopApi, "planGameUpdate")
     .mockResolvedValueOnce(plan)
     .mockResolvedValueOnce({
       ...plan,
@@ -431,15 +459,16 @@ it("requires another review when the chosen action changes and binds activation 
       perform={perform}
     />,
   );
+  expect(container.textContent).not.toContain("This update");
+  expect(document.body.textContent).not.toContain("Review install now");
   await click("Review game update");
-  await pressEscape();
-  expect(dialog()).toBeNull();
-  expect(document.activeElement?.textContent).toBe("Review game update");
-  await click("This update", true);
-  await click("Install update");
-  expect(container.textContent).not.toContain("2.0");
+  expect(dialog()?.textContent).toContain("2.0");
+  expect(dialog()?.textContent).toContain("Your current version stays unchanged");
+  await click("Review install now");
+  expect(review).toHaveBeenNthCalledWith(1, "sample", false, 9);
+  expect(review).toHaveBeenNthCalledWith(2, "sample", true, 9);
   expect(apply).not.toHaveBeenCalled();
-  await click("Review game update");
+  expect(dialog()?.textContent).toContain("current version remains available for rollback");
   await click("Download and install update");
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     "sample",

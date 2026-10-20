@@ -230,14 +230,26 @@ shown and distinguish that preview from the history loaded by core. Put
 interruption guidance inline, and describe older diagnostic availability as
 possible when retention is not known.
 
-Use **Updates & activity** consistently for the combined workspace. An available
-or saved update opens the existing fresh Core review directly from its row.
+Use **Activity** for the combined workspace, opening to **Tasks & history** with
+a separate **Updates** section. An available or saved update opens the existing
+fresh Core review directly from its row.
 Play is independent and uses the current version when Core permits launch.
 Reviewing an immediate update defaults to installation; keeping it for later
 requires a new download-only plan and confirmation. Neither choice changes the
 saved update policy. A successful launch activity says **Process exited**, with
 an explicit explanation that successful process termination does not establish
 tested gameplay. Keep update and activity statuses in readable sentence case.
+
+Details first offers Review game update without a disposition selector for an
+unidentified candidate. Its first review retains the saved policy's current
+default (automatic installs; other policies keep for later). Once Core supplies
+the release, show its consequences and offer the alternate action through a new
+reviewed plan. Switching action never reuses the previous plan's fingerprint.
+Details labels matching saved checks as earlier observations, shows their update
+version when available, and makes Check for updates primary when no available or
+saved candidate is known. Manual review remains available as a secondary action.
+The optional application-update choice notice uses a secondary review action;
+ordinary first-use Add games remains the primary task.
 
 Use **Check method** for a configured way to inspect game files; say whether a check
 actually ran and what it found separately. Show the planned output folder with

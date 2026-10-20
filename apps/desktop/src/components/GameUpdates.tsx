@@ -97,6 +97,7 @@ function useGameUpdateControl({
   busy: boolean;
   perform?: Perform | undefined;
   compact?: boolean;
+  primary?: boolean;
   gameName?: string;
   reviewScope?: { active: boolean; claim: () => void; current: () => boolean };
 }) {
@@ -236,14 +237,10 @@ function useGameUpdateControl({
     reviewScope,
     busy,
     perform,
-    activate,
-    setActivate,
     plan,
-    setPlan,
     pending,
     applying,
     message,
-    setMessage,
     error,
     failure,
     operation,
@@ -263,14 +260,10 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
     reviewScope,
     busy,
     perform,
-    activate,
-    setActivate,
     plan,
-    setPlan,
     pending,
     applying,
     message,
-    setMessage,
     error,
     failure,
     operation,
@@ -309,7 +302,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
       <Button
         data-focusable
         variant="outline"
-        hidden={!compact || !gameUpdateActionLabel(plan)}
+        hidden={!gameUpdateActionLabel(plan)}
         disabled={busy || pending}
         onClick={() => void review(!plan.activate)}
       >
@@ -360,28 +353,12 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
   return (
     <section aria-label="Review game update">
       {!compact && <h3>Game update</h3>}
-      {!compact && (
-        <ChoiceSelect
-          label="This update"
-          value={activate ? "activate" : "stage"}
-          disabled={busy || pending}
-          onChange={(value) => {
-            setActivate(value === "activate");
-            setPlan(undefined);
-            setMessage(undefined);
-          }}
-          options={[
-            { value: "stage", label: "Keep update for later" },
-            { value: "activate", label: "Install update" },
-          ]}
-        />
-      )}
       <Button
         ref={reviewButton}
         data-focusable
         className={plan ? "hidden" : undefined}
         hidden={Boolean(plan)}
-        variant={compact ? "outline" : "primary"}
+        variant={compact || props.primary === false ? "outline" : "primary"}
         disabled={busy || pending || !perform}
         onClick={() => {
           void review();

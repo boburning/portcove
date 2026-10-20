@@ -130,7 +130,7 @@ function ApplicationUpdateChoiceBanner({
         </p>
       </div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
-        <Button data-focusable variant="primary" size="sm" onClick={review}>
+        <Button data-focusable variant="outline" size="sm" onClick={review}>
           Review options
         </Button>
         <Button data-focusable variant="ghost" size="sm" onClick={dismiss}>

@@ -1,0 +1,164 @@
+# Held fixed-source bootstrap fragment. Outside .github/workflows; no activation.
+# Final DAG/resource policy must fit the unchanged 100-minute ceiling.
+jobs:
+  tool_bootstrap:
+    if: ${{ false }}
+    needs: admission
+    name: Prepare trusted application controller tools
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_sha256: ${{ steps.upload.outputs.artifact-digest }}
+      source_tree: ${{ steps.build.outputs.source_tree }}
+      predicate: ${{ steps.bind.outputs.predicate }}
+      manifest_sha256: ${{ steps.bind.outputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+        with:
+          package_json_file: package.json
+          run_install: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Install only the fixed source lockfile before any role credential
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/controller-bootstrap-store"
+      - id: build
+        name: Bundle fixed Node CLIs and build maintained Rust tool once
+        env:
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+        run: node scripts/release-controller-tool-bootstrap.mts build
+      - id: upload
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.build.outputs.tools }}/
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
+      - id: bind
+        name: Reacquire immutable bytes and fresh signed numeric producer identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_HOST: github.com
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_CONTROLLER_TREE: ${{ steps.build.outputs.source_tree }}
+          PORTCOVE_TOOL_ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          PORTCOVE_TOOL_ARTIFACT_SHA256: ${{ steps.upload.outputs.artifact-digest }}
+        run: node scripts/release-controller-tool-bootstrap.mts bind-upload
+
+      - name: Retain only bounded bootstrap diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/controller-tool-build-*/failure.json
+            ${{ runner.temp }}/controller-tool-build-*/tools/manifest.json
+            ${{ runner.temp }}/controller-tools-predicate.json
+            ${{ runner.temp }}/controller-tool-binding-*/expected.json
+            ${{ runner.temp }}/controller-tool-binding-*/provider-before.json
+            ${{ runner.temp }}/controller-tool-binding-*/refusal.json
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+
+  tool_attest:
+    if: ${{ false }}
+    needs: [admission, tool_bootstrap]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      bundle_artifact_id: ${{ steps.bundle.outputs.artifact-id }}
+      bundle_artifact_sha256: ${{ steps.bundle.outputs.artifact-digest }}
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: "24.22.0"
+          package-manager-cache: false
+      - name: Write only the fixed bootstrap's bounded structured predicate
+        env:
+          PORTCOVE_PREDICATE: ${{ needs.tool_bootstrap.outputs.predicate }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          import path from 'node:path';
+          const raw = process.env.PORTCOVE_PREDICATE;
+          if (!raw || Buffer.byteLength(raw) > 65536) throw Error('missing or oversized predicate');
+          const parsed = JSON.parse(raw);
+          if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') throw Error('predicate shape');
+          await writeFile(path.join(process.env.RUNNER_TEMP, 'controller-tools-predicate.json'), raw, {flag:'wx', mode:0o600});
+          NODE
+      - id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+        with:
+          subject-name: controller-tools-manifest
+          subject-digest: ${{ format('sha256:{0}', needs.tool_bootstrap.outputs.manifest_sha256) }}
+          predicate-type: https://portcove.dev/attestations/controller-tools/v1
+          predicate-path: ${{ runner.temp }}/controller-tools-predicate.json
+      - name: Normalize only the completed bounded public bundle
+        env:
+          PORTCOVE_ATTESTATION_BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { constants } from 'node:fs';
+          import { open, writeFile } from 'node:fs/promises';
+          import path from 'node:path';
+          const source = process.env.PORTCOVE_ATTESTATION_BUNDLE_PATH;
+          if (!source || !path.isAbsolute(source)) throw Error('bundle path missing');
+          const handle = await open(source, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+          try {
+            const before = await handle.stat();
+            if (!before.isFile() || before.size < 1 || before.size > 512 * 1024) throw Error('bundle size/type');
+            const bytes = Buffer.alloc(before.size + 1);
+            let length = 0;
+            while (length < bytes.length) {
+              const part = await handle.read(bytes, length, bytes.length - length, null);
+              if (!part.bytesRead) break;
+              length += part.bytesRead;
+            }
+            const after = await handle.stat();
+            if (length !== before.size || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs) throw Error('bundle changed');
+            await writeFile(path.join(process.env.RUNNER_TEMP, 'controller-tools-attestation.json'), bytes.subarray(0, length), {flag:'wx', mode:0o600});
+          } finally { await handle.close(); }
+          NODE
+      - id: bundle
+        name: Upload only the exact normalized bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-attestation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/controller-tools-attestation.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+      - name: Retain declared predicate and any completed public bundle
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-controller-tools-attestation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/controller-tools-predicate.json
+            ${{ runner.temp }}/controller-tool-binding-*/expected.json
+            ${{ runner.temp }}/controller-tool-binding-*/provider-before.json
+            ${{ runner.temp }}/controller-tool-binding-*/refusal.json
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
