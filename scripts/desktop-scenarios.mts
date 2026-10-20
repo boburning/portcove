@@ -687,6 +687,11 @@ export function resolveDesktopSelection({
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
   if (
+    uniqueRequested.includes("native-interface-size") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-interface-size requires one standalone Windows scenario");
+  if (
     uniqueRequested.includes("native-linux-interrupted-preparation") &&
     (uniqueRequested.length !== 1 || platform !== "linux")
   )

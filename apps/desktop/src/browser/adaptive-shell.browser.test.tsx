@@ -52,6 +52,16 @@ for (const theme of ["dark", "light"]) {
     expect(Math.abs(document.scrollingElement!.scrollTop - top)).toBeLessThanOrEqual(2);
     expect(origin.element().getBoundingClientRect().top).toBeGreaterThanOrEqual(0);
     expect(origin.element().getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight + 1);
+    for (const width of [1280, 320]) {
+      await page.viewport(width, 640);
+      await expect.element(origin).toHaveFocus();
+      await expect
+        .poll(() => origin.element().getBoundingClientRect().top)
+        .toBeGreaterThanOrEqual(0);
+      await expect
+        .poll(() => origin.element().getBoundingClientRect().bottom)
+        .toBeLessThanOrEqual(innerHeight + 1);
+    }
   });
   it(`preserves search and focus through actual 320px and 240px ${theme} reflow`, async () => {
     localStorage.removeItem(INTERFACE_SIZE_KEY);

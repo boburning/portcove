@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { View } from "./view-model";
 import { focusAndReveal, focusRegion, navigationScope } from "./focus";
-import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
+import { scrollWorkspaceTo, workspaceScrollTop, useWorkspaceReflow } from "./workspace-scroll";
 import { recordKeyboardInput } from "./gamepad";
 
 export type KeyboardShortcutAction = "toggle-palette" | "close-palette" | "focus-search" | View;
@@ -122,6 +122,7 @@ export function useWorkspaceContinuity(
   ready = true,
 ) {
   const workspace = useRef<HTMLElement>(null);
+  useWorkspaceReflow(workspace);
   const snapshots = useRef<WorkspaceBrowsingPositions>({ ...initial });
   const initialRestore = useRef(restoreInitial ? initial?.[view] : undefined);
   const pending = useRef<
