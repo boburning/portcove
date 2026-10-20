@@ -1997,7 +1997,8 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
                 | CacheIntervention::CancelRetain
                 | CacheIntervention::ArtifactRevocationRetain
                 | CacheIntervention::ArtifactWithdrawalRetain
-        ) {
+        )
+    {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(
