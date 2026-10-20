@@ -51,6 +51,9 @@ import {
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const sha256 = /^[a-f0-9]{64}$/;
 const project = fileURLToPath(new URL("..", import.meta.url));
+// A fixed payload job starts a fresh process before receiving trusted tools.
+// The receiver must not silently add time outside the role's total deadline.
+const payloadPhaseStarted = performance.now();
 type AggregateExpected = Omit<
   Parameters<typeof verifyUploadedAggregate>[1],
   "candidate" | "candidate_artifact_ids"
@@ -567,7 +570,7 @@ export async function runPayloadSigningController(
   const capturedNativeLocators: unknown = structuredClone(nativeLocators);
   // Includes acquisition, controls, signing and immutable output handoff, with
   // thirty seconds reserved for key-channel/process and runner cleanup.
-  const deadline = performance.now() + 570000;
+  const deadline = payloadPhaseStarted + 570000;
   const withinBudget = () => {
     if (performance.now() >= deadline)
       throw new Error("payload role total phase deadline exhausted");
