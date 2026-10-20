@@ -186,6 +186,8 @@ describe("Library empty browsing context", () => {
     };
 
     await render("all", "unmatched title");
+    const resultStatus = host.querySelector('[role="status"]');
+    expect(resultStatus?.textContent).toBe("0 ports");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No ports in your library match your search and filters");
     expect(host.textContent).toContain("This library has no ports yet");
@@ -201,6 +203,8 @@ describe("Library empty browsing context", () => {
     expect(host.textContent).toContain("No ports in your library match your search and filters");
 
     await render("all", "   ");
+    expect(host.querySelector('[role="status"]')).toBe(resultStatus);
+    expect(resultStatus?.textContent).toBe("Your library is empty.");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
     expect(host.textContent).toContain("Connect game-file folder");

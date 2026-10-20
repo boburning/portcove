@@ -25,6 +25,9 @@ function SearchContext({ view, navigate }: { view: View; navigate: (view: View) 
         <input id="port-search" aria-label="Current search" />
       )}
       <input aria-label="Editing a value" />
+      <div contentEditable suppressContentEditableWarning>
+        <span data-editable-child>Editable content</span>
+      </div>
     </>
   );
 }
@@ -34,6 +37,32 @@ it.for(["library", "catalog"] as const)("searches %s without changing its route"
   await page.getByRole("button", { name: "Workspace" }).click();
   await userEvent.keyboard("{Control>}f{/Control}");
   await expect.element(page.getByRole("textbox", { name: "Current search" })).toHaveFocus();
+  expect(navigate).not.toHaveBeenCalled();
+});
+it("leaves nested editable and composing events untouched", async () => {
+  const navigate = vi.fn();
+  await render(<SearchContext view="library" navigate={navigate} />);
+  const editable = document.querySelector<HTMLElement>("[contenteditable]")!;
+  editable.focus();
+  const nested = document.querySelector("[data-editable-child]")!;
+  const command = new KeyboardEvent("keydown", {
+    key: "f",
+    ctrlKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  nested.dispatchEvent(command);
+  expect(command.defaultPrevented).toBe(false);
+  expect(document.activeElement).toBe(editable);
+  const composing = new KeyboardEvent("keydown", {
+    key: "f",
+    ctrlKey: true,
+    isComposing: true,
+    bubbles: true,
+    cancelable: true,
+  });
+  document.querySelector("button")!.dispatchEvent(composing);
+  expect(composing.defaultPrevented).toBe(false);
   expect(navigate).not.toHaveBeenCalled();
 });
 it("leaves slash, Settings and editable input alone", async () => {

@@ -64,7 +64,8 @@ export function useGlobalShortcuts({
         ctrlKey: event.ctrlKey,
         metaKey: event.metaKey,
         altKey: event.altKey,
-        targetIsField: target?.matches("input, textarea, select, [contenteditable=true]") ?? false,
+        targetIsField:
+          Boolean(target?.closest("input, textarea, select")) || target?.isContentEditable === true,
         searchAvailable,
         paletteOpen,
         modalOpen: navigationScope() !== document,

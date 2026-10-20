@@ -317,9 +317,6 @@ export function PortBrowser({
                   )
             }
           >
-            {(composedLibrary ? libraryReadiness === item : filterSelected(filter, item)) && (
-              <span aria-hidden="true">✓</span>
-            )}
             {filterLabel(item)}
             {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
           </Button>
@@ -344,7 +341,7 @@ export function PortBrowser({
             Clear search and filters
           </Button>
         )}
-        <span className="ml-auto text-xs text-pc-muted-foreground" role="status">
+        <span className="ml-auto text-xs text-pc-muted-foreground" aria-hidden="true">
           {resultsUnavailable
             ? "Ports unavailable"
             : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
@@ -376,6 +373,13 @@ export function PortBrowser({
     );
   return (
     <div ref={browserRoot} className="contents">
+      <p className="sr-only" role="status">
+        {firstUseEmpty
+          ? "Your library is empty."
+          : resultsUnavailable
+            ? "Ports unavailable"
+            : `${visiblePorts.length} ${visiblePorts.length === 1 ? "port" : "ports"}`}
+      </p>
       {renderDropAnnouncement()}
       {renderConnectPrompt()}
       {renderContinue()}
