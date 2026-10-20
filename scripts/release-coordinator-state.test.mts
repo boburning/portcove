@@ -2150,12 +2150,28 @@ void test(
       { ...f.options, maximumReceipts: 1 },
     );
     assert.equal(first.operation.outcome, "pending");
+    await assert.rejects(
+      recordCapacityReadback(f.bare, first.checkpoint, "effect-completed", "b".repeat(64), {
+        ...f.options,
+        completedEffect: {
+          remote_identity: "qualification:substituted",
+          evidence_sha256: "a".repeat(64),
+        },
+      }),
+      /cannot replace/,
+    );
     const recovered = await recordCapacityReadback(
       f.bare,
       first.checkpoint,
       "effect-completed",
       "b".repeat(64),
-      f.options,
+      {
+        ...f.options,
+        completedEffect: {
+          remote_identity: "qualification:timestamp-envelope",
+          evidence_sha256: "a".repeat(64),
+        },
+      },
     );
     const second = await runBoundedMetadataRenewalOperation(
       f.bare,
@@ -2233,6 +2249,141 @@ void test(
     assert.ok(isRecord(finalInput.controller) && isRecord(finalInput.controller.capacity_attempt));
     assert.deepEqual(finalInput.controller.capacity_attempt.prior_operations, []);
     assert.equal(f.refs.get(f.stateRef), final.checkpoint);
+  },
+);
+void test(
+  "observed single-effect readback restores a lost receipt and permits only its metadata handoff",
+  { timeout: 120000 },
+  async (t) => {
+    const f = await remoteCapacityFixture(t);
+    const { descriptor, published } = metadataFixture();
+    const input = structuredClone(
+      (await recoverReleaseOpportunity(f.bare, f.migrated.checkpoint)).input,
+    );
+    assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+    input.controller.capacity_attempt.schema_version = 2;
+    const modern = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    await publishCoordinatorCheckpoint(f.bare, modern.checkpoint, f.config, { api: f.api });
+    const seed = await recordPublishedMetadata(f.bare, modern.checkpoint, published, f.options);
+    let checkpoint = "",
+      effects = 0;
+    const request = { kind: "upload" as const, destination: "application-tuf:lost-Pages-response" };
+    await assert.rejects(
+      runBoundedMetadataRenewalOperation(
+        f.bare,
+        seed.checkpoint,
+        descriptor,
+        request,
+        async () => f.capacity.boundary,
+        async () => {
+          effects++;
+          throw new Error("provider response lost after effect");
+        },
+        { ...f.options, maximumReceipts: 1 },
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+        checkpoint = String(error.evidence.checkpoint);
+        return true;
+      },
+    );
+    const lost = await recoverReleaseOpportunity(f.bare, checkpoint);
+    assert.ok(isRecord(lost.input.controller) && isRecord(lost.input.controller.capacity_attempt));
+    const original = lost.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(original));
+    assert.deepEqual(original.completed_effects, []);
+    const receipt = {
+      remote_identity: "qualification:observed-public-Pages-generation",
+      evidence_sha256: "c".repeat(64),
+    };
+    for (const resolution of ["effect-not-applied", "partial-effects-retained"] as const)
+      await assert.rejects(
+        recordCapacityReadback(f.bare, checkpoint, resolution, "d".repeat(64), {
+          ...f.options,
+          completedEffect: receipt,
+        }),
+        /single-effect completion/,
+      );
+    await assert.rejects(
+      recordCapacityReadback(f.bare, checkpoint, "effect-completed", "d".repeat(64), {
+        ...f.options,
+        completedEffect: { ...receipt, evidence_sha256: "invalid" },
+      }),
+    );
+    assert.equal(
+      execFileSync("git", ["-C", f.bare, "rev-parse", coordinatorStateRef], {
+        encoding: "utf8",
+        windowsHide: true,
+      }).trim(),
+      checkpoint,
+    );
+    const pendingRecovery = recordCapacityReadback(
+      f.bare,
+      checkpoint,
+      "effect-completed",
+      "d".repeat(64),
+      {
+        ...f.options,
+        completedEffect: receipt,
+      },
+    );
+    receipt.remote_identity = "mutated-after-call";
+    const resolved = await pendingRecovery;
+    const saved = await recoverReleaseOpportunity(f.bare, resolved.checkpoint);
+    assert.ok(
+      isRecord(saved.input.controller) && isRecord(saved.input.controller.capacity_attempt),
+    );
+    const operation = saved.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(operation));
+    assert.equal(operation.id, original.id);
+    assert.equal(operation.executor_nonce, original.executor_nonce);
+    assert.deepEqual(operation.failure_evidence, original.failure_evidence);
+    assert.deepEqual(operation.completed_effects, [
+      {
+        remote_identity: "qualification:observed-public-Pages-generation",
+        evidence_sha256: "c".repeat(64),
+      },
+    ]);
+    assert.equal(f.refs.get(f.stateRef), resolved.checkpoint);
+    await assert.rejects(
+      runBoundedMetadataRenewalOperation(
+        f.bare,
+        resolved.checkpoint,
+        descriptor,
+        request,
+        async () => f.capacity.boundary,
+        async () => {
+          effects++;
+        },
+        f.options,
+      ),
+      /repeat|recovery/,
+    );
+    assert.equal(effects, 1);
+    const successor = {
+      ...published,
+      repository_sha256: "e".repeat(64),
+      snapshot_sha256: "f".repeat(64),
+      timestamp_sha256: "0".repeat(64),
+      versions: descriptor.next_versions,
+      expires: descriptor.next_expires,
+      operation_id: original.id,
+      publication: {
+        remote_identity: "qualification:observed-public-Pages-generation",
+        evidence_sha256: "c".repeat(64),
+        site_generation_sha256: "9".repeat(64),
+      },
+    };
+    const advanced = await recordPublishedMetadata(
+      f.bare,
+      resolved.checkpoint,
+      successor,
+      f.options,
+    );
+    assert.deepEqual(
+      (await recoverReleaseOpportunity(f.bare, advanced.checkpoint)).input.published_metadata,
+      successor,
+    );
   },
 );
 void test(
