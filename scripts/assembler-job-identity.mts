@@ -397,6 +397,36 @@ async function verifyJobIdentity(
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
 const capacityExecutorProfiles = Object.freeze({
+  "payload-signing": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("payload").reader_name,
+    environment: "production-payload-signing" as const,
+  },
+  "tuf-releases": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-releases").reader_name,
+    environment: "production-tuf-releases" as const,
+  },
+  "tuf-preview": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-preview").reader_name,
+    environment: "production-tuf-preview" as const,
+  },
+  "tuf-stable": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-stable").reader_name,
+    environment: "production-tuf-stable" as const,
+  },
+  "tuf-snapshot": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-snapshot").reader_name,
+    environment: "production-tuf-snapshot" as const,
+  },
+  "tuf-timestamp": {
+    workflow: productionControllerWorkflow,
+    job: releaseControlPhaseProfile("tuf-timestamp").reader_name,
+    environment: "production-tuf-timestamp" as const,
+  },
   coordinator: {
     workflow: productionControllerWorkflow,
     job: "Coordinate application release",

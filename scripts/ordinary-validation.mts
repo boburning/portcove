@@ -299,11 +299,32 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  [
+    "scripts/release-classification-request.mts",
+    ["scripts/release-classification-request.test.mts"],
+  ],
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
   ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
+  ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
+  ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
+  [
+    "scripts/release-semantic-disposition-reader.mts",
+    ["scripts/release-semantic-disposition-reader.test.mts"],
+  ],
+  [
+    "scripts/release-authority-configuration.mts",
+    ["scripts/production-controller-admission.test.mts"],
+  ],
+  [
+    "scripts/fixtures/release-semantic-disposition-fixture.mts",
+    [
+      "scripts/release-semantic-disposition.test.mts",
+      "scripts/release-semantic-disposition-reader.test.mts",
+    ],
+  ],
   [
     "scripts/release-coordinator-journal-api.mts",
     ["scripts/release-coordinator-journal-api.test.mts"],
@@ -345,6 +366,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
   ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
+  ["scripts/release-native-admission.mts", ["scripts/release-native-admission.test.mts"]],
+  ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  [
+    "scripts/release-authority-configuration.mts",
+    ["scripts/production-controller-admission.test.mts"],
+  ],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",
@@ -356,12 +383,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-semantic-broker.test.mts",
     ],
   ]),
-  ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
-    (name): [string, string[]] => [
-      `scripts/release-semantic-${name}.mts`,
-      ["scripts/release-semantic-broker.test.mts"],
-    ],
-  ),
+  ...[
+    "inputs",
+    "proposal",
+    "issuer",
+    "issuer-http",
+    "runtime",
+    "reader",
+    "reader-core",
+    "reader-server",
+    "broker",
+  ].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-broker.test.mts"],
+  ]),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
@@ -619,6 +654,8 @@ const releaseContractTests = Object.freeze([
   "scripts/release-controller-tools.test.mts",
   "scripts/release-compiler-source.test.mts",
   "scripts/release-native-qualification-contract.test.mts",
+  "scripts/release-native-acceptance.test.mts",
+  "scripts/release-native-admission.test.mts",
   "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
   "scripts/release-live-control-admission.test.mts",
@@ -626,6 +663,7 @@ const releaseContractTests = Object.freeze([
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
+  "scripts/release-signing-handoff.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

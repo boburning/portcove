@@ -11,6 +11,38 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [request-bound semantic handoff](slice4-534-request-bound-semantic-handoff-2026-10-20.md)
+connects neutral coordinator requests, direct proposal/full-review capture,
+isolated issuer preparation and complete GET-only Check reconciliation. It also
+preserves original versus prepared publication source across following reviews.
+Automatic local execution, actual producer evidence and the remaining stage
+joins are still pending; this delivery grants or activates nothing.
+
+The October 20 [native stage and payload signing join preparation](slice4-534-native-stage-signing-join-2026-10-20.md)
+connects genuine two-platform native receipts and authenticated compiler/SPDX
+custody to the private pre-sign continuation. The actual payload role places
+key release, signing and immutable output readback inside the existing owned
+pending/settlement operation. Fixed signing-role profiles do not grant signing
+authority. Cross-job attestation, the complete TUF/context join, genuine native
+producer capture and final held-workflow integration remain pending; no protected
+execution or publication acceptance is claimed.
+
+The October 20 [native Check consumer preparation](slice4-534-native-check-consumer-2026-10-20.md)
+binds separate candidate and local native producer identities to the distinct
+configured issuer, stage, host/account, exact source/harness and positive teardown
+report. Only the actual provider path can mint its private receipt; fixtures
+remain unaccepted. Genuine broker capture, ratified custody and the stage-specific
+record/context joins are still required. No native execution or production
+authority is established by this preparation.
+
+The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
+records an owner-visible unconfigured project site and absent parent user-site
+repository, bracketed around fixed public-route 404 observations. This is
+read-only setup evidence, not historical/unlisted-path absence or a publication
+grant. First publication still needs an explicit same-journal bootstrap,
+ratified custody and fresh setup/provider reconciliation; ordinary renewal
+cannot fabricate its first prior repository.
+
 The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
 connects isolated fresh immutable-release observation, dedicated journal
 credential transport, observed-effect recovery and actual publication-stage

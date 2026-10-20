@@ -124,8 +124,8 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     (raw.platform_label !== "windows-x86_64" && raw.platform_label !== "linux-x86_64")
   )
     throw new Error("native qualification stage/platform is unsupported");
-  const stage = raw.stage,
-    platform = raw.platform_label;
+  const stage: NativeQualificationStage = raw.stage;
+  const platform: "windows-x86_64" | "linux-x86_64" = raw.platform_label;
   const candidate = candidateIdentity(raw.candidate);
   let journey: null | {
     predecessor: ReturnType<typeof candidateIdentity>;
@@ -210,8 +210,10 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     throw new Error("native runtime/teardown chronology differs");
   const runtime = {
     root_pid: positive(raw.runtime.root_pid),
-    // started_at is the retained root process creation time, not the invocation
-    // start (producer.started_at), harness start, or observation clock.
+    // The earliest actual candidate root supplies this creation identity.
+    // capture_sha256 binds the complete stage root/group inventory; completed_at
+    // is the complete stage interval end, not that first root's exit timestamp.
+    // Teardown covers every owned stage group, not arbitrary account processes.
     root_creation: rootCreation,
     started_at: started,
     completed_at: completed,

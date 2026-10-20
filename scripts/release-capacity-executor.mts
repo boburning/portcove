@@ -109,7 +109,12 @@ interface OwnedEffectRequest {
   destination: string;
 }
 
-function checkDestination(role: CapacityExecutorRole, request: OwnedEffectRequest) {
+/** Scope validation only. A matching destination cannot mint an executor session
+ * or authorize the existing reservation/pending/effect/readback sequence. */
+export function assertCapacityExecutorEffectScope(
+  role: CapacityExecutorRole,
+  request: OwnedEffectRequest,
+) {
   if (Object.keys(request).sort().join(",") !== "destination,kind")
     throw new Error("executor effect request contains unsupported fields");
   // Destinations describe a stable logical effect within the candidate or
@@ -122,10 +127,29 @@ function checkDestination(role: CapacityExecutorRole, request: OwnedEffectReques
       : role === "coordinator"
         ? request.kind === "dispatch" &&
           request.destination === "github-actions:boburning/portcove:release.yml:dispatch"
-        : request.kind === "upload" &&
-          /^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
-            request.destination,
-          );
+        : role === "payload-signing"
+          ? request.kind === "upload" &&
+            /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:payload-signatures$/u.test(
+              request.destination,
+            )
+          : role.startsWith("tuf-") &&
+              [
+                "tuf-releases",
+                "tuf-preview",
+                "tuf-stable",
+                "tuf-snapshot",
+                "tuf-timestamp",
+              ].includes(role)
+            ? request.kind === "upload" &&
+              new RegExp(
+                `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
+                "u",
+              ).test(request.destination)
+            : role === "release-publication" &&
+              request.kind === "upload" &&
+              /^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+                request.destination,
+              );
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
 }
 
@@ -155,7 +179,7 @@ export async function executeOwnedCapacityEffect(
   const input = structuredClone(raw);
   if (!/^[a-f0-9]{40}$/u.test(input.checkpoint))
     throw new Error("exact coordinator checkpoint required");
-  checkDestination(value.role, input.request);
+  assertCapacityExecutorEffectScope(value.role, input.request);
   let state = effectStates.get(session);
   if (!state) {
     state = { busy: false, failed: false };
@@ -205,8 +229,14 @@ export async function executeOwnedCapacityEffect(
       await recordCompleted(receipt.remote_identity, receipt.evidence_sha256);
     };
     const options = { remote, executorIdentity, maximumReceipts: 1 };
-    if (input.metadata_renewal !== undefined && value.role !== "site-publication")
-      throw new Error("metadata maintenance requires the fixed site executor");
+    if (
+      input.metadata_renewal !== undefined &&
+      value.role !== "site-publication" &&
+      !["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(
+        value.role,
+      )
+    )
+      throw new Error("metadata maintenance requires a fixed site or metadata signing executor");
     if (input.metadata_renewal === undefined && input.recovery !== undefined)
       throw new Error("candidate retries require their existing reservation recovery");
     const result =

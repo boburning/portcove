@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts";
+import type { FrozenSemanticSnapshot } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
@@ -54,7 +54,13 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     seen.add(file.name);
     return { name: file.name, bytes: data, sha256: file.sha256 };
   });
-  for (const snapshot of ["source", "baseline"]) {
+  if (
+    !["baseline,source", "baseline,published,source"].includes(
+      Object.keys(index.manifest.snapshots).sort().join(","),
+    )
+  )
+    throw new Error("materialized reader snapshot set differs");
+  for (const snapshot of Object.keys(index.manifest.snapshots)) {
     const rows = index.manifest.snapshots[snapshot];
     if (!Array.isArray(rows) || rows.length > 20000)
       throw new Error("materialized reader snapshot invalid");
@@ -81,13 +87,13 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     manifest: index.manifest,
     bundle_sha256: index.bundle_sha256,
     files,
-  } as ReturnType<typeof prepareFrozenSemanticInputs>;
+  } as FrozenSemanticSnapshot;
 }
 
 /** No filesystem, shell, regex, network, write, or caller-selected root. Each
  * interface owns a copied, validated bundle and finite lifetime work budgets.
  * This is a reader, never a semantic acceptance or producer provenance source. */
-export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFrozenSemanticInputs>) {
+export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
   const bundle = {
     manifest: structuredClone(raw.manifest),
     files: raw.files.map((file) => ({ ...file, bytes: Buffer.from(file.bytes) })),
@@ -108,9 +114,11 @@ export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFroze
     return value;
   };
   const entries = (snapshot: unknown) => {
-    if (snapshot !== "source" && snapshot !== "baseline")
+    if (snapshot !== "source" && snapshot !== "baseline" && snapshot !== "published")
       throw new Error("reader snapshot differs");
-    return bundle.manifest.snapshots[snapshot];
+    const rows = bundle.manifest.snapshots[snapshot];
+    if (!rows) throw new Error("reader published snapshot is unavailable");
+    return rows;
   };
   const selected = (snapshot: unknown, name: string) => {
     if (snapshot === "manifest") return name === "manifest.json" ? manifest : undefined;
@@ -265,7 +273,8 @@ export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFroze
 export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
   if (!isRecord(args)) return false;
   const keys = Object.keys(args).sort().join(",");
-  const snapshot = args.snapshot === "source" || args.snapshot === "baseline";
+  const snapshot =
+    args.snapshot === "source" || args.snapshot === "baseline" || args.snapshot === "published";
   const nonnegative = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
   if (tool === "list")
     return (
@@ -308,7 +317,7 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
 
 /** Fixed MCP dispatch for a parent-owned transport. Bootstrap/list/call only;
  * unsupported protocol methods cannot gain a filesystem or execution route. */
-export function createSemanticSnapshotRpc(raw: ReturnType<typeof prepareFrozenSemanticInputs>) {
+export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
   const read = createSemanticSnapshotReader(raw);
   let initialized = false,
     messages = 0,
@@ -354,8 +363,8 @@ export function createSemanticSnapshotRpc(raw: ReturnType<typeof prepareFrozenSe
                       type: "string",
                       enum:
                         name === "read" || name === "read_text"
-                          ? ["baseline", "source", "manifest"]
-                          : ["baseline", "source"],
+                          ? ["baseline", "source", "published", "manifest"]
+                          : ["baseline", "source", "published"],
                     },
                     ...(name === "search"
                       ? { literal: { type: "string", minLength: 1, maxLength: 256 } }

@@ -24,17 +24,21 @@ import {
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
 void test("capacity executor roles require their exact signed job, not another trusted role or matching name", async () => {
-  for (const [role, name] of [
-    ["coordinator", "Coordinate application release"],
-    ["release-publication", "Publish immutable application release"],
-    ["site-publication", "Publish authenticated application site"],
+  for (const [role, name, environment] of [
+    ["coordinator", "Coordinate application release", "production-release-coordinator"],
+    [
+      "release-publication",
+      "Publish immutable application release",
+      "production-release-publication",
+    ],
+    ["site-publication", "Publish authenticated application site", "github-pages"],
+    ["payload-signing", "Sign admitted updater payloads", "production-payload-signing"],
+    ["tuf-releases", "Sign authenticated Releases metadata", "production-tuf-releases"],
+    ["tuf-preview", "Sign authenticated Preview metadata", "production-tuf-preview"],
+    ["tuf-stable", "Sign authenticated Stable metadata", "production-tuf-stable"],
+    ["tuf-snapshot", "Sign authenticated Snapshot metadata", "production-tuf-snapshot"],
+    ["tuf-timestamp", "Sign authenticated Timestamp metadata", "production-tuf-timestamp"],
   ] as const) {
-    const environment =
-      role === "site-publication"
-        ? "github-pages"
-        : role === "coordinator"
-          ? "production-release-coordinator"
-          : "production-release-publication";
     const subject = controllerOidcSubject(expected.controller_ref, environment);
     const binding = { ...expected, subject };
     const f = fixture(
@@ -46,6 +50,20 @@ void test("capacity executor roles require their exact signed job, not another t
     assert.equal(actual.role, role);
     assert.equal(actual.job_id, 501);
     assert.equal(actual.evidence_scope, "injected-provider");
+    const otherEnvironment = fixture(
+      {
+        sub: controllerOidcSubject(
+          expected.controller_ref,
+          "production-release-protection-observer",
+        ),
+        environment: "production-release-protection-observer",
+      },
+      {},
+      { workflow: productionControllerWorkflow, job: name },
+    );
+    await assert.rejects(
+      verifyCapacityExecutorJobIdentity(role, otherEnvironment.token, binding, otherEnvironment),
+    );
     const wrong = fixture();
     await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, binding, wrong));
     if (environment) {
