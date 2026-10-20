@@ -38,6 +38,17 @@ export interface GithubPinScope {
   sha256: string;
   asset_facts_sha256: string;
 }
+export interface GithubSourceArchiveScope {
+  repository: string;
+  repository_id: number;
+  archived: boolean;
+  url: string;
+  size: number;
+  sha256: string;
+  commit_sha: string;
+  tree_sha: string;
+  commit_facts_sha256: string;
+}
 interface CachedPage {
   etag: string;
   link: string;
@@ -318,6 +329,70 @@ export function githubDirectPin(url: string) {
   );
   downloadUrl(url, { repository }, tag, name);
   return { repository, tag, name };
+}
+
+// Generated source archives have no uploaded-asset digest claim. These facts
+// establish only the exact source commit's provider-reported presence.
+export function githubSourceArchive(url: string) {
+  const match = url.match(
+    /^https:\/\/github\.com\/([A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*)\/archive\/([a-f0-9]{40})\.zip$/u,
+  );
+  requireFact(match?.[1] && match[2], "asset-scope", "not an exact GitHub source archive URL");
+  return { repository: match[1], commit_sha: match[2] };
+}
+
+export function validateGithubSourceArchiveMetadata(
+  repository: unknown,
+  commit: unknown,
+  expected: GithubSourceArchiveScope,
+) {
+  const scope = githubSourceArchive(expected.url);
+  requireFact(
+    scope.repository === expected.repository && scope.commit_sha === expected.commit_sha,
+    "asset-scope",
+    "source archive scope differs",
+  );
+  const repo = repositoryFact(repository, expected);
+  requireFact(repo.archived === expected.archived, "repository-identity", "archive state changed");
+  const sha = (value: unknown): value is string =>
+    typeof value === "string" && /^[a-f0-9]{40}$/u.test(value);
+  const api = `https://api.github.com/repos/${expected.repository}/git`;
+  const html = `https://github.com/${expected.repository}/commit`;
+  requireFact(
+    isRecord(commit) &&
+      sha(commit.sha) &&
+      commit.sha === expected.commit_sha &&
+      commit.url === `${api}/commits/${commit.sha}` &&
+      commit.html_url === `${html}/${commit.sha}` &&
+      isRecord(commit.tree) &&
+      sha(commit.tree.sha) &&
+      commit.tree.sha === expected.tree_sha &&
+      commit.tree.url === `${api}/trees/${commit.tree.sha}` &&
+      Array.isArray(commit.parents) &&
+      commit.parents.length <= 16,
+    "invalid-metadata",
+    "source commit identity, tree or parent collection differs",
+  );
+  const parents = commit.parents.map((parent: unknown) => {
+    requireFact(
+      isRecord(parent) &&
+        sha(parent.sha) &&
+        parent.url === `${api}/commits/${parent.sha}` &&
+        parent.html_url === `${html}/${parent.sha}`,
+      "invalid-metadata",
+      "invalid source parent identity",
+    );
+    return parent.sha;
+  });
+  const facts = { sha: commit.sha, tree_sha: commit.tree.sha, parents };
+  requireFact(
+    new Set(parents).size === parents.length &&
+      !parents.includes(commit.sha) &&
+      observationHash(facts) === expected.commit_facts_sha256,
+    "invalid-metadata",
+    "source commit graph facts changed",
+  );
+  return { repository: repo, commit: facts };
 }
 
 // Provider metadata is a pin-presence fact, not verified bytes or lineage.

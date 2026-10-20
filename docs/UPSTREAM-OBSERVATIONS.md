@@ -218,6 +218,36 @@ bytes-unverified`. It accounts for this reviewed metadata monitoring obligation,
 never the downstream download or accepted bytes. The original HEAD 302 remains
 visible and unknown, contributes no reachable endpoint, and keeps degraded output.
 Original-location accounting likewise retains unknown availability and lineage.
+Exact reviewed source archives use a separate optional `source_archives`
+collection. Only literal GitHub `/owner/repository/archive/<40-lowercase-hex>.zip`
+URLs qualify; branches, abbreviated refs, queries, fragments, credentials,
+alternate origins and archive forms do not. Each rule binds the whole port
+contract, platform, declared URL/size/SHA-256, repository numeric identity and
+archive flag, exact commit and tree identities, and a canonical hash of the
+ordered bounded parent graph. All shared-location identities need matching rules.
+
+A matching HEAD 302 permits two fixed, bounded no-follow reads derived from the
+declared repository and commit: the repository and
+`/repos/<repository>/git/commits/<exact-sha>`. The Git Database endpoint avoids
+changed-file enumeration and pagination; no returned URL is followed. Complete
+commit/tree/parent identities and scoped API/HTML URLs are validated; root and
+merge commits are permitted, while malformed, duplicate, self-parented, changed
+or more-than-sixteen parent collections fail. Immutable graph facts, not commit
+prose, mutable signature-status fields or counters, form the comparison hash.
+API redirects, pagination links, partial or oversized data, access failures,
+rate limits, transport failures and timeouts remain unknown and unaccounted.
+Commit responses never enter the successful repository-response cache.
+
+The distinct result is `provider-reported-commit-present; destination-unknown;
+bytes-unverified`. GitHub's commit identity does **not** supply an archive digest,
+size claim or evidence that generated archive bytes still equal the catalog pin.
+Declared size/SHA-256 bind applicability only. The original HEAD 302 stays Unknown,
+adds no reachable endpoint and retains degraded output. Neither release-asset
+nor source-commit accounting establishes archive obtainability, accepted bytes,
+source admission, gameplay, lineage, distribution or hold authority. The source
+assessment participates in incident material hashes and recurrence comparison.
+See [Git commit metadata](https://docs.github.com/en/rest/git/commits#get-a-commit-object).
+
 The report digests its accounting policy and material condition facts; changed
 conditions produce a new material incident requiring review. Collection counts
 distinguish network-attempted locations, reused repository observations and total
@@ -253,38 +283,47 @@ identities require no request and remain unknown. Successful cache reuse,
 redirects, failures and backoff are never speculative budget credits. The report
 separately records conditional reuse opportunities and actual consumption.
 
-Each run receives only that derived budget, bounded by a separately fixed **256
+Each run receives only its derived budget, bounded by a separately fixed **320
 request hard ceiling** in source. No caller, environment or catalog can override
-or automatically increase the ceiling. Today's conservative forecast is
-`106 + 33 = 139`; the fixed ceiling does not grant today's run 256 calls.
-A forecast above 256 refuses **all** network work before collection, sets the
+or automatically increase it. The reviewed accounting policy admits at most **64
+total records**, including release pins, source archives and original conditions.
+Malformed or duplicate scopes, including a port/platform declared in both
+acquisition families, refuse before network work. Existing format-1 policies
+without source archive records retain their original meaning.
+
+The October 20 inventory after the DKC2 prepared route has 113 ports and 155
+locations. Its 35 exact release pins reserve three conditional fixed API reads
+each; three source archives reserve two each. The conservative allowance is
+`155 + 35×3 + 3×2 = 266`, never 320. Successful repository reuse can reduce actual
+consumption but never admission's forecast. There are 42 accounting records;
+64 bounds policy growth and memory, while the independent request ceiling still
+limits every run. A forecast above 320 refuses **all** network work, sets the
 admitted-call budget to zero and reports global health unassessed. Every selected
 location and port stays in the complete denominator, unknown and unattempted;
 static missing-release/conflicting-identity reasons remain distinct from deferred
 network obligations marked budget. Outside-scope ports remain explicitly
-unassessed. Overflow requires reducing legitimate obligations or a separately
-reviewed capacity redesign; partial successful collections cannot establish full
-health.
+unassessed. Reducing legitimate obligations or a separately reviewed redesign is
+required after overflow; partial collections cannot establish full health.
 
-This openly doubles the former 128 ceiling while preserving inventory-sized
-execution. The existing `release/upstream-observer.json` 256-request/three-minute/
-16-MiB envelope supplies a repository resource precedent, not quota proof. Its
-separate four-MiB response and retry allowances are not adopted here. At the dated
-October 11 accounting inventory's fifteen of 32 entries, seventeen additional
-typical pins at five conservative calls each would forecast `139 + 85 = 224`;
-other history/platform/location growth can still overflow. This arithmetic grants
-no admission authority or guaranteed completion.
+This repair explicitly raises the former 256 ceiling by 25% and the former
+32-record bound to 64. The actual inventory exceeded those bounds: 42 records and
+266 conservative requests. The fixed 320 ceiling leaves 54 calls (20.3%) of
+forecast headroom without introducing failed-response caching, speculative reuse
+credit or a new scheduler. The earlier 128→256 repair and its failed-run evidence
+remain historical. The separate configured observer retains its own 256-request
+budget; this monitor does not change it.
 
-The fixed ceiling represents at most 25.6% of the documented 1,000-request hourly
-`GITHUB_TOKEN` repository allowance; today's forecast at most 13.9%. Sequential
-GET/HEAD collection remains below the documented concurrency and ordinary-point
-limits, but shared quota and secondary limits can still refuse it. Preserve
-provider backoff rather than acquire credentials, retry or buy capacity. See
+A 320 ceiling is at most 32% of the documented 1,000-request hourly
+`GITHUB_TOKEN` repository allowance; the dated 266 forecast is at most 26.6%.
+These are upper-bound quota comparisons, not shared-quota or completion proof.
+Sequential GET/HEAD requests retain zero retries and provider backoff. Three
+minutes total still bounds collection even when individual requests consume
+their fifteen-second limits. The larger request ceiling does not increase time,
+response/aggregate byte budgets, workflow cadence, ten-minute runner timeout,
+retention, concurrency, storage or paid services. Existing public standard-runner
+execution is [no-charge](https://docs.github.com/en/billing/concepts/product-billing/github-actions);
+this establishes neither storage headroom nor access to paid capacity. See
 [GitHub REST limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
-Existing public standard-runner execution is
-[no-charge](https://docs.github.com/en/billing/concepts/product-billing/github-actions);
-that does not establish storage headroom. No cadence, runner, retention or paid
-service expansion accompanies the request ceiling change.
 
 Collection retains zero retries, three minutes total, fifteen seconds per
 request, one MiB per response and sixteen MiB of consumed response bytes. The
