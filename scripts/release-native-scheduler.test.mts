@@ -1,11 +1,28 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import {
   inspectNativeSchedulerObservation,
   requireActualNativeSchedulerObservation,
+  nativeSchedulerNodeMaximumBytes,
+  readNativeSchedulerToolDigest,
 } from "./release-native-scheduler.mts";
+
+void test("the actual selected Node executable fits the finite native scheduler runtime bound", async () => {
+  const identity = await stat(process.execPath);
+  assert.ok(identity.size <= nativeSchedulerNodeMaximumBytes);
+  assert.match(
+    await readNativeSchedulerToolDigest(process.execPath, nativeSchedulerNodeMaximumBytes),
+    /^[a-f0-9]{64}$/u,
+  );
+  if (identity.size > 64 * 1024 * 1024)
+    await assert.rejects(
+      readNativeSchedulerToolDigest(process.execPath, 64 * 1024 * 1024),
+      /file differs/,
+    );
+});
 
 function fixture() {
   const broker = "S-1-5-21-1-2-3-1001";

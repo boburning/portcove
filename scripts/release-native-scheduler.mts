@@ -219,7 +219,12 @@ export function inspectNativeSchedulerObservation(
   };
 }
 
-async function hashFile(filename: string, limit: number) {
+export const nativeSchedulerNodeMaximumBytes = 128 * 1024 * 1024;
+
+/** Bounded byte identity only; this helper grants no tool or scheduler authority. */
+export async function readNativeSchedulerToolDigest(filename: string, limit: number) {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 256 * 1024 * 1024)
+    throw new Error("native scheduler tool read bound differs");
   const before = await lstat(filename);
   if (!before.isFile() || before.isSymbolicLink() || before.size < 1 || before.size > limit)
     throw new Error("native scheduler fixed reader/runtime file differs");
@@ -282,10 +287,15 @@ export async function observeActualNativeScheduler(rawExpected: unknown) {
     throw new Error("native scheduler reader is outside the configured protected controller");
   const guard = async () => {
     if (
-      (await hashFile(helper, 128 * 1024)) !== expected.helper_sha256 ||
-      (await hashFile(expected.powershell.path, 64 * 1024 * 1024)) !== expected.powershell.sha256 ||
-      (await hashFile(process.execPath, 64 * 1024 * 1024)) !== expected.action_sha256 ||
-      (await hashFile(expected.action.path, 64 * 1024 * 1024)) !== expected.action_sha256
+      (await readNativeSchedulerToolDigest(helper, 128 * 1024)) !== expected.helper_sha256 ||
+      (await readNativeSchedulerToolDigest(expected.powershell.path, 64 * 1024 * 1024)) !==
+        expected.powershell.sha256 ||
+      (await readNativeSchedulerToolDigest(process.execPath, nativeSchedulerNodeMaximumBytes)) !==
+        expected.action_sha256 ||
+      (await readNativeSchedulerToolDigest(
+        expected.action.path,
+        nativeSchedulerNodeMaximumBytes,
+      )) !== expected.action_sha256
     )
       throw new Error("native scheduler helper/runtime identity changed");
   };
