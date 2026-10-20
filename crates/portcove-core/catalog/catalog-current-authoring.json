@@ -862,6 +862,16 @@
         "claim": "Pinned verifier identifies the original using a normalized SHA256 of Base64 text after removing the 16-byte NES header. Independent bounded qualification matched this unchanged 40976-byte World original (whole-file SHA256 0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea, SHA1 33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd) to normalized protocol digest c9b34443c0414f3b91ef496d8cfee9fdd72405d673985afa11fb56732c96152b. This route deliberately accepts that exact whole-file subset; it does not mislabel the upstream normalized digest as a ROM hash.",
         "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
         "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
+      },
+      {
+        "id": "tfe-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "1aef5cc53faa25d14a1952785b708137263e78a8",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows complete-data ZIP intake, reviewed official engine acquisition, engine-menu startup and ordinary closure, private cache recreation, manual preservation hold, backup/restore, reviewed removal preserving data/backups and same-version reinstall. No gameplay, save loading, version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/1aef5cc53faa25d14a1952785b708137263e78a8/docs/qualification/tfe-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-managed-windows-2026-10-20.md"
       }
     ],
     "identities": [
@@ -10876,6 +10886,60 @@
         "kind": "automated_lifecycle",
         "outcome": "passed",
         "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461737,
+        "kind": "structural_check",
+        "method": "Actual isolated API75 CLI rejects invalid ZIP and a changed reviewed original, admits all 48 exact members from the owned complete ZIP with Unicode filename, installs the exact official engine and verifies its immutable manifest. Protected originals remain unchanged; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461955,
+        "kind": "automated_lifecycle",
+        "method": "Two actual isolated Windows supervised engine-menu starts and ordinary closes; all 48 private copies checked, compatible local profile and synthetic persistence probes; deliberately corrupted private LFD recreated, actual removal hold and manual preservation verified; backup/restore, reviewed removal preserving canonical data/backups and same-version reinstall. No mission gameplay, save/load, version update/rollback, Portcove GUI or support promotion."
       }
     ]
   },

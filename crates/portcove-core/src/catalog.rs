@@ -1552,6 +1552,51 @@ mod tests {
             SourceKind::File
         );
     }
+
+    #[test]
+    fn managed_tfe_lifecycle_evidence_does_not_claim_hands_on_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "the-force-engine-dark-forces".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac".into(),
+            ),
+            upstream_ref: Some("1.22.420".into()),
+            contract_id: Some("the-force-engine-dark-forces-managed-data".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dark-forces-pc-complete-installed-data".into(),
+                    variant_id: "owned-pc-installed-data".into(),
+                    representation_id: "relative-data-files".into(),
+                },
+            },
+            check_version: Some("tfe-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert!(
+            catalog
+                .port("the-force-engine-dark-forces")
+                .unwrap()
+                .manually_validated_platforms
+                .is_empty()
+        );
+    }
     use sha2::{Digest, Sha256};
 
     #[test]
