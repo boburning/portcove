@@ -250,7 +250,7 @@ impl CartridgeBuildRecipe {
             Self::YoshisCookieNesCycle110 => 6,
             Self::DrMarioNesCycle130Usa => 7,
             Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => 9,
-            Self::Render96UsSourceV1 => 11,
+            Self::Render96UsSourceV1 => 12,
         }
     }
 

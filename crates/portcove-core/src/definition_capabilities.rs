@@ -70,6 +70,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 11,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 12,
+        });
         supported
     }
 }
@@ -284,7 +288,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 12, 12)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 13, 13)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -331,18 +335,23 @@ mod tests {
     }
 
     #[test]
-    fn render96_source_recipe_negotiates_v11_without_widening_existing_clients() {
-        let required = request("staged-source-portable", 11, 11);
+    fn render96_source_recipe_negotiates_v12_without_widening_existing_clients() {
+        let required = request("staged-source-portable", 12, 12);
         assert!(check_definition_capabilities(&required).unwrap().compatible);
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
-                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 11
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version < 12
             })
             .collect();
         let report = check_with_inventory(&required, &previous).unwrap();
         assert!(!report.compatible);
-        assert_eq!(report.checks[0].installed_version, Some(10));
+        assert_eq!(report.checks[0].installed_version, Some(11));
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 11, 11), &previous)
+                .unwrap()
+                .compatible
+        );
         assert!(
             check_with_inventory(&request("staged-source-portable", 9, 9), &previous)
                 .unwrap()

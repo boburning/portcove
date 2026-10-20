@@ -161,7 +161,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
                 crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
                 crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
                 | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
-                crate::CartridgeBuildRecipe::Render96UsSourceV1 => 11,
+                crate::CartridgeBuildRecipe::Render96UsSourceV1 => 12,
             })
             .max()
         {

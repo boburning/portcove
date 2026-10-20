@@ -2439,7 +2439,7 @@ and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
 `dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
 A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
-Staged-source v11 adds the fixed Render96 US source recipe in
+Staged-source v12 adds the fixed Render96 US source recipe in
 [`render96_build`](../crates/portcove-core/src/render96_build.rs). Its three
 authenticated inputs reuse cartridge acquisition, private install workers,
 supervised tools, cancellation drain, immutable receipts and publication/recovery.
@@ -2447,12 +2447,18 @@ The internal archive collection supports three inputs without changing earlier
 four-input storage identities. A private closed Make environment uses the pinned
 toolchain, shell, Python and SDL2 SDK; catalogue data cannot supply commands.
 Core bounds original-asset extraction to 32 assets, texture generation to 16
-targets, sound conversion to eight samples, and compilation to eight objects per
+targets, sound conversion to eight samples, and compilation to two objects per
 supervised invocation. Audio-library compilation has its own complete diagnostic
-phase. The fixed
-309-object plan is verified before link. Core copies the stock resource layout
+phase. LLVM extracts the raw sound-player section into a separate output; exact
+source-derived size/hash checks precede sequence assembly, and packaging verifies
+the fixed table entry. A COFF object wrapper cannot become sequence bytecode.
+The fixed generated C files remain secondary between compiler invocations.
+The 309-object plan is verified before link, with a supervised dry run requiring
+exactly one authenticated linker command from complete stdout. Compiled-object
+hashes are checked before and after link. Core copies the stock resource layout
 directly, avoiding upstream's oversized Windows shell command for its resource
-list. Build work never launches the game.
+list. The full immutable manifest also retains the authenticated primary source
+tree. Build work never launches the game.
 
 The recipe accepts only the exact raw USA N64 original, reuses bounded byte-order
 normalization, and verifies canonical bytes separately from stored bytes. ZIP
@@ -2462,6 +2468,8 @@ arguments and inherited `SDL_DYNAMIC_API`, and permits only the two exact root
 save/config files. `res`, executable inputs, DLLs and TAS input names remain
 immutable. Recipe implementation, managed producer proof, runtime operation
 acceptance and protected production delivery remain separate evidence scopes.
+Render96 requires no retained Windows runtime path policy; its build-path rule
+is recipe-local. The independent v11 path capability retains its prior meaning.
 
 ### Setup configuration dispositions
 

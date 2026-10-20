@@ -91,6 +91,7 @@ pub(super) fn validate_port(
         || port.adapter != crate::AdapterKind::StagedSourcePortable
         || port.portable_marker
         || port.n64_windows_initial_d3d12
+        || port.windows_runtime_path_policy.is_some()
         || port.launch_from_install_root
         || port.source_profile.as_deref() != Some("ghostship-source")
         || profile.id != "ghostship-source"
@@ -1073,7 +1074,16 @@ mod tests {
     fn fixed_render96_contract_refuses_loader_writes_source_or_argument_changes() {
         let (port, profile) = fixture();
         super::super::validate_port(&port, &profile).unwrap();
-        assert_eq!(RECIPE.minimum_template_version(), 11);
+        assert_eq!(RECIPE.minimum_template_version(), 12);
+        assert!(port.windows_runtime_path_policy.is_none());
+        // The retained common path policy stays a no-op for this recipe. Its
+        // separate build-path validator still rejects ambiguous Make paths.
+        crate::runtime_path_policy::check_output_root(
+            &port,
+            Platform::WindowsX86_64,
+            Path::new("C:/non-ascii-\u{e9}/runtime"),
+        )
+        .unwrap();
         assert!(RECIPE.fixed_launch_arguments_only());
         assert_eq!(archives().len(), 3);
         for changed in [
@@ -1085,6 +1095,7 @@ mod tests {
             "source",
             "recipe",
             "target",
+            "path-policy",
         ] {
             let mut wrong = port.clone();
             match changed {
@@ -1110,6 +1121,10 @@ mod tests {
                     wrong
                         .executable_hints
                         .insert(Platform::WindowsX86_64, vec!["other.exe".into()]);
+                }
+                "path-policy" => {
+                    wrong.windows_runtime_path_policy =
+                        Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
                 }
                 _ => unreachable!(),
             }
