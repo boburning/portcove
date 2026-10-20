@@ -98,18 +98,23 @@ async function click(label: string) {
 it("shows preservation limits before installing the reviewed release", async () => {
   const install = vi.fn();
   const notice = "Sign-in stays with each installed version and is excluded from backups.";
-  await root.rerender(
-    <InstallAction
-      ready
-      sourceReady
-      biosReady
-      plan={{ ...plan, preservation_notices: [notice] }}
-      install={install}
-      review={vi.fn()}
-      dismiss={vi.fn()}
-    />,
-  );
-  expect(container.textContent).toContain(notice);
+  function PreservationReviewHarness() {
+    const [reviewed, setReviewed] = useState<InstallPlan>();
+    return (
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={reviewed}
+        install={install}
+        review={() => setReviewed({ ...plan, preservation_notices: [notice] })}
+        dismiss={() => setReviewed(undefined)}
+      />
+    );
+  }
+  await root.rerender(<PreservationReviewHarness />);
+  await click("Review installation");
+  expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain(notice);
   expect(install).not.toHaveBeenCalled();
   expect(button("Install ·").disabled).toBe(false);
 });
