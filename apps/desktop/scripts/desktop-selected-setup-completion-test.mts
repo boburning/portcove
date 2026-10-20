@@ -807,7 +807,11 @@ export async function selectedSetupCompletionScenario({
         await openInstall();
         report.observations.controller_review = object(
           await browser.executeAsyncScript(
-            async (installControl: Element, done: (value: unknown) => void) => {
+            async (
+              installControl: Element,
+              cancelControl: Element,
+              done: (value: unknown) => void,
+            ) => {
               // The actual components consume these four Gamepad fields. Keep the
               // injected adapter honest without inventing extra hardware observations.
               const controllerNavigator: {
@@ -847,7 +851,28 @@ export async function selectedSetupCompletionScenario({
                 const beforeDirection = document.activeElement;
                 if (beforeDirection !== installControl || !review.contains(installControl))
                   throw new Error("Actual primary Install control must own initial review focus");
-                pressed = [15];
+                const from = installControl.getBoundingClientRect();
+                const to = cancelControl.getBoundingClientRect();
+                if (
+                  !from.width ||
+                  !from.height ||
+                  !to.width ||
+                  !to.height ||
+                  !review.contains(cancelControl)
+                )
+                  throw new Error("Both actual review actions must have layout geometry");
+                const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+                const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+                const direction =
+                  Math.abs(dy) > Math.abs(dx)
+                    ? dy > 0
+                      ? "down"
+                      : "up"
+                    : dx > 0
+                      ? "right"
+                      : "left";
+                const directionButton = { up: 12, down: 13, left: 14, right: 15 }[direction];
+                pressed = [directionButton];
                 await frames(2);
                 const stayedInReview = review.contains(document.activeElement);
                 const movedToCancel =
@@ -855,6 +880,24 @@ export async function selectedSetupCompletionScenario({
                   document.activeElement?.textContent?.trim() === "Cancel review";
                 pressed = [];
                 await frames(2);
+                let cancelRevealed = false;
+                let cancelAfter = cancelControl.getBoundingClientRect();
+                for (let frame = 0; frame < 30; frame++) {
+                  cancelAfter = cancelControl.getBoundingClientRect();
+                  const hit = document.elementFromPoint(
+                    cancelAfter.left + cancelAfter.width / 2,
+                    cancelAfter.top + cancelAfter.height / 2,
+                  );
+                  cancelRevealed =
+                    document.activeElement === cancelControl &&
+                    cancelAfter.left >= 0 &&
+                    cancelAfter.right <= innerWidth &&
+                    cancelAfter.top >= 0 &&
+                    cancelAfter.bottom <= innerHeight &&
+                    (hit === cancelControl || cancelControl.contains(hit));
+                  if (cancelRevealed) break;
+                  await frames(1);
+                }
                 pressed = [1];
                 await frames(4);
                 observation = {
@@ -863,6 +906,24 @@ export async function selectedSetupCompletionScenario({
                   adapter_samples: adapterSamples,
                   stayed_in_top_review: stayedInReview,
                   moved_to_cancel_review: movedToCancel,
+                  direction,
+                  direction_button: directionButton,
+                  cancel_revealed: cancelRevealed,
+                  cancel_geometry_after_direction: {
+                    left: cancelAfter.left,
+                    top: cancelAfter.top,
+                    width: cancelAfter.width,
+                    height: cancelAfter.height,
+                  },
+                  action_geometry: {
+                    from: {
+                      left: from.left,
+                      top: from.top,
+                      width: from.width,
+                      height: from.height,
+                    },
+                    to: { left: to.left, top: to.top, width: to.width, height: to.height },
+                  },
                   dismissed_review: !document.querySelector(
                     '[aria-labelledby="install-review-title"]',
                   ),
@@ -879,11 +940,13 @@ export async function selectedSetupCompletionScenario({
               done(observation);
             },
             await browser.findElement(install),
+            await browser.findElement(button("Cancel review")),
           ),
         );
         assert.equal(report.observations.controller_review.error, undefined);
         assert.equal(report.observations.controller_review.stayed_in_top_review, true);
         assert.equal(report.observations.controller_review.moved_to_cancel_review, true);
+        assert.equal(report.observations.controller_review.cancel_revealed, true);
         assert.equal(report.observations.controller_review.dismissed_review, true);
         assert.equal(report.observations.controller_review.stayed_in_game_details, true);
         await browser.wait(

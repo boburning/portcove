@@ -587,6 +587,16 @@ void test("execution planning preserves the independently reviewed pre-change or
         if (expectedSession.cleanupName === "backup-focus")
           expectedSession.cleanupName = "game-update-review";
       }
+      // Source-reference removal adds positive Windows custody through the existing
+      // owner. Retain the immutable oracle and every existing cleanup-name priority.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-source-reference-removal")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (expectedSession.cleanupName === "backup-focus")
+          expectedSession.cleanupName = "source-reference-removal";
+      }
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -820,6 +830,43 @@ void test("backup review requires identity-bound Windows cleanup under the exist
   }
 });
 
+void test("source-reference removal adds Windows custody without changing builds or setup", () => {
+  const id = "native-reviewed-source-reference-removal";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(
+      plan.session.cleanupName,
+      platform === "win32" ? "source-reference-removal" : "backup-focus",
+    );
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.owned, true);
+    assert.ok(selection.prerequisites.includes("native-dialog"));
+    assert.ok(selection.host_resources.includes("native-dialog"));
+    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
+  for (const [other, cleanupName] of [
+    ["native-reviewed-backup-restore-and-delete", "backup-review"],
+    ["native-game-update-review", "game-update-review"],
+    ["native-retained-contract-repair-state", "retained-contract-repair"],
+  ] as const) {
+    for (const scenarios of [
+      [id, other],
+      [other, id],
+    ]) {
+      const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+        platform: "win32",
+      });
+      assert.equal(plan.session.identityBoundSession, true);
+      assert.equal(plan.session.cleanupName, cleanupName);
+    }
+  }
+});
+
 void test("qualified reviews and a running setup restart reject missing or foreign native identities", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
@@ -832,6 +879,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
     { scenario: "native-host-publication-recovery" },
     { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
+    { scenario: "native-reviewed-source-reference-removal" },
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-late-listener-disposal" },
     { scenario: "native-rejected-listener-registration" },
@@ -864,6 +912,13 @@ void test("qualified reviews and a running setup restart reject missing or forei
         requireQualified,
       ),
     );
+    if (scenario === "native-reviewed-source-reference-removal") {
+      assert.throws(() =>
+        validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
+      );
+      assert.throws(() => validate({ processes: [...entries, entries[0]] }));
+      assert.throws(() => validate({ processes: [...entries, entries[1]] }));
+    }
   }
 });
 

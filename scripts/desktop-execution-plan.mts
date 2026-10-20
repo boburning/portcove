@@ -75,6 +75,8 @@ export function planDesktopExecution(
     selection.selected_scenarios.includes("native-preliminary-source-review") ||
     (platform === "win32" && selection.selected_scenarios.includes("native-game-update-review")) ||
     (platform === "win32" &&
+      selection.selected_scenarios.includes("native-reviewed-source-reference-removal")) ||
+    (platform === "win32" &&
       selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")) ||
     (platform === "win32" &&
       selection.selected_scenarios.includes("native-retained-contract-repair-state")) ||
@@ -140,7 +142,12 @@ export function planDesktopExecution(
                                                 "native-retained-contract-repair-state",
                                               )
                                             ? "retained-contract-repair"
-                                            : "backup-focus";
+                                            : platform === "win32" &&
+                                                selection.selected_scenarios.includes(
+                                                  "native-reviewed-source-reference-removal",
+                                                )
+                                              ? "source-reference-removal"
+                                              : "backup-focus";
   const inputs: ReceiptInput[] = ["app", "driver", "native-driver"].map((name) => ({
     kind: "executable",
     name,

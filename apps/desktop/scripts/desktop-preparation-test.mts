@@ -2404,6 +2404,15 @@ export async function preparationScenarios({
       observations.failed_activity = failed;
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
+      // The failure notice can render before the completed review's modal layer
+      // unmounts. Wait for actual dismissal before exercising ordinary navigation;
+      // never click through the overlay or dismiss it on the test's behalf.
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
+        15_000,
+        "The settled preparation review must release its modal overlay before navigation",
+      );
       await browser
         .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();

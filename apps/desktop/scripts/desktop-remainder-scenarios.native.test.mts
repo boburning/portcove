@@ -392,3 +392,147 @@ void test("native remainder palette walks explicit commands and restores rendere
     }
   }
 });
+
+// Execute the real direct-recovery observer and its surrounding caller order.
+// The fake driver controls modal settlement, not preparation or Core authority.
+async function directRecoveryNavigationSubject(browser: unknown) {
+  const body = await source(
+    "./desktop-preparation-test.mts",
+    'await scenario("native-direct-preparation-recovery", async () => {',
+    "  const livePreparationCancellation =",
+  );
+  const startMarker = "const action = By.css('[data-detail-origin=\"error:preparation-review\"]');";
+  const first = body.indexOf(startMarker);
+  assert.ok(first >= 0, "actual direct preparation recovery action");
+  assert.equal(body.indexOf(startMarker, first + startMarker.length), -1);
+  const last = body.indexOf("const inventory = await activities();", first);
+  assert.ok(last > first, "actual navigation must precede the activity inventory");
+  return callable(
+    runInNewContext(`(async () => {\n${body.slice(first, last)}\n});`, {
+      browser,
+      By: { css: (value: string) => value, xpath: (value: string) => value },
+      until: { elementLocated: (value: string) => value },
+    }),
+  );
+}
+
+void test("direct preparation recovery waits for modal settlement before its ordinary Activity click", async () => {
+  const events: string[] = [];
+  let overlayPresent = true;
+  let activityClicks = 0;
+  let observeOverlay!: () => void;
+  const overlayObserved = new Promise<void>((resolve) => {
+    observeOverlay = resolve;
+  });
+  let releaseOverlay!: () => void;
+  const maySettle = new Promise<void>((resolve) => {
+    releaseOverlay = resolve;
+  });
+  const run = await directRecoveryNavigationSubject({
+    findElements: async (selector: string) => {
+      if (selector === '[data-slot="dialog-overlay"]') {
+        events.push(overlayPresent ? "overlay present" : "overlay absent");
+        return overlayPresent ? [{}] : [];
+      }
+      assert.equal(selector, "section[data-detail-workspace]");
+      assert.equal(activityClicks, 1);
+      events.push("detail absent");
+      return [];
+    },
+    findElement: (selector: string) => {
+      assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
+      return {
+        click: async () => {
+          activityClicks += 1;
+          assert.equal(overlayPresent, false, "ordinary navigation remains blocked by the modal");
+          events.push("Activity click");
+        },
+      };
+    },
+    wait: async (condition: unknown, timeout: number, message?: string) => {
+      assert.equal(timeout, 15_000);
+      if (typeof condition !== "function") {
+        assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
+        events.push("recovery action located");
+        return;
+      }
+      if (message !== undefined) {
+        assert.equal(
+          message,
+          "The settled preparation review must release its modal overlay before navigation",
+        );
+        assert.equal(await callable(condition)(), false);
+        observeOverlay();
+        await maySettle;
+        assert.equal(await callable(condition)(), true);
+        return;
+      }
+      assert.equal(await callable(condition)(), true);
+    },
+  });
+  const completion = Promise.resolve(run());
+  try {
+    await Promise.race([
+      overlayObserved,
+      completion.then(() => assert.fail("Activity navigation finished before overlay observation")),
+    ]);
+    assert.equal(activityClicks, 0);
+    assert.deepEqual(events, ["recovery action located", "overlay present"]);
+  } finally {
+    overlayPresent = false;
+    releaseOverlay();
+  }
+  await completion;
+  assert.equal(activityClicks, 1);
+  assert.deepEqual(events, [
+    "recovery action located",
+    "overlay present",
+    "overlay absent",
+    "Activity click",
+    "detail absent",
+  ]);
+});
+
+void test("direct preparation recovery propagates a stuck modal timeout without clicking Activity", async () => {
+  const timeoutFailure = new Error("retained modal-settlement timeout");
+  let recoveryLocated = false;
+  let overlayReads = 0;
+  let activityClicks = 0;
+  const run = await directRecoveryNavigationSubject({
+    findElements: async (selector: string) => {
+      assert.equal(selector, '[data-slot="dialog-overlay"]');
+      overlayReads += 1;
+      return [{}];
+    },
+    findElement: (selector: string) => {
+      assert.equal(selector, '//nav//button[./span[normalize-space(.)="Activity"]]');
+      return {
+        click: async () => {
+          activityClicks += 1;
+        },
+      };
+    },
+    wait: async (condition: unknown, timeout: number, message?: string) => {
+      assert.equal(timeout, 15_000);
+      if (typeof condition !== "function") {
+        assert.equal(condition, '[data-detail-origin="error:preparation-review"]');
+        recoveryLocated = true;
+        return;
+      }
+      assert.equal(recoveryLocated, true);
+      assert.equal(
+        message,
+        "The settled preparation review must release its modal overlay before navigation",
+      );
+      // Model finite WebDriver deadline exhaustion after two unsuccessful polls;
+      // no wall-clock wait, retrying click or test-owned dialog dismissal occurs.
+      assert.equal(await callable(condition)(), false);
+      assert.equal(await callable(condition)(), false);
+      throw timeoutFailure;
+    },
+  });
+  await assert.rejects(Promise.resolve(run()), (error: unknown) => error === timeoutFailure);
+  assert.equal(recoveryLocated, true);
+  assert.equal(overlayReads, 2);
+  assert.equal(activityClicks, 0);
+});
