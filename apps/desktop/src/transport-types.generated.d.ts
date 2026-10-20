@@ -307,7 +307,8 @@ export type CartridgeBuildRecipe =
   | "advance-wars-gba-source-cb3facb53b6b-usa-rev1"
   | "earthbound-snes-source-fe1155dc26ff-usa"
   | "render96-us-source-48da5c491c8a"
-  | "gundam-wing-snes-source-c7aaaa152192-japan-offline";
+  | "gundam-wing-snes-source-c7aaaa152192-japan-offline"
+  | "cvlod-n64-source-cb8548d145a1-ui-lifetime-v1";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.

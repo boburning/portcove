@@ -10,6 +10,13 @@ upstreams, and #246 owns the protected publication and unchanged-client proof.
 ## Implemented engine capability negotiation
 
 Core advertises each installed `AdapterKind` template with contract version 1.
+The N64 portable template advertises version 3 for the fixed CVLoD Windows
+source recipe. Such entries also require the independent staged-source version
+11 path capability. A version-2 reader refuses this recipe before use; the new
+version does not authorize catalog-supplied compilers or scripts. The retained
+original-source and platform contracts still apply. See [catalog recipe
+contract](CATALOG.md).
+
 The N64 portable template also advertises version 2, which implements the
 catalog-declared fresh Windows D3D12 default. Inventory identities are unique
 `(template, contract_version)` pairs; a template may implement several versions.

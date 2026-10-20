@@ -193,20 +193,16 @@ impl DefinitionContentIndex {
                 "shared write scope requires its staged-source capability version",
             ));
         }
-        if let Some(minimum) = port
-            .release
-            .managed_build
-            .values()
-            .map(|recipe| recipe.minimum_template_version())
-            .max()
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= minimum
-            })
-        {
-            return Err(PortcoveError::verification(format!(
-                "cartridge build recipe requires staged-source capability version {minimum}",
-            )));
+        for recipe in port.release.managed_build.values() {
+            let minimum = recipe.minimum_template_version();
+            let template = recipe.capability_template();
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == template && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "cartridge build recipe requires {template} capability version {minimum}",
+                )));
+            }
         }
         if port
             .release

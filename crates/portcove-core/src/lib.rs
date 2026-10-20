@@ -256,7 +256,8 @@ pub use types::*;
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
 // Public75 adds exact relative-file sets and closed managed TFE initialization.
 // API74 retains managed Windows path policy; API73 retains external shared directories.
-pub const API_SCHEMA_VERSION: u32 = 77;
+// Public78 adds the closed CVLoD source-build recipe and N64 template version3.
+pub const API_SCHEMA_VERSION: u32 = 78;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

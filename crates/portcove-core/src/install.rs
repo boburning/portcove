@@ -24,6 +24,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+#[cfg(test)]
+#[path = "cvlod_download_tests.rs"]
+mod cvlod_download_tests;
+
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -436,8 +440,8 @@ struct InstallLifecycle {
     record: LifecycleOperation,
 }
 
-// This existing nullable field is used here only for managed PS1 Install
-// workers. None remains the legacy/non-managed Install contract.
+// This existing nullable field tracks joined managed preparation workers and
+// CVLoD blob mutations. None remains the legacy/non-managed Install contract.
 async fn run_managed_install_worker(
     lifecycle: &mut InstallLifecycle,
     operation: &OperationCoordinator,
@@ -456,6 +460,86 @@ async fn run_managed_install_worker(
     lifecycle.store.put(&mut completed)?;
     lifecycle.record = completed;
     result
+}
+
+async fn run_cvlod_blob_transfer(
+    lifecycle: &mut InstallLifecycle,
+    transfer: impl std::future::Future<Output = (Result<()>, bool)>,
+) -> Result<()> {
+    lifecycle.record.preparation_process_quiesced = Some(false);
+    lifecycle.store.put(&mut lifecycle.record)?;
+    let (result, quiesced) = transfer.await;
+    let mut completed = lifecycle.record.clone();
+    completed.preparation_process_quiesced = Some(quiesced);
+    lifecycle.store.put(&mut completed)?;
+    lifecycle.record = completed;
+    result
+}
+
+struct CvlodBlobWrite {
+    result: Result<u64>,
+    drained: bool,
+}
+
+// Tokio File can queue a blocking write before poll_write returns Ready. Every
+// post-open exit must join that mutation before the lifecycle admits cleanup.
+async fn write_cvlod_blob_stream<S, B, E, W>(
+    mut stream: S,
+    writer: &mut W,
+    asset: &ReleaseAsset,
+    operation: &OperationCoordinator,
+) -> CvlodBlobWrite
+where
+    S: futures_util::Stream<Item = std::result::Result<B, E>> + Unpin,
+    B: AsRef<[u8]>,
+    E: std::fmt::Display,
+    W: tokio::io::AsyncWrite + Unpin,
+{
+    let result = async {
+        let mut completed = 0u64;
+        let mut hash = Sha256::new();
+        while let Some(chunk) = operation
+            .interruptible(async { Ok(stream.next().await) })
+            .await?
+        {
+            let chunk = chunk.map_err(|e| PortcoveError::network(e.to_string()))?;
+            let bytes: &[u8] = chunk.as_ref();
+            completed = completed
+                .checked_add(bytes.len() as u64)
+                .ok_or_else(|| PortcoveError::verification("CVLoD fixed blob size overflow"))?;
+            if completed > asset.size {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob exceeds its exact size",
+                ));
+            }
+            hash.update(bytes);
+            writer.write_all(bytes).await?;
+        }
+        if completed != asset.size || hex::encode(hash.finalize()) != asset.sha256 {
+            return Err(PortcoveError::verification(
+                "CVLoD fixed blob differs from its reviewed Git bytes",
+            ));
+        }
+        operation.checkpoint()?;
+        Ok(completed)
+    }
+    .await;
+    // Deliberately non-interruptible. A failed/ambiguous drain retains the
+    // private journal with false quiescence proof, including the original error.
+    match writer.flush().await {
+        Ok(()) => CvlodBlobWrite {
+            result,
+            drained: true,
+        },
+        Err(drain) => CvlodBlobWrite {
+            result: Err(match result {
+                Err(original) => original.detail("cvlod_blob_drain_error", drain.to_string()),
+                Ok(_) => PortcoveError::install("CVLoD fixed blob write did not drain")
+                    .detail("cvlod_blob_drain_error", drain.to_string()),
+            }),
+            drained: false,
+        },
+    }
 }
 
 // Artifact transfers can legitimately run for hours, so they have no total
@@ -972,6 +1056,43 @@ impl Installer {
                     .await?;
                 operation.checkpoint()?;
             }
+            if preparation.recipe == crate::CartridgeBuildRecipe::CvlodSourceV1 {
+                let client = reqwest::Client::builder()
+                    .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(self.network_bounds.0)
+                    .read_timeout(self.network_bounds.1)
+                    .https_only(true)
+                    .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                        if attempt.url().scheme() == "https"
+                            && attempt.url().host_str() == Some("raw.githubusercontent.com")
+                            && attempt.previous().len() < 5
+                        {
+                            attempt.follow()
+                        } else {
+                            attempt
+                                .error("CVLoD fixed blob redirect left its exact HTTPS transport")
+                        }
+                    }))
+                    .build()
+                    .map_err(|error| PortcoveError::network(error.to_string()))?;
+                for blob in crate::cartridge_build::cvlod::blobs()? {
+                    let destination = work.join(blob.relative);
+                    crate::path::refuse_symlink_ancestors(&destination)?;
+                    fs::create_dir_all(destination.parent().expect("fixed blob has a parent"))?;
+                    run_cvlod_blob_transfer(
+                        lifecycle,
+                        self.download_fixed_cvlod_blob(
+                            &client,
+                            &blob.asset,
+                            &destination,
+                            operation,
+                            emit,
+                        ),
+                    )
+                    .await?;
+                    operation.checkpoint()?;
+                }
+            }
             let payload = payload_root.clone();
             let library = self.library.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
@@ -1169,6 +1290,69 @@ impl Installer {
     {
         self.download_scoped(asset, destination, operation, emit, None)
             .await
+    }
+
+    /// Only the closed CVLoD recipe supplies these requests. Keep archive
+    /// extraction and publisher-scoped acquisition outside this raw-file path.
+    async fn download_fixed_cvlod_blob<F>(
+        &self,
+        client: &reqwest::Client,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> (Result<()>, bool)
+    where
+        F: FnMut(OperationEvent),
+    {
+        let mut quiesced = true;
+        let result = async {
+            let url = reqwest::Url::parse(&asset.url)
+                .map_err(|_| PortcoveError::verification("invalid fixed CVLoD blob URL"))?;
+            if url.scheme() != "https"
+                || url.host_str() != Some("raw.githubusercontent.com")
+                || asset.size > 64 * 1024 * 1024
+                || asset.sha256.len() != 64
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob request differs",
+                ));
+            }
+            let response = operation
+                .interruptible(async {
+                    client
+                        .get(url)
+                        .send()
+                        .await
+                        .map_err(|e| PortcoveError::network(e.to_string()))?
+                        .error_for_status()
+                        .map_err(|e| PortcoveError::network(e.to_string()))
+                })
+                .await?;
+            if response
+                .content_length()
+                .is_some_and(|size| size != asset.size)
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob response size differs",
+                ));
+            }
+            crate::path::refuse_symlink_ancestors(destination)?;
+            let mut file = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(destination)
+                .await?;
+            let outcome =
+                write_cvlod_blob_stream(response.bytes_stream(), &mut file, asset, operation).await;
+            quiesced = outcome.drained;
+            let completed = outcome.result?;
+            file.sync_all().await?;
+            emit(operation.progress("download", completed, Some(asset.size)));
+            operation.checkpoint()
+        }
+        .await;
+        (result, quiesced)
     }
 
     async fn download_scoped<F>(

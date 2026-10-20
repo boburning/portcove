@@ -1,0 +1,574 @@
+{
+  "game": [
+    {
+      "description": "Linking CXX static library rt64/src/contrib/re-spirv/re-spirv.lib",
+      "target": "rt64/src/contrib/re-spirv/re-spirv.lib"
+    },
+    {
+      "description": "Linking CXX static library rt64/src/contrib/nativefiledialog-extended/src/nfd.lib",
+      "target": "rt64/src/contrib/nativefiledialog-extended/src/nfd.lib"
+    },
+    {
+      "description": "Linking C static library rt64/src/contrib/zstd/build/cmake/lib/zstd_static.lib",
+      "target": "rt64/src/contrib/zstd/build/cmake/lib/zstd_static.lib"
+    },
+    {
+      "description": "Linking CXX executable file_to_c.exe",
+      "target": "file_to_c.exe"
+    },
+    {
+      "description": "Linking CXX static library rt64/src/contrib/plume/plume.lib",
+      "target": "rt64/src/contrib/plume/plume.lib"
+    },
+    {
+      "description": "Linking C static library lib/lunasvg/plutovg/plutovg.lib",
+      "target": "lib/lunasvg/plutovg/plutovg.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/N64Recomp/rabbitizer.lib",
+      "target": "lib/N64ModernRuntime/librecomp/N64Recomp/rabbitizer.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/N64Recomp/SymbolLists.lib",
+      "target": "lib/N64ModernRuntime/librecomp/N64Recomp/SymbolLists.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/N64Recomp/lib/fmt/fmt.lib",
+      "target": "lib/N64ModernRuntime/librecomp/N64Recomp/lib/fmt/fmt.lib"
+    },
+    {
+      "description": "Generating ../src/shaders/RenderParams.hlsli.rw.c",
+      "target": "src/shaders/RenderParams.hlsli.rw.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSLibrary.hlsl.dxil.c",
+      "target": "src/shaders/RasterPSLibrary.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSLibraryMS.hlsl.dxil.c",
+      "target": "src/shaders/RasterPSLibraryMS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterVSLibrary.hlsl.dxil.c",
+      "target": "src/shaders/RasterVSLibrary.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSDynamic.hlsl.dxil.c",
+      "target": "src/shaders/RasterPSDynamic.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSDynamic.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSDynamic.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSDynamicMS.hlsl.dxil.c",
+      "target": "src/shaders/RasterPSDynamicMS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSDynamicMS.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSDynamicMS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSSpecConstant.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSSpecConstant.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSSpecConstantMS.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSSpecConstantMS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSSpecConstantFlat.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSSpecConstantFlat.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterPSSpecConstantFlatMS.hlsl.spirv.c",
+      "target": "src/shaders/RasterPSSpecConstantFlatMS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterVSDynamic.hlsl.dxil.c",
+      "target": "src/shaders/RasterVSDynamic.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterVSDynamic.hlsl.spirv.c",
+      "target": "src/shaders/RasterVSDynamic.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterVSSpecConstant.hlsl.spirv.c",
+      "target": "src/shaders/RasterVSSpecConstant.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RasterVSSpecConstantFlat.hlsl.spirv.c",
+      "target": "src/shaders/RasterVSSpecConstantFlat.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesClearCS.hlsl.dxil.c",
+      "target": "src/shaders/FbChangesClearCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesClearCS.hlsl.spirv.c",
+      "target": "src/shaders/FbChangesClearCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesDrawColorPS.hlsl.dxil.c",
+      "target": "src/shaders/FbChangesDrawColorPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesDrawColorPS.hlsl.spirv.c",
+      "target": "src/shaders/FbChangesDrawColorPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesDrawDepthPS.hlsl.dxil.c",
+      "target": "src/shaders/FbChangesDrawDepthPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbChangesDrawDepthPS.hlsl.spirv.c",
+      "target": "src/shaders/FbChangesDrawDepthPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReadAnyChangesCS.hlsl.dxil.c",
+      "target": "src/shaders/FbReadAnyChangesCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReadAnyChangesCS.hlsl.spirv.c",
+      "target": "src/shaders/FbReadAnyChangesCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReinterpretCS.hlsl.dxil.c",
+      "target": "src/shaders/FbReinterpretCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReinterpretCS.hlsl.spirv.c",
+      "target": "src/shaders/FbReinterpretCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReadAnyFullCS.hlsl.dxil.c",
+      "target": "src/shaders/FbReadAnyFullCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbReadAnyFullCS.hlsl.spirv.c",
+      "target": "src/shaders/FbReadAnyFullCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteColorCS.hlsl.dxil.c",
+      "target": "src/shaders/FbWriteColorCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteColorCS.hlsl.spirv.c",
+      "target": "src/shaders/FbWriteColorCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteDepthCS.hlsl.dxil.c",
+      "target": "src/shaders/FbWriteDepthCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteDepthCS.hlsl.spirv.c",
+      "target": "src/shaders/FbWriteDepthCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteDepthCSMS.hlsl.dxil.c",
+      "target": "src/shaders/FbWriteDepthCSMS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FbWriteDepthCSMS.hlsl.spirv.c",
+      "target": "src/shaders/FbWriteDepthCSMS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/GaussianFilterRGB3x3CS.hlsl.dxil.c",
+      "target": "src/shaders/GaussianFilterRGB3x3CS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/GaussianFilterRGB3x3CS.hlsl.spirv.c",
+      "target": "src/shaders/GaussianFilterRGB3x3CS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/BoxFilterCS.hlsl.dxil.c",
+      "target": "src/shaders/BoxFilterCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/BoxFilterCS.hlsl.spirv.c",
+      "target": "src/shaders/BoxFilterCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/BicubicScalingCS.hlsl.dxil.c",
+      "target": "src/shaders/BicubicScalingCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/BicubicScalingCS.hlsl.spirv.c",
+      "target": "src/shaders/BicubicScalingCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramAverageCS.hlsl.dxil.c",
+      "target": "src/shaders/HistogramAverageCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramAverageCS.hlsl.spirv.c",
+      "target": "src/shaders/HistogramAverageCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramClearCS.hlsl.dxil.c",
+      "target": "src/shaders/HistogramClearCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramClearCS.hlsl.spirv.c",
+      "target": "src/shaders/HistogramClearCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramSetCS.hlsl.dxil.c",
+      "target": "src/shaders/HistogramSetCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/HistogramSetCS.hlsl.spirv.c",
+      "target": "src/shaders/HistogramSetCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/IdleCS.hlsl.dxil.c",
+      "target": "src/shaders/IdleCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/IdleCS.hlsl.spirv.c",
+      "target": "src/shaders/IdleCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/LuminanceHistogramCS.hlsl.dxil.c",
+      "target": "src/shaders/LuminanceHistogramCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/LuminanceHistogramCS.hlsl.spirv.c",
+      "target": "src/shaders/LuminanceHistogramCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseAddPS.hlsl.dxil.c",
+      "target": "src/shaders/PostBlendDitherNoiseAddPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseAddPS.hlsl.spirv.c",
+      "target": "src/shaders/PostBlendDitherNoiseAddPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseSubPS.hlsl.dxil.c",
+      "target": "src/shaders/PostBlendDitherNoiseSubPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseSubPS.hlsl.spirv.c",
+      "target": "src/shaders/PostBlendDitherNoiseSubPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseSubNegativePS.hlsl.dxil.c",
+      "target": "src/shaders/PostBlendDitherNoiseSubNegativePS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostBlendDitherNoiseSubNegativePS.hlsl.spirv.c",
+      "target": "src/shaders/PostBlendDitherNoiseSubNegativePS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPModifyCS.hlsl.dxil.c",
+      "target": "src/shaders/RSPModifyCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPModifyCS.hlsl.spirv.c",
+      "target": "src/shaders/RSPModifyCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPProcessCS.hlsl.dxil.c",
+      "target": "src/shaders/RSPProcessCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPProcessCS.hlsl.spirv.c",
+      "target": "src/shaders/RSPProcessCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPWorldCS.hlsl.dxil.c",
+      "target": "src/shaders/RSPWorldCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPWorldCS.hlsl.spirv.c",
+      "target": "src/shaders/RSPWorldCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPSmoothNormalCS.hlsl.dxil.c",
+      "target": "src/shaders/RSPSmoothNormalCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPSmoothNormalCS.hlsl.spirv.c",
+      "target": "src/shaders/RSPSmoothNormalCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPVertexTestZCS.hlsl.dxil.c",
+      "target": "src/shaders/RSPVertexTestZCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPVertexTestZCS.hlsl.spirv.c",
+      "target": "src/shaders/RSPVertexTestZCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPVertexTestZCSMS.hlsl.dxil.c",
+      "target": "src/shaders/RSPVertexTestZCSMS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RSPVertexTestZCSMS.hlsl.spirv.c",
+      "target": "src/shaders/RSPVertexTestZCSMS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepthPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyColorToDepthPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepthPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyColorToDepthPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth2XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyColorToDepth2XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth2XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyColorToDepth2XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth4XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyColorToDepth4XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth4XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyColorToDepth4XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth8XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyColorToDepth8XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyColorToDepth8XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyColorToDepth8XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColorPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyDepthToColorPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColorPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyDepthToColorPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor2XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyDepthToColor2XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor2XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyDepthToColor2XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor4XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyDepthToColor4XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor4XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyDepthToColor4XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor8XPS.hlsl.dxil.c",
+      "target": "src/shaders/RtCopyDepthToColor8XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/RtCopyDepthToColor8XPS.hlsl.spirv.c",
+      "target": "src/shaders/RtCopyDepthToColor8XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureCopyPS.hlsl.dxil.c",
+      "target": "src/shaders/TextureCopyPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureCopyPS.hlsl.spirv.c",
+      "target": "src/shaders/TextureCopyPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureDecodeCS.hlsl.dxil.c",
+      "target": "src/shaders/TextureDecodeCS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureDecodeCS.hlsl.spirv.c",
+      "target": "src/shaders/TextureDecodeCS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples2XPS.hlsl.dxil.c",
+      "target": "src/shaders/TextureResolveSamples2XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples2XPS.hlsl.spirv.c",
+      "target": "src/shaders/TextureResolveSamples2XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples4XPS.hlsl.dxil.c",
+      "target": "src/shaders/TextureResolveSamples4XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples4XPS.hlsl.spirv.c",
+      "target": "src/shaders/TextureResolveSamples4XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples8XPS.hlsl.dxil.c",
+      "target": "src/shaders/TextureResolveSamples8XPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/TextureResolveSamples8XPS.hlsl.spirv.c",
+      "target": "src/shaders/TextureResolveSamples8XPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/VideoInterfacePSRegular.hlsl.dxil.c",
+      "target": "src/shaders/VideoInterfacePSRegular.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/VideoInterfacePSRegular.hlsl.spirv.c",
+      "target": "src/shaders/VideoInterfacePSRegular.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/VideoInterfacePSPixel.hlsl.dxil.c",
+      "target": "src/shaders/VideoInterfacePSPixel.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/VideoInterfacePSPixel.hlsl.spirv.c",
+      "target": "src/shaders/VideoInterfacePSPixel.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FullScreenVS.hlsl.dxil.c",
+      "target": "src/shaders/FullScreenVS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/FullScreenVS.hlsl.spirv.c",
+      "target": "src/shaders/FullScreenVS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/Im3DVS.hlsl.dxil.c",
+      "target": "src/shaders/Im3DVS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/Im3DVS.hlsl.spirv.c",
+      "target": "src/shaders/Im3DVS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/ComposePS.hlsl.dxil.c",
+      "target": "src/shaders/ComposePS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/ComposePS.hlsl.spirv.c",
+      "target": "src/shaders/ComposePS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/DebugPS.hlsl.dxil.c",
+      "target": "src/shaders/DebugPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/DebugPS.hlsl.spirv.c",
+      "target": "src/shaders/DebugPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/Im3DPS.hlsl.dxil.c",
+      "target": "src/shaders/Im3DPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/Im3DPS.hlsl.spirv.c",
+      "target": "src/shaders/Im3DPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostProcessPS.hlsl.dxil.c",
+      "target": "src/shaders/PostProcessPS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating ../src/shaders/PostProcessPS.hlsl.spirv.c",
+      "target": "src/shaders/PostProcessPS.hlsl.spirv.c"
+    },
+    {
+      "description": "Linking CXX static library lib/lunasvg/lunasvg.lib",
+      "target": "lib/lunasvg/lunasvg.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/N64Recomp/N64Recomp.lib",
+      "target": "lib/N64ModernRuntime/librecomp/N64Recomp/N64Recomp.lib"
+    },
+    {
+      "description": "Linking CXX static library rmlui.lib",
+      "target": "rmlui.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/ultramodern/ultramodern.lib",
+      "target": "lib/N64ModernRuntime/ultramodern/ultramodern.lib"
+    },
+    {
+      "description": "Linking C static library lib/N64ModernRuntime/librecomp/miniz/miniz.lib",
+      "target": "lib/N64ModernRuntime/librecomp/miniz/miniz.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/N64Recomp/LiveRecomp.lib",
+      "target": "lib/N64ModernRuntime/librecomp/N64Recomp/LiveRecomp.lib"
+    },
+    {
+      "description": "Linking CXX static library RecompiledFuncs.lib",
+      "target": "RecompiledFuncs.lib"
+    },
+    {
+      "description": "Copying LodRecomp runtime assets",
+      "target": "CMakeFiles/LodRecompAssets"
+    },
+    {
+      "description": "Linking CXX static library rmlui_debugger.lib",
+      "target": "rmlui_debugger.lib"
+    },
+    {
+      "description": "Linking CXX static library rt64/rt64.lib",
+      "target": "rt64/rt64.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/N64ModernRuntime/librecomp/librecomp.lib",
+      "target": "lib/N64ModernRuntime/librecomp/librecomp.lib"
+    },
+    {
+      "description": "Generating shaders/InterfaceVS.hlsl.dxil.c",
+      "target": "shaders/InterfaceVS.hlsl.dxil.c"
+    },
+    {
+      "description": "Generating shaders/InterfacePS.hlsl.dxil.c",
+      "target": "shaders/InterfacePS.hlsl.dxil.c"
+    },
+    {
+      "description": "Linking CXX executable LodRecomp.exe",
+      "target": "LodRecomp.exe"
+    }
+  ],
+  "n64recomp": [
+    {
+      "description": "Linking CXX static library rabbitizer.lib",
+      "target": "rabbitizer.lib"
+    },
+    {
+      "description": "Linking CXX static library SymbolLists.lib",
+      "target": "SymbolLists.lib"
+    },
+    {
+      "description": "Linking CXX static library lib/fmt/fmt.lib",
+      "target": "lib/fmt/fmt.lib"
+    },
+    {
+      "description": "Linking CXX static library N64Recomp.lib",
+      "target": "N64Recomp.lib"
+    },
+    {
+      "description": "Linking CXX static library N64RecompElf.lib",
+      "target": "N64RecompElf.lib"
+    },
+    {
+      "description": "Linking CXX executable N64Recomp.exe",
+      "target": "N64Recomp.exe"
+    }
+  ],
+  "zlib": [
+    {
+      "description": "Linking C static library zs.lib",
+      "target": "zs.lib"
+    }
+  ],
+  "freetype": [
+    {
+      "description": "Linking C static library freetype.lib",
+      "target": "freetype.lib"
+    }
+  ]
+}

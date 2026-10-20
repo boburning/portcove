@@ -4,6 +4,27 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub(crate) fn definition_requirements(
+    port: &crate::PortDefinition,
+    default_version: u32,
+) -> Vec<serde_json::Value> {
+    use serde_json::json;
+    if port
+        .release
+        .managed_build
+        .values()
+        .any(|r| *r == crate::CartridgeBuildRecipe::CvlodSourceV1)
+    {
+        return vec![
+            json!({"template":"n64-recomp-portable","minimum_version":3,"maximum_version":3}),
+            json!({"template":"staged-source-portable","minimum_version":11,"maximum_version":11}),
+        ];
+    }
+    vec![
+        json!({"template":port.adapter,"minimum_version":default_version,"maximum_version":default_version}),
+    ]
+}
+
 /// Preserve the last entered test phase when nextest terminates a slow process.
 /// Labels contain fixture operations, never user paths or source contents.
 pub(crate) fn phase<T>(label: &str, action: impl FnOnce() -> T) -> T {
@@ -156,7 +177,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         };
         let entry = serde_json::to_vec_pretty(&json!({
         "definition_schema":1,"namespace":"official","stable_id":port_id,"revision":revision,
-        "required_capabilities":[{"template":port.adapter,"minimum_version":capability_version,"maximum_version":capability_version}],
+        "required_capabilities":definition_requirements(port, capability_version),
         "port":port,"source_contracts":[leaf],"execution_contract":leaf,"persistence_contract":leaf,
         "artifact_bindings":[],"evidence_references":[]
     }))

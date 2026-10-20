@@ -633,6 +633,29 @@ sandbox or ownership of those external files. Four-input Advance Wars and
 EarthBound storage identities remain unchanged. Capability 14 does not imply
 catalog admission, actual offered-operation acceptance or protected delivery.
 
+N64 portable version 3 adds only the Windows x64 recipe
+`cvlod-n64-source-cb8548d145a1-ui-lifetime-v1`. It pins the Legacy of Darkness
+source, dependencies, toolchain, complete CMake package and official SDL/DXC
+packages. Source Git identities and official release-transport acquisitions
+remain distinct in the retained input manifest. The complete installed
+VC 14.44.35207 / Windows SDK 10.0.19041.0 profile is checked and privately copied;
+ambient compiler paths and catalog-provided scripts cannot select build tools.
+The independent staged-source version 11 Windows path requirement remains
+necessary. Linux/macOS retain their existing GitHub release routes.
+
+The recipe accepts only the existing North American original identity, canonical
+SHA256 `89e15df6042defddc48c61f7408f99d06fffdb845e2422cf8b5ba8e73d4d70fb`,
+as a raw `.z64`, `.n64` or `.v64` file. It retains an immutable canonical proof at
+`.portcove-cvlod-build-original.z64`; working `rom.z64` remains persistent and
+is checked/rematerialized through the existing exact runtime-source hash. The
+UI-context lifetime repair is exact-preimage bound. The fixed generated-byte
+oracle, sealed build graphs, bounded compiler invocations, process-tree drain
+and finite 20-minute build deadline precede atomic publication. Raw-file
+cancellation also drains queued writes before private cleanup; ambiguous drain
+retains staging and its journal. Original-dependent output stays local. This
+capability establishes neither catalog admission nor actual operation acceptance
+or redistribution permission.
+
 Staged-source version 17 extends the printable-ASCII/MAX_PATH policy to a
 Windows-only user-prepared runtime with a positional original-file argument.
 The complete retained definition must require capability 17; managed version 11

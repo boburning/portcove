@@ -420,7 +420,7 @@ pub(crate) fn discard_private_install_with_faults(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
         Err(error) => return Err(error.into()),
     };
-    // The existing field also tracks managed PS1 Install workers. Unknown
+    // The existing field tracks managed preparation workers and CVLoD writes. Unknown
     // process ownership retains both the private tree and journal, even when
     // the path is currently absent. Legacy/non-managed None keeps its contract.
     if operation.preparation_process_quiesced == Some(false) {

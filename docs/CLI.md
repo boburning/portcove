@@ -8,7 +8,14 @@ its exact `--expected-plan` and `--acknowledge-shared-preferences` to
 prepared registrations retain their non-owning contract. Local saves/settings
 remain managed; the resolved account-wide preferences file is never owned or
 included in backup/restore. The reference client accepts public API77 and requires
-explicit confirmation before transmitting acknowledgment; unknown API78 is refused.
+explicit confirmation before transmitting acknowledgment; unknown API79 is refused.
+
+API78 adds the fixed Windows CVLoD source recipe. Installation plans disclose
+its exact archives, raw source files and 12 GiB temporary allowance. Building
+requires the reviewed installed VC/Windows SDK profile and an exact raw original;
+verified installed launch does not require those build tools again. Core owns
+build eligibility, verification and execution. The reference client preserves
+that plan/consent boundary and does not interpret the recipe as arbitrary code.
 
 For managed Dark Forces on Windows, register the complete reviewed installed-data
 folder or ZIP with
