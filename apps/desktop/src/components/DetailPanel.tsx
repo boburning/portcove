@@ -2260,10 +2260,11 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
       ))}
       {plan.shared_preferences && (
         <p className="col-span-full text-[length:var(--text-sm)]">
-          ReGaiden can rewrite shared preferences at {plan.shared_preferences.binding.path} and
-          affect other copies in this Windows account. Portcove does not own or back up that shared
-          file. Its local fallback at {plan.shared_preferences.local_fallback_path} is managed with
-          this installation. The Windows confirmation will ask you to accept this scope before
+          ReGaiden can rewrite shared preferences at{" "}
+          <bdi dir="ltr">{plan.shared_preferences.binding.path}</bdi> and affect other copies in
+          this Windows account. Portcove does not own or back up that shared file. Its local
+          fallback at <bdi dir="ltr">{plan.shared_preferences.local_fallback_path}</bdi> is managed
+          with this installation. The Windows confirmation will ask you to accept this scope before
           installing.
         </p>
       )}
