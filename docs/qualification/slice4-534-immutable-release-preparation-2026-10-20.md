@@ -23,7 +23,10 @@ local source fixtures do not establish a successful release scan.
 
 Publication is draft-first and advances one effect at a time through the existing
 caller's durable-intent/executor seam. It uploads no replacement, deletes no asset
-and moves no tag. Complete provider release/asset readback binds numeric IDs,
+and moves no tag. Logical destinations stay fixed per tag and purpose (create,
+filename upload, publish), so changed provider IDs or content cannot reset retry
+floors. Exact request digests and completed provider receipts retain those IDs
+and content hashes. Complete provider release/asset readback binds numeric IDs,
 size and digest. Publication requires all expected assets; completion additionally
 requires the provider's actual `immutable: true` and exact version tag commit.
 An available token or documentation example proves neither setting enforcement

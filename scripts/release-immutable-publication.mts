@@ -206,7 +206,7 @@ export function proposeImmutableReleaseTransition(
       effect: {
         kind: "create-draft" as const,
         tag: `v${wanted.version}`,
-        destination: `github-release:${repository}:v${wanted.version}:create-draft:${wanted.source_commit}`,
+        destination: `github-release:${repository}:v${wanted.version}:create-draft`,
         method: "POST" as const,
         endpoint: `${base}/releases`,
         body: {
@@ -245,7 +245,7 @@ export function proposeImmutableReleaseTransition(
       effect: {
         kind: "upload-asset" as const,
         tag: `v${wanted.version}`,
-        destination: `github-release:${repository}:v${wanted.version}:upload:${observed.id}:${asset.filename}:${asset.sha256}`,
+        destination: `github-release:${repository}:v${wanted.version}:upload:${asset.filename}`,
         method: "POST" as const,
         endpoint: `https://uploads.github.com/${base}/releases/${observed.id}/assets?name=${encodeURIComponent(asset.filename)}`,
         release_id: observed.id,
@@ -258,7 +258,7 @@ export function proposeImmutableReleaseTransition(
     effect: {
       kind: "publish-draft" as const,
       tag: `v${wanted.version}`,
-      destination: `github-release:${repository}:v${wanted.version}:publish:${observed.id}:${capacityDigest(wanted.assets)}`,
+      destination: `github-release:${repository}:v${wanted.version}:publish`,
       asset_set_sha256: capacityDigest(wanted.assets),
       method: "PATCH" as const,
       endpoint: `${base}/releases/${observed.id}`,
@@ -702,10 +702,10 @@ export async function performImmutableReleaseEffect(
     effect.tag !== `v${version}` ||
     effect.destination !==
       (effect.kind === "create-draft"
-        ? `github-release:${repository}:${effect.tag}:create-draft:${effect.body.target_commitish}`
+        ? `github-release:${repository}:${effect.tag}:create-draft`
         : effect.kind === "upload-asset"
-          ? `github-release:${repository}:${effect.tag}:upload:${effect.release_id}:${effect.asset.filename}:${effect.asset.sha256}`
-          : `github-release:${repository}:${effect.tag}:publish:${effect.release_id}:${effect.asset_set_sha256}`)
+          ? `github-release:${repository}:${effect.tag}:upload:${effect.asset.filename}`
+          : `github-release:${repository}:${effect.tag}:publish`)
   )
     throw new Error("release effect destination differs from the exact fixed operation");
   if (
@@ -724,7 +724,8 @@ export async function performImmutableReleaseEffect(
     throw new Error("draft creation body differs from fixed release semantics");
   if (
     effect.kind === "publish-draft" &&
-    (!Number.isSafeInteger(effect.release_id) ||
+    (!/^[a-f0-9]{64}$/u.test(effect.asset_set_sha256) ||
+      !Number.isSafeInteger(effect.release_id) ||
       effect.release_id < 1 ||
       Object.keys(effect.body).sort().join(",") !== "draft,make_latest" ||
       effect.body.make_latest !== "false")

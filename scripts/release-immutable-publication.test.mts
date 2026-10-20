@@ -176,8 +176,7 @@ void test("settlement binds the actual recovered capacity intent, checkpoint and
   const identity = {
     before_checkpoint: "c".repeat(40),
     candidate,
-    destination:
-      "github-release:boburning/portcove:v0.1.0-beta.1:create-draft:" + candidate.prepared_commit,
+    destination: "github-release:boburning/portcove:v0.1.0-beta.1:create-draft",
     executor_nonce: "d".repeat(64),
     kind: "upload",
     policy_sha256: "e".repeat(64),
@@ -285,7 +284,7 @@ void test("mismatched create tags and invalid publication IDs refuse before any 
           ...publish.effect,
           release_id: id,
           endpoint: `repos/boburning/portcove/releases/${id}`,
-          destination: `github-release:boburning/portcove:${publish.effect.tag}:publish:${id}:${publish.effect.asset_set_sha256}`,
+          destination: `github-release:boburning/portcove:${publish.effect.tag}:publish`,
         },
         null,
         "inert",
@@ -294,4 +293,49 @@ void test("mismatched create tags and invalid publication IDs refuse before any 
     );
   }
   assert.equal(calls, 0);
+});
+
+void test("logical purposes stay stable across provider IDs and content while exact requests remain distinct", () => {
+  const f = fixture();
+  const changedIdentity = {
+    ...f.identity,
+    source_commit: "f".repeat(40),
+    assets: f.identity.assets.map((asset) => ({ ...asset, sha256: "e".repeat(64) })),
+  };
+  const create = proposeImmutableReleaseTransition(f.identity, null, []);
+  const otherCreate = proposeImmutableReleaseTransition(changedIdentity, null, []);
+  assert.ok(create.decision === "effect" && otherCreate.decision === "effect");
+  assert.equal(create.effect.destination, otherCreate.effect.destination);
+  assert.notEqual(capacityDigest(create.effect), capacityDigest(otherCreate.effect));
+  const upload = proposeImmutableReleaseTransition(f.identity, f.release, []);
+  const otherUpload = proposeImmutableReleaseTransition(
+    f.identity,
+    {
+      ...f.release,
+      id: 999,
+      url: `https://api.github.com/${base}/releases/999`,
+      upload_url: `https://uploads.github.com/${base}/releases/999/assets{?name,label}`,
+    },
+    [],
+  );
+  assert.ok(upload.decision === "effect" && otherUpload.decision === "effect");
+  assert.equal(upload.effect.destination, otherUpload.effect.destination);
+  assert.notEqual(capacityDigest(upload.effect), capacityDigest(otherUpload.effect));
+  const changedUpload = proposeImmutableReleaseTransition(
+    changedIdentity,
+    { ...f.release, target_commitish: changedIdentity.source_commit },
+    [],
+  );
+  assert.ok(changedUpload.decision === "effect");
+  assert.equal(upload.effect.destination, changedUpload.effect.destination);
+  assert.notEqual(capacityDigest(upload.effect), capacityDigest(changedUpload.effect));
+  const publish = proposeImmutableReleaseTransition(f.identity, f.release, f.assets);
+  const otherPublish = proposeImmutableReleaseTransition(
+    changedIdentity,
+    { ...f.release, target_commitish: changedIdentity.source_commit },
+    f.assets.map((asset) => ({ ...asset, digest: "sha256:" + "e".repeat(64) })),
+  );
+  assert.ok(publish.decision === "effect" && otherPublish.decision === "effect");
+  assert.equal(publish.effect.destination, otherPublish.effect.destination);
+  assert.notEqual(capacityDigest(publish.effect), capacityDigest(otherPublish.effect));
 });
