@@ -13,6 +13,7 @@ import {
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   requestAssemblerToken,
+  controllerOidcSubject,
   inspectAssemblerIdentityExpectation,
 } from "./assembler-job-identity.mts";
 import { inspectReleaseEvidenceRequest } from "./release-run-evidence.mts";
@@ -169,7 +170,7 @@ async function main() {
       } else if (mode === "bind") {
         const expected = inspectAssemblerIdentityExpectation({
           audience: process.env.PORTCOVE_AGGREGATE_AUDIENCE,
-          subject: process.env.PORTCOVE_AGGREGATE_SUBJECT,
+          subject: controllerOidcSubject(process.env.PORTCOVE_CONTROLLER_REF ?? ""),
           controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION,
           controller_ref: process.env.PORTCOVE_CONTROLLER_REF,
           actor_id: process.env.PORTCOVE_CONTROLLER_ACTOR_ID,

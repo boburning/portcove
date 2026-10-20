@@ -225,7 +225,6 @@ jobs:
       PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
       PORTCOVE_CONTROLLER_ACTOR_ID: ${{ vars.PORTCOVE_CONTROLLER_ACTOR_ID }}
       PORTCOVE_AGGREGATE_AUDIENCE: ${{ vars.PORTCOVE_AGGREGATE_AUDIENCE }}
-      PORTCOVE_AGGREGATE_SUBJECT: ${{ vars.PORTCOVE_AGGREGATE_SUBJECT }}
     outputs:
       subject_name: ${{ steps.bind.outputs.subject_name }}
       subject_digest: ${{ steps.bind.outputs.subject_digest }}

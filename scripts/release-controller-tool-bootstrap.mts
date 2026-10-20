@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import { prepareControllerToolPredicate } from "./release-controller-tool-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
 const mode = process.argv[2];
 try {
@@ -61,7 +62,7 @@ try {
       },
       {
         audience: "portcove-controller-tool-bootstrap",
-        subject: `repo:boburning/portcove:ref:${process.env.PORTCOVE_CONTROLLER_REF}`,
+        subject: controllerOidcSubject(process.env.PORTCOVE_CONTROLLER_REF ?? ""),
         controller_revision: commit,
         controller_ref: process.env.PORTCOVE_CONTROLLER_REF,
         actor_id: policy.actor_id,

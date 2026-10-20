@@ -6,6 +6,7 @@ import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { admitReviewedInputsController } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
+  controllerOidcSubject,
   inspectAssemblerIdentityExpectation,
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
@@ -134,7 +135,12 @@ async function main() {
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
         audience: observing ? phaseProfile.observer_audience : "portcove-release-classification-v1",
-        subject: `repo:boburning/portcove:environment:${observing ? "production-release-protection-observer" : "production-release-classification"}`,
+        subject: controllerOidcSubject(
+          String(policy.execution_ref),
+          observing
+            ? "production-release-protection-observer"
+            : "production-release-classification",
+        ),
         controller_revision: policy.revision,
         controller_ref: policy.execution_ref,
         actor_id: policy.actor_id,

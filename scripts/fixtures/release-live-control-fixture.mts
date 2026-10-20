@@ -9,6 +9,7 @@ import { isRecord } from "../runtime-values.mts";
 import { releaseControlPhaseProfile } from "../release-control-phases.mts";
 import type { ReleaseControlPhase } from "../release-control-phases.mts";
 import { capacityFixture } from "./release-capacity-fixture.mts";
+import { controllerOidcSubject } from "../assembler-job-identity.mts";
 
 export function capacityDocumentFixture() {
   return {
@@ -91,9 +92,14 @@ export function liveControlRuntimeFixture(
     workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
     actor_id: expected.actor_id,
   };
-  const subject = `repo:boburning/portcove:ref:${expected.controller_ref}`;
+  const subject = controllerOidcSubject(expected.controller_ref, profile.reader_environment);
   const identity = assemblerIdentityFixture(
-    { run_attempt: "1", aud: profile.reader_audience, sub: subject },
+    {
+      run_attempt: "1",
+      aud: profile.reader_audience,
+      sub: subject,
+      ...(profile.reader_environment ? { environment: profile.reader_environment } : {}),
+    },
     {},
     { workflow: productionControllerWorkflow, job: profile.reader_name },
   );

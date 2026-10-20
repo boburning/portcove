@@ -8,6 +8,31 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
+/** Independently pinned github.com owner/repository IDs; no legacy-name fallback. */
+export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
+export type ControllerOidcEnvironment =
+  | "github-pages"
+  | "production-release-classification"
+  | "production-release-protection-observer";
+export function controllerOidcSubject(ref: string, environment?: ControllerOidcEnvironment) {
+  if (!/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(ref))
+    throw new Error("controller OIDC subject requires the fixed protected tag family");
+  if (
+    environment !== undefined &&
+    ![
+      "github-pages",
+      "production-release-classification",
+      "production-release-protection-observer",
+    ].includes(environment)
+  )
+    throw new Error("controller OIDC environment is unsupported");
+  return `${controllerOidcSubjectPrefix}:${environment === undefined ? `ref:${ref}` : `environment:${environment}`}`;
+}
+type JobIdentityProfile = {
+  workflow: string;
+  job: string;
+  environment?: ControllerOidcEnvironment | undefined;
+};
 const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
@@ -15,11 +40,13 @@ const assemblerProfile = {
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",
-};
+  environment: "production-release-classification",
+} satisfies JobIdentityProfile;
 const protectionProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Observe release input protections",
-};
+  environment: "production-release-protection-observer",
+} satisfies JobIdentityProfile;
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 export interface AssemblerIdentityExpectation {
@@ -111,12 +138,14 @@ export function inspectAssemblerIdentityExpectation(value: unknown): AssemblerId
  * or returned. Injected readers explicitly produce fixture-scoped evidence.
  */
 async function verifyJobIdentity(
-  profile: { workflow: string; job: string },
+  profile: JobIdentityProfile,
   token: string,
   rawExpected: unknown,
   options: { transport?: { cwd: string; spawn?: Spawn }; readKeys?: () => Promise<unknown> } = {},
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
+  if (expected.subject !== controllerOidcSubject(expected.controller_ref, profile.environment))
+    throw new Error("independently expected OIDC subject differs from the fixed role");
   if (!options.transport) throw new Error("assembler identity transport is unconfigured");
   if (typeof token !== "string" || Buffer.byteLength(token) > 16 * 1024)
     throw new Error("OIDC token exceeds its byte bound");
@@ -184,6 +213,8 @@ async function verifyJobIdentity(
     sub: expected.subject,
     repository,
     repository_id: String(repositoryId),
+    repository_owner: "boburning",
+    repository_owner_id: "43177418",
     actor_id: expected.actor_id,
     ref: expected.controller_ref,
     ref_type: "tag",
@@ -197,6 +228,9 @@ async function verifyJobIdentity(
   };
   if (
     Object.entries(required).some(([name, value]) => claims[name] !== value) ||
+    (profile.environment === undefined
+      ? Object.hasOwn(claims, "environment")
+      : claims.environment !== profile.environment) ||
     Object.hasOwn(claims, "job_workflow_ref") ||
     Object.hasOwn(claims, "job_workflow_sha") ||
     typeof claims.check_run_id !== "string" ||
@@ -396,7 +430,11 @@ export function verifyProductionProtectionObserverJobIdentity(
 ) {
   const profile = releaseControlPhaseProfile(phase);
   return verifyJobIdentity(
-    { workflow: productionControllerWorkflow, job: profile.observer_name },
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.observer_name,
+      environment: profile.observer_environment,
+    },
     token,
     expected,
     options,
@@ -417,7 +455,11 @@ export function verifyReleaseControlReaderJobIdentity(
 ) {
   const profile = releaseControlPhaseProfile(phase);
   return verifyJobIdentity(
-    { workflow: productionControllerWorkflow, job: profile.reader_name },
+    {
+      workflow: productionControllerWorkflow,
+      job: profile.reader_name,
+      environment: profile.reader_environment,
+    },
     token,
     expected,
     options,
