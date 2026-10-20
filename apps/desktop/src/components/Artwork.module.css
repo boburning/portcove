@@ -6,6 +6,7 @@
     place-items: center;
     min-width: 0;
     overflow: hidden;
+    container-type: inline-size;
     background: var(--art-color, var(--color-art-neutral));
   }
   .asset {
@@ -18,7 +19,7 @@
   }
   .initials {
     color: var(--color-art-text);
-    font-size: var(--text-3xl);
+    font-size: clamp(1rem, 40cqi, var(--text-3xl));
     font-weight: var(--font-weight-black);
     letter-spacing: -0.08em;
     line-height: var(--leading-display);

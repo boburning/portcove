@@ -1029,7 +1029,7 @@ function LibraryEntry({
           Port: {gameProjectLabel(port) ?? port.name}
         </span>
       </button>
-      <div className="collection-state min-w-0 text-xs leading-normal wrap-anywhere">
+      <div className="collection-state flex min-w-0 flex-col items-start gap-1 text-xs leading-normal wrap-anywhere">
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
@@ -1043,7 +1043,7 @@ function LibraryEntry({
           <Button
             variant="link"
             size="sm"
-            className="mt-1 h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
+            className="h-auto min-h-6 p-0 text-start text-xs whitespace-normal"
             data-detail-origin={`${detailOrigin}:update`}
             onClick={() => onSelect(port.id, `${detailOrigin}:update`, "updates")}
           >
