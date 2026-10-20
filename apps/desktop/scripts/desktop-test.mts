@@ -28,6 +28,10 @@ import { planDesktopExecution } from "../../../scripts/desktop-execution-plan.mt
 import { runOwnedFixtureJourneys } from "./desktop-owned-fixture-journeys.mts";
 import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { spawn } from "node:child_process";
+import {
+  DesktopNativeAccountSession,
+  AccountDriverView,
+} from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
 import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
@@ -181,7 +185,17 @@ function success<Value>(reply: IpcReply<Value>): Value {
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseDesktopHarnessOptions();
-const cachedDrivers = cachedDesktopDrivers();
+const nativeAccount =
+  process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING || process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256
+    ? DesktopNativeAccountSession.open(
+        required(process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING),
+        required(process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256),
+      )
+    : undefined;
+const accountDrivers = nativeAccount?.drivers();
+const cachedDrivers = accountDrivers
+  ? { driver: accountDrivers.tauri_driver, nativeDriver: accountDrivers.webview_driver }
+  : cachedDesktopDrivers();
 if (cachedDrivers?.driver) values.driver ??= cachedDrivers.driver;
 if (cachedDrivers?.nativeDriver) values["native-driver"] ??= cachedDrivers.nativeDriver;
 for (const name of ["app", "output"] as const) {
@@ -227,9 +241,10 @@ const {
   ordinaryCloseSession,
   minimizedPreparationSession,
   normalPackageSession,
-  identityBoundSession,
+  identityBoundSession: plannedIdentityBoundSession,
   cleanupName,
 } = executionPlan.session;
+const identityBoundSession = plannedIdentityBoundSession || Boolean(nativeAccount);
 const savedLibraryRecoverySession =
   bootstrapRecoverySession || librarySwitchRecoverySession || preferencesRecoverySession;
 const hostPublicationSession = selection.selected_scenarios.includes(
@@ -252,6 +267,8 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(required(values.output));
 await mkdir(output); // Existing output is never reused, including after failed runs.
+const runtimeRoot = nativeAccount ? nativeAccount.runtimeRoot(output) : output;
+if (nativeAccount) await mkdir(runtimeRoot); // A previous candidate's state is never reused.
 const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
       root,
@@ -307,13 +324,17 @@ let bootstrapRecoveryFixture:
   | Awaited<ReturnType<typeof prepareBootstrapRecoveryFixture>>
   | undefined;
 let connectedLaunches = 0;
-const library = path.join(output, "library");
-const profile = path.join(output, "webview");
+const library = path.join(runtimeRoot, "library");
+const profile = path.join(runtimeRoot, "webview");
 const checks: EvidenceCheck[] = [];
 const setupChecks: EvidenceCheck[] = [];
 const artifacts: string[] = [];
 const scenarioOutcomes = new Map<string, EvidenceCheck["outcome"]>();
-let driver: ChildProcessByStdio<null, Readable, Readable> | LinuxLaunch["child"] | undefined;
+let driver:
+  | ChildProcessByStdio<null, Readable, Readable>
+  | LinuxLaunch["child"]
+  | AccountDriverView
+  | undefined;
 let browser: WebDriver | LinuxInspectorProtocol | undefined;
 let driverLog = "";
 let startupAttempt = 0;
@@ -563,7 +584,7 @@ function stopBackupFocusDriver() {
   if (ownedSession.cleanup || !driver?.pid) return;
   const snapshot = captureBackupFocusCleanup();
   const stopped =
-    driver.exitCode === null
+    nativeAccount || driver.exitCode === null
       ? observeNativeSession("StopDriver", snapshot)
       : { method: "observed-child-exit" as const, exit_code: driver.exitCode };
   const exited = observeNativeSession("Wait", snapshot);
@@ -1898,6 +1919,14 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   snapshot: string,
   identity?: { applicationPid: number; parentPid: number; sha256: string },
 ): NativeSessionObservations[Mode] {
+  if (nativeAccount) {
+    assert.equal(
+      identity,
+      undefined,
+      "Direct application capture needs its own reviewed account root; no owner fallback",
+    );
+    return nativeAccount.observe(mode, snapshot, application);
+  }
   const driverProcessId = identity?.applicationPid ?? (mode === "Wait" ? 0 : required(driver).pid);
   const result = spawnCommand(
     "pwsh",
@@ -1965,7 +1994,7 @@ async function driverReady() {
 let publicationRestartRoot: string | undefined;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...(nativeAccount ? {} : process.env),
     ...childEnvironment,
     ...(originFixture
       ? {
@@ -1988,10 +2017,13 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
           ),
         }
       : {}),
-    PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
-    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(output, "application-updates.json"),
-    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(output, "application-update-schedule.json"),
-    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(output, "application-update-state"),
+    PORTCOVE_PREFERENCES: path.join(runtimeRoot, "preferences.json"),
+    PORTCOVE_APPLICATION_UPDATE_PREFERENCES: path.join(runtimeRoot, "application-updates.json"),
+    PORTCOVE_APPLICATION_UPDATE_SCHEDULE: path.join(
+      runtimeRoot,
+      "application-update-schedule.json",
+    ),
+    PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtimeRoot, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
   };
   if (externalBrowser) {
@@ -2041,6 +2073,15 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       { beforeLaunch: admission.assertReady },
     );
     driver = linuxLaunch.child;
+  } else if (nativeAccount) {
+    admission.assertReady();
+    ownedSession.beginLaunch();
+    driver = nativeAccount.start(
+      driverPath,
+      arguments_,
+      runtimeRoot,
+      driverEnvironment(childEnvironment),
+    );
   } else {
     admission.assertReady();
     ownedSession.beginLaunch();
@@ -2052,9 +2093,11 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     });
   }
   let spawnError: Error | undefined;
-  driver.on("error", (error) => {
-    spawnError = error;
-  });
+  if (!(driver instanceof AccountDriverView)) {
+    driver.on("error", (error) => {
+      spawnError = error;
+    });
+  }
   for (const stream of [driver.stdout, driver.stderr])
     stream.on("data", (chunk: Buffer) => {
       driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
@@ -2095,10 +2138,12 @@ async function captureSelectedDriverLaunch(launchStarted: number) {
   if (linuxSelectedSession) return;
   if (!identityBoundSession) return;
   const child = required(driver);
-  await new Promise<void>((resolve, reject) => {
-    child.once("spawn", resolve);
-    child.once("error", reject);
-  });
+  if (!(child instanceof AccountDriverView)) {
+    await new Promise<void>((resolve, reject) => {
+      child.once("spawn", resolve);
+      child.once("error", reject);
+    });
+  }
   captureBackupFocusDriverLaunch(launchStarted);
 }
 
@@ -3948,7 +3993,7 @@ try {
 
     await captureApplicationUpdateSettingsComparison();
 
-    await writeFile(path.join(output, "application-update-schedule.json"), "not-json\n", {
+    await writeFile(path.join(runtimeRoot, "application-update-schedule.json"), "not-json\n", {
       flag: "wx",
     });
     await browser
@@ -3981,7 +4026,7 @@ try {
     );
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
 
-    await writeFile(path.join(output, "application-updates.json"), "not-json\n");
+    await writeFile(path.join(runtimeRoot, "application-updates.json"), "not-json\n");
     await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
@@ -4227,7 +4272,7 @@ try {
     );
     assert.deepEqual(success(await invoke("get_locale_preference")), { locale: "en" });
 
-    const preferencePath = path.join(output, "preferences.json");
+    const preferencePath = path.join(runtimeRoot, "preferences.json");
     const savedPreferences = await readFile(preferencePath);
     try {
       await writeFile(preferencePath, "not-json\n");

@@ -9,6 +9,8 @@ param(
     [string]$EvidencePath,
     [string]$NormalPackageManifestPath,
     [string]$NormalPackageAdmissionPath,
+    [string]$NativeAccountBindingPath,
+    [string]$NativeAccountBindingSha256,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -34,6 +36,32 @@ param(
 $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
+$nativeAccount = $null
+if ($NativeAccountBindingPath -or $NativeAccountBindingSha256) {
+    if (-not $NativeAccountBindingPath -or $NativeAccountBindingSha256 -cnotmatch '^[a-f0-9]{64}$' -or
+        -not $EvidencePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath) {
+        throw 'Isolated native qualification requires exact binding, external evidence and no private signing inputs'
+    }
+    Import-Module (Join-Path $PSScriptRoot 'native-qualification-account-adapter.psm1') -Force
+    $nativeAccount = Open-PortcoveNativeAccountSession $NativeAccountBindingPath $NativeAccountBindingSha256
+    # This mode never substitutes the owner registry or launches an unsupported
+    # candidate in the owner account. The complete renderer/update adapter must
+    # supply its own public signed-context route before those modes are usable.
+    if ($RendererUpdate -or $InstalledUpdateTrustedRootPath -or $NormalPackageManifestPath) {
+        throw 'Selected account route does not yet qualify renderer/update/ordinary-manifest modes'
+    }
+    if (-not $TestBase -or -not [IO.Path]::GetFullPath($TestBase).StartsWith(
+            [IO.Path]::GetFullPath($nativeAccount.binding.work_root).TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Isolated installer TestBase must be below the qualification work root'
+    }
+    $nativeCapturePrefix=[IO.Path]::GetFullPath($nativeAccount.binding.capture_root).TrimEnd('\') + '\'
+    if (-not [IO.Path]::GetFullPath($EvidencePath).StartsWith($nativeCapturePrefix,[StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Isolated installer evidence must be in owner-only capture storage'
+    }
+}
+$nativeFailure=$null
+try {
+if ($nativeAccount) { $null=Start-PortcoveNativeProfileKeeper $nativeAccount }
 
 if ([string]::IsNullOrWhiteSpace($TestBase)) {
     $storageJson = & node (Join-Path $PSScriptRoot "dev-storage.mts") preflight --json
@@ -43,8 +71,9 @@ if ([string]::IsNullOrWhiteSpace($TestBase)) {
 }
 
 function Get-UninstallEntries([string]$InstallLocation) {
+    $userRegistry = if ($nativeAccount) { Get-PortcoveNativeRegistryRoot $nativeAccount } else { 'HKCU:' }
     $roots = @(
-        "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "$userRegistry\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     )
@@ -141,7 +170,8 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
     }
     finally {
         if (-not $process.HasExited) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            if ($nativeAccount) { $process.Kill($true) }
+            else { Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue }
             $launch.run.status = "forced_termination"
             $launch.run.exit_observation = "Installer smoke cleanup forced the process to stop"
             Write-InstallerEvidence $evidence.phase
@@ -357,8 +387,9 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
 }
 
 function Get-WebDriverHostBaseline([string]$RepositoryRoot = (Join-Path $PSScriptRoot "..")) {
+    $userRegistry = if ($nativeAccount) { Get-PortcoveNativeRegistryRoot $nativeAccount } else { 'HKCU:' }
     $registryPaths = @(
-        "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*",
+        "$userRegistry\Software\Microsoft\EdgeUpdate\Clients\*",
         "HKLM:\Software\Microsoft\EdgeUpdate\Clients\*",
         "HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*"
     )
@@ -477,7 +508,17 @@ function Start-JournaledProcess([string]$Role, [string]$Executable, [object[]]$A
     $outputTask = $null
     $errorTask = $null
     if ($evidence) { $evidence.process_runs += $run; Write-InstallerEvidence $evidence.phase }
-    if ($Role -in @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
+    if ($nativeAccount) {
+        $nativeId='installer-' + $run.id
+        $runtime=@{ PORTCOVE_LIBRARY=$libraryRoot }
+        $identity=Start-PortcoveNativeAccountRoot -Session $nativeAccount -Id $nativeId -Executable $exact `
+            -Arguments ([string[]]$Arguments) -Directory $runRoot -Runtime $runtime -TemporaryRoot $runRoot -Nsis:($Role -match 'installer$')
+        $process=New-PortcoveNativeProcessProxy $nativeAccount $nativeId $identity
+        $run.native_root_id=$nativeId
+        $run.native_invocation_id=$nativeAccount.binding.invocation_id
+        $run.output_capture=Join-Path $nativeAccount.binding.capture_root ($nativeId + '.stdout.bin')
+        $run.error_capture=Join-Path $nativeAccount.binding.capture_root ($nativeId + '.stderr.bin')
+    } elseif ($Role -in @("predecessor_smoke", "candidate_smoke", "installed_update_helper", "installed_update_selection_stage", "installed_update_truncated_stage", "installed_update_tampered_stage",
             "installed_update_recovery_status", "installed_update_recovery_repair", "installed_update_recovery_verified")) {
         $outputName = if ($Role -eq "installed_update_helper") { "installed-update-helper" }
             elseif ($recoveryCommand) { "$($Role.Replace('_', '-'))-stage" }
@@ -611,6 +652,35 @@ function Read-UninstallerChildImage($Process, $Child, [DateTime]$Deadline) {
 }
 
 function Wait-JournaledUninstallerChild($ParentRun, [string]$TemporaryRoot, [DateTime]$Deadline) {
+    if ($nativeAccount) {
+        # The nested broker job owns the entire NSIS self-copy tree, even after
+        # its initial root exits. A recyclable parent PID is not ownership.
+        do {
+            $observation=Invoke-PortcoveNativeAccountCommand $nativeAccount observe $ParentRun.native_root_id
+            foreach ($child in @($observation.processes)) {
+                $exact=[IO.Path]::GetFullPath($child.path)
+                if (-not $exact.StartsWith([IO.Path]::GetFullPath($TemporaryRoot).TrimEnd('\') + '\',[StringComparison]::OrdinalIgnoreCase)) {
+                    throw 'Isolated NSIS child escaped its owned temporary root'
+                }
+                Assert-NoReparseAncestry $exact
+                if ((Get-FileHash -LiteralPath $exact -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ParentRun.executable_sha256) {
+                    throw 'Isolated NSIS child is not the exact self-copy'
+                }
+            }
+            if (@($observation.processes).Count -eq 0) {
+                $teardown=Invoke-PortcoveNativeAccountCommand $nativeAccount readback $ParentRun.native_root_id
+                if ($teardown.root_pid -ne $ParentRun.pid -or $teardown.root_created_filetime -cne [string]$ParentRun.start_time_filetime -or
+                    -not $teardown.root_exited -or -not $teardown.job_empty -or @($teardown.remaining_pids).Count -ne 0) {
+                    throw 'Isolated NSIS teardown lacks exact-root positive readback'
+                }
+                $ParentRun.native_teardown=$teardown
+                if ($evidence) { Write-InstallerEvidence $evidence.phase }
+                return
+            }
+            if ([DateTime]::UtcNow -ge $Deadline) { throw 'Isolated NSIS self-copy exceeded its operation deadline' }
+            Start-Sleep -Milliseconds 25
+        } while ($true)
+    }
     # NSIS's initial process starts an exact temporary self-copy and exits.
     # Its launcher's exit code does not establish completion of that child.
     $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $($ParentRun.pid)" -OperationTimeoutSec 2)
@@ -1266,6 +1336,32 @@ try {
         Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
     }
 
+    $isolatedAccountBoundary=$null
+    if ($nativeAccount) {
+        # Exercise the maintained ordinary client before uninstalling its actual
+        # installed image. Every driver/application/WebView root uses the same
+        # broker group; the owner-side Node harness remains assertion-only.
+        $accountDesktopOutput=Join-Path $evidenceParent 'isolated-account-desktop'
+        $oldBinding=[Environment]::GetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING','Process')
+        $oldBindingSha=[Environment]::GetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256','Process')
+        try {
+            $env:PORTCOVE_NATIVE_ACCOUNT_BINDING=[IO.Path]::GetFullPath($NativeAccountBindingPath)
+            $env:PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256=$NativeAccountBindingSha256
+            $accountNode=$nativeAccount.binding.desktop_tools.node
+            if ((Get-FileHash -LiteralPath $accountNode.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $accountNode.sha256) { throw 'Qualified desktop assertion runtime changed' }
+            & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-test.mts') `
+                --app $application --output $accountDesktopOutput --scenario empty-library --port 45874
+            if ($LASTEXITCODE -ne 0) { throw 'Isolated installed ordinary-client observation failed' }
+            $isolatedAccountBoundary=[ordered]@{ output=$accountDesktopOutput; installed_executable_path=$application;
+                installed_executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
+                native_invocation_id=$nativeAccount.binding.invocation_id; acceptance='not-established; parent stage capture is separate' }
+            Write-InstallerEvidence 'isolated_account_desktop_complete' $isolatedAccountBoundary
+        } finally {
+            [Environment]::SetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING',$oldBinding,'Process')
+            [Environment]::SetEnvironmentVariable('PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256',$oldBindingSha,'Process')
+        }
+    }
+
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -1345,6 +1441,7 @@ try {
         preservation_manifest_before_uninstall = $beforeUninstallManifest
         preservation_manifest_after_uninstall = $afterUninstallManifest
         current_installed_boundary = $normalBoundary
+        isolated_account_boundary = $isolatedAccountBoundary
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress
@@ -1365,7 +1462,7 @@ finally {
         else { [System.Environment]::SetEnvironmentVariable($name, $previousTemp[$name], "Process") }
     }
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $previousLibrary, "Process")
-    if ($completed -and [System.IO.Directory]::Exists($runRoot)) {
+    if ($completed -and -not $nativeAccount -and [System.IO.Directory]::Exists($runRoot)) {
         $resolvedRunRoot = (Resolve-Path -LiteralPath $runRoot).Path
         if (-not $resolvedRunRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
             throw "Refusing to clean a test directory outside TestBase"
@@ -1374,5 +1471,17 @@ finally {
     }
     elseif (-not $completed) {
         Write-Warning "Installer test evidence was preserved at $runRoot"
+    }
+}
+} catch { $nativeFailure=$_; throw }
+finally {
+    if ($nativeAccount) {
+        try {
+            $settlement=Invoke-PortcoveNativeAccountCommand $nativeAccount finish 'installer-stage-finish'
+            if ($settlement.group_empty -isnot [bool] -or -not $settlement.group_empty) { throw 'Isolated installer group settlement is incomplete' }
+        } catch {
+            if ($nativeFailure) { Write-Warning ('Isolated installer cleanup also failed: ' + $_.Exception.Message) }
+            else { throw }
+        }
     }
 }

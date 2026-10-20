@@ -25,6 +25,7 @@ export const nativeHelperDependencies: NativeHelperRegistry = Object.freeze(
         ],
         ["native-linux-folder-picker.py", []],
         ["desktop-owned-native-session.mts", ["native-session.ps1"]],
+        ["desktop-native-account-session.mts", ["desktop-owned-native-session.mts"]],
         ["desktop-linux-native-session.mts", ["native-linux-init.mts"]],
         ["desktop-linux-webkit-inspector.mts", []],
         ["native-linux-init.mts", []],
@@ -42,6 +43,9 @@ export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mts"
 // Shared repository launcher boundary, captured but not recursively classified as
 // a native helper graph. All other non-builtin imports must be declared helpers.
 export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
+  [helper("desktop-native-account-session.mts")]: Object.freeze([
+    "../../../scripts/native-qualification-account-client.mts",
+  ]),
   [helper("desktop-linux-native-session.mts")]: Object.freeze([
     "../../../scripts/runtime-values.mts",
   ]),
@@ -55,6 +59,8 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
 });
 export const nativeHelperSharedSources = Object.freeze([
   "apps/desktop/test/capture-target.ts",
+  "scripts/native-qualification-account-client.ps1",
+  "scripts/native-qualification-account.cs.txt",
   // Launcher and admission code is already loaded when prelaunch capture begins.
   // These are trusted verifier/reproduction observations, never proof that a
   // retained copy was the immutable module consumed by the target process.
@@ -87,6 +93,7 @@ export const nativeHelperRoots = Object.freeze(
   [
     "desktop-native-confirmation.mts",
     "desktop-owned-native-session.mts",
+    "desktop-native-account-session.mts",
     "desktop-linux-native-session.mts",
     "desktop-linux-webkit-inspector.mts",
     "desktop-startup-observation.mts",
