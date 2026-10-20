@@ -69,7 +69,7 @@ for (const theme of ["dark", "light"]) {
       </LocalizationProvider>,
     );
     const origin = page.getByRole("button", {
-      name: "View details for Orchard Quest",
+      name: "View details for Orchard Quest Port: Orchard Quest",
       exact: true,
     });
     await expect.element(origin).toBeVisible();

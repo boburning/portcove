@@ -50,7 +50,9 @@ it("retains a session-only layout through the real details unmount and return", 
   await mount("dark");
   await page.getByRole("button", { name: "Compact rows", exact: true }).click();
   expect(localStorage.getItem(key)).toBeNull();
-  await page.getByRole("button", { name: /^View details for Super Mario 64 · sm64-port$/ }).click();
+  await page
+    .getByRole("button", { name: /^View details for Super Mario 64 Port: sm64-port$/ })
+    .click();
   expect(document.querySelector(".collection-rows")).toBeNull();
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
   await expect
@@ -80,6 +82,21 @@ for (const theme of ["dark", "light"]) {
       "Complete Edition",
     );
     expect(document.querySelector("button button, button a, a button")).toBeNull();
+    // Speech input must be able to use the full visible identity and action label.
+    for (const entry of entries) {
+      const identity = entry.querySelector<HTMLButtonElement>(".collection-identity")!;
+      const visibleIdentity = [".collection-title", ".collection-project"]
+        .map((selector) => entry.querySelector(selector)!.textContent.trim())
+        .join(" ");
+      expect(identity.getAttribute("aria-label")).toContain(visibleIdentity);
+      for (const action of entry.querySelectorAll<HTMLButtonElement>(
+        ".collection-actions button[data-detail-origin$=':review']",
+      )) {
+        const visibleAction = action.textContent.trim();
+        expect(visibleAction).toBe("Review game");
+        expect(action.getAttribute("aria-label")).toContain(visibleAction);
+      }
+    }
     await expect
       .poll(() => document.querySelectorAll(".collection-art img").length)
       .toBeGreaterThan(2);
@@ -117,7 +134,7 @@ for (const theme of ["dark", "light"]) {
       .fill("Super Mario 64");
     await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(2);
     await page
-      .getByRole("button", { name: /^View details for Super Mario 64 · sm64-port$/ })
+      .getByRole("button", { name: /^View details for Super Mario 64 Port: sm64-port$/ })
       .click();
     await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await expect

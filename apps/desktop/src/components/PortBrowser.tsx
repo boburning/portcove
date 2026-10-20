@@ -1012,7 +1012,7 @@ function LibraryEntry({
           controlFocus,
           "collection-identity cursor-pointer text-start hover:text-pc-interactive-foreground",
         )}
-        aria-label={`View details for ${gameIdentityLabel(port)}`}
+        aria-label={`View details for ${gameTitle(port)} Port: ${gameProjectLabel(port) ?? port.name}`}
         aria-describedby={input ? setupDescriptionId : undefined}
         data-detail-game-id={port.id}
         data-detail-origin={detailOrigin}
@@ -1315,7 +1315,7 @@ function PortCardStatus({
               variant="outline"
               size="sm"
               className="flex-1"
-              aria-label={`Review ${gameIdentityLabel(port)}`}
+              aria-label={`Review game: ${gameIdentityLabel(port)}`}
               aria-describedby={inputDescriptionId}
               data-detail-origin={reviewOrigin}
               onClick={() => onSelect(port.id, reviewOrigin)}
