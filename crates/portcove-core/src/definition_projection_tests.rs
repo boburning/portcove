@@ -87,7 +87,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     } else if typed.managed_initialization.is_some() {
         12
     } else if typed.windows_runtime_path_policy.is_some() {
-        11
+        crate::runtime_path_policy::minimum_capability(&typed)
     } else if let Some(minimum) = typed
         .release
         .user_prepared

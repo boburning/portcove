@@ -2865,7 +2865,7 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 2);
+        assert_eq!(prepared.len(), 3);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
         assert!(
             !prepared

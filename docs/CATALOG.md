@@ -633,6 +633,18 @@ sandbox or ownership of those external files. Four-input Advance Wars and
 EarthBound storage identities remain unchanged. Capability 14 does not imply
 catalog admission, actual offered-operation acceptance or protected delivery.
 
+Staged-source version 17 extends the printable-ASCII/MAX_PATH policy to a
+Windows-only user-prepared runtime with a positional original-file argument.
+The complete retained definition must require capability 17; managed version 11
+keeps its existing meaning. Registration and folder changes check the canonical
+executable and actual working directory. Readiness and launch also check the
+selected registered original or source override, because these runtimes receive
+that external path directly. Launch repeats the checks before child creation and
+refuses caller-supplied arguments. Shared-preferences variants are outside this
+narrow combination. This adds no acquisition, modification, backup or removal
+authority over the external runtime or original files, and implies no particular
+port's admission or actual operation acceptance.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and

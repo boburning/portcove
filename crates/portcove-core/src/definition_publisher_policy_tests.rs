@@ -1986,9 +1986,15 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // installer start, just beyond this case's 5s setup latch. Give only this
     // exact intervention 15s, retaining the same starting point, incomplete-copy
     // barrier, worker drain, refusal assertions and outer 30s safeguard.
+    // Windows CI 39412944222/a1: PolicyLoss reached the first actual copy 5.054s
+    // after installer start, beyond its 5s fixture latch. Give this exact setup
+    // wait the same finite 15s headroom; preserve every intervention/drain check
+    // and the unchanged 30s whole-case safeguard.
     let latch_timeout = if cfg!(target_os = "windows")
-        && matches!(intervention, CacheIntervention::ArtifactWithdrawalRetain)
-    {
+        && matches!(
+            intervention,
+            CacheIntervention::ArtifactWithdrawalRetain | CacheIntervention::PolicyLoss
+        ) {
         Duration::from_secs(15)
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64"))
         && matches!(

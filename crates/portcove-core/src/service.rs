@@ -1612,6 +1612,35 @@ impl PortcoveService {
         }) {
             blockers.push(LaunchBlocker::MissingRuntime);
         }
+        if let Some(record) = status.external_runtime.as_ref() {
+            if Self::check_external_runtime_paths(
+                port,
+                record.platform,
+                &record.path,
+                &record.executable,
+            )
+            .is_err()
+            {
+                blockers.push(LaunchBlocker::MissingRuntime);
+            }
+            if required_source_extension.is_some()
+                && port
+                    .source_profile
+                    .as_ref()
+                    .and_then(|profile| registered_sources.get(profile))
+                    .is_some_and(|source| {
+                        crate::runtime_path_policy::check_prepared_path(
+                            port,
+                            record.platform,
+                            &source.path,
+                        )
+                        .is_err()
+                    })
+                && !blockers.contains(&LaunchBlocker::IncompatibleSource)
+            {
+                blockers.push(LaunchBlocker::IncompatibleSource);
+            }
+        }
         let pending_setup = status.active.as_ref().is_some_and(|active| {
             if crate::preparation::managed_install(port, active) {
                 let source = port
@@ -3893,6 +3922,12 @@ impl PortcoveService {
             checkpoint,
         )?;
         crate::external_runtime::shared_preferences::check_runtime_path(spec, &inspected.root)?;
+        Self::check_external_runtime_paths(
+            port,
+            Platform::current()?,
+            &inspected.root,
+            &inspected.executable,
+        )?;
         let shared_preferences =
             crate::external_runtime::shared_preferences::inspect(spec, &inspected.root)?;
         let identity = (
@@ -3918,6 +3953,30 @@ impl PortcoveService {
             preview_sha256,
             shared_preferences,
         })
+    }
+
+    fn check_external_runtime_paths(
+        port: &PortDefinition,
+        platform: Platform,
+        root: &Path,
+        executable: &Path,
+    ) -> Result<()> {
+        if port.windows_runtime_path_policy.is_none() {
+            return Ok(());
+        }
+        crate::runtime_path_policy::check_executable(port, platform, executable)?;
+        crate::runtime_path_policy::check_prepared_path(port, platform, executable)?;
+        let directory = if port.runtime_subdirectory.is_some() {
+            crate::adapter::launch_working_directory(port.adapter, port, root, executable)?
+        } else {
+            root.to_path_buf()
+        };
+        crate::runtime_path_policy::check_working_directory(port, platform, &directory)?;
+        crate::runtime_path_policy::check_prepared_path(
+            port,
+            platform,
+            &directory.join(".snesrecomp_write_probe"),
+        )
     }
 
     pub fn authorize_external_runtime(
@@ -4293,6 +4352,13 @@ impl PortcoveService {
             // Release it before publishing subsequent session database writes.
             let mut spawn = || {
                 if let Some((record, retained_catalog)) = external.as_ref() {
+                    crate::runtime_path_policy::check_prepared_launch(
+                        retained_catalog.port(&record.port_id)?,
+                        record.platform,
+                        &spec.executable,
+                        &spec.working_directory,
+                        &spec.arguments,
+                    )?;
                     let accepted = retained_catalog
                         .port(&record.port_id)?
                         .release
@@ -4753,6 +4819,12 @@ impl PortcoveService {
                 "external runtime path changed since registration",
             ));
         }
+        Self::check_external_runtime_paths(
+            retained_port,
+            platform,
+            &inspected.root,
+            &inspected.executable,
+        )?;
         self.require_definition_identity(
             record.retained_definition.as_ref(),
             DefinitionOperationContext::observed(DefinitionOperation::Launch, true, true),
@@ -4775,6 +4847,11 @@ impl PortcoveService {
                 (&record.version, &record.archive_sha256),
             )?;
             if let Some(extension) = spec.source_argument_extension.as_deref() {
+                crate::runtime_path_policy::check_prepared_path(
+                    retained_port,
+                    platform,
+                    &source.path,
+                )?;
                 crate::external_runtime::shared_preferences::check_runtime_path(
                     spec,
                     &source.path,
@@ -4821,6 +4898,13 @@ impl PortcoveService {
         } else {
             record.path.clone()
         };
+        crate::runtime_path_policy::check_prepared_launch(
+            retained_port,
+            platform,
+            &record.executable,
+            &working_directory,
+            &arguments,
+        )?;
         let mut environment = retained_port.launch_environment.clone();
         if spec.library_user_data {
             let variable = retained_port
@@ -4842,7 +4926,8 @@ impl PortcoveService {
         operation.checkpoint()?;
         Ok(crate::LaunchSpec {
             fixed_arguments_only: spec.shared_preferences
-                == Some(crate::PreparedSharedPreferencesContract::Smb1r11Windows),
+                == Some(crate::PreparedSharedPreferencesContract::Smb1r11Windows)
+                || retained_port.windows_runtime_path_policy.is_some(),
             executable: record.executable.clone(),
             install_root: record.path.clone(),
             working_directory,
@@ -10691,6 +10776,128 @@ fn main() {
             None,
             &OperationCoordinator::new("launch", None),
         )
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn prepared_windows_paths_retain_refusals_for_registration_source_override_and_relink() {
+        let (temporary, mut service, previous) = external_location_fixture();
+        let removal = service.preview_external_removal(&previous.port_id).unwrap();
+        let authorization = service
+            .authorize_external_removal(&previous.port_id, &removal.preview_sha256)
+            .unwrap();
+        service
+            .remove_external_runtime(&previous.port_id, &authorization.token)
+            .unwrap();
+        let mut runtime = service
+            .catalog()
+            .port(&previous.port_id)
+            .unwrap()
+            .release
+            .user_prepared[&previous.platform]
+            .clone();
+        runtime.source_argument_extension = Some("sfc".into());
+        let mut document =
+            external_location_catalog(previous.platform, runtime).authoritative_document();
+        document.ports[0].adapter = AdapterKind::StagedSourcePortable;
+        document.ports[0].windows_runtime_path_policy =
+            Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+        let accepted_catalog =
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        service.replace_catalog_for_test(accepted_catalog.clone());
+        let mut missing_directory = document.clone();
+        missing_directory.ports[0].runtime_subdirectory = Some("missing".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&missing_directory).unwrap()).unwrap(),
+        );
+        let missing = service
+            .preview_external_runtime(&previous.port_id, &previous.path)
+            .unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::Launch);
+        assert!(missing.message.contains("runtime subdirectory missing"));
+        assert!(!service.library.user_dir(&previous.port_id).exists());
+        service.replace_catalog_for_test(accepted_catalog.clone());
+        let lossy = temporary.path().join("runtime-ゲーム");
+        fs::create_dir(&lossy).unwrap();
+        fs::write(lossy.join("Game.exe"), b"accepted runtime").unwrap();
+        assert!(
+            service
+                .preview_external_runtime(&previous.port_id, &lossy)
+                .is_err()
+        );
+        assert!(
+            service
+                .library
+                .external_runtime_with_port(&previous.port_id)
+                .unwrap()
+                .is_none()
+        );
+        let preview = service
+            .preview_external_runtime(&previous.port_id, &previous.path)
+            .unwrap();
+        let token = service
+            .authorize_external_runtime(&previous.port_id, &previous.path, &preview.preview_sha256)
+            .unwrap();
+        let record = service
+            .register_external_runtime(&previous.port_id, &previous.path, &token.token)
+            .unwrap();
+        let original = temporary.path().join("original.sfc");
+        fs::write(&original, b"inert source; never executed").unwrap();
+        service
+            .register_source("external-location-source", &original)
+            .unwrap();
+        let launch = prepare_external_location_fixture_launch(&service, &record).unwrap();
+        assert!(launch.fixed_arguments_only);
+        assert!(
+            service
+                .status(&record.port_id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .launchable
+        );
+        let lossy_source = temporary.path().join("original-ゲーム.sfc");
+        fs::copy(&original, &lossy_source).unwrap();
+        service
+            .register_source("external-location-source", &lossy_source)
+            .unwrap();
+        // Current catalog drift cannot erase the registered runtime's restriction.
+        document.ports[0].windows_runtime_path_policy = None;
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap(),
+        );
+        assert!(
+            !service
+                .status(&record.port_id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .launchable
+        );
+        assert!(prepare_external_location_fixture_launch(&service, &record).is_err());
+        assert!(
+            service
+                .prepare_launch_for_external(
+                    &record,
+                    &accepted_catalog,
+                    Some(&lossy_source),
+                    &OperationCoordinator::new("launch", None)
+                )
+                .is_err()
+        );
+        assert!(
+            service
+                .preview_external_runtime_relink(&record.port_id, &lossy)
+                .is_err()
+        );
+        assert_eq!(
+            fs::read(&original).unwrap(),
+            b"inert source; never executed"
+        );
+        assert_eq!(
+            fs::read(lossy.join("Game.exe")).unwrap(),
+            b"accepted runtime"
+        );
     }
 
     #[test]

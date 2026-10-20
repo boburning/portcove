@@ -174,7 +174,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         } else if port.managed_initialization.is_some() {
             12
         } else if port.windows_runtime_path_policy.is_some() {
-            11
+            crate::runtime_path_policy::minimum_capability(port)
         } else if let Some(minimum) = port
             .release
             .user_prepared
@@ -480,6 +480,27 @@ fn historical_prepared_catalog() -> crate::Catalog {
         "../tests/fixtures/dkc3-006-prepared-historical.json"
     ))
     .unwrap()
+}
+
+#[test]
+fn prepared_windows_path_semantics_refuse_pre_v17_envelopes() {
+    let mut port = historical_prepared_catalog()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    port.platforms = vec![crate::Platform::WindowsX86_64];
+    port.release
+        .user_prepared
+        .retain(|platform, _| *platform == crate::Platform::WindowsX86_64);
+    port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(17);
+    for version in [1, 11, 14, 15, 16] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(17);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
 #[test]
