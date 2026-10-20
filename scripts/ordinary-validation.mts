@@ -483,6 +483,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mts"]],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
   [
+    "scripts/native-qualification-account.cs.txt",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
     "crates/portcove-core/catalog/catalog-current-authoring.json",
     ["scripts/generate-catalog.test.mts"],
   ],
