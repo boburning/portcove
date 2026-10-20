@@ -2439,6 +2439,30 @@ and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
 `dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
 A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
+Staged-source v11 adds the fixed Render96 US source recipe in
+[`render96_build`](../crates/portcove-core/src/render96_build.rs). Its three
+authenticated inputs reuse cartridge acquisition, private install workers,
+supervised tools, cancellation drain, immutable receipts and publication/recovery.
+The internal archive collection supports three inputs without changing earlier
+four-input storage identities. A private closed Make environment uses the pinned
+toolchain, shell, Python and SDL2 SDK; catalogue data cannot supply commands.
+Core bounds original-asset extraction to 32 assets, texture generation to 16
+targets, sound conversion to eight samples, and compilation to eight objects per
+supervised invocation. Audio-library compilation has its own complete diagnostic
+phase. The fixed
+309-object plan is verified before link. Core copies the stock resource layout
+directly, avoiding upstream's oversized Windows shell command for its resource
+list. Build work never launches the game.
+
+The recipe accepts only the exact raw USA N64 original, reuses bounded byte-order
+normalization, and verifies canonical bytes separately from stored bytes. ZIP
+inputs receive extraction/registration guidance before any parser runs. Runtime
+launch fixes the root working directory and `--savepath !`, refuses forwarded
+arguments and inherited `SDL_DYNAMIC_API`, and permits only the two exact root
+save/config files. `res`, executable inputs, DLLs and TAS input names remain
+immutable. Recipe implementation, managed producer proof, runtime operation
+acceptance and protected production delivery remain separate evidence scopes.
+
 ### Setup configuration dispositions
 
 The seven `AdapterKind` families retain catalog data and existing generic

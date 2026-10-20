@@ -101,6 +101,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
             crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
             crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
             | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
+            crate::CartridgeBuildRecipe::Render96UsSourceV1 => 11,
         })
         .max()
     {

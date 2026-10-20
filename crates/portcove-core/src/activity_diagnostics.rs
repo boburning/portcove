@@ -12,6 +12,15 @@ use crate::{Library, PortcoveError, Result, redact_diagnostic_text};
 const STREAM_LIMIT: usize = 2 * 1024 * 1024;
 const RETAINED_LIMIT: i64 = 64 * 1024 * 1024;
 
+pub(crate) fn require_managed_install_phase(phase: &str, port_id: &str) -> Result<()> {
+    if !phase.starts_with("install.cartridge.") || port_id.is_empty() {
+        return Err(PortcoveError::conflict(
+            "managed-install diagnostics require their owned compiler phase and port",
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
 struct DiagnosticWorkCounts {
@@ -226,11 +235,7 @@ impl Library {
         capture: &ActivityDiagnostic,
         port_id: &str,
     ) -> Result<()> {
-        if !capture.phase.starts_with("install.cartridge.") || port_id.is_empty() {
-            return Err(PortcoveError::conflict(
-                "managed-install diagnostics require their owned compiler phase and port",
-            ));
-        }
+        require_managed_install_phase(&capture.phase, port_id)?;
         self.record_diagnostic_for_activity(capture, RETAINED_LIMIT, Some(port_id))
     }
 
