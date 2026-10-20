@@ -5,12 +5,35 @@ import {
   verifyAssemblerJobIdentity,
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
+  verifyPayloadSignerJobIdentity,
 } from "./assembler-job-identity.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   expected,
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
+  const f = fixture(
+    {},
+    {},
+    { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+  );
+  const result = await verifyPayloadSignerJobIdentity(f.token, expected, f);
+  assert.equal(result.job_id, 501);
+  assert.equal(result.check_run_id, "777");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.authority, "none");
+  const assembler = fixture();
+  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, expected, assembler));
+  const nameOnly = fixture(
+    {},
+    {},
+    { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+  );
+  nameOnly.faults.value = "name-only";
+  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, expected, nameOnly));
+});
 
 void test("signed check-run identity resolves the independent numeric job through complete attempt pages", async () => {
   const f = fixture();

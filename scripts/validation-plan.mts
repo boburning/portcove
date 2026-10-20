@@ -243,6 +243,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "docs/SIGNED-CATALOG.md",
   "docs/UPGRADING.md",
   "docs/qualification/application-update-production.aggregate.yml",
+  "docs/qualification/application-update-production.payload-signing.yml",
   "docs/qualification/slice4-production-authorization-packet-2026-10-18.md",
   "scripts/check-release-metadata.mts",
   "scripts/controller-canary.mts",
@@ -311,6 +312,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/test-linux-package-ownership.sh",
   "scripts/test-windows-installer.ps1",
   "scripts/updater-artifact-inventory.mts",
+  "scripts/release-payload-signing.mts",
+  "scripts/release-payload-preparation.mts",
   "scripts/verify-macos-release.ps1",
   "scripts/windows-qualification-session.ps1",
   "scripts/windows-qualification-session.integration.test.mts",
@@ -398,7 +401,9 @@ function classifyPath(file: string): PathOwnership {
     add(groups, ...selectedGroups);
     reasons.push(reason);
   };
-  const documentation = file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile;
+  const documentation =
+    (file.endsWith(".md") || file.startsWith("docs/") || inertGithubFile) &&
+    !(releaseSecurity && /\.ya?ml$/u.test(file));
   const rust = file.startsWith("crates/") || file.startsWith("apps/desktop/src-tauri/");
   const rootRust = [
     "Cargo.toml",
