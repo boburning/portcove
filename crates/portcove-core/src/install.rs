@@ -654,8 +654,7 @@ impl Installer {
             None => self.library.load_catalog()?.0,
         };
         if request.qualification.runtime_data_policy.is_some()
-            || request.release.asset.sha256
-                == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+            || crate::runtime_data_policy::known_artifact(&request.release.asset.sha256)
         {
             if request.qualification.retained_contract.is_none()
                 || request.qualification.runtime_data_policy
@@ -2792,6 +2791,59 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    #[tokio::test]
+    async fn uppercase_racewave_without_policy_refuses_before_contact_or_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        server.set_nonblocking(true).unwrap();
+        let output = library.versions_dir().join("sample");
+        let installer = Installer::with_network_bounds(
+            library.clone(),
+            Duration::from_millis(200),
+            Duration::from_millis(200),
+        )
+        .unwrap();
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: output.clone(),
+            activate: false,
+            managed: None,
+            qualification: InstallQualification::test("game.exe"),
+            release: ResolvedRelease {
+                version: "v1.0.0".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
+                    size: 35_768_574,
+                    sha256: "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                        .to_uppercase(),
+                    url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
+                },
+            },
+        };
+        let failure = installer
+            .install(
+                request,
+                &OperationCoordinator::new("uppercase-credential-fence", None),
+                |_| {},
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            failure.message.contains("actual reviewed RaceWave46"),
+            "{failure}"
+        );
+        assert_eq!(
+            server.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(!output.exists());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
 
     #[tokio::test]
     async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {

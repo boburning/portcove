@@ -7,14 +7,19 @@ use std::{
 };
 
 const CREDENTIAL: &str = "retroachievements.credentials";
+pub(crate) fn known_artifact(sha256: &str) -> bool {
+    sha256.eq_ignore_ascii_case("f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+}
 pub(crate) const NOTICE: &str = "Saves and settings are preserved. RetroAchievements sign-in stays with each installed version and is excluded from backups. Sign in again after installing another version.";
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.runtime_data_policy.is_none() {
         if port.release.provider == crate::ReleaseSource::DirectManifest
-            && port.release.direct.values().any(|release| {
-                release.sha256 == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-            })
+            && port
+                .release
+                .direct
+                .values()
+                .any(|release| known_artifact(&release.sha256))
         {
             return Err(PortcoveError::usage(
                 "managed RaceWave46 requires its version-local credential policy",
@@ -92,9 +97,7 @@ pub(crate) fn require_artifact(
     platform: Option<crate::Platform>,
 ) -> Result<()> {
     validate(port)?;
-    if port.runtime_data_policy.is_some()
-        || artifact.sha256 == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-    {
+    if port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256) {
         if port.runtime_data_policy.is_none()
             || platform != Some(crate::Platform::WindowsX86_64)
             || version != "v1.0.0"
@@ -552,6 +555,46 @@ mod tests {
             .port("wave-race-64-racewave46")
             .unwrap()
             .clone()
+    }
+
+    #[test]
+    fn uppercase_known_digest_cannot_drop_the_credential_policy() {
+        let mut definition = port();
+        definition.runtime_data_policy = None;
+        definition
+            .release
+            .direct
+            .get_mut(&crate::Platform::WindowsX86_64)
+            .unwrap()
+            .sha256
+            .make_ascii_uppercase();
+        assert!(
+            validate(&definition)
+                .unwrap_err()
+                .message
+                .contains("requires its version-local credential policy")
+        );
+        let historical = crate::Catalog::from_json(include_str!(
+            "../tests/fixtures/racewave46-100-prepared-historical.json"
+        ))
+        .unwrap();
+        let no_policy = historical.port(&definition.id).unwrap();
+        assert!(
+            require_artifact(
+                no_policy,
+                "v1.0.0",
+                &crate::ArtifactIdentity {
+                    asset_name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
+                    size: 35_768_574,
+                    sha256: "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                        .to_uppercase(),
+                },
+                Some(crate::Platform::WindowsX86_64)
+            )
+            .unwrap_err()
+            .message
+            .contains("actual reviewed")
+        );
     }
 
     #[test]
