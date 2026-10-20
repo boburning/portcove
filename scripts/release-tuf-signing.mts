@@ -60,19 +60,24 @@ export function inspectTufContextPaths(bytes: Buffer) {
   if (!bytes.length || bytes.length > 65536 || !Buffer.from(bytes.toString("utf8")).equals(bytes))
     throw new Error("bounded UTF-8 TUF context required");
   const value: unknown = JSON.parse(bytes.toString("utf8"));
+  const bootstrap = isRecord(value) && Object.hasOwn(value, "initial_bootstrap");
   if (
     !isRecord(value) ||
     value.schema_version !== 1 ||
     Object.keys(value).sort().join(",") !==
-      "expires,generated_at,offline_targets,payload_key_registry,previous_repository,reconstructed_records,schema_version,trusted_root,versions" ||
+      (bootstrap
+        ? "expires,generated_at,initial_bootstrap,offline_targets,payload_key_registry,reconstructed_records,schema_version,trusted_root,versions"
+        : "expires,generated_at,offline_targets,payload_key_registry,previous_repository,reconstructed_records,schema_version,trusted_root,versions") ||
     value.trusted_root !== "trusted-root.json" ||
     value.offline_targets !== "offline-targets.json" ||
     value.payload_key_registry !== "payload.json" ||
     value.reconstructed_records !== "records" ||
-    value.previous_repository !== "prior"
+    (bootstrap
+      ? value.initial_bootstrap !== "initial-bootstrap.json"
+      : value.previous_repository !== "prior")
   )
-    throw new Error("fixed routine TUF context paths required");
-  return Object.freeze({ kind: "routine" as const });
+    throw new Error("fixed TUF context paths required");
+  return Object.freeze({ kind: bootstrap ? ("initial-bootstrap" as const) : ("routine" as const) });
 }
 
 export interface IsolatedTufRoleRequest {
