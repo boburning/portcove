@@ -1,5 +1,10 @@
 # Desktop localization
 
+Saved-location impact distinguishes entry counts from game titles and includes
+game/port identity for affected entries. The host resolves its own native-dialog
+names. Full Unicode paths remain visible and wrap inline. A bounded native
+summary points to the complete inline set instead of silently omitting entries.
+
 Library distinguishes game title, port project/variant and library entry count.
 Separate ports for one game remain separate entries. Search labels identify
 Library or Find games. Covers/Compact rows preserve full identity; expanding

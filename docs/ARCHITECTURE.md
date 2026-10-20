@@ -1023,16 +1023,21 @@ requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Source-reference removal and shared review state
 
-Settings exposes the existing core source-removal preview with the original path,
+Settings exposes the existing core source-removal preview inline with the original path,
 installed dependents and all catalog dependents. The review explains that only the
 library reference is removed, other files/state remain, and later use requires
 registration under current checks. Both preview and application use the selected
 library generation. The adapter checks the fingerprint before backend-owned native
 confirmation, then reacquires the current service and delegates authorization and
 locked deletion to core. A changed reference or dependency set requires a fresh
-review; no renderer request can bypass native consent.
+review; no renderer request can bypass native consent. Explicit review intent
+loads fresh impact. A location/generation change discards the inline intent;
+returning to an old identity never revives it. Remove saved location… opens only
+the host's final approval. The host resolves requirement and game/port names from
+its catalog, shows the exact location, affected-entry count and preserved data,
+and points to the full inline affected set when the native summary is bounded.
 
-Backup, installed-game and source-removal dialogs share one presentation-only
+Backup/installed-game dialogs and the inline saved-location preview share one presentation-only
 review lifecycle: stale request rejection, synchronous duplicate-apply exclusion,
 neutral native cancellation and renewed review after failure. Each domain keeps
 its own core preview, confirmation, action and detailed copy. Source-list refresh

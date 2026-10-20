@@ -1,5 +1,9 @@
 # Portcove theme and CSS ownership
 
+The inline saved-location impact uses the ordinary text, border and destructive
+button roles. It introduces no overlay, palette or fixed footer. Long locations
+and affected-entry names wrap in document flow, including enlargement.
+
 `collection.css` owns Library geometry in the components layer after adaptive
 shell rules. It consumes shared tokens and adds no palette. Fixed 2:3 contained
 artwork frames remain independent of identity/status height. Covers and compact
