@@ -147,7 +147,7 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
       (file) =>
         [file.filename, f.contents.get(`${file.platform_label}/${file.filename}`)!] as const,
     ),
-    ["SHA256SUMS", Buffer.from("fixture unused manifest")],
+    ["SHA256SUMS.txt", Buffer.from("fixture unused manifest")],
     ["Portcove-SBOM.spdx.json", Buffer.from(JSON.stringify(document))],
   ]);
   evidence.run.event = "push";
