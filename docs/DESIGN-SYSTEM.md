@@ -575,3 +575,14 @@ cancel, result and return sequence only for the recorded source, platform and
 inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
+
+### Library recovery composition
+
+Storage capacity, recovery and startup library selection are separate Settings
+rows. Recovery has a disclosed three-step manual-copy guide, then independently
+labeled Restore and Move actions. Preserve exact LTR-isolated paths and six
+current export content categories. Export success acknowledges metadata only;
+manual copy remains unverified until corresponding restore observations succeed.
+Use existing reviewed backup/import controls and native restore consent. Do not
+introduce a progress bar, checkbox, success badge or automatic-copy implication
+for work the application did not perform.

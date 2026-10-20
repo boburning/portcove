@@ -2850,3 +2850,25 @@ observation. Timer and visibility notifications refer to their own observation
 and cannot expire a replacement result. These browsing observations provide no
 setup or launch shortcut and do not establish native UI, game or whole-issue
 acceptance.
+
+### Guided manual library recovery
+
+Settings > Library & storage owns one Library recovery composition: prepare a
+manual recovery copy, checked restore, and Move as distinct tasks. The guide links
+to Tasks & history and each installed entry’s existing Saves and storage page;
+only that page’s current Core assessment grants save-backup eligibility. An empty
+or idle Activity view cannot prove process quiescence. Export metadata after
+applicable backups; then close games, Portcove and all other clients before copying.
+No writes may intervene between the export and content copy; otherwise repeat
+both from a matching state. The guide adds no copy API, durable workflow or bundle.
+
+Current schema-3 export declares six content roots: `versions`, `user`,
+`source-inbox`, `backups`, `toolchains`, and `artwork`. Copy existing roots with
+names and structure intact into one content folder, retaining the metadata export.
+External originals/BIOS, external installations/saves and credentials are excluded
+and require separate preservation. Retained admission may require the originating
+host's secure-storage key; ordinary copying does not mint another host's trust.
+The UI reports metadata export only, never a verified backup or a manual checkbox
+as verification. Existing content-bound import checks publication into a new/empty
+destination; Move separately switches authority and retains its original tree.
+Profile/workspace presentation state cannot change these Core guarantees.

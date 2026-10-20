@@ -154,3 +154,8 @@ Use the canonical root `pnpm check`, `pnpm test`, `pnpm test:browser` and `pnpm 
 routes; focused tests use the existing exact-file runner. Never regenerate copied
 controls over these theme, state, accessibility and composition decisions without
 review. [DESIGN-SYSTEM](DESIGN-SYSTEM.md) retains the wider product acceptance.
+
+Library recovery uses existing semantic text, surface, action, disclosure, status
+and error roles in both themes. Step headings and explicit manual-copy wording
+carry state without relying on color. The guide flows at enlarged effective widths;
+paths wrap and retain isolated LTR direction. No separate recovery palette exists.

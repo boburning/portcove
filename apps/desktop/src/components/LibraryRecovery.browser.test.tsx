@@ -76,8 +76,8 @@ it("excludes duplicate export and reports only the metadata receipt, never a ver
   finish({ path: "E:/owned/نسخة/metadata.json", sha256: "a".repeat(64), size: 20 });
   await expect
     .element(page.getByRole("status"))
-    .toHaveTextContent("Content has not been copied or verified");
-  await expect.element(page.getByRole("status")).toHaveTextContent("E:/owned/نسخة/metadata.json");
+    .toMatchTextContent("Content has not been copied or verified");
+  await expect.element(page.getByRole("status")).toMatchTextContent("E:/owned/نسخة/metadata.json");
   expect(document.querySelector('[role="status"] code')!.getAttribute("dir")).toBe("ltr");
 });
 
@@ -89,7 +89,7 @@ it("recovers from export failure and treats picker cancellation as no new receip
   await render(guide(exportMetadata).element);
   await page.getByText("Prepare a recovery copy", { exact: true }).click();
   await page.getByRole("button", { name: "Export metadata", exact: true }).click();
-  await expect.element(page.getByRole("alert")).toHaveTextContent("Disk unavailable");
+  await expect.element(page.getByRole("alert")).toMatchTextContent("Disk unavailable");
   await page.getByRole("button", { name: "Export metadata", exact: true }).click();
   await expect
     .element(page.getByRole("button", { name: "Export metadata", exact: true }))
