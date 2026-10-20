@@ -1565,15 +1565,19 @@ internal static class ContractTests
             Check(client.ApiSchemaVersion == 78 && inputs.Length == 1490,
                 "compiled API78 producer exposes the complete fixed CVLoD acquisition inventory");
             var review = InstallationReview.Read(value, port, args[2]);
+            var required = Json.Number(Json.Field(plan, "temporary_space"), "required_bytes");
+            var primaryBytes = Json.Number(Json.Field(Json.Field(plan, "release"), "asset"), "size");
             Check(review.Description.Contains("Additional fixed inputs: 1490") &&
-                review.Description.Contains("Temporary free-space requirement: 12884901888 bytes"),
-                "actual client consumes Core acquisitions and build capacity before confirmation");
+                required == checked(primaryBytes + 12884901888L) &&
+                review.Description.Contains("Temporary free-space requirement: " + required + " bytes"),
+                "actual client consumes Core acquisitions and primary-plus-build capacity before confirmation");
             var arguments = review.InstallationArguments();
             Check(arguments.Contains(Json.Text(value, "plan_sha256")) && arguments.Contains("--expected-plan") &&
                 !arguments.Contains("--acknowledge-shared-preferences") && invocations == 1 && client.InvocationCount == before + 1,
                 "actual source-build reader binds ordinary plan consent without extra requests or mutation");
             Console.WriteLine("CVLOD_PLAN " + Json.Print(new { schema = client.ApiSchemaVersion,
-                input_count = inputs.Length, request_count = invocations, maximum_caller_concurrency = 1,
+                input_count = inputs.Length, temporary_required_bytes = required, primary_bytes = primaryBytes,
+                request_count = invocations, maximum_caller_concurrency = 1,
                 polling_overlap = false, fingerprint = review.Fingerprint, arguments, mutation_executed = false }));
             return;
         }
