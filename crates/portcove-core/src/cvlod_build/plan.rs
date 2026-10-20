@@ -28,7 +28,7 @@ impl Stage {
             Self::Game => 851,
             Self::Recompiler => 50,
             Self::Zlib => 15,
-            Self::Freetype => 43,
+            Self::Freetype => 44,
         }
     }
     fn configuration(self) -> &'static str {
@@ -89,6 +89,66 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn cvlod_freetype_graph_requires_the_fixed_windows_resource() {
+        let fixed: BTreeMap<String, Vec<String>> =
+            serde_json::from_str(include_str!("objects.json")).unwrap();
+        let objects = &fixed["freetype"];
+        let resource = "CMakeFiles/freetype.dir/src/base/ftver.rc.res";
+        assert_eq!(objects.len(), 44);
+        assert_eq!(objects.iter().filter(|s| s.ends_with(".obj")).count(), 43);
+        assert_eq!(
+            objects
+                .iter()
+                .filter(|s| s.ends_with(".res"))
+                .collect::<Vec<_>>(),
+            [&resource.to_string()]
+        );
+        let helpers: BTreeMap<String, Vec<Helper>> =
+            serde_json::from_str(include_str!("helpers.json")).unwrap();
+        let mut lines = vec!["include CMakeFiles\\rules.ninja".to_string()];
+        for object in objects {
+            let kind = if object.ends_with(".res") { "RC" } else { "C" };
+            lines.push(format!(
+                "build {}: {kind}_COMPILER__freetype_unscanned_Release fixed-source",
+                object.replace('/', "\\")
+            ));
+        }
+        for helper in &helpers["freetype"] {
+            lines.push(format!("build {}: phony", helper.target));
+        }
+        let manifest = lines.join("\r\n") + "\r\n";
+        let temporary = tempfile::tempdir().unwrap();
+        let build = temporary.path();
+        std::fs::create_dir(build.join("CMakeFiles")).unwrap();
+        std::fs::write(
+            build.join("CMakeFiles/rules.ninja"),
+            "rule fixed\n  command = fixed\n",
+        )
+        .unwrap();
+        let inspect = |text: &str| {
+            std::fs::write(build.join("build.ninja"), text).unwrap();
+            Plan::read(build, Stage::Freetype)
+        };
+        let plan = inspect(&manifest).unwrap();
+        assert!(plan.objects.iter().any(|s| s == resource));
+        let resource_line = lines.iter().find(|s| s.contains("ftver.rc.res")).unwrap();
+        let missing = inspect(&manifest.replace(resource_line, "")).err().unwrap();
+        assert_eq!(missing.details["stage"], "freetype");
+        assert_eq!(missing.details["missing_targets"], resource);
+        assert_eq!(missing.details["observed_count"], "43");
+        assert!(inspect(&manifest.replace("ftver.rc.res", "outside.rc.res")).is_err());
+        assert!(inspect(&(manifest.clone() + "build CMakeFiles/freetype.dir/extra.rc.res: RC_COMPILER__freetype_unscanned_Release fixed-source\n")).is_err());
+        assert!(
+            inspect(&manifest.replace(
+                "RC_COMPILER__freetype_unscanned_Release",
+                "RC_COMPILER__freetype_unscanned_Debug"
+            ))
+            .is_err()
+        );
+        assert!(inspect(&(manifest.clone() + resource_line + "\n")).is_err());
     }
 
     #[test]
@@ -282,9 +342,30 @@ impl Plan {
             }
         }
         if declared != wanted {
-            return Err(PortcoveError::verification(
-                "CVLoD compiler object inventory differs",
-            ));
+            return Err(
+                PortcoveError::verification("CVLoD compiler object inventory differs")
+                    .detail("stage", stage.key())
+                    .detail("expected_count", wanted.len().to_string())
+                    .detail("observed_count", declared.len().to_string())
+                    .detail(
+                        "missing_targets",
+                        wanted
+                            .difference(&declared)
+                            .take(16)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    )
+                    .detail(
+                        "unexpected_targets",
+                        declared
+                            .difference(&wanted)
+                            .take(16)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    ),
+            );
         }
         let mut helper_names = BTreeSet::new();
         for helper in &helpers {

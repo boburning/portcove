@@ -964,6 +964,7 @@
     "CMakeFiles/freetype.dir/src/type42/type42.c.obj",
     "CMakeFiles/freetype.dir/src/winfonts/winfnt.c.obj",
     "CMakeFiles/freetype.dir/builds/windows/ftsystem.c.obj",
-    "CMakeFiles/freetype.dir/builds/windows/ftdebug.c.obj"
+    "CMakeFiles/freetype.dir/builds/windows/ftdebug.c.obj",
+    "CMakeFiles/freetype.dir/src/base/ftver.rc.res"
   ]
 }
