@@ -882,6 +882,16 @@
         "claim": "Exact managed Windows original intake, reviewed unchanged official package acquisition, supervised startup/ordinary close and administrative preservation. Startup screenshot shows logo over water, not menu arrival. Synthetic version-local sign-in excluded from canonical data/backups, preserved through restore and deleted on removal. No gameplay, save/load, new-version update/rollback or support promotion.",
         "immutable_url": "https://github.com/boburning/portcove/blob/2bcc4459133ab6f06ab277f0432da9d1f593d0a7/docs/qualification/racewave46-managed-windows-2026-10-20.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/racewave46-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "regaiden-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "4c95de4dedb80ccee4a4dd7fc1c0b869fd9d59d5",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows original intake, separate shared-preferences consent, unchanged official package acquisition, supervised startup/ordinary close and local administrative preservation. Screenshot shows copyright/startup, not menu arrival. Account-wide preferences absent and untouched. No gameplay, save/load, new-version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/4c95de4dedb80ccee4a4dd7fc1c0b869fd9d59d5/docs/qualification/regaiden-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/regaiden-managed-windows-2026-10-20.md"
       }
     ],
     "identities": [
@@ -11004,6 +11014,60 @@
         "observed_at": 1792467404,
         "kind": "automated_lifecycle",
         "method": "Actual supervised Windows startup/ordinary close with durable exit0 and exact private original; screenshot shows logo/water startup, not menu arrival. Synthetic ordinary persistence probe backup/restore/removal/reinstall passes. Synthetic credential filenames stay version-local, are excluded from canonical data/backups, retained during restore and removed with version; no credential payload inspection. No real sign-in, gameplay, save/load, new-version update/rollback, GUI or support promotion."
+      },
+      {
+        "scope": {
+          "port_id": "resident-evil-gaiden-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+          "upstream_ref": "v0.4.1",
+          "contract_id": "resident-evil-gaiden-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "resident-evil-gaiden-gbc-usa",
+              "variant_id": "usa-retail",
+              "representation_id": "raw-gbc"
+            }
+          },
+          "check_version": "regaiden-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "61ed99e1e8a5d49c68f24d34b7493ee365dc43d5",
+        "evidence_ids": [
+          "regaiden-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792469868,
+        "kind": "structural_check",
+        "method": "Actual isolated API77 CLI refuses invalid/stale originals and generic confirmation without separate shared-scope acceptance, admits exact USA original under Unicode filename, installs unchanged official Windows package with initialized local saves directory, and verifies immutable inventory. Protected original unchanged; global preferences absent and untouched; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "resident-evil-gaiden-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+          "upstream_ref": "v0.4.1",
+          "contract_id": "resident-evil-gaiden-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "resident-evil-gaiden-gbc-usa",
+              "variant_id": "usa-retail",
+              "representation_id": "raw-gbc"
+            }
+          },
+          "check_version": "regaiden-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "61ed99e1e8a5d49c68f24d34b7493ee365dc43d5",
+        "evidence_ids": [
+          "regaiden-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792470030,
+        "kind": "automated_lifecycle",
+        "method": "Actual supervised Windows startup/ordinary close with durable exit0 and exact private original; inspected screenshot shows copyright/startup, not menu arrival. Synthetic local persistence probe backup/restore/reviewed removal/reinstall passes with fresh explicit acceptance. Account-wide preferences remain absent and untouched. No gameplay, save/load, changed-account native execution, new-version update/rollback, GUI or support promotion."
       }
     ]
   },
