@@ -12,6 +12,7 @@ import {
   reconstructNativePreSignReport,
   prepareActualNativePreSignReport,
   requireActualNativePreSignReport,
+  retainActualFailedNativeStage,
 } from "./release-native-pre-sign-report.mts";
 
 async function fixture() {
@@ -167,6 +168,10 @@ void test("pre-sign reconstruction joins exact installed/host/runtime facts and 
   await assert.rejects(
     requireActualNativePreSignReport({ ...result }),
     /actual direct native pre-sign report/,
+  );
+  await assert.rejects(
+    retainActualFailedNativeStage({ ...result }, "fixture refused"),
+    /actual fixed parent Windows capture/,
   );
 });
 

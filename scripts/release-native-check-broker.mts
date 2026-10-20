@@ -213,7 +213,12 @@ export async function publishActualNativePreSignReport(receipt: object) {
             timeout: Math.min(12000, 120000 - (Date.now() - started)),
             maxBuffer: 3 * 1024 * 1024,
             windowsHide: true,
-            env: { LANG: "C.UTF-8" },
+            env: {
+              ...(process.platform === "win32" && process.env.SystemRoot
+                ? { SystemRoot: process.env.SystemRoot }
+                : {}),
+              LANG: "C.UTF-8",
+            },
             stdio: ["pipe", "pipe", "pipe"],
           });
           value = JSON.parse(output);

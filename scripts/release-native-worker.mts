@@ -6,7 +6,10 @@ import { establishActualNativeParent } from "./release-native-parent.mts";
 import { acquireActualNativeCandidate } from "./release-native-candidate.mts";
 import { claimActualNativeInvocation } from "./release-native-attempt.mts";
 import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
-import { prepareActualNativePreSignReport } from "./release-native-pre-sign-report.mts";
+import {
+  prepareActualNativePreSignReport,
+  retainActualFailedNativeStage,
+} from "./release-native-pre-sign-report.mts";
 import { publishActualNativePreSignReport } from "./release-native-check-broker.mts";
 
 export async function runInstalledNativeWorker(configuration: string, configurationSha256: string) {
@@ -25,7 +28,16 @@ export async function runInstalledNativeWorker(configuration: string, configurat
       authority: "none",
     };
   const capture = await captureActualWindowsNativeInvocation(claim);
-  const report = await prepareActualNativePreSignReport(capture);
+  let report;
+  try {
+    report = await prepareActualNativePreSignReport(capture);
+  } catch (error) {
+    const failure = error instanceof Error ? error.message : "native stage report refused";
+    // If serialization itself cannot establish original identity/settlement,
+    // preserve that refusal and every raw file; never supply older evidence.
+    const retained = await retainActualFailedNativeStage(capture, failure);
+    return { decision: "hold", reason: failure, capture, retained, authority: "none" };
+  }
   const handoff = await publishActualNativePreSignReport(report);
   return {
     decision: "hold",

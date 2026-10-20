@@ -545,3 +545,132 @@ export async function requireActualNativePreSignReport(receipt: object) {
   if (digest(report) !== retained.report_sha256) throw new Error("actual native report changed");
   return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
 }
+
+/** Failure retention cannot produce a Check or an acceptance brand. Incomplete
+ * root identities/streams refuse serialization and leave original raw files in
+ * place for readback; an empty group is never inferred from process failure. */
+export async function retainActualFailedNativeStage(captured: object, failure: string) {
+  const actual = await requireActualWindowsNativeCapture(captured);
+  const directory = actual.capture_directory;
+  await writeFile(
+    path.join(directory, "stage-refusal.json"),
+    JSON.stringify({
+      schema_version: 1,
+      request_sha256: actual.request.request_sha256,
+      failure: failure.slice(0, 2048),
+      observed_at: new Date().toISOString(),
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  const raw: unknown = JSON.parse(
+    (await readBoundedPublicBuildInputFile(directory, "bridge-state.json", 128 * 1024)).toString(
+      "utf8",
+    ),
+  );
+  const bridge = record(raw);
+  if (
+    bridge.invocation_id !== actual.request.request.invocation_id ||
+    !Array.isArray(bridge.roots) ||
+    bridge.roots.length > 64
+  )
+    throw new Error(
+      "failed native original bridge identity missing; retain raw evidence for reconciliation",
+    );
+  const stream = async (id: string, kind: string) => {
+    const file = `${id}.${kind}.bin`,
+      bytes = await readBoundedPublicBuildInputFile(directory, file, 4 * 1024 * 1024);
+    return { path: file, bytes: bytes.byteLength, sha256: hash(bytes) };
+  };
+  const roots = [];
+  for (const rawRoot of bridge.roots) {
+    const root = record(rawRoot),
+      id = text(root.id);
+    if (!/^[a-z][a-z0-9-]{0,63}$/u.test(id)) throw new Error("failed native root path differs");
+    const teardown = root.teardown === null ? null : record(root.teardown);
+    roots.push({
+      id,
+      role:
+        id === "profile-keeper"
+          ? "profile-keeper"
+          : root.sha256 === actual.request.request.candidate.package.sha256
+            ? "candidate-package"
+            : id.startsWith("account-driver-")
+              ? "driver"
+              : "application",
+      image: { pid: root.pid, path: root.path, sha256: root.sha256 },
+      creation: { kind: "windows-filetime", value: root.created_filetime },
+      started_at: instant(root.started_at),
+      stdout: await stream(id, "stdout"),
+      stderr: await stream(id, "stderr"),
+      teardown:
+        teardown === null
+          ? null
+          : {
+              root_pid: teardown.root_pid,
+              root_creation: { kind: "windows-filetime", value: teardown.root_created_filetime },
+              root_exited: teardown.root_exited,
+              job_empty: teardown.job_empty,
+              remaining_pids: teardown.remaining_pids,
+              exit_code: teardown.exit_code,
+              observed_at: instant(teardown.observed_at),
+            },
+    });
+  }
+  const request = actual.request.request;
+  const group = Array.isArray(bridge.group_remaining_pids)
+    ? {
+        empty: bridge.phase === "settled" && bridge.group_remaining_pids.length === 0,
+        remaining_pids: bridge.group_remaining_pids,
+        observed_at: instant(bridge.observed_at),
+      }
+    : null;
+  const settled =
+    group?.empty === true &&
+    roots.every((root) => root.teardown?.root_exited === true && root.teardown.job_empty === true);
+  const serialized = serializeNativeStageCapture(
+    {
+      schema_version: 1,
+      stage: request.stage,
+      platform_label: request.platform_label,
+      candidate: request.candidate,
+      journey: request.journey,
+      invocation_id: request.invocation_id,
+      setup_descriptor_sha256: request.setup_descriptor_sha256,
+    },
+    actual.parent.authority_configuration,
+    {
+      schema_version: 1,
+      request_sha256: actual.request.request_sha256,
+      outcome: settled ? "failed" : "ambiguous",
+      started_at: instant(actual.result.started_at),
+      completed_at: instant(actual.result.completed_at),
+      roots,
+      group,
+      scenarios: [],
+      harness: {
+        ...request.expected.producer.harness,
+        exit_code:
+          actual.result.children.find((child) => child.role === "harness")?.exit_code ?? null,
+        stdout: await stream("harness", "stdout"),
+        stderr: await stream("harness", "stderr"),
+      },
+      failure: {
+        phase: "fixed-native-stage",
+        code: settled ? "stage-refused" : "settlement-unresolved",
+        message: failure.slice(0, 2048) || "native stage refused",
+      },
+    },
+  );
+  await requireActualWindowsNativeCapture(captured);
+  await writeFile(path.join(directory, "capture.json"), serialized.bytes, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return Object.freeze({
+    capture_sha256: serialized.capture_sha256,
+    outcome: serialized.capture.outcome,
+    authority: "none" as const,
+    scope: "original failure and observed teardown only; no native acceptance or automatic retry",
+  });
+}
