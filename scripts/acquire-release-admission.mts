@@ -140,42 +140,6 @@ export function requireActualReleaseAdmissionContext(
   requireAuthenticatedReleaseControlSource(retained.context.controls, retained.phase);
   return retained.context;
 }
-export interface ActualReleaseAdmissionContext {
-  stage: "payload-signing" | "release-publication";
-  facts: Readonly<PreparedReleaseAdmissionFacts>;
-  controls: AuthenticatedReleaseControlSource;
-  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
-  checkpoint: string;
-  native_qualifications: readonly object[];
-  pending_obligations: readonly string[];
-}
-const actualAdmissionContexts = new WeakMap<
-  object,
-  { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
->();
-/** Same-process authority continuation only. Serialization, imported snapshots,
- * fixture source brands and an assembly artifact cannot mint this context. Each
- * protected consumer must still perform its own fresh controls/reservation check. */
-export function requireActualReleaseAdmissionContext(
-  raw: object,
-  expectedStage: ActualReleaseAdmissionContext["stage"],
-): Readonly<ActualReleaseAdmissionContext> {
-  const retained = actualAdmissionContexts.get(raw);
-  if (
-    !retained ||
-    !["payload-signing", "release-publication"].includes(expectedStage) ||
-    retained.context.stage !== expectedStage ||
-    retained.context.admission.decision !== "admitted" ||
-    retained.context.admission.holds.length !== 0 ||
-    retained.context.admission.evidence_scope !== "github.com" ||
-    retained.context.controls.evidence_scope !== "github.com" ||
-    retained.context.facts.checkpoint !== retained.context.checkpoint ||
-    retained.context.admission.checkpoint !== retained.context.checkpoint
-  )
-    throw new Error("actual same-process zero-hold release admission context required");
-  requireAuthenticatedReleaseControlSource(retained.context.controls, retained.phase);
-  return retained.context;
-}
 function freezePreparedFacts<T>(value: T, depth = 0): T {
   if (depth > 32) throw new Error("private prepared facts nesting bound exceeded");
   if (value !== null && typeof value === "object") {
