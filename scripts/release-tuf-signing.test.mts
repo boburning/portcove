@@ -126,6 +126,35 @@ void test("fresh-guard mutation refuses before key, retains public refusal and r
     await rm(f.root, { recursive: true, force: true });
   }
 });
+void test("role lifecycle callbacks are captured before asynchronous input acquisition", async () => {
+  const f = await fixture();
+  let guarded = 0,
+    keys = 0;
+  try {
+    const lifecycle = {
+      deadline: performance.now() + 10000,
+      beforeKey: async () => {
+        guarded++;
+        throw new Error("public guard refusal");
+      },
+      keyMaterial: async () => {
+        keys++;
+        return Buffer.from("never");
+      },
+    };
+    const operation = signIsolatedTufRole(f.request, lifecycle);
+    lifecycle.beforeKey = async () => {};
+    lifecycle.keyMaterial = async () => {
+      keys++;
+      return Buffer.from("replacement");
+    };
+    await assert.rejects(operation, /public evidence retained/u);
+    assert.equal(guarded, 1);
+    assert.equal(keys, 0);
+  } finally {
+    await rm(f.root, { recursive: true, force: true });
+  }
+});
 void test("actual credential-free wrong executable refuses after key release and scrubs all credential scratch", async () => {
   const f = await fixture();
   const secret = Buffer.from("disposable fixture key, not a signing key");

@@ -151,7 +151,7 @@ export async function signIsolatedTufRole(
 ) {
   const request = inspectIsolatedTufRoleRequest(raw),
     role = request.role,
-    deadline = lifecycle.deadline;
+    { deadline, beforeKey, keyMaterial } = lifecycle;
   remaining(deadline);
   if (
     releasePathContains(request.context_directory, request.output) ||
@@ -224,7 +224,7 @@ export async function signIsolatedTufRole(
       { flag: "wx", mode: 0o600 },
     );
     phase = "fresh-controls-before-key";
-    await lifecycle.beforeKey();
+    await beforeKey();
     remaining(deadline);
     if (
       digest(inventory(await readBoundedReleaseContextFiles(request.context_directory))) !==
@@ -240,7 +240,7 @@ export async function signIsolatedTufRole(
         throw new Error("TUF staged dependency changed before key release");
     }
     phase = "single-role-key";
-    secret = await lifecycle.keyMaterial();
+    secret = await keyMaterial();
     if (!Buffer.isBuffer(secret) || secret.length < 1 || secret.length > 32768)
       throw new Error("bounded single TUF key bytes required");
     remaining(deadline);

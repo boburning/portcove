@@ -4,8 +4,10 @@ import {
   capacityExecutorIdentity,
   refreshCapacityExecutor,
   assertCapacityExecutorEffectScope,
+  inspectCapacityExecutorSubject,
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
+import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 
 void test("serialized job claims or a copied kind cannot create an executor session", async () => {
   const imported = Object.freeze({ kind: "authenticated-capacity-executor" as const });
@@ -105,4 +107,89 @@ void test("signing executors can hand off only their own immutable output, never
     ])
       assert.throws(() => assertCapacityExecutorEffectScope(role, invalid), /fixed scope/u);
   }
+});
+void test("bootstrap and renewal route distinct explicit subjects through only their existing fixed roles", () => {
+  const bootstrap = metadataBootstrapFixture().descriptor,
+    renewal = metadataFixture().descriptor;
+  for (const role of [
+    "coordinator",
+    "site-publication",
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+  ] as const) {
+    const request = {
+      kind: "upload" as const,
+      destination:
+        role === "coordinator"
+          ? "github-actions:boburning/portcove:metadata-bootstrap-context"
+          : role === "site-publication"
+            ? "github-pages:boburning/portcove:complete-site"
+            : `github-actions:boburning/portcove:metadata-bootstrap:${role}-envelope`,
+    };
+    assert.doesNotThrow(() => assertCapacityExecutorEffectScope(role, request));
+    assert.equal(
+      inspectCapacityExecutorSubject(role, { request, metadata_bootstrap: bootstrap }).kind,
+      "metadata-bootstrap",
+    );
+    assert.throws(
+      () =>
+        inspectCapacityExecutorSubject(role, {
+          request,
+          metadata_bootstrap: bootstrap,
+          metadata_renewal: renewal,
+        }),
+      /one metadata/u,
+    );
+    assert.throws(() =>
+      inspectCapacityExecutorSubject(role, { request, metadata_bootstrap: renewal }),
+    );
+    const renewalRequest =
+      role === "coordinator"
+        ? { ...request, destination: "github-actions:boburning/portcove:metadata-renewal-context" }
+        : request;
+    assert.equal(
+      inspectCapacityExecutorSubject(role, { request: renewalRequest, metadata_renewal: renewal })
+        .kind,
+      "metadata-renewal",
+    );
+  }
+  const contextRequest = {
+    kind: "upload" as const,
+    destination: "github-actions:boburning/portcove:metadata-bootstrap-context",
+  };
+  assert.throws(
+    () => inspectCapacityExecutorSubject("coordinator", { request: contextRequest }),
+    /explicit/u,
+  );
+  assert.throws(
+    () =>
+      inspectCapacityExecutorSubject("coordinator", {
+        request: contextRequest,
+        metadata_renewal: renewal,
+      }),
+    /own exact/u,
+  );
+  for (const role of ["payload-signing", "release-publication"] as const) {
+    assert.throws(
+      () =>
+        inspectCapacityExecutorSubject(role, {
+          request: contextRequest,
+          metadata_bootstrap: bootstrap,
+        }),
+      /fixed coordinator/u,
+    );
+    assert.throws(() => assertCapacityExecutorEffectScope(role, contextRequest), /fixed scope/u);
+  }
+  assert.equal(
+    inspectCapacityExecutorSubject("coordinator", {
+      request: {
+        kind: "dispatch",
+        destination: "github-actions:boburning/portcove:release.yml:dispatch",
+      },
+    }).kind,
+    "candidate",
+  );
 });
