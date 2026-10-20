@@ -13,7 +13,9 @@ Core copies the admitted original to `game.gbc`, creates an owned local `saves`
 directory in private installation staging, and launches the fixed executable from
 the installation root with `--rom game.gbc --save-dir saves`. Only this exact
 artifact and closed route support the new `regaiden-gbc` materialization. Older
-engines cannot parse it. Definition capability 14 and API77 describe the contract;
+engines cannot parse it. Definition capability 15 and API77 describe the contract;
+Render96 capability13 and RaceWave capability14 cannot authorize shared preferences.
+Historical qualification retains its original engine identity;
 schema7 installation manifests retain the reviewed account/path binding. Earlier
 manifest readers refuse schema7 instead of dropping consent.
 

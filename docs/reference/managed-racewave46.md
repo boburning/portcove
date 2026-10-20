@@ -5,7 +5,9 @@ checked original as `game.z64`. Fixed launch arguments select that private copy.
 Existing external registrations remain non-owning and are not adopted.
 
 Core retains the exact artifact-bound runtime-data policy with the installation.
-Capability 13 is required. Removing the policy from the same managed artifact is
+Capability 14 is required; delivered Render96 capability13 does not implement this
+credential boundary. Historical qualification retains its original engine identity.
+Removing the policy from the same managed artifact is
 invalid; older engine capabilities cannot silently ignore it.
 Acquisition, manifest publication and retained-manifest reads also check the
 actual installed artifact, version and platform. Copying an arbitrary executable

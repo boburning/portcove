@@ -2439,6 +2439,38 @@ and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
 `dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
 A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
+Staged-source v12 adds the fixed Render96 US source recipe in
+[`render96_build`](../crates/portcove-core/src/render96_build.rs). Its three
+authenticated inputs reuse cartridge acquisition, private install workers,
+supervised tools, cancellation drain, immutable receipts and publication/recovery.
+The internal archive collection supports three inputs without changing earlier
+four-input storage identities. A private closed Make environment uses the pinned
+toolchain, shell, Python and SDL2 SDK; catalogue data cannot supply commands.
+Core bounds original-asset extraction to 32 assets, texture generation to 16
+targets, sound conversion to eight samples, and compilation to two objects per
+supervised invocation. Audio-library compilation has its own complete diagnostic
+phase. LLVM extracts the raw sound-player section into a separate output; exact
+source-derived size/hash checks precede sequence assembly, and packaging verifies
+the fixed table entry. A COFF object wrapper cannot become sequence bytecode.
+The fixed generated C files remain secondary between compiler invocations.
+The 309-object plan is verified before link, with a supervised dry run requiring
+exactly one authenticated linker command from complete stdout. Compiled-object
+hashes are checked before and after link. Core copies the stock resource layout
+directly, avoiding upstream's oversized Windows shell command for its resource
+list. The full immutable manifest also retains the authenticated primary source
+tree. Build work never launches the game.
+
+The recipe accepts only the exact raw USA N64 original, reuses bounded byte-order
+normalization, and verifies canonical bytes separately from stored bytes. ZIP
+inputs receive extraction/registration guidance before any parser runs. Runtime
+launch fixes the root working directory and `--savepath !`, refuses forwarded
+arguments and inherited `SDL_DYNAMIC_API`, and permits only the two exact root
+save/config files. `res`, executable inputs, DLLs and TAS input names remain
+immutable. Recipe implementation, managed producer proof, runtime operation
+acceptance and protected production delivery remain separate evidence scopes.
+Render96 requires no retained Windows runtime path policy; its build-path rule
+is recipe-local. The independent v11 path capability retains its prior meaning.
+
 ### Setup configuration dispositions
 
 The seven `AdapterKind` families retain catalog data and existing generic
@@ -2563,6 +2595,11 @@ publishing selection. Source and fixture checks do not establish native or
 upstream acceptance; those remain separate qualification gates.
 
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.
+
+Inherited `SDL_DYNAMIC_API` is excluded case-insensitively: SDL can load its value
+as a native implementation library before validating the entry point. Ordinary
+SDL hints retain their existing inheritance. This closes that specific ambient
+code-selection path; the process policy is not a filesystem or library sandbox.
 
 Manual host-tool selection crosses that policy only through the core registry's fixed probe. Core rejects nonregular files, symlink paths, scripts, and executables that do not satisfy the host platform; fingerprints the candidate before spawn; rechecks it immediately before and after the probe; supplies only registry-owned arguments; and bounds executable size, combined output, and elapsed time. Timeout, cancellation, and excessive output terminate the probe process tree. A path and SHA-256 fingerprint are published atomically to host preferences only after the expected tool identity and required command markers appear, so failure preserves the previous valid selection and a later byte change becomes `misconfigured`. This fingerprint binds the saved choice to the probed bytes; it does not establish publisher authenticity or prove arbitrary software safe.
 
