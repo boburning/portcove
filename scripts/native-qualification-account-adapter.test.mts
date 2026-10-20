@@ -4,6 +4,61 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
+  "profile keeper prepares its exact new working directory before requesting a launch",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = `
+$ErrorActionPreference='Stop'
+Import-Module $env:PORTCOVE_TEST_NATIVE_ADAPTER
+$module=Get-Module native-qualification-account-adapter
+& $module {
+  $script:keeperStarts=0
+  Set-Item Function:script:Start-PortcoveNativeAccountRoot -Value {
+    param($Session,$Id,$Executable,$Arguments,$Directory)
+    if($Id -cne 'profile-keeper' -or -not [IO.Directory]::Exists($Directory) -or
+       $Directory -cne (Join-Path $Session.binding.work_root ('keeper-'+$Session.binding.invocation_id))){throw 'missing or wrong keeper CWD'}
+    $script:keeperStarts++
+    [pscustomobject]@{pid=456;path=$Executable;started_filetime='134000000000000000'}
+  }
+  Set-Item Function:script:Get-PortcoveNativeRegistryRoot -Value {param($Session);'inert-hive-projection'}
+}
+$root=Join-Path ([IO.Path]::GetTempPath()) ('native-keeper-fixture-'+[Guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($root)|Out-Null
+try {
+  $binding=[pscustomobject]@{work_root=$root;invocation_id=('a'*64)}
+  $session=[pscustomobject]@{binding=$binding;keeper=$null}
+  Start-PortcoveNativeProfileKeeper $session|Out-Null
+  if(-not [IO.Directory]::Exists($session.keeper_directory)){throw 'keeper directory not retained'}
+  $repeat=$false;try{Start-PortcoveNativeProfileKeeper $session|Out-Null}catch{$repeat=$true}
+  $collision=$false;try{Start-PortcoveNativeProfileKeeper ([pscustomobject]@{binding=$binding;keeper=$null})|Out-Null}catch{$collision=$true}
+  $starts=& $module {$script:keeperStarts}
+  if(-not $repeat -or -not $collision -or $starts -ne 1){throw 'keeper retained directory or launch was repeated'}
+  [ordered]@{working_directory_exists_before_launch=$true;launch_requests=$starts;retained_directory_refused=$collision;scope='inert filesystem and injected launch only'}|ConvertTo-Json -Compress
+}finally{Remove-Item -LiteralPath $root -Recurse -Force}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_ADAPTER: fileURLToPath(
+          new URL("./native-qualification-account-adapter.psm1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      working_directory_exists_before_launch: true,
+      launch_requests: 1,
+      retained_directory_refused: true,
+      scope: "inert filesystem and injected launch only",
+    });
+  },
+);
+
+void test(
   "bridge capture appends only new bytes and preserves unexpected partial state",
   { skip: process.platform !== "win32" },
   () => {

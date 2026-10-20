@@ -108,9 +108,26 @@ function Start-PortcoveNativeAccountRoot {
 function Start-PortcoveNativeProfileKeeper {
     param([Parameter(Mandatory)]$Session)
     if ($Session.keeper -ne $null) { throw 'Native profile keeper cannot repeat' }
+    if ($Session.binding.invocation_id -cnotmatch '^[a-f0-9]{64}$') { throw 'Native keeper requires exact invocation' }
+    $work=[IO.Path]::GetFullPath($Session.binding.work_root)
+    $cursor=$work
+    while ($cursor) {
+        $item=Get-Item -LiteralPath $cursor -Force
+        if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Native keeper work ancestry differs' }
+        $parent=[IO.Path]::GetDirectoryName($cursor)
+        if (-not $parent -or $parent -eq $cursor) { break }
+        $cursor=$parent
+    }
+    $directory=Join-Path $work ('keeper-' + $Session.binding.invocation_id)
+    # New-Item without Force refuses a retained directory. This is prepared
+    # before any candidate root, never assumed to exist from manual setup.
+    $null=New-Item -ItemType Directory -Path $directory -ErrorAction Stop
+    $item=Get-Item -LiteralPath $directory -Force
+    if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Native keeper directory changed' }
+    $Session | Add-Member NoteProperty keeper_directory $directory
     $exe=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
     # Fixed inert command only; no candidate script, profile or stdin.
-    $identity=Start-PortcoveNativeAccountRoot $Session 'profile-keeper' $exe @('-NoLogo','-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 1800') (Join-Path $Session.binding.work_root 'keeper')
+    $identity=Start-PortcoveNativeAccountRoot $Session 'profile-keeper' $exe @('-NoLogo','-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 1800') $directory
     $Session.keeper=$identity
     Get-PortcoveNativeRegistryRoot $Session
 }

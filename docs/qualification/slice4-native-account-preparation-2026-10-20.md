@@ -155,7 +155,7 @@ including the known broad writable E: ancestry. All dynamically consumed helper
 and driver inputs must therefore be staged and read back under the protected
 root before candidate execution. That staging/setup has not occurred.
 
-Four new adapter tests pass: exact identity/environment handling and one-shot
+Five new adapter tests pass: exact identity/environment handling and one-shot
 stop/readback, NSIS job completion and changed-root refusal, desktop job/snapshot
 binding and forbidden owner fallback, and append-only bounded stream capture.
 Those observations are injected/inert plumbing evidence, not cross-account GUI
@@ -164,6 +164,11 @@ declared helper inventory captures the new backend and its client/C# sources.
 Capture appends only newly observed bytes rather than rewriting up to 4 MiB per
 stream on every poll; unexpected retained length refuses without overwriting the
 partial evidence.
+Independent review identified a missing keeper working directory before its
+first startup. The adapter now creates a new exact per-invocation directory after
+ancestry checks and before requesting the launch; retained directories refuse.
+The regression observes that real directory at the injected launch seam and
+proves one launch request with repeat/collision refusal. It performs no logon.
 
 This remains an incomplete stage adapter. Direct application-recovery and
 private-key fixture renderer modes are explicitly refused in the selected route;
