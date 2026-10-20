@@ -166,7 +166,16 @@ export async function libraryHandoffScenario({
     await click(button("Move to this folder"));
     const after = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > before.generation ? observed : false;
+      const expected = await realpath(destination).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > before.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(after);
     assert.equal(await realpath(required(after.library_root)), await realpath(destination));
@@ -280,7 +289,10 @@ export async function libraryHandoffScenario({
     await click(button("Review restore"));
     await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
     const emptyContentImage = path.join(output, "native-empty-content-review.png");
-    await writeFile(emptyContentImage, await browser.takeScreenshot(), { flag: "wx" });
+    await writeFile(emptyContentImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
     artifacts.push(emptyContentImage);
     await browser.findElement(By.id("import-content")).clear();
     await browser.findElement(By.id("import-content")).sendKeys(contentCopy);
@@ -324,7 +336,16 @@ export async function libraryHandoffScenario({
     );
     const afterRestore = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > beforeRestore.generation ? observed : false;
+      const expected = await realpath(restoreRoot).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > beforeRestore.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(afterRestore);
     assert.equal(await realpath(required(afterRestore.library_root)), await realpath(restoreRoot));
@@ -405,7 +426,16 @@ export async function libraryHandoffScenario({
     await click(button("Keep using original library"));
     const afterRecovery = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > beforeRecovery.generation ? observed : false;
+      const expected = await realpath(restoreRoot).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > beforeRecovery.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(afterRecovery);
     assert.equal(await realpath(required(afterRecovery.library_root)), await realpath(restoreRoot));
