@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, link } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
@@ -102,6 +102,30 @@ void test("CLI uses the same source/toolchain capture while declaring updater in
   assert.equal(result.report.interface, "cli");
   assert.match(result.report.public_input_use, /not applicable/);
   assert.equal(result.report.evidence_scope, "injected-executor");
+});
+void test("pnpm-style linked tool bytes retain physical identity while linked public inputs still refuse", async (t) => {
+  const f = await fixture(t);
+  const cli = path.join(f.root, "apps/desktop/node_modules/@tauri-apps/cli/tauri.js");
+  await link(cli, path.join(f.root, "owned-tool-link"));
+  const result = await captureReleaseCompiler(f.root, { ...f.options, invoke: async () => 0 });
+  assert.equal(result.report.state, "completed");
+  assert.equal(
+    result.report.tools.find((item) => item.role === "tauri-entrypoint")?.file_identity?.nlink,
+    2,
+  );
+  await link(path.join(f.prepared.output, "root.json"), path.join(f.root, "owned-public-link"));
+  let invoked = 0;
+  await assert.rejects(
+    captureReleaseCompiler(f.root, {
+      ...f.options,
+      invoke: async () => {
+        invoked++;
+        return 0;
+      },
+    }),
+    /unlinked file/,
+  );
+  assert.equal(invoked, 0);
 });
 void test("direct inert process capture uses reconstructed exact inputs and never claims compiler acceptance", async (t) => {
   const f = await fixture(t);

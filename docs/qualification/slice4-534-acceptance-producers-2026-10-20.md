@@ -42,6 +42,18 @@ Started and final observations are separate new files and upload through the
 existing seven-day, no-overwrite transport, including on a failed build step.
 There are no additional jobs, caches or larger runners.
 
+A read-only check of the installed dependency route found link count two on
+Tauri 2.12.2's JavaScript and Windows native binding, and one on the pinned Node
+executable. Its retained local receipt is
+`work/slice4/compiler-tool-link-observation-2026-10-20.json`, SHA-256
+`d23cceeaaf8277260e8971426884bedddec0398e139c712f7091324e7b3d3a45`.
+Compiler tool observations therefore admit regular hardlinked tool files and
+bind their device/inode/link count/times and exact bytes before and after use;
+public inputs still require a single link. Native dependency resolution starts
+from the canonical CLI path, matching Node's normal pnpm entrypoint resolution.
+The additional linked-tool regression uses owned inert files. This is dependency
+route evidence, not a compiler execution or tool acceptance grant.
+
 Both real outer native harnesses now include their actual script hash, checkout
 commit/tree and host observation. Windows records the installer pair before
 mutation; Linux retains the initial library/game/save/backup/log marker hashes.

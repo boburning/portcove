@@ -31,18 +31,36 @@ const members = [
   "build-inputs.json",
 ];
 
-async function identity(root: string, filename: string, maximum: number) {
+async function identity(
+  root: string,
+  filename: string,
+  maximum: number,
+  kind: "public-input" | "tool" = "public-input",
+) {
   const absolute = await assertOwnedUnlinkedPath(
     root,
     path.resolve(root, filename),
     "compiler input",
   );
   const stat = await lstat(absolute);
-  if (!stat.isFile() || stat.nlink !== 1 || stat.size < 1 || stat.size > maximum)
+  if (
+    !stat.isFile() ||
+    (kind === "tool" ? stat.nlink < 1 : stat.nlink !== 1) ||
+    stat.size < 1 ||
+    stat.size > maximum
+  )
     throw new Error("compiler input is not a bounded regular unlinked file");
   const handle = await open(absolute, "r");
   try {
     const before = await handle.stat();
+    if (
+      !before.isFile() ||
+      before.dev !== stat.dev ||
+      before.ino !== stat.ino ||
+      before.nlink !== stat.nlink ||
+      before.size !== stat.size
+    )
+      throw new Error("compiler input identity changed before capture");
     const bytes = Buffer.alloc(64 * 1024);
     const digest = createHash("sha256");
     let length = 0;
@@ -60,10 +78,33 @@ async function identity(root: string, filename: string, maximum: number) {
       after.mtimeMs !== before.mtimeMs ||
       after.ctimeMs !== before.ctimeMs ||
       after.ino !== before.ino ||
-      after.dev !== before.dev
+      after.dev !== before.dev ||
+      after.nlink !== before.nlink
     )
       throw new Error("compiler input changed during capture");
-    return { filename, bytes: length, sha256: digest.digest("hex") };
+    const finalPath = await lstat(absolute);
+    if (
+      finalPath.dev !== after.dev ||
+      finalPath.ino !== after.ino ||
+      finalPath.nlink !== after.nlink
+    )
+      throw new Error("compiler input path identity changed during capture");
+    return {
+      filename,
+      bytes: length,
+      sha256: digest.digest("hex"),
+      ...(kind === "tool"
+        ? {
+            file_identity: {
+              dev: after.dev,
+              ino: after.ino,
+              nlink: after.nlink,
+              mtime_ms: after.mtimeMs,
+              ctime_ms: after.ctimeMs,
+            },
+          }
+        : {}),
+    };
   } finally {
     await handle.close();
   }
@@ -178,7 +219,7 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
   );
   if (!isDeepStrictEqual(before, reconstructed))
     throw new Error("compiler public inputs differ from ratified reconstruction");
-  const cli = path.join(root, "apps/desktop/node_modules/@tauri-apps/cli/tauri.js");
+  const cli = await realpath(path.join(root, "apps/desktop/node_modules/@tauri-apps/cli/tauri.js"));
   const readToolJson = async (filename: string): Promise<unknown> => {
     const absolute = await realpath(filename);
     return JSON.parse(
@@ -270,7 +311,12 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
         const absolute = await realpath(filename);
         return {
           role,
-          ...(await identity(path.dirname(absolute), path.basename(absolute), 256 * 1024 * 1024)),
+          ...(await identity(
+            path.dirname(absolute),
+            path.basename(absolute),
+            256 * 1024 * 1024,
+            "tool",
+          )),
         };
       }),
     );
