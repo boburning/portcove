@@ -107,7 +107,7 @@ function Start-PortcoveNativeAccountRoot {
 
 function Start-PortcoveNativeProfileKeeper {
     param([Parameter(Mandatory)]$Session)
-    if ($Session.keeper -ne $null) { throw 'Native profile keeper cannot repeat' }
+    if ($null -ne $Session.keeper) { throw 'Native profile keeper cannot repeat' }
     if ($Session.binding.invocation_id -cnotmatch '^[a-f0-9]{64}$') { throw 'Native keeper requires exact invocation' }
     $work=[IO.Path]::GetFullPath($Session.binding.work_root)
     $cursor=$work
@@ -134,7 +134,7 @@ function Start-PortcoveNativeProfileKeeper {
 
 function Get-PortcoveNativeRegistryRoot {
     param([Parameter(Mandatory)]$Session)
-    if ($Session.keeper -eq $null) { throw 'Native loaded-profile lifetime is not established' }
+    if ($null -eq $Session.keeper) { throw 'Native loaded-profile lifetime is not established' }
     $observed=Invoke-PortcoveNativeAccountCommand $Session observe 'profile-keeper'
     if ($observed.exited -isnot [bool] -or $observed.exited) { throw 'Native profile keeper exited; HKCU cannot be inferred' }
     $root='Registry::HKEY_USERS\' + $Session.binding.account_sid

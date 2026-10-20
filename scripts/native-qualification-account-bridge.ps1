@@ -136,7 +136,7 @@ try {
         Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch','target')
         if ($request.schema_version -ne 1 -or $request.invocation_id -cne $InvocationId -or $request.sequence -ne $sequence -or $request.id -cnotmatch '^[a-z][a-z0-9-]{0,63}$') { throw 'Bridge command identity mismatch' }
         Assert-CaptureHealthy
-        if ($request.operation -cne 'close' -and $request.target -ne $null) { throw 'Only close accepts an exact owned child target' }
+        if ($request.operation -cne 'close' -and $null -ne $request.target) { throw 'Only close accepts an exact owned child target' }
         $value = $null
         switch -CaseSensitive ($request.operation) {
             'start' {
@@ -155,7 +155,7 @@ try {
                 $value=[ordered]@{ pid=$process.Id; path=$process.Path; started_filetime=$process.CreatedFileTime.ToString(); started_at=$process.StartTime.ToUniversalTime().ToString('o') }
             }
             'observe' {
-                if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
                 $process=$roots[$request.id]
                 $exited=$process.HasExited
                 $identities=@($process.SnapshotOwnedJob() | ForEach-Object { [ordered]@{ pid=$_.Pid; path=$_.Path; started_filetime=$_.CreatedFileTime.ToString() } })
@@ -163,8 +163,8 @@ try {
                     responding=$process.Responding; window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
             }
             'close' {
-                if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
-                if ($request.target -eq $null) { $accepted=$roots[$request.id].CloseMainWindow() }
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
+                if ($null -eq $request.target) { $accepted=$roots[$request.id].CloseMainWindow() }
                 else {
                     Assert-ExactMembers $request.target @('pid','started_filetime')
                     if ($request.target.pid -isnot [long] -and $request.target.pid -isnot [int]) { throw 'Exact positive close PID required' }
@@ -174,15 +174,15 @@ try {
                 $value=[ordered]@{ accepted=$accepted }
             }
             'stop' {
-                if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
                 $value=Convert-Teardown ($roots[$request.id].StopAndObserve(5000))
             }
             'readback' {
-                if ($request.launch -ne $null -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
                 $value=Convert-Teardown ($roots[$request.id].ReadTeardown(5000))
             }
             'finish' {
-                if ($request.launch -ne $null) { throw 'Finish cannot import launch data' }
+                if ($null -ne $request.launch) { throw 'Finish cannot import launch data' }
                 $groupStopped=$true
                 $remaining=@($group.StopAndObserve(5000))
                 if ($remaining.Count -ne 0) { throw 'Native group teardown remains incomplete' }

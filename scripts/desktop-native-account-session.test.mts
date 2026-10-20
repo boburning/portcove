@@ -8,8 +8,8 @@ import test from "node:test";
 import {
   NativeAccountClient,
   type NativeAccountLaunch,
-} from "../../../scripts/native-qualification-account-client.mts";
-import { DesktopNativeAccountSession } from "./desktop-native-account-session.mts";
+} from "./native-qualification-account-client.mts";
+import { DesktopNativeAccountSession } from "../apps/desktop/scripts/desktop-native-account-session.mts";
 
 void test(
   "account desktop handoff uses exact job identities, scrubbed environment and one stop",
@@ -34,7 +34,7 @@ void test(
         account_sid: "S-1-5-21-1-2-3-1002",
         profile_root: profile,
         work_root: work,
-        controller_root: fileURLToPath(new URL("../../../", import.meta.url)),
+        controller_root: fileURLToPath(new URL("../", import.meta.url)),
         powershell: { path: process.execPath, sha256: "d".repeat(64) },
         desktop_tools: {
           node: {

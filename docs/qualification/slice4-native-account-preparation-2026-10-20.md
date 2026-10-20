@@ -170,6 +170,17 @@ ancestry checks and before requesting the launch; retained directories refuse.
 The regression observes that real directory at the injected launch seam and
 proves one launch request with repeat/collision refusal. It performs no logon.
 
+The first hosted delivery run
+[39502864188/1](https://github.com/boburning/portcove/actions/runs/39502864188)
+at source `f19d0b5c27d72228b61e6ff26d3b89f8eb72b65e` failed in three ordinary
+producers: the Node adapter suite was placed in the UI test tree, the existing
+extracted startDriver fixture omitted its new account binding, and PowerShell
+lint refused right-hand null comparisons. The Node suite now lives with the
+maintained script tests, the fixture explicitly selects its unchanged ordinary
+route, and null comparisons follow the pinned analyzer. The affected 36-test
+selection passes; the original run and its failures remain retained. These
+repairs change no native acceptance or resource limit.
+
 This remains an incomplete stage adapter. Direct application-recovery and
 private-key fixture renderer modes are explicitly refused in the selected route;
 a real public signed-context update/rollback/journal adapter still has to replace
