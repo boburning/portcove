@@ -349,13 +349,13 @@ describe("Catalog channel controls", () => {
     await act(async () => libraryButton("Ready").click());
     expect(
       [...host.querySelectorAll("article.port-card")].map(
-        (card) => card.querySelector("h2")?.textContent,
+        (card) => card.querySelector('[role="heading"][aria-level="2"]')?.textContent,
       ),
     ).toEqual(["Stable port"]);
     await act(async () => libraryButton("Needs attention").click());
     expect(
       [...host.querySelectorAll("article.port-card")].map(
-        (card) => card.querySelector("h2")?.textContent,
+        (card) => card.querySelector('[role="heading"][aria-level="2"]')?.textContent,
       ),
     ).toEqual(["Beta port"]);
     await act(async () => shell.setView("catalog"));

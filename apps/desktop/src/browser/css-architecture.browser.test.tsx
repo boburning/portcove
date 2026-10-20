@@ -203,7 +203,7 @@ it("preserves Base UI class callbacks, render composition, refs and inert pendin
   const pending = page.getByRole("button", { name: "Saving" });
   await expect.element(pending).toBeDisabled();
   await expect.element(pending).toHaveClass("resolved-disabled");
-  expect(getComputedStyle(pending.element()).minHeight).toBe("36px");
+  expect(getComputedStyle(pending.element()).minHeight).toBe("40px");
 });
 
 it("receives Field invalid state and preserves caller input refs and handlers", async () => {
