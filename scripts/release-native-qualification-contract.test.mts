@@ -3,6 +3,9 @@ import test from "node:test";
 import {
   inspectNativeReleaseQualification,
   nativeQualificationScenarios,
+  nativePrepublicationScenarios,
+  nativePrepublicationProfile,
+  nativePrepublicationPending,
 } from "./release-native-qualification-contract.mts";
 
 function report(stage: "payload-signing" | "release-publication" = "payload-signing") {
@@ -106,6 +109,57 @@ void test("inert native contract keeps signing and publication stages distinct a
   assert.throws(() => inspectNativeReleaseQualification(wrong));
   assert.equal(Object.hasOwn(actual, "accepted"), false);
   assert.equal(Object.hasOwn(actual, "authority"), false);
+});
+void test("schema2 prepublication wire keeps package compatibility separate from pending ordinary public journey", () => {
+  const legacy = report("release-publication");
+  const value = {
+    ...legacy,
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+    pending_obligations: [...nativePrepublicationPending],
+    scenarios: nativePrepublicationScenarios.map((name, index) => ({
+      ...legacy.scenarios[index]!,
+      name,
+    })),
+  };
+  const result = inspectNativeReleaseQualification(value);
+  assert.equal(result.schema_version, 2);
+  assert.equal(result.native_prepublication_profile, nativePrepublicationProfile);
+  assert.deepEqual(
+    result.scenarios.map((scenario) => scenario.name),
+    nativePrepublicationScenarios,
+  );
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  assert.equal(result.journey?.signed_context_sha256, "3".repeat(64));
+  value.pending_obligations[0] = "changed" as (typeof value.pending_obligations)[number];
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  for (const changed of [
+    { ...value, pending_obligations: [] },
+    { ...value, pending_obligations: [...nativePrepublicationPending].reverse() },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      native_prepublication_profile: "caller-profile",
+    },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      stage: "payload-signing",
+      journey: null,
+    },
+    { ...value, pending_obligations: [...nativePrepublicationPending], journey: null },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      scenarios: legacy.scenarios,
+    },
+    { ...value, pending_obligations: [...nativePrepublicationPending], schema_version: 1 },
+  ])
+    assert.throws(() => inspectNativeReleaseQualification(changed));
+  assert.deepEqual(
+    inspectNativeReleaseQualification(legacy).scenarios.map((scenario) => scenario.name),
+    nativeQualificationScenarios["release-publication"],
+  );
 });
 void test("post-sign native captures bind exact predecessor and signed context while empty required capabilities remain valid", () => {
   const value = report("release-publication");

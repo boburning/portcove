@@ -8,7 +8,13 @@ import {
   collectNativeReleaseQualificationPair,
   deriveNativeQualificationExpectations,
 } from "./release-native-admission.mts";
-import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
+import {
+  inspectPublicationAuthorities,
+  inspectReleaseAuthorityConfiguration,
+  inspectNativePrepublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
+import { releaseCanonicalDigest } from "./release-canonical.mts";
 
 void test("publication configuration pins only distinct immutable public data and setup identities", () => {
   const file = (path: string) => ({ path, bytes: 123, sha256: "a".repeat(64) });
@@ -109,6 +115,30 @@ void test("fixed authority supplies native issuer and host while locators cannot
     apps,
     native,
   };
+  const temporal = {
+    ...authorities,
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+  };
+  const parsedTemporal = inspectReleaseAuthorityConfiguration(temporal);
+  assert.equal(parsedTemporal.native_prepublication_profile, nativePrepublicationProfile);
+  assert.equal(parsedTemporal.schema_version, 2);
+  assert.deepEqual(inspectNativePrepublicationAuthorities(temporal), parsedTemporal);
+  assert.throws(() => inspectNativePrepublicationAuthorities(authorities), /ratified/u);
+  assert.notEqual(
+    releaseCanonicalDigest(inspectReleaseAuthorityConfiguration(authorities)),
+    releaseCanonicalDigest(parsedTemporal),
+  );
+  assert.equal(
+    inspectReleaseAuthorityConfiguration(authorities).native_prepublication_profile,
+    undefined,
+  );
+  for (const changed of [
+    { ...temporal, native_prepublication_profile: "caller-profile" },
+    { ...temporal, schema_version: 1 },
+    { ...authorities, schema_version: 2 },
+  ])
+    assert.throws(() => inspectReleaseAuthorityConfiguration(changed));
   const locators = [
     { platform_label: "windows-x86_64", check_id: 101, invocation_id: "1".repeat(64) },
     { platform_label: "linux-x86_64", check_id: 102, invocation_id: "2".repeat(64) },
