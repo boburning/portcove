@@ -11,6 +11,42 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
+prepares bounded, attested fixed-source tool custody before role-key access and
+adds a separate ordinary credential-free Linux build fixture. Its initial three
+bundled entries require explicit extension to the final role wrappers; protected
+tool execution and all independent acceptance remain pending. The
+[OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
+owner/repository IDs and each existing fixed environment without changing provider
+settings. Site capacity-profile composition remains a separate integration; no
+production job, credential, setting or owning-issue closure is activated here.
+
+The October 20 [immutable Release preparation](slice4-534-immutable-release-preparation-2026-10-20.md)
+adds draft-first one-effect transport, actual intent settlement binding and
+fixed-controller qualification against inert exact candidate source. It supplies
+no protected publisher job, credential, positive scanner/native/SBOM/compiler
+acceptance or production grant; existing holds remain.
+
+The October 20 [phase-specific late controls](slice4-payload-phase-controls-2026-10-20.md)
+connect payload preparation to its own fresh isolated observation after aggregate
+and opaque package acquisition. Site maintenance can read pause/capacity without
+a classification record or candidate. All production fragments remain held; the
+ordinary credential-free process fixture establishes hosted lifetime only when
+its actual CI run succeeds. Custody, final resource/digest reconciliation and
+protected acceptance remain pending.
+
+The October 20 [isolated online TUF roles](slice4-534-isolated-tuf-roles-2026-10-20.md)
+add one-key role invocations, actual keyless Tough assembly and authenticated
+immutable history. The repaired signed-history regression passes with disposable
+keys; production custody, hosted roles and metadata-only coordinator integration
+remain pending.
+
+The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
+connect actual controller/reader and isolated observer identities to existing
+classification, pause and capacity readers. Large acquisition precedes the
+unchanged 60-second freshness window. Later phases need their own fresh controls;
+actual hosted timing and final resource/digest reconciliation remain pending.
+
 The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
 connects actual aggregate verification and existing reservation association to
 strict diagnostic requests for the two beta updater payloads. Actual disposable

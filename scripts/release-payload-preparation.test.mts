@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { isRecord } from "./runtime-values.mts";
 import { parseDocument } from "yaml";
 import {
   stageAggregateSigningInputs,
@@ -29,7 +30,24 @@ void test("standalone signer fragment stays held and uses only the connected con
   assert.equal(yaml.getIn(["jobs", "payload_signing", "name"]), "Sign admitted updater payloads");
   assert.ok(text.includes("node scripts/release-payload-preparation.mts"));
   assert.equal(text.includes("node scripts/release-payload-signing.mts"), false);
-  assert.equal(text.includes("secrets."), false);
+  const parsed: unknown = yaml.toJS();
+  assert.ok(isRecord(parsed) && isRecord(parsed.jobs));
+  const reader = parsed.jobs.payload_signing;
+  const observer = parsed.jobs.payload_protection_observation;
+  assert.ok(isRecord(reader) && isRecord(observer));
+  assert.doesNotMatch(
+    JSON.stringify(reader),
+    /secrets\.|CONTROL_APP_TOKEN|permission-administration/,
+  );
+  assert.equal(observer.if, "${{ false }}");
+  assert.match(JSON.stringify(observer), /release-control-ready.mts payload/);
+  assert.match(JSON.stringify(observer), /observe-production-payload/);
+  assert.ok(
+    JSON.stringify(observer).indexOf("release-control-ready.mts") <
+      JSON.stringify(observer).indexOf("create-github-app-token"),
+  );
+  assert.match(JSON.stringify(reader), /trusted-release-control-payload-ready-/);
+  assert.match(JSON.stringify(observer), /trusted-release-control-payload-observation-/);
   assert.equal(text.includes("actions/cache@"), false);
 });
 async function fixture(t: test.TestContext) {

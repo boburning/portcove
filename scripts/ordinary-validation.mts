@@ -550,6 +550,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 ]);
 
 const workflowTests = new Map([
+  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
   ["application-update-production.yml", ["scripts/production-controller-admission.test.mts"]],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
@@ -569,11 +570,17 @@ const releaseContractTests = Object.freeze([
   "scripts/release-package-policy.test.mts",
   "scripts/release-public-build-inputs.test.mts",
   "scripts/release-public-build-provenance.test.mts",
+  "scripts/release-handshake-hosted-fixture.test.mts",
+  "scripts/release-controller-tools.test.mts",
+  "scripts/release-control-handshake.test.mts",
+  "scripts/release-live-control-admission.test.mts",
   "scripts/write-release-checksums.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
   "scripts/reconcile-release-assets.test.mts",
+  "scripts/release-candidate-qualification.test.mts",
+  "scripts/release-immutable-publication.test.mts",
   "scripts/finalize-release-assets.test.mts",
   "scripts/generate-release-downloads.test.mts",
   "scripts/select-release-channel.test.mts",

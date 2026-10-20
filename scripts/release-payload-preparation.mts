@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { crc32, inflateRawSync } from "node:zlib";
-import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
+import { acquireReleaseAdmissionWithControlHandshake } from "./acquire-release-admission.mts";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
@@ -249,7 +249,6 @@ export async function stageAggregateSigningInputs(
 export async function prepareControllerPayloadSigning(
   rawConfig: unknown,
   options: {
-    admission?: Parameters<typeof acquireReleaseAdmission>[2];
     aggregate?: Parameters<typeof verifyUploadedAggregate>[2];
   } = {},
 ) {
@@ -272,10 +271,119 @@ export async function prepareControllerPayloadSigning(
   await mkdir(directory, { mode: 0o700 });
   let phase = "fresh-independent-admission";
   try {
-    const admission = await acquireReleaseAdmission(
+    let prepared:
+      | {
+          requests: ReturnType<typeof inspectPayloadSigningRequest>[];
+          verification: Awaited<ReturnType<typeof verifyUploadedAggregate>>;
+        }
+      | undefined;
+    const admission = await acquireReleaseAdmissionWithControlHandshake(
       directory,
       config.admission_configuration,
-      options.admission,
+      "payload",
+      async (facts, factsSha256) => {
+        if (!facts.checkpoint) throw new Error("complete reservation facts are required");
+        const { accepted } = await inspectTrustedAssemblyInput(facts.assembly);
+        phase = "existing-reservation-before";
+        const coordinator = {
+          schema_version: 1,
+          namespace: config.admission_configuration.namespace,
+        };
+        const descriptor = JSON.stringify({
+          schema_version: 1,
+          checkpoint: facts.checkpoint,
+          coordinator,
+          assembly: accepted,
+          archives: facts.archives,
+          evidence: {},
+        });
+        const readReservation = () =>
+          readRemoteCoordinatorSnapshot(directory, coordinator, { transport: { cwd: directory } });
+        const retainReservation = async (name: string) => {
+          await requireReservedAggregate(descriptor, await readReservation());
+          await writeFile(
+            path.join(directory, name),
+            `${JSON.stringify({ checkpoint: facts.checkpoint, source_commit: accepted.source_commit, source_tree: accepted.source_tree, version: accepted.version, run_id: accepted.run_id, run_attempt: accepted.run_attempt, scope: "existing reservation association only" })}\n`,
+            { flag: "wx", mode: 0o600 },
+          );
+        };
+        await retainReservation("reservation-before.json");
+        phase = "verify-uploaded-aggregate";
+        const verification = await verifyUploadedAggregate(
+          directory,
+          {
+            ...config.aggregate,
+            candidate: accepted,
+            candidate_artifact_ids: facts.archives.map((archive) => archive.artifact_id),
+          },
+          options.aggregate,
+        );
+        if (verification.evidence_scope !== "github.com")
+          throw new Error(
+            "injected aggregate evidence cannot prepare a production signing request",
+          );
+        await writeFile(
+          path.join(directory, "aggregate-verification.json"),
+          `${JSON.stringify(verification)}\n`,
+          { flag: "wx", mode: 0o600 },
+        );
+        phase = "public-key";
+        const publicPath = await assertOwnedUnlinkedPath(
+          config.projectRoot,
+          config.publicKey,
+          "independent payload public key",
+        );
+        const keyBytes = await readBounded(publicPath, 16 * 1024);
+        const outer = keyBytes.toString("utf8").trim();
+        const key = Buffer.from(outer, "base64");
+        const lines = key.toString("utf8").trimEnd().split("\n");
+        if (
+          key.toString("base64") !== outer ||
+          hash(key) !== config.public_key_sha256 ||
+          lines.length !== 2 ||
+          !lines[0]?.startsWith("untrusted comment:") ||
+          Buffer.from(lines[1] ?? "", "base64").length !== 42 ||
+          Buffer.from(lines[1] ?? "", "base64")
+            .subarray(0, 2)
+            .toString("ascii") !== "Ed" ||
+          Buffer.from(lines[1] ?? "", "base64").toString("base64") !== lines[1]
+        )
+          throw new Error("independent public key bytes differ");
+        await writeFile(path.join(directory, "public.key"), keyBytes, { flag: "wx", mode: 0o600 });
+        phase = "materialize-verified-payloads";
+        const archive = await readBounded(
+          path.join(verification.acquisition_directory, "input", "aggregate.zip"),
+          512 * 1024 ** 2,
+        );
+        const requests = await stageAggregateSigningInputs(
+          path.join(directory, "payloads"),
+          archive,
+          accepted,
+          {
+            aggregate_archive_sha256: verification.sha256,
+            reservation_checkpoint: facts.checkpoint,
+            qualification_inventory_sha256: hash(JSON.stringify(orderedJsonValue(facts.contexts))),
+            public_key_sha256: config.public_key_sha256,
+            producer: {
+              run_id: config.aggregate.run_id,
+              run_attempt: config.aggregate.run_attempt,
+              job_id: String(verification.assembler.job_id),
+              artifact_id: String(verification.artifact_id),
+            },
+          },
+        );
+        phase = "existing-reservation-after";
+        await retainReservation("reservation-after.json");
+        prepared = { requests, verification };
+        return hash(
+          JSON.stringify({
+            facts_sha256: factsSha256,
+            requests,
+            aggregate_artifact_id: verification.artifact_id,
+            aggregate_archive_sha256: verification.sha256,
+          }),
+        );
+      },
     );
     const admissionBytes = JSON.stringify(admission);
     if (Buffer.byteLength(admissionBytes) > 2 * 1024 ** 2)
@@ -284,102 +392,16 @@ export async function prepareControllerPayloadSigning(
       flag: "wx",
       mode: 0o600,
     });
-    if (!admission.checkpoint || admission.evidence_scope !== "github.com")
-      throw new Error("payload preparation requires actual complete admission observations");
-    const { accepted } = await inspectTrustedAssemblyInput(admission.assembly);
-    phase = "existing-reservation-before";
-    const coordinator = { schema_version: 1, namespace: config.admission_configuration.namespace };
-    const descriptor = JSON.stringify({
-      schema_version: 1,
-      checkpoint: admission.checkpoint,
-      coordinator,
-      assembly: accepted,
-      archives: admission.archives,
-      evidence: {},
-    });
-    const readReservation = () =>
-      readRemoteCoordinatorSnapshot(directory, coordinator, { transport: { cwd: directory } });
-    const retainReservation = async (name: string) => {
-      await requireReservedAggregate(descriptor, await readReservation());
-      await writeFile(
-        path.join(directory, name),
-        `${JSON.stringify({ checkpoint: admission.checkpoint, source_commit: accepted.source_commit, source_tree: accepted.source_tree, version: accepted.version, run_id: accepted.run_id, run_attempt: accepted.run_attempt, scope: "existing reservation association only" })}\n`,
-        { flag: "wx", mode: 0o600 },
-      );
-    };
-    await retainReservation("reservation-before.json");
-    phase = "verify-uploaded-aggregate";
-    const verification = await verifyUploadedAggregate(
-      directory,
-      {
-        ...config.aggregate,
-        candidate: accepted,
-        candidate_artifact_ids: admission.archives.map((archive) => archive.artifact_id),
-      },
-      options.aggregate,
-    );
-    if (verification.evidence_scope !== "github.com")
-      throw new Error("injected aggregate evidence cannot prepare a production signing request");
-    await writeFile(
-      path.join(directory, "aggregate-verification.json"),
-      `${JSON.stringify(verification)}\n`,
-      { flag: "wx", mode: 0o600 },
-    );
-    phase = "public-key";
-    const publicPath = await assertOwnedUnlinkedPath(
-      config.projectRoot,
-      config.publicKey,
-      "independent payload public key",
-    );
-    const keyBytes = await readBounded(publicPath, 16 * 1024);
-    const outer = keyBytes.toString("utf8").trim();
-    const key = Buffer.from(outer, "base64");
-    const lines = key.toString("utf8").trimEnd().split("\n");
-    if (
-      key.toString("base64") !== outer ||
-      hash(key) !== config.public_key_sha256 ||
-      lines.length !== 2 ||
-      !lines[0]?.startsWith("untrusted comment:") ||
-      Buffer.from(lines[1] ?? "", "base64").length !== 42 ||
-      Buffer.from(lines[1] ?? "", "base64")
-        .subarray(0, 2)
-        .toString("ascii") !== "Ed" ||
-      Buffer.from(lines[1] ?? "", "base64").toString("base64") !== lines[1]
-    )
-      throw new Error("independent public key bytes differ");
-    await writeFile(path.join(directory, "public.key"), keyBytes, { flag: "wx", mode: 0o600 });
-    phase = "materialize-verified-payloads";
-    const archive = await readBounded(
-      path.join(verification.acquisition_directory, "input", "aggregate.zip"),
-      512 * 1024 ** 2,
-    );
-    const requests = await stageAggregateSigningInputs(
-      path.join(directory, "payloads"),
-      archive,
-      accepted,
-      {
-        aggregate_archive_sha256: verification.sha256,
-        reservation_checkpoint: admission.checkpoint,
-        qualification_inventory_sha256: hash(JSON.stringify(orderedJsonValue(admission.contexts))),
-        public_key_sha256: config.public_key_sha256,
-        producer: {
-          run_id: config.aggregate.run_id,
-          run_attempt: config.aggregate.run_attempt,
-          job_id: String(verification.assembler.job_id),
-          artifact_id: String(verification.artifact_id),
-        },
-      },
-    );
-    phase = "existing-reservation-after";
-    await retainReservation("reservation-after.json");
-    // The current admission contract intentionally has no positive signing
-    // disposition. Do not turn the acquired facts or a supplied digest into one.
+    if (!prepared || !admission.checkpoint || admission.evidence_scope !== "github.com")
+      throw new Error("payload preparation requires actual complete late-control observations");
+    const { requests, verification } = prepared;
     const result = {
       schema_version: 1,
       decision: "hold",
       directory,
       checkpoint: admission.checkpoint,
-      holds: [...admission.holds, "payload-signing-positive-admission-not-connected"].sort(),
+      control_phase: "payload",
+      holds: [...admission.holds].sort(),
       diagnostic_requests: requests,
       aggregate_artifact_id: verification.artifact_id,
       aggregate_archive_sha256: verification.sha256,
@@ -432,7 +454,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     )
       throw new Error("fixed payload caller configuration differs");
     await runPayloadSigningController(
-      { ...raw.configuration, projectRoot: project },
+      {
+        ...raw.configuration,
+        projectRoot: project,
+        output: path.join(project, "work", "payload-preparation"),
+      },
       raw.signer_identity,
     );
     process.exitCode = 2;
@@ -441,5 +467,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       "held payload signing controller refused; retain bounded public preparation evidence",
     );
     process.exitCode = 2;
+  } finally {
+    if (process.env.RUNNER_TEMP)
+      await writeFile(
+        path.join(process.env.RUNNER_TEMP, "payload-preparation-process-ended.json"),
+        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+        { flag: "wx", mode: 0o600 },
+      ).catch(() => {
+        process.exitCode = 2;
+      });
   }
 }

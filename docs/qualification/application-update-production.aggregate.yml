@@ -43,15 +43,86 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission.mts
 
+  protection_observation:
+    if: ${{ false }}
+    needs: admission
+    name: Observe production release input protections
+    environment: production-release-protection-observer
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      observation: ${{ steps.observe.outputs.observation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - name: Wait GET-only for exact private acquisition readiness before credential release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+        run: node scripts/release-control-ready.mts
+      # Administration-write is released only to GET-only observer code.
+      # This new held source invalidates the previous capacity/workflow binding;
+      # the final complete job set must fit the unchanged 100-minute ceiling.
+      - id: observer-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-administration: write
+          permission-metadata: read
+      - id: observe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer-token.outputs.token }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+        run: node scripts/release-reviewed-inputs.mts observe-production
+      - name: Publish fresh tiny report while observer job is still active
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-control-admission-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/observation-admission.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
+      - name: Retain token-free observer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-protection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-reviewed-inputs-observe-production.jsonl
+            ${{ runner.temp }}/release-control-ready-admission/*
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+
   independent_admission:
     # Data acquisition is implemented; missing independent authorities HOLD.
     if: ${{ false }}
     needs: admission
+    name: Authenticate release control inputs
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     permissions:
       contents: read
       actions: read
+      checks: read
+      id-token: write
     outputs:
       descriptor: ${{ steps.accept.outputs.descriptor }}
     steps:
@@ -69,13 +140,56 @@ jobs:
           package-manager-cache: false
       - name: Install only the fixed controller lockfile without hooks or shared cache
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --store-dir "$RUNNER_TEMP/portcove-admission-store"
-      - id: accept
-        name: Acquire complete facts and hold unconfigured independent authority
+      - name: Start one fixed private reader and wait for immutable-data readiness
         env:
           GH_TOKEN: ${{ github.token }}
           GH_HOST: github.com
           PORTCOVE_COORDINATOR_CONFIGURATION: ${{ vars.PORTCOVE_COORDINATOR_CONFIGURATION }}
-        run: node scripts/acquire-release-admission.mts
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_REVIEW_PRODUCER: ${{ vars.PORTCOVE_REVIEW_PRODUCER }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test ! -e "$RUNNER_TEMP/ready-admission.json"
+          test ! -e "$RUNNER_TEMP/release-admission-process-ended.json"
+          node scripts/acquire-release-admission.mts --handshake > "$RUNNER_TEMP/release-admission-process.log" 2>&1 &
+          reader_pid=$!
+          printf '%s\n' "$reader_pid" > "$RUNNER_TEMP/release-admission-process.pid"
+          for ((i=0; i<900; i++)); do
+            if [[ -f "$RUNNER_TEMP/ready-admission.json" ]]; then exit 0; fi
+            if [[ -f "$RUNNER_TEMP/release-admission-process-ended.json" ]] || ! kill -0 "$reader_pid" 2>/dev/null; then exit 2; fi
+            sleep 1
+          done
+          exit 2
+      - name: Publish tiny readiness without exporting private acquisition facts
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-control-admission-ready-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ready-admission.json
+          if-no-files-found: error
+          overwrite: false
+          retention-days: 7
+          compression-level: 0
+      - id: accept
+        name: Await the same reader final gate and process teardown
+        shell: bash
+        run: |
+          set -euo pipefail
+          reader_pid=$(cat "$RUNNER_TEMP/release-admission-process.pid")
+          [[ "$reader_pid" =~ ^[1-9][0-9]*$ ]]
+          for ((i=0; i<300; i++)); do
+            if [[ -f "$RUNNER_TEMP/release-admission-process-ended.json" ]] && ! kill -0 "$reader_pid" 2>/dev/null; then
+              # Current admission remains held; no descriptor is emitted.
+              exit 2
+            fi
+            sleep 1
+          done
+          # Job timeout/runner cleanup owns any still-live fixed process tree.
+          # No other process or retained remote effect is killed or retried.
+          exit 2
       - name: Retain token-free admission holds and diagnostic facts
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
@@ -84,6 +198,11 @@ jobs:
           path: |
             ${{ runner.temp }}/release-admission-control-receipt.jsonl
             ${{ runner.temp }}/release-admission-result.json
+            ${{ runner.temp }}/release-admission-process-ended.json
+            ${{ runner.temp }}/control-observation-readback.json
+            ${{ runner.temp }}/control-observation-refusal.json
+            ${{ runner.temp }}/control-observation.zip
+            ${{ runner.temp }}/ready-admission.json
           if-no-files-found: warn
           overwrite: false
           retention-days: 7
@@ -106,7 +225,6 @@ jobs:
       PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
       PORTCOVE_CONTROLLER_ACTOR_ID: ${{ vars.PORTCOVE_CONTROLLER_ACTOR_ID }}
       PORTCOVE_AGGREGATE_AUDIENCE: ${{ vars.PORTCOVE_AGGREGATE_AUDIENCE }}
-      PORTCOVE_AGGREGATE_SUBJECT: ${{ vars.PORTCOVE_AGGREGATE_SUBJECT }}
     outputs:
       subject_name: ${{ steps.bind.outputs.subject_name }}
       subject_digest: ${{ steps.bind.outputs.subject_digest }}

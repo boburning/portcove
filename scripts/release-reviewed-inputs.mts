@@ -1,28 +1,44 @@
 import { spawnSync } from "node:child_process";
-import { open } from "node:fs/promises";
+import { open, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { admitReviewedInputsController } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
+  controllerOidcSubject,
   inspectAssemblerIdentityExpectation,
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
+  verifyProductionProtectionObserverJobIdentity,
 } from "./assembler-job-identity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
 import { appendFile } from "node:fs/promises";
 import {
+  inspectReleaseControlPhase,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
+import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
+  prepareProductionProtectionHandoff,
 } from "./release-input-protections.mts";
 
 async function main() {
   const mode = process.argv[2];
   if (
     process.argv.length !== 3 ||
-    !["admission", "observe", "persist", "read"].includes(mode ?? "")
+    ![
+      "admission",
+      "observe",
+      "observe-production",
+      "observe-production-payload",
+      "observe-production-site-publication",
+      "observe-production-release-publication",
+      "persist",
+      "read",
+    ].includes(mode ?? "")
   )
     throw new Error("fixed reviewed-input operation required");
   if (mode === "admission") {
@@ -54,6 +70,14 @@ async function main() {
     );
     return;
   }
+  const productionObservation = mode?.startsWith("observe-production") === true;
+  const phase = inspectReleaseControlPhase(
+    productionObservation && mode !== "observe-production"
+      ? mode.slice("observe-production-".length)
+      : "admission",
+  );
+  const phaseProfile = releaseControlPhaseProfile(phase);
+  const observing = mode === "observe" || productionObservation;
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
@@ -66,8 +90,8 @@ async function main() {
         "\n",
     );
     const appToken =
-      mode === "observe" || mode === "persist" ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
-    if ((mode === "observe" || mode === "persist") && (!appToken || appToken.length > 16384))
+      observing || mode === "persist" ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
+    if ((observing || mode === "persist") && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
     const runner = createGitHubRunner({
       cwd: process.cwd(),
@@ -101,7 +125,8 @@ async function main() {
       graphql: (query: string, variables: Readonly<Record<string, unknown>>) =>
         appApi.graphql(query, variables),
     };
-    if (mode === "observe" || mode === "persist") {
+    let observerIdentity: unknown = null;
+    if (observing || mode === "persist") {
       // Config is separately ratified environment data, never an input file or
       // dispatch-provided expected identity. No self-expectation from JWT claims.
       if (process.env.GITHUB_RUN_ATTEMPT !== "1")
@@ -109,11 +134,13 @@ async function main() {
       const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
-        audience:
-          mode === "observe"
-            ? "portcove-release-protection-v1"
-            : "portcove-release-classification-v1",
-        subject: `repo:boburning/portcove:environment:${mode === "observe" ? "production-release-protection-observer" : "production-release-classification"}`,
+        audience: observing ? phaseProfile.observer_audience : "portcove-release-classification-v1",
+        subject: controllerOidcSubject(
+          String(policy.execution_ref),
+          observing
+            ? "production-release-protection-observer"
+            : "production-release-classification",
+        ),
         controller_revision: policy.revision,
         controller_ref: policy.execution_ref,
         actor_id: policy.actor_id,
@@ -121,11 +148,13 @@ async function main() {
         run_attempt: 1,
       });
       const token = await requestAssemblerToken(expected.audience);
-      const verify =
-        mode === "observe"
+      const verify = productionObservation
+        ? verifyProductionProtectionObserverJobIdentity
+        : mode === "observe"
           ? verifyProtectionObserverJobIdentity
           : verifyClassificationWriterJobIdentity;
-      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } });
+      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } }, phase);
+      if (observing) observerIdentity = identity;
       await receipt.writeFile(
         JSON.stringify({
           schema_version: 1,
@@ -136,12 +165,42 @@ async function main() {
       );
     }
     let result: unknown;
-    if (mode === "observe") {
+    if (observing) {
       result = observeReleaseInputProtections(api);
+      if (productionObservation)
+        result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
       const encoded = JSON.stringify(result);
       if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
         throw new Error("trusted observer output channel unavailable or oversized");
       await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
+      if (productionObservation) {
+        // The fixed source waits for readiness before releasing the App token.
+        // Preserve its exact artifact association beside the actual report.
+        const ready = JSON.parse(
+          await readFile(
+            path.join(temp, `release-control-ready-${phase}`, "control-ready-readback.json"),
+            "utf8",
+          ),
+        ) as unknown;
+        if (
+          !isRecord(ready) ||
+          ready.role !== "ready" ||
+          ready.phase !== phase ||
+          !isRecord(ready.body) ||
+          !isRecord(ready.body.producer) ||
+          ready.body.phase !== phase ||
+          !isRecord(result) ||
+          !isRecord(result.producer) ||
+          ready.body.producer.run_id !== result.producer.run_id ||
+          ready.body.producer.run_attempt !== result.producer.run_attempt ||
+          ready.body.producer.controller_revision !== result.producer.controller_revision
+        )
+          throw new Error("matching fixed reader readiness unavailable");
+        await writeFile(path.join(temp, `observation-${phase}.json`), encoded, {
+          flag: "wx",
+          mode: 0o600,
+        });
+      }
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
