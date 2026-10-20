@@ -25,7 +25,7 @@ export function inspectWindowsNativeDriverResult(
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !==
-      "authority,children,completed_at,failure,finish_attempted,invocation_id,native_acceptance,request_sha256,schema_version,started_at" ||
+      "authority,children,completed_at,failure,finish_attempted,host_observation,invocation_id,native_acceptance,request_sha256,schema_version,started_at" ||
     raw.schema_version !== 1 ||
     raw.authority !== "none" ||
     raw.native_acceptance !== "not-established" ||
@@ -92,6 +92,7 @@ export function inspectWindowsNativeDriverResult(
     completed_at: end,
     authority: "none" as const,
     scope: "driver process capture only; no native acceptance" as const,
+    host_observation: structuredClone(raw.host_observation),
   });
 }
 

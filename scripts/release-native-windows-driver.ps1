@@ -78,6 +78,32 @@ function Assert-DriverTool($Tool,[long]$Maximum) {
     if($item.PSIsContainer -or $item.Length -lt 1 -or $item.Length -gt $Maximum -or
         (Get-FileHash -LiteralPath $Tool.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Tool.sha256){throw 'Fixed native driver tool differs'}
 }
+function Read-DriverHostObservation {
+    $runtimePath=Join-Path $capture 'isolated-account-desktop\native-runtime-capabilities.json'
+    Assert-DriverOwnerPath $runtimePath
+    if((Get-Item -LiteralPath $runtimePath).Length -gt 131072){throw 'Native runtime observation exceeds its bound'}
+    $runtime=Get-Content -LiteralPath $runtimePath -Raw|ConvertFrom-Json
+    if($runtime.schema_version -ne 1 -or $runtime.authority -cne 'none' -or
+        $runtime.account_binding_sha256 -cne $bindingSha -or @($runtime.loaded_engine_images).Count -lt 1 -or
+        @($runtime.loaded_engine_images).Count -gt 4){throw 'Native runtime observation differs from the fixed account invocation'}
+    $engines=@($runtime.loaded_engine_images|ForEach-Object{
+        $item=Get-Item -LiteralPath $_.path -Force
+        if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            $item.Length -gt 268435456 -or $item.Length -ne $_.bytes -or $item.Name -ine 'msedgewebview2.exe' -or
+            (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -cne $_.sha256){throw 'Actual loaded WebView image changed'}
+        $version=([Diagnostics.FileVersionInfo]::GetVersionInfo($item.FullName).FileVersion -split ' ')[0]
+        if($version -cnotmatch '^[0-9]+(?:[.][0-9]+){1,3}$' -or
+            (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -cne $_.sha256){throw 'Actual loaded WebView image/version is unavailable or changed'}
+        [ordered]@{path=$item.FullName;bytes=$item.Length;sha256=$_.sha256;version=$version}
+    })
+    $machine=[string](Get-ItemPropertyValue -LiteralPath 'Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography' -Name MachineGuid)
+    if($machine -cnotmatch '^[a-fA-F0-9-]{32,36}$'){throw 'Native machine identity is unavailable'}
+    $machineBytes=[Text.UTF8Encoding]::new($false).GetBytes($machine.ToLowerInvariant())
+    $machineSha=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($machineBytes)).ToLowerInvariant()
+    [ordered]@{machine_id_sha256=$machineSha;os_version=[Environment]::OSVersion.Version.ToString();
+        architecture=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();
+        runtime_sha256=(Get-FileHash -LiteralPath $runtimePath -Algorithm SHA256).Hash.ToLowerInvariant();engine_images=$engines}
+}
 
 $planValue=Read-DriverJson $Plan $ExpectedPlanSha256
 if($planValue.schema_version -ne 1 -or $planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
@@ -128,7 +154,7 @@ $childEnvironment=[ordered]@{SystemRoot=$env:SystemRoot;WINDIR=$env:SystemRoot;
     PATH=(@([IO.Path]::GetDirectoryName($planValue.tools.git.path),[IO.Path]::GetDirectoryName($planValue.tools.desktop_tools.node.path),(Join-Path $env:SystemRoot 'System32')) -join ';');
     TEMP=$capture;TMP=$capture;USERPROFILE=[Environment]::GetFolderPath('UserProfile');
     GIT_CONFIG_NOSYSTEM='1';GIT_CONFIG_GLOBAL='NUL';GIT_TERMINAL_PROMPT='0';GIT_NO_LAZY_FETCH='1';GIT_OPTIONAL_LOCKS='0'}
-$children=[Collections.Generic.List[object]]::new();$failure=$null;$session=$null;$finishAttempted=$false
+$children=[Collections.Generic.List[object]]::new();$failure=$null;$session=$null;$finishAttempted=$false;$hostObservation=$null
 $clock=[Diagnostics.Stopwatch]::StartNew();$started=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
 try {
     $bridge=Start-DriverChild 'bridge' @('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'native-qualification-account-bridge.ps1'),'-Configuration',$derivedPath,'-ExpectedConfigurationSha256',$derivedSha,'-InvocationId',$planValue.invocation_id)
@@ -156,6 +182,7 @@ try {
         Start-Sleep -Milliseconds 100
     }
     if($harness.process.ExitCode -ne 0){throw 'Native installer harness refused; retain its raw result'}
+    $hostObservation=Read-DriverHostObservation
 }catch{$failure=$_.Exception.Message}
 finally {
     # The fixed parent owns the sole finish request in this mode. It is latched
@@ -179,7 +206,7 @@ finally {
         foreach($tool in $planValue.tools.desktop_tools.PSObject.Properties.Value){Assert-DriverTool $tool (128MB)}
     }catch{$failure=([string]$failure+'; tool readback: '+$_.Exception.Message)}
     $result=[ordered]@{schema_version=1;invocation_id=$planValue.invocation_id;request_sha256=$planValue.request_sha256;
-        started_at=$started;completed_at=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');failure=$failure;finish_attempted=$finishAttempted;
+        started_at=$started;completed_at=[DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');failure=$failure;finish_attempted=$finishAttempted;host_observation=$hostObservation;
         children=@($children|ForEach-Object{[ordered]@{role=$_.name;pid=$_.pid;created_filetime=$_.created;exited=$_.process.HasExited;exit_code=$(if($_.process.HasExited){$_.process.ExitCode}else{$null})}});
         authority='none';native_acceptance='not-established'}
     Write-NewDriverJson (Join-Path $capture 'driver-result.json') $result

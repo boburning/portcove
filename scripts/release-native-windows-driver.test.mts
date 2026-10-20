@@ -16,6 +16,7 @@ void test("driver result distinguishes partial failure from complete child settl
     started_at: "2026-10-20T12:00:00.000Z",
     completed_at: "2026-10-20T12:00:01.000Z",
     failure: null,
+    host_observation: null,
     finish_attempted: true,
     children: ["bridge", "harness"].map((role, index) => ({
       role,
