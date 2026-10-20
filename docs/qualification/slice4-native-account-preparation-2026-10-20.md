@@ -105,6 +105,23 @@ particular, JobObject descendant readback does not prove every possible account
 process or service-mediated launch is contained, and must not be expanded into
 that claim. No native Check may be emitted from this component alone.
 
+The prepared fixed bridge/client scripts use a Windows owner-only named pipe
+for launch and retained-handle observation. The client checks the actual server
+PID, creation FILETIME and token owner before sending a bounded command. The
+bridge permits only start, observe, close, one-shot stop, readback and finish;
+request framing is at most 32 KiB and responses at most 64 KiB. It polls capture
+faults while waiting for owner commands and retains raw streams, phase and job
+readback on failure. Finish requires complete stream tasks and positive teardown
+for every root and the shared group. The verified launch holds a deny-write and
+deny-delete executable handle through hashing, suspended creation and resume.
+
+Those scripts parse; they have not been started. Four command-framing refusals
+and the three existing helper tests pass, alongside the ordinary routing test.
+There is no actual pipe-server identity observation, cross-account invocation,
+loaded-profile keeper, installer/desktop-test adapter, native report or account
+setup from this checkpoint. In particular, the launch API is transport plumbing
+and cannot grant native acceptance or release an issuer credential.
+
 After those independent changes and exact setup/recovery preparation are
 reviewed, one credentialed inert capability test must establish the actual
 cross-account private-desktop GUI/profile/capture/teardown route. Its result may

@@ -16,6 +16,10 @@ Add-Type -TypeDefinition (Get-Content -LiteralPath $env:PORTCOVE_TEST_NATIVE_HEL
 $fixtureTokens = $null; $fixtureErrors = $null
 $null = [Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_FIXTURE, [ref]$fixtureTokens, [ref]$fixtureErrors)
 if ($fixtureErrors.Count -ne 0) { throw 'Fixed inert GUI fixture did not parse' }
+$null = [Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_BRIDGE, [ref]$fixtureTokens, [ref]$fixtureErrors)
+if ($fixtureErrors.Count -ne 0) { throw 'Fixed native bridge did not parse' }
+$null = [Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_CLIENT, [ref]$fixtureTokens, [ref]$fixtureErrors)
+if ($fixtureErrors.Count -ne 0) { throw 'Fixed native client did not parse' }
 $owner = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $configuration = [Portcove.NativeQualification.AccountConfiguration]::new()
 $configuration.UserName = 'PortcoveNativeQualification'
@@ -99,6 +103,12 @@ Refuses { [Portcove.NativeQualification.AccountLauncher]::NsisCommandLine($execu
         PORTCOVE_TEST_NATIVE_FIXTURE: fileURLToPath(
           new URL("./fixtures/native-account-gui-probe.ps1", import.meta.url),
         ),
+        PORTCOVE_TEST_NATIVE_BRIDGE: fileURLToPath(
+          new URL("./native-qualification-account-bridge.ps1", import.meta.url),
+        ),
+        PORTCOVE_TEST_NATIVE_CLIENT: fileURLToPath(
+          new URL("./native-qualification-account-client.ps1", import.meta.url),
+        ),
       },
       encoding: "utf8",
       timeout: 30000,
@@ -178,7 +188,17 @@ $small = [InertNativePipeFixture]::Capture([Text.Encoding]::UTF8.GetBytes('actua
 $invalid = [InertNativePipeFixture]::Capture([byte[]]@(255))
 $overflow = [InertNativePipeFixture]::Capture([byte[]]::new(4 * 1024 * 1024 + 1))
 $openInvalid = [InertNativePipeFixture]::InvalidWhileWriterOpen()
-[ordered]@{ small = $small; invalid = $invalid; overflow = $overflow; open_invalid = $openInvalid; scope = 'same-owner anonymous pipe only' } | ConvertTo-Json -Compress
+$frameRefusals = 0
+foreach ($bytes in @([byte[]]@(123,125), [byte[]]@(255,10), [Text.Encoding]::UTF8.GetBytes("{}\n{}\n"), [byte[]]::new(32769))) {
+  $stream = [IO.MemoryStream]::new($bytes)
+  try {
+    try { $null = [Portcove.NativeQualification.OwnerCommandReader]::ReadOne($stream).GetAwaiter().GetResult(); throw 'MISSING FRAME REFUSAL' }
+    catch { if ($_.Exception.Message -eq 'MISSING FRAME REFUSAL') { throw }; $frameRefusals++ }
+  } finally { $stream.Dispose() }
+}
+$validStream = [IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes("{}\n"))
+try { $validFrame = [Portcove.NativeQualification.OwnerCommandReader]::ReadOne($validStream).GetAwaiter().GetResult() } finally { $validStream.Dispose() }
+[ordered]@{ small = $small; invalid = $invalid; overflow = $overflow; open_invalid = $openInvalid; frame_refusals = $frameRefusals; valid_frame = $validFrame; scope = 'same-owner anonymous pipe only' } | ConvertTo-Json -Compress
 `;
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
       env: { ...process.env, PORTCOVE_TEST_NATIVE_HELPER: helper },
@@ -193,6 +213,8 @@ $openInvalid = [InertNativePipeFixture]::InvalidWhileWriterOpen()
       invalid: "REFUSED:DecoderFallbackException:1",
       overflow: "REFUSED:IOException:4194304",
       open_invalid: "41-FF",
+      frame_refusals: 4,
+      valid_frame: "{}",
       scope: "same-owner anonymous pipe only",
     });
   },

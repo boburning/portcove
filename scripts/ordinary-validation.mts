@@ -487,6 +487,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/native-qualification-account.test.mts"],
   ],
   [
+    "scripts/native-qualification-account-bridge.ps1",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account-client.ps1",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
     "scripts/fixtures/native-account-gui-probe.ps1",
     ["scripts/native-qualification-account.test.mts"],
   ],

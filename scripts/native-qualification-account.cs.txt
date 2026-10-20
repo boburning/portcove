@@ -8,12 +8,59 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Principal;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 
 namespace Portcove.NativeQualification {
+    public static class OwnerCommandReader {
+        // The named pipe is owner-only. Still bound framing before parsing so a
+        // malformed client cannot allocate an unbounded line in the broker.
+        public static Task<string> ReadOne(Stream stream) {
+            return ReadBounded(stream, 32768);
+        }
+        public static Task<string> ReadResponse(Stream stream) {
+            return ReadBounded(stream, 65536);
+        }
+        static Task<string> ReadBounded(Stream stream, int bound) {
+            return Task.Run(async () => {
+                using (var retained = new MemoryStream()) {
+                    byte[] buffer = new byte[1024];
+                    while (true) {
+                        int count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (count == 0) throw new IOException("Incomplete owner command");
+                        if (retained.Length + count > bound) throw new IOException("Owner frame exceeds fixed byte bound");
+                        int newline = Array.IndexOf(buffer, (byte)10, 0, count);
+                        if (newline >= 0) {
+                            if (newline != count - 1) throw new IOException("One command per connection required");
+                            retained.Write(buffer, 0, newline);
+                            return new UTF8Encoding(false, true).GetString(retained.ToArray());
+                        }
+                        retained.Write(buffer, 0, count);
+                    }
+                }
+            });
+        }
+        public static void VerifyServer(IntPtr pipe, uint expectedPid, long expectedCreated) {
+            uint server;
+            if (!Native.GetNamedPipeServerProcessId(pipe, out server) || server != expectedPid) throw new InvalidOperationException("Owner pipe server PID mismatch");
+            IntPtr process = Native.OpenProcess(0x1000, false, server);
+            if (process == IntPtr.Zero) throw Native.Error("Open retained owner pipe server");
+            try {
+                long created, ignored1, ignored2, ignored3;
+                if (!Native.GetProcessTimes(process, out created, out ignored1, out ignored2, out ignored3) || created != expectedCreated) throw new InvalidOperationException("Owner pipe server creation identity mismatch");
+                IntPtr token;
+                if (!Native.OpenProcessToken(process, 8, out token)) throw Native.Error("Read owner pipe server token");
+                try {
+                    using (var identity = new WindowsIdentity(token)) {
+                        if (!identity.User.Equals(WindowsIdentity.GetCurrent().User)) throw new InvalidOperationException("Pipe server is not the actual owner");
+                    }
+                } finally { Native.CloseHandle(token); }
+            } finally { Native.CloseHandle(process); }
+        }
+    }
     public sealed class AccountConfiguration {
         public string UserName;
         public string AccountSid;
@@ -31,6 +78,11 @@ namespace Portcove.NativeQualification {
         public bool JobEmpty;
         public uint[] RemainingPids;
         public string ObservedAt;
+    }
+    public sealed class AccountProcessIdentity {
+        public uint Pid;
+        public long CreatedFileTime;
+        public string Path;
     }
 
     // All simultaneously active launch roots, including the profile keeper and
@@ -149,6 +201,24 @@ namespace Portcove.NativeQualification {
         }
         public void Refresh() { /* Each property reads the retained native handle. */ }
         public TeardownObservation LastTeardown { get; private set; }
+        public AccountProcessIdentity[] SnapshotOwnedJob() {
+            RefuseFaultedCapture();
+            uint[] before = Native.JobPids(job).OrderBy(value => value).ToArray();
+            var result = new List<AccountProcessIdentity>();
+            foreach (uint member in before) {
+                IntPtr handle = Native.OpenProcess(0x1000, false, member); // QUERY_LIMITED_INFORMATION, no debug authority.
+                if (handle == IntPtr.Zero) throw Native.Error("Open exact owned job member");
+                try {
+                    long creation, ignored1, ignored2, ignored3;
+                    if (!Native.GetProcessTimes(handle, out creation, out ignored1, out ignored2, out ignored3)) throw Native.Error("Read owned member creation");
+                    uint length = 32768; var path = new StringBuilder((int)length);
+                    if (!Native.QueryFullProcessImageNameW(handle, 0, path, ref length)) throw Native.Error("Read owned member image");
+                    result.Add(new AccountProcessIdentity { Pid = member, CreatedFileTime = creation, Path = path.ToString() });
+                } finally { Native.CloseHandle(handle); }
+            }
+            if (!before.SequenceEqual(Native.JobPids(job).OrderBy(value => value))) throw new InvalidOperationException("Owned job inventory changed during capture; no stable snapshot");
+            return result.ToArray();
+        }
         IntPtr FindRootWindow() {
             IntPtr found = IntPtr.Zero;
             Native.DesktopWindowCallback callback = delegate(IntPtr window, IntPtr unused) {
@@ -352,16 +422,20 @@ namespace Portcove.NativeQualification {
             }
         }
         public static AccountProcess Start(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
-            return StartCore(config, password, executable, arguments, directory, environment, false, null);
+            return StartCore(config, password, executable, arguments, directory, environment, false, null, null);
         }
         public static AccountProcess StartNsis(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment) {
-            return StartCore(config, password, executable, arguments, directory, environment, true, null);
+            return StartCore(config, password, executable, arguments, directory, environment, true, null, null);
         }
         public static AccountProcess StartInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
             if (group == null) throw new ArgumentException("Shared attempt group required");
-            return StartCore(config, password, executable, arguments, directory, environment, nsis, group);
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, null);
         }
-        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group) {
+        public static AccountProcess StartVerifiedInGroup(AccountGroup group, AccountConfiguration config, SecureString password, string executable, string expectedSha256, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis) {
+            if (group == null || expectedSha256 == null || !System.Text.RegularExpressions.Regex.IsMatch(expectedSha256, "^[a-f0-9]{64}$")) throw new ArgumentException("Shared group and exact executable hash required");
+            return StartCore(config, password, executable, arguments, directory, environment, nsis, group, expectedSha256);
+        }
+        static AccountProcess StartCore(AccountConfiguration config, SecureString password, string executable, string[] arguments, string directory, IDictionary<string,string> environment, bool nsis, AccountGroup group, string expectedSha256) {
             Validate(config, executable, arguments, directory, environment);
             string commandText = nsis ? NsisCommandLine(executable, arguments, config.WorkRoot) : String.Join(" ", new [] { Quote(executable) }.Concat(arguments.Select(Quote)));
             if (password == null || password.Length < 1) throw new ArgumentException("Fixed owner-held account credential unavailable");
@@ -369,8 +443,19 @@ namespace Portcove.NativeQualification {
             IntPtr station = IntPtr.Zero, desktop = IntPtr.Zero;
             IntPtr outputRead = IntPtr.Zero, outputWrite = IntPtr.Zero;
             IntPtr errorRead = IntPtr.Zero, errorWrite = IntPtr.Zero, input = IntPtr.Zero;
+            FileStream executableCustody = null;
             Native.ProcessInformation info = new Native.ProcessInformation(); bool transferred = false;
             try {
+                if (expectedSha256 != null) {
+                    // Keep deny-write/delete custody through suspended creation,
+                    // identity checks and resume; no hash/path replacement race.
+                    executableCustody = new FileStream(executable, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    if (executableCustody.Length < 1 || executableCustody.Length > 512L * 1024 * 1024) throw new IOException("Native executable exceeds bounded identity read");
+                    using (var hasher = SHA256.Create()) {
+                        string observed = BitConverter.ToString(hasher.ComputeHash(executableCustody)).Replace("-", "").ToLowerInvariant();
+                        if (observed != expectedSha256) throw new IOException("Native executable bytes changed before launch");
+                    }
+                }
                 // This fixed helper must run in its own noninteractive owner process:
                 // SetProcessWindowStation is process-wide and never targets WinSta0.
                 Native.CreatePrivateDesktop(config, out station, out desktop);
@@ -410,6 +495,7 @@ namespace Portcove.NativeQualification {
                 if (Native.ResumeThread(info.thread) == 0xffffffff) throw Native.Error("ResumeThread");
                 transferred = true; return session;
             } finally {
+                if (executableCustody != null) executableCustody.Dispose();
                 if (secret != IntPtr.Zero) Marshal.ZeroFreeGlobalAllocUnicode(secret);
                 if (block != IntPtr.Zero) Marshal.FreeHGlobal(block);
                 if (info.thread != IntPtr.Zero) Native.CloseHandle(info.thread);
@@ -473,6 +559,8 @@ namespace Portcove.NativeQualification {
         [DllImport("kernel32", SetLastError=true)] internal static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateJobObject(IntPtr job, uint exit);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool TerminateProcess(IntPtr process, uint exit);
+        [DllImport("kernel32", SetLastError=true)] internal static extern IntPtr OpenProcess(uint access, bool inherit, uint pid);
+        [DllImport("kernel32", SetLastError=true)] internal static extern bool GetNamedPipeServerProcessId(IntPtr pipe, out uint pid);
         [DllImport("kernel32", SetLastError=true)] internal static extern uint ResumeThread(IntPtr thread);
         [DllImport("kernel32", SetLastError=true)] internal static extern uint WaitForSingleObject(IntPtr process, uint milliseconds);
         [DllImport("kernel32", SetLastError=true)] internal static extern bool GetExitCodeProcess(IntPtr process, out uint exit);
