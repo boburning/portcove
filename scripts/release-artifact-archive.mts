@@ -47,6 +47,12 @@ export async function discoverReleaseArtifactFiles(
   archiveIdentity: unknown,
   platform: string,
   expected: { version: string; run_id: string; run_attempt: number; source_commit: string },
+  options: {
+    retainCliPackage?: (
+      identity: { platform_label: string; filename: string; bytes: number; sha256: string },
+      bytes: Buffer,
+    ) => Promise<void>;
+  } = {},
 ) {
   const deadline = performance.now() + 10 * 60 * 1000;
   const retained = retainArchive(rawArchive, archiveIdentity);
@@ -86,6 +92,7 @@ export async function discoverReleaseArtifactFiles(
   }
   const metadata = new Map<string, string>();
   const files: { platform_label: string; filename: string; bytes: number; sha256: string }[] = [];
+  const cliMembers = new Map<string, Buffer>();
   for (const entry of entries) {
     if (performance.now() >= deadline) throw new Error("release discovery deadline exhausted");
     const filename = normalize(entry.name);
@@ -107,6 +114,15 @@ export async function discoverReleaseArtifactFiles(
       if (!Buffer.from(text).equals(bytes)) throw new Error("release metadata is not UTF-8");
       metadata.set(filename, text);
     }
+    if (
+      options.retainCliPackage &&
+      filename.startsWith("portcove-cli-") &&
+      packages.includes(filename)
+    ) {
+      if (bytes.length > 128 * 1024 * 1024)
+        throw new Error("CLI proof member exceeds fixed retained bound");
+      cliMembers.set(filename, bytes);
+    }
   }
   const manifest = parseReleaseChecksumManifest(metadata.get(checksum)!, platform);
   if (
@@ -126,6 +142,11 @@ export async function discoverReleaseArtifactFiles(
   );
   if (declared.run_attempt !== expected.run_attempt)
     throw new Error("release discovery producer attempt differs from artifact identity");
+  for (const [filename, bytes] of cliMembers)
+    await options.retainCliPackage!(
+      files.find((file) => file.filename === filename)!,
+      bytes,
+    );
   return {
     files,
     declared_producer: {

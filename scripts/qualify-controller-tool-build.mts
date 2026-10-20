@@ -6,7 +6,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
-import { controllerToolEntries, readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  controllerToolEntries,
+  controllerCompilerSourceAsset,
+  readControllerToolFile,
+} from "./release-controller-tools.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 
 async function main() {
   const source = fileURLToPath(new URL("..", import.meta.url));
@@ -61,6 +66,16 @@ async function main() {
       assert.equal(bytes.length, file.bytes);
       assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256);
     }
+    phase = "actual-compiler-source-closure";
+    const closure = inspectReleaseCompilerSourceClosure(
+      JSON.parse(
+        (
+          await readControllerToolFile(path.join(built.tools, controllerCompilerSourceAsset), 65536)
+        ).toString("utf8"),
+      ) as unknown,
+    );
+    assert.equal(closure.source_commit, expected.commit);
+    assert.equal(closure.source_tree, expected.tree);
     const env = {
       HOME: directory,
       USERPROFILE: directory,
