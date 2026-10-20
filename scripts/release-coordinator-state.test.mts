@@ -1401,14 +1401,18 @@ for (const lost of [false, true])
             f.options,
           );
       const savedEnv = new Map(
-        ["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"].map((k) => [
-          k,
-          process.env[k],
-        ]),
+        [
+          "ACTIONS_ID_TOKEN_REQUEST_URL",
+          "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+          "GH_TOKEN",
+          "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
+        ].map((k) => [k, process.env[k]]),
       );
       process.env.ACTIONS_ID_TOKEN_REQUEST_URL =
         "https://fixture.actions.githubusercontent.com/oidc";
       process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
+      process.env.GH_TOKEN = "inert-provider-read-only-token";
+      process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-dedicated-journal-token";
       t.after(() => {
         for (const [key, value] of savedEnv) {
           if (value === undefined) delete process.env[key];
@@ -1450,6 +1454,9 @@ for (const lost of [false, true])
             };
           if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
             return activeIdentity.transport.spawn(name, args, options);
+          assert.equal(options.env?.GH_TOKEN, "inert-dedicated-journal-token");
+          assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
           let body: unknown;
           let status: number;
           if (args[1] === "graphql") {

@@ -17,6 +17,7 @@ import {
 } from "./release-capacity-operation.mts";
 import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
+import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 
 export interface CapacityExecutorIdentity {
   controller_revision: string;
@@ -163,15 +164,10 @@ export async function executeOwnedCapacityEffect(
   if (state.busy || state.failed)
     throw new Error("executor is busy or stopped; explicit readback/recovery required");
   state.busy = true;
-  const runner = createGitHubRunner({
-    cwd: value.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
-  const remote = { configuration: input.remote_configuration, api };
+  const remote = {
+    configuration: input.remote_configuration,
+    api: createCoordinatorJournalApi(value.directory),
+  };
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
@@ -179,7 +175,7 @@ export async function executeOwnedCapacityEffect(
     // Existing transport checks every remote ref and returns only exact public
     // readback; no local checkpoint or public nonce can appoint this executor.
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const perform: Parameters<typeof runBoundedCapacityOperation>[4] = async (
       recordCompleted,
@@ -195,7 +191,7 @@ export async function executeOwnedCapacityEffect(
         input.repository,
         pending.checkpoint,
         remote.configuration,
-        { api },
+        { api: remote.api },
       );
       const receipt = await effect({ checkpoint: pending.checkpoint, operation_id: ownedId });
       if (
@@ -242,7 +238,7 @@ export async function executeOwnedCapacityEffect(
       throw new Error("durable provider handoff is unresolved");
     await refreshCapacityExecutor(session);
     await publishCoordinatorCheckpoint(input.repository, result.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const actual = await recoverReleaseOpportunity(input.repository, result.checkpoint);
     const controller = actual.input.controller;
@@ -315,11 +311,14 @@ export async function recoverOwnedCapacityEffect(
   const api = new GitHubApiClient((args, body) =>
     runner([...args, "--hostname", "github.com"], body),
   );
-  const remote = { configuration: input.remote_configuration, api };
+  const remote = {
+    configuration: input.remote_configuration,
+    api: createCoordinatorJournalApi(value.directory),
+  };
   try {
     const executorIdentity = await refreshCapacityExecutor(session);
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const actual = await recoverReleaseOpportunity(input.repository, input.checkpoint);
     const controller = actual.input.controller;
@@ -371,7 +370,7 @@ export async function recoverOwnedCapacityEffect(
     await refreshCapacityExecutor(session);
     terminal();
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const settled = await recordCapacityReadback(
       input.repository,
@@ -418,11 +417,14 @@ export async function recoverOwnedPublishedMetadata(
   const api = new GitHubApiClient((args, body) =>
     runner([...args, "--hostname", "github.com"], body),
   );
-  const remote = { configuration: input.remote_configuration, api };
+  const remote = {
+    configuration: input.remote_configuration,
+    api: createCoordinatorJournalApi(value.directory),
+  };
   try {
     const current = await refreshCapacityExecutor(session);
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const actual = await recoverReleaseOpportunity(input.repository, input.checkpoint);
     const controller = actual.input.controller;
@@ -483,7 +485,7 @@ export async function recoverOwnedPublishedMetadata(
     await refreshCapacityExecutor(session);
     terminal();
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
-      api,
+      api: remote.api,
     });
     const recovered = await recordPublishedMetadata(input.repository, input.checkpoint, published, {
       remote,
