@@ -140,6 +140,8 @@ failures and raw inventories remain retained. A2 completed with exit 0 in
 
 ## Remaining requirement and evidence custody
 
+The subsequent [October 20 private source comparison](cvlod-source-shutdown-repair-2026-10-20.md) establishes a full-game lifetime repair and restart in its exact private build closure. Core recipe/toolchain delivery and affected operation acceptance remain unfinished; the shipping-artifact failures below remain retained.
+
 Clean-shutdown acceptance remains held for the exact tested Windows artifacts
 and configurations. Do not rerun the unchanged failures, normalize their exits
 to success or infer a repair from startup/rendering release notes. A narrow
