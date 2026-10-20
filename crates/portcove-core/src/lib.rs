@@ -51,6 +51,7 @@ mod library_authority;
 mod library_import;
 mod library_move;
 mod library_transfer;
+mod managed_shared_preferences;
 mod managed_tfe;
 mod n64_graphics;
 mod operation;
@@ -255,7 +256,7 @@ pub use types::*;
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
 // Public75 adds exact relative-file sets and closed managed TFE initialization.
 // API74 retains managed Windows path policy; API73 retains external shared directories.
-pub const API_SCHEMA_VERSION: u32 = 76;
+pub const API_SCHEMA_VERSION: u32 = 77;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

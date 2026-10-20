@@ -20274,7 +20274,7 @@
     {
       "id": "resident-evil-gaiden-recomp",
       "name": "Resident Evil Gaiden Recompiled",
-      "summary": "Exact Windows use-in-place route with explicit shared preference consent.",
+      "summary": "Managed Windows setup with an explicit review of shared preferences. Gameplay remains untested.",
       "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
       "support_tier": "beta",
       "channels": [
@@ -20287,24 +20287,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
-            "version": "0.4.1",
-            "archive_name": "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
-            "archive_size": 33085815,
-            "archive_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
-            "executable": "Resident_Evil_Gaiden__USA_.exe",
-            "immutable_tree_sha256": "0dee3194883214a9842093ca511a899ca0a95689e01c837e8f0546655daeb4ef",
-            "source_argument_extension": "gbc",
-            "shared_preferences": "regaiden041-windows",
-            "mutable_paths": [
-              "config.ini",
-              "runtime_prefs.ini",
-              "saves",
-              "snapshots",
-              "imgui.ini"
-            ]
+            "version": "v0.4.1",
+            "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+            "size": 33085815,
+            "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
           }
         }
       },
@@ -20315,13 +20304,22 @@
         ]
       },
       "launch_arguments": [
+        "--rom",
+        "game.gbc",
         "--save-dir",
         "saves"
       ],
-      "persistent_paths": [],
+      "persistent_paths": [
+        "game.gbc",
+        "config.ini",
+        "runtime_prefs.ini",
+        "imgui.ini",
+        "saves",
+        "snapshots"
+      ],
       "presentation": {
         "original_game_title": "Resident Evil Gaiden",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -20330,33 +20328,17 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact authenticated v0.4.1 Windows archive outside your Portcove library. Keep its package files and notices unchanged."
-            },
-            {
-              "title": "Create a local save folder",
-              "instruction": "Create an empty saves directory in the extracted package. Only config.ini and game-owned imgui.ini window state may change among package files."
-            },
-            {
-              "title": "Connect your original",
-              "instruction": "Choose and check the exact supported original separately in Portcove."
-            },
-            {
-              "title": "Review the folder and shared preferences",
-              "instruction": "Choose the port folder below. Review and explicitly accept the resolved account-wide roaming preference file and its local fallback before launch."
-            }
-          ],
-          "warnings": [
-            "The game may create or overwrite shared preference files and discard unknown entries. Portcove does not own or back up those shared preferences.",
-            "Use safe printable ASCII paths within the Windows MAX_PATH limit. Optional music/HD changes, extra launch options and gameplay acceptance are outside this route."
-          ]
-        }
-      }
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission."
+      },
+      "managed_shared_preferences": "regaiden041-windows",
+      "runtime_source_filename": "game.gbc",
+      "runtime_source_materialization": "regaiden-gbc",
+      "runtime_source_hashes": {
+        "game.gbc": "9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44"
+      },
+      "launch_from_install_root": true,
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "earthbound-recomp",

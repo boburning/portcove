@@ -99,7 +99,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if port.runtime_data_policy.is_some() {
+        let capability_version = if port.managed_shared_preferences.is_some() {
+            14
+        } else if port.runtime_data_policy.is_some() {
             13
         } else if port.managed_initialization.is_some() {
             12

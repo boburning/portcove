@@ -233,6 +233,13 @@ pub struct InstallOverrides<'a> {
     pub output_directory: Option<&'a Path>,
 }
 
+/// Ephemeral reviewed publication intent; durable authority stays in the
+/// consumed authorization and retained installation manifest.
+struct ReleaseIntent {
+    activate: bool,
+    shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
+}
+
 fn enum_value(value: impl Serialize) -> Result<String> {
     serde_json::to_value(value)?
         .as_str()
@@ -1097,6 +1104,17 @@ impl PortcoveService {
             None
         };
         let source_requirements = self.install_source_requirements(port)?;
+        let shared_preferences = if port.managed_shared_preferences.is_some() {
+            let root = self.shared_preferences_install_root(
+                port,
+                &status,
+                &release,
+                &output_location.effective_output_directory,
+            )?;
+            crate::managed_shared_preferences::review(port, &root)?
+        } else {
+            None
+        };
         Ok(InstallPlan {
             port_id: port_id.into(),
             channel: selected_channel,
@@ -1111,7 +1129,82 @@ impl PortcoveService {
             storage: self.library.storage_summary()?,
             output_location,
             preservation_notices: crate::runtime_data_policy::notices(port),
+            shared_preferences,
         })
+    }
+
+    fn shared_preferences_install_root(
+        &self,
+        port: &PortDefinition,
+        status: &PortStatus,
+        release: &ResolvedRelease,
+        output: &Path,
+    ) -> Result<PathBuf> {
+        crate::managed_shared_preferences::require_artifact(
+            port,
+            &release.version,
+            &crate::ArtifactIdentity {
+                asset_name: release.asset.name.clone(),
+                sha256: release.asset.sha256.clone(),
+                size: release.asset.size,
+            },
+            Some(Platform::current()?),
+        )?;
+        for install in [&status.active, &status.staged].into_iter().flatten() {
+            if self.install_matches_release(install, release, None)? {
+                return Ok(install.path.clone());
+            }
+        }
+        if let Some(install) =
+            self.library
+                .install_by_artifact(&port.id, &release.asset.sha256, None)?
+            && self.install_matches_release(&install, release, None)?
+        {
+            return Ok(install.path);
+        }
+        // The closed route has no bundled runtime, composite build or transformed key.
+        Ok(output.join(crate::managed_shared_preferences::SHA))
+    }
+
+    pub(crate) fn require_installed_shared_preferences(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<()> {
+        let catalog = self.installed_catalog(install)?;
+        let port = catalog.port(&install.port_id)?;
+        if port.managed_shared_preferences.is_some() {
+            let accepted =
+                Installer::new(self.library.clone())?.retained_shared_preferences(install)?;
+            crate::managed_shared_preferences::require_acceptance(
+                port,
+                accepted.as_ref(),
+                &install.path,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn shared_preferences_launch_blocker(
+        &self,
+        port: &PortDefinition,
+        install: &InstallRecord,
+    ) -> Option<LaunchBlocker> {
+        if port.managed_shared_preferences.is_none() {
+            return None;
+        }
+        let accepted = (|| {
+            let proof =
+                Installer::new(self.library.clone())?.retained_shared_preferences(install)?;
+            match proof {
+                Some(proof) => proof.matches_current(port, &install.path),
+                None => Ok(false),
+            }
+        })();
+        match accepted {
+            Ok(true) => None,
+            Ok(false) => Some(LaunchBlocker::SharedPreferencesReviewRequired),
+            Err(_) => Some(LaunchBlocker::SharedPreferencesUnavailable),
+        }
     }
 
     pub fn output_location(
@@ -1459,6 +1552,11 @@ impl PortcoveService {
         let catalog = retained_catalog.as_ref().unwrap_or(current_catalog);
         let port = catalog.port(&port.id)?;
         let installed = status.active.is_some() || status.external_runtime.is_some();
+        if let Some(active) = &status.active
+            && let Some(blocker) = self.shared_preferences_launch_blocker(port, active)
+        {
+            blockers.push(blocker);
+        }
         let source = port
             .source_profile
             .as_deref()
@@ -2085,6 +2183,7 @@ impl PortcoveService {
         port: &PortDefinition,
     ) -> Result<()> {
         crate::runtime_data_policy::refuse_adoption(port)?;
+        crate::managed_shared_preferences::refuse_scope_transfer(port)?;
         crate::definition_acquisition::refuse_restricted_adoption(catalog, &port.id)?;
         self.require_definition_operation(
             catalog,
@@ -2399,6 +2498,7 @@ impl PortcoveService {
             && crate::runtime::ready(port, Platform::current()?, &active)
         {
             self.managed_install_root(port_id, &active.path)?;
+            self.require_installed_shared_preferences(&active)?;
             return Ok(active);
         }
         self.install_at(
@@ -2478,7 +2578,7 @@ impl PortcoveService {
         status: PortStatus,
         overrides: InstallOverrides<'_>,
         release: ResolvedRelease,
-        activate: bool,
+        intent: ReleaseIntent,
         reporter: &mut OperationReporter<'_, F>,
     ) -> Result<InstallRecord>
     where
@@ -2507,7 +2607,7 @@ impl PortcoveService {
         } else {
             crate::ScopedResolvedRelease::legacy(release)
         };
-        self.apply_scoped_release(port, status, overrides, resolution, activate, reporter)
+        self.apply_scoped_release_with_shared(port, status, overrides, resolution, intent, reporter)
             .await
     }
 
@@ -2523,6 +2623,36 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        self.apply_scoped_release_with_shared(
+            port,
+            status,
+            overrides,
+            resolution,
+            ReleaseIntent {
+                activate,
+                shared_preferences: None,
+            },
+            reporter,
+        )
+        .await
+    }
+
+    async fn apply_scoped_release_with_shared<F>(
+        &self,
+        port: &PortDefinition,
+        status: PortStatus,
+        overrides: InstallOverrides<'_>,
+        resolution: crate::ScopedResolvedRelease,
+        intent: ReleaseIntent,
+        reporter: &mut OperationReporter<'_, F>,
+    ) -> Result<InstallRecord>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let ReleaseIntent {
+            activate,
+            shared_preferences,
+        } = intent;
         let output_location = self.output_location(&port.id, overrides.output_directory)?;
         crate::runtime_path_policy::check_output_root(
             port,
@@ -2530,6 +2660,59 @@ impl PortcoveService {
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();
+        let shared_root = if port.managed_shared_preferences.is_some() {
+            self.shared_preferences_install_root(
+                port,
+                &status,
+                &release,
+                &output_location.effective_output_directory,
+            )?
+        } else {
+            output_location.effective_output_directory.clone()
+        };
+        let shared_preferences = if port.managed_shared_preferences.is_some() {
+            let accepted = match shared_preferences {
+                Some(accepted) => Some(accepted),
+                None => {
+                    let expected =
+                        crate::path::normalized_absolute(&shared_root, "reviewed shared scope")?;
+                    let mut target = None;
+                    for install in self
+                        .library
+                        .all_installs()?
+                        .into_iter()
+                        .filter(|install| install.port_id == port.id)
+                    {
+                        if crate::path::normalized_absolute(
+                            &install.path,
+                            "installed shared scope",
+                        )? == expected
+                        {
+                            target = Some(install);
+                            break;
+                        }
+                    }
+                    match target {
+                        Some(target) => Installer::new(self.library.clone())?
+                            .retained_shared_preferences(&target)?,
+                        None => None,
+                    }
+                }
+            };
+            crate::managed_shared_preferences::require_acceptance(
+                port,
+                accepted.as_ref(),
+                &shared_root,
+            )?;
+            accepted
+        } else {
+            if shared_preferences.is_some() {
+                return Err(PortcoveError::verification(
+                    "unexpected shared preferences acceptance",
+                ));
+            }
+            None
+        };
         self.require_definition_operation(
             &self.catalog,
             port,
@@ -2557,6 +2740,7 @@ impl PortcoveService {
         if let Some(active) = &status.active
             && active_matches
         {
+            self.require_installed_shared_preferences(active)?;
             self.managed_install_root(&port.id, &active.path)?;
             let qualification = self.installed_mutability_qualification(active)?;
             Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
@@ -2565,6 +2749,7 @@ impl PortcoveService {
         if let Some(staged) = &status.staged
             && self.install_matches_release(staged, &release, runtime.as_ref())?
         {
+            self.require_installed_shared_preferences(staged)?;
             self.managed_install_root(&port.id, &staged.path)?;
             let qualification = self.installed_mutability_qualification(staged)?;
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
@@ -2580,6 +2765,7 @@ impl PortcoveService {
                 .install_by_artifact(&port.id, &release.asset.sha256, runtime.as_ref())?
             && self.install_matches_release(&existing, &release, runtime.as_ref())?
         {
+            self.require_installed_shared_preferences(&existing)?;
             self.managed_install_root(&port.id, &existing.path)?;
             let qualification = self.installed_mutability_qualification(&existing)?;
             Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
@@ -2593,7 +2779,8 @@ impl PortcoveService {
         }
         let qualification =
             InstallQualification::from_catalog(&self.catalog, &port.id, Platform::current()?)?
-                .with_acquisition_resolution(resolution)?;
+                .with_acquisition_resolution(resolution)?
+                .with_shared_preferences(shared_preferences, &shared_root)?;
         self.collect_active_user_data_if_launched(&port.id)?;
         let source =
             self.validate_and_remember_source(port, overrides.source, reporter.operation)?;
@@ -3024,6 +3211,8 @@ impl PortcoveService {
             definition: None,
         };
         let port = self.installed_port(previous).map_err(invalid)?;
+        self.require_installed_shared_preferences(previous)
+            .map_err(invalid)?;
         let qualification = self
             .installed_mutability_qualification(previous)
             .map_err(invalid)?;
@@ -3118,6 +3307,7 @@ impl PortcoveService {
                 .map(|install| install.version.as_str()),
         )?;
         let port = self.installed_port(&staged)?;
+        self.require_installed_shared_preferences(&staged)?;
         let qualification = self.installed_mutability_qualification(&staged)?;
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
@@ -4125,6 +4315,15 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    self.require_installed_shared_preferences(install)?;
+                    if retained_port.managed_shared_preferences.is_some()
+                        && (spec.arguments != retained_port.launch_arguments
+                            || spec.working_directory != install.path)
+                    {
+                        return Err(PortcoveError::verification(
+                            "managed ReGaiden requires its reviewed fixed launch and installation folder",
+                        ));
+                    }
                     crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
                         operation.checkpoint()
                     })?;
@@ -4798,7 +4997,17 @@ impl PortcoveService {
         self.managed_install_root(&install.port_id, &install.path)?;
         match Installer::new(self.library.clone())?.retained_catalog(install)? {
             Some(catalog) => Ok(catalog),
-            None => Ok(self.catalog.clone()),
+            None => {
+                let current = self.catalog.port(&install.port_id)?;
+                if current.runtime_data_policy.is_some()
+                    || current.managed_shared_preferences.is_some()
+                {
+                    return Err(PortcoveError::verification(
+                        "legacy installation cannot inherit today's credential or shared-preferences policy; retain its original route or review a fresh managed installation",
+                    ));
+                }
+                Ok(self.catalog.clone())
+            }
         }
     }
 
@@ -5098,6 +5307,12 @@ fn port_action_blocker(blocker: LaunchBlocker) -> (PortActionAvailability, PortA
         LaunchBlocker::IncompatibleBios => (Availability::Waiting, Reason::IncompatibleBios),
         LaunchBlocker::MissingRuntime => (Availability::Held, Reason::MissingRuntime),
         LaunchBlocker::PreparationRequired => (Availability::Waiting, Reason::PreparationRequired),
+        LaunchBlocker::SharedPreferencesReviewRequired => {
+            (Availability::Held, Reason::SharedPreferencesReviewRequired)
+        }
+        LaunchBlocker::SharedPreferencesUnavailable => {
+            (Availability::Held, Reason::SharedPreferencesUnavailable)
+        }
         LaunchBlocker::InvalidInstallation => (Availability::Held, Reason::InvalidInstallation),
     }
 }

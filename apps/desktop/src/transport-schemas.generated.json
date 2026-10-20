@@ -1297,6 +1297,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation"
         ],
         "type": "string"
@@ -1462,6 +1464,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
@@ -2992,6 +2996,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
@@ -3821,6 +3827,16 @@
               }
             ]
           },
+          "managed_shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "manually_validated_platforms": {
             "default": [],
             "items": {
@@ -4466,16 +4482,25 @@
         "type": "string"
       },
       "RuntimeSourceMaterialization": {
-        "enum": [
-          "n64-big-endian",
-          "copy",
-          "gamecube-iso",
-          "psx-bin-cue",
-          "psx-raw-set",
-          "ps2-iso",
-          "stfs-directory"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "n64-big-endian",
+              "copy",
+              "gamecube-iso",
+              "psx-bin-cue",
+              "psx-raw-set",
+              "ps2-iso",
+              "stfs-directory"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "regaiden-gbc",
+            "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          }
+        ]
       },
       "RuntimeSourceTarget": {
         "properties": {
@@ -9734,6 +9759,27 @@
   },
   "game_install_plan": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "ArtifactIdentity": {
         "properties": {
           "asset_name": {
@@ -9825,6 +9871,16 @@
           },
           "release": {
             "$ref": "#/$defs/ResolvedRelease"
+          },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedSharedPreferencesReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "source_requirements": {
             "items": {
@@ -10006,6 +10062,31 @@
         ],
         "type": "object"
       },
+      "ManagedSharedPreferencesReview": {
+        "additionalProperties": false,
+        "description": "Managed local fallback and non-owned account-wide preferences have distinct ownership.",
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
+          "shared_present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "binding",
+          "local_fallback_path",
+          "shared_present",
+          "local_fallback_present"
+        ],
+        "type": "object"
+      },
       "OutputLocationSource": {
         "enum": [
           "request_override",
@@ -10060,6 +10141,14 @@
           "user_data_root"
         ],
         "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
+        ],
+        "type": "string"
       },
       "ReleaseAsset": {
         "properties": {
@@ -10216,6 +10305,27 @@
   },
   "game_update_plan": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -10332,6 +10442,16 @@
           "release": {
             "$ref": "#/$defs/ResolvedRelease"
           },
+          "shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedSharedPreferencesReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "source_requirements": {
             "items": {
               "$ref": "#/$defs/InstallSourceRequirement"
@@ -10441,6 +10561,31 @@
         ],
         "type": "object"
       },
+      "ManagedSharedPreferencesReview": {
+        "additionalProperties": false,
+        "description": "Managed local fallback and non-owned account-wide preferences have distinct ownership.",
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
+          "shared_present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "binding",
+          "local_fallback_path",
+          "shared_present",
+          "local_fallback_present"
+        ],
+        "type": "object"
+      },
       "OutputLocationSource": {
         "enum": [
           "request_override",
@@ -10530,6 +10675,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
@@ -10578,6 +10725,14 @@
           "user_data_root"
         ],
         "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
+        ],
+        "type": "string"
       },
       "ReleaseAsset": {
         "properties": {
@@ -11808,6 +11963,27 @@
   },
   "install_plan": {
     "$defs": {
+      "AcceptedSharedPreferencesBinding": {
+        "additionalProperties": false,
+        "description": "Explicitly accepted account and location; mutable contents are not authority.",
+        "properties": {
+          "account_sid_sha256": {
+            "type": "string"
+          },
+          "contract": {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract",
+          "account_sid_sha256",
+          "path"
+        ],
+        "type": "object"
+      },
       "BundledRuntime": {
         "properties": {
           "archive_root": {
@@ -11905,6 +12081,31 @@
         ],
         "type": "object"
       },
+      "ManagedSharedPreferencesReview": {
+        "additionalProperties": false,
+        "description": "Managed local fallback and non-owned account-wide preferences have distinct ownership.",
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
+          },
+          "local_fallback_path": {
+            "type": "string"
+          },
+          "local_fallback_present": {
+            "type": "boolean"
+          },
+          "shared_present": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "binding",
+          "local_fallback_path",
+          "shared_present",
+          "local_fallback_present"
+        ],
+        "type": "object"
+      },
       "OutputLocationSource": {
         "enum": [
           "request_override",
@@ -11959,6 +12160,14 @@
           "user_data_root"
         ],
         "type": "object"
+      },
+      "PreparedSharedPreferencesContract": {
+        "description": "A reviewed shared write scope, never a caller-selected external path.",
+        "enum": [
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
+        ],
+        "type": "string"
       },
       "ReleaseAsset": {
         "properties": {
@@ -12097,6 +12306,16 @@
       },
       "release": {
         "$ref": "#/$defs/ResolvedRelease"
+      },
+      "shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ManagedSharedPreferencesReview"
+          },
+          {
+            "type": "null"
+          }
+        ]
       },
       "source_requirements": {
         "items": {
@@ -16442,16 +16661,25 @@
         "type": "string"
       },
       "RuntimeSourceMaterialization": {
-        "enum": [
-          "n64-big-endian",
-          "copy",
-          "gamecube-iso",
-          "psx-bin-cue",
-          "psx-raw-set",
-          "ps2-iso",
-          "stfs-directory"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "n64-big-endian",
+              "copy",
+              "gamecube-iso",
+              "psx-bin-cue",
+              "psx-raw-set",
+              "ps2-iso",
+              "stfs-directory"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "regaiden-gbc",
+            "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          }
+        ]
       },
       "RuntimeSourceTarget": {
         "properties": {
@@ -16721,6 +16949,16 @@
         "anyOf": [
           {
             "$ref": "#/$defs/ManagedInitialization"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "managed_shared_preferences": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PreparedSharedPreferencesContract"
           },
           {
             "type": "null"
@@ -20899,6 +21137,16 @@
               }
             ]
           },
+          "managed_shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "manually_validated_platforms": {
             "default": [],
             "items": {
@@ -21544,16 +21792,25 @@
         "type": "string"
       },
       "RuntimeSourceMaterialization": {
-        "enum": [
-          "n64-big-endian",
-          "copy",
-          "gamecube-iso",
-          "psx-bin-cue",
-          "psx-raw-set",
-          "ps2-iso",
-          "stfs-directory"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "n64-big-endian",
+              "copy",
+              "gamecube-iso",
+              "psx-bin-cue",
+              "psx-raw-set",
+              "ps2-iso",
+              "stfs-directory"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "regaiden-gbc",
+            "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          }
+        ]
       },
       "RuntimeSourceTarget": {
         "properties": {
@@ -34890,6 +35147,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation"
         ],
         "type": "string"
@@ -35045,6 +35304,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",

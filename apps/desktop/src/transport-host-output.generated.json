@@ -7697,6 +7697,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation"
         ],
         "type": "string"
@@ -8089,6 +8091,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
@@ -8200,6 +8204,16 @@
             "anyOf": [
               {
                 "$ref": "#/$defs/ManagedInitialization"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "managed_shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
               },
               {
                 "type": "null"
@@ -9037,16 +9051,25 @@
         "type": "string"
       },
       "RuntimeSourceMaterialization": {
-        "enum": [
-          "n64-big-endian",
-          "copy",
-          "gamecube-iso",
-          "psx-bin-cue",
-          "psx-raw-set",
-          "ps2-iso",
-          "stfs-directory"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "n64-big-endian",
+              "copy",
+              "gamecube-iso",
+              "psx-bin-cue",
+              "psx-raw-set",
+              "ps2-iso",
+              "stfs-directory"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "regaiden-gbc",
+            "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          }
+        ]
       },
       "RuntimeSourceTarget": {
         "properties": {

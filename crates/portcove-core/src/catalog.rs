@@ -1064,6 +1064,14 @@ impl Catalog {
                                 || crate::preparation::managed(port)
                                 || port.runtime_data_policy.is_some())
                     }
+                    RuntimeSourceMaterialization::RegaidenGbc => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && port.managed_shared_preferences
+                                == Some(
+                                    crate::PreparedSharedPreferencesContract::Regaiden041Windows,
+                                )
+                    }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
                             || (port.adapter == AdapterKind::GeneratedCache
@@ -1170,6 +1178,7 @@ impl Catalog {
                         materialization,
                         RuntimeSourceMaterialization::N64BigEndian
                             | RuntimeSourceMaterialization::Copy
+                            | RuntimeSourceMaterialization::RegaidenGbc
                             | RuntimeSourceMaterialization::GamecubeIso
                             | RuntimeSourceMaterialization::Ps2Iso
                     ) && port

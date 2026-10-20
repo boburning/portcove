@@ -254,6 +254,8 @@ impl AdapterKind {
 pub enum RuntimeSourceMaterialization {
     N64BigEndian,
     Copy,
+    /// Closed, consent-bearing ReGaiden route; older engines reject this value.
+    RegaidenGbc,
     GamecubeIso,
     PsxBinCue,
     PsxRawSet,
@@ -402,6 +404,26 @@ pub struct SharedPreferencesReview {
     pub present: bool,
     pub local_fallback_path: Option<PathBuf>,
     pub local_fallback_present: bool,
+}
+
+/// Managed local fallback and non-owned account-wide preferences have distinct ownership.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedSharedPreferencesReview {
+    pub binding: AcceptedSharedPreferencesBinding,
+    pub local_fallback_path: PathBuf,
+    pub shared_present: bool,
+    pub local_fallback_present: bool,
+}
+
+impl ManagedSharedPreferencesReview {
+    pub fn write_scope_disclosure(&self) -> String {
+        format!(
+            "This game can rewrite shared preferences at {}, discard unknown entries and affect other copies in this Windows account. Portcove never owns, moves, backs up, restores or deletes that shared file. If it is unavailable, the game can instead use {}. That local fallback is part of this installation's managed saves and settings.",
+            self.binding.path.display(),
+            self.local_fallback_path.display()
+        )
+    }
 }
 
 impl SharedPreferencesReview {
@@ -571,6 +593,8 @@ pub struct PortDefinition {
     pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -1313,6 +1337,8 @@ pub struct InstallPlan {
     pub output_location: PortOutputLocation,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub preservation_notices: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<ManagedSharedPreferencesReview>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1456,6 +1482,8 @@ pub enum LaunchBlocker {
     IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
+    SharedPreferencesReviewRequired,
+    SharedPreferencesUnavailable,
     InvalidInstallation,
 }
 
