@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { isRecord } from "./runtime-values.mts";
+import { validateReleaseReviewRequestTransition } from "./release-review-request.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 
 // One coordinating Git repository, shared by its linked worktrees. This is not
@@ -190,7 +191,13 @@ function readCheckpoint(git: Git, commit: string) {
   const expectedParents = state.previous === null ? [] : [`parent ${state.previous}`];
   if (canonical(parents) !== canonical(expectedParents) || canonical(state) !== raw)
     throw new Error("coordinator checkpoint history or canonical bytes disagree");
-  return { previous: state.previous, ...checkedInput(state.input) };
+  const checked = checkedInput(state.input);
+  if (
+    state.previous === null &&
+    (checked.input.review_request != null || checked.input.review_disposition != null)
+  )
+    throw new Error("initial coordinator cannot invent a frozen review request");
+  return { previous: state.previous, ...checked };
 }
 
 /** Resolve public raw receipts referenced by a compact summary in this same
@@ -245,6 +252,7 @@ function transition(
   checkpoint: string,
 ) {
   validateCapacityTransition(previous.input, next, checkpoint);
+  validateReleaseReviewRequestTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
   const controller = next.controller;
@@ -448,6 +456,8 @@ export async function checkpointReleaseOpportunity(
   if (previous) transition(previous, input, expectedPrevious!);
   else if (active(input))
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
+  else if (input.review_request != null || input.review_disposition != null)
+    throw new Error("first coordinator checkpoint cannot invent a frozen review request");
   const verifies = preparationVerifies(git, input);
   // Clearing a completed active candidate still verifies its exact allocation.
   if (previous && !active(input)) verifies.push(...preparationVerifies(git, previous.input));

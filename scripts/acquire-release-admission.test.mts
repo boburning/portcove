@@ -14,6 +14,7 @@ import { releasePublicBuildArtifactName } from "./release-public-build-provenanc
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
+import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 void test("imported or frozen zero-hold descriptors cannot mint an actual stage-specific admission continuation", () => {
@@ -32,6 +33,67 @@ void test("imported or frozen zero-hold descriptors cannot mint an actual stage-
     for (const stage of ["payload-signing", "release-publication"] as const)
       assert.throws(() => requireActualReleaseAdmissionContext(raw, stage), /actual same-process/);
   }
+});
+void test("native continuation receives frozen acquired bytes once, before controls, and imported reports cannot qualify it", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const frozen = {
+    ...structuredClone(f.input.opportunity),
+    change_set_sha256: f.sourceFacts.expectedHash,
+    classification: {
+      ...f.input.opportunity.classification,
+      change_set_sha256: f.sourceFacts.expectedHash,
+      change_set_scope: "portcove-release-net-tree-delta-v1",
+    },
+  };
+  Object.assign(f.input.active_candidate, { frozen_opportunity: frozen });
+  let nativeCalls = 0,
+    controlCalls = 0;
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, {
+      ...f.options,
+      controlPhase: "payload",
+      establishNative: async (facts) => {
+        nativeCalls++;
+        assert.ok(Object.isFrozen(facts));
+        assert.ok(Object.isFrozen(facts.assembly));
+        assert.ok(Object.isFrozen(facts.archives));
+        assert.equal(facts.archives.length, 2);
+        assert.equal(f.calls.filter((v) => v.startsWith("ZIP ")).length, 2);
+        return [
+          Object.freeze({ stage: "payload-signing", accepted: true }),
+          Object.freeze({ accepted: true }),
+        ];
+      },
+      establishControls: async () => {
+        controlCalls++;
+        throw new Error("must not run");
+      },
+    }),
+    (error: unknown) =>
+      error instanceof CoordinatorRemoteError &&
+      isRecord(error.evidence) &&
+      error.evidence.phase === "actual-stage-native-qualification",
+  );
+  assert.equal(nativeCalls, 1);
+  assert.equal(controlCalls, 0);
+});
+void test("admission cannot relabel injected provenance when the caller mutates options during an awaited read", async (t) => {
+  const f = await fixture(t);
+  const original = f.options.recover;
+  assert.ok(original);
+  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = { ...f.options };
+  options.recover = async (...args) => {
+    delete options.api;
+    delete options.download;
+    delete options.recover;
+    delete options.now;
+    return original(...args);
+  };
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
 });
 import {
   releaseControlInputsFixture,

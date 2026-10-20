@@ -32,12 +32,23 @@ function admitController(
   } catch {
     refuse("policy JSON");
   }
+  if (!isRecord(policy)) refuse("policy schema or exact identities");
+  const legacy =
+    policy.schema_version === 1 &&
+    policy.mode === "admission-only" &&
+    Object.keys(policy).sort().join(",") ===
+      "actor_id,execution_ref,mode,revision,schema_version,workflow_sha256";
+  const bounded =
+    policy.schema_version === 2 &&
+    policy.mode === "bounded-application-release" &&
+    Object.keys(policy).sort().join(",") ===
+      "actor_id,authority_configuration_sha256,execution_ref,grant_sha256,mode,revision,schema_version,workflow_sha256" &&
+    typeof policy.authority_configuration_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(policy.authority_configuration_sha256) &&
+    typeof policy.grant_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(policy.grant_sha256);
   if (
-    !isRecord(policy) ||
-    Object.keys(policy).sort().join(",") !==
-      "actor_id,execution_ref,mode,revision,schema_version,workflow_sha256" ||
-    policy.schema_version !== 1 ||
-    policy.mode !== "admission-only" ||
+    (!legacy && !bounded) ||
     typeof policy.execution_ref !== "string" ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
       policy.execution_ref,
@@ -87,8 +98,14 @@ function admitController(
   )
     refuse("workflow source byte identity");
   return {
-    schema_version: 1,
-    mode: "admission-only",
+    schema_version: policy.schema_version,
+    mode: policy.mode,
+    ...(bounded
+      ? {
+          authority_configuration_sha256: String(policy.authority_configuration_sha256),
+          grant_sha256: String(policy.grant_sha256),
+        }
+      : {}),
     repository_id: repositoryId,
     repository,
     workflow,
@@ -151,11 +168,30 @@ export function admitReviewedInputsController(
     workflowBytes,
   );
 }
+export function admitReviewedInputsWriter(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    ".github/workflows/release-reviewed-inputs.yml",
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_writer",
+  );
+}
 
 export async function readProductionControllerWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(productionControllerWorkflow);
+}
+export async function readReviewedInputsWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(".github/workflows/release-reviewed-inputs.yml");
+}
+async function readFixedControllerWorkflowBytes(workflow: string) {
   // A fixed trusted-checkout path, never a candidate-supplied file. Read from one
   // handle with a one-byte growth probe; no dependency install or candidate code.
-  const filename = new URL(`../${productionControllerWorkflow}`, import.meta.url);
+  const filename = new URL(`../${workflow}`, import.meta.url);
   const handle = await open(filename, "r");
   try {
     if (!(await handle.stat()).isFile()) refuse("workflow must be a regular file");

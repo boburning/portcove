@@ -9,12 +9,66 @@ import {
   stageAggregateSigningInputs,
   prepareControllerPayloadSigning,
   runPayloadSigningController,
+  requirePreparedPayloadSignatures,
 } from "./release-payload-preparation.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { assembleTrustedRelease } from "./trusted-release-assembly.mts";
+import { signReleasePayload } from "./release-payload-signing.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("an exhausted fixed role deadline refuses before tools, key callbacks or signing effects", async () => {
+  let called = false;
+  await assert.rejects(
+    signReleasePayload(
+      {
+        projectRoot: "unused",
+        request: {
+          schema_version: 1,
+          repository: "boburning/portcove",
+          version: "0.1.0-beta.1",
+          source_commit: "a".repeat(40),
+          platform_label: "windows-x86_64",
+          filename: "Portcove_0.1.0-beta.1_x64-setup.exe",
+          bytes: 1,
+          sha256: "a".repeat(64),
+          public_key_sha256: "b".repeat(64),
+          qualification_inventory_sha256: "c".repeat(64),
+          reservation_checkpoint: "d".repeat(40),
+          aggregate_archive_sha256: "e".repeat(64),
+          producer: { run_id: "1", run_attempt: 1, job_id: "2", artifact_id: "3" },
+        },
+        payload: "unused",
+        publicKey: "unused",
+        output: "unused",
+        tools: {
+          node: { path: "unused", sha256: "a".repeat(64) },
+          tauriAddon: { path: "unused", sha256: "a".repeat(64) },
+          verifier: { path: "unused", sha256: "a".repeat(64) },
+        },
+      },
+      {
+        deadline: -1,
+        beforeSign: () => {
+          called = true;
+          return Promise.resolve();
+        },
+        keyMaterial: () => {
+          called = true;
+          return Promise.resolve({ key: "unused", password: "unused" });
+        },
+      },
+    ),
+    /total phase deadline/u,
+  );
+  assert.equal(called, false);
+});
+void test("serialized signatures and caller supplied acceptance cannot become actual prepared signature custody", async () => {
+  await assert.rejects(
+    requirePreparedPayloadSignatures({ decision: "signed", authority: "none", signatures: [] }),
+    /actual same-process payload signatures/u,
+  );
+});
 void test("positive payload continuation rejects imported tool receipts before identity or key access", async () => {
   await assert.rejects(
     runPayloadSigningController(

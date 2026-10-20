@@ -1,6 +1,13 @@
 import { createHash } from "node:crypto";
-import { requireFrozenSemanticInputs } from "./release-semantic-inputs.mts";
-import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts";
+import {
+  requireFrozenSemanticInputs,
+  requireFrozenSemanticProposalInputs,
+} from "./release-semantic-inputs.mts";
+import type {
+  prepareFrozenSemanticInputs,
+  prepareFrozenSemanticProposalInputs,
+  FrozenSemanticSnapshot,
+} from "./release-semantic-inputs.mts";
 import {
   createSemanticSnapshotReader,
   createSemanticSnapshotRpc,
@@ -16,7 +23,16 @@ export function createSemanticReaderRpc(raw: Bundle) {
 /** Parent validates the existing builder brand before materializing one immutable
  * reader payload. Child hash validation supplies transport integrity only. */
 export function materializeSemanticReaderIndex(raw: Bundle) {
-  const bundle = requireFrozenSemanticInputs(raw);
+  return materializeIndex(requireFrozenSemanticInputs(raw));
+}
+
+export function materializeSemanticProposalReaderIndex(
+  raw: ReturnType<typeof prepareFrozenSemanticProposalInputs>,
+) {
+  return materializeIndex(requireFrozenSemanticProposalInputs(raw));
+}
+
+function materializeIndex(bundle: FrozenSemanticSnapshot) {
   const bytes = Buffer.from(
     JSON.stringify({
       manifest: bundle.manifest,

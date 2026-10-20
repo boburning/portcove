@@ -105,6 +105,80 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     unchanged_records_sha256: raw.unchanged_records_sha256,
   };
 }
+/** Explicit no-prior setup facts. This is not an authenticated absence proof,
+ * a root appointment or permission to create/configure a public site. */
+export function inspectMetadataBootstrapDescriptor(raw: unknown) {
+  exact(
+    raw,
+    "expires,generated_at,initial_records_sha256,initial_site_preimage_sha256,kind,offline_targets_sha256,payload_key_registry_sha256,root_sha256,schema_version,setup_plan_sha256,versions",
+  );
+  if (raw.schema_version !== 1 || raw.kind !== "application-tuf-initial-bootstrap")
+    throw new Error("unsupported initial metadata bootstrap contract");
+  const generated = metadataInstant(raw.generated_at);
+  for (const key of [
+    "setup_plan_sha256",
+    "initial_site_preimage_sha256",
+    "root_sha256",
+    "offline_targets_sha256",
+    "payload_key_registry_sha256",
+    "initial_records_sha256",
+  ] as const)
+    sha(raw[key]);
+  const initialVersions = versions(raw.versions),
+    initialExpires = expires(raw.expires);
+  if (raw.initial_records_sha256 !== digest([]))
+    throw new Error("initial metadata bootstrap must contain no release/channel records");
+  for (const role of roles) {
+    const days = role === "timestamp" ? 2 : role === "targets" || role === "releases" ? 90 : 7;
+    const expiry = metadataInstant(initialExpires[role]);
+    if (
+      (role !== "targets" && initialVersions[role] !== "1") ||
+      expiry <= generated ||
+      expiry > generated + BigInt(days) * 86_400_000_000_000n
+    )
+      throw new Error("initial metadata versions or expiry exceed first-generation scope");
+  }
+  return {
+    schema_version: 1 as const,
+    kind: "application-tuf-initial-bootstrap" as const,
+    generated_at: String(raw.generated_at),
+    setup_plan_sha256: raw.setup_plan_sha256,
+    initial_site_preimage_sha256: raw.initial_site_preimage_sha256,
+    root_sha256: raw.root_sha256,
+    offline_targets_sha256: raw.offline_targets_sha256,
+    payload_key_registry_sha256: raw.payload_key_registry_sha256,
+    initial_records_sha256: raw.initial_records_sha256,
+    versions: initialVersions,
+    expires: initialExpires,
+  };
+}
+export function assertMetadataBootstrapBinding(
+  descriptor: ReturnType<typeof inspectMetadataBootstrapDescriptor>,
+  published: ReturnType<typeof inspectPublishedMetadata>,
+  now: unknown,
+) {
+  if (published)
+    throw new Error("initial metadata bootstrap is permanently closed by published metadata");
+  const time = metadataInstant(now);
+  if (metadataInstant(descriptor.generated_at) > time + 300_000_000_000n)
+    throw new Error("initial metadata generation clock is future");
+  for (const role of roles)
+    if (metadataInstant(descriptor.expires[role]) <= time)
+      throw new Error("expired initial metadata bootstrap requires separate recovery");
+}
+export function assertMetadataBootstrapPublication(rawDescriptor: unknown, rawFacts: unknown) {
+  const descriptor = inspectMetadataBootstrapDescriptor(rawDescriptor),
+    facts = inspectTufPublicationFacts(rawFacts);
+  if (
+    facts.root_sha256 !== descriptor.root_sha256 ||
+    facts.offline_targets_sha256 !== descriptor.offline_targets_sha256 ||
+    facts.records_sha256 !== descriptor.initial_records_sha256 ||
+    digest(facts.versions) !== digest(descriptor.versions) ||
+    digest(facts.expires) !== digest(descriptor.expires)
+  )
+    throw new Error("assembled initial publication differs from exact bootstrap descriptor");
+  return descriptor;
+}
 /** Shape/binding only. The admitted caller must obtain these facts from the
  * actual pinned keyless verifier, never an imported report or artifact label. */
 export function inspectTufPublicationFacts(raw: unknown) {
@@ -236,6 +310,35 @@ export function validatePublishedMetadataTransition(
   if (digest(previous.active_candidate) !== digest(next.active_candidate))
     throw new Error("published metadata readback cannot change active reservation");
   if (!before) {
+    if (previous.metadata_bootstrap != null || next.metadata_bootstrap != null) {
+      const { operation_id: initialOperation, publication: initialPublication, ...facts } = after;
+      const descriptor = assertMetadataBootstrapPublication(next.metadata_bootstrap, facts);
+      void initialOperation;
+      void initialPublication;
+      if (
+        !isRecord(operation) ||
+        !isRecord(operation.metadata_bootstrap) ||
+        operation.metadata_bootstrap.descriptor_sha256 !== digest(descriptor) ||
+        operation.id !== after.operation_id ||
+        !(
+          operation.outcome === "succeeded" ||
+          (operation.outcome === "recovered" &&
+            isRecord(operation.recovery) &&
+            operation.recovery.resolution === "effect-completed")
+        ) ||
+        !Array.isArray(operation.completed_effects) ||
+        !operation.completed_effects.some(
+          (effect) =>
+            isRecord(effect) &&
+            effect.remote_identity === after.publication.remote_identity &&
+            effect.evidence_sha256 === after.publication.evidence_sha256,
+        )
+      )
+        throw new Error(
+          "initial metadata publication requires exact settled bootstrap effect and public readback",
+        );
+      return;
+    }
     if (
       after.operation_id !== null ||
       (isRecord(operation) && !["succeeded", "recovered"].includes(String(operation.outcome)))

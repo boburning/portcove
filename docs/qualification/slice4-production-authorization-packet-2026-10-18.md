@@ -11,6 +11,47 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [coordinator and initial empty-feed continuation](slice4-534-coordinator-and-initial-feed-2026-10-20.md)
+connects existing journal recovery, exact-request classification discovery,
+prepared transport and bounded dispatch, and adds an explicit no-prior empty TUF
+bootstrap through the same operation journal. Disposable fixtures exercise
+remote pending/readback recovery without inventing a previous feed or candidate.
+Automatic renewal, final candidate completion, actual setup controls and the
+protected execution grant remain separate; no runtime is activated here.
+
+The October 20 [request-bound semantic handoff](slice4-534-request-bound-semantic-handoff-2026-10-20.md)
+connects neutral coordinator requests, direct proposal/full-review capture,
+isolated issuer preparation and complete GET-only Check reconciliation. It also
+preserves original versus prepared publication source across following reviews.
+Automatic local execution, actual producer evidence and the remaining stage
+joins are still pending; this delivery grants or activates nothing.
+
+The October 20 [native stage and payload signing join preparation](slice4-534-native-stage-signing-join-2026-10-20.md)
+connects genuine two-platform native receipts and authenticated compiler/SPDX
+custody to the private pre-sign continuation. The actual payload role places
+key release, signing and immutable output readback inside the existing owned
+pending/settlement operation. Fixed signing-role profiles do not grant signing
+authority. Cross-job attestation, the complete TUF/context join, genuine native
+producer capture and final held-workflow integration remain pending; no protected
+execution or publication acceptance is claimed.
+
+The October 20 [native Check consumer preparation](slice4-534-native-check-consumer-2026-10-20.md)
+binds separate candidate and local native producer identities to the distinct
+configured issuer, stage, host/account, exact source/harness and positive teardown
+report. Only the actual provider path can mint its private receipt; fixtures
+remain unaccepted. Genuine broker capture, ratified custody and the stage-specific
+record/context joins are still required. No native execution or production
+authority is established by this preparation.
+
+The October 20 [native account and harness preparation](slice4-native-account-preparation-2026-10-20.md)
+connects the fixed owner-side broker, separate non-admin account job boundary and
+installer-to-ordinary-desktop launch adapters. Protected controller staging,
+exact tool identities, actual qualification-account HKU and one-shot retained
+teardown are required. Inert tests are not cross-account GUI qualification.
+Account/ACL/custody setup, genuine stage serialization and the public signed
+update/rollback/journal route remain pending; no native Check or production
+execution is authorized by this component.
+
 The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
 records an owner-visible unconfigured project site and absent parent user-site
 repository, bracketed around fixed public-route 404 observations. This is

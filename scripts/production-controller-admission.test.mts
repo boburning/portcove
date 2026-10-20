@@ -8,8 +8,10 @@ import test from "node:test";
 import {
   admitProductionController,
   admitReviewedInputsController,
+  admitReviewedInputsWriter,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 
 const source = Buffer.from("independently selected workflow fixture\n");
 const policy = {
@@ -45,6 +47,26 @@ const environment = {
   PORTCOVE_CONTROLLER_REF: "refs/tags/portcove-production-controller-fixture",
 };
 const raw = JSON.stringify(policy);
+
+void test("classification writer admits only its own fixed workflow, job and ratified bytes", () => {
+  const writer = {
+    ...environment,
+    GITHUB_JOB: "classification_writer",
+    GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+  };
+  const accepted = admitReviewedInputsWriter(raw, writer, source);
+  assert.equal(accepted.workflow, ".github/workflows/release-reviewed-inputs.yml");
+  for (const change of [
+    { GITHUB_JOB: "admission" },
+    { GITHUB_JOB: "protection_observation" },
+    { GITHUB_WORKFLOW_REF: environment.GITHUB_WORKFLOW_REF },
+    { GITHUB_RUN_ATTEMPT: "2" },
+    { GITHUB_REF_PROTECTED: "false" },
+  ])
+    assert.throws(() => admitReviewedInputsWriter(raw, { ...writer, ...change }, source));
+  assert.throws(() => admitReviewedInputsWriter(raw, writer, Buffer.from("other workflow")));
+  assert.throws(() => admitProductionController(raw, writer, source));
+});
 
 void test("exact separately configured fixture admits only its source execution", () => {
   const result = admitProductionController(raw, environment, source);
@@ -84,6 +106,124 @@ void test("policy is absent by default and cannot add candidate or privileged mo
     const missing: Record<string, unknown> = { ...policy };
     delete missing[key];
     assert.throws(() => admitProductionController(JSON.stringify(missing), environment, source));
+  }
+});
+
+void test("bounded source policy binds both complete authority configuration and the separate grant", () => {
+  const selected = {
+    ...policy,
+    schema_version: 2,
+    mode: "bounded-application-release",
+    authority_configuration_sha256: "b".repeat(64),
+    grant_sha256: "c".repeat(64),
+  };
+  const result = admitProductionController(JSON.stringify(selected), environment, source);
+  assert.equal(result.mode, selected.mode);
+  assert.equal(result.authority_configuration_sha256, selected.authority_configuration_sha256);
+  assert.equal(result.grant_sha256, selected.grant_sha256);
+  assert.match(result.qualification, /no candidate acceptance/u);
+  for (const change of [
+    { grant_sha256: null },
+    { authority_configuration_sha256: "b".repeat(63) },
+    { mode: "admission-only" },
+    { accepted: true },
+  ])
+    assert.throws(() =>
+      admitProductionController(JSON.stringify({ ...selected, ...change }), environment, source),
+    );
+  for (const changed of [
+    { GITHUB_REF: "refs/heads/main" },
+    { GITHUB_REF_PROTECTED: "false" },
+    { GITHUB_ACTOR_ID: "2" },
+    { GITHUB_RUN_ATTEMPT: "2" },
+  ])
+    assert.throws(() =>
+      admitProductionController(JSON.stringify(selected), { ...environment, ...changed }, source),
+    );
+});
+
+void test("global configured role inventory refuses every App conflation and weakened beta host floor", () => {
+  const names = [
+    "semantic",
+    "classification",
+    "native_qualification",
+    "protection_observer",
+    "coordinator_journal",
+    "dispatch",
+    "release_publication",
+  ];
+  const apps = Object.fromEntries(
+    names.map((name, index) => [
+      name,
+      {
+        app_id: 100 + index,
+        installation_id: 200 + index,
+        ...(name === "dispatch" ? { actor_id: "123456" } : {}),
+      },
+    ]),
+  );
+  const native = Object.fromEntries(
+    ["windows-x86_64", "linux-x86_64"].map((platform) => [
+      platform,
+      {
+        producer: {
+          source_commit: "a".repeat(40),
+          source_tree: "b".repeat(40),
+          harness: { path: "scripts/qualify-native-release.ps1", sha256: "c".repeat(64) },
+        },
+        host: {
+          machine_id_sha256: "d".repeat(64),
+          qualification_profile: "inert-config-only",
+          minimum_platform:
+            platform === "windows-x86_64" ? "windows-11-26h2-x64" : "ubuntu-24.04-x64",
+          account:
+            platform === "windows-x86_64"
+              ? {
+                  kind: "windows-sid",
+                  broker: "S-1-5-21-1-2-3-1001",
+                  qualification: "S-1-5-21-1-2-3-1002",
+                }
+              : { kind: "linux-uid", broker: "1000", qualification: "1001" },
+          engine: {
+            name: platform === "windows-x86_64" ? "WebView2" : "WebKitGTK",
+            minimum_version: platform === "windows-x86_64" ? "155.0.4283.62" : "2.52.6",
+          },
+        },
+        compatibility: {
+          minimum_os_version: "fixture",
+          required_capabilities: [],
+          cli_protocol: { min: 1, max: 1 },
+          catalog_formats: [3],
+          library: { read: { min: 1, max: 1 }, write_schema: 1, lock_protocol: "fixture" },
+        },
+      },
+    ]),
+  );
+  const config = {
+    schema_version: 1,
+    repository_id: 1354613114,
+    namespace: "portcove-fixture",
+    apps,
+    native,
+  };
+  assert.equal(inspectReleaseAuthorityConfiguration(config).apps.semantic.app_id, 100);
+  for (const name of names) {
+    const changed = structuredClone(config);
+    changed.apps[name]!.app_id = 15368;
+    assert.throws(() => inspectReleaseAuthorityConfiguration(changed), /conflated/);
+    for (const other of names.filter((entry) => entry !== name)) {
+      const conflated = structuredClone(config);
+      conflated.apps[name] = conflated.apps[other]!;
+      assert.throws(() => inspectReleaseAuthorityConfiguration(conflated));
+    }
+  }
+  for (const [platform, lower] of [
+    ["windows-x86_64", "155.0.4283.61"],
+    ["linux-x86_64", "2.52.5"],
+  ] as const) {
+    const changed = structuredClone(config);
+    changed.native[platform]!.host.engine.minimum_version = lower;
+    assert.throws(() => inspectReleaseAuthorityConfiguration(changed), /floor weakened/);
   }
 });
 

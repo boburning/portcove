@@ -2,7 +2,14 @@ import { open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
-import { requireDirectSemanticCapture } from "./release-semantic-runtime.mts";
+import {
+  verifyDirectSemanticCapture,
+  requireDirectSemanticDispositionCapture,
+} from "./release-semantic-runtime.mts";
+import {
+  readIndependentSemanticDisposition,
+  readIndependentSemanticCheckInventory,
+} from "./release-semantic-disposition-reader.mts";
 import type { runSemanticRuntime } from "./release-semantic-runtime.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { readIndependentSemanticReview } from "./release-control-inputs.mts";
@@ -26,7 +33,7 @@ function issuerConfiguration(config: SemanticIssuer) {
   return structuredClone(config);
 }
 async function verifyCapture(capture: Capture) {
-  const expected = requireDirectSemanticCapture(capture);
+  const expected = await verifyDirectSemanticCapture(capture);
   const persisted = await readFile(
     path.join(expected.root, "capture/accepted-handoff.json"),
     "utf8",
@@ -182,71 +189,130 @@ export function readbackSemanticCheck(
 ) {
   const config = issuerConfiguration(rawIssuer);
   if (!/^[a-f0-9]{40}$/u.test(expected.head)) throw new Error("readback source identity invalid");
-  const matches: number[] = [],
-    seen = new Set<number>();
-  let total: number | undefined;
-  for (let page = 1; page <= 16; page++) {
-    const response = api.request(
-      "GET",
-      `${repo}/commits/${expected.head}/check-runs?filter=all&per_page=100&page=${page}`,
+  const producer = {
+    schema_version: 1,
+    review_app_id: config.app_id,
+    writer_app_id: config.writer_app_id,
+    review_check_name: "Portcove independent release semantic review",
+  };
+  const inventory = readIndependentSemanticCheckInventory(api, producer, expected.head);
+  const matches = inventory.records.filter((value) => value.external_id === expected.external_id);
+  if (
+    matches.length !== 1 ||
+    !isRecord(matches[0]!.output) ||
+    matches[0]!.output.summary !== expected.summary
+  )
+    throw new Error("semantic POST remains ambiguous; preserve original attempt, no retry");
+  const id = Number(matches[0]!.id);
+  const proof = readIndependentSemanticReview(api, producer, opportunity, id);
+  const verified: unknown = JSON.parse(proof);
+  if (
+    !isRecord(verified) ||
+    capacityDigest(verified.report) !== capacityDigest(JSON.parse(expected.summary) as unknown)
+  )
+    throw new Error("semantic readback detail differs from original direct capture; no retry");
+  inventory.assertUnchanged();
+  return { check_id: id, proof };
+}
+
+/** Failure-only, directly captured settled producer result. No D1 acceptance. */
+export async function publishSemanticDispositionCapture(
+  capture: unknown,
+  rawIssuer: SemanticIssuer,
+  options: Parameters<typeof publishSemanticCapture>[2],
+) {
+  const config = issuerConfiguration(rawIssuer);
+  const frozen = await requireDirectSemanticDispositionCapture(capture);
+  const request = frozen.proposed_request;
+  const receipt = await open(path.join(frozen.root, "capture/check-attempt.jsonl"), "wx");
+  const record = async (phase: string, evidence: unknown = null) => {
+    await receipt.write(
+      JSON.stringify({
+        schema_version: 1,
+        invocation: frozen.invocation,
+        request_sha256: capacityDigest(request),
+        phase,
+        evidence,
+      }) + "\n",
     );
-    const body = response.body;
+    await receipt.sync();
+  };
+  let posted = false;
+  try {
+    await record("pending-no-post", { issuer: config, request });
+    await options.requireProvisioningGrant();
+    await requireDirectSemanticDispositionCapture(capture);
+    const clients = await options.authenticateIssuer();
+    requireIssuer(clients.installation, clients.app, config);
+    await requireDirectSemanticDispositionCapture(capture);
+    await record("post-intent");
+    posted = true;
+    const response = clients.installation.request("POST", request.endpoint, request.body);
+    await record("post-response-observed", {
+      status: response.status ?? null,
+      response_sha256: capacityDigest(response.body),
+    });
     if (
-      response.status !== 200 ||
-      !isRecord(body) ||
-      !Number.isSafeInteger(body.total_count) ||
-      typeof body.total_count !== "number" ||
-      body.total_count < 0 ||
-      body.total_count > 1600 ||
-      !Array.isArray(body.check_runs) ||
-      body.check_runs.length > 100
+      response.status !== 201 ||
+      !isRecord(response.body) ||
+      !Number.isSafeInteger(response.body.id)
     )
-      throw new Error("semantic readback coverage unavailable");
-    total ??= body.total_count;
-    if (total !== body.total_count) throw new Error("semantic readback inventory changed");
-    for (const value of body.check_runs) {
-      if (
-        !isRecord(value) ||
-        typeof value.id !== "number" ||
-        !Number.isSafeInteger(value.id) ||
-        seen.has(value.id)
-      )
-        throw new Error("semantic readback identity duplicated or missing");
-      seen.add(value.id);
-      if (
-        value.external_id === expected.external_id &&
-        value.head_sha === expected.head &&
-        isRecord(value.app) &&
-        value.app.id === config.app_id &&
-        value.name === "Portcove independent release semantic review" &&
-        isRecord(value.output) &&
-        value.output.summary === expected.summary
-      )
-        matches.push(value.id);
-    }
-    if (seen.size > total) throw new Error("semantic readback exceeded total");
-    if (body.check_runs.length < 100 || seen.size === total) {
-      if (seen.size !== total || matches.length !== 1)
-        throw new Error("semantic POST remains ambiguous; preserve original attempt, no retry");
-      const proof = readIndependentSemanticReview(
-        api,
-        {
-          schema_version: 1,
-          review_app_id: config.app_id,
-          writer_app_id: config.writer_app_id,
-          review_check_name: "Portcove independent release semantic review",
-        },
-        opportunity,
-        matches[0]!,
-      );
-      const verified: unknown = JSON.parse(proof);
-      if (
-        !isRecord(verified) ||
-        capacityDigest(verified.report) !== capacityDigest(JSON.parse(expected.summary) as unknown)
-      )
-        throw new Error("semantic readback detail differs from original direct capture; no retry");
-      return { check_id: matches[0]!, proof };
-    }
+      throw new Error("negative Check POST outcome requires readback");
+    const proof = readIndependentSemanticDisposition(
+      clients.installation,
+      {
+        schema_version: 1,
+        review_app_id: config.app_id,
+        writer_app_id: config.writer_app_id,
+        review_check_name: request.body.name,
+      },
+      frozen.wire.request,
+      Number(response.body.id),
+    );
+    if (proof.wire_sha256 !== frozen.wire_sha256)
+      throw new Error("provider negative report differs from settled direct capture");
+    await record("verified-provider-negative-result", {
+      check_id: proof.check_run_id,
+      proof_sha256: capacityDigest(proof),
+    });
+    return proof;
+  } catch (error) {
+    await record(posted ? "ambiguous-requires-readback-no-retry" : "refused-no-post");
+    throw error;
+  } finally {
+    await receipt.close();
   }
-  throw new Error("semantic readback page bound exceeded; no retry");
+}
+
+/** GET-only reconciliation of a failure Check. An imported receipt is a locator,
+ * never a runtime brand or authority to post another Check. */
+export function readbackSemanticDispositionCheck(
+  api: CoordinatorRemoteApi,
+  rawIssuer: SemanticIssuer,
+  request: unknown,
+  expected: { head: string; external_id: string; summary: string },
+) {
+  const config = issuerConfiguration(rawIssuer);
+  const producer = {
+    schema_version: 1,
+    review_app_id: config.app_id,
+    writer_app_id: config.writer_app_id,
+    review_check_name: "Portcove independent release semantic review",
+  };
+  const inventory = readIndependentSemanticCheckInventory(api, producer, expected.head);
+  const matches = inventory.records.filter((value) => value.external_id === expected.external_id);
+  if (
+    matches.length !== 1 ||
+    !isRecord(matches[0]!.output) ||
+    matches[0]!.output.summary !== expected.summary
+  )
+    throw new Error("negative semantic POST remains ambiguous; retain original attempt, no retry");
+  const proof = readIndependentSemanticDisposition(api, producer, request, Number(matches[0]!.id));
+  if (
+    proof.wire_sha256 !== capacityDigest(JSON.parse(expected.summary) as unknown) ||
+    proof.summary_sha256 !== capacityDigest(expected.summary)
+  )
+    throw new Error("negative semantic detail differs from original capture; no retry");
+  inventory.assertUnchanged();
+  return proof;
 }
