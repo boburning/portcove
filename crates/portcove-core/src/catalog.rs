@@ -1650,8 +1650,11 @@ mod tests {
     }
 
     #[test]
-    fn dkc3_recomp_pins_only_the_nonowning_windows_prepared_route() {
-        let catalog = Catalog::embedded().unwrap();
+    fn dkc3_historical_prepared_route_retains_its_original_qualification_scope() {
+        let catalog = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap();
         let port = catalog.port("dkc3-recomp").unwrap();
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
@@ -1740,6 +1743,116 @@ mod tests {
         assert_eq!(
             profile.accepted_sha256,
             ["2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"]
+        );
+    }
+
+    #[test]
+    fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        for (id, filename, version, original_sha256) in [
+            (
+                "dkc3-recomp",
+                "dkc3.sfc",
+                "v0.0.6",
+                "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
+            ),
+            (
+                "super-mario-world-recomp",
+                "smw.sfc",
+                "v0.12.0",
+                "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
+            ),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "zelda.sfc",
+                "v0.6.1",
+                "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
+            ),
+            (
+                "sonic-the-hedgehog-recomp",
+                "game.bin",
+                "v0.6.0",
+                "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
+            ),
+            (
+                "sonic-the-hedgehog-2-recomp",
+                "game.bin",
+                "v0.8.3",
+                "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
+            ),
+            (
+                "sonic-3-and-knuckles-recomp",
+                "game.bin",
+                "v0.5.3",
+                "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+            assert!(port.release.user_prepared.is_empty(), "{id}");
+            assert_eq!(port.platforms, [Platform::WindowsX86_64], "{id}");
+            assert_eq!(
+                port.release.direct[&Platform::WindowsX86_64].version,
+                version,
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_filename.as_deref(),
+                Some(filename),
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_materialization,
+                Some(RuntimeSourceMaterialization::Copy),
+                "{id}"
+            );
+            assert!(
+                port.persistent_paths.iter().any(|path| path == filename),
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_hashes[filename], original_sha256,
+                "{id}"
+            );
+            assert_eq!(
+                port.windows_runtime_path_policy,
+                Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath),
+                "{id}"
+            );
+            assert!(
+                port.presentation.as_ref().unwrap().manual_setup.is_none(),
+                "{id}"
+            );
+            assert!(port.automated_tested_platforms.is_empty(), "{id}");
+            assert!(port.manually_validated_platforms.is_empty(), "{id}");
+        }
+        for id in ["sonic-the-hedgehog-2-recomp", "sonic-3-and-knuckles-recomp"] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.launch_arguments, ["--no-launcher", "game.bin"]);
+            for diagnostic in ["ramdump_native.bin", "last_error.log"] {
+                assert!(
+                    port.runtime_mutable_paths
+                        .iter()
+                        .any(|path| path == diagnostic)
+                );
+                assert!(!port.persistent_paths.iter().any(|path| path == diagnostic));
+            }
+        }
+        let sonic2 = catalog.port("sonic-the-hedgehog-2-recomp").unwrap();
+        for campaign in [
+            "sonic2-campaign.srm",
+            "sonic2-campaign.srm.bak",
+            "sonic2-campaign.sav",
+            "sonic2-campaign.sav.bak",
+        ] {
+            assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
+        }
+        assert_eq!(
+            serde_json::to_value(&sonic2.persistent_file_patterns).unwrap(),
+            serde_json::json!([
+                {"prefix": "sonic2-campaign.srm.", "suffix": ".tmp"},
+                {"prefix": "sonic2-campaign.sav.", "suffix": ".tmp"}
+            ])
         );
     }
 
@@ -2459,7 +2572,7 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 11);
+        assert_eq!(prepared.len(), 5);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
