@@ -12,6 +12,10 @@ import {
 } from "./trusted-release-assembly.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
+import {
+  requireStablePublicBuildInputEvidence,
+  verifyReleasePublicBuildInputs,
+} from "./release-public-build-provenance.mts";
 
 /** Non-signing integration: independently accepted exact artifact inputs become
  * a NEW full-policy aggregate in fresh private storage. Run/artifact evidence
@@ -108,9 +112,20 @@ export async function assembleReleaseArtifacts(
     }
   };
   check(before);
+  if (
+    accepted.public_build_inputs?.artifacts.some((item) =>
+      archives.some((archive) => archive.artifact_id === item.artifact_id),
+    )
+  )
+    throw new Error("public build inputs and package archives require distinct immutable IDs");
   active();
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "artifact-assembly-"));
   try {
+    const publicBuildInputs = accepted.public_build_inputs
+      ? await verifyReleasePublicBuildInputs(directory, accepted.public_build_inputs, before, {
+          download: options.download,
+        })
+      : null;
     const inputs = path.join(directory, "inputs");
     await mkdir(inputs);
     for (const archive of archives) {
@@ -141,6 +156,8 @@ export async function assembleReleaseArtifacts(
     }
     const after = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
     check(after);
+    if (accepted.public_build_inputs)
+      requireStablePublicBuildInputEvidence(accepted.public_build_inputs, before, after);
     if (
       JSON.stringify(before.run) !== JSON.stringify(after.run) ||
       archives.some(
@@ -158,6 +175,7 @@ export async function assembleReleaseArtifacts(
       directory,
       aggregate,
       archives,
+      public_build_inputs: publicBuildInputs,
       before_api_evidence: before,
       after_api_evidence: after,
       evidence_scope: options.download || options.evidence ? "injected-provider" : "github.com",

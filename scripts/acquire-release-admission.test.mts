@@ -6,6 +6,8 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
+import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
+import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
@@ -376,6 +378,55 @@ void test("ratified beta acquisition consumes exactly the two declared platform 
   assert.equal(result.assembly.release_profile, "initial-beta-win-linux");
   assert.equal(result.assembly.files.length, f.request.files.length);
   assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, 2);
+});
+
+void test("schema3 admission independently selects and verifies immutable public build provenance while preserving unrelated holds", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const p = await releasePublicBuildProvenanceFixture(t);
+  for (const item of p.binding.artifacts)
+    f.artifacts.push({
+      ...f.artifacts[0],
+      id: item.artifact_id,
+      name: releasePublicBuildArtifactName(item.platform, "12345", 1),
+      size_in_bytes: item.bytes,
+      digest: `sha256:${item.sha256}`,
+      workflow_run: {
+        id: 12345,
+        repository_id: 1354613114,
+        head_repository_id: 1354613114,
+        head_sha: f.prepared.sha,
+      },
+    });
+  const packageDownload = f.options.download;
+  assert.ok(packageDownload);
+  const options = {
+    ...f.options,
+    download: (endpoint: string, options: Parameters<typeof packageDownload>[1]) =>
+      Number(endpoint.split("/").at(-2)) < 100
+        ? p.download(endpoint)
+        : packageDownload(endpoint, options),
+  };
+  const config = {
+    schema_version: 3,
+    namespace: "portcove-fixture",
+    release_profile: "initial-beta-win-linux",
+    public_build_inputs: p.configuration,
+  };
+  const result = await acquireReleaseAdmission(f.root, config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.assembly.schema_version, 3);
+  assert.deepEqual(result.assembly.public_build_inputs, p.binding);
+  assert.equal(result.public_build_inputs?.receipts.length, 2);
+  assert.ok(result.holds.length > 0);
+  assert.equal(result.holds.includes("ratified-public-build-inputs-unavailable"), false);
+  await assert.rejects(
+    acquireReleaseAdmission(
+      f.root,
+      { ...config, public_build_inputs: { ...p.configuration, manifest_sha256: "f".repeat(64) } },
+      options,
+    ),
+  );
 });
 
 void test("frozen net source facts bind the original classification and preparation despite a newer queued opportunity", async (t) => {

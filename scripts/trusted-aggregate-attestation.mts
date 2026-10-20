@@ -18,6 +18,18 @@ import { productionControllerWorkflow } from "./production-controller-admission.
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  collectReleaseRunEvidence,
+  inspectReleaseEvidenceRequest,
+} from "./release-run-evidence.mts";
+import type { ReleaseEvidenceRequest, ReleaseEvidenceOptions } from "./release-run-evidence.mts";
+import {
+  requireStablePublicBuildInputEvidence,
+  verifyReleasePublicBuildInputs,
+} from "./release-public-build-provenance.mts";
+
+const publicInputScope =
+  "verified public configuration bytes and archive provenance only; no compiler-content or execution claim";
 
 export const aggregatePredicateType = "https://portcove.dev/attestations/package-aggregate/v1";
 const repository = "boburning/portcove";
@@ -160,6 +172,8 @@ export async function prepareAggregateAttestation(
     identity?: IdentityOptions;
     spawn?: Spawn;
     download?: typeof readGitHubArtifactArchive;
+    evidenceRequest?: ReleaseEvidenceRequest;
+    evidence?: ReleaseEvidenceOptions;
   },
 ) {
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
@@ -181,6 +195,35 @@ export async function prepareAggregateAttestation(
     throw new Error("aggregate candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate its trusted assembler run");
+  let publicBefore: ReturnType<typeof collectReleaseRunEvidence> | null = null;
+  let publicRequest: ReleaseEvidenceRequest | null = null;
+  let publicVerification: Awaited<ReturnType<typeof verifyReleasePublicBuildInputs>> | null = null;
+  if (accepted.public_build_inputs) {
+    if (
+      accepted.public_build_inputs.artifacts.some(
+        (item) => ids.includes(item.artifact_id) || item.artifact_id === upload.artifact_id,
+      )
+    )
+      throw new Error(
+        "public input archives must be distinct from packages and the trusted aggregate",
+      );
+    publicRequest = inspectReleaseEvidenceRequest(options.evidenceRequest);
+    if (
+      String(publicRequest.run_id) !== accepted.run_id ||
+      publicRequest.attempt !== accepted.run_attempt ||
+      publicRequest.revision !== accepted.source_commit ||
+      publicRequest.tree !== accepted.source_tree ||
+      publicRequest.repository_id !== 1354613114
+    )
+      throw new Error("public input source and independently expected Release evidence differ");
+    publicBefore = collectReleaseRunEvidence(publicRequest, options.evidence);
+    publicVerification = await verifyReleasePublicBuildInputs(
+      options.cwd,
+      accepted.public_build_inputs,
+      publicBefore,
+      { download: options.download },
+    );
+  }
   const runner = createGitHubRunner({
     cwd: options.cwd,
     ...(options.spawn ? { spawn: options.spawn } : {}),
@@ -218,10 +261,20 @@ export async function prepareAggregateAttestation(
     options.identity ?? { transport: { cwd: options.cwd } },
   );
   if (!same(get(), before)) throw new Error("new aggregate artifact changed during binding");
+  if (accepted.public_build_inputs && publicBefore && publicRequest)
+    requireStablePublicBuildInputEvidence(
+      accepted.public_build_inputs,
+      publicBefore,
+      collectReleaseRunEvidence(publicRequest, options.evidence),
+    );
   if (Date.now() >= Date.parse(identity.expires_at))
     throw new Error("assembler identity expired before binding completed");
   const evidence_scope =
-    options.spawn || options.download || identity.evidence_scope !== "github.com"
+    options.spawn ||
+    options.download ||
+    identity.evidence_scope !== "github.com" ||
+    (accepted.public_build_inputs &&
+      (options.evidence || publicVerification?.evidence_scope !== "github.com"))
       ? "injected-provider"
       : "github.com";
   const predicate = {
@@ -244,6 +297,12 @@ export async function prepareAggregateAttestation(
     artifact: before,
     candidate: accepted,
     candidate_artifact_ids: ids,
+    ...(accepted.public_build_inputs
+      ? {
+          public_build_inputs: accepted.public_build_inputs,
+          public_build_inputs_scope: publicInputScope,
+        }
+      : {}),
     output_files: files,
     original_compiler: null,
     release_authorization: "not-evaluated",
@@ -322,6 +381,14 @@ export async function verifyAggregateAttestation(
     throw new Error("aggregate expected candidate artifact matrix is incomplete");
   if (accepted.run_id === expected.run_id)
     throw new Error("candidate run cannot impersonate trusted controller");
+  if (
+    accepted.public_build_inputs?.artifacts.some(
+      (item) =>
+        expected.candidate_artifact_ids.includes(item.artifact_id) ||
+        item.artifact_id === expected.artifact_id,
+    )
+  )
+    throw new Error("public input archive identities overlap packages or the aggregate");
   verifyMembers(archive, files);
   const directory = await mkdtemp(path.join(path.resolve(privateRoot), "aggregate-attestation-"));
   try {
@@ -446,6 +513,12 @@ export async function verifyAggregateAttestation(
       },
       candidate: accepted,
       candidate_artifact_ids: expected.candidate_artifact_ids,
+      ...(accepted.public_build_inputs
+        ? {
+            public_build_inputs: accepted.public_build_inputs,
+            public_build_inputs_scope: publicInputScope,
+          }
+        : {}),
       output_files: files,
       original_compiler: null,
       release_authorization: "not-evaluated",
@@ -504,6 +577,12 @@ export async function verifyUploadedAggregate(
   )
     throw new Error("aggregate verification requires distinct exact trusted upload identities");
   const { accepted, platformCount } = await expectedMembers(expected.candidate);
+  if (
+    accepted.public_build_inputs?.artifacts.some(
+      (item) => item.artifact_id === expected.bundle_artifact_id,
+    )
+  )
+    throw new Error("public input archive cannot impersonate the trusted attestation bundle");
   if (
     expected.candidate_artifact_ids.length !== platformCount ||
     new Set(expected.candidate_artifact_ids).size !== platformCount ||
