@@ -4,6 +4,7 @@ import test from "node:test";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { GitHubApiError } from "./github-api.mts";
@@ -18,6 +19,21 @@ import {
 } from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
+
+void test("complete site context deadline refuses before creating custody or requesting bytes", async () => {
+  await assert.rejects(
+    materializePublishedCompleteSite(
+      {
+        site_generation_sha256: "a".repeat(64),
+        root_sha256: "b".repeat(64),
+        repository_sha256: "c".repeat(64),
+      },
+      "missing",
+      performance.now() - 1,
+    ),
+    /phase deadline/,
+  );
+});
 
 async function initialFixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-initial-site-test-"));

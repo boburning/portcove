@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectMetadataRenewalDescriptor, metadataInstant } from "./release-metadata-contract.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
@@ -220,8 +221,19 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
   prior_repository_sha256: string;
   generated_at: string;
   output_parent: string;
+  deadline?: number;
 }): Promise<PreparedMetadataRenewal> {
   const selected = structuredClone(request);
+  const remaining = () => {
+    const timeout =
+      selected.deadline === undefined
+        ? 120000
+        : Math.floor(Math.min(120000, selected.deadline - performance.now()));
+    if (!Number.isFinite(timeout) || timeout < 1)
+      throw new Error("metadata preparation phase deadline exhausted");
+    return timeout;
+  };
+  remaining();
   for (const value of [
     selected.verifier_sha256,
     selected.trusted_root_sha256,
@@ -272,7 +284,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
     );
     const result = await run(verifier, ["prepare-tuf-renewal", config], {
       cwd: work,
-      timeout: 120000,
+      timeout: remaining(),
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       env: {
@@ -284,6 +296,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
         TMPDIR: work,
       },
     });
+    remaining();
     await writeFile(path.join(work, "verifier.stdout.json"), result.stdout, {
       mode: 0o600,
       flag: "wx",
@@ -328,6 +341,7 @@ export async function prepareAuthenticatedMetadataRenewal(request: {
       descriptor_sha256: digest(descriptor),
       input_manifest_sha256: inputManifest,
     });
+    remaining();
     preparations.set(session, {
       prepared_root: prepared,
       context: path.join(prepared, "context.json"),

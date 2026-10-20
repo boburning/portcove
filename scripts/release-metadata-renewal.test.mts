@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, writeFile, readdir, rm, cp, readFile } from "node:fs/pr
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
@@ -11,6 +12,14 @@ import {
 } from "./release-metadata-renewal.mts";
 
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("fixed verifier preparation refuses expired context deadline before file reads or tool launch", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    prepareAuthenticatedMetadataRenewal({ ...f.request, deadline: performance.now() - 1 }),
+    /phase deadline/,
+  );
+  assert.deepEqual(await readdir(f.output), []);
+});
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "renewal-tool-adapter-"));
   t.after(() => rm(root, { recursive: true, force: true }));
