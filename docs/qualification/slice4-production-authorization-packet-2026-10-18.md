@@ -11,12 +11,58 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
+records an owner-visible unconfigured project site and absent parent user-site
+repository, bracketed around fixed public-route 404 observations. This is
+read-only setup evidence, not historical/unlisted-path absence or a publication
+grant. First publication still needs an explicit same-journal bootstrap,
+ratified custody and fresh setup/provider reconciliation; ordinary renewal
+cannot fabricate its first prior repository.
+
+The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
+connects isolated fresh immutable-release observation, dedicated journal
+credential transport, observed-effect recovery and actual publication-stage
+executor admission. Release preparation consumes all six packages directly from
+its verified retained aggregate; fresh renewal workers can reconstruct the
+journal-pinned public application component. Fixture evidence does not supply
+native/semantic/signer acceptance, live credentials or protected execution.
+The final controller, initial feed bootstrap and consolidated setup remain
+pending; no recurring elevated diagnostic is introduced.
+
+The October 20 [compiler tool-source preparation](slice4-534-compiler-tool-source-2026-10-20.md)
+adds the generated source closure to the existing authenticated tool inventory
+and separates pre-sign from post-sign native wire evidence. Actual compiler-use,
+native Check authentication and stage-specific record/context joins remain
+separate obligations. No imported report becomes acceptance or execution authority.
+
+The October 20 [isolated role continuation](slice4-isolated-role-continuation-2026-10-20.md)
+connects the genuine private admission callback to current-control checks and
+one-use job-local payload key transport, expands the fixed tool inventory with
+the pinned Tauri addon, and binds separate payload/coordinator environments. The
+[nonce-bound rounds](slice4-control-rounds-2026-10-20.md) retain the existing
+sixty-second freshness window. Current independent holds still prevent signing;
+immutable signature handoffs, job-bound effect settlement, native/compatibility
+record reconstruction and the final hosted graph remain pending. No environment,
+credential, production execution or acceptance is activated here.
+
 The October 20 [connected site/executor integration](slice4-534-site-publication-integration-2026-10-20.md)
 adds durable pending-before-effect ownership, fresh role identity, actual immutable
 Release readback before application feed publication, verifier-bound TUF facts,
 and zero-deployment recovery of a lost published-state handoff. Local real Git
 and Rust evidence retains its exact scope. Final runnable orchestration, custody,
 resource ratification, observed protections and protected execution remain pending.
+
+The October 20 [compiler output binding preparation](slice4-534-compiler-output-binding-2026-10-20.md)
+connects actual compiler reports, the existing isolated report-byte attester,
+complete fixed producer-source closure and exact staged package output checks.
+It uses fresh private beta Cargo targets and preserves the general full profile.
+The generated tool-manifest asset and actual receiver getter are connected;
+observed candidate proofs remain separate, and native/security/semantic/history
+holds are retained. Signed SPDX publication bytes retain private same-process
+custody with bounded readback, without importing summary authority. Candidate build
+costs and the four seven-day report archives are explicit, with no increase to
+the 100-minute controller ceiling or claim of capacity/headroom. Older affected
+workflow/resource ratification must be replaced before execution.
 
 The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
 connects actual SPDX verification, beta dispatch attestation and supervised CLI/
@@ -36,8 +82,9 @@ protected/publication observations. #534 acceptance remains open.
 
 The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
 prepares bounded, attested fixed-source tool custody before role-key access and
-adds a separate ordinary credential-free Linux build fixture. Its initial three
-bundled entries require explicit extension to the final role wrappers; protected
+adds a separate ordinary credential-free Linux build fixture. Its five fixed
+bundled entries now include private payload continuation and key transport; the
+remaining role wrappers still require explicit integration. Protected
 tool execution and all independent acceptance remain pending. The
 [OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
 owner/repository IDs and each existing fixed environment without changing provider

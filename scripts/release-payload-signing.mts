@@ -46,6 +46,13 @@ export interface SignPayloadOptions {
   tools: { node: PinnedSigningTool; tauriAddon: PinnedSigningTool; verifier: PinnedSigningTool };
 }
 
+/** Private caller hooks carry current controls and key material, never a signer
+ * result or qualification assertion. They cannot be supplied by the JSON CLI. */
+export interface PayloadSigningLifecycle {
+  beforeSign: () => Promise<void>;
+  keyMaterial: () => Promise<{ key: string; password: string }>;
+}
+
 export function inspectPayloadSigningRequest(value: unknown): PayloadSigningRequest {
   if (
     !isRecord(value) ||
@@ -183,7 +190,14 @@ export function assertSignedPayloadVersion(signature: string, filename: string, 
     throw new Error("signature does not bind the expected filename and version");
 }
 
-export async function signReleasePayload(options: SignPayloadOptions) {
+export async function signReleasePayload(
+  options: SignPayloadOptions,
+  lifecycle?: PayloadSigningLifecycle,
+) {
+  const beforeSign = lifecycle?.beforeSign,
+    keyMaterial = lifecycle?.keyMaterial;
+  if (lifecycle && (typeof beforeSign !== "function" || typeof keyMaterial !== "function"))
+    throw new Error("fixed signing lifecycle is incomplete");
   options = structuredClone(options);
   const request = inspectPayloadSigningRequest(options.request);
   const tools = structuredClone(options.tools);
@@ -271,12 +285,25 @@ export async function signReleasePayload(options: SignPayloadOptions) {
     const invoke = async (args: string[], secret = false) => {
       const env = payloadSigningEnvironment(scratch);
       if (secret) {
-        const privateKey = process.env.TAURI_SIGNING_PRIVATE_KEY;
-        if (!privateKey || privateKey.length > 32 * 1024)
+        const supplied = keyMaterial ? await keyMaterial() : undefined;
+        if (
+          keyMaterial &&
+          (!isRecord(supplied) || Object.keys(supplied).sort().join(",") !== "key,password")
+        )
+          throw new Error("fixed signing key supplier refused");
+        const privateKey = keyMaterial ? supplied?.key : process.env.TAURI_SIGNING_PRIVATE_KEY;
+        if (
+          typeof privateKey !== "string" ||
+          !privateKey ||
+          Buffer.byteLength(privateKey) > 32 * 1024
+        )
           throw new Error("payload signing role private key is required");
         env.TAURI_SIGNING_PRIVATE_KEY = privateKey;
-        const password = process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "";
-        if (password.length > 32 * 1024) throw new Error("invalid signing role password");
+        const password = keyMaterial
+          ? supplied?.password
+          : (process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "");
+        if (typeof password !== "string" || Buffer.byteLength(password) > 32 * 1024)
+          throw new Error("invalid signing role password");
         env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD = password;
       }
       try {
@@ -294,6 +321,7 @@ export async function signReleasePayload(options: SignPayloadOptions) {
     if ((await invoke(["--version"])).stdout.trim() !== "tauri-cli 2.12.2")
       throw new Error("Tauri signer version mismatch");
     phase = "sign-payload";
+    await beforeSign?.();
     await invoke(["signer", "sign", "--app-version", request.version, localPayload], true);
     const signaturePath = `${localPayload}.sig`;
     // Bound the metadata before reading it; signature output remains private until verification.

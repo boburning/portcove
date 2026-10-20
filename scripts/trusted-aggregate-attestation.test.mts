@@ -13,12 +13,62 @@ import {
   verifyAggregateAttestation,
   verifyUploadedAggregate,
   aggregatePredicateType,
+  stageAggregatePackages,
 } from "./trusted-aggregate-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+void test("fixed finalizer staging materializes all six beta packages and checksum without replacing prior bytes", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const directory = path.join(f.root, "publication-packages");
+  const result = await stageAggregatePackages(directory, f.archive, f.request, hash(f.archive));
+  assert.equal(result.authority, "none");
+  assert.equal(result.files.length, 7);
+  assert.deepEqual((await readdir(directory)).sort(), f.entries.map(([name]) => name).sort());
+  for (const [name, bytes] of f.entries)
+    assert.deepEqual(await readFile(path.join(directory, name)), bytes);
+  await assert.rejects(
+    stageAggregatePackages(directory, f.archive, f.request, hash(f.archive)),
+    /EEXIST/,
+  );
+  for (const [name, bytes] of f.entries)
+    assert.deepEqual(await readFile(path.join(directory, name)), bytes);
+});
+
+void test("changed aggregate member retains earlier verified files while wrong archive pin writes nothing", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const never = path.join(f.root, "never-materialized");
+  await assert.rejects(
+    stageAggregatePackages(never, f.archive, f.request, "0".repeat(64)),
+    /archive differs/,
+  );
+  await assert.rejects(readdir(never));
+  const changed = createAuditZip(
+    f.entries.map(
+      ([name, bytes, options], index) =>
+        [
+          name,
+          index === f.entries.length - 1 ? Buffer.alloc(bytes.length, 120) : bytes,
+          options,
+        ] as const,
+    ),
+  );
+  const partial = path.join(f.root, "retained-partial");
+  await assert.rejects(
+    stageAggregatePackages(partial, changed, f.request, hash(changed)),
+    /retain partial state/,
+  );
+  const retained = await readdir(partial);
+  assert.equal(retained.length, f.entries.length - 1);
+  for (const name of retained)
+    assert.deepEqual(
+      await readFile(path.join(partial, name)),
+      f.entries.find(([filename]) => filename === name)![1],
+    );
+});
 async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-linux" = "full") {
   const f = await trustedAssemblyFixture(t, profile);
   const aggregate = await assembleTrustedRelease(f.root, f.input, f.request);

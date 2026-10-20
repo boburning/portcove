@@ -8,6 +8,11 @@ import { captureReleaseCompiler, releaseCompilerEnvironment } from "./release-co
 
 async function fixture(t: test.TestContext) {
   const f = await releasePublicBuildProvenanceFixture(t);
+  await mkdir(path.join(f.root, "scripts"), { recursive: true });
+  await writeFile(
+    path.join(f.root, "scripts/release-compiler-capture.mts"),
+    await readFile(new URL("release-compiler-capture.mts", import.meta.url)),
+  );
   const cliRoot = path.join(f.root, "apps/desktop/node_modules/@tauri-apps/cli");
   await mkdir(cliRoot, { recursive: true });
   await writeFile(path.join(cliRoot, "package.json"), JSON.stringify({ version: "2.12.2" }));
@@ -103,6 +108,55 @@ void test("CLI uses the same source/toolchain capture while declaring updater in
   assert.match(result.report.public_input_use, /not applicable/);
   assert.equal(result.report.evidence_scope, "injected-executor");
 });
+void test("fresh CLI target is reused only by desktop for the exact same source/run/attempt", async (t) => {
+  const f = await fixture(t);
+  let target = "";
+  const cli = await captureReleaseCompiler(f.root, {
+    ...f.options,
+    interface: "cli",
+    invoke: async (_executable, _args, _cwd, environment) => {
+      target = environment.CARGO_TARGET_DIR!;
+      assert.equal(environment.CARGO_INCREMENTAL, "0");
+      assert.equal(environment.CARGO_BUILD_JOBS, "4");
+      assert.ok(path.isAbsolute(target));
+      return 0;
+    },
+  });
+  assert.equal(cli.report.target_directory, target);
+  const desktop = await captureReleaseCompiler(f.root, {
+    ...f.options,
+    targetDirectory: target,
+    invoke: async (_executable, _args, _cwd, environment) => {
+      assert.equal(environment.CARGO_TARGET_DIR, target);
+      return 0;
+    },
+  });
+  assert.equal(desktop.report.state, "completed");
+  let calls = 0;
+  const invoke = async () => {
+    calls++;
+    return 0;
+  };
+  await assert.rejects(
+    captureReleaseCompiler(f.root, {
+      ...f.options,
+      targetDirectory: target,
+      runAttempt: 2,
+      invoke,
+    }),
+    /different source\/run\/attempt/,
+  );
+  await assert.rejects(
+    captureReleaseCompiler(f.root, {
+      ...f.options,
+      targetDirectory: target,
+      interface: "cli",
+      invoke,
+    }),
+    /requires a new private target/,
+  );
+  assert.equal(calls, 0);
+});
 void test("pnpm-style linked tool bytes retain physical identity while linked public inputs still refuse", async (t) => {
   const f = await fixture(t);
   const cli = path.join(f.root, "apps/desktop/node_modules/@tauri-apps/cli/tauri.js");
@@ -155,9 +209,12 @@ void test("direct inert process capture uses reconstructed exact inputs and neve
   assert.equal(result.report.exit_code, 0);
   assert.match(result.report.original_compiler_acceptance, /unproven/);
   assert.ok(
-    (await readFile(path.join(result.directory, "compiler-result.json"), "utf8")).includes(
-      '"authority": "none"',
-    ),
+    (
+      await readFile(
+        path.join(result.directory, "compiler-result-desktop-linux-x86_64.json"),
+        "utf8",
+      )
+    ).includes('"authority": "none"'),
   );
 });
 void test("actual child refusal retains started and failed results with partial effects", async (t) => {
@@ -176,7 +233,10 @@ void test("actual child refusal retains started and failed results with partial 
   assert.equal(result.report.state, "failed");
   assert.equal(result.report.exit_code, 7);
   assert.match(
-    await readFile(path.join(result.directory, "compiler-observation.json"), "utf8"),
+    await readFile(
+      path.join(result.directory, "compiler-observation-desktop-linux-x86_64.json"),
+      "utf8",
+    ),
     /'started'|"started"/,
   );
   assert.match(result.report.failure ?? "", /partial outputs remain unaccepted/);

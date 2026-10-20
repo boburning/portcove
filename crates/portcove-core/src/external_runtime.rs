@@ -404,6 +404,16 @@ fn visit(
             let mutable = mutable.to_ascii_lowercase();
             key == mutable || key.starts_with(&format!("{mutable}/"))
         }) {
+            // Mutable bytes are outside the package digest, but a game write
+            // must not mutate an aliased file outside this prepared runtime.
+            // Repeat this held-object check in both inspection sweeps; launch
+            // uses the same inspector as registration.
+            if link_count(&open_object(&path, false)?)? != 1 {
+                return Err(PortcoveError::verification(
+                    "user-prepared mutable data must not share a hard-linked file",
+                )
+                .detail("path", relative));
+            }
             continue;
         }
         let size = entry.metadata()?.len();
@@ -978,6 +988,65 @@ mod tests {
                 .immutable_tree_sha256,
             original.immutable_tree_sha256
         );
+    }
+
+    #[test]
+    fn mutable_data_refuses_external_hardlinks_without_required_selector() {
+        for nested in [false, true] {
+            let (_temporary, library, runtime, mut spec) = fixture();
+            assert!(spec.required_mutable_files.is_empty());
+            let relative = if nested {
+                fs::create_dir(runtime.join("runtime-state")).unwrap();
+                "runtime-state/save.dat"
+            } else {
+                spec.mutable_paths.push("settings.ini".into());
+                "settings.ini"
+            };
+            let outside = library.join("original-player-data");
+            fs::write(&outside, b"preserve original").unwrap();
+            let mutable = runtime.join(relative);
+            fs::hard_link(&outside, &mutable).unwrap();
+            let refused = inspect(&runtime, &spec, &library).unwrap_err();
+            assert!(refused.message.contains("mutable data"));
+            assert_eq!(refused.details["path"], relative);
+            assert_eq!(fs::read(&outside).unwrap(), b"preserve original");
+            assert_eq!(fs::read(&mutable).unwrap(), b"preserve original");
+            fs::remove_file(&mutable).unwrap();
+            fs::write(&mutable, b"independent player output").unwrap();
+            let accepted = inspect(&runtime, &spec, &library).unwrap();
+            fs::write(&mutable, b"changed legitimate player output").unwrap();
+            assert_eq!(
+                inspect(&runtime, &spec, &library)
+                    .unwrap()
+                    .immutable_tree_sha256,
+                accepted.immutable_tree_sha256
+            );
+            assert_eq!(fs::read(&outside).unwrap(), b"preserve original");
+        }
+    }
+
+    #[test]
+    fn mutable_data_rechecks_hardlinks_created_after_the_hash_sweep() {
+        let (_temporary, library, runtime, spec) = fixture();
+        assert!(spec.required_mutable_files.is_empty());
+        fs::create_dir(runtime.join("runtime-state")).unwrap();
+        let mutable = runtime.join("runtime-state/save.dat");
+        fs::write(&mutable, b"preserve player output").unwrap();
+        let outside = library.join("late-player-alias");
+        let calls = std::cell::Cell::new(0);
+        inspect_with_checkpoint(&runtime, &spec, &library, &|| {
+            calls.set(calls.get() + 1);
+            Ok(())
+        })
+        .unwrap();
+        let final_checkpoint = calls.get();
+        let refused = inspect_at_checkpoint(&runtime, &spec, &library, final_checkpoint, || {
+            fs::hard_link(&mutable, &outside).unwrap();
+        })
+        .unwrap_err();
+        assert!(refused.message.contains("mutable data"));
+        assert_eq!(fs::read(&mutable).unwrap(), b"preserve player output");
+        assert_eq!(fs::read(&outside).unwrap(), b"preserve player output");
     }
 
     fn inspect_at_checkpoint(

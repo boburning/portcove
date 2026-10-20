@@ -12,7 +12,10 @@ import {
   requireReservedAggregate,
   inspectAggregateDescriptor,
 } from "./production-aggregate-steps.mts";
-import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
+import {
+  verifyUploadedAggregate,
+  stageAggregatePackages,
+} from "./trusted-aggregate-attestation.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -24,8 +27,19 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
+import { requireActualReleaseAdmissionContext } from "./acquire-release-admission.mts";
+import {
+  capacityExecutorIdentity,
+  executeOwnedCapacityEffect,
+  refreshCapacityExecutor,
+} from "./release-capacity-executor.mts";
+import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
+import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
+import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
@@ -36,6 +50,7 @@ const prepared = new WeakMap<
   { session: PreparedReleasePublication; descriptor: string; checkpoint: string }
 >();
 const active = new WeakSet<object>();
+const publicationAdmissions = new WeakMap<object, object>();
 const project = fileURLToPath(new URL("..", import.meta.url));
 export interface ReleaseAsset {
   filename: string;
@@ -312,7 +327,6 @@ export async function prepareImmutableReleasePublication(
     qualification_parent: string;
     descriptor: string;
     aggregate: Parameters<typeof verifyUploadedAggregate>[1];
-    package_root: string;
     public_configuration_root: string;
     updater_roots: { platform: "windows-x86_64" | "linux-x86_64"; directory: string }[];
     sbom: string;
@@ -353,6 +367,20 @@ export async function prepareImmutableReleasePublication(
       throw new Error("publication aggregate must match the exact reserved beta descriptor");
     phase = "actual-uploaded-aggregate-verification";
     const aggregate = await verifyUploadedAggregate(directory, request.aggregate);
+    phase = "verified-aggregate-package-materialization";
+    // Consume the archive retained by the actual provider/Sigstore verifier.
+    // A separate caller-selected package directory is neither necessary nor a
+    // custody proof. Every output remains inert until the maintained finalizer.
+    const packageRoot = path.join(directory, "packages");
+    await stageAggregatePackages(
+      packageRoot,
+      await boundedBytes(
+        path.join(aggregate.acquisition_directory, "input", "aggregate.zip"),
+        512 * 1024 * 1024,
+      ),
+      accepted,
+      request.aggregate.sha256,
+    );
     phase = "fixed-public-inputs";
     const pin = accepted.public_build_inputs;
     const publicInputs = await prepareReleasePublicBuildInputs({
@@ -459,13 +487,10 @@ export async function prepareImmutableReleasePublication(
       const frozen = accepted.files.find((file) => file.filename === filename)!;
       await assertOwnedUnlinkedPath(
         request.private_root,
-        path.join(request.package_root, filename),
+        path.join(packageRoot, filename),
         "release package",
       );
-      const bytes = await boundedBytes(
-        path.join(request.package_root, filename),
-        512 * 1024 * 1024,
-      );
+      const bytes = await boundedBytes(path.join(packageRoot, filename), 512 * 1024 * 1024);
       if (bytes.length !== frozen.bytes || sha(bytes) !== frozen.sha256)
         throw new Error("final package differs from verified aggregate");
       await writeFile(path.join(assetsRoot, filename), bytes, { flag: "wx", mode: 0o600 });
@@ -657,10 +682,16 @@ export function readImmutableReleaseState(
   }
   const found = all.filter((r) => r.tag_name === `v${wanted.version}`);
   if (found.length > 1) throw new Error("reserved tag has multiple release identities");
-  const tag = api.request(
-    "GET",
-    `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`,
-  );
+  let tag: ReturnType<GitHubRestReader["request"]>;
+  try {
+    tag = api.request("GET", `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`);
+  } catch (error) {
+    // The real gh runner throws on HTTP errors. Only the exact tag GET's
+    // collected 404 is absence; authentication/refusal/timeout remains unknown.
+    // Complete authenticated Release inventory above is still mandatory.
+    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+    tag = { status: 404, body: null, headers: new Map() };
+  }
   let tagCommit: string | null = null;
   if (tag.status !== 404) {
     if (
@@ -1051,4 +1082,108 @@ export async function advanceImmutableReleasePublication(
   } finally {
     active.delete(sessionKey);
   }
+}
+
+/** One next logical Release effect under actual publication-stage admission.
+ * A signing-stage context, verified aggregate, supplied token or copied receipt
+ * cannot authorize this path. A fixed caller obtains a fresh control round for
+ * each distinct next effect; this function never retries a refused effect. */
+export async function advanceOwnedImmutableReleasePublication(
+  session: PreparedReleasePublication,
+  executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  admissionContext: object,
+  controls: AuthenticatedReleaseControlSource,
+  raw: { repository: string; remote_configuration: unknown },
+) {
+  const admission = requireActualReleaseAdmissionContext(admissionContext, "release-publication");
+  const state = prepared.get(session);
+  if (!state) throw new Error("actual privately prepared Release publication required");
+  const input = structuredClone(raw);
+  if (
+    Object.keys(input).sort().join(",") !== "remote_configuration,repository" ||
+    !path.isAbsolute(input.repository) ||
+    !isRecord(admission.facts.configuration) ||
+    inspectCoordinatorRemoteNamespace(input.remote_configuration) !==
+      admission.facts.configuration.namespace
+  )
+    throw new Error("publication destination differs from actual admitted namespace");
+  const descriptor = inspectAggregateDescriptor(state.descriptor);
+  const priorContext = publicationAdmissions.get(session);
+  if (
+    (priorContext && priorContext !== admissionContext) ||
+    (!priorContext && state.checkpoint !== admission.checkpoint) ||
+    capacityDigest(descriptor.assembly) !== capacityDigest(admission.facts.assembly) ||
+    capacityDigest(descriptor.archives) !== capacityDigest(admission.facts.archives)
+  )
+    throw new Error("publication preparation differs from its actual accepted candidate");
+  requireAuthenticatedReleaseControlSource(controls, "release-publication");
+  if (controls.evidence_scope !== "github.com")
+    throw new Error("actual publication controls required");
+  const identity = capacityExecutorIdentity(executor);
+  const original = admission.admission.controls;
+  if (
+    identity.role !== "release-publication" ||
+    !original ||
+    identity.controller_revision !== original.reader.controller_revision ||
+    identity.execution_ref !== original.reader.controller_ref ||
+    identity.run_id !== String(original.reader.run_id) ||
+    identity.run_attempt !== original.reader.run_attempt ||
+    identity.job_id !== original.reader.job_id ||
+    String(identity.check_run_id) !== String(original.reader.check_run_id)
+  )
+    throw new Error("publication executor is not the actual admitted reader job");
+  const token = process.env.PORTCOVE_RELEASE_PUBLICATION_TOKEN;
+  if (!token || token.length > 16384 || /\s/u.test(token))
+    throw new Error("dedicated Release publication credential unavailable");
+  const runner = createGitHubRunner({
+    cwd: state.session.directory,
+    timeoutMs: 15000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  const api = new GitHubApiClient((args, body) =>
+    runner([...args, "--hostname", "github.com"], body),
+  );
+  const readBoundary = async () => {
+    requireAuthenticatedReleaseControlSource(controls, "release-publication");
+    const current = controls.read(api, admission.facts.opportunity);
+    if (
+      current.reader.job_id !== identity.job_id ||
+      current.reader.controller_revision !== identity.controller_revision ||
+      current.reader.controller_ref !== identity.execution_ref ||
+      String(current.reader.run_id) !== identity.run_id ||
+      current.reader.run_attempt !== identity.run_attempt ||
+      current.pause.publication_paused ||
+      !current.resource_policy_matches_controller ||
+      current.protection.release_immutability?.enabled !== true ||
+      capacityDigest(current.classification) !== capacityDigest(original.classification) ||
+      capacityDigest(current.pause) !== capacityDigest(original.pause) ||
+      capacityDigest(current.capacity) !== capacityDigest(original.capacity) ||
+      !isRecord(current.capacity_source.capacity)
+    )
+      throw new Error("fresh admitted publication controls changed or remain held");
+    return structuredClone(current.capacity_source.capacity.boundary);
+  };
+  await readBoundary();
+  publicationAdmissions.set(session, admissionContext);
+  return advanceImmutableReleasePublication(session, {
+    recover: (checkpoint) =>
+      recoverReleaseOpportunity(input.repository, checkpoint ?? state.checkpoint),
+    token,
+    effect: (effect, operation) =>
+      executeOwnedCapacityEffect(
+        executor,
+        {
+          repository: input.repository,
+          checkpoint: state.checkpoint,
+          remote_configuration: input.remote_configuration,
+          request: { kind: "upload", destination: effect.destination },
+        },
+        readBoundary,
+        async () => {
+          await refreshCapacityExecutor(executor);
+          await readBoundary();
+          return operation();
+        },
+      ),
+  });
 }
