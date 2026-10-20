@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { By, Key, until, type WebDriver } from "selenium-webdriver";
+import { By, Key, until, type WebDriver, type WebElement } from "selenium-webdriver";
 import type { ScenarioContext } from "./desktop-scenario-context.mts";
 import { executeBrowserScript } from "./browser-script.mts";
 
@@ -10,6 +10,7 @@ type Context = Omit<ScenarioContext, "browser"> & {
   restart: (name: string) => Promise<WebDriver>;
   setTheme: (theme: "dark" | "light") => Promise<unknown>;
   capture: (name: string, required: boolean) => Promise<unknown>;
+  captureTarget: (name: string, target: WebElement) => Promise<unknown>;
 };
 const sizes = [100, 125, 150, 175, 200, 250, 300, 400];
 const preference = "portcove.appearance.interface-size";
@@ -83,6 +84,12 @@ export async function interfaceSizeScenario(context: Context) {
         .perform();
       return settled(size);
     };
+    const capturePicker = async (name: string) => {
+      const picker = await context
+        .browser()
+        .findElement(By.xpath('//*[@role="combobox"][contains(.,"Interface size")]'));
+      await context.captureTarget(name, picker);
+    };
     try {
       for (const theme of ["dark", "light"] as const) {
         await shortcut("0");
@@ -90,7 +97,7 @@ export async function interfaceSizeScenario(context: Context) {
         await context.setTheme(theme);
         for (const size of sizes.slice(1)) {
           await select(size);
-          if (size === 300) await context.capture(`interface-size-${theme}-300-320css`, true);
+          if (size === 300) await capturePicker(`interface-size-${theme}-300-320css`);
         }
         const enlarged = await settled(400);
         const lines = await executeBrowserScript(context.browser(), () => {
@@ -105,7 +112,7 @@ export async function interfaceSizeScenario(context: Context) {
         });
         assert.deepEqual(lines, { text: "400%", lines: 1 });
         assert.ok(enlarged.width <= 240 && enlarged.height <= 160, JSON.stringify(enlarged));
-        await context.capture(`interface-size-${theme}-400-minimum-window`, true);
+        await capturePicker(`interface-size-${theme}-400-minimum-window`);
         await shortcut("k");
         const search = await context
           .browser()

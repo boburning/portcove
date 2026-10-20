@@ -22,7 +22,7 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
     const element = workspace.current;
     if (!element) return;
     let owner = scrollOwner(element);
-    let anchor: { element: HTMLElement; top: number; focused: boolean } | undefined;
+    let anchor: { element: HTMLElement; top: number } | undefined;
     let frame = 0;
     const remember = () => {
       // A CSS breakpoint may change the owner before the resize notification.
@@ -50,7 +50,6 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
         ? {
             element: reading,
             top: reading.getBoundingClientRect().top,
-            focused: reading === focused,
           }
         : undefined;
     };
@@ -63,8 +62,9 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
           owner?.scrollTo({
             top: owner.scrollTop + anchor.element.getBoundingClientRect().top - anchor.top,
           });
-          if (anchor.focused && document.activeElement === anchor.element)
-            anchor.element.scrollIntoView({ block: "nearest", inline: "nearest" });
+          const active = document.activeElement;
+          if (active instanceof HTMLElement && active !== element && element.contains(active))
+            active.scrollIntoView({ block: "nearest", inline: "nearest" });
         }
         remember();
       });

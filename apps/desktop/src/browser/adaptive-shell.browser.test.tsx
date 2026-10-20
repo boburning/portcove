@@ -22,6 +22,39 @@ afterEach(async () => {
 });
 
 for (const theme of ["dark", "light"]) {
+  it(`keeps complete ${theme} navigation and theme words at enlarged effective widths`, async () => {
+    transport = installInteractiveTransport("library", (message) => {
+      throw new Error(message);
+    });
+    initializeLocalization(["en"]);
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(548, 366);
+    await render(
+      <LocalizationProvider api={desktopApi}>
+        <App />
+      </LocalizationProvider>,
+    );
+    const library = page.getByRole("button", { name: /^Library/ }).element();
+    const label = [...library.querySelectorAll("span")].find(
+      (item) => item.textContent === "Library",
+    )!;
+    const libraryRange = document.createRange();
+    libraryRange.selectNodeContents(
+      document.createTreeWalker(label, NodeFilter.SHOW_TEXT).nextNode()!,
+    );
+    expect(libraryRange.getClientRects()).toHaveLength(1);
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.viewport(240, 160);
+    for (const name of ["System", "Dark", "Light"]) {
+      const button = page
+        .getByRole("group", { name: "Color theme", exact: true })
+        .getByRole("button", { name, exact: true });
+      const text = document.createTreeWalker(button.element(), NodeFilter.SHOW_TEXT).nextNode()!;
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      expect(range.getClientRects()).toHaveLength(1);
+    }
+  });
   it(`restores a ${theme} detail origin and reading position in document flow`, async () => {
     localStorage.removeItem(INTERFACE_SIZE_KEY);
     transport = installInteractiveTransport("library", (message) => {
