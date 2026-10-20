@@ -84,6 +84,43 @@ function active(overrides = {}) {
   };
 }
 
+void test("explicit complete all-Preview history is a conservative cadence upper bound", () => {
+  const exact = fixture({
+    publication: { last_routine_preview_at: "2026-09-13T11:00:00.000Z" },
+  });
+  assert.equal(planReleaseOpportunity(exact).action, "prepare");
+  const mixed = fixture({
+    publication: {
+      // This later Preview may have been urgent; including it can delay a
+      // routine candidate but cannot let one bypass the real routine cadence.
+      last_routine_preview_at: "2026-09-14T10:00:00.000Z",
+      last_routine_preview_bound: "all-published-previews",
+    },
+  });
+  const bound = planReleaseOpportunity(mixed);
+  assert.equal(bound.action, "coalesce");
+  assert.ok("next_opportunity_at" in bound);
+  assert.equal(bound.next_opportunity_at, "2026-09-15T10:00:00.000Z");
+  const sameTimeExact = structuredClone(mixed);
+  assert.ok(isRecord(sameTimeExact.publication));
+  delete sameTimeExact.publication.last_routine_preview_bound;
+  assert.equal(planReleaseOpportunity(sameTimeExact).action, bound.action);
+  assert.notEqual(planReleaseOpportunity(sameTimeExact).plan_sha256, bound.plan_sha256);
+  assert.equal(
+    planReleaseOpportunity(
+      fixture({ publication: { last_routine_preview_bound: "all-published-previews" } }),
+    ).action,
+    "prepare",
+  );
+  assert.throws(
+    () =>
+      planReleaseOpportunity(
+        fixture({ publication: { last_routine_preview_bound: "routine-assumed" } }),
+      ),
+    /upper-bound scope/,
+  );
+});
+
 void test("immutable delivered legacy prepare/resume/retry/repair serializations remain unchanged", async () => {
   const oracle: unknown = JSON.parse(
     await readFile(new URL("./fixtures/release-coordinator-legacy.json", import.meta.url), "utf8"),
