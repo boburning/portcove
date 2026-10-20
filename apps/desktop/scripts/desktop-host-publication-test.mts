@@ -526,7 +526,7 @@ export async function hostPublicationScenario(context: Context) {
     );
     const importProbe = await arm("library_import_published", importRoot);
     await reviewControls(browser).click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await reviewControls(browser).click(button("Library & storage"));
+    await reviewControls(browser).click(button("Library and storage"));
     await reviewControls(browser).click(button("Restore from a library copy"));
     await browser.wait(until.elementLocated(By.id("import-metadata")), 15_000);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);

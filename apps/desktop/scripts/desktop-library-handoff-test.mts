@@ -109,7 +109,7 @@ export async function libraryHandoffScenario({
     };
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await click(button("Library & storage"));
+    await click(button("Library and storage"));
     const moveTrigger = button("Move library");
     const moveDialog = By.css('[aria-labelledby="move-library-title"]');
     await click(moveTrigger);
@@ -228,7 +228,7 @@ export async function libraryHandoffScenario({
     assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await click(button("Library & storage"));
+    await click(button("Library and storage"));
     const restoreTrigger = button("Restore from a library copy");
     const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
     await click(restoreTrigger);
@@ -302,7 +302,7 @@ export async function libraryHandoffScenario({
     );
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
-    await click(button("Library & storage"));
+    await click(button("Library and storage"));
     await click(button("Move library"));
     await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
     await click(button("Review move"));
