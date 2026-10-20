@@ -19,6 +19,12 @@ ordinary credential-free process fixture establishes hosted lifetime only when
 its actual CI run succeeds. Custody, final resource/digest reconciliation and
 protected acceptance remain pending.
 
+The October 20 [isolated online TUF roles](slice4-534-isolated-tuf-roles-2026-10-20.md)
+add one-key role invocations, actual keyless Tough assembly and authenticated
+immutable history. The repaired signed-history regression passes with disposable
+keys; production custody, hosted roles and metadata-only coordinator integration
+remain pending.
+
 The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
 connect actual controller/reader and isolated observer identities to existing
 classification, pause and capacity readers. Large acquisition precedes the
