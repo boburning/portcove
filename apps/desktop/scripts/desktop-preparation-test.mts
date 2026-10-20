@@ -1329,7 +1329,7 @@ export async function preparationScenarios({
       tag: "ARTICLE",
       details: `Jak and Daxter: The Precursor LegacyPort: ${port.name}`,
       details_tag: "BUTTON",
-      details_label: `View details for Jak and Daxter: The Precursor Legacy · ${port.name}`,
+      details_label: `View details for Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
       details_slot: null,
       details_variant: null,
       play: "Try launch",
