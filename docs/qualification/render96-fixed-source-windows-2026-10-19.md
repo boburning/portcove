@@ -27,7 +27,7 @@ optional gameplay evidence remain distinct.
   Source/toolchain/SDK acquisition, manifests and all reviewed patch preimages
   and results are retained separately. No package or executable is admitted merely
   because a user points at a prepared directory.
-- Recipe `render96-us-source-48da5c491c8a`, staged-source template 12,
+- Recipe `render96-us-source-48da5c491c8a`, staged-source template 13,
   version `source-48da5c491c8a`. US/f3dex2e, D3D11/DXGI, SDL2,
   external stock data; legacy resources, text saves, Discord RPC and RMODERN off.
   Fixed `--savepath !`, install-root working directory. Only
@@ -47,7 +47,9 @@ independently reviewed. The source base alone is not the executable identity;
 later catalog/evidence edits do not rewrite the retained producer provenance.
 The private producer preceded main integration and used pre-integration template
 11; it was never published as a production definition. Final repository admission
-uses template12 to preserve the independently delivered F-Zero template11.
+uses template13 to preserve the independently delivered TFE template12 and
+F-Zero template11. The target integration retains API75; the original operation
+producer identity and its pre-integration capability remain historical evidence.
 Focused composition review/tests and final-head CI qualify that additive
 negotiation/schema composition without relabeling the original operations.
 The unsigned private catalog used SHA-256 `ec885cd4725504eda855cbcd053f626ba8f339dd19bdb0058d5e7e760cec8d2a`.

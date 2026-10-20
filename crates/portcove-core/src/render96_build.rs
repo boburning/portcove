@@ -1074,7 +1074,7 @@ mod tests {
     fn fixed_render96_contract_refuses_loader_writes_source_or_argument_changes() {
         let (port, profile) = fixture();
         super::super::validate_port(&port, &profile).unwrap();
-        assert_eq!(RECIPE.minimum_template_version(), 12);
+        assert_eq!(RECIPE.minimum_template_version(), 13);
         assert!(port.windows_runtime_path_policy.is_none());
         // The retained common path policy stays a no-op for this recipe. Its
         // separate build-path validator still rejects ambiguous Make paths.

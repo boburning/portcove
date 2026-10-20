@@ -16,6 +16,28 @@ const openMock = vi.mocked(open);
 describe("native path pickers", () => {
   beforeEach(() => openMock.mockReset());
 
+  it("keeps relative-file folders and ZIP selection separate", async () => {
+    const profile = { ...sourceProfile(), kind: "relative-file-set" as const };
+    openMock.mockResolvedValue("D:/Originals/Dark Forces");
+    await expect(pickSourcePath(profile, "D:/Originals/previous")).resolves.toBe(
+      "D:/Originals/Dark Forces",
+    );
+    expect(openMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ directory: true, defaultPath: "D:/Originals/previous" }),
+    );
+    openMock.mockResolvedValue("D:/Originals/Dark Forces.zip");
+    await expect(pickSourcePath(profile, "D:/Originals/Dark Forces.zip")).resolves.toBe(
+      "D:/Originals/Dark Forces.zip",
+    );
+    expect(openMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        directory: false,
+        defaultPath: "D:/Originals/Dark Forces.zip",
+        filters: [{ name: "ZIP file containing required game files", extensions: ["zip"] }],
+      }),
+    );
+  });
+
   it("includes supported cartridge ZIPs alongside the profile extensions", async () => {
     openMock.mockResolvedValue("D:/Sources/game.z64");
     await expect(

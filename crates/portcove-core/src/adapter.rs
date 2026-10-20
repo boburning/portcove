@@ -137,6 +137,9 @@ impl Adapter for StandardAdapter {
         crate::path::unicode(path, "source")?;
         let absolute = std::path::absolute(path)?;
         let path = absolute.as_path();
+        if profile.kind == SourceKind::RelativeFileSet {
+            return crate::relative_file_set::validate_profile(profile, path);
+        }
         if profile.kind == SourceKind::FileSet {
             return validate_file_set_source(profile, path);
         }
@@ -215,6 +218,14 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::validate(port)?;
+            if platform != Platform::WindowsX86_64 {
+                return Err(PortcoveError::unsupported(
+                    "managed TFE initialization requires Windows",
+                ));
+            }
+        }
         crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
@@ -333,11 +344,12 @@ impl Adapter for StandardAdapter {
             recipe.require_runtime_environment()?;
         }
         Ok(LaunchSpec {
-            fixed_arguments_only: port
-                .release
-                .managed_build
-                .values()
-                .any(|recipe| recipe.fixed_launch_arguments_only()),
+            fixed_arguments_only: port.managed_initialization.is_some()
+                || port
+                    .release
+                    .managed_build
+                    .values()
+                    .any(|recipe| recipe.fixed_launch_arguments_only()),
             launch_kind: LaunchKind::for_executable(&executable),
             executable,
             install_root: install_root.to_path_buf(),
@@ -361,6 +373,14 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::validate(port)?;
+            if platform != Platform::WindowsX86_64 {
+                return Err(PortcoveError::unsupported(
+                    "managed TFE initialization requires Windows",
+                ));
+            }
+        }
         crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
@@ -468,7 +488,17 @@ impl Adapter for StandardAdapter {
             )?;
             checkpoint()?;
         }
-        if let Some(source) = source {
+        if port.managed_initialization.is_some() {
+            let record = request.source_record.ok_or_else(|| {
+                PortcoveError::source("managed original data needs its checked registration")
+            })?;
+            if source != Some(record.path.as_path()) {
+                return Err(PortcoveError::verification(
+                    "managed original data changed its selected path",
+                ));
+            }
+            crate::relative_file_set::materialize(port, record, &working_directory, checkpoint)?;
+        } else if let Some(source) = source {
             for target in &port.runtime_source_set {
                 let destination = working_directory.join(&target.destination);
                 if let Some(parent) = destination.parent() {
@@ -489,6 +519,9 @@ impl Adapter for StandardAdapter {
             plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?;
         }
         crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::prepare(&working_directory, checkpoint)?;
+        }
         self.launch_spec_with_executable(request, checkpoint)
     }
 }
@@ -2538,7 +2571,10 @@ pub(crate) fn inspect_source_health(
         }
         Err(_) => return crate::SourceHealth::Unreadable,
     };
-    let identity = if profile.kind == SourceKind::FileSet && metadata.is_dir() {
+    let identity = if profile.kind == SourceKind::RelativeFileSet && metadata.is_dir() {
+        crate::relative_file_set::validate_profile(profile, &source.path)
+            .map(|current| (current.storage_sha256, current.storage_size))
+    } else if profile.kind == SourceKind::FileSet && metadata.is_dir() {
         validate_file_set_source(profile, &source.path)
             .map(|current| (current.storage_sha256, current.storage_size))
     } else {

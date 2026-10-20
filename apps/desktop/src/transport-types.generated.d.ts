@@ -278,6 +278,10 @@ export type AdapterKind =
   | "upstream-managed-setup"
   | "psx-recomp-managed";
 /**
+ * Closed initialization recipes, never catalog-supplied scripts or file contents.
+ */
+export type ManagedInitialization = "tfe-dark-forces-v1.22.420";
+/**
  * User-facing installation behavior supplied by the catalog. Adapters remain an
  * implementation detail and must not be translated into product copy by clients.
  */
@@ -341,6 +345,11 @@ export type SourceRepresentation1 =
   | {
       kind: "file-set";
       members: SourceMemberIdentity[];
+      [k: string]: unknown;
+    }
+  | {
+      kind: "relative-file-set";
+      members: RelativeSourceMemberIdentity[];
       [k: string]: unknown;
     }
   | {
@@ -1275,6 +1284,7 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  managed_initialization?: ManagedInitialization | null;
   manually_validated_platforms: Platform[];
   /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
@@ -1560,6 +1570,15 @@ export interface SourceMemberIdentity {
   identities: DigestIdentity[];
   label: string;
 }
+/**
+ * Exact relative paths and bytes; distinct from the existing basename file set.
+ */
+export interface RelativeSourceMemberIdentity {
+  id: string;
+  path: string;
+  sha256: string;
+  size: number;
+}
 export interface SourceDiscIdentity {
   id: string;
   identities: DigestIdentity[];
@@ -1579,7 +1598,7 @@ export interface SourceProfile {
   accepted_sha256: string[];
   disc: DiscSourceProfile | null;
   id: string;
-  kind: "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
+  kind: "file" | "file-set" | "relative-file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
   label: string;
   members: SourceMemberProfile[];
   [k: string]: unknown;

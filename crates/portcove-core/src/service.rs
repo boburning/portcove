@@ -3523,6 +3523,15 @@ impl PortcoveService {
                 "{port_id} is not installed"
             )));
         }
+        for install in &installs {
+            let paths = crate::output_root::removal_paths(
+                &self.library,
+                port_id,
+                "removal-preview",
+                &install.path,
+            )?;
+            crate::managed_tfe::require_no_recovery_data(&paths.live)?;
+        }
         let managed_paths = installs
             .iter()
             .map(|install| install.path.clone())
@@ -3596,11 +3605,17 @@ impl PortcoveService {
             }
             removal.advance(RemovalPhase::Quarantined, &mut lifecycle, &store)?;
             self.faults.check(LifecycleFaultPoint::RemovalQuarantined)?;
+            for paths in removal.paths(&self.library)? {
+                crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+            }
             self.library.remove_port(port_id)?;
             removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
                 .check(LifecycleFaultPoint::RemovalMetadataCommitted)?;
             self.faults.check(LifecycleFaultPoint::RemovalCleanup)?;
+            for paths in removal.paths(&self.library)? {
+                crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+            }
             for cleanup_root in removal
                 .paths(&self.library)?
                 .iter()
@@ -4099,6 +4114,15 @@ impl PortcoveService {
                     )?;
                     let retained_catalog = self.installed_catalog(install)?;
                     let retained_port = retained_catalog.port(&install.port_id)?;
+                    crate::managed_tfe::check(retained_port, &spec.working_directory, &|| {
+                        operation.checkpoint()
+                    })?;
+                    if retained_port.managed_initialization.is_some() && !spec.arguments.is_empty()
+                    {
+                        return Err(PortcoveError::verification(
+                            "managed TFE requires its fixed no-argument launch",
+                        ));
+                    }
                     if install.port_id == "ghostship" && install.version == "2.0.0" {
                         self.require_ghostship_legacy_runtime_archive(
                             install,
@@ -7831,6 +7855,200 @@ mod tests {
         assert!(error.message.contains("state changed"));
         assert!(first.is_dir());
         assert!(second.is_dir());
+    }
+
+    #[test]
+    fn tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent() {
+        let began = std::time::Instant::now();
+        let phase = |label| {
+            eprintln!(
+                "TFE recovery preservation: {label} at {:?}",
+                began.elapsed()
+            )
+        };
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        phase("library opened");
+        let inactive = register_zelda_install(&library, "v1", false);
+        let active = register_zelda_install(&library, "v2", true);
+        let service = service_with_release(library.clone(), "v2");
+        let authorization = removal_authorization(&service, "zelda64-recomp");
+        phase("two versions and prior authorization created");
+        let recovery = inactive.join(".tfe-preparation/previous-data-fixture");
+        fs::create_dir_all(&recovery).unwrap();
+        fs::write(recovery.join("late-player-file"), b"retained recovery data").unwrap();
+        let preview_error = service.preview_removal("zelda64-recomp").unwrap_err();
+        assert_eq!(
+            preview_error.failure.mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        let error = service
+            .remove("zelda64-recomp", &authorization.token)
+            .unwrap_err();
+        assert_eq!(
+            error.failure.mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        assert!(active.is_dir());
+        phase("inactive capture held both preview and earlier authorization");
+        assert_eq!(
+            fs::read(recovery.join("late-player-file")).unwrap(),
+            b"retained recovery data"
+        );
+        let preserved = temporary.path().join("manually-preserved");
+        fs::rename(inactive.join(".tfe-preparation"), &preserved).unwrap();
+        phase("manual preservation completed");
+        let authorization = removal_authorization(&service, "zelda64-recomp");
+        service
+            .remove("zelda64-recomp", &authorization.token)
+            .unwrap();
+        phase("fresh guarded removal completed");
+        assert!(!inactive.exists());
+        assert!(!active.exists());
+        assert_eq!(
+            fs::read(preserved.join("previous-data-fixture/late-player-file")).unwrap(),
+            b"retained recovery data"
+        );
+    }
+
+    #[test]
+    fn tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal() {
+        let began = std::time::Instant::now();
+        for phase in [
+            LifecyclePhase::Preparing,
+            LifecyclePhase::PayloadPublished,
+            LifecyclePhase::MetadataCommitted,
+            LifecyclePhase::CleanupPending,
+        ] {
+            eprintln!(
+                "TFE resumed removal: {phase:?} starting at {:?}",
+                began.elapsed()
+            );
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let install = register_zelda_install(&library, "v1", true);
+            let service = service_with_release(library.clone(), "v2");
+            let store = OperationStore::new(library.clone());
+            let mut operation = LifecycleOperation::new(
+                "tfe-recovery-hold",
+                LifecycleOperationKind::Remove,
+                "zelda64-recomp",
+            );
+            operation.paths.quarantine = Some(library.recovery_dir().join(&operation.id));
+            operation.original_paths.push(install.clone());
+            operation.phase = phase;
+            let paths = crate::output_root::removal_paths(
+                &library,
+                "zelda64-recomp",
+                &operation.id,
+                &install,
+            )
+            .unwrap();
+            fs::create_dir_all(paths.quarantined.parent().unwrap()).unwrap();
+            fs::rename(&paths.live, &paths.quarantined).unwrap();
+            let recovery = paths
+                .quarantined
+                .join(".tfe-preparation/previous-data-fixture");
+            fs::create_dir_all(&recovery).unwrap();
+            fs::write(
+                recovery.join("late-player-file"),
+                b"preserve after metadata deletion",
+            )
+            .unwrap();
+            if matches!(
+                phase,
+                LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+            ) {
+                library.remove_port("zelda64-recomp").unwrap();
+                assert!(library.all_installs().unwrap().is_empty());
+            }
+            store.put(&mut operation).unwrap();
+            let error = service.recover_removal(&store, &mut operation).unwrap_err();
+            assert_eq!(
+                error.failure.mutation_state,
+                crate::MutationState::RecoveryRequired
+            );
+            assert!(store.get(&operation.id).unwrap().is_some());
+            let reopened = service_with_release(library.clone(), "v2");
+            assert_eq!(
+                fs::read(recovery.join("late-player-file")).unwrap(),
+                b"preserve after metadata deletion"
+            );
+            assert!(store.get(&operation.id).unwrap().is_some());
+            let preserved = temporary.path().join("manually-preserved");
+            fs::rename(paths.quarantined.join(".tfe-preparation"), &preserved).unwrap();
+            let mut resumed = store.get(&operation.id).unwrap().unwrap();
+            reopened.recover_removal(&store, &mut resumed).unwrap();
+            assert!(!paths.quarantined.exists());
+            assert!(store.get(&operation.id).unwrap().is_none());
+            assert_eq!(
+                fs::read(preserved.join("previous-data-fixture/late-player-file")).unwrap(),
+                b"preserve after metadata deletion"
+            );
+            eprintln!(
+                "TFE resumed removal: {phase:?} preserved and completed at {:?}",
+                began.elapsed()
+            );
+        }
+    }
+
+    #[test]
+    fn tfe_recovery_created_after_quarantine_is_not_deleted_by_normal_remove() {
+        struct CaptureAfterQuarantine {
+            library: Library,
+            version_name: std::ffi::OsString,
+        }
+        impl LifecycleFaultInjector for CaptureAfterQuarantine {
+            fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+                if point == LifecycleFaultPoint::RemovalQuarantined {
+                    let operation = fs::read_dir(self.library.recovery_dir())?
+                        .next()
+                        .transpose()?
+                        .unwrap()
+                        .path();
+                    let capture = operation
+                        .join("zelda64-recomp")
+                        .join(&self.version_name)
+                        .join(".tfe-preparation/previous-data-fixture");
+                    fs::create_dir_all(&capture)?;
+                    fs::write(
+                        capture.join("late-player-file"),
+                        b"preserve after quarantine",
+                    )?;
+                }
+                Ok(())
+            }
+        }
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = register_zelda_install(&library, "v1", true);
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v2".into(),
+            }),
+            Arc::new(CaptureAfterQuarantine {
+                library: library.clone(),
+                version_name: install.file_name().unwrap().to_owned(),
+            }),
+        )
+        .unwrap();
+        let authorization = removal_authorization(&service, "zelda64-recomp");
+        let error = service
+            .remove("zelda64-recomp", &authorization.token)
+            .unwrap_err();
+        assert_eq!(
+            error.failure.mutation_state,
+            crate::MutationState::RecoveryRequired
+        );
+        assert!(!install.exists());
+        assert!(!library.all_installs().unwrap().is_empty());
+        let held = PathBuf::from(&error.details["recovery_directory"]);
+        assert_eq!(
+            fs::read(held.join("previous-data-fixture/late-player-file")).unwrap(),
+            b"preserve after quarantine"
+        );
+        assert!(!OperationStore::new(library).all().unwrap().is_empty());
     }
 
     #[test]

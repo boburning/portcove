@@ -1,5 +1,23 @@
 # Catalog policy
 
+## Exact relative-file sources and managed TFE
+
+`relative-file-set` is an explicit source representation and projected source
+kind. Unlike historical basename-only file sets, each member declares a portable
+relative path, exact size and SHA-256. Required members must cover the managed
+runtime targets bijectively with matching hashes; directory and ZIP namespace,
+size and caller-budget checks precede member admission. The normalized aggregate
+uses its own versioned SHA-256 protocol, including single-member sets. Existing
+basename file-set identities and aggregates are unchanged.
+
+The closed Windows TFE v1.22.420 initializer requires staged-source capability
+**12** as a minimum, rather than a range admitting an older implementation.
+Transport schema **75** adds the relative source shape and managed initializer;
+older consumers must refuse unsupported semantics. Full source inspection and
+bounded quick filter observations are distinct: the latter returns `NotChecked`
+for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
+for player workflow, persistence boundaries and the removal recovery hold.
+
 ## Default covers
 
 For a whole ordinary catalog proposal, use
@@ -531,7 +549,7 @@ NES recipe storage identities remain unchanged. Capability implementation,
 repository title admission, actual operation acceptance, optional gameplay and
 protected installed-client delivery retain their separate evidence requirements.
 
-Staged-source version 12 adds `render96-us-source-48da5c491c8a`, a closed
+Staged-source version 13 adds `render96-us-source-48da5c491c8a`, a closed
 Windows x64 source recipe for `render96ex`. It pins Render96 source commit
 `48da5c491c8abfb2f5192b59278c1c269411e533`, SDL2 2.32.10 and the existing
 authenticated toolchain. The selected output is `sm64.us.f3dex2e.exe`, built

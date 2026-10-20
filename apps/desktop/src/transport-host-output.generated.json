@@ -4215,6 +4215,33 @@
         ],
         "type": "string"
       },
+      "RelativeSourceMemberIdentity": {
+        "additionalProperties": false,
+        "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "SourceAdmission": {
         "oneOf": [
           {
@@ -5246,6 +5273,25 @@
               "members": {
                 "items": {
                   "$ref": "#/$defs/SourceMemberIdentity"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "relative-file-set",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/RelativeSourceMemberIdentity"
                 },
                 "type": "array"
               }
@@ -7744,6 +7790,13 @@
         ],
         "type": "object"
       },
+      "ManagedInitialization": {
+        "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
+        "enum": [
+          "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
+      },
       "ManualSetupGuide": {
         "additionalProperties": false,
         "description": "Authored instructions only; these steps grant no operation or file authority.",
@@ -8143,6 +8196,16 @@
           "launch_from_install_root": {
             "default": false,
             "type": "boolean"
+          },
+          "managed_initialization": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedInitialization"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "manually_validated_platforms": {
             "default": [],
@@ -8692,6 +8755,33 @@
           "view_technical_details"
         ],
         "type": "string"
+      },
+      "RelativeSourceMemberIdentity": {
+        "additionalProperties": false,
+        "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
       },
       "ReleaseAsset": {
         "properties": {
@@ -9549,6 +9639,7 @@
         "enum": [
           "file",
           "file-set",
+          "relative-file-set",
           "gamecube-disc",
           "psx-disc",
           "upstream-validated-disc"
@@ -9833,6 +9924,25 @@
               "members": {
                 "items": {
                   "$ref": "#/$defs/SourceMemberIdentity"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "relative-file-set",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/RelativeSourceMemberIdentity"
                 },
                 "type": "array"
               }
