@@ -208,6 +208,8 @@ export function planDesktopExecution(
     ])
       inputs.push(receiptSource(new URL(name, harnessUrl)));
   inputs.push(receiptSource(new URL("./desktop-controller-test.mts", harnessUrl)));
+  if (selection.selected_scenarios.includes("native-interface-size"))
+    inputs.push(receiptSource(new URL("desktop-interface-size-test.mts", harnessUrl)));
   for (const name of ["desktop-startup-observation.mts", "desktop-owned-native-session.mts"])
     inputs.push(receiptSource(new URL(name, harnessUrl)));
   inputs.push(receiptSource(new URL("desktop-reload-test.mts", harnessUrl)));
