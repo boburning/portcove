@@ -241,3 +241,38 @@ void test("duplicate immutable names and provider job changes after download ref
     assert.ok(downloaded <= 1);
   }
 });
+
+void test("default artifact REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
+  const f = await fixture(t);
+  const previous = process.env.GH_HOST;
+  process.env.GH_HOST = "ambient.invalid";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_HOST;
+    else process.env.GH_HOST = previous;
+  });
+  const { api, ...options } = f.options;
+  let requests = 0;
+  const proof = await waitForControlArtifact(f.root, "ready", f.input, {
+    ...options,
+    transport: {
+      spawn(command, args) {
+        requests++;
+        assert.equal(command, "gh");
+        assert.equal(process.env.GH_HOST, "ambient.invalid");
+        assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
+        assert.equal(args[0], "api");
+        assert.equal(args[args.indexOf("--method") + 1], "GET");
+        const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+        assert.ok(endpoint);
+        const response = api.request("GET", endpoint);
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
+          stderr: "",
+        };
+      },
+    },
+  });
+  assert.ok(requests >= 4);
+  assert.equal(proof.evidence_scope, "injected-provider");
+});

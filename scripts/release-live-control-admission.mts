@@ -82,6 +82,7 @@ export async function authenticateReleaseControlSource(
     identity?: ReaderIdentityOptions;
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
+    observerTransport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
   } = {},
@@ -115,10 +116,16 @@ export async function authenticateReleaseControlSource(
     throw new Error("protection handoff is not from this exact admitted controller attempt");
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
+  const observerRunner = createGitHubRunner({
+    ...options.observerTransport,
+    cwd: process.cwd(),
+    maxBuffer: 128 * 1024,
+    timeoutMs: 15000,
+  });
   const observerApi =
     options.observerApi ??
-    new GitHubApiClient(
-      createGitHubRunner({ cwd: process.cwd(), maxBuffer: 128 * 1024, timeoutMs: 15000 }),
+    new GitHubApiClient((args, input) =>
+      observerRunner([...args, "--hostname", "github.com"], input),
     );
   const producerJobId = producer.job_id;
   const producerCheckRunId = producer.check_run_id;
@@ -169,6 +176,7 @@ export async function authenticateReleaseControlSource(
       options.identity ||
       options.requestToken ||
       options.observerApi ||
+      options.observerTransport ||
       options.now ||
       identity.evidence_scope !== "github.com" ||
       options.observedArtifact?.evidence_scope === "injected-provider"

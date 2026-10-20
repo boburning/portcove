@@ -27,6 +27,42 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   return { control, runtime };
 }
 
+void test("default observer REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
+  const f = fixture();
+  const previous = process.env.GH_HOST;
+  process.env.GH_HOST = "ambient.invalid";
+  t.after(() => {
+    if (previous === undefined) delete process.env.GH_HOST;
+    else process.env.GH_HOST = previous;
+  });
+  const { observerApi, ...options } = f.runtime.options;
+  let requests = 0;
+  const source = await authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+    ...options,
+    observerTransport: {
+      spawn(command, args) {
+        requests++;
+        assert.equal(command, "gh");
+        assert.equal(process.env.GH_HOST, "ambient.invalid");
+        assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
+        assert.equal(args[0], "api");
+        assert.equal(args[args.indexOf("--method") + 1], "GET");
+        const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+        assert.ok(endpoint);
+        const response = observerApi.request("GET", endpoint);
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
+          stderr: "",
+        };
+      },
+    },
+  });
+  assert.equal(source.read(f.control.api, opportunity).classification.review_check_id, 303);
+  assert.ok(requests >= 2);
+  assert.equal(source.evidence_scope, "injected-provider");
+});
+
 void test("live source establishes fixed runtime and predecessor job then reuses actual classification, pause and capacity readers", async () => {
   const f = fixture();
   const source = await f.runtime.create();

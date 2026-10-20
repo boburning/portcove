@@ -94,21 +94,22 @@ export async function waitForControlArtifact(
   raw: ControlAttempt,
   options: {
     api?: GitHubRestReader;
+    transport?: Pick<NonNullable<Parameters<typeof createGitHubRunner>[0]>, "spawn">;
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
     sleep?: (milliseconds: number) => Promise<void>;
   } = {},
 ) {
   const input = attempt(raw);
+  const runner = createGitHubRunner({
+    ...options.transport,
+    cwd: privateRoot,
+    maxBuffer: 512 * 1024,
+    timeoutMs: 5000,
+  });
   const api =
     options.api ??
-    new GitHubApiClient(
-      createGitHubRunner({
-        cwd: privateRoot,
-        maxBuffer: 512 * 1024,
-        timeoutMs: 5000,
-      }),
-    );
+    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const now = options.now ?? Date.now;
   const start = now();
   let requests = 0;
@@ -311,7 +312,7 @@ export async function waitForControlArtifact(
           artifact: structuredClone(artifact),
           job: structuredClone(job),
           evidence_scope:
-            options.api || options.download || options.now || options.sleep
+            options.api || options.transport || options.download || options.now || options.sleep
               ? "injected-provider"
               : "github.com",
           association: "fixed-reviewed-workflow-exclusive-upload-route-and-provider-job-readback",
