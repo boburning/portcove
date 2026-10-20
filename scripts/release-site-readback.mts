@@ -67,8 +67,17 @@ export async function requirePublishedCompleteSite(receipt: unknown) {
 /** Recover the whole journal-pinned site for fresh signing/composition workers.
  * The application still requires the pinned Tough verifier before signing.
  * Catalog bytes are preserved as opaque, independently owned content. */
-export async function materializePublishedCompleteSite(raw: PublishedPins, privateParent: string) {
+export async function materializePublishedCompleteSite(
+  raw: PublishedPins,
+  privateParent: string,
+  phaseDeadline?: number,
+) {
   const expected = structuredClone(raw);
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+  )
+    throw new Error("complete site phase deadline exhausted");
   if (
     !isRecord(expected) ||
     Object.keys(expected).sort().join(",") !==
@@ -88,7 +97,7 @@ export async function materializePublishedCompleteSite(raw: PublishedPins, priva
   const directory = path.join(retained, "site");
   await mkdir(directory, { mode: 0o700 });
   try {
-    const read = publicReader(performance.now() + 120_000);
+    const read = publicReader(Math.min(performance.now() + 120_000, phaseDeadline ?? Infinity));
     const first = await read("publication.json", 4 * 1024 * 1024);
     const observed = marker(JSON.parse(first.toString("utf8")), expected.site_generation_sha256);
     if (observed.application_root_sha256 !== expected.root_sha256)
