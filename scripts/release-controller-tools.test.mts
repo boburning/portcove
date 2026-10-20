@@ -7,7 +7,8 @@ import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
   controllerBootstrapEnvironment,
@@ -36,9 +37,52 @@ import {
   expected as identityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
 import { verifyControllerToolBootstrapJobIdentity } from "./assembler-job-identity.mts";
+import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const copied = new Set<string>();
+  const copy = async (relative: string): Promise<void> => {
+    if (copied.has(relative)) return;
+    copied.add(relative);
+    assert.ok(copied.size < 100);
+    const text = await readFile(path.join(sourceRoot, relative), "utf8");
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await writeFile(path.join(root, relative), text);
+    for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
+      const specifier = match[1]!;
+      if (specifier.startsWith("."))
+        await copy(path.posix.normalize(path.posix.join(path.posix.dirname(relative), specifier)));
+      else assert.ok(isBuiltin(specifier), `launcher dependency must be builtin: ${specifier}`);
+    }
+  };
+  await copy("scripts/release-controller-tool-launch.mts");
+  const child = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-tool-launch.mts")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(child.status, 2);
+  assert.match(child.stderr, /fixed verified-tool payload launcher refused/);
+  assert.doesNotMatch(child.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  for (const raw of [{}, { entry: "arbitrary.mjs", tools: { artifact: {}, bundle: {} } }])
+    await assert.rejects(launchFixedPayloadController(raw, root), /fields differ/);
+  await assert.rejects(
+    launchFixedPayloadController(
+      {
+        configuration: {},
+        native_locators: [],
+        signer_identity: {},
+        tools: { artifact: {}, bundle: {} },
+      },
+      root,
+    ),
+  );
+  assert.deepEqual((await readdir(root)).sort(), ["scripts"]);
+});
 void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -121,6 +165,26 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const budget = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    const worker=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-payload-preparation.bundle.mjs")).href)});
+    const original=worker.payloadSigningPhaseDeadline();
+    worker.tightenPayloadSigningPhaseDeadline(original-1000);
+    worker.tightenPayloadSigningPhaseDeadline(original+1000);
+    assert.equal(worker.payloadSigningPhaseDeadline(),original-1000);
+    assert.throws(()=>worker.tightenPayloadSigningPhaseDeadline(-1),/deadline/);
+    process.stdout.write('deadline-kept');
+  `,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(budget.status, 0, budget.stderr);
+  assert.equal(budget.stdout, "deadline-kept");
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")

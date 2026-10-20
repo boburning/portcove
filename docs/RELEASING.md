@@ -1664,6 +1664,17 @@ its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
 
+The dependency-free `release-controller-tool-launch.mts` implements that initial
+payload entry. It authenticates the tool artifact with the existing receiver,
+requires the running Node bytes to match the authenticated executable and imports
+only the fixed manifest-owned signing-controller bundle. That bundle performs
+its own actual receiver check to establish its module-private custody; no brand
+or acceptance flag is serialized across the boundary. Both acquisitions and the
+entire continuation share the original launcher deadline, which the bundle can
+only tighten. Local isolated tests load the launcher without `node_modules`,
+exercise the real six-entry pack and prove the deadline cannot be extended.
+These observations do not qualify protected hosted signing or role execution.
+
 The context artifact preparation additionally requires actual complete public-site
 custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
 manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact

@@ -54,8 +54,16 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 // A fixed payload job starts a fresh process before receiving trusted tools.
 // The receiver must not silently add time outside the role's total deadline.
 const payloadPhaseStarted = performance.now();
+let payloadPhaseDeadline = payloadPhaseStarted + 570000;
 export function payloadSigningPhaseDeadline() {
-  return payloadPhaseStarted + 570000;
+  return payloadPhaseDeadline;
+}
+/** The dependency-free launcher may only preserve/tighten the original budget,
+ * including its first verified tool acquisition before this bundle loads. */
+export function tightenPayloadSigningPhaseDeadline(deadline: number) {
+  if (!Number.isFinite(deadline) || deadline <= performance.now())
+    throw new Error("payload role total phase deadline exhausted");
+  payloadPhaseDeadline = Math.min(payloadPhaseDeadline, deadline);
 }
 type AggregateExpected = Omit<
   Parameters<typeof verifyUploadedAggregate>[1],
@@ -580,7 +588,7 @@ export async function runPayloadSigningController(
   const capturedNativeLocators: unknown = structuredClone(nativeLocators);
   // Includes acquisition, controls, signing and immutable output handoff, with
   // thirty seconds reserved for key-channel/process and runner cleanup.
-  const deadline = payloadPhaseStarted + 570000;
+  const deadline = payloadSigningPhaseDeadline();
   const withinBudget = () => {
     if (performance.now() >= deadline)
       throw new Error("payload role total phase deadline exhausted");

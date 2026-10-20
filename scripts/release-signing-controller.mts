@@ -9,6 +9,7 @@ import {
   requirePreparedPayloadSignatures,
   payloadSigningPhaseDeadline,
   nextPreparedPayloadControlRound,
+  tightenPayloadSigningPhaseDeadline,
 } from "./release-payload-preparation.mts";
 import {
   prepareControllerReleaseSigningContext,
@@ -189,41 +190,54 @@ export async function runPayloadSigningAndContextController(
   });
 }
 
+export async function runFixedPayloadContextConfiguration(
+  raw: unknown,
+  parent: string,
+  deadline: number,
+) {
+  tightenPayloadSigningPhaseDeadline(deadline);
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !== "configuration,native_locators,signer_identity,tools" ||
+    !isRecord(raw.configuration) ||
+    !isRecord(raw.tools) ||
+    Object.keys(raw.tools).sort().join(",") !== "artifact,bundle" ||
+    !isRecord(raw.tools.artifact) ||
+    !isRecord(raw.tools.bundle)
+  )
+    throw new Error("fixed payload/context caller fields differ");
+  const toolsReceipt = await receiveControllerTools(
+    parent,
+    raw.tools.artifact as unknown as ControllerToolArtifactExpected,
+    raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
+    { deadline: payloadSigningPhaseDeadline() },
+  );
+  const tools = await verifiedControllerToolPaths(toolsReceipt);
+  await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
+  const configuration = inspectPayloadPreparationConfiguration({
+    ...raw.configuration,
+    projectRoot: tools.root,
+    output: path.join(tools.root, "work", "payload-preparation"),
+    publicKey: path.join(tools.root, "work", "admitted-public.key"),
+  });
+  return runPayloadSigningAndContextController(
+    configuration,
+    raw.signer_identity,
+    toolsReceipt,
+    raw.native_locators,
+  );
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     if (process.argv.length !== 3) throw new Error("fixed payload/context configuration required");
     const raw: unknown = JSON.parse(
       (await readControllerToolFile(process.argv[2]!, 65536)).toString("utf8"),
     );
-    if (
-      !isRecord(raw) ||
-      Object.keys(raw).sort().join(",") !== "configuration,native_locators,signer_identity,tools" ||
-      !isRecord(raw.configuration) ||
-      !isRecord(raw.tools) ||
-      Object.keys(raw.tools).sort().join(",") !== "artifact,bundle" ||
-      !isRecord(raw.tools.artifact) ||
-      !isRecord(raw.tools.bundle)
-    )
-      throw new Error("fixed payload/context caller fields differ");
-    const parent = fileURLToPath(new URL("..", import.meta.url));
-    const toolsReceipt = await receiveControllerTools(
-      parent,
-      raw.tools.artifact as unknown as ControllerToolArtifactExpected,
-      raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
-    );
-    const tools = await verifiedControllerToolPaths(toolsReceipt);
-    await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
-    const configuration = inspectPayloadPreparationConfiguration({
-      ...raw.configuration,
-      projectRoot: tools.root,
-      output: path.join(tools.root, "work", "payload-preparation"),
-      publicKey: path.join(tools.root, "work", "admitted-public.key"),
-    });
-    const result = await runPayloadSigningAndContextController(
-      configuration,
-      raw.signer_identity,
-      toolsReceipt,
-      raw.native_locators,
+    const result = await runFixedPayloadContextConfiguration(
+      raw,
+      fileURLToPath(new URL("..", import.meta.url)),
+      payloadSigningPhaseDeadline(),
     );
     process.exitCode = result.decision === "payload-and-context-prepared" ? 0 : 2;
   } catch {
