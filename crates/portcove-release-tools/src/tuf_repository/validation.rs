@@ -759,3 +759,89 @@ pub(super) fn ensure_no_overlap(output: &Path, inputs: &[&Path]) -> Result<(), T
     }
     Ok(())
 }
+
+// Shared exact reconstruction validation for offline builds and isolated online roles.
+pub(super) fn load_records(
+    records_root: &Path,
+    namespace_delegations: bool,
+) -> Result<Vec<(RecordIdentity, DelegatedRole, Vec<u8>)>, TufRepositoryError> {
+    let manifest_path = records_root.join("reconstruction-manifest.json");
+    let manifest_bytes = read_regular_bounded(
+        &manifest_path,
+        MAX_MANIFEST_BYTES,
+        "reconstruction manifest",
+    )?;
+    let manifest: ReconstructionManifest = serde_json::from_slice(&manifest_bytes)?;
+    if manifest.schema_version != 1
+        || manifest.records.is_empty()
+        || manifest.records.len() > MAX_RECORDS
+    {
+        return Err(TufRepositoryError::Invalid(
+            "reconstruction manifest has an invalid schema or record count".into(),
+        ));
+    }
+    let mut seen = BTreeSet::new();
+    let mut records = Vec::with_capacity(manifest.records.len());
+    let mut total_bytes = 0u64;
+    for record in manifest.records {
+        let role = validate_record(&record)?;
+        if namespace_delegations
+            && !matches!(
+                (record.target.as_str(), record.package.as_str()),
+                ("windows-x86_64", "nsis") | ("linux-x86_64", "appimage")
+            )
+        {
+            return Err(TufRepositoryError::Invalid(
+                "record is outside the offline bootstrap namespaces".into(),
+            ));
+        }
+        if !seen.insert(record.path.clone()) {
+            return Err(TufRepositoryError::Invalid(format!(
+                "duplicate reconstructed target: {}",
+                record.path
+            )));
+        }
+        let bytes = read_regular_bounded(
+            &records_root.join(Path::new(&record.path)),
+            MAX_RECORD_BYTES,
+            "reconstructed record",
+        )?;
+        if bytes.len() as u64 != record.bytes || sha256(&bytes) != record.sha256 {
+            return Err(TufRepositoryError::Invalid(format!(
+                "reconstructed record identity changed: {}",
+                record.path
+            )));
+        }
+        total_bytes = total_bytes
+            .checked_add(record.bytes)
+            .filter(|size| *size <= MAX_TOTAL_TARGET_BYTES)
+            .ok_or_else(|| {
+                TufRepositoryError::Invalid(
+                    "reconstructed target set exceeds its total limit".into(),
+                )
+            })?;
+        records.push((record, role, bytes));
+    }
+
+    let represented_roles: BTreeSet<_> = records.iter().map(|(_, role, _)| role.name()).collect();
+    if records.len() + 3 - represented_roles.len() > MAX_RECORDS {
+        return Err(TufRepositoryError::Invalid(
+            "delegated target selector count exceeds 1024".into(),
+        ));
+    }
+    let mut reconstructed_files = BTreeMap::new();
+    collect_tree(records_root, "", &mut reconstructed_files)?;
+    let expected_reconstructed_files: BTreeSet<_> = seen
+        .iter()
+        .cloned()
+        .chain(["reconstruction-manifest.json".into()])
+        .collect();
+    if reconstructed_files.keys().cloned().collect::<BTreeSet<_>>() != expected_reconstructed_files
+    {
+        return Err(TufRepositoryError::Invalid(
+            "reconstruction manifest does not exactly inventory its record tree".into(),
+        ));
+    }
+
+    Ok(records)
+}
