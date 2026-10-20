@@ -971,11 +971,17 @@ function useApplicationUpdateSettings({
 
   useEffect(() => {
     const heading = headingRef.current;
-    if (unavailable || !heading || document.activeElement !== heading) return;
+    if (unavailable || !heading) return;
+    const settings = heading.closest(".application-update-settings");
+    const preferencesHeading = settings?.querySelector("#application-preferences-title");
+    const active = document.activeElement;
+    if (active !== heading && active !== preferencesHeading) return;
     focusAndReveal(
-      heading
-        .closest(".application-update-settings")
-        ?.querySelector<HTMLElement>("button:not(:disabled)"),
+      settings?.querySelector<HTMLElement>(
+        active === preferencesHeading
+          ? '[aria-label="Application update channel"] button:not(:disabled)'
+          : "button:not(:disabled)",
+      ),
     );
   }, [unavailable]);
 

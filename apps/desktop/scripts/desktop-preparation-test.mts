@@ -169,6 +169,11 @@ const updateReviewWindows = [
 async function openUpdateTheme(browser: WebDriver, theme: string) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
   await browser
+    .findElement(
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
+    )
+    .click();
+  await browser
     .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
     .click();
   assert.equal(
@@ -176,7 +181,7 @@ async function openUpdateTheme(browser: WebDriver, theme: string) {
     theme,
   );
   await browser
-    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
     .click();
 }
 
@@ -825,10 +830,7 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
   }
-  assert.equal(
-    text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} in library All ready to play`,
-  );
+  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in library All can launch`);
 }
 
 export async function preparationScenarios({
@@ -936,9 +938,7 @@ export async function preparationScenarios({
     );
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-    const card = By.xpath(
-      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-    );
+    const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     if (waitForPreparation)
@@ -1089,9 +1089,26 @@ export async function preparationScenarios({
     assert.equal(required(prepared.previous).id, install.id);
     const log = path.join(required(prepared.active).path, "data/log/setup.log");
     await writeFile(log, "setup must not run during desktop Play");
-    await browser.wait(until.elementLocated(button("Play")), 15_000);
-    await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
-    await browser.findElement(button("Play")).click();
+    // This fixture's preliminary source is available but has no exact identity.
+    // Preparation does not upgrade that evidence into confirmed compatibility.
+    const trialLaunch = By.css("section[data-detail-workspace] .primary-actions button");
+    const trial = await browser.wait(
+      async () => {
+        const current = (await browser.findElements(trialLaunch))[0];
+        return current &&
+          (await current.isDisplayed()) &&
+          (await current.getText()) === "Try launch" &&
+          (await current.isEnabled())
+          ? current
+          : false;
+      },
+      15_000,
+      "Prepared Core state did not reach the rendered trial-launch action",
+    );
+    assert.ok(trial, "Rendered trial-launch action must be available");
+    assert.equal(await trial.getText(), "Try launch");
+    await browser.wait(until.elementIsEnabled(trial), 15_000);
+    await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -1109,11 +1126,7 @@ export async function preparationScenarios({
     );
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-        ),
-      ),
+      until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
     );
     const cardActions = await executeBrowserScript(
@@ -1123,7 +1136,7 @@ export async function preparationScenarios({
           '[data-detail-origin^="library:card:"]',
         );
         const play = [...element.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Play",
+          (button) => button.textContent?.trim() === "Try launch",
         );
         const more = element.querySelector('button[aria-label^="More actions for "]');
         const workspace = element.closest("main");
@@ -1138,6 +1151,8 @@ export async function preparationScenarios({
         return {
           tag: element.tagName,
           details: (details.textContent ?? "").trim(),
+          details_tag: details.tagName,
+          details_label: details.getAttribute("aria-label"),
           details_slot: details.getAttribute("data-slot"),
           details_variant: details.getAttribute("data-variant"),
           play: play.textContent.trim(),
@@ -1153,7 +1168,7 @@ export async function preparationScenarios({
             playBounds.right <= cardBounds.right &&
             moreBounds.right <= cardBounds.right,
           details_color: detailsStyle.color,
-          details_background: detailsStyle.backgroundColor,
+          details_background: getComputedStyle(element).backgroundColor,
           nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
             .length,
           details_focused: document.activeElement === details,
@@ -1168,14 +1183,16 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: "Details",
-      details_slot: "button",
-      details_variant: "outline",
-      play: "Play",
+      details: "Jak and Daxter: The Precursor Legacy",
+      details_tag: "BUTTON",
+      details_label: `View details for Jak and Daxter: The Precursor Legacy · ${port.name}`,
+      details_slot: null,
+      details_variant: null,
+      play: "Try launch",
       play_disabled: false,
       play_slot: "button",
       play_variant: "primary",
-      more_label: `More actions for ${port.name}`,
+      more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
       card_horizontal_overflow: false,
@@ -1183,6 +1200,7 @@ export async function preparationScenarios({
       nested_interactive: 0,
       details_focused: true,
     });
+    assert.match(detailsBackground, /^rgb\(/u, "Card contrast requires its opaque painted surface");
     const detailsContrast = contrastRatio(detailsColor, detailsBackground);
     assert.ok(
       detailsContrast >= 4.5,
@@ -1264,6 +1282,13 @@ export async function preparationScenarios({
     try {
       for (const theme of ["dark", "light"]) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await browser
+          .findElement(
+            By.css(
+              'nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]',
+            ),
+          )
+          .click();
         await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
         await open(port, false);
         assert.equal(
@@ -1397,11 +1422,7 @@ export async function preparationScenarios({
       );
       await ready.click();
       const card = await browser.wait(
-        until.elementLocated(
-          By.xpath(
-            `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-          ),
-        ),
+        until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
       );
       const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
@@ -2017,7 +2038,7 @@ export async function preparationScenarios({
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
         .click();
       await browser.wait(
         async () =>
@@ -2232,9 +2253,7 @@ export async function preparationScenarios({
         await browser
           .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
           .click();
-        const card = By.xpath(
-          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-        );
+        const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
         await browser.wait(until.elementLocated(card), 15_000);
         await browser.findElement(card).click();
         await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
@@ -2286,7 +2305,7 @@ export async function preparationScenarios({
       }
       await browser.findElement(By.css(".detail-back")).click();
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
         .click();
       const cancelledRow = await browser.wait(
         until.elementLocated(
@@ -2316,7 +2335,7 @@ export async function preparationScenarios({
         15_000,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2333,7 +2352,7 @@ export async function preparationScenarios({
         required(recorded).failure,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2494,9 +2513,7 @@ export async function preparationScenarios({
       15_000,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-    const card = By.xpath(
-      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-    );
+    const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     await clickVisible(
@@ -2604,9 +2621,7 @@ export async function preparationScenarios({
         5_000,
         `catalog search did not settle on ${port.name}`,
       );
-      const card = By.xpath(
-        `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-      );
+      const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
       await browser.wait(until.elementLocated(card), 15_000, `${port.name} card did not appear`);
       await browser.findElement(card).click();
       await clickVisible(
