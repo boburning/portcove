@@ -11,6 +11,11 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [keyless complete-site composer](slice4-534-shared-site-2026-10-20.md)
+passed actual disposable-key TUF CLI composition, unchanged replay and corrupt
+envelope refusal. Catalog/history preservation is implemented; provider deployment,
+exclusive remote execution and independent public readback remain pending.
+
 The October 20 [public build-input integration](slice4-534-public-build-inputs-2026-10-20.md)
 connects fixed public roots/origins/key/packaging bytes to secret-free beta
 builders and independently verified immutable downstream provenance. Schema-3

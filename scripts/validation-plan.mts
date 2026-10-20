@@ -247,6 +247,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/check-release-metadata.mts",
   "scripts/controller-canary.mts",
   "scripts/production-controller-admission.mts",
+  "scripts/release-site-composer.mts",
   "scripts/assembler-job-identity.mts",
   "scripts/release-control-inputs.mts",
   "scripts/release-capacity.mts",
