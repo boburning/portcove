@@ -36,7 +36,11 @@ export function inspectPublicBuildInputIdentity(revision: unknown, digest: unkno
   return { revision, digest };
 }
 
-async function boundedFile(root: string, filename: string, maximum: number) {
+export async function readBoundedPublicBuildInputFile(
+  root: string,
+  filename: string,
+  maximum: number,
+) {
   const absolute = await assertOwnedUnlinkedPath(root, path.join(root, filename), "public input");
   const stat = await lstat(absolute);
   if (!stat.isFile() || stat.size < 1 || stat.size > maximum)
@@ -56,6 +60,7 @@ async function boundedFile(root: string, filename: string, maximum: number) {
     await handle.close();
   }
 }
+const boundedFile = readBoundedPublicBuildInputFile;
 
 function inspectRoot(bytes: Buffer) {
   const root: unknown = JSON.parse(bytes.toString("utf8"));
