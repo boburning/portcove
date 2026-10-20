@@ -469,8 +469,10 @@ mod managed_builder_tests {
         )
         .unwrap()
         .args(["/d", "/c", "mklink", "/J"])
-        .arg(&link)
-        .arg(target)
+        // mklink is a cmd builtin: forward slashes are parsed as switches,
+        // even when PathBuf produced them from our portable cache constant.
+        .arg(link.to_str().unwrap().replace('/', "\\"))
+        .arg(target.to_str().unwrap().replace('/', "\\"))
         .output()
         .unwrap();
         assert!(output.status.success(), "junction fixture: {output:?}");
@@ -523,8 +525,15 @@ mod managed_builder_tests {
                 )
                 .unwrap()
                 .args(["/d", "/c", "mklink", "/J"])
-                .arg(&cache)
-                .arg(temporary.path().join("redirected-cache"))
+                .arg(cache.to_str().unwrap().replace('/', "\\"))
+                .arg(
+                    temporary
+                        .path()
+                        .join("redirected-cache")
+                        .to_str()
+                        .unwrap()
+                        .replace('/', "\\"),
+                )
                 .output()
                 .unwrap();
                 assert!(output.status.success(), "ancestor junction: {output:?}");
