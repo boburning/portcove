@@ -404,7 +404,8 @@ export async function selectedSetupCompletionScenario({
       observations: { sources: undefined },
     };
     let failure: { error: unknown } | undefined;
-    const originalWindow = await browser.manage().window().getRect();
+    let originalWindow: { x: number; y: number; width: number; height: number } | undefined;
+    let zoomAttempted = false;
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
       browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
@@ -441,7 +442,9 @@ export async function selectedSetupCompletionScenario({
     };
     try {
       generation = await selectedSetupGeneration(invoke);
+      originalWindow = await browser.manage().window().getRect();
       await browser.manage().window().setRect({ width: 960, height: 640 });
+      zoomAttempted = true;
       await shortcut("0");
       await browser.wait(
         () =>
@@ -1396,7 +1399,7 @@ export async function selectedSetupCompletionScenario({
         message: errorMessage(error),
         stack: error instanceof Error ? error.stack : undefined,
       };
-      if (enlargedJourney) {
+      if (zoomAttempted) {
         try {
           const image = path.join(output, "selected-setup-enlargement-failure.png");
           await writeFile(image, await browser.takeScreenshot(), {
@@ -1412,39 +1415,46 @@ export async function selectedSetupCompletionScenario({
         }
       }
     }
-    try {
-      await shortcut("0");
-      await browser.wait(
-        () =>
-          executeBrowserScript(
-            browser,
-            () => localStorage.getItem("portcove.appearance.interface-size") === "100",
-          ),
-        10_000,
-      );
-    } catch (error) {
-      const previous = failure;
-      failure = {
-        error: previous
-          ? new AggregateError(
-              [previous.error, error],
-              "Setup journey and enlargement cleanup failed",
-            )
-          : error,
-      };
-      report.enlargement_cleanup_failure = errorMessage(error);
+    if (zoomAttempted) {
+      try {
+        await shortcut("0");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+            ),
+          10_000,
+        );
+      } catch (error) {
+        const previous = failure;
+        failure = {
+          error: previous
+            ? new AggregateError(
+                [previous.error, error],
+                "Setup journey and enlargement cleanup failed",
+              )
+            : error,
+        };
+        report.enlargement_cleanup_failure = errorMessage(error);
+      }
     }
-    try {
-      await browser.manage().window().setRect(originalWindow);
-    } catch (error) {
-      failure = {
-        error: failure
-          ? new AggregateError([failure.error, error], "Setup and window restoration failed")
-          : error,
-      };
-      report.enlargement_cleanup_failure = [report.enlargement_cleanup_failure, errorMessage(error)]
-        .filter(Boolean)
-        .join("; ");
+    if (originalWindow) {
+      try {
+        await browser.manage().window().setRect(originalWindow);
+      } catch (error) {
+        failure = {
+          error: failure
+            ? new AggregateError([failure.error, error], "Setup and window restoration failed")
+            : error,
+        };
+        report.enlargement_cleanup_failure = [
+          report.enlargement_cleanup_failure,
+          errorMessage(error),
+        ]
+          .filter(Boolean)
+          .join("; ");
+      }
     }
     let preservationFailure: { error: unknown } | undefined;
     try {
