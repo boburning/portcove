@@ -18,6 +18,9 @@ import {
   inspectSemanticRuntimeEvents,
   inspectSemanticFixtureEvents,
   requireDirectSemanticCapture,
+  requireLinuxSemanticSettlement,
+  readQualifiedSemanticExecutable,
+  semanticSupervisorEnvironment,
 } from "./release-semantic-runtime.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import { readbackSemanticCheck, publishSemanticCapture } from "./release-semantic-broker.mts";
@@ -27,7 +30,185 @@ import {
   createSemanticReaderRpc,
   materializeSemanticReaderIndex,
 } from "./release-semantic-reader.mts";
-import { inspectSemanticReaderIndex } from "./release-semantic-reader-core.mts";
+import {
+  inspectSemanticReaderIndex,
+  createSemanticSnapshotReader,
+} from "./release-semantic-reader-core.mts";
+import { isRecord } from "./runtime-values.mts";
+
+void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {
+  const inherited = '{"receipt":"inert existing reservation"}';
+  assert.deepEqual(
+    semanticSupervisorEnvironment({
+      HOME: "/home/reviewer",
+      PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
+      GH_TOKEN: "never-forward",
+      OPENAI_API_KEY: "never-forward",
+      HTTP_PROXY: "never-forward",
+      NODE_OPTIONS: "never-forward",
+      PATH: "/caller-chosen",
+      GITHUB_ACTIONS: "true",
+    }),
+    {
+      HOME: "/home/reviewer",
+      PATH: "/usr/bin:/bin",
+      LANG: "C.UTF-8",
+      PORTCOVE_RESOURCE_RESERVATION: inherited,
+      PORTCOVE_NATIVE_SESSION_LOCK_TOKEN: "inert-native",
+    },
+  );
+});
+
+void test("runtime materialization rejects a changed original instead of deriving trust from its copy", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "semantic-executable-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const file = path.join(root, "runtime");
+  const expected = Buffer.from("independently qualified inert runtime");
+  const digest = createHash("sha256").update(expected).digest("hex");
+  await writeFile(file, expected);
+  assert.deepEqual(await readQualifiedSemanticExecutable(file, digest), expected);
+  await writeFile(file, "changed after the initial original-file check");
+  await assert.rejects(readQualifiedSemanticExecutable(file, digest), /before materialization/u);
+});
+
+void test("Linux settlement requires observed limits, isolated runtime and positive complete teardown", () => {
+  const settled = {
+    schema_version: 1,
+    mode: "codex",
+    authority: "none",
+    scope: "held-linux-semantic-runtime-preparation",
+    unit: `portcove-semantic-${"a".repeat(32)}.service`,
+    storage_bytes: 536870912,
+    memory_bytes: 1073741824,
+    swap_bytes: 0,
+    tasks_max: 64,
+    cgroup_verified: true,
+    namespaces_verified: true,
+    capture_complete: true,
+    cgroup_empty: true,
+    unit_settled: true,
+    network_settled: true,
+    network_refused: false,
+    forced_termination: false,
+    auth_refreshed: true,
+    exit_code: 0,
+    failure: null,
+    cleanup_errors: [],
+  };
+  assert.doesNotThrow(() => requireLinuxSemanticSettlement(settled));
+  for (const change of [
+    { mode: "fixture" },
+    { mode: "codex-fixture" },
+    { authority: "production" },
+    { storage_bytes: 1073741824 },
+    { memory_bytes: 2147483648 },
+    { swap_bytes: 1 },
+    { tasks_max: 65 },
+    { cgroup_verified: false },
+    { namespaces_verified: false },
+    { capture_complete: false },
+    { cgroup_empty: false },
+    { unit_settled: false },
+    { network_settled: false },
+    { network_refused: true },
+    { forced_termination: true },
+    { auth_refreshed: false },
+    { exit_code: null },
+    { exit_code: 1 },
+    { failure: "ambiguous" },
+    { cleanup_errors: ["unfinished"] },
+  ])
+    assert.throws(
+      () => requireLinuxSemanticSettlement({ ...settled, ...change }),
+      /positively settled/u,
+    );
+  // A successful imported receipt does not manufacture runtime provenance.
+  assert.throws(() => requireDirectSemanticCapture(settled as never), /imported or changed/u);
+});
+
+function textReaderFixture(before: Buffer, after: Buffer) {
+  const blob = (bytes: Buffer) => {
+    const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    return {
+      oid,
+      file: {
+        name: `objects/${oid}.data`,
+        bytes,
+        sha256: createHash("sha256").update(bytes).digest("hex"),
+      },
+    };
+  };
+  const baseline = blob(before),
+    source = blob(after);
+  // Inert reader/observation fixture; no builder or runtime provenance is minted.
+  const bundle = {
+    manifest: {
+      snapshots: {
+        baseline: [{ path: "app.rs", oid: baseline.oid, mode: "100644" }],
+        source: [{ path: "app.rs", oid: source.oid, mode: "100644" }],
+      },
+      source: {
+        changes: [{ path: "app.rs", before: { oid: baseline.oid }, after: { oid: source.oid } }],
+      },
+    },
+    files: [baseline.file, source.file],
+  } as unknown as Parameters<typeof createSemanticSnapshotReader>[0];
+  return { reader: createSemanticSnapshotReader(bundle), baseline, source };
+}
+
+void test("UTF8 pages preserve original byte identities and codepoint boundaries while binary remains explicit", () => {
+  const bytes = Buffer.from("alpha\n🙂порт\n");
+  const { reader, source } = textReaderFixture(Buffer.from("before\n"), bytes);
+  const first = reader("read_text", { snapshot: "source", path: "app.rs", offset: 0, length: 7 });
+  assert.ok(isRecord(first));
+  assert.equal(first.data, "alpha\n");
+  assert.equal(first.next, 6);
+  assert.equal(first.sha256, source.file.sha256);
+  const second = reader("read_text", { snapshot: "source", path: "app.rs", offset: 6, length: 4 });
+  assert.ok(isRecord(second));
+  assert.equal(second.data, "🙂");
+  assert.equal(second.next, 10);
+  assert.throws(
+    () => reader("read_text", { snapshot: "source", path: "app.rs", offset: 7, length: 4 }),
+    /codepoint/,
+  );
+  const binaryBytes = Buffer.from([0, 255, 1, 2]);
+  const binary = textReaderFixture(Buffer.from("before\n"), binaryBytes).reader;
+  const view = binary("read_text", { snapshot: "source", path: "app.rs", offset: 0, length: 4 });
+  assert.ok(isRecord(view));
+  assert.equal(view.binary, true);
+  assert.equal(view.data, null);
+  const raw = binary("read", { snapshot: "source", path: "app.rs", offset: 0, length: 4 });
+  assert.ok(isRecord(raw) && typeof raw.data === "string");
+  assert.deepEqual(Buffer.from(raw.data, "base64"), binaryBytes);
+});
+
+void test("net delta text views bind both original objects and expose truncation with original continuation offsets", () => {
+  const { reader, source } = textReaderFixture(
+    Buffer.from("\nold\n"),
+    Buffer.from("new\n" + "x".repeat(6000)),
+  );
+  const diff = reader("net_diff", { path: "app.rs" });
+  assert.ok(isRecord(diff) && isRecord(diff.baseline) && isRecord(diff.source));
+  assert.equal(diff.baseline.data, "\nold\n");
+  assert.equal(diff.source.git_oid, source.oid);
+  assert.equal(diff.source.sha256, source.file.sha256);
+  assert.equal(diff.source.truncated, true);
+  assert.equal(diff.source.next, 4096);
+  const tail = reader("read_text", {
+    snapshot: "source",
+    path: "app.rs",
+    offset: 4096,
+    length: 8192,
+  });
+  assert.ok(
+    isRecord(tail) && typeof tail.data === "string" && typeof diff.source.data === "string",
+  );
+  assert.equal(Buffer.from(diff.source.data + tail.data).equals(source.file.bytes), true);
+  assert.throws(() => reader("net_diff", { path: "absent" }), /frozen net delta/);
+  assert.throws(() => reader("net_diff", { path: "app.rs", command: "execute" }), /unauthorized/);
+});
 
 function fixture() {
   const f = releaseSourceFixture();
@@ -428,6 +609,54 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
   assert.equal(
     inspectSemanticRuntimeEvents(events(result, meaningful), bundle).report,
     result.report,
+  );
+  const textReader = createSemanticSnapshotReader(bundle);
+  const toolEvents = (tool: string, args: Record<string, unknown>) => {
+    const call = {
+      id: `${tool}:${JSON.stringify(args)}`,
+      type: "mcp_tool_call",
+      server: "portcove_frozen_bundle",
+      tool,
+      arguments: args,
+    };
+    return [
+      { type: "item.started", item: { ...call, status: "in_progress" } },
+      {
+        type: "item.completed",
+        item: {
+          ...call,
+          status: "completed",
+          error: null,
+          result: { content: [{ type: "text", text: JSON.stringify(textReader(tool, args)) }] },
+        },
+      },
+    ];
+  };
+  const utf8AndDiff = [
+    ...toolEvents("read_text", {
+      snapshot: "manifest",
+      path: "manifest.json",
+      offset: 0,
+      length: 8192,
+    }),
+    ...toolEvents("net_diff", { path: "app.rs" }),
+  ];
+  assert.equal(
+    inspectSemanticRuntimeEvents(events(result, utf8AndDiff), bundle).report,
+    result.report,
+  );
+  const forgedText = structuredClone(utf8AndDiff);
+  const last = forgedText.at(-1)!;
+  assert.ok(
+    "result" in last.item &&
+      isRecord(last.item.result) &&
+      Array.isArray(last.item.result.content) &&
+      isRecord(last.item.result.content[0]),
+  );
+  last.item.result.content[0].text = "{}";
+  assert.throws(
+    () => inspectSemanticRuntimeEvents(events(result, forgedText), bundle),
+    /observation differs/,
   );
   for (const incomplete of [
     metadata,

@@ -21,6 +21,23 @@ import {
   baselineRequiresPython,
   baselineRequiresRust,
 } from "./ci-baseline.mts";
+void test("Linux reviewer boundary edits retain protected ownership and Python contract execution", () => {
+  for (const file of [
+    "scripts/semantic-review-linux-supervisor.py",
+    "scripts/semantic-review-linux-supervisor.test.py",
+    "scripts/semantic-review-linux-supervisor.test.mts",
+    "scripts/qualify-semantic-linux.mts",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/semantic-review-linux-supervisor.test.mts"),
+      file,
+    );
+    assert.ok(baselineRequiresPython(plan), file);
+  }
+});
+
 const make = (files: string[]) =>
   buildValidationPlan({
     changes: files.map((file: string) => ({
