@@ -220,7 +220,7 @@ export async function prepareOwnedPublicationResult(
   outputParent: string,
   deadline: number,
 ) {
-  const { completion, context, native, sbom } = await observeAssociation(
+  const { completion, context, tools, native, sbom } = await observeAssociation(
     completionReceipt,
     contextReceipt,
     toolsReceipt,
@@ -235,6 +235,7 @@ export async function prepareOwnedPublicationResult(
     namespace: completion.namespace,
     controller: {
       revision: completion.executor.controller_revision,
+      source_tree: tools.identity.source_tree,
       ref: completion.executor.execution_ref,
       run_id: completion.executor.run_id,
       run_attempt: completion.executor.run_attempt,
