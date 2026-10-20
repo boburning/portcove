@@ -13,6 +13,11 @@ import {
 } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
+  releaseControlPhaseProfile,
+  isMaintenanceReleaseControlPhase,
+  inspectReleaseControlPhase,
+} from "./release-control-phases.mts";
+import {
   expected,
   jwk,
   assemblerIdentityFixture as fixture,
@@ -299,4 +304,94 @@ void test("immutable owner/repository subjects and exact environment profiles re
   await assert.rejects(
     verifyReleaseControlReaderJobIdentity("site-publication", positive.token, expected, positive),
   );
+});
+
+void test("five TUF roles bind separate fixed environment/job identities and one protected metadata observer", async () => {
+  for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
+    const phase = `tuf-${role}` as const;
+    const profile = releaseControlPhaseProfile(phase);
+    assert.equal(profile.reader_job, `tuf_${role}`);
+    assert.equal(profile.reader_environment, `production-tuf-${role}`);
+    assert.equal(profile.observer_job, "metadata_protection_observation");
+    assert.equal(isMaintenanceReleaseControlPhase(phase), true);
+    const wanted = {
+      ...expected,
+      audience: profile.reader_audience,
+      subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+    };
+    const claims = {
+      aud: wanted.audience,
+      sub: wanted.subject,
+      environment: profile.reader_environment,
+    };
+    const f = fixture(
+      claims,
+      {},
+      { workflow: productionControllerWorkflow, job: profile.reader_name },
+    );
+    assert.equal(
+      (await verifyReleaseControlReaderJobIdentity(phase, f.token, wanted, f)).job_id,
+      501,
+    );
+    for (const patch of [
+      { environment: undefined },
+      { environment: "github-pages" },
+      { sub: expected.subject },
+      { sub: wanted.subject.replace("@43177418/", "@1/") },
+    ]) {
+      const bad = fixture(
+        { ...claims, ...patch },
+        {},
+        { workflow: productionControllerWorkflow, job: profile.reader_name },
+      );
+      await assert.rejects(verifyReleaseControlReaderJobIdentity(phase, bad.token, wanted, bad));
+      assert.equal(bad.counts().requests, 0);
+    }
+    const other = releaseControlPhaseProfile(role === "releases" ? "tuf-preview" : "tuf-releases");
+    const crossJob = fixture(
+      claims,
+      {},
+      { workflow: productionControllerWorkflow, job: other.reader_name },
+    );
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity(phase, crossJob.token, wanted, crossJob),
+    );
+    const observerExpected = {
+      ...wanted,
+      audience: profile.observer_audience,
+      subject: controllerOidcSubject(expected.controller_ref, profile.observer_environment),
+    };
+    const observer = fixture(
+      {
+        aud: observerExpected.audience,
+        sub: observerExpected.subject,
+        environment: profile.observer_environment,
+      },
+      {},
+      { workflow: productionControllerWorkflow, job: profile.observer_name },
+    );
+    assert.equal(
+      (
+        await verifyProductionProtectionObserverJobIdentity(
+          observer.token,
+          observerExpected,
+          observer,
+          phase,
+        )
+      ).job_id,
+      501,
+    );
+  }
+  assert.equal(isMaintenanceReleaseControlPhase("site-publication"), true);
+  for (const phase of [
+    "admission",
+    "payload",
+    "release-publication",
+    "tuf-root",
+    "tuf-targets",
+    "tuf-unknown",
+    null,
+  ])
+    assert.equal(isMaintenanceReleaseControlPhase(phase), false);
+  assert.throws(() => inspectReleaseControlPhase("tuf-root"));
 });
