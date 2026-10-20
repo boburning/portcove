@@ -207,3 +207,31 @@ The API feasibility claims use the current primary documentation:
 [CreateProcessWithLogonW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createprocesswithlogonw)
 and [window station and desktop creation](https://learn.microsoft.com/en-us/windows/win32/winstation/window-station-and-desktop-creation).
 Documentation support is distinct from the unperformed cross-account host test.
+
+The follow-on stage request/capture contract derives its fixed producer, host,
+account and scenario inventory from the existing global authority configuration.
+It binds the exact candidate/build/package and setup descriptor, and keeps the
+signed predecessor/context/signature identities separate for the post-sign
+stage. Partial roots, streams and failed or ambiguous outcomes remain retained;
+a complete serialization requires positive per-root and shared-group teardown.
+These are integrity checks with `authority: none`, not parent provenance.
+
+The prepared Windows scheduler observer uses read-only Task Scheduler COM and
+bounded process queries. It brackets exact task XML, one Exec action, the
+ordinary broker principal, IgnoreNew concurrency and a 35-minute deadline. One
+observed running instance must connect to the actual fixed parent through a
+creation-ordered process ancestry ending at the reported engine PID. The engine
+PID is not relabeled as the application PID. The fixed inbox Windows PowerShell
+reader also checks owner/ancestor ACLs on the descriptor, adjacent initial
+installation receipt, global/boundary configuration, controller and capture roots.
+The adjacent installation receipt avoids a descriptor/task-XML hash cycle.
+Neither helper registers, starts, stops or changes a task or ACL.
+
+The scheduler collector's private receipt denotes only an actual readback. It
+must be joined to the protected local setup reader and freshly re-observed at
+execution boundaries; imported fixtures cannot enter that receipt map. The
+installed task, its actual engine ancestry and cross-account native behavior
+remain unobserved. The tests cover integrity/refusal paths only. Microsoft
+documents the [engine PID](https://learn.microsoft.com/en-us/windows/win32/taskschd/runningtask-enginepid)
+and [security-context scope of GetInstances](https://learn.microsoft.com/en-us/windows/win32/taskschd/registeredtask-getinstances);
+those capabilities do not establish that the proposed host setup exists.
