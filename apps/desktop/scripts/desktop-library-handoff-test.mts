@@ -23,7 +23,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
@@ -110,6 +110,15 @@ export async function libraryHandoffScenario({
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     await click(button("Library and storage"));
+    await click(By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'));
+    const guide = await browser.findElement(By.css(".library-recovery")).getText();
+    assert.ok(guide.includes("A manual copy is unverified"));
+    assert.ok(guide.includes("retroachievements.credentials"));
+    for (const root of ["versions", "user", "source-inbox", "backups", "toolchains", "artwork"])
+      assert.ok(guide.includes(root));
+    const guideImage = path.join(output, "native-library-recovery-guide.png");
+    await writeFile(guideImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(guideImage);
     const moveTrigger = button("Move library");
     const moveDialog = By.css('[aria-labelledby="move-library-title"]');
     await click(moveTrigger);
@@ -226,6 +235,29 @@ export async function libraryHandoffScenario({
     await mkdir(restoreRoot);
     const restoreSelection = object(await invoke("set_default_library", { path: restoreRoot }));
     assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
+    // The owned source has no open game, and switching releases its desktop
+    // handles. Simulate the documented manual content copy without inventing
+    // a production copy API or copying an open database.
+    const contentCopy = path.join(output, "manual-recovery-content");
+    await mkdir(contentCopy);
+    for (const root of ["versions", "user", "source-inbox", "backups", "toolchains", "artwork"]) {
+      const sourceRoot = path.join(destination, root);
+      const exists = await access(sourceRoot).then(
+        () => true,
+        () => false,
+      );
+      if (exists)
+        await cp(sourceRoot, path.join(contentCopy, root), {
+          recursive: true,
+          force: false,
+          errorOnExist: true,
+        });
+    }
+    const originalSource = path.join(output, "opengoal-jak1.iso");
+    const offlineOriginal = path.join(output, "disconnected-original.iso");
+    const originalSourceIdentity = await fileIdentity(originalSource);
+    await rename(originalSource, offlineOriginal);
+    assert.equal((await fileIdentity(offlineOriginal)).sha256, originalSourceIdentity.sha256);
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     await click(button("Library and storage"));
@@ -236,7 +268,14 @@ export async function libraryHandoffScenario({
     await assertEscapeRestoresFocus(restoreTrigger, restoreDialog, "library restore");
     await click(restoreTrigger);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
-    await browser.findElement(By.id("import-content")).sendKeys(destination);
+    const missingContent = path.join(output, "missing-recovery-content");
+    await mkdir(missingContent);
+    await browser.findElement(By.id("import-content")).sendKeys(missingContent);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(By.css('[role="dialog"] [role="alert"]')), 15_000);
+    assert.equal((await browser.findElements(button("Restore this library"))).length, 0);
+    await browser.findElement(By.id("import-content")).clear();
+    await browser.findElement(By.id("import-content")).sendKeys(contentCopy);
     await click(button("Review restore"));
     await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
     const restoreActionStyles = await assertPrimaryReviewAction(
@@ -247,7 +286,7 @@ export async function libraryHandoffScenario({
     const restoreReview = await browser
       .findElement(By.css('[aria-label="Library restore plan"]'))
       .getText();
-    assert.ok(restoreReview.includes(destination) && restoreReview.includes(restoreRoot));
+    assert.ok(restoreReview.includes(contentCopy) && restoreReview.includes(restoreRoot));
     assert.ok(restoreReview.includes("Saved game-file locations"));
     await assertCompactReview(browser, '[role="dialog"]');
     const restoreAccessibility = path.join(output, "library-restore-accessibility.json");
@@ -268,6 +307,7 @@ export async function libraryHandoffScenario({
     );
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
     await confirmNative(
       "Confirm library restore",
       "Restore library",
@@ -286,6 +326,19 @@ export async function libraryHandoffScenario({
     );
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
+    // Restore retained the disconnected original reference, rather than
+    // silently adopting the copied managed content as another original.
+    assert.deepEqual(transportValues("source", success(await invoke("get_sources"))), sources);
+    assert.equal(
+      await access(originalSource).then(
+        () => true,
+        () => false,
+      ),
+      false,
+    );
+    assert.equal((await fileIdentity(offlineOriginal)).sha256, originalSourceIdentity.sha256);
+    await rename(offlineOriginal, originalSource);
 
     // After review, wait for core's pending authority marker before changing an
     // owned save. This deterministically exercises the actual pre-activation
@@ -347,6 +400,10 @@ export async function libraryHandoffScenario({
           preserved_originals: preserved,
           copied,
           restore: {
+            manually_copied_content: contentCopy,
+            missing_content_refused_before_execution: true,
+            disconnected_original_reference_retained: true,
+            original_source_identity: originalSourceIdentity,
             before: beforeRestore,
             after: afterRestore,
             trusted_native_confirmation: true,
