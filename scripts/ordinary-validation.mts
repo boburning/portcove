@@ -555,7 +555,10 @@ const workflowTests = new Map([
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
   ["upstream-health.yml", ["scripts/upstream-observer.test.mts"]],
-  ["updater-artifact-rehearsal.yml", ["scripts/updater-artifact-inventory.test.mts"]],
+  [
+    "updater-artifact-rehearsal.yml",
+    ["scripts/updater-artifact-inventory.test.mts", "scripts/release-payload-signing.test.mts"],
+  ],
   ["pr-conventions.yml", ["scripts/pr-conventions.test.mts"]],
 ]);
 
@@ -568,6 +571,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-public-build-provenance.test.mts",
   "scripts/write-release-checksums.test.mts",
   "scripts/updater-artifact-inventory.test.mts",
+  "scripts/release-payload-signing.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/finalize-release-assets.test.mts",
   "scripts/generate-release-downloads.test.mts",
@@ -1117,6 +1121,7 @@ function sorted(set: ReadonlySet<string>) {
 export function nodeTestCommand(files: string[]) {
   const serialWindowsQualification = [
     "scripts/updater-artifact-inventory.test.mts",
+    "scripts/release-payload-signing.test.mts",
     "scripts/windows-qualification-session.integration.test.mts",
   ].every((file) => files.includes(file));
   return command(

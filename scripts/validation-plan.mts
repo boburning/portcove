@@ -311,6 +311,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/test-linux-package-ownership.sh",
   "scripts/test-windows-installer.ps1",
   "scripts/updater-artifact-inventory.mts",
+  "scripts/release-payload-signing.mts",
   "scripts/verify-macos-release.ps1",
   "scripts/windows-qualification-session.ps1",
   "scripts/windows-qualification-session.integration.test.mts",
