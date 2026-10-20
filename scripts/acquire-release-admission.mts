@@ -55,6 +55,8 @@ import {
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
+import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
@@ -70,6 +72,25 @@ const refsQuery = `query AdmissionRefs($cursor:String) {
 }`;
 type Api = Pick<GitHubApiClient, "request" | "graphql">;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
+export interface PreparedReleaseAdmissionFacts {
+  checkpoint: string;
+  configuration: unknown;
+  opportunity: unknown;
+  assembly: unknown;
+  archives: readonly { platform: string; artifact_id: number; bytes: number; sha256: string }[];
+  public_build_inputs: unknown;
+  evidence: ReturnType<typeof collectReleaseRunEvidence>;
+  contexts: unknown;
+  allocations: unknown;
+}
+function freezePreparedFacts<T>(value: T, depth = 0): T {
+  if (depth > 32) throw new Error("private prepared facts nesting bound exceeded");
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) freezePreparedFacts(child, depth + 1);
+    Object.freeze(value);
+  }
+  return value;
+}
 
 function oid(value: unknown): asserts value is string {
   if (typeof value !== "string" || !/^[a-f0-9]{40}$/u.test(value))
@@ -139,12 +160,17 @@ export async function acquireReleaseAdmission(
     now?: () => number;
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
+    controlPhase?: ReleaseControlPhase;
     // Called once after all large immutable archives have been privately
     // validated. The same process retains its facts; no serialized facts import.
-    establishControls?: (preparedFactsSha256: string) => Promise<AuthenticatedReleaseControlSource>;
+    establishControls?: (
+      preparedFactsSha256: string,
+      facts: Readonly<PreparedReleaseAdmissionFacts>,
+    ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
-  if (options.controls) requireAuthenticatedReleaseControlSource(options.controls);
+  const controlPhase = inspectReleaseControlPhase(options.controlPhase);
+  if (options.controls) requireAuthenticatedReleaseControlSource(options.controls, controlPhase);
   if (options.controls && options.establishControls)
     throw new Error("admission accepts exactly one live control establishment path");
   let controls = options.controls;
@@ -720,22 +746,23 @@ export async function acquireReleaseAdmission(
       if (!frozenControlsOpportunity)
         throw new Error("late control acquisition requires the actual frozen complete opportunity");
       phase = "private-facts-ready-awaiting-fresh-observer";
+      if (!checkpoint) throw new Error("private prepared facts lack exact checkpoint");
+      const facts: PreparedReleaseAdmissionFacts = {
+        checkpoint,
+        configuration: config,
+        opportunity: frozenControlsOpportunity,
+        assembly,
+        archives,
+        public_build_inputs: publicBuildInputs?.binding ?? null,
+        evidence,
+        contexts,
+        allocations,
+      };
       controls = await options.establishControls(
-        hash(
-          JSON.stringify({
-            checkpoint,
-            configuration: config,
-            opportunity: frozenControlsOpportunity,
-            assembly,
-            archives,
-            public_build_inputs: publicBuildInputs?.binding ?? null,
-            evidence,
-            contexts,
-            allocations,
-          }),
-        ),
+        hash(JSON.stringify(facts)),
+        freezePreparedFacts(structuredClone(facts)),
       );
-      requireAuthenticatedReleaseControlSource(controls);
+      requireAuthenticatedReleaseControlSource(controls, controlPhase);
       phase = "authenticated-controls-before-final-readback";
       controlsBefore = controls.read(api, frozenControlsOpportunity);
     }
@@ -914,6 +941,45 @@ export async function acquireReleaseAdmission(
   }
 }
 
+/** The existing one-process handshake, shared with later fixed controller roles.
+ * An optional trusted continuation finishes additional immutable byte work
+ * before readiness; it receives only a detached frozen view, never authority. */
+export async function acquireReleaseAdmissionWithControlHandshake(
+  root: string,
+  configuration: unknown,
+  rawPhase: unknown = "admission",
+  additionalFacts?: (
+    facts: Readonly<PreparedReleaseAdmissionFacts>,
+    factsSha256: string,
+  ) => Promise<string>,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  const env = { ...process.env };
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  return acquireReleaseAdmission(root, configuration, {
+    controlPhase: phase,
+    establishControls: async (factsSha256, facts) => {
+      const readyDigest = additionalFacts ? await additionalFacts(facts, factsSha256) : factsSha256;
+      if (!/^[a-f0-9]{64}$/u.test(readyDigest))
+        throw new Error("prepared continuation requires its exact facts digest");
+      await writeFile(
+        path.join(root, `ready-${phase}.json`),
+        JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
+        { flag: "wx", mode: 0o600 },
+      );
+      const observedArtifact = await waitForControlArtifact(root, "observation", {
+        phase,
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        run_id: String(reader.admitted.run_id),
+        run_attempt: reader.admitted.run_attempt,
+      });
+      return authenticateReleaseControlSource(env, workflow, { phase, observedArtifact });
+    },
+  });
+}
+
 async function main() {
   const handshake = process.argv.length === 3 && process.argv[2] === "--handshake";
   if (process.argv.length !== 2 && !handshake)
@@ -934,28 +1000,10 @@ async function main() {
       stage("acquire-publication-reservation-and-qualification");
       let result;
       try {
-        const workflow = await readProductionControllerWorkflowBytes();
         if (handshake) {
-          const reader = await authenticateControlReaderJob(process.env, workflow);
-          result = await acquireReleaseAdmission(root, JSON.parse(raw), {
-            establishControls: async (factsSha256) => {
-              // One fixed process owns all prepared facts in memory. This public
-              // readiness declaration is never a serialized admission result.
-              await writeFile(
-                path.join(root, "ready.json"),
-                JSON.stringify(prepareControlReadiness(reader.identity, factsSha256)),
-                { flag: "wx", mode: 0o600 },
-              );
-              const observedArtifact = await waitForControlArtifact(root, "observation", {
-                controller_revision: reader.admitted.revision,
-                controller_ref: reader.admitted.execution_ref,
-                run_id: String(reader.admitted.run_id),
-                run_attempt: reader.admitted.run_attempt,
-              });
-              return authenticateReleaseControlSource(process.env, workflow, { observedArtifact });
-            },
-          });
+          result = await acquireReleaseAdmissionWithControlHandshake(root, JSON.parse(raw));
         } else {
+          const workflow = await readProductionControllerWorkflowBytes();
           const controls = await authenticateReleaseControlSource(process.env, workflow);
           result = await acquireReleaseAdmission(root, JSON.parse(raw), { controls });
         }

@@ -3,10 +3,16 @@ import { performance } from "node:perf_hooks";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { inspectReleaseControlPhase } from "./release-control-phases.mts";
 
 /** Transport only, emitted after the fixed production-observer verifier.
  * Authentication comes from admitted same-workflow needs, not this JSON. */
-export function prepareProductionProtectionHandoff(identity: unknown, observation: unknown) {
+export function prepareProductionProtectionHandoff(
+  identity: unknown,
+  observation: unknown,
+  rawPhase: unknown = "admission",
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
   if (
     !isRecord(identity) ||
     identity.workflow !== productionControllerWorkflow ||
@@ -19,6 +25,7 @@ export function prepareProductionProtectionHandoff(identity: unknown, observatio
     throw new Error("production protection producer identity differs or expired");
   return {
     schema_version: 1,
+    phase,
     producer: {
       workflow: identity.workflow,
       controller_revision: identity.workflow_revision,

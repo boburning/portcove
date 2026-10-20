@@ -6,7 +6,7 @@ import {
 } from "./production-controller-admission.mts";
 import {
   requestAssemblerToken,
-  verifyReleaseInputReaderJobIdentity,
+  verifyReleaseControlReaderJobIdentity,
 } from "./assembler-job-identity.mts";
 import { requireReleaseInputWriterPolicy } from "./release-input-protections.mts";
 import {
@@ -20,9 +20,18 @@ import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { requireObservedControlArtifact } from "./release-control-handshake.mts";
 import type { ObservedControlArtifact } from "./release-control-handshake.mts";
+import {
+  inspectReleaseControlPhase,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 const establishedSources = new WeakSet<object>();
-export function requireAuthenticatedReleaseControlSource(value: unknown) {
-  if (typeof value !== "object" || value === null || !establishedSources.has(value))
+export function requireAuthenticatedReleaseControlSource(
+  value: unknown,
+  rawPhase: unknown = "admission",
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  if (!isRecord(value) || !establishedSources.has(value) || value.phase !== phase)
     throw new Error("release control source must be established by the fixed runtime verifier");
 }
 
@@ -36,8 +45,9 @@ function json(raw: string | undefined, maximum: number) {
   return JSON.parse(raw) as unknown;
 }
 
-type ReaderIdentityOptions = Parameters<typeof verifyReleaseInputReaderJobIdentity>[2];
+type ReaderIdentityOptions = Parameters<typeof verifyReleaseControlReaderJobIdentity>[3];
 type ReaderOptions = {
+  phase?: ReleaseControlPhase;
   identity?: ReaderIdentityOptions;
   requestToken?: typeof requestAssemblerToken;
 };
@@ -47,13 +57,16 @@ export async function authenticateControlReaderJob(
   options: ReaderOptions = {},
 ) {
   const env = { ...environment };
+  const phase = inspectReleaseControlPhase(options.phase);
+  const profile = releaseControlPhaseProfile(phase);
   const admitted = admitProductionInputReader(
     env.PORTCOVE_CONTROLLER_ADMISSION,
     env,
     workflowBytes,
+    phase,
   );
   const expected = {
-    audience: "portcove-release-input-reader-v1",
+    audience: profile.reader_audience,
     subject: `repo:boburning/portcove:ref:${admitted.execution_ref}`,
     controller_revision: admitted.revision,
     controller_ref: admitted.execution_ref,
@@ -62,7 +75,8 @@ export async function authenticateControlReaderJob(
     run_attempt: admitted.run_attempt,
   };
   const token = await (options.requestToken ?? requestAssemblerToken)(expected.audience, env);
-  const identity = await verifyReleaseInputReaderJobIdentity(
+  const identity = await verifyReleaseControlReaderJobIdentity(
+    phase,
     token,
     expected,
     options.identity ?? { transport: { cwd: process.cwd() } },
@@ -79,6 +93,7 @@ export async function authenticateReleaseControlSource(
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
   options: {
+    phase?: ReleaseControlPhase;
     identity?: ReaderIdentityOptions;
     requestToken?: typeof requestAssemblerToken;
     observerApi?: GitHubRestReader;
@@ -88,13 +103,15 @@ export async function authenticateReleaseControlSource(
   } = {},
 ) {
   const env = { ...environment };
+  const phase = inspectReleaseControlPhase(options.phase);
+  const profile = releaseControlPhaseProfile(phase);
   const { admitted, identity } = await authenticateControlReaderJob(env, workflowBytes, options);
   const config = inspectReviewProducerConfiguration(json(env.PORTCOVE_REVIEW_PRODUCER, 4096));
   if (options.observedArtifact)
-    requireObservedControlArtifact(options.observedArtifact, "observation");
+    requireObservedControlArtifact(options.observedArtifact, "observation", phase);
   const handoff =
     options.observedArtifact?.body ?? json(env.PORTCOVE_TRUSTED_PROTECTION_OBSERVATION, 128 * 1024);
-  exact(handoff, "observation,producer,schema_version");
+  exact(handoff, "observation,phase,producer,schema_version");
   exact(
     handoff.producer,
     "check_run_id,controller_ref,controller_revision,job_id,run_attempt,run_id,workflow",
@@ -102,6 +119,7 @@ export async function authenticateReleaseControlSource(
   const producer = handoff.producer;
   if (
     handoff.schema_version !== 1 ||
+    handoff.phase !== phase ||
     producer.workflow !== productionControllerWorkflow ||
     producer.controller_revision !== admitted.revision ||
     producer.controller_ref !== admitted.execution_ref ||
@@ -143,7 +161,7 @@ export async function authenticateReleaseControlSource(
       String(job.run_id) !== admitted.run_id ||
       job.run_attempt !== admitted.run_attempt ||
       job.head_sha !== admitted.revision ||
-      job.name !== "Observe production release input protections" ||
+      job.name !== profile.observer_name ||
       !(
         (job.status === "completed" && job.conclusion === "success") ||
         (options.observedArtifact && job.status === "in_progress" && job.conclusion === null)
@@ -171,7 +189,38 @@ export async function authenticateReleaseControlSource(
     return requireReleaseInputWriterPolicy(handoff.observation, config.writer_app_id, now());
   };
   guard();
+  const requireObservedRefs = (refs: readonly (readonly [string, string])[]) => {
+    if (
+      !isRecord(handoff.observation) ||
+      !isRecord(handoff.observation.inventory) ||
+      !Array.isArray(handoff.observation.inventory.branches)
+    )
+      throw new Error("protection source ref inventory unavailable");
+    for (const [branch, commit] of refs) {
+      const row: unknown = handoff.observation.inventory.branches.find(
+        (item: unknown) => isRecord(item) && item.branch === branch,
+      );
+      if (
+        !isRecord(row) ||
+        !isRecord(row.ref) ||
+        !isRecord(row.ref.object) ||
+        row.ref.object.sha !== commit
+      )
+        throw new Error("authenticated protection observation and current control ref differ");
+    }
+  };
+  const readerFacts = Object.freeze({
+    job_id: identity.job_id,
+    check_run_id: identity.check_run_id,
+    run_id: admitted.run_id,
+    run_attempt: admitted.run_attempt,
+    controller_revision: admitted.revision,
+    controller_ref: admitted.execution_ref,
+    expires_at: identity.expires_at,
+    scope: "oidc-job-identity-only",
+  });
   const source = Object.freeze({
+    phase,
     evidence_scope:
       options.identity ||
       options.requestToken ||
@@ -182,6 +231,36 @@ export async function authenticateReleaseControlSource(
       options.observedArtifact?.evidence_scope === "injected-provider"
         ? "injected-provider"
         : "github.com",
+    readMaintenance(api: CoordinatorRemoteApi) {
+      if (phase !== "site-publication")
+        throw new Error("metadata renewal requires the fixed site-publication phase");
+      const protection = guard();
+      const pause = readPublicationPause(api);
+      const capacity = readRatifiedCapacityConfiguration(api, guard);
+      guard();
+      if (producerReadback() !== producerIdentity)
+        throw new Error("observer job changed during maintenance acquisition");
+      requireObservedRefs([["portcove-release-pause", pause.commit]]);
+      if (capacity.commit !== pause.commit)
+        throw new Error("pause and capacity configuration ref changed");
+      guard();
+      const facts = {
+        phase,
+        purpose: "metadata-renewal",
+        reader: readerFacts,
+        pause: { commit: pause.commit, publication_paused: pause.publication_paused },
+        capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },
+        protection,
+      };
+      return {
+        ...facts,
+        capacity_source: capacity,
+        resource_policy_matches_controller:
+          admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
+        facts_sha256: capacityDigest(facts),
+        authority: "none",
+      };
+    },
     read(api: CoordinatorRemoteApi, opportunity: unknown) {
       const protection = guard();
       const classification = readReviewedClassification(api, config, opportunity);
@@ -190,30 +269,15 @@ export async function authenticateReleaseControlSource(
       guard();
       if (producerReadback() !== producerIdentity)
         throw new Error("observer job changed during source acquisition");
-      if (
-        !isRecord(handoff.observation) ||
-        !isRecord(handoff.observation.inventory) ||
-        !Array.isArray(handoff.observation.inventory.branches)
-      )
-        throw new Error("protection source ref inventory unavailable");
-      for (const [branch, commit] of [
+      requireObservedRefs([
         ["portcove-release-inputs", classification.commit],
         ["portcove-release-pause", pause.commit],
-      ]) {
-        const row: unknown = handoff.observation.inventory.branches.find(
-          (item: unknown) => isRecord(item) && item.branch === branch,
-        );
-        if (
-          !isRecord(row) ||
-          !isRecord(row.ref) ||
-          !isRecord(row.ref.object) ||
-          row.ref.object.sha !== commit
-        )
-          throw new Error("authenticated protection observation and current control ref differ");
-      }
+      ]);
       if (capacity.commit !== pause.commit)
         throw new Error("pause and capacity configuration ref changed");
       const facts = {
+        phase,
+        reader: readerFacts,
         classification: {
           commit: classification.commit,
           opportunity: classification.opportunity,

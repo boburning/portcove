@@ -3,6 +3,7 @@ import { open } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 export const productionControllerWorkflow = ".github/workflows/application-update-production.yml";
 const repository = "boburning/portcove";
@@ -114,26 +115,28 @@ export function admitProductionInputReader(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
+  phase: unknown = "admission",
 ) {
   return admitController(
     productionControllerWorkflow,
     rawPolicy,
     environment,
     workflowBytes,
-    "independent_admission",
+    releaseControlPhaseProfile(phase).reader_job,
   );
 }
 export function admitProductionProtectionObserver(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
+  phase: unknown = "admission",
 ) {
   return admitController(
     productionControllerWorkflow,
     rawPolicy,
     environment,
     workflowBytes,
-    "protection_observation",
+    releaseControlPhaseProfile(phase).observer_job,
   );
 }
 export function admitReviewedInputsController(

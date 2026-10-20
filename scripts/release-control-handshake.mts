@@ -8,6 +8,11 @@ import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import {
+  inspectReleaseControlPhase,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 
 const base = "repos/boburning/portcove";
 const maximum = 128 * 1024;
@@ -21,18 +26,16 @@ function immutable<T>(value: T, depth = 0): T {
   }
   return value;
 }
-export const handshakeRoles = {
-  ready: { name: "Authenticate release control inputs", member: "ready.json" },
-  observation: { name: "Observe production release input protections", member: "observation.json" },
-} as const;
-type Role = keyof typeof handshakeRoles;
+type Role = "ready" | "observation";
 export interface ControlAttempt {
+  phase?: ReleaseControlPhase;
   controller_revision: string;
   controller_ref: string;
   run_id: string;
   run_attempt: number;
 }
 function attempt(raw: ControlAttempt) {
+  const phase = inspectReleaseControlPhase(raw.phase);
   if (
     !/^[a-f0-9]{40}$/u.test(raw.controller_revision) ||
     !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
@@ -42,15 +45,28 @@ function attempt(raw: ControlAttempt) {
     raw.run_attempt !== 1
   )
     throw new Error("control handshake requires the exact first controller attempt");
-  return { ...raw };
+  return {
+    phase,
+    controller_revision: raw.controller_revision,
+    controller_ref: raw.controller_ref,
+    run_id: raw.run_id,
+    run_attempt: raw.run_attempt,
+  };
 }
 export function controlHandshakeArtifactName(role: Role, raw: ControlAttempt) {
+  if (role !== "ready" && role !== "observation")
+    throw new Error("fixed control artifact role required");
   const input = attempt(raw);
-  return `trusted-release-control-${role}-${input.run_id}-${input.run_attempt}`;
+  return `trusted-release-control-${input.phase}-${role}-${input.run_id}-${input.run_attempt}`;
 }
 /** Token-free identity declaration. Authentication comes from the fixed reviewed
  * upload route AND current provider job/artifact readback, not this JSON alone. */
-export function prepareControlReadiness(identity: unknown, factsSha256: string) {
+export function prepareControlReadiness(
+  identity: unknown,
+  factsSha256: string,
+  rawPhase: unknown = "admission",
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
   if (
     !isRecord(identity) ||
     identity.kind !== "oidc-job-identity-only" ||
@@ -60,6 +76,7 @@ export function prepareControlReadiness(identity: unknown, factsSha256: string) 
     throw new Error("verified reader identity and private prepared facts required");
   return {
     schema_version: 1,
+    phase,
     producer: {
       workflow: identity.workflow,
       controller_revision: identity.workflow_revision,
@@ -73,12 +90,17 @@ export function prepareControlReadiness(identity: unknown, factsSha256: string) 
   };
 }
 /** A proof cannot be recreated from JSON or caller booleans. */
-export function requireObservedControlArtifact(raw: unknown, role: Role) {
+export function requireObservedControlArtifact(
+  raw: unknown,
+  role: Role,
+  phase: unknown = "admission",
+) {
   if (
     !raw ||
     typeof raw !== "object" ||
     !proofs.has(raw) ||
-    (raw as { role?: unknown }).role !== role
+    (raw as { role?: unknown }).role !== role ||
+    (raw as { phase?: unknown }).phase !== inspectReleaseControlPhase(phase)
   )
     throw new Error("control artifact requires runtime provider collection");
 }
@@ -101,6 +123,7 @@ export async function waitForControlArtifact(
   } = {},
 ) {
   const input = attempt(raw);
+  const phaseProfile = releaseControlPhaseProfile(input.phase);
   const runner = createGitHubRunner({
     ...options.transport,
     cwd: privateRoot,
@@ -198,7 +221,10 @@ export async function waitForControlArtifact(
     while (++polls <= 81) {
       const matches = inventory().filter((a) => a.name === name);
       if (matches.length > 1) throw new Error("control artifact name ambiguous");
-      const producer = jobs().filter((j) => j.name === handshakeRoles[role].name);
+      const producer = jobs().filter(
+        (j) =>
+          j.name === (role === "ready" ? phaseProfile.reader_name : phaseProfile.observer_name),
+      );
       if (producer.length > 1) throw new Error("control producer job ambiguous");
       const job = producer[0];
       const artifact = matches[0];
@@ -244,7 +270,7 @@ export async function waitForControlArtifact(
         });
         if (zip.length !== artifact.size_in_bytes || `sha256:${digest(zip)}` !== artifact.digest)
           throw new Error("control artifact archive changed");
-        const member = handshakeRoles[role].member;
+        const member = `${role}-${input.phase}.json`;
         const parsed = inspectBoundedZip(zip, {
           compressedBytes: maximum,
           expandedBytes: maximum,
@@ -263,7 +289,12 @@ export async function waitForControlArtifact(
         if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
           throw new Error("control artifact bytes differ");
         const body: unknown = JSON.parse(bytes.toString("utf8"));
-        if (!isRecord(body) || body.schema_version !== 1 || !isRecord(body.producer))
+        if (
+          !isRecord(body) ||
+          body.schema_version !== 1 ||
+          body.phase !== input.phase ||
+          !isRecord(body.producer)
+        )
           throw new Error("control artifact payload unavailable");
         const p = body.producer;
         if (
@@ -284,7 +315,7 @@ export async function waitForControlArtifact(
           throw new Error("control artifact producer differs from fixed live job");
         if (
           role === "ready" &&
-          (Object.keys(body).sort().join(",") !== "facts_sha256,producer,schema_version" ||
+          (Object.keys(body).sort().join(",") !== "facts_sha256,phase,producer,schema_version" ||
             typeof body.facts_sha256 !== "string" ||
             !/^[a-f0-9]{64}$/u.test(body.facts_sha256))
         )
@@ -308,6 +339,7 @@ export async function waitForControlArtifact(
           throw new Error("control producer changed during collection");
         const proof = immutable({
           role,
+          phase: input.phase,
           body,
           artifact: structuredClone(artifact),
           job: structuredClone(job),
