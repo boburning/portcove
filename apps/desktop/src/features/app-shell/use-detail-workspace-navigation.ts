@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { focusRegion } from "../../focus";
+import { focusAndReveal, focusRegion } from "../../focus";
+import { scrollWorkspaceTo, workspaceScrollTop } from "../../workspace-scroll";
 import type { DetailDestination } from "../../view-model";
 
 type DetailReturn = {
@@ -29,21 +30,21 @@ export function useDetailWorkspaceNavigation(
       current.current = {
         portId,
         originKey,
-        scrollTop: workspace.current?.scrollTop ?? 0,
+        scrollTop: workspaceScrollTop(workspace.current),
         token,
       };
       setOpeningToken(token);
       setSelectedId(portId);
       window.requestAnimationFrame(() => {
         if (current.current?.token !== token) return;
-        workspace.current?.scrollTo({ top: 0 });
+        scrollWorkspaceTo(workspace.current, 0);
         const target = destination
           ? document.getElementById(destinationHeading[destination])
           : undefined;
         if (target) {
           target.scrollIntoView({ block: "start" });
           target.focus({ preventScroll: true });
-        } else document.querySelector<HTMLElement>(".detail-back")?.focus({ preventScroll: true });
+        } else focusAndReveal(document.querySelector<HTMLElement>(".detail-back"));
       });
     },
     [setSelectedId, workspace],
@@ -59,7 +60,7 @@ export function useDetailWorkspaceNavigation(
       setSelectedId(undefined);
       window.requestAnimationFrame(() => {
         if (sequence.current !== transition || current.current) return;
-        workspace.current?.scrollTo({ top: origin.scrollTop });
+        scrollWorkspaceTo(workspace.current, origin.scrollTop);
         const target = origin.originKey
           ? document.querySelector<HTMLElement>(
               `[data-detail-origin="${CSS.escape(origin.originKey)}"]`,
@@ -70,7 +71,7 @@ export function useDetailWorkspaceNavigation(
           document.querySelector<HTMLElement>(
             `[data-detail-game-id="${CSS.escape(origin.portId)}"]`,
           );
-        if (sameGame) sameGame.focus({ preventScroll: true });
+        if (sameGame) focusAndReveal(sameGame);
         else focusRegion("workspace");
       });
     },

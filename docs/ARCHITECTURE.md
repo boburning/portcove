@@ -1,5 +1,12 @@
 # Architecture
 
+Desktop interface enlargement is presentation authority: `InterfaceSizeController`
+serializes the existing Tauri WebView zoom API and persists acknowledged choices
+within the browser profile, independently of library generations. React owns
+pending intent and recovery feedback. No Core library record, durable operation,
+installation lock or host scheduler is created for interface scaling. See
+[theme ownership](THEME.md#whole-interface-enlargement-and-reflow).
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 ## Current ownership and deliverables
