@@ -32,6 +32,28 @@ the `.txt` extension before compilation; using the fixed source as
 `-TypeDefinition` then compiled successfully. This preserves that setup failure
 without interpreting it as a runtime failure or a native pass.
 
+The follow-on helper also exposes the retained-handle and private-desktop window
+operations needed by the existing owner-side harness, and fixed owner Credential
+Manager lookup for the local account only. That lookup was not called. The
+read-only input tests now cover twelve refusals, including NSIS's documented
+last, unquoted absolute `/D=` destination and refusal of a destination outside
+qualification work. The GUI fixture parses without being executed.
+
+A separate actual same-owner anonymous-pipe test passes normal bytes, rejects
+invalid UTF-8 and refuses output beyond four MiB. Capture starts on a worker so
+synchronous pipe reads do not delay resuming a suspended child. The current
+[.NET Windows process implementation](https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/Process.Windows.cs)
+uses standard pipe handles with the same logon API; this supports preparation
+of that route, not a claim that the unperformed cross-account test passed.
+[NSIS's command-line contract](https://nsis.sourceforge.io/Docs/Chapter3.html#installerusage)
+requires preserving the terminal unquoted install destination.
+
+`scripts/fixtures/native-account-gui-probe.ps1` is prepared for the single inert
+post-setup test. It creates a basic private-desktop WinForms window and a bounded
+inert descendant, reports its account/profile/PIDs, and leaves all descendant
+termination assertions to the owner parent. It is not a WebView, package,
+minimum-environment or native Check producer. It has not been run.
+
 The actual host was observed as Windows build 26300.9711 / DisplayVersion 26H2.
 That establishes host availability only. No serviced or loaded WebView version,
 native minimum-platform acceptance, installed package or update journey is
