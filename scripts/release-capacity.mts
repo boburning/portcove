@@ -75,7 +75,17 @@ export function inspectCapacityExecutorIdentity(raw: unknown) {
     raw.execution_ref.includes("..") ||
     raw.execution_ref.includes("//") ||
     !/^\.github\/workflows\/[a-z0-9][a-z0-9-]{0,100}\.ya?ml$/u.test(raw.workflow) ||
-    !["coordinator", "release-publication", "site-publication"].includes(String(raw.role))
+    ![
+      "coordinator",
+      "release-publication",
+      "site-publication",
+      "payload-signing",
+      "tuf-releases",
+      "tuf-preview",
+      "tuf-stable",
+      "tuf-snapshot",
+      "tuf-timestamp",
+    ].includes(String(raw.role))
   )
     throw new Error("executor fixed profile fields invalid");
   return {
