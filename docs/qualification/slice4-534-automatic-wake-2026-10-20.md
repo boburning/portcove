@@ -36,7 +36,12 @@ they carry no release policy. A successful dispatch means scheduling only.
 See the [provider dispatch contract](https://docs.github.com/en/rest/actions/workflows#create-a-workflow-dispatch-event).
 
 Before any later POST, bounded prior-wake readback must reach either a successful
-fixed-workflow recovery boundary or the fresh setup activation preimage. A failed
+fixed-workflow recovery boundary or the fresh setup activation preimage. A prior
+successful run is a boundary only after its original immutable intent artifact
+matches the complete current configuration, including activation timestamp,
+controller ref/revision, dispatch actor and both workflow digests. Appended or
+duplicated artifact identities and incomplete inventories refuse that shortcut.
+A failed
 response never means no effect. A provider-observed skipped exact dispatch step
 can establish that the step did not run. Otherwise the original correlated
 controller run must be observed exactly once with the appointed actor/source.
@@ -46,6 +51,14 @@ No original POST is repeated. The
 [workflow-run API](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2026-03-10)
 has a 1,000-result filtered-search ceiling; saturated results are explicitly
 Unknown. The implementation bounds pages and preserves all available receipts.
+
+The held workflow uses the provider's supported `queue: max`, preserving one
+running wake with cancellation disabled and up to 100 pending runs. This avoids
+ordinary pending-run replacement. The
+[provider concurrency contract](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
+still cancels overflow. A terminal run with no positively identified dispatch
+step remains Unknown; an empty job list is not proof that no effect occurred.
+Provider qualification of that exceptional recovery case remains outstanding.
 
 ## Setup and recovery boundary
 
@@ -63,7 +76,7 @@ recovery; this document does not request another mechanism selection.
 
 ## Focused evidence and remaining work
 
-Eight credential-free tests pass for immutable intent before POST, exact run
+Nine credential-free tests pass for immutable intent before POST, exact run
 correlation, source/ref/actor changes, malformed/altered intent, incomplete and
 saturated inventories, imported policy/manual/rerun refusal, original lost
 response retention, prior readback/skip and expired clocks. The actual builtin
@@ -72,6 +85,10 @@ The initial typing of a union result needed a literal discriminant. An initial
 workflow assertion overmatched both disabled package-manager cache and the App's
 explicit permission field; the assertion now distinguishes those from workflow
 token permissions. Neither failure is production execution evidence.
+Independent review found that workflow bytes alone did not bind an earlier
+successful wake to the current activation configuration. The retained-intent
+readback repairs that gap; changed controller and activation inputs refuse before
+POST while an exact prior intent establishes only the scheduling boundary.
 
 Actual provider timing, App issuance, wake installation, run dispatch and the
 complete controller DAG remain unobserved. The 99-job-minute total proposal is

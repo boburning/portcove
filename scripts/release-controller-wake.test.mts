@@ -78,6 +78,7 @@ function fixture() {
     privateRepo = false,
     postStatus: number | null = 200,
     archive = Buffer.alloc(0),
+    priorArchive = Buffer.alloc(0),
     prior: Record<string, unknown>[] = [],
     recovered: Record<string, unknown>[] = [],
     skipped = false,
@@ -109,8 +110,6 @@ function fixture() {
           headers: new Map<string, string>(),
           body: {
             workflow_run_id: 900,
-            run_number: 900,
-            created_at: created,
             run_url: `https://api.github.com/${base}/actions/runs/900`,
             html_url: "https://github.com/boburning/portcove/actions/runs/900",
           },
@@ -180,6 +179,27 @@ function fixture() {
             head_sha: env.GITHUB_SHA,
           },
         };
+      else if (endpoint === `${base}/actions/runs/41/artifacts?per_page=100`)
+        result = {
+          total_count: 1,
+          artifacts: [
+            { id: 2, name: "controller-wake-intent-41-1", digest: `sha256:${hash(priorArchive)}` },
+          ],
+        };
+      else if (endpoint === `${base}/actions/artifacts/2`)
+        result = {
+          id: 2,
+          name: "controller-wake-intent-41-1",
+          digest: `sha256:${hash(priorArchive)}`,
+          expired: false,
+          size_in_bytes: priorArchive.length,
+          workflow_run: {
+            id: 41,
+            repository_id: 1354613114,
+            head_repository_id: 1354613114,
+            head_sha: env.GITHUB_SHA,
+          },
+        };
       else throw new Error(`unexpected route ${endpoint}`);
       return { status: 200, headers: new Map<string, string>(), body: result };
     },
@@ -208,9 +228,9 @@ function fixture() {
         mode: "dispatch",
         artifact: { id: 1, sha256: hash(archive) },
         directory: process.cwd(),
-        download: () => {
+        download: (endpoint) => {
           downloadCalls++;
-          return archive;
+          return endpoint.includes("/artifacts/2/") ? priorArchive : archive;
         },
       });
     },
@@ -235,6 +255,25 @@ function fixture() {
     },
     priorFailure: () => {
       prior = [{ ...ownRun, id: 41, run_number: 41, status: "completed", conclusion: "failure" }];
+    },
+    priorSuccess: (changes: Record<string, unknown> = {}) => {
+      prior = [{ ...ownRun, id: 41, run_number: 41, status: "completed", conclusion: "success" }];
+      const selected = inspectControllerWakeConfiguration({ ...config, ...changes });
+      const intent = {
+        schema_version: 1,
+        controller: selected,
+        endpoint: `${base}/actions/workflows/application-update-production.yml/dispatches`,
+        body: {
+          ref: selected.execution_ref.slice("refs/tags/".length),
+          inputs: { wake_run_id: "41" },
+          return_run_details: true,
+        },
+        wake_run_id: "41",
+        wake_revision: env.GITHUB_SHA,
+      };
+      priorArchive = createAuditZip([
+        ["controller-wake-intent.json", Buffer.from(JSON.stringify(intent) + "\n")],
+      ]);
     },
     recovered: () => {
       recovered = [actualRun("41")];
@@ -287,6 +326,31 @@ void test("changed durable intent and incomplete or saturated previous-run cover
     };
     await assert.rejects(f.dispatch(), /inventory|saturated/);
     assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+  }
+});
+
+void test("a successful prior workflow cuts off history only with its exact durable selected configuration", async () => {
+  const same = fixture();
+  await same.prepare();
+  same.priorSuccess();
+  // The actual current dispatch is not needed to prove the historical boundary.
+  const original = same.api.request.bind(same.api);
+  same.api.request = (method, endpoint, body) => {
+    if (method === "POST") throw new Error("stop after authenticated prior boundary");
+    return original(method, endpoint, body);
+  };
+  await assert.rejects(same.dispatch(), /requires controller-run readback/);
+  assert.ok(same.records.some((row) => row.phase === "prior-wake-boundary-observed"));
+  for (const changed of [
+    { revision: "c".repeat(40) },
+    { activation_started_at: "2026-01-01T00:00:00Z" },
+  ]) {
+    const f = fixture();
+    await f.prepare();
+    f.priorSuccess(changed);
+    await assert.rejects(f.dispatch(), /original durable intent changed/);
+    assert.equal(f.calls.filter((call) => call.method === "POST").length, 0);
+    assert.ok(!f.records.some((row) => row.phase === "prior-wake-boundary-observed"));
   }
 });
 

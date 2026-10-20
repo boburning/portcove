@@ -46,6 +46,24 @@ function sourceBytes(raw: unknown, filename: string) {
     throw new Error("wake workflow source identity differs");
   return bytes;
 }
+function dispatchIntent(
+  config: ReturnType<typeof inspectControllerWakeConfiguration>,
+  wakeRun: string,
+  wakeRevision: string,
+) {
+  return {
+    schema_version: 1,
+    controller: config,
+    endpoint: `${prefix}/actions/workflows/application-update-production.yml/dispatches`,
+    body: {
+      ref: config.execution_ref.slice("refs/tags/".length),
+      inputs: { wake_run_id: wakeRun },
+      return_run_details: true,
+    },
+    wake_run_id: wakeRun,
+    wake_revision: wakeRevision,
+  };
+}
 
 /** Correlation is routing only. Acceptance still belongs to the fixed
  * controller's independent admission and existing reservation machinery. */
@@ -169,6 +187,11 @@ export async function reconcilePreviousWakes(
   environment: NodeJS.ProcessEnv,
   api: Api,
   record: (phase: string, evidence: unknown) => Promise<void>,
+  options: {
+    download?: typeof readGitHubArtifactArchive;
+    directory?: string;
+    deadline?: number;
+  } = {},
 ) {
   const current = providerGet(api, `${prefix}/actions/runs/${environment.GITHUB_RUN_ID}`);
   if (
@@ -254,8 +277,62 @@ export async function reconcilePreviousWakes(
     )
       throw new Error("prior wake source differs; reconcile activation history");
     if (run.conclusion === "success") {
+      const artifacts = providerGet(
+        api,
+        `${prefix}/actions/runs/${String(run.id)}/artifacts?per_page=100`,
+      );
+      if (
+        !isRecord(artifacts) ||
+        typeof artifacts.total_count !== "number" ||
+        !Number.isSafeInteger(artifacts.total_count) ||
+        artifacts.total_count < 1 ||
+        artifacts.total_count > 100 ||
+        !Array.isArray(artifacts.artifacts) ||
+        artifacts.artifacts.length !== artifacts.total_count
+      )
+        throw new Error("prior wake intent artifact coverage unavailable");
+      const artifactIds = new Set<number>();
+      for (const item of artifacts.artifacts as unknown[]) {
+        if (
+          !isRecord(item) ||
+          typeof item.id !== "number" ||
+          !Number.isSafeInteger(item.id) ||
+          item.id < 1 ||
+          typeof item.name !== "string" ||
+          artifactIds.has(item.id)
+        )
+          throw new Error("prior wake artifact inventory identity missing or duplicated");
+        artifactIds.add(item.id);
+      }
+      const matches = artifacts.artifacts.filter(
+        (raw: unknown) =>
+          isRecord(raw) && raw.name === `controller-wake-intent-${String(run.id)}-1`,
+      );
+      if (
+        matches.length !== 1 ||
+        !isRecord(matches[0]) ||
+        typeof matches[0].id !== "number" ||
+        !Number.isSafeInteger(matches[0].id) ||
+        matches[0].id < 1 ||
+        typeof matches[0].digest !== "string" ||
+        !/^sha256:[a-f0-9]{64}$/u.test(matches[0].digest)
+      )
+        throw new Error("prior wake exact immutable intent unavailable");
+      await verifyWakeIntentUpload(
+        api,
+        { ...environment, GITHUB_RUN_ID: String(run.id), GITHUB_SHA: run.head_sha },
+        dispatchIntent(config, String(run.id), run.head_sha),
+        {
+          artifact: { id: matches[0].id, sha256: matches[0].digest.slice(7) },
+          directory: options.directory ?? process.cwd(),
+          ...(options.download ? { download: options.download } : {}),
+          ...(options.deadline === undefined ? {} : { deadline: options.deadline }),
+        },
+      );
       await record("prior-wake-boundary-observed", {
         wake_run_id: run.id,
+        intent_artifact_id: matches[0].id,
+        configuration_sha256: digest(config),
         scope: "dispatch scheduling only",
       });
       return;
@@ -471,25 +548,13 @@ export async function wakeRatifiedController(
   )
     throw new Error("automatic wake workflow bytes differ from selected setup");
   readRefs();
-  const endpoint = `${prefix}/actions/workflows/application-update-production.yml/dispatches`;
-  const body = {
-    ref: config.execution_ref.slice("refs/tags/".length),
-    inputs: { wake_run_id: environment.GITHUB_RUN_ID },
-    return_run_details: true,
-  };
-  const intent = {
-    schema_version: 1,
-    controller: config,
-    endpoint,
-    body,
-    wake_run_id: environment.GITHUB_RUN_ID,
-    wake_revision: environment.GITHUB_SHA,
-  };
+  const intent = dispatchIntent(config, environment.GITHUB_RUN_ID!, environment.GITHUB_SHA!);
+  const { endpoint, body } = intent;
   await record("dispatch-intent", intent);
   if (options.mode === "prepare")
     return { authority: "none", decision: "intent-prepared-only" as const, intent };
   await verifyWakeIntentUpload(api, environment, intent, { ...options, deadline });
-  await reconcilePreviousWakes(config, environment, api, record);
+  await reconcilePreviousWakes(config, environment, api, record, { ...options, deadline });
   readRefs();
   if (performance.now() - started > 55000)
     throw new Error("wake-up deadline elapsed before dispatch; no POST");

@@ -13,6 +13,7 @@ permissions:
 concurrency:
   group: portcove-application-controller-wake
   cancel-in-progress: false
+  queue: max
 jobs:
   wake:
     if: ${{ false }}
