@@ -12,6 +12,8 @@ const repositoryId = 1354613114;
 export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
 export type ControllerOidcEnvironment =
   | "github-pages"
+  | "production-payload-signing"
+  | "production-release-coordinator"
   | "production-release-classification"
   | "production-release-protection-observer"
   | "production-tuf-releases"
@@ -26,6 +28,8 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     environment !== undefined &&
     ![
       "github-pages",
+      "production-payload-signing",
+      "production-release-coordinator",
       "production-release-classification",
       "production-release-protection-observer",
       "production-tuf-releases",

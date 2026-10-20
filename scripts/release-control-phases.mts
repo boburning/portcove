@@ -3,6 +3,7 @@
 export type ReleaseControlPhase =
   | "admission"
   | "payload"
+  | "coordinator"
   | "site-publication"
   | "release-publication"
   | "tuf-releases"
@@ -11,7 +12,10 @@ export type ReleaseControlPhase =
   | "tuf-snapshot"
   | "tuf-timestamp";
 export type TufSigningRole = "releases" | "preview" | "stable" | "snapshot" | "timestamp";
-export type MaintenanceReleaseControlPhase = "site-publication" | `tuf-${TufSigningRole}`;
+export type MaintenanceReleaseControlPhase =
+  | "coordinator"
+  | "site-publication"
+  | `tuf-${TufSigningRole}`;
 const tufTitles = Object.freeze({
   releases: "Releases",
   preview: "Preview",
@@ -32,6 +36,16 @@ function metadataProfile(role: TufSigningRole) {
   });
 }
 const phases = Object.freeze({
+  coordinator: Object.freeze({
+    reader_job: "coordinator",
+    reader_name: "Coordinate application release",
+    reader_audience: "portcove-release-coordinator-reader-v1",
+    reader_environment: "production-release-coordinator",
+    observer_job: "coordinator_protection_observation",
+    observer_name: "Observe application coordinator protections",
+    observer_audience: "portcove-release-coordinator-protection-v1",
+    observer_environment: "production-release-protection-observer",
+  }),
   "tuf-releases": metadataProfile("releases"),
   "tuf-preview": metadataProfile("preview"),
   "tuf-stable": metadataProfile("stable"),
@@ -51,7 +65,7 @@ const phases = Object.freeze({
     reader_job: "payload_signing",
     reader_name: "Sign admitted updater payloads",
     reader_audience: "portcove-payload-signing",
-    reader_environment: undefined,
+    reader_environment: "production-payload-signing",
     observer_environment: "production-release-protection-observer",
     observer_job: "payload_protection_observation",
     observer_name: "Observe payload signing input protections",
@@ -82,6 +96,7 @@ export function inspectReleaseControlPhase(raw: unknown = "admission"): ReleaseC
   if (
     raw !== "admission" &&
     raw !== "payload" &&
+    raw !== "coordinator" &&
     raw !== "site-publication" &&
     raw !== "release-publication" &&
     raw !== "tuf-releases" &&
@@ -98,6 +113,7 @@ export function isMaintenanceReleaseControlPhase(
 ): raw is MaintenanceReleaseControlPhase {
   return (
     raw === "site-publication" ||
+    raw === "coordinator" ||
     raw === "tuf-releases" ||
     raw === "tuf-preview" ||
     raw === "tuf-stable" ||

@@ -23,25 +23,74 @@ import {
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
 void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
+  const wanted = {
+    ...expected,
+    subject: controllerOidcSubject(expected.controller_ref, "production-payload-signing"),
+  };
+  const claims = { sub: wanted.subject, environment: "production-payload-signing" };
   const f = fixture(
-    {},
+    claims,
     {},
     { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
   );
-  const result = await verifyPayloadSignerJobIdentity(f.token, expected, f);
+  const result = await verifyPayloadSignerJobIdentity(f.token, wanted, f);
   assert.equal(result.job_id, 501);
   assert.equal(result.check_run_id, "777");
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
   const assembler = fixture();
-  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, expected, assembler));
+  await assert.rejects(verifyPayloadSignerJobIdentity(assembler.token, wanted, assembler));
   const nameOnly = fixture(
-    {},
+    claims,
     {},
     { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
   );
   nameOnly.faults.value = "name-only";
-  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, expected, nameOnly));
+  await assert.rejects(verifyPayloadSignerJobIdentity(nameOnly.token, wanted, nameOnly));
+  for (const change of [
+    { environment: "production-tuf-releases" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture(
+      { ...claims, ...change },
+      {},
+      { workflow: productionControllerWorkflow, job: "Sign admitted updater payloads" },
+    );
+    await assert.rejects(verifyPayloadSignerJobIdentity(wrong.token, wanted, wrong));
+  }
+});
+
+void test("coordinator controls require their exact isolated job, subject and environment", async () => {
+  const profile = releaseControlPhaseProfile("coordinator");
+  const wanted = {
+    ...expected,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const claims = {
+    aud: wanted.audience,
+    sub: wanted.subject,
+    environment: profile.reader_environment,
+  };
+  const producer = { workflow: productionControllerWorkflow, job: profile.reader_name };
+  const positive = fixture(claims, {}, producer);
+  assert.equal(
+    (await verifyReleaseControlReaderJobIdentity("coordinator", positive.token, wanted, positive))
+      .job_id,
+    501,
+  );
+  for (const change of [
+    { environment: "github-pages" },
+    { sub: expected.subject },
+    { environment: undefined },
+  ]) {
+    const wrong = fixture({ ...claims, ...change }, {}, producer);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("coordinator", wrong.token, wanted, wrong),
+    );
+  }
+  assert.equal(isMaintenanceReleaseControlPhase("coordinator"), true);
 });
 
 void test("signed check-run identity resolves the independent numeric job through complete attempt pages", async () => {

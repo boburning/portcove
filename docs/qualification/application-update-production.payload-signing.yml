@@ -5,6 +5,7 @@ jobs:
     if: ${{ false }}
     needs: [admission, independent_admission, aggregate, attest, verify]
     name: Sign admitted updater payloads
+    environment: production-payload-signing
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     permissions:

@@ -285,6 +285,7 @@ void test("site maintenance reads only current pause/capacity under the same fre
 
 void test("only selected online metadata roles may read pause/capacity without inventing release classification", async () => {
   for (const phase of [
+    "coordinator",
     "tuf-releases",
     "tuf-preview",
     "tuf-stable",
@@ -300,7 +301,10 @@ void test("only selected online metadata roles may read pause/capacity without i
     const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
     const source = await runtime.create();
     const facts = source.readMaintenance(control.api);
-    assert.equal(facts.purpose, "metadata-signing-controls");
+    assert.equal(
+      facts.purpose,
+      phase === "coordinator" ? "metadata-coordinator-controls" : "metadata-signing-controls",
+    );
     assert.equal(facts.pause.publication_paused, true);
     assert.equal(facts.authority, "none");
     assert.throws(() => source.read(control.api, opportunity));

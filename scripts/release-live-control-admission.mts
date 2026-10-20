@@ -272,7 +272,12 @@ export async function authenticateReleaseControlSource(
       guard();
       const facts = {
         phase,
-        purpose: phase === "site-publication" ? "metadata-renewal" : "metadata-signing-controls",
+        purpose:
+          phase === "site-publication"
+            ? "metadata-renewal"
+            : phase === "coordinator"
+              ? "metadata-coordinator-controls"
+              : "metadata-signing-controls",
         reader: readerFacts,
         pause: { commit: pause.commit, publication_paused: pause.publication_paused },
         capacity: { commit: capacity.commit, document_sha256: capacity.document_sha256 },

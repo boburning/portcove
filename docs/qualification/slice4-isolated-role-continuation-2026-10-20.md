@@ -49,6 +49,14 @@ Only detached signatures and bounded public receipts survive private cleanup;
 neither a signature nor a role identity alone grants publication.
 
 Five TUF reader phases have separate fixed role environments and OIDC subjects.
+The payload reader/signer requires `production-payload-signing`, and the
+coordinator reader requires `production-release-coordinator`; both bind the exact
+immutable repository/environment subject alongside the unchanged tag/source/run
+claims. These are proposed initial setup environments with exact protected tag
+policies, not repository-wide secrets available to arbitrary workflow refs. No
+environment or secret is provisioned by this source. The coordinator's existing
+pause/capacity-only planning read reports `metadata-coordinator-controls`; it
+does not assert release classification or signing eligibility.
 The isolated metadata observer uses distinct phase audiences. New-release TUF
 work must call `read` with the actual frozen opportunity before each role key;
 only unchanged-record renewal uses `readMaintenance`. Offline Root/Targets remain
