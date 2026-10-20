@@ -24,6 +24,7 @@ import { requireVerifiedReleasePublicBuildInputs } from "./release-public-build-
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Phase = "building" | "publishing";
 async function actualProof(receipt: object, target: Phase) {
@@ -123,6 +124,15 @@ export async function advanceActualCandidateToPublishing(
   return advance(receipt, "publishing", options);
 }
 async function advance(receipt: object, target: Phase, options: { deadline?: number }) {
+  const deadline = options.deadline;
+  const work = () => advanceWithinDeadline(receipt, target, options);
+  return deadline === undefined ? work() : withCoordinatorDeadline(deadline, work);
+}
+async function advanceWithinDeadline(
+  receipt: object,
+  target: Phase,
+  options: { deadline?: number },
+) {
   const deadline = options.deadline;
   const remaining = () => {
     const left = deadline === undefined ? 15000 : Math.floor(deadline - performance.now());
@@ -287,6 +297,12 @@ export async function requireActualCandidatePhaseAdvance(receipt: object, expect
   const value = advances.get(receipt);
   if (!value || value.phase !== expectedPhase)
     throw new Error("actual same-process candidate phase advance required");
+  const work = () => requirePhaseAdvanceWithinDeadline(value);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+async function requirePhaseAdvanceWithinDeadline(
+  value: NonNullable<ReturnType<typeof advances.get>>,
+) {
   await value.recheck();
   value.fresh();
   const current = await recoverReleaseOpportunity(value.repository, value.checkpoint);

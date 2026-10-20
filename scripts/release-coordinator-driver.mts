@@ -80,6 +80,7 @@ import { createReleaseReviewDispositionReceipt } from "./release-semantic-dispos
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -279,7 +280,10 @@ export async function coordinateTrustedRelease(
   privateParent: string,
   raw: { remote_configuration: unknown; opportunity: unknown; dispatch_actor_id: string },
 ) {
-  return coordinateTrustedReleaseAt(privateParent, raw);
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    coordinateTrustedReleaseAt(privateParent, raw, undefined, budget),
+  );
 }
 
 type RecoveredCoordinatorRound = {
@@ -298,6 +302,7 @@ async function coordinateTrustedReleaseAt(
   privateParent: string,
   raw: Parameters<typeof coordinateTrustedRelease>[1],
   round?: RecoveredCoordinatorRound,
+  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -316,7 +321,7 @@ async function coordinateTrustedReleaseAt(
   if (!round) await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
   const directory =
     round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-attempt-")));
-  const budget = round?.budget ?? coordinatorDeadline();
+  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
@@ -846,13 +851,17 @@ export async function prepareTrustedCoordinatorRenewal(
     };
   },
 ) {
-  return prepareTrustedCoordinatorRenewalAt(privateParent, raw);
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    prepareTrustedCoordinatorRenewalAt(privateParent, raw, undefined, budget),
+  );
 }
 
 async function prepareTrustedCoordinatorRenewalAt(
   privateParent: string,
   raw: Parameters<typeof prepareTrustedCoordinatorRenewal>[1],
   round?: RecoveredCoordinatorRound,
+  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -865,7 +874,7 @@ async function prepareTrustedCoordinatorRenewalAt(
   await assertOwnedUnlinkedPath(project, privateParent, "metadata coordinator private parent");
   const directory =
     round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-renewal-")));
-  const budget = round?.budget ?? coordinatorDeadline();
+  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
@@ -1108,6 +1117,16 @@ export async function requestTrustedSemanticReview(
     tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
   },
 ) {
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    requestTrustedSemanticReviewAt(privateParent, raw, budget),
+  );
+}
+async function requestTrustedSemanticReviewAt(
+  privateParent: string,
+  raw: Parameters<typeof requestTrustedSemanticReview>[1],
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
   const selected = structuredClone(raw);
   if (
     !["remote_configuration", "remote_configuration,tools"].includes(
@@ -1122,7 +1141,6 @@ export async function requestTrustedSemanticReview(
     "review request coordinator private parent",
   );
   const directory = await mkdtemp(path.join(privateParent, "coordinator-review-"));
-  const budget = coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
