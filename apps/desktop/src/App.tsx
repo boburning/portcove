@@ -1198,7 +1198,7 @@ function SelectedPortPanel({
       }
     : undefined;
   const pickArchive =
-    model.sourceProfile?.kind === "file-set"
+    model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),

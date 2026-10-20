@@ -161,6 +161,7 @@ mod tests {
             windows_runtime_path_policy: None,
             portable_marker: false,
             n64_windows_initial_d3d12: false,
+            managed_initialization: None,
             source_environment: None,
             user_data_environment: None,
             launch_environment: BTreeMap::new(),

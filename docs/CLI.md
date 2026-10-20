@@ -1,5 +1,14 @@
 # Portcove CLI
 
+For managed Dark Forces on Windows, register the complete reviewed installed-data
+folder or ZIP with
+`portcove source add dark-forces-pc-complete-installed-data PATH`, then use the ordinary
+reviewed installation and launch commands. The full source check validates all
+48 relative members; quick file-filter refresh remains `NotChecked`. Existing
+prepared registrations retain their non-owning route. See
+[managed Dark Forces setup](reference/managed-tfe.md), including manual
+preservation when `.tfe-preparation` recovery material prevents removal.
+
 The private startup policy exhaustively classifies every CLI command and nested
 variant as read-only or recovering. Adding a variant requires an explicit choice.
 Artwork handoff and status observations leave pending constructor recovery alone;

@@ -791,7 +791,8 @@ function SourceRequirements({
                 ? "Add BIOS file"
                 : "Add game files"}
             </Button>
-            {requirement.profile.kind === "file-set" && (
+            {(requirement.profile.kind === "file-set" ||
+              requirement.profile.kind === "relative-file-set") && (
               <Button
                 data-focusable
                 variant="outline"

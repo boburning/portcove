@@ -108,6 +108,9 @@ pub(crate) enum KnownFailureCause {
     StaleRemoval,
     RestoreRecovery,
     BackupDeletionRecovery,
+    TfePreparationRecovery {
+        directory: std::path::PathBuf,
+    },
     DestinationCapacity,
     ArchiveLimit,
     UnicodePath,
@@ -179,6 +182,15 @@ impl KnownFailureCause {
                 "backup_deletion_recovery_required",
                 "A backup deletion is unfinished. Restart Portcove to retry recovery; if it remains held, review doctor output before further changes.",
             ),
+            Self::TfePreparationRecovery { directory } => {
+                return (
+                    "tfe_preparation_recovery_required",
+                    format!(
+                        "Preparation copies need manual preservation before continuing. Close the game, move the entire folder outside all Portcove installation and recovery folders, verify the preserved files, then review and retry this operation.\nFolder to preserve: {}",
+                        directory.display()
+                    ),
+                );
+            }
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",

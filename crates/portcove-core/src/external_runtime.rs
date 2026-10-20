@@ -24,7 +24,7 @@ const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_TREE_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 
 pub(crate) mod shared_preferences;
-mod tfe_settings;
+pub(crate) mod tfe_settings;
 
 /// Required selectors are existence/type constraints, never content authority.
 pub(crate) fn validate_required_mutable_files(spec: &UserPreparedRuntimeSpec) -> Result<()> {
@@ -556,10 +556,23 @@ fn open_object(path: &Path, directory: bool) -> Result<fs::File> {
 
 /// Bounded metadata read using the existing stable, no-follow object authority.
 pub(crate) fn read_stable_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
+    read_metadata(path, limit, false)
+}
+
+pub(crate) fn read_single_link_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
+    read_metadata(path, limit, true)
+}
+
+fn read_metadata(path: &Path, limit: u64, single_link: bool) -> Result<Vec<u8>> {
     crate::path::refuse_symlink_ancestors(path)?;
     let canonical = fs::canonicalize(path)?;
     let mut file = open_object(&canonical, false)?;
     let before = file_snapshot(&file)?;
+    if single_link && link_count(&file)? != 1 {
+        return Err(PortcoveError::verification(
+            "metadata must be a single-link regular file",
+        ));
+    }
     if before.size > limit {
         return Err(PortcoveError::verification(
             "query metadata exceeds its read budget",
@@ -573,6 +586,7 @@ pub(crate) fn read_stable_metadata(path: &Path, limit: u64) -> Result<Vec<u8>> {
         || bytes.len() as u64 != before.size
         || file_snapshot(&file)? != before
         || file_snapshot(&open_object(&canonical, false)?)? != before
+        || (single_link && link_count(&file)? != 1)
     {
         return Err(changed_during_inspection());
     }

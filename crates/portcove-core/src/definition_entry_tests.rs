@@ -138,7 +138,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.windows_runtime_path_policy.is_some() {
+        let version = if port.managed_initialization.is_some() {
+            12
+        } else if port.windows_runtime_path_policy.is_some() {
             11
         } else if let Some(minimum) = port
             .release
