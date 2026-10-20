@@ -409,8 +409,13 @@ export async function recordCapacityReadback(
   expected: string,
   resolution: "effect-completed" | "effect-not-applied" | "partial-effects-retained",
   evidenceSha256: string,
-  options: Pick<CapacityOperationOptions, "remote" | "executorIdentity"> = {},
+  options: Pick<CapacityOperationOptions, "remote" | "executorIdentity"> & {
+    /** Actual admitted provider readback only; never a request to repeat the effect. */
+    completedEffect?: { remote_identity: string; evidence_sha256: string };
+  } = {},
 ) {
+  const completedEffect =
+    options.completedEffect === undefined ? null : structuredClone(options.completedEffect);
   const recoveryExecutor =
     options.executorIdentity === undefined
       ? null
@@ -436,6 +441,19 @@ export async function recordCapacityReadback(
   const operation = inspectCapacityOperation(capacity.operation);
   if (!operation || ["succeeded", "recovered"].includes(operation.outcome))
     throw new Error("no unresolved capacity operation");
+  if (completedEffect !== null) {
+    if (resolution !== "effect-completed" || operation.receipt_limit !== 1)
+      throw new Error("observed completed effect requires exact single-effect completion readback");
+    if (
+      operation.completed_effects.length !== 0 &&
+      capacityDigest(operation.completed_effects) !== capacityDigest([completedEffect])
+    )
+      throw new Error("observed completed effect cannot replace the retained receipt");
+    // The existing operation parser supplies the exact receipt shape/bounds.
+    // Preserve the intent, nonce, failure and original executor identity.
+    operation.completed_effects = [completedEffect];
+    inspectCapacityOperation(operation);
+  }
   capacity.operation = {
     ...operation,
     outcome: "recovered",
