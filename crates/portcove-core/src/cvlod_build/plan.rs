@@ -90,6 +90,34 @@ mod tests {
                 .is_empty()
         );
     }
+
+    #[test]
+    fn cvlod_graph_allows_only_one_fixed_rule_include_with_either_separator() {
+        for manifest in [
+            "include CMakeFiles/rules.ninja\n",
+            "include CMakeFiles\\rules.ninja\r\n",
+        ] {
+            validate_graph_includes(manifest, "rule C_COMPILER\n  command = cl.exe\n").unwrap();
+            for rules in [
+                "include CMakeFiles/rules.ninja\n",
+                "include CMakeFiles\\rules.ninja\n",
+                "subninja CMakeFiles/rules.ninja\n",
+            ] {
+                assert!(validate_graph_includes(manifest, rules).is_err());
+            }
+        }
+        for manifest in [
+            "",
+            "include CMakeFiles/rules.ninja\ninclude CMakeFiles\\rules.ninja\n",
+            "include CMakeFiles/other.ninja\n",
+            "include CMakeFiles\\..\\rules.ninja\n",
+            "include C:/rules.ninja\n",
+            "subninja CMakeFiles/rules.ninja\n",
+            "include CMakeFiles/rules.ninja \n",
+        ] {
+            assert!(validate_graph_includes(manifest, "").is_err());
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -153,6 +181,27 @@ fn validate_target(target: &str) -> Result<()> {
     Ok(())
 }
 
+fn validate_graph_includes(manifest: &str, rules: &str) -> Result<()> {
+    let includes = manifest
+        .lines()
+        .filter(|line| line.starts_with("include ") || line.starts_with("subninja "))
+        .collect::<Vec<_>>();
+    // The fixed Windows CMake generator spells this same relative rule file
+    // with backslashes. Admit only its two separator spellings, exactly once;
+    // no other build file or nested include gains execution authority.
+    if (includes != ["include CMakeFiles/rules.ninja"]
+        && includes != [r"include CMakeFiles\rules.ninja"])
+        || rules
+            .lines()
+            .any(|line| line.starts_with("include ") || line.starts_with("subninja "))
+    {
+        return Err(PortcoveError::verification(
+            "CVLoD graph introduced another build file",
+        ));
+    }
+    Ok(())
+}
+
 impl Plan {
     pub(super) fn read(build: &Path, stage: Stage) -> Result<Self> {
         let mut fixed: BTreeMap<String, Vec<String>> =
@@ -191,19 +240,7 @@ impl Plan {
             .map_err(|_| PortcoveError::verification("CVLoD graph is not UTF-8"))?;
         let rule_text = std::str::from_utf8(&rules)
             .map_err(|_| PortcoveError::verification("CVLoD rules are not UTF-8"))?;
-        if manifest_text
-            .lines()
-            .filter(|l| l.starts_with("include ") || l.starts_with("subninja "))
-            .collect::<Vec<_>>()
-            != ["include CMakeFiles/rules.ninja"]
-            || rule_text
-                .lines()
-                .any(|l| l.starts_with("include ") || l.starts_with("subninja "))
-        {
-            return Err(PortcoveError::verification(
-                "CVLoD graph introduced another build file",
-            ));
-        }
+        validate_graph_includes(manifest_text, rule_text)?;
         let mut declared = BTreeSet::new();
         let mut outputs = BTreeSet::new();
         for line in manifest_text
