@@ -2002,10 +2002,10 @@ async fn curated_cache_worker_intervention(intervention: CacheIntervention) {
     // Windows CI 39450594334/a1: CancelRetain entered download about 4.24s
     // after installer start and missed the 5s setup latch before any copy.
     // Give this fixture the same finite 15s headroom; preserve the real
-    // partial-copy barrier, cancellation/drain checks and 30s outer safeguard.
+    // partial-copy barrier, cancellation/drain checks and finite outer safeguard.
     // Windows focused run 5233faf8: ArtifactRevocationRetain first copied
     // 5.784s after installer start, beyond its 5s latch. Keep the same 15s
-    // setup headroom, drain/refusal checks and unchanged 30s outer safeguard.
+    // setup headroom and drain/refusal checks under the finite outer safeguard.
     let latch_timeout = if cfg!(target_os = "windows")
         && matches!(
             intervention,
