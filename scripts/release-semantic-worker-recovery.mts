@@ -62,6 +62,7 @@ async function settleRetainedInvocation(root: string, expected: string, systemct
     throw new Error("original semantic invocation identity changed");
   const request = await json(root, "capture/linux-request.json");
   const isolation = await json(root, "capture/isolation.json");
+  const intent = await json(root, "capture/linux-intent.json");
   if (
     !isRecord(request) ||
     request.run_root !== root ||
@@ -70,6 +71,15 @@ async function settleRetainedInvocation(root: string, expected: string, systemct
     !/^portcove-semantic-[a-f0-9]{32}\.service$/u.test(isolation.unit)
   )
     throw new Error("retained semantic request or exact unit unavailable");
+  if (
+    !isRecord(intent) ||
+    Object.keys(intent).sort().join(",") !== "mode,schema_version,supervisor_sha256,unit" ||
+    intent.schema_version !== 1 ||
+    intent.mode !== "codex" ||
+    intent.unit !== isolation.unit ||
+    intent.supervisor_sha256 !== invocation.supervisor_sha256
+  )
+    throw new Error("original semantic unit/supervisor intent differs from capture");
   if (
     createHash("sha256")
       .update(await readFile("/usr/bin/systemctl"))
