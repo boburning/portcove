@@ -108,6 +108,8 @@ pub(crate) fn copy_proof_details(error: &PortcoveError) -> BTreeMap<String, Stri
         "process_tree_first_failure",
         "process_tree_proof_method",
         "process_tree_api_error",
+        "process_tree_observed_events",
+        "process_tree_event_limit",
         "process_tree_retained_members",
         "process_tree_membership_complete",
         "process_tree_deadline_exhausted",

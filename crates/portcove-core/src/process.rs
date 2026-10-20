@@ -94,8 +94,30 @@ pub(crate) struct NativeToolLaunchSpec {
     pub(crate) environment: BTreeMap<OsString, OsString>,
     pub(crate) working_directory: Option<PathBuf>,
     pub(crate) decoder_limits: Option<DecoderLimits>,
+    #[cfg(windows)]
+    pub(crate) event_budget: NativeToolEventBudget,
     #[cfg(all(windows, test))]
     pub(crate) raw_arguments: Vec<OsString>,
+}
+
+/// Closed controller policy, never supplied by catalog, environment or caller limits.
+/// Compiler configuration creates many short-lived children and DLL/thread events.
+#[cfg(windows)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum NativeToolEventBudget {
+    #[default]
+    Ordinary,
+    ManagedBuilder,
+}
+
+#[cfg(windows)]
+impl NativeToolEventBudget {
+    pub(crate) fn limit(self) -> usize {
+        match self {
+            Self::Ordinary => 4096,
+            Self::ManagedBuilder => 32768,
+        }
+    }
 }
 
 /// Private resource boundary for decoding an untrusted source container.
@@ -239,10 +261,16 @@ impl ChildProcessPolicy {
         program: impl AsRef<OsStr>,
     ) -> Result<NativeToolLaunchSpec> {
         Self::require_native(class, program.as_ref())?;
-        Ok(Self::tool_spec_with_environment(
-            program,
-            std::env::vars_os(),
-        ))
+        let spec = Self::tool_spec_with_environment(program, std::env::vars_os());
+        #[cfg(windows)]
+        let spec = NativeToolLaunchSpec {
+            event_budget: match class {
+                ChildProcessClass::ManagedBuilder => NativeToolEventBudget::ManagedBuilder,
+                _ => NativeToolEventBudget::Ordinary,
+            },
+            ..spec
+        };
+        Ok(spec)
     }
 
     fn tool_spec_with_environment(
@@ -255,6 +283,8 @@ impl ChildProcessPolicy {
             environment: BTreeMap::new(),
             working_directory: None,
             decoder_limits: None,
+            #[cfg(windows)]
+            event_budget: NativeToolEventBudget::Ordinary,
             #[cfg(all(windows, test))]
             raw_arguments: Vec::new(),
         };
@@ -471,6 +501,26 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn only_managed_builders_receive_the_larger_event_budget() {
+        for class in [
+            ChildProcessClass::Game,
+            ChildProcessClass::UpstreamSetup,
+            ChildProcessClass::HostTool,
+            ChildProcessClass::ManagedBuilder,
+            ChildProcessClass::HostIntegration,
+        ] {
+            let spec = ChildProcessPolicy::native_tool_spec(class, "never-spawned.exe").unwrap();
+            let expected = if class == ChildProcessClass::ManagedBuilder {
+                32768
+            } else {
+                4096
+            };
+            assert_eq!(spec.event_budget.limit(), expected, "{class:?}");
+        }
+    }
 
     #[test]
     fn native_library_override_is_filtered_without_losing_sdl_hints() {

@@ -22,7 +22,10 @@ use std::{
 };
 
 use super::ToolSpawnFailure;
-use crate::{PortcoveError, process::NativeToolLaunchSpec};
+use crate::{
+    PortcoveError,
+    process::{NativeToolEventBudget, NativeToolLaunchSpec},
+};
 use windows_sys::Win32::{
     Foundation::{
         DBG_CONTINUE, DBG_EXCEPTION_NOT_HANDLED, ERROR_INVALID_HANDLE, ERROR_INVALID_PARAMETER,
@@ -67,11 +70,12 @@ use windows_sys::Win32::{
 };
 
 const MEMBER_LIMIT: usize = 512;
-const EVENT_LIMIT: usize = 4096;
 const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 
 #[derive(Default, Clone)]
 struct Proof {
+    event_budget: NativeToolEventBudget,
+    observed_events: usize,
     first_failure: Option<(&'static str, Option<u32>)>,
     retained: usize,
     identities: Vec<Identity>,
@@ -88,6 +92,16 @@ struct Proof {
 }
 
 impl Proof {
+    fn record_event(&mut self) -> bool {
+        self.observed_events = self.observed_events.saturating_add(1);
+        if self.observed_events > self.event_budget.limit() {
+            self.first_failure.get_or_insert(("event_capacity", None));
+            self.quiesced = false;
+            return false;
+        }
+        true
+    }
+
     fn publish_members(&mut self, retained: usize, identities: impl Iterator<Item = Identity>) {
         self.retained = retained;
         self.identities = identities.collect();
@@ -222,6 +236,14 @@ fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveEr
         }
     }
     error = error
+        .detail(
+            "process_tree_observed_events",
+            proof.observed_events.to_string(),
+        )
+        .detail(
+            "process_tree_event_limit",
+            proof.event_budget.limit().to_string(),
+        )
         .detail("process_tree_retained_members", proof.retained.to_string())
         .detail(
             "process_tree_membership_complete",
@@ -318,6 +340,9 @@ type LateRootExitObservation = Arc<Mutex<Option<(u32, u32, Identity)>>>;
 
 #[derive(Default, Clone)]
 struct TestOptions {
+    // Start at the selected finite threshold; the next real debug event must stop.
+    #[cfg(test)]
+    prime_event_capacity: bool,
     #[cfg(test)]
     late_root_exit: Option<LateRootExitObservation>,
     #[cfg(test)]
@@ -464,6 +489,7 @@ fn spawn_with_options(
 }
 
 struct EncodedLaunch {
+    event_budget: NativeToolEventBudget,
     application: Vec<u16>,
     command: Vec<u16>,
     environment: Vec<u16>,
@@ -544,6 +570,11 @@ impl EncodedLaunch {
             ));
         }
         Ok(Self {
+            event_budget: if spec.decoder_limits.is_some() {
+                NativeToolEventBudget::Ordinary
+            } else {
+                spec.event_budget
+            },
             application,
             command,
             environment,
@@ -805,7 +836,6 @@ struct Controller {
     control: Arc<Control>,
     job_assigned: bool,
     terminating: bool,
-    events: usize,
     #[cfg(test)]
     options: TestOptions,
     #[cfg(test)]
@@ -818,6 +848,11 @@ impl Controller {
         control: Arc<Control>,
         options: TestOptions,
     ) -> Result<(Self, File, File), ToolSpawnFailure> {
+        control.lock().event_budget = launch.event_budget;
+        #[cfg(test)]
+        if options.prime_event_capacity {
+            control.lock().observed_events = launch.event_budget.limit();
+        }
         #[cfg(not(test))]
         let _ = options;
         let job = owned(unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) })
@@ -922,7 +957,6 @@ impl Controller {
             control,
             job_assigned: false,
             terminating: false,
-            events: 0,
             #[cfg(test)]
             options,
             #[cfg(test)]
@@ -1210,8 +1244,8 @@ impl Controller {
     }
 
     fn event(&mut self, event: &DEBUG_EVENT) -> i32 {
-        self.events += 1;
-        if self.events > EVENT_LIMIT {
+        let within_budget = self.control.lock().record_event();
+        if !within_budget {
             self.fail("event_capacity", None);
         }
         // SAFETY: the event code selects the initialized union member. Debug
@@ -1687,6 +1721,87 @@ fn system_module(mut file: File, base: usize) -> io::Result<Option<(usize, usize
 mod native_control_tests {
     use super::*;
     use crate::{ChildProcessClass, ChildProcessPolicy};
+
+    #[test]
+    fn actual_event_exhaustion_stops_both_classes_without_cleanup_authority() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for (class, limit) in [
+            (ChildProcessClass::HostTool, 4096),
+            (ChildProcessClass::ManagedBuilder, 32768),
+        ] {
+            let working = tempfile::tempdir().unwrap();
+            let mut spec = ChildProcessPolicy::native_tool_spec(class, &program).unwrap();
+            spec.arg("--success").current_dir(working.path());
+            let (mut child, group) = spawn_with_options(
+                &spec,
+                TestOptions {
+                    prime_event_capacity: true,
+                    ..Default::default()
+                },
+            )
+            .map_err(|failure| failure.error)
+            .unwrap();
+            // The fixture must not request stop: a real event triggers production
+            // exhaustion, failure latching, stop and positive closure collection.
+            let deadline = Instant::now() + Duration::from_secs(4);
+            while !group.control.lock().done && Instant::now() < deadline {
+                thread::sleep(Duration::from_millis(1));
+            }
+            let stopped_without_fixture_request = group.control.lock().done;
+            let status = group.terminate_and_wait(&mut child).unwrap();
+            assert!(stopped_without_fixture_request);
+            assert_eq!(status.code(), Some(1));
+            assert!(!group.proves_tree_quiescence());
+            let error = group.with_proof_details(PortcoveError::state("retained exhaustion"));
+            let details = crate::tool_process::copy_proof_details(&error);
+            assert_eq!(details["process_tree_first_failure"], "event_capacity");
+            assert_eq!(details["process_tree_membership_complete"], "false");
+            assert_eq!(details["process_tree_event_limit"], limit.to_string());
+            assert!(
+                details["process_tree_observed_events"]
+                    .parse::<usize>()
+                    .unwrap()
+                    > limit
+            );
+            assert_eq!(details["process_tree_active"], "0");
+            assert_eq!(details["process_tree_all_retained_signaled"], "true");
+            assert_eq!(details["process_tree_deadline_exhausted"], "false");
+        }
+    }
+
+    #[test]
+    fn ordinary_and_managed_builder_tools_retain_complete_closure() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        for (class, limit) in [
+            (ChildProcessClass::HostTool, 4096),
+            (ChildProcessClass::ManagedBuilder, 32768),
+        ] {
+            let working = tempfile::tempdir().unwrap();
+            let mut spec = ChildProcessPolicy::native_tool_spec(class, &program).unwrap();
+            spec.arg("--success").current_dir(working.path());
+            let (mut child, group) = spawn_with_options(&spec, TestOptions::default())
+                .map_err(|failure| failure.error)
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(4);
+            let status = loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break status,
+                    Ok(None) if Instant::now() < deadline => {
+                        thread::sleep(Duration::from_millis(1))
+                    }
+                    other => panic!("root exit was not positively captured: {other:?}"),
+                }
+            };
+            assert!(status.success());
+            assert!(group.proves_tree_quiescence());
+            let proof = group.control.lock();
+            assert_eq!(proof.event_budget.limit(), limit);
+            assert!(proof.observed_events > 0 && proof.observed_events <= limit);
+            assert!(proof.first_failure.is_none());
+        }
+    }
 
     #[test]
     fn root_signaling_between_samples_retains_positive_exit_proof() {
@@ -2752,6 +2867,82 @@ mod launch_tests {
 #[cfg(test)]
 mod proof_tests {
     use super::*;
+
+    #[test]
+    fn encoded_decoder_keeps_ordinary_budget_even_for_a_builder_class() {
+        let program = system_directory().unwrap().join("cmd.exe");
+        let mut spec = crate::ChildProcessPolicy::native_tool_spec(
+            crate::ChildProcessClass::ManagedBuilder,
+            program,
+        )
+        .unwrap();
+        assert_eq!(
+            EncodedLaunch::new(&spec).unwrap().event_budget.limit(),
+            32768
+        );
+        spec.decoder_limits = Some(crate::process::DecoderLimits {
+            memory_bytes: 1024,
+            file_bytes: 1024,
+        });
+        assert_eq!(
+            EncodedLaunch::new(&spec).unwrap().event_budget.limit(),
+            4096
+        );
+    }
+
+    #[test]
+    fn event_budget_boundary_and_exhaustion_preserve_failure() {
+        for (event_budget, limit) in [
+            (NativeToolEventBudget::Ordinary, 4096),
+            (NativeToolEventBudget::ManagedBuilder, 32768),
+        ] {
+            let mut proof = Proof {
+                event_budget,
+                ..Default::default()
+            };
+            for _ in 0..limit {
+                assert!(proof.record_event());
+            }
+            assert_eq!(proof.observed_events, limit);
+            assert!(proof.first_failure.is_none());
+            let mut at_limit = proof.clone();
+            at_limit.finish(true, Instant::now());
+            assert!(at_limit.quiesced);
+            assert!(!proof.record_event());
+            assert_eq!(proof.observed_events, limit + 1);
+            proof.accounting = Some((0, 1));
+            proof.all_retained_signaled = Some(true);
+            proof.root_status = Some(ExitStatus::from_raw(0));
+            proof.finish(true, Instant::now());
+            assert!(!proof.quiesced);
+            assert_eq!(proof.first_failure, Some(("event_capacity", None)));
+            let control = Control {
+                proof: Mutex::new(proof),
+                ..Default::default()
+            };
+            let error = with_control_proof(&control, PortcoveError::state("retained failure"));
+            let details = crate::tool_process::copy_proof_details(&error);
+            assert_eq!(details["process_tree_event_limit"], limit.to_string());
+            assert_eq!(
+                details["process_tree_observed_events"],
+                (limit + 1).to_string()
+            );
+            assert_eq!(details["process_tree_membership_complete"], "false");
+        }
+    }
+
+    #[test]
+    fn event_exhaustion_does_not_replace_an_earlier_failure() {
+        let mut proof = Proof {
+            observed_events: 4096,
+            first_failure: Some(("creation_capture", Some(5))),
+            ..Default::default()
+        };
+        assert!(!proof.record_event());
+        proof.finish(true, Instant::now());
+        assert_eq!(proof.first_failure, Some(("creation_capture", Some(5))));
+        assert!(!proof.quiesced);
+    }
 
     #[test]
     fn enlarged_member_set_invalidates_prior_positive_wait_observation() {
