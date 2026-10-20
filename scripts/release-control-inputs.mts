@@ -17,6 +17,8 @@ const repositoryId = 1354613114;
 const classificationBranch = "portcove-release-inputs";
 const pauseBranch = "portcove-release-pause";
 const maximumBytes = 128 * 1024;
+export const releaseControlRefQuery =
+  "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){id name prefix target{__typename oid}}}}}";
 
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
   if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
@@ -74,10 +76,10 @@ function session(api: CoordinatorRemoteApi) {
   const refIds = new Map<string, string>();
   const ref = (branch: string) => {
     bound();
-    const response = api.graphql(
-      "query($id:ID!,$ref:String!){node(id:$id){__typename ... on Repository{id databaseId nameWithOwner ref(qualifiedName:$ref){id name prefix target{__typename oid}}}}}",
-      { id: identity.node_id, ref: `refs/heads/${branch}` },
-    );
+    const response = api.graphql(releaseControlRefQuery, {
+      id: identity.node_id,
+      ref: `refs/heads/${branch}`,
+    });
     const node = isRecord(response.data) ? response.data.node : null;
     const value = isRecord(node) ? node.ref : null;
     if (
@@ -227,6 +229,9 @@ function configuration(value: unknown): ReviewProducerConfiguration {
     writer_app_id: value.writer_app_id,
     review_check_name: value.review_check_name,
   };
+}
+export function inspectReviewProducerConfiguration(value: unknown) {
+  return configuration(structuredClone(value));
 }
 function review(
   get: ReturnType<typeof session>["get"],

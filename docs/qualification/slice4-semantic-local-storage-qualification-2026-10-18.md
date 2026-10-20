@@ -104,6 +104,8 @@ require reconciliation before any operation. Fixture execution stays non-elevate
 `RecoverDetach` uses the same command with that operation and the exact newly
 retained `-IsolationReceipt <run-root>/capture/isolation.json`; never guess a run.
 
+<a id="corrected-next-attempt--awaiting-a-new-operation-grant"></a>
+
 ## Corrected next attempt — awaiting a new operation grant
 
 The original helper compared `FileBackedVirtual` with the actual elevated Windows

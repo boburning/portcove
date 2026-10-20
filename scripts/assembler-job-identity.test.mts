@@ -6,6 +6,11 @@ import {
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
   verifyPayloadSignerJobIdentity,
+  verifyCapacityExecutorJobIdentity,
+  verifyProductionProtectionObserverJobIdentity,
+  verifyReleaseInputReaderJobIdentity,
+  verifyReleaseControlReaderJobIdentity,
+  controllerOidcSubject,
 } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
@@ -13,6 +18,32 @@ import {
   jwk,
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
+void test("capacity executor roles require their exact signed job, not another trusted role or matching name", async () => {
+  for (const [role, name] of [
+    ["coordinator", "Coordinate application release"],
+    ["release-publication", "Publish immutable application release"],
+    ["site-publication", "Publish authenticated application site"],
+  ] as const) {
+    const subject = controllerOidcSubject(
+      expected.controller_ref,
+      role === "site-publication" ? "github-pages" : undefined,
+    );
+    const binding = { ...expected, subject };
+    const f = fixture(
+      { sub: subject, ...(role === "site-publication" ? { environment: "github-pages" } : {}) },
+      {},
+      { workflow: productionControllerWorkflow, job: name },
+    );
+    const actual = await verifyCapacityExecutorJobIdentity(role, f.token, binding, f);
+    assert.equal(actual.role, role);
+    assert.equal(actual.job_id, 501);
+    assert.equal(actual.evidence_scope, "injected-provider");
+    const wrong = fixture();
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, binding, wrong));
+    f.faults.value = "name-only";
+    await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, binding, f));
+  }
+});
 void test("payload signer role requires its own signed check-run and fixed job profile", async () => {
   const f = fixture(
     {},
@@ -182,20 +213,117 @@ void test("fixed control profiles accept only their exact workflow/job and rejec
     {
       verify: verifyClassificationWriterJobIdentity,
       job: "Persist independently reviewed classification",
+      environment: "production-release-classification" as const,
     },
-    { verify: verifyProtectionObserverJobIdentity, job: "Observe release input protections" },
+    {
+      verify: verifyProtectionObserverJobIdentity,
+      job: "Observe release input protections",
+      environment: "production-release-protection-observer" as const,
+    },
   ];
   for (const role of roles) {
-    const f = fixture({}, {}, { workflow, job: role.job });
-    assert.equal((await role.verify(f.token, expected, f)).workflow, workflow);
+    const roleExpected = {
+      ...expected,
+      subject: controllerOidcSubject(expected.controller_ref, role.environment),
+    };
+    const claims = { sub: roleExpected.subject, environment: role.environment };
+    const f = fixture(claims, {}, { workflow, job: role.job });
+    assert.equal((await role.verify(f.token, roleExpected, f)).workflow, workflow);
     await assert.rejects(verifyAssemblerJobIdentity(f.token, expected, f));
     const other = roles.find((value) => value !== role)!;
     await assert.rejects(other.verify(f.token, expected, f));
     const wrongWorkflow = fixture(
-      {},
+      claims,
       {},
       { workflow: ".github/workflows/other.yml", job: role.job },
     );
-    await assert.rejects(role.verify(wrongWorkflow.token, expected, wrongWorkflow));
+    await assert.rejects(role.verify(wrongWorkflow.token, roleExpected, wrongWorkflow));
   }
+});
+
+void test("production observer and reader profiles cannot reuse each other's job or the separate review workflow", async () => {
+  const workflow = ".github/workflows/application-update-production.yml";
+  const observerExpected = {
+    ...expected,
+    subject: controllerOidcSubject(
+      expected.controller_ref,
+      "production-release-protection-observer",
+    ),
+  };
+  const observer = fixture(
+    { sub: observerExpected.subject, environment: "production-release-protection-observer" },
+    {},
+    { workflow, job: "Observe production release input protections" },
+  );
+  const reader = fixture({}, {}, { workflow, job: "Authenticate release control inputs" });
+  assert.equal(
+    (
+      await verifyProductionProtectionObserverJobIdentity(
+        observer.token,
+        observerExpected,
+        observer,
+      )
+    ).job_id,
+    501,
+  );
+  assert.equal(
+    (await verifyReleaseInputReaderJobIdentity(reader.token, expected, reader)).job_id,
+    501,
+  );
+  await assert.rejects(verifyReleaseInputReaderJobIdentity(observer.token, expected, observer));
+  await assert.rejects(
+    verifyProductionProtectionObserverJobIdentity(reader.token, expected, reader),
+  );
+  await assert.rejects(verifyProtectionObserverJobIdentity(observer.token, expected, observer));
+});
+
+void test("immutable owner/repository subjects and exact environment profiles refuse legacy and cross-role claims", async () => {
+  const workflow = productionControllerWorkflow;
+  const profile = { workflow, job: "Publish authenticated application site" };
+  const siteExpected = {
+    ...expected,
+    subject: controllerOidcSubject(expected.controller_ref, "github-pages"),
+  };
+  const claims = { sub: siteExpected.subject, environment: "github-pages" };
+  const positive = fixture(claims, {}, profile);
+  assert.equal(
+    (
+      await verifyReleaseControlReaderJobIdentity(
+        "site-publication",
+        positive.token,
+        siteExpected,
+        positive,
+      )
+    ).job_id,
+    501,
+  );
+  for (const patch of [
+    { sub: `repo:boburning/portcove:environment:github-pages` },
+    { sub: siteExpected.subject.replace("@43177418/", "@43177419/") },
+    { sub: siteExpected.subject.replace("@1354613114:", "@1354613115:") },
+    { sub: expected.subject },
+    { environment: undefined },
+    { environment: "production-release-protection-observer" },
+    { repository_owner_id: "43177419" },
+  ]) {
+    const bad = fixture({ ...claims, ...patch }, {}, profile);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("site-publication", bad.token, siteExpected, bad),
+    );
+    assert.equal(bad.counts().requests, 0);
+  }
+  const tagWithEnvironment = fixture({ environment: "github-pages" });
+  await assert.rejects(
+    verifyAssemblerJobIdentity(tagWithEnvironment.token, expected, tagWithEnvironment),
+  );
+  assert.equal(tagWithEnvironment.counts().requests, 0);
+  const legacySubject = `repo:boburning/portcove:ref:${expected.controller_ref}`;
+  const legacy = fixture({ sub: legacySubject });
+  await assert.rejects(
+    verifyAssemblerJobIdentity(legacy.token, { ...expected, subject: legacySubject }, legacy),
+  );
+  assert.equal(legacy.counts().keyReads, 0);
+  await assert.rejects(
+    verifyReleaseControlReaderJobIdentity("site-publication", positive.token, expected, positive),
+  );
 });

@@ -11,6 +11,65 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [connected site/executor integration](slice4-534-site-publication-integration-2026-10-20.md)
+adds durable pending-before-effect ownership, fresh role identity, actual immutable
+Release readback before application feed publication, verifier-bound TUF facts,
+and zero-deployment recovery of a lost published-state handoff. Local real Git
+and Rust evidence retains its exact scope. Final runnable orchestration, custody,
+resource ratification, observed protections and protected execution remain pending.
+
+The October 20 [acceptance producer preparation](slice4-534-acceptance-producers-2026-10-20.md)
+connects actual SPDX verification, beta dispatch attestation and supervised CLI/
+desktop invocation capture, adds exact identities to the existing native outer
+journals and prepares a same-process positive continuation. It preserves the
+remaining compiler/native execution and authenticated-handoff holds; fixtures
+and signed document bytes do not establish those obligations. Final source,
+workflow/resource ratification and protected acceptance remain pending.
+
+The October 20 [authenticated metadata-renewal connection](slice4-534-metadata-renewal-2026-10-20.md)
+adds actual public-feed Tough authentication, unchanged-target renewal, verified
+assembler publication facts and metadata-only operations in the existing remote
+journal. Disposable-key Rust, actual adapter and real-Git tests pass. It does not
+seed production state, grant keys/execution or establish live provider capacity;
+the changed held controller still needs coherent resource qualification and
+protected/publication observations. #534 acceptance remains open.
+
+The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
+prepares bounded, attested fixed-source tool custody before role-key access and
+adds a separate ordinary credential-free Linux build fixture. Its initial three
+bundled entries require explicit extension to the final role wrappers; protected
+tool execution and all independent acceptance remain pending. The
+[OIDC subject correction](slice4-oidc-subject-binding-2026-10-20.md) binds immutable
+owner/repository IDs and each existing fixed environment without changing provider
+settings. The site capacity profile uses its fixed `github-pages` subject; no
+production job, credential, setting or owning-issue closure is activated here.
+
+The October 20 [immutable Release preparation](slice4-534-immutable-release-preparation-2026-10-20.md)
+adds draft-first one-effect transport, actual intent settlement binding and
+fixed-controller qualification against inert exact candidate source. It supplies
+no protected publisher job, credential, positive scanner/native/SBOM/compiler
+acceptance or production grant; existing holds remain.
+
+The October 20 [phase-specific late controls](slice4-payload-phase-controls-2026-10-20.md)
+connect payload preparation to its own fresh isolated observation after aggregate
+and opaque package acquisition. Site maintenance can read pause/capacity without
+a classification record or candidate. All production fragments remain held; the
+ordinary credential-free process fixture establishes hosted lifetime only when
+its actual CI run succeeds. Custody, final resource/digest reconciliation and
+protected acceptance remain pending.
+
+The October 20 [isolated online TUF roles](slice4-534-isolated-tuf-roles-2026-10-20.md)
+add one-key role invocations, actual keyless Tough assembly and authenticated
+immutable history. The repaired signed-history regression passes with disposable
+keys; production custody, hosted roles and metadata-only coordinator integration
+remain pending.
+
+The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
+connect actual controller/reader and isolated observer identities to existing
+classification, pause and capacity readers. Large acquisition precedes the
+unchanged 60-second freshness window. Later phases need their own fresh controls;
+actual hosted timing and final resource/digest reconciliation remain pending.
+
 The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
 connects actual aggregate verification and existing reservation association to
 strict diagnostic requests for the two beta updater payloads. Actual disposable

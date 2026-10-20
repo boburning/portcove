@@ -1474,6 +1474,15 @@ Owned-lifecycle and full sequences use a bounded ten-minute watchdog because the
 compose more than eight independently bounded scenarios; this does not change any
 scenario's operation, UI wait, confirmation or process-shutdown timeout.
 
+Windows native `Wait` keeps the captured identity inventory unchanged. When a
+protected process hides its .NET start time, readable CIM creation time may prove
+that the PID now belongs to a different incarnation. Values within one millisecond
+remain ambiguous because the providers can differ in precision. Missing CIM
+metadata, an inaccessible same-incarnation image or unknown identity fails closed;
+it never establishes exit or permits termination. Only the existing exact-identity
+path can wait for a still-matching process. This fallback changes no stop mode or
+lease-release requirement.
+
 For low-level harness diagnosis, the existing command remains available:
 
 Run `./scripts/bootstrap-quality-tools.ps1 -Desktop` to cache pinned

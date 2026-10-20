@@ -912,6 +912,8 @@ function UpdatesGroup({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  const checked = currentUpdateSnapshot(status)?.check;
+  const knownCandidate = Boolean(status?.staged || checked?.update_available);
   const preferences = (
     <>
       <div>
@@ -946,6 +948,14 @@ function UpdatesGroup({
       )}
       {installed && (
         <>
+          <p>
+            {checked
+              ? checked.update_available
+                ? `Update ${checked.release.version} was available at the saved check. Review it again before making changes.`
+                : "No update was found at the saved check. Review can identify a release again without changing the installation."
+              : "There is no saved update check for this installation and channel. Review identifies the release before asking what to do."}
+          </p>
+          {!knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} primary />}
           <GameUpdateControl
             key={`${port.id}:${libraryGeneration}:${status?.active?.id}:${status?.staged?.id}:${selectedChannel}:${policy}`}
             portId={port.id}
@@ -954,8 +964,9 @@ function UpdatesGroup({
             gameName={gameIdentityLabel(port)}
             busy={Boolean(busy)}
             perform={perform}
+            primary={knownCandidate}
           />
-          <UpdateCheckAction busy={busy} check={actions.check} />
+          {knownCandidate && <UpdateCheckAction busy={busy} check={actions.check} />}
         </>
       )}
       <details className="mt-4">
@@ -2431,15 +2442,17 @@ function DataActions({
 function UpdateCheckAction({
   busy,
   check,
+  primary = false,
 }: {
   busy?: string | undefined;
   check: DetailActions["check"];
+  primary?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
       <Button
         data-focusable
-        variant="outline"
+        variant={primary ? "primary" : "outline"}
         disabled={Boolean(busy)}
         onClick={() => {
           void check();

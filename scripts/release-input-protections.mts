@@ -2,6 +2,42 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+
+/** Transport only, emitted after the fixed production-observer verifier.
+ * Authentication comes from admitted same-workflow needs, not this JSON. */
+export function prepareProductionProtectionHandoff(
+  identity: unknown,
+  observation: unknown,
+  rawPhase: unknown = "admission",
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  if (
+    !isRecord(identity) ||
+    identity.workflow !== productionControllerWorkflow ||
+    identity.kind !== "oidc-job-identity-only" ||
+    identity.repository_id !== 1354613114 ||
+    typeof identity.expires_at !== "string" ||
+    !Number.isFinite(Date.parse(identity.expires_at)) ||
+    Date.now() >= Date.parse(identity.expires_at)
+  )
+    throw new Error("production protection producer identity differs or expired");
+  return {
+    schema_version: 1,
+    phase,
+    producer: {
+      workflow: identity.workflow,
+      controller_revision: identity.workflow_revision,
+      controller_ref: identity.execution_ref,
+      run_id: identity.run_id,
+      run_attempt: identity.run_attempt,
+      job_id: identity.job_id,
+      check_run_id: identity.check_run_id,
+    },
+    observation: structuredClone(observation),
+  };
+}
 
 const prefix = "repos/boburning/portcove";
 const refs = ["portcove-release-inputs", "portcove-release-pause"] as const;

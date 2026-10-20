@@ -6,9 +6,87 @@ import os from "node:os";
 import test from "node:test";
 import { capacityDigest } from "./release-capacity.mts";
 import {
+  inspectTufPublicationFacts,
+  assertMetadataRenewalPublication,
+} from "./release-metadata-contract.mts";
+import {
   composeSiteFiles,
   assembleAuthenticatedApplicationSite,
 } from "./release-site-composer.mts";
+
+void test("publication fact parsing retains exact u64 versions and rejects incomplete or authority-bearing reports", () => {
+  const roles = ["targets", "releases", "preview", "stable", "snapshot", "timestamp"];
+  const facts = {
+    schema_version: 1,
+    root_sha256: "a".repeat(64),
+    offline_targets_sha256: "b".repeat(64),
+    repository_sha256: "c".repeat(64),
+    timestamp_sha256: "d".repeat(64),
+    snapshot_sha256: "e".repeat(64),
+    records_sha256: "f".repeat(64),
+    versions: Object.fromEntries(roles.map((role) => [role, "9007199254740993"])),
+    expires: Object.fromEntries(roles.map((role) => [role, "2026-10-22T18:18:04.2946935Z"])),
+  };
+  assert.equal(inspectTufPublicationFacts(facts).versions.snapshot, "9007199254740993");
+  assert.throws(() => inspectTufPublicationFacts({ ...facts, accepted: true }));
+  assert.throws(() => inspectTufPublicationFacts({ ...facts, repository_sha256: null }));
+  assert.throws(() =>
+    inspectTufPublicationFacts({
+      ...facts,
+      versions: { ...facts.versions, snapshot: 9007199254740992 },
+    }),
+  );
+});
+
+const actualTool = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_TOOL;
+const actualFixture = process.env.PORTCOVE_TUF_RENEWAL_ADAPTER_FIXTURE;
+void test(
+  "actual pinned Rust assembly supplies publication facts bound to complete public site bytes",
+  {
+    skip: !actualTool || !actualFixture,
+    timeout: 120000,
+  },
+  async (t) => {
+    assert.ok(actualTool && actualFixture);
+    const f = await fixture(t);
+    const input = path.join(f.root, "public");
+    await cp(actualFixture, input, { recursive: true });
+    const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+    const composed = await assembleAuthenticatedApplicationSite({
+      input_root: input,
+      context: path.join(input, "context.json"),
+      signed_roles: path.join(input, "envelopes"),
+      trusted_root_sha256: hash(await readFile(path.join(input, "trusted-root.json"))),
+      verifier: actualTool,
+      verifier_sha256: hash(await readFile(actualTool)),
+      previous_site: null,
+      expected_previous_generation: null,
+      output_parent: f.output,
+    });
+    assert.ok(composed.publication);
+    const renewal: unknown = JSON.parse(await readFile(path.join(input, "renewal.json"), "utf8"));
+    assertMetadataRenewalPublication(renewal, composed.publication);
+    for (const changed of [
+      { ...composed.publication, root_sha256: "0".repeat(64) },
+      { ...composed.publication, offline_targets_sha256: "0".repeat(64) },
+      { ...composed.publication, records_sha256: "0".repeat(64) },
+      { ...composed.publication, versions: { ...composed.publication.versions, timestamp: "3" } },
+      {
+        ...composed.publication,
+        expires: { ...composed.publication.expires, timestamp: "2026-10-23T00:00:00Z" },
+      },
+    ])
+      assert.throws(
+        () => assertMetadataRenewalPublication(renewal, changed),
+        /differs from frozen/,
+      );
+    assert.equal(composed.publication.versions.snapshot, "2");
+    assert.equal(
+      composed.publication.timestamp_sha256,
+      hash(await readFile(path.join(composed.output, "application/metadata/timestamp.json"))),
+    );
+  },
+);
 
 async function fixture(t: { after(callback: () => Promise<void>): void }) {
   const root = await mkdtemp(path.join(os.tmpdir(), "site-composition-"));

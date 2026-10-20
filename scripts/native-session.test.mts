@@ -45,6 +45,91 @@ const script = fileURLToPath(
 const windows = { skip: process.platform !== "win32", timeout: 20_000 };
 
 void test(
+  "actual Wait refuses unknown protected identities and only accepts proven PID reuse",
+  windows,
+  async () => {
+    const helper = fileURLToPath(
+      new URL("../apps/desktop/scripts/native-process-tree.ps1", import.meta.url),
+    );
+    const quote = (value: string) => "'" + value.replaceAll("'", "''") + "'";
+    const result = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        `
+    $ErrorActionPreference = 'Stop'
+    . ${quote(helper)}
+    $productionWait = \${function:Wait-OwnedNativeProcess}
+    $ast = [Management.Automation.Language.Parser]::ParseFile(${quote(script)}, [ref]$null, [ref]$null)
+    $loop = $ast.Find({param($node) $node -is [Management.Automation.Language.ForEachStatementAst] -and $node.Extent.Text.Contains('Wait-OwnedNativeProcess $record $watch')}, $true)
+    if (-not $loop) { throw 'Production Wait loop changed' }
+    $tail = [scriptblock]::Create($loop.Extent.Text + [Environment]::NewLine + $ast.EndBlock.Statements[-1].Extent.Text)
+    $born = [DateTime]::UtcNow.AddHours(-1)
+    $snapshot = [pscustomobject]@{processes = @(1..10 | ForEach-Object { [pscustomobject]@{pid=$_;path='owned.exe';started_filetime=$born.ToFileTimeUtc().ToString()} })}
+    function Wait-OwnedNativeProcess($record, $watch) {
+      & $productionWait $record $watch {
+        param($processId)
+        if ($script:case -eq 'absent') { return $null }
+        $start = if ($script:case -like 'ordinary-*') { $born } else { $null }
+        $image = if ($script:case -eq 'ordinary-path-changed') { 'foreign.exe' } else { 'owned.exe' }
+        $fake = [pscustomobject]@{StartTime=$start;MainModule=[pscustomobject]@{FileName=$image};HasExited=$null}
+        $fake | Add-Member ScriptMethod WaitForExit {param($ms) $script:waits++; return $script:case -ne 'ordinary-timeout'}
+        $fake | Add-Member ScriptMethod Dispose {$script:disposed++}
+        return $fake
+      } {
+        param($processId)
+        $script:cimReads++
+        if ($script:case -eq 'cim-unavailable') { throw 'CIM unavailable' }
+        if ($script:case -eq 'cim-absent') { return $null }
+        $date = switch ($script:case) {
+          'protected-newer' {$born.AddMilliseconds(2)}
+          'protected-older' {$born.AddMilliseconds(-2)}
+          'protected-near' {$born.AddMilliseconds(1)}
+          'protected-unknown' {$null}
+          default {$born}
+        }
+        [pscustomobject]@{ProcessId=$processId;CreationDate=$date;ExecutablePath=$null}
+      }
+    }
+    $results = foreach ($script:case in @('protected-newer','protected-older','protected-same','protected-near','protected-unknown','cim-absent','cim-unavailable','ordinary-exited','ordinary-timeout','ordinary-path-changed','absent')) {
+      $script:waits=0; $script:disposed=0; $script:cimReads=0
+      $watch = [Diagnostics.Stopwatch]::StartNew()
+      try {$terminal = (& $tail) | ConvertFrom-Json; $accepted=$true; $count=$terminal.observed_processes}
+      catch {$accepted=$false; $count=$null}
+      [pscustomobject]@{case=$script:case;accepted=$accepted;count=$count;waits=$script:waits;disposed=$script:disposed;cim=$script:cimReads}
+    }
+    $results | ConvertTo-Json -Compress
+  `,
+      ],
+      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const rows = array(json(result.stdout)).map(object);
+    assert.equal(rows.length, 11);
+    for (const row of rows) {
+      const accepted = ["protected-newer", "protected-older", "ordinary-exited", "absent"].includes(
+        String(row.case),
+      );
+      assert.equal(row.accepted, accepted, String(row.case));
+      assert.equal(row.count, accepted ? 10 : null, String(row.case));
+      assert.equal(
+        row.waits,
+        row.case === "ordinary-exited" ? 10 : row.case === "ordinary-timeout" ? 1 : 0,
+        String(row.case),
+      );
+      assert.equal(row.disposed, row.case === "absent" ? 0 : accepted ? 10 : 1, String(row.case));
+      assert.equal(
+        row.cim,
+        String(row.case).startsWith("ordinary-") || row.case === "absent" ? 0 : accepted ? 10 : 1,
+        String(row.case),
+      );
+    }
+  },
+);
+
+void test(
   "driver snapshot waits for positive image metadata and refuses persistent absence",
   windows,
   async () => {
