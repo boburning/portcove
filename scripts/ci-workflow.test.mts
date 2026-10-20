@@ -2926,8 +2926,10 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     return value;
   });
   // Filters are execution identities, so exact values remain contractual.
-  const overrideFor = (filter: string) => {
-    const values = overrides.filter((value) => value.filter === filter);
+  const overrideFor = (filter: string, platform?: string) => {
+    const values = overrides.filter(
+      (value) => value.filter === filter && (platform === undefined || value.platform === platform),
+    );
     assert.equal(values.length, 1, filter);
     return requiredFixture(values[0]);
   };
@@ -2947,7 +2949,25 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     -50,
   );
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
-  assert.equal(outputOverrides.length, 2);
+  // Both Windows lifecycle diagnostics were added after the original two
+  // publication cases. Keep an exact allowlist rather than rejecting their
+  // existing retained output or admitting arbitrary new exceptions.
+  assert.equal(outputOverrides.length, 4);
+  for (const filter of [
+    "package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))",
+    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
+  ]) {
+    const override = overrideFor(filter, "x86_64-pc-windows-msvc");
+    assert.equal(override.platform, "x86_64-pc-windows-msvc");
+    assert.equal(override["success-output"], "immediate");
+    assert.deepEqual(override["slow-timeout"], {
+      period: "5s",
+      "terminate-after": 12,
+      "grace-period": "0s",
+    });
+    for (const field of ["retries", "threads-required", "priority"])
+      assert.equal(override[field], undefined);
+  }
   for (const filter of [
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)",
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
