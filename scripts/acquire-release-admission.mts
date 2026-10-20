@@ -16,7 +16,10 @@ import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
-import { collectReleaseSbomEvidence } from "./release-acceptance-evidence.mts";
+import {
+  collectReleaseSbomEvidence,
+  requireVerifiedReleaseSbomDocument,
+} from "./release-acceptance-evidence.mts";
 import { compareVerifiedReleaseCompilerSource } from "./release-compiler-source-admission.mts";
 import {
   collectReleaseCompilerEvidence,
@@ -94,12 +97,14 @@ export interface ActualReleaseAdmissionContext {
   admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
   checkpoint: string;
   native_qualifications: readonly object[];
+  sbom_receipt: object;
   pending_obligations: readonly string[];
 }
 const actualAdmissionContexts = new WeakMap<
   object,
   { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
 >();
+const acquiredSbomReceipts = new WeakMap<object, object>();
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -814,7 +819,7 @@ export async function acquireReleaseAdmission(
             },
           })
         : null;
-    return {
+    const result = {
       schema_version: 1,
       decision: "hold",
       descriptor: null,
@@ -848,6 +853,11 @@ export async function acquireReleaseAdmission(
           : "github.com",
       authority: "none",
     };
+    if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
+      await requireVerifiedReleaseSbomDocument(sbomEvidence);
+      acquiredSbomReceipts.set(result, sbomEvidence);
+    }
+    return result;
   } catch {
     const evidence = {
       schema_version: 1,
@@ -939,6 +949,9 @@ export async function acquireReleaseAdmissionWithControlHandshake(
         "positive continuation requires actual same-process facts/control/reservation binding",
       );
     requireAuthenticatedReleaseControlSource(controls, phase);
+    const sbomReceipt = acquiredSbomReceipts.get(admission);
+    if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
+    await requireVerifiedReleaseSbomDocument(sbomReceipt);
     if (phase !== "release-publication")
       throw new Error("full admission context cannot appoint another execution stage");
     const context = Object.freeze({
@@ -948,6 +961,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       admission: freezePreparedFacts(structuredClone(admission)),
       checkpoint: admission.checkpoint,
       native_qualifications: Object.freeze([] as object[]),
+      sbom_receipt: sbomReceipt,
       pending_obligations: Object.freeze(["post-publication-full-public-V0-to-V1-acceptance"]),
     });
     actualAdmissionContexts.set(context, { context, phase });

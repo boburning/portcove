@@ -10,6 +10,7 @@ import {
   inspectVerifiedReleaseSbom,
   collectReleaseSbomEvidence,
   releaseSpdxPredicateType,
+  requireVerifiedReleaseSbomDocument,
 } from "./release-acceptance-evidence.mts";
 
 const document = {
@@ -35,6 +36,17 @@ const document = {
     },
   ],
 };
+void test("imported SPDX summaries cannot appoint retained publication document bytes", async () => {
+  await assert.rejects(requireVerifiedReleaseSbomDocument({}), /actual same-process/);
+  await assert.rejects(
+    requireVerifiedReleaseSbomDocument({
+      state: "verified-document",
+      evidence_scope: "github.com",
+      document_sha256: "a".repeat(64),
+    }),
+    /actual same-process/,
+  );
+});
 const expected = {
   revision: "a".repeat(40),
   ref: "refs/tags/v0.1.0-alpha.3",
@@ -193,6 +205,7 @@ void test("actual bounded ZIP + verifier transport validates fixture document bu
   assert.equal(result.state, "verified-document");
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(result.authority, "none");
+  await assert.rejects(requireVerifiedReleaseSbomDocument(result), /actual same-process/);
   evidence.run.event = "workflow_dispatch";
   const preparedRef = `refs/tags/portcove-fixture-prepared/v${f.request.version}`;
   value[0]!.verificationResult.signature.certificate.sourceRepositoryRef = preparedRef;
