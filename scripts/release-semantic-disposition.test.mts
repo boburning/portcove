@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import { capacityDigest } from "./release-capacity.mts";
-import { createReleaseReviewRequest } from "./release-review-request.mts";
+import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import {
   inspectNegativeSemanticDisposition,
   prepareNegativeSemanticDispositionCheck,
@@ -13,64 +13,8 @@ import {
 } from "./release-semantic-review.mts";
 import { readIndependentSemanticReview } from "./release-control-inputs.mts";
 
-function fixture() {
-  const opportunity = {
-    source_commit: "a".repeat(40),
-    source_tree: "b".repeat(40),
-    base_commit: "c".repeat(40),
-    change_set_sha256: "d".repeat(64),
-    complete_change_set: true,
-    meaningful: true,
-    documentation_only: false,
-    urgency: false,
-    requested_channel: "preview",
-    classification: {
-      source_commit: "a".repeat(40),
-      reviewed_commit: "a".repeat(40),
-      source_tree: "b".repeat(40),
-      reviewed_tree: "b".repeat(40),
-      change_set_sha256: "d".repeat(64),
-      change_set_scope: "portcove-release-net-tree-delta-v1",
-      base_version: "0.1.0-alpha.2",
-      change: "prerelease",
-      compatibility: "compatible",
-    },
-  };
-  const request = createReleaseReviewRequest({
-    before_checkpoint: "e".repeat(40),
-    requested_at: "2026-10-20T00:00:00.123Z",
-    base_commit: opportunity.base_commit,
-    base_version: opportunity.classification.base_version,
-    source_commit: opportunity.source_commit,
-    source_tree: opportunity.source_tree,
-    change_set_sha256: opportunity.change_set_sha256,
-  });
-  const report = "Fixture actual negative result; not evidence of a real runtime or issuer.";
-  return {
-    schema_version: 1,
-    kind: "application-release-semantic-disposition",
-    disposition: "changes-required",
-    request,
-    request_id: request.request_id,
-    opportunity,
-    opportunity_sha256: capacityDigest(opportunity),
-    bundle_sha256: "1".repeat(64),
-    invocation_sha256: "2".repeat(64),
-    events_sha256: "3".repeat(64),
-    isolation_sha256: "4".repeat(64),
-    review: {
-      runtime: "codex-independent-local-review",
-      scope: "complete-release-opportunity",
-      session_ref: "fixture:separate-runtime",
-      completed_at: "2026-10-20T00:01:00Z",
-      coverage: { accumulated_changes: true, classification: false, compatibility: false },
-      report,
-      report_sha256: createHash("sha256").update(report).digest("hex"),
-    },
-  };
-}
 void test("negative serialization binds the whole neutral request and preserves failure without manufacturing acceptance", () => {
-  const input = fixture();
+  const input = negativeSemanticDispositionFixture();
   for (const disposition of ["changes-required", "refused"]) {
     const record = prepareNegativeSemanticDispositionCheck({ ...input, disposition });
     assert.equal(record.authority, "none");
@@ -84,7 +28,7 @@ void test("negative serialization binds the whole neutral request and preserves 
       inspectNegativeSemanticDisposition(JSON.parse(record.proposed_request.body.output.summary)),
       record.wire,
     );
-    assert.equal(record.wire.review.coverage.classification, false);
+    assert.equal(record.wire.review.coverage?.classification, false);
     assert.throws(() => prepareSemanticReviewHandoff(input.opportunity, record.wire.review));
     const reader = {
       request(method: string, endpoint: string) {
@@ -130,9 +74,35 @@ void test("negative serialization binds the whole neutral request and preserves 
   input.review.report = "changed after serialization";
   assert.notEqual(record.review.report, input.review.report);
 });
+void test("proposal refusal retires no invented classification or full-opportunity coverage", () => {
+  const full = negativeSemanticDispositionFixture();
+  const proposed = {
+    ...full,
+    stage: "classification-proposal",
+    disposition: "refused",
+    opportunity: null,
+    opportunity_sha256: null,
+    review: { ...full.review, scope: "release-classification-proposal", coverage: null },
+  };
+  const result = inspectNegativeSemanticDisposition(proposed);
+  assert.equal(result.stage, "classification-proposal");
+  assert.equal(result.opportunity, null);
+  assert.equal(result.opportunity_sha256, null);
+  assert.equal(result.review.coverage, null);
+  for (const mutation of [
+    { ...proposed, disposition: "changes-required" },
+    { ...proposed, opportunity: full.opportunity },
+    { ...proposed, opportunity_sha256: full.opportunity_sha256 },
+    { ...proposed, review: { ...proposed.review, coverage: full.review.coverage } },
+    { ...proposed, review: { ...proposed.review, scope: "complete-release-opportunity" } },
+  ])
+    assert.throws(() => inspectNegativeSemanticDisposition(mutation));
+});
 void test("wrong request/opportunity, report mutation, missing capture hashes and startup outcomes cannot become dispositions", () => {
-  const mutate = (apply: (input: ReturnType<typeof fixture>) => void) => {
-    const input = fixture();
+  const mutate = (
+    apply: (input: ReturnType<typeof negativeSemanticDispositionFixture>) => void,
+  ) => {
+    const input = negativeSemanticDispositionFixture();
     apply(input);
     assert.throws(() => inspectNegativeSemanticDisposition(input));
   };
