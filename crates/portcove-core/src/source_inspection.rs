@@ -257,6 +257,9 @@ pub(crate) fn inspect(
         }
         return inspect_file(catalog, profile_id, path, u64::MAX, &mut budget);
     }
+    if profile.kind == SourceKind::RelativeFileSet {
+        return crate::relative_file_set::inspect(catalog, profile_id, path);
+    }
     if profile.kind == SourceKind::FileSet {
         return inspect_file_set(catalog, profile_id, path);
     }

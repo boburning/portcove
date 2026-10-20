@@ -1680,7 +1680,7 @@ function sourceHealthNote(health: SourceHealth | null | undefined, bios: boolean
 }
 
 function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
-  if (profile?.kind === "file-set")
+  if (profile?.kind === "file-set" || profile?.kind === "relative-file-set")
     return {
       placeholder: "Choose the folder or ZIP file that contains the required game files",
       note: "Portcove checks this location without uploading or changing it.",

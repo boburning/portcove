@@ -11,6 +11,7 @@ import { errorText, failurePresentation } from "../view-model";
 import type { ActivityRecord } from "../types";
 import { copyText } from "../clipboard";
 import { FailureDetails } from "./FailureDetails";
+import { ActionReviewFailure } from "./ActionReviewFailure";
 
 vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) }));
 
@@ -37,6 +38,23 @@ describe("diagnostic clipboard outcomes", () => {
   async function copy() {
     await act(async () => host.querySelector("button")!.click());
   }
+
+  it("shows an exact escaped recovery path before technical details are opened", async () => {
+    const error = failureReport();
+    const directory = "C:\\Games\\token=literal-player-folder\\<preserve>\\.tfe-preparation";
+    error.presentation.summary = `Preparation copies need manual preservation before continuing.\nFolder to preserve: ${directory}`;
+    error.presentation.presentation_key = "tfe_preparation_recovery_required";
+    error.presentation.mutation_state = "recovery_required";
+    error.presentation.technical_context = { recovery_directory: "[REDACTED]" };
+    await act(async () => root.render(<ActionReviewFailure error={error} />));
+    const summary = host.querySelector('[role="alert"] > p')!;
+    expect(summary.textContent).toBe(error.presentation.summary);
+    expect(summary.closest("details")).toBeNull();
+    expect(summary.classList.contains("[overflow-wrap:anywhere]")).toBe(true);
+    expect(summary.classList.contains("[unicode-bidi:plaintext]")).toBe(true);
+    expect(host.querySelector("preserve")).toBeNull();
+    expect(host.querySelector("details")?.open).toBe(false);
+  });
 
   it("announces failure with exact selectable details and recovers without changing the outcome", async () => {
     const presentation = failurePresentation(failureReport())!;

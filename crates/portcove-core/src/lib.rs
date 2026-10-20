@@ -51,6 +51,7 @@ mod library_authority;
 mod library_import;
 mod library_move;
 mod library_transfer;
+mod managed_tfe;
 mod n64_graphics;
 mod operation;
 mod output_relocation;
@@ -68,6 +69,7 @@ mod psx;
 #[cfg(feature = "qualification-fixtures")]
 mod qualification_checkpoint;
 mod recovery;
+mod relative_file_set;
 mod release;
 mod runtime;
 mod runtime_path_policy;
@@ -250,8 +252,9 @@ pub use types::*;
 // Public 71 adds descriptive game identity and authored manual setup guidance.
 // Public 72 adds retained-contract external folder relink and its activity operation.
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
-// Public74 adds retained managed Windows runtime path policy; API73 retains shared-directory external contracts.
-pub const API_SCHEMA_VERSION: u32 = 74;
+// Public75 adds exact relative-file sets and closed managed TFE initialization.
+// API74 retains managed Windows path policy; API73 retains external shared directories.
+pub const API_SCHEMA_VERSION: u32 = 75;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

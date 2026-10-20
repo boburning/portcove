@@ -80,7 +80,9 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.windows_runtime_path_policy.is_some() {
+    let version = if typed.managed_initialization.is_some() {
+        12
+    } else if typed.windows_runtime_path_policy.is_some() {
         11
     } else if let Some(minimum) = typed
         .release
@@ -206,6 +208,31 @@ fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
             .message
             .contains("capability version 11")
     );
+}
+
+#[test]
+fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "the-force-engine-dark-forces")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    inspect(&valid, &contract).unwrap();
+    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12)] {
+        let mut stale = valid.clone();
+        stale["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        stale["required_capabilities"][0]["maximum_version"] = json!(maximum);
+        assert!(
+            inspect(&stale, &contract)
+                .unwrap_err()
+                .message
+                .contains("capability version 12")
+        );
+    }
 }
 
 #[test]

@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "the-force-engine-complete-data-archive-2026-10-18",
+        "role": "byte_identity",
+        "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
+        "immutable_url": "https://github.com/boburning/portcove/blob/9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a/docs/qualification/tfe-prepared-source-windows-2026-10-18.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-source-windows-2026-10-18.md",
+        "claim": "Archive SHA256 983e6f1c9f20c6ced106a675ffc32ee66f6d09aeafa0c0a3c0a3b0add7f820c2 contains 48 original files, 68386776 expanded bytes. Catalog member identities are derived from the retained bounded exact-archive inventory; these are owner-provided byte facts, not upstream-published digests or gameplay evidence.",
+        "authority": "boburning/portcove owner-provided archive",
+        "reviewed_at": "2026-10-18"
+      },
+      {
         "id": "f-zero-managed-windows-path-policy-2026-10-19",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -6478,6 +6488,326 @@
         "aliases": [],
         "tombstones": [],
         "evidence_gap": null
+      },
+      {
+        "id": "dark-forces-pc-complete-installed-data",
+        "label": "Dark Forces PC installed data: complete folder or ZIP",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "owned-pc-installed-data",
+            "title": "Reviewed PC installed data",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "evidence_ids": [
+              "the-force-engine-complete-data-archive-2026-10-18"
+            ],
+            "representations": [
+              {
+                "id": "relative-data-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "dark-gob",
+                    "path": "DARK.GOB",
+                    "size": 14244049,
+                    "sha256": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b"
+                  },
+                  {
+                    "id": "lfd-1e-lfd",
+                    "path": "LFD/1E.LFD",
+                    "size": 386159,
+                    "sha256": "1f132ae57c788411abbd65f068347b8466c1b1268d4464aab966c9c926f1901b"
+                  },
+                  {
+                    "id": "lfd-agentmnu-lfd",
+                    "path": "LFD/AGENTMNU.LFD",
+                    "size": 51808,
+                    "sha256": "e59e1bdd7ecb9a08aa89a02dbc901fcbb7fe7823aaf303b469ecc321fb17b6cd"
+                  },
+                  {
+                    "id": "lfd-arcext-lfd",
+                    "path": "LFD/ARCEXT.LFD",
+                    "size": 69403,
+                    "sha256": "5b959d01147482ecbfa9e27099751480cbd171c561fc13659f3ef62768efb540"
+                  },
+                  {
+                    "id": "lfd-arcfly-lfd",
+                    "path": "LFD/ARCFLY.LFD",
+                    "size": 449178,
+                    "sha256": "2ce1b6c03b26317d209170046b742b080c10ac370bb80c06c71db04610f8631a"
+                  },
+                  {
+                    "id": "lfd-award1-lfd",
+                    "path": "LFD/AWARD1.LFD",
+                    "size": 1339773,
+                    "sha256": "7b9a40f3bc88cc6f577aac47f260cbb1a7468409f95d8f414bf2634cbc5268b7"
+                  },
+                  {
+                    "id": "lfd-award2-lfd",
+                    "path": "LFD/AWARD2.LFD",
+                    "size": 99827,
+                    "sha256": "7c6e0c8859bdf6e91745c3a2bf22dd13c402073a63edf3ab6d59a0374cdbebfc"
+                  },
+                  {
+                    "id": "lfd-award3-lfd",
+                    "path": "LFD/AWARD3.LFD",
+                    "size": 809308,
+                    "sha256": "6668e2a0751902df74a079ec03c6140b6a74245bf140c860d5b792d82c0cd319"
+                  },
+                  {
+                    "id": "lfd-award4-lfd",
+                    "path": "LFD/AWARD4.LFD",
+                    "size": 837011,
+                    "sha256": "9406d7ca508523bb2f49495d5221e8560935675e67f5743fcc3a2d08ce6f9867"
+                  },
+                  {
+                    "id": "lfd-boba-lfd",
+                    "path": "LFD/BOBA.LFD",
+                    "size": 591083,
+                    "sha256": "d506439f6e1cb77c9eb6c306c7bdeb22e61bbbc19288d228b932e5ab026a6564"
+                  },
+                  {
+                    "id": "lfd-brief1-lfd",
+                    "path": "LFD/BRIEF1.LFD",
+                    "size": 486992,
+                    "sha256": "41562bfba6e130d82084908159866773059fde666546dd260a19a7fe938fbc51"
+                  },
+                  {
+                    "id": "lfd-brief2-lfd",
+                    "path": "LFD/BRIEF2.LFD",
+                    "size": 378007,
+                    "sha256": "2251a82a1be49ee3e57f04c99dbe9e8c4c7281b4e96a890bcd326a0e3ce4faa4"
+                  },
+                  {
+                    "id": "lfd-cargo1-lfd",
+                    "path": "LFD/CARGO1.LFD",
+                    "size": 742172,
+                    "sha256": "cdcd7c0a5ffd7e79a6b00ead22427364329f4ad94221e99b7e62057717698fd5"
+                  },
+                  {
+                    "id": "lfd-cargo3-lfd",
+                    "path": "LFD/CARGO3.LFD",
+                    "size": 1682384,
+                    "sha256": "798301011299c824dc66cf9179ba94d7825d23c833d016bdd19183d7e023bad1"
+                  },
+                  {
+                    "id": "lfd-darklogo-lfd",
+                    "path": "LFD/DARKLOGO.LFD",
+                    "size": 611741,
+                    "sha256": "d7552fc09f29160ca8629413d8c0abde0e486d932acf651c0b413306fda42ee5"
+                  },
+                  {
+                    "id": "lfd-dfbrief-lfd",
+                    "path": "LFD/DFBRIEF.LFD",
+                    "size": 1073784,
+                    "sha256": "53d8b495607fa8a8ab138f354f6a2ce12e2f4e9b00524aaf8aa4e7b3c0320dd2"
+                  },
+                  {
+                    "id": "lfd-endfly-lfd",
+                    "path": "LFD/ENDFLY.LFD",
+                    "size": 88001,
+                    "sha256": "cba548394757245ddaf8d82211c2b97852f8403836462db6a658d1f70311cfa7"
+                  },
+                  {
+                    "id": "lfd-execcomp-lfd",
+                    "path": "LFD/EXECCOMP.LFD",
+                    "size": 397323,
+                    "sha256": "63eb69be42ab9ab245133ce0442437722850a5b2b32b56e8a0ae9518d42559cc"
+                  },
+                  {
+                    "id": "lfd-execx-lfd",
+                    "path": "LFD/EXECX.LFD",
+                    "size": 1217657,
+                    "sha256": "6bac072bd974b743546f9ba52ebd27f07176e2c7e2583c8e0071b269503c59e9"
+                  },
+                  {
+                    "id": "lfd-exitneb-lfd",
+                    "path": "LFD/EXITNEB.LFD",
+                    "size": 452579,
+                    "sha256": "83a49baf1ae13cb498c92cd0a2e17b718f3b86aa6e05c9346e97559432dfe881"
+                  },
+                  {
+                    "id": "lfd-exp1xx-lfd",
+                    "path": "LFD/EXP1XX.LFD",
+                    "size": 223728,
+                    "sha256": "0d0990750cb10b1aec59a0bc5511a1166d0c51e46377c239749984dffd8a85d5"
+                  },
+                  {
+                    "id": "lfd-exp2x-lfd",
+                    "path": "LFD/EXP2X.LFD",
+                    "size": 932081,
+                    "sha256": "abe6026d2e16bdc382fef94eee025dd9743c5a5cde7d27dbe1009bee79bde648"
+                  },
+                  {
+                    "id": "lfd-exp3xx-lfd",
+                    "path": "LFD/EXP3XX.LFD",
+                    "size": 428211,
+                    "sha256": "3085c4ffe0b8e942da50f3d6eb6f8031b0bac76e4bc485edbcba29acb0ab6059"
+                  },
+                  {
+                    "id": "lfd-ftextcra-lfd",
+                    "path": "LFD/FTEXTCRA.LFD",
+                    "size": 85891,
+                    "sha256": "4055a34140f4e84bd3b29dfb499e040477c4c239d959ca22a40da249fab9804b"
+                  },
+                  {
+                    "id": "lfd-fullcred-lfd",
+                    "path": "LFD/FULLCRED.LFD",
+                    "size": 611729,
+                    "sha256": "776a71b300a4ffae95984dd0411ba940ccdfb8537a6a41eb2b7359a0248fa57f"
+                  },
+                  {
+                    "id": "lfd-gromas1-lfd",
+                    "path": "LFD/GROMAS1.LFD",
+                    "size": 824906,
+                    "sha256": "f2620271ad58554e3ff6dcb14fc349ac336b5dcb41dc9bc5abf8dd73cad923a1"
+                  },
+                  {
+                    "id": "lfd-gromasx-lfd",
+                    "path": "LFD/GROMASX.LFD",
+                    "size": 1495927,
+                    "sha256": "4b178b52c85e270fb3650c2ea644644b52246a97658c0e7ecf43c93945afca55"
+                  },
+                  {
+                    "id": "lfd-holocu-lfd",
+                    "path": "LFD/HOLOCU.LFD",
+                    "size": 1292375,
+                    "sha256": "e80e0593ecc532ff5435a56bdd6a113967644831cbfa2b4cba01137057a91eb5"
+                  },
+                  {
+                    "id": "lfd-jabba1-lfd",
+                    "path": "LFD/JABBA1.LFD",
+                    "size": 1746245,
+                    "sha256": "4494a1cb51f285290d14379d3d70c5099b3b495d5048a509e3a5bee5878f2e6b"
+                  },
+                  {
+                    "id": "lfd-jabba2-lfd",
+                    "path": "LFD/JABBA2.LFD",
+                    "size": 1071870,
+                    "sha256": "550847b81ef3d6471f08a67ea90d1035f0c017c22e38759c18152c408101de7b"
+                  },
+                  {
+                    "id": "lfd-jabba3-lfd",
+                    "path": "LFD/JABBA3.LFD",
+                    "size": 1192747,
+                    "sha256": "ed7068d3d0e4fb8538bbb9a794197293ed2b5bf54002cfdb04bb0aaf6fe02ce0"
+                  },
+                  {
+                    "id": "lfd-jabescp-lfd",
+                    "path": "LFD/JABESCP.LFD",
+                    "size": 569161,
+                    "sha256": "7defee44d1e2887834663eddc373d7b6c75eb3209f04f01d320e77c79183cc50"
+                  },
+                  {
+                    "id": "lfd-jedisfx-lfd",
+                    "path": "LFD/JEDISFX.LFD",
+                    "size": 7175669,
+                    "sha256": "2877610360133fdce7ae783ea208bc73bc14c63f277ca23226cede64386a07c4"
+                  },
+                  {
+                    "id": "lfd-kflyby-lfd",
+                    "path": "LFD/KFLYBY.LFD",
+                    "size": 87977,
+                    "sha256": "a4988bcfad93053cd302cbaaf1d250aadcb1d5908244fb1dd1a4ebb0290daa40"
+                  },
+                  {
+                    "id": "lfd-logo-lfd",
+                    "path": "LFD/LOGO.LFD",
+                    "size": 67779,
+                    "sha256": "0a0c3a3d00ef26886dea01262796f75344d9c48f22ed91ac7d9f86da34293355"
+                  },
+                  {
+                    "id": "lfd-madine1-lfd",
+                    "path": "LFD/MADINE1.LFD",
+                    "size": 216483,
+                    "sha256": "7f4c09d1584d65bcf519423c04bbbffb4289cb05de23ae8eac7cd1dc44356896"
+                  },
+                  {
+                    "id": "lfd-menu-lfd",
+                    "path": "LFD/MENU.LFD",
+                    "size": 207749,
+                    "sha256": "bbb0c99e9d1448883a5d26aead330ca8f0905af02fe9759c69b669a557ad134b"
+                  },
+                  {
+                    "id": "lfd-neb1-lfd",
+                    "path": "LFD/NEB1.LFD",
+                    "size": 1106290,
+                    "sha256": "0c3e7812d2245ad789bf148429b43c1bbf31395e609ba935680f31ae28870b15"
+                  },
+                  {
+                    "id": "lfd-pit-lfd",
+                    "path": "LFD/PIT.LFD",
+                    "size": 1244180,
+                    "sha256": "2896586ef66af19aac0ba737b689beea32d9145535f8ba719f9c65ff0c3a07de"
+                  },
+                  {
+                    "id": "lfd-rob1-lfd",
+                    "path": "LFD/ROB1.LFD",
+                    "size": 869213,
+                    "sha256": "da02769732261ace923362272f1e52737d42deb39091b1c5334581a8c8a27217"
+                  },
+                  {
+                    "id": "lfd-robotx-lfd",
+                    "path": "LFD/ROBOTX.LFD",
+                    "size": 1247007,
+                    "sha256": "a6dbcc3380d8d344cf90d8b2379866747478edfba0b61edc94d1376c54526efa"
+                  },
+                  {
+                    "id": "lfd-standard-lfd",
+                    "path": "LFD/STANDARD.LFD",
+                    "size": 19191,
+                    "sha256": "d09b0e731de47ebeda259f9ffaded3412220d6d728e3eb6ed0d74829feffa939"
+                  },
+                  {
+                    "id": "lfd-succes-lfd",
+                    "path": "LFD/SUCCES.LFD",
+                    "size": 124435,
+                    "sha256": "b6ebfd30779deafcc02512a61bca6739c5c6116701b9714e962150a0a47e889c"
+                  },
+                  {
+                    "id": "lfd-swlogo-lfd",
+                    "path": "LFD/SWLOGO.LFD",
+                    "size": 431268,
+                    "sha256": "4a2de752430786bef3de237465f548f192637a0022087ededfe6536dd93ff487"
+                  },
+                  {
+                    "id": "lfd-tubecomp-lfd",
+                    "path": "LFD/TUBECOMP.LFD",
+                    "size": 1410657,
+                    "sha256": "5f354a2a45cb8458eeeea1a1c7f0ff1892a408bd2f0599e928e0dcf90e0d4ef3"
+                  },
+                  {
+                    "id": "sounds-gob",
+                    "path": "SOUNDS.GOB",
+                    "size": 5950117,
+                    "sha256": "5cc43a1762341ba1ddeda6b3fa105f097fb59e4126d4b3d8e73cd5e7228c9d1c"
+                  },
+                  {
+                    "id": "sprites-gob",
+                    "path": "SPRITES.GOB",
+                    "size": 2816419,
+                    "sha256": "d7d5d7f8125c28b9917a470091ca1d37e26303e53b384d71f85bfe64579452ab"
+                  },
+                  {
+                    "id": "textures-gob",
+                    "path": "TEXTURES.GOB",
+                    "size": 8929232,
+                    "sha256": "b36e507471ee2b64c18236503c34c58fc37233988424ce25f0767e412650ce42"
+                  }
+                ],
+                "evidence_ids": [
+                  "the-force-engine-complete-data-archive-2026-10-18"
+                ]
+              }
+            ]
+          }
+        ]
       }
     ],
     "contracts": [
@@ -9150,10 +9480,10 @@
         "tombstones": []
       },
       {
-        "id": "the-force-engine-dark-forces-game-source",
+        "id": "the-force-engine-dark-forces-managed-data",
         "port_id": "the-force-engine-dark-forces",
         "role": "game",
-        "profile_id": "dark-forces-pc-dark-gob",
+        "profile_id": "dark-forces-pc-complete-installed-data",
         "admission_mode": "enforced",
         "supported_variant_ids": [
           "owned-pc-installed-data"
@@ -9161,7 +9491,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "the-force-engine-pc-data-2026-10-12",
-          "the-force-engine-1-22-420-source-contract"
+          "the-force-engine-1-22-420-source-contract",
+          "the-force-engine-complete-data-archive-2026-10-18"
         ],
         "authority_ref": "cc25205cc94c36a396f6f50295772f6ec83069a2",
         "reviewed_at": "2026-10-18",
@@ -18593,7 +18924,7 @@
     {
       "id": "the-force-engine-dark-forces",
       "name": "The Force Engine: Dark Forces",
-      "summary": "Dark Forces with an exact player-prepared Windows runtime and PC data.",
+      "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Gameplay remains unqualified.",
       "project_url": "https://github.com/TheForceEngine/TheForceEngine",
       "support_tier": "beta",
       "channels": [
@@ -18606,39 +18937,18 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "direct-manifest",
         "repository": "TheForceEngine/TheForceEngine",
-        "user_prepared": {
+        "direct": {
           "windows-x86-64": {
             "version": "1.22.420",
-            "archive_name": "TheForceEngine-v1.22.420.zip",
-            "archive_size": 10561878,
-            "archive_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
-            "executable": "TheForceEngine.exe",
-            "immutable_tree_sha256": "e07fc26a2027500b74548e511c5677ea78357e466d23510d94161e144ce6eaf8",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "settings.ini",
-              "settings_default.ini",
-              "tfe_input_remapping.bin",
-              "DARKPILO.CFG",
-              "imgui.ini",
-              "the_force_engine_log.txt",
-              "the_force_engine_log.txt.1",
-              "the_force_engine_log.txt.2",
-              "the_force_engine_log.txt.3",
-              "Screenshots",
-              "Saves"
-            ],
-            "required_mutable_files": [
-              "settings.ini",
-              "DARKPILO.CFG"
-            ],
-            "settings_contract": "tfe-dark-forces-v1.22.420"
+            "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
+            "size": 10561878,
+            "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
           }
         }
       },
-      "source_profile": "dark-forces-pc-dark-gob",
+      "source_profile": "dark-forces-pc-complete-installed-data",
       "executable_hints": {
         "windows-x86-64": [
           "TheForceEngine.exe"
@@ -18647,43 +18957,424 @@
       "presentation": {
         "original_game_title": "Star Wars: Dark Forces",
         "variant_label": "PC",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "staged-game-files",
         "source_requirements": [
           {
             "role": "game",
-            "profile_id": "dark-forces-pc-dark-gob",
-            "label": "Dark Forces PC installed data: exact primary DARK.GOB",
+            "profile_id": "dark-forces-pc-complete-installed-data",
+            "label": "Dark Forces PC installed data: complete folder or ZIP",
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library."
-            },
-            {
-              "title": "Provide the complete original game data",
-              "instruction": "Place the reviewed owned PC installed-data member set under GameData/. Choose and check GameData/DARK.GOB in Portcove; that one file does not replace the complete required member set."
-            },
-            {
-              "title": "Prepare settings and a pilot",
-              "instruction": "Create portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or follow the preparation guide to create a fresh pilot without overwriting an existing one."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the extracted folder below. Keep the shipped package, GameData and built-in Mods/TFE unchanged."
-            }
+        "saves_and_settings": "portcove-managed"
+      },
+      "managed_initialization": "tfe-dark-forces-v1.22.420",
+      "launch_from_install_root": true,
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "DARK.GOB"
           ],
-          "warnings": [
-            "Portcove neither seeds nor imports a pilot. The game may regenerate a malformed pilot; preserve an existing compatible copy before preparing this folder.",
-            "Additional mods or editor output need separate qualification. Gameplay and in-game save/load remain unqualified."
+          "destination": "GameData/DARK.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/1E.LFD"
           ],
-          "help_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md"
+          "destination": "GameData/LFD/1E.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AGENTMNU.LFD"
+          ],
+          "destination": "GameData/LFD/AGENTMNU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCEXT.LFD"
+          ],
+          "destination": "GameData/LFD/ARCEXT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ARCFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD1.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD2.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD3.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD4.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD4.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BOBA.LFD"
+          ],
+          "destination": "GameData/LFD/BOBA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF1.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF2.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO1.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO3.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DARKLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/DARKLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DFBRIEF.LFD"
+          ],
+          "destination": "GameData/LFD/DFBRIEF.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ENDFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ENDFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECCOMP.LFD"
+          ],
+          "destination": "GameData/LFD/EXECCOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECX.LFD"
+          ],
+          "destination": "GameData/LFD/EXECX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXITNEB.LFD"
+          ],
+          "destination": "GameData/LFD/EXITNEB.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP1XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP1XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP2X.LFD"
+          ],
+          "destination": "GameData/LFD/EXP2X.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP3XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP3XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FTEXTCRA.LFD"
+          ],
+          "destination": "GameData/LFD/FTEXTCRA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FULLCRED.LFD"
+          ],
+          "destination": "GameData/LFD/FULLCRED.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMAS1.LFD"
+          ],
+          "destination": "GameData/LFD/GROMAS1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMASX.LFD"
+          ],
+          "destination": "GameData/LFD/GROMASX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/HOLOCU.LFD"
+          ],
+          "destination": "GameData/LFD/HOLOCU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA1.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA2.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA3.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABESCP.LFD"
+          ],
+          "destination": "GameData/LFD/JABESCP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JEDISFX.LFD"
+          ],
+          "destination": "GameData/LFD/JEDISFX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/KFLYBY.LFD"
+          ],
+          "destination": "GameData/LFD/KFLYBY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/LOGO.LFD"
+          ],
+          "destination": "GameData/LFD/LOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MADINE1.LFD"
+          ],
+          "destination": "GameData/LFD/MADINE1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MENU.LFD"
+          ],
+          "destination": "GameData/LFD/MENU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/NEB1.LFD"
+          ],
+          "destination": "GameData/LFD/NEB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/PIT.LFD"
+          ],
+          "destination": "GameData/LFD/PIT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROB1.LFD"
+          ],
+          "destination": "GameData/LFD/ROB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROBOTX.LFD"
+          ],
+          "destination": "GameData/LFD/ROBOTX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/STANDARD.LFD"
+          ],
+          "destination": "GameData/LFD/STANDARD.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SUCCES.LFD"
+          ],
+          "destination": "GameData/LFD/SUCCES.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SWLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/SWLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/TUBECOMP.LFD"
+          ],
+          "destination": "GameData/LFD/TUBECOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SOUNDS.GOB"
+          ],
+          "destination": "GameData/SOUNDS.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SPRITES.GOB"
+          ],
+          "destination": "GameData/SPRITES.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "TEXTURES.GOB"
+          ],
+          "destination": "GameData/TEXTURES.GOB",
+          "materialization": "copy"
         }
-      }
+      ],
+      "runtime_source_hashes": {
+        "GameData/DARK.GOB": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b",
+        "GameData/LFD/1E.LFD": "1f132ae57c788411abbd65f068347b8466c1b1268d4464aab966c9c926f1901b",
+        "GameData/LFD/AGENTMNU.LFD": "e59e1bdd7ecb9a08aa89a02dbc901fcbb7fe7823aaf303b469ecc321fb17b6cd",
+        "GameData/LFD/ARCEXT.LFD": "5b959d01147482ecbfa9e27099751480cbd171c561fc13659f3ef62768efb540",
+        "GameData/LFD/ARCFLY.LFD": "2ce1b6c03b26317d209170046b742b080c10ac370bb80c06c71db04610f8631a",
+        "GameData/LFD/AWARD1.LFD": "7b9a40f3bc88cc6f577aac47f260cbb1a7468409f95d8f414bf2634cbc5268b7",
+        "GameData/LFD/AWARD2.LFD": "7c6e0c8859bdf6e91745c3a2bf22dd13c402073a63edf3ab6d59a0374cdbebfc",
+        "GameData/LFD/AWARD3.LFD": "6668e2a0751902df74a079ec03c6140b6a74245bf140c860d5b792d82c0cd319",
+        "GameData/LFD/AWARD4.LFD": "9406d7ca508523bb2f49495d5221e8560935675e67f5743fcc3a2d08ce6f9867",
+        "GameData/LFD/BOBA.LFD": "d506439f6e1cb77c9eb6c306c7bdeb22e61bbbc19288d228b932e5ab026a6564",
+        "GameData/LFD/BRIEF1.LFD": "41562bfba6e130d82084908159866773059fde666546dd260a19a7fe938fbc51",
+        "GameData/LFD/BRIEF2.LFD": "2251a82a1be49ee3e57f04c99dbe9e8c4c7281b4e96a890bcd326a0e3ce4faa4",
+        "GameData/LFD/CARGO1.LFD": "cdcd7c0a5ffd7e79a6b00ead22427364329f4ad94221e99b7e62057717698fd5",
+        "GameData/LFD/CARGO3.LFD": "798301011299c824dc66cf9179ba94d7825d23c833d016bdd19183d7e023bad1",
+        "GameData/LFD/DARKLOGO.LFD": "d7552fc09f29160ca8629413d8c0abde0e486d932acf651c0b413306fda42ee5",
+        "GameData/LFD/DFBRIEF.LFD": "53d8b495607fa8a8ab138f354f6a2ce12e2f4e9b00524aaf8aa4e7b3c0320dd2",
+        "GameData/LFD/ENDFLY.LFD": "cba548394757245ddaf8d82211c2b97852f8403836462db6a658d1f70311cfa7",
+        "GameData/LFD/EXECCOMP.LFD": "63eb69be42ab9ab245133ce0442437722850a5b2b32b56e8a0ae9518d42559cc",
+        "GameData/LFD/EXECX.LFD": "6bac072bd974b743546f9ba52ebd27f07176e2c7e2583c8e0071b269503c59e9",
+        "GameData/LFD/EXITNEB.LFD": "83a49baf1ae13cb498c92cd0a2e17b718f3b86aa6e05c9346e97559432dfe881",
+        "GameData/LFD/EXP1XX.LFD": "0d0990750cb10b1aec59a0bc5511a1166d0c51e46377c239749984dffd8a85d5",
+        "GameData/LFD/EXP2X.LFD": "abe6026d2e16bdc382fef94eee025dd9743c5a5cde7d27dbe1009bee79bde648",
+        "GameData/LFD/EXP3XX.LFD": "3085c4ffe0b8e942da50f3d6eb6f8031b0bac76e4bc485edbcba29acb0ab6059",
+        "GameData/LFD/FTEXTCRA.LFD": "4055a34140f4e84bd3b29dfb499e040477c4c239d959ca22a40da249fab9804b",
+        "GameData/LFD/FULLCRED.LFD": "776a71b300a4ffae95984dd0411ba940ccdfb8537a6a41eb2b7359a0248fa57f",
+        "GameData/LFD/GROMAS1.LFD": "f2620271ad58554e3ff6dcb14fc349ac336b5dcb41dc9bc5abf8dd73cad923a1",
+        "GameData/LFD/GROMASX.LFD": "4b178b52c85e270fb3650c2ea644644b52246a97658c0e7ecf43c93945afca55",
+        "GameData/LFD/HOLOCU.LFD": "e80e0593ecc532ff5435a56bdd6a113967644831cbfa2b4cba01137057a91eb5",
+        "GameData/LFD/JABBA1.LFD": "4494a1cb51f285290d14379d3d70c5099b3b495d5048a509e3a5bee5878f2e6b",
+        "GameData/LFD/JABBA2.LFD": "550847b81ef3d6471f08a67ea90d1035f0c017c22e38759c18152c408101de7b",
+        "GameData/LFD/JABBA3.LFD": "ed7068d3d0e4fb8538bbb9a794197293ed2b5bf54002cfdb04bb0aaf6fe02ce0",
+        "GameData/LFD/JABESCP.LFD": "7defee44d1e2887834663eddc373d7b6c75eb3209f04f01d320e77c79183cc50",
+        "GameData/LFD/JEDISFX.LFD": "2877610360133fdce7ae783ea208bc73bc14c63f277ca23226cede64386a07c4",
+        "GameData/LFD/KFLYBY.LFD": "a4988bcfad93053cd302cbaaf1d250aadcb1d5908244fb1dd1a4ebb0290daa40",
+        "GameData/LFD/LOGO.LFD": "0a0c3a3d00ef26886dea01262796f75344d9c48f22ed91ac7d9f86da34293355",
+        "GameData/LFD/MADINE1.LFD": "7f4c09d1584d65bcf519423c04bbbffb4289cb05de23ae8eac7cd1dc44356896",
+        "GameData/LFD/MENU.LFD": "bbb0c99e9d1448883a5d26aead330ca8f0905af02fe9759c69b669a557ad134b",
+        "GameData/LFD/NEB1.LFD": "0c3e7812d2245ad789bf148429b43c1bbf31395e609ba935680f31ae28870b15",
+        "GameData/LFD/PIT.LFD": "2896586ef66af19aac0ba737b689beea32d9145535f8ba719f9c65ff0c3a07de",
+        "GameData/LFD/ROB1.LFD": "da02769732261ace923362272f1e52737d42deb39091b1c5334581a8c8a27217",
+        "GameData/LFD/ROBOTX.LFD": "a6dbcc3380d8d344cf90d8b2379866747478edfba0b61edc94d1376c54526efa",
+        "GameData/LFD/STANDARD.LFD": "d09b0e731de47ebeda259f9ffaded3412220d6d728e3eb6ed0d74829feffa939",
+        "GameData/LFD/SUCCES.LFD": "b6ebfd30779deafcc02512a61bca6739c5c6116701b9714e962150a0a47e889c",
+        "GameData/LFD/SWLOGO.LFD": "4a2de752430786bef3de237465f548f192637a0022087ededfe6536dd93ff487",
+        "GameData/LFD/TUBECOMP.LFD": "5f354a2a45cb8458eeeea1a1c7f0ff1892a408bd2f0599e928e0dcf90e0d4ef3",
+        "GameData/SOUNDS.GOB": "5cc43a1762341ba1ddeda6b3fa105f097fb59e4126d4b3d8e73cd5e7228c9d1c",
+        "GameData/SPRITES.GOB": "d7d5d7f8125c28b9917a470091ca1d37e26303e53b384d71f85bfe64579452ab",
+        "GameData/TEXTURES.GOB": "b36e507471ee2b64c18236503c34c58fc37233988424ce25f0767e412650ce42"
+      },
+      "persistent_paths": [
+        "settings.ini",
+        "settings_default.ini",
+        "tfe_input_remapping.bin",
+        "DARKPILO.CFG",
+        "imgui.ini",
+        "Screenshots",
+        "Saves"
+      ],
+      "runtime_mutable_paths": [
+        "GameData",
+        "the_force_engine_log.txt",
+        "the_force_engine_log.txt.1",
+        "the_force_engine_log.txt.2",
+        "the_force_engine_log.txt.3",
+        ".tfe-preparation"
+      ]
     },
     {
       "id": "sonic-the-hedgehog-2-recomp",
