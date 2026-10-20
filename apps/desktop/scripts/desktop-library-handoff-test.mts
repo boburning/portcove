@@ -87,6 +87,42 @@ export async function libraryHandoffScenario({
     );
     const sources = transportValues("source", ownedCommand(["source", "list"]));
     const { click, button } = reviewControls(browser);
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const sizeShortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    const measureSize = () =>
+      executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        contentWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        preference: localStorage.getItem("portcove.appearance.interface-size"),
+      }));
+    const sizeObservations: (Awaited<ReturnType<typeof measureSize>> & { size: number })[] = [];
+    let baselineWidth: number | undefined;
+    const settledSize = async (size: number) => {
+      await browser.wait(
+        async () => {
+          const observed = await measureSize();
+          return (
+            observed.preference === String(size) &&
+            (baselineWidth === undefined ||
+              Math.abs(observed.width - (baselineWidth * 100) / size) <= 2)
+          );
+        },
+        10_000,
+        `Recovery interface size ${size}% did not settle`,
+      );
+      const observed = await measureSize();
+      baselineWidth ??= observed.width;
+      if (size >= 300)
+        assert.ok(observed.width <= (960 * 100) / size + 1, JSON.stringify(observed));
+      assert.ok(observed.scrollWidth <= observed.contentWidth + 1, JSON.stringify(observed));
+      sizeObservations.push({ size, ...observed });
+    };
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    await sizeShortcut("0");
+    await settledSize(100);
     const assertEscapeRestoresFocus = async (trigger: Locator, dialog: Locator, name: string) => {
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
@@ -119,6 +155,26 @@ export async function libraryHandoffScenario({
     const guideImage = path.join(output, "native-library-recovery-guide.png");
     await writeFile(guideImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
     artifacts.push(guideImage);
+    for (let step = 0; step < 6; step++) await sizeShortcut("+");
+    await settledSize(300);
+    await sizeShortcut("+");
+    await settledSize(400);
+    const guideSummary = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'),
+    );
+    await executeBrowserScript(
+      browser,
+      (element) => element.scrollIntoView({ block: "start" }),
+      guideSummary,
+    );
+    const enlargedGuideImage = path.join(output, "native-library-recovery-guide-400.png");
+    await writeFile(enlargedGuideImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(enlargedGuideImage);
+    // Keep actual WebView enlargement through Move, checked Restore and the
+    // interrupted-Move recovery actions, including native final consent.
     const moveTrigger = button("Move library");
     const moveDialog = By.css('[aria-labelledby="move-library-title"]');
     await click(moveTrigger);
@@ -500,6 +556,12 @@ export async function libraryHandoffScenario({
       { flag: "wx" },
     );
     artifacts.push(result);
+    await settledSize(400);
+    await sizeShortcut("0");
+    await settledSize(100);
+    const sizesFile = path.join(output, "native-library-recovery-interface-size.json");
+    await writeFile(sizesFile, JSON.stringify(sizeObservations, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(sizesFile);
   });
 }
 
