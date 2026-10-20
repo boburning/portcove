@@ -397,6 +397,9 @@ interface CommonRuntimeConfiguration {
   node_sha256: string;
   /** Independently established resource policy; never supplied by candidate content. */
   requireIsolationReady: () => Promise<void>;
+  /** Trusted-parent observation only. It cannot supply a result or launcher.
+   * Persist before the first process so restart recovery knows every boundary. */
+  onInvocationPrepared?: (value: { root: string; invocation_sha256: string }) => Promise<void>;
 }
 export interface WindowsSemanticRuntimeConfiguration extends CommonRuntimeConfiguration {
   backend?: "windows-appcontainer";
@@ -1019,6 +1022,10 @@ async function runLinuxSemanticTask(task: LinuxTask, raw: LinuxSemanticRuntimeCo
   );
   // Only the fixed trusted parent can launch and collect this invocation. No
   // caller-provided executor or transcript import can acquire the WeakMap brand.
+  await configuration.onInvocationPrepared?.({
+    root,
+    invocation_sha256: capacityDigest(invocation),
+  });
   const status = await runResourceCommand(
     "analysis",
     tools.python,

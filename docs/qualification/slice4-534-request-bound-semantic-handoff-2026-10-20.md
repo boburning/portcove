@@ -77,9 +77,38 @@ selected explicitly and passed five tests. The staged inventory verifies all
 
 ## Remaining integration
 
-The automatic local executor still must connect the existing coordinator request
-to the qualified runtime, retained source objects and broker, including restart
-readback after an ambiguous POST. The automatic writer/coordinator continuation,
+The local executor now connects the journal's neutral request to frozen actual
+Git inputs, the fixed classification-proposal runtime, a rebuilt full-opportunity
+review and the existing direct-capture broker. No supplied backend, transcript or
+outcome can mint acceptance. Its fixed ordinary-user oneshot/timer configuration
+is generated for the consolidated setup; nothing has been installed or enabled.
+The source reader, dedicated reviewer sign-in and semantic issuer have separate
+custody paths; no ambient owner token or billing App is used. The source reader's
+proposed fine-grained credential is read-only Contents/Checks/Metadata for this
+repository; its actual provider permissions remain a setup observation.
+
+Each exact request retains at most an initial technical invocation and two
+technical retries, across service restarts. An outside-run durable claim prevents
+missing execution directories from resetting this budget. A prior invocation
+requires retained positive namespace/network/process teardown plus fresh GET-only
+readback of its exact owned systemd unit before another invocation. Authentication
+or exit success is not required for technical recovery and cannot become review
+acceptance. Missing, live, contradictory or ambiguous custody holds. Any original
+Check request or broker attempt selects GET-only reconciliation; an absent Check
+does not prove that a POST had no effect. No automatic retry loop runs within one
+activation. The setup custody marker is required before source credential use;
+state loss requires reconciliation, not recreation of attempt zero.
+
+Four worker tests pass, including real Git input freezing followed by refusal on
+an unqualified runtime before capture or issuer release, bounded pre-launch
+recovery and retained POST/state-loss refusals. Together with the maintained
+broker and inventory files, 22 tests pass. These are nonproduction fixtures, not
+actual systemd, authentication, model judgment or App observations. One mistakenly
+requested nonexistent runtime test path receives no credit; the actual broker
+test file was then explicitly selected. The actual qualified host, subscription
+authentication and complete-opportunity accepted/rejected reports remain required.
+
+The automatic writer/coordinator continuation,
 native parent/harness route, signed context/TUF joins and final bounded workflow
 remain separate engineering work. These functions are not presented as an
 unattended production release.

@@ -299,6 +299,10 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-worker.test.mts"],
+  ]),
   [
     "scripts/release-classification-request.mts",
     ["scripts/release-classification-request.test.mts"],
