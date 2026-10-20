@@ -205,10 +205,12 @@ export function BootstrapRecovery({
   resetLibrary?: () => Promise<void>;
 }) {
   const [actionError, setActionError] = useState<string>();
+  const [transferPending, setTransferPending] = useState(false);
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
+  const pending = recoveryPending || transferPending;
   return (
     <main className="bootstrap-state bootstrap-error m-[0_auto] flex min-h-[100vh] w-[min(42rem,_calc(100%_-_2_*_var(--space-8)))] flex-col justify-center gap-4">
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)] [&:not(.eyebrow)]:text-[var(--color-text-muted)]">
@@ -227,15 +229,32 @@ export function BootstrapRecovery({
       ) : (
         <StartupTechnicalDetails error={error} />
       )}
+      {recoveryRoot && (
+        <LibraryMoveRecovery
+          source={recoveryRoot}
+          canKeepOriginal={canKeepOriginal}
+          disabled={pending}
+          onBusyChange={setTransferPending}
+        />
+      )}
+      {importRoot && (
+        <LibraryImportRecovery
+          destination={importRoot}
+          disabled={pending}
+          onBusyChange={setTransferPending}
+        />
+      )}
       <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
-        Review the error details, then retry startup. If the current library is the cause, you can
-        choose another library or return to the platform default.
+        {recoveryRoot || importRoot
+          ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
+          : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
       </p>
-      <div className="button-row" aria-busy={recoveryPending}>
+      <div className="button-row" aria-busy={pending}>
         <Button
           className="[align-self:flex-start]"
           type="button"
-          variant="primary"
+          variant={recoveryRoot || importRoot ? "outline" : "primary"}
+          disabled={pending}
           onClick={() => window.location.reload()}
         >
           Retry startup
@@ -244,7 +263,7 @@ export function BootstrapRecovery({
           className="[align-self:flex-start]"
           type="button"
           variant="outline"
-          disabled={recoveryPending}
+          disabled={pending || !chooseLibrary}
           onClick={() => {
             void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -255,7 +274,7 @@ export function BootstrapRecovery({
           className="[align-self:flex-start]"
           type="button"
           variant="outline"
-          disabled={recoveryPending}
+          disabled={pending || !resetLibrary}
           onClick={() => {
             void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -268,10 +287,6 @@ export function BootstrapRecovery({
           {actionError}
         </p>
       )}
-      {recoveryRoot && (
-        <LibraryMoveRecovery source={recoveryRoot} canKeepOriginal={canKeepOriginal} />
-      )}
-      {importRoot && <LibraryImportRecovery destination={importRoot} />}
     </main>
   );
 }
