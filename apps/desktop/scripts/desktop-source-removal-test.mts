@@ -176,32 +176,53 @@ export async function sourceRemovalScenario({
     await confirmNative("Remove saved location?", "Cancel", source.path, "source-native-cancelled");
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 15_000);
     await openReview();
+    const bootstrapBeforeChange = await invoke("get_bootstrap_status");
+    assert(isRecord(bootstrapBeforeChange) && bootstrapBeforeChange.ok === true);
+    const removalGeneration = transportValue(
+      "desktop_bootstrap_status",
+      bootstrapBeforeChange.value,
+    ).generation;
+    const beforeChange = await invoke("preview_source_removal", {
+      profileId: source.profile_id,
+      generation: removalGeneration,
+    });
+    assert(isRecord(beforeChange) && beforeChange.ok === true);
+    const oldPreview = transportValue("source_removal_preview", beforeChange.value);
     const replacement = path.join(output, `owned-replacement-${port.id}.iso`);
     await writeFile(replacement, "changed owned source registration", {
       flag: "wx",
     });
     command(["source", "add", source.profile_id, replacement]);
     preserved.push(await fileIdentity(replacement));
-    await click(button("Remove saved location…"));
-    const renewedIntent = await browser.wait(
+    // Exercise the stale host plan directly: renderer reconciliation can remove
+    // its old action before a synthetic click, which is valid invalidation.
+    const changed = await invoke("remove_source", {
+      profileId: source.profile_id,
+      previewSha256: oldPreview.preview_sha256,
+      generation: removalGeneration,
+    });
+    assert(isRecord(changed) && changed.ok === false);
+    assert(isRecord(changed.error) && changed.error.code === "conflict");
+    await browser.wait(
       async () => {
-        if ((await browser.findElements(button("Check saved location again"))).length)
-          return "recheck";
-        // External-CLI reconciliation may publish the new source identity first.
-        // That unmounts the old inline review; reopening is explicit renewed intent.
-        if (
-          !(await browser.findElements(dialog)).length &&
-          (await browser.findElements(trigger)).length
-        )
-          return "reopen";
-        return false;
+        const currentRow = (await browser.findElements(row))[0];
+        return (
+          currentRow &&
+          (await executeBrowserScript(
+            browser,
+            (element, expected) => element.querySelector("code")?.textContent?.trim() === expected,
+            currentRow,
+            replacement,
+          ))
+        );
       },
       15_000,
-      "Changed saved location must invalidate the previous impact review",
+      "Renderer did not accept the replacement source identity",
     );
-    assert.equal(
-      sources().find((item) => item.profile_id === source.profile_id)?.path,
-      replacement,
+    await browser.wait(
+      async () => !(await browser.findElements(dialog)).length,
+      5_000,
+      "Changed identity must retire the old inline intent",
     );
     const bootstrap = await invoke("get_bootstrap_status");
     assert(isRecord(bootstrap) && bootstrap.ok === true);
@@ -222,8 +243,7 @@ export async function sourceRemovalScenario({
     assert.equal(stale.ok, false);
     assert(isRecord(stale.error));
     assert.equal(stale.error.code, "conflict");
-    if (renewedIntent === "reopen") await click(trigger);
-    else await click(button("Check saved location again"));
+    await click(trigger);
     await browser.wait(until.elementLocated(button("Remove saved location…")), 15_000);
     text = await browser.findElement(dialog).getText();
     assert.ok(text.includes(replacement));
