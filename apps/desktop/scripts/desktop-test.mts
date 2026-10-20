@@ -411,6 +411,59 @@ const admission = executionAdmission(
   harnessStarted.toISOString(),
   desktopHarnessDeadlineMs(selection),
 );
+async function releaseNativeResources() {
+  const closeFixtures = async () => {
+    if (installFixture) await installFixture.close();
+    if (originFixture) await originFixture.close();
+  };
+  if (process.platform !== "win32" || !identityBoundSession) {
+    await closeFixtures();
+    await nativeLock.release();
+    return;
+  }
+  try {
+    await ownedSession.releaseResources({
+      closeFixtures,
+      releaseLock: () => nativeLock.release(),
+    });
+  } catch (error) {
+    await retainNativeCustody(error);
+  }
+}
+
+async function retainNativeCustody(error: unknown): Promise<never> {
+  process.exitCode = 1;
+  const evidence = path.join(output, `${cleanupName}-unknown-custody.json`);
+  try {
+    await writeFile(
+      evidence,
+      JSON.stringify(
+        {
+          error: errorMessage(error),
+          driver: ownedSession.driver,
+          inventory: ownedSession.inventory,
+          cleanup: ownedSession.cleanup,
+          retained_at: new Date().toISOString(),
+        },
+        null,
+        2,
+      ) + "\n",
+      { flag: "wx" },
+    );
+  } catch (publicationError) {
+    console.error(`Could not publish retained native custody: ${errorMessage(publicationError)}`);
+  } finally {
+    console.error(
+      `Native custody remains unresolved; retained ${output}; runner and any unreleased reservations remain owned: ${errorMessage(error)}`,
+    );
+    // Keep the admitted runner alive even if evidence publication failed. No
+    // PID-only fallback or owner-death reclamation is implied by this failure.
+    setInterval(() => {}, 60_000);
+    await new Promise<never>(() => {});
+  }
+  throw new Error("Retained native custody unexpectedly resumed without a resolution.");
+}
+
 async function stopDriver() {
   if (linuxSelectedSession) {
     if (!linuxLaunch) return;
@@ -1955,7 +2008,6 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       await import("../../../scripts/desktop-linux-media.mts");
     await verifyApplicationMediaInputs(inputs, admission);
   } else await admission.verify(custody?.inputs ?? []);
-  ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
     "--port",
@@ -1966,6 +2018,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     nativeDriverPath,
   ];
   if (linuxSelectedSession) {
+    ownedSession.beginLaunch();
     assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
     linuxCleanup = undefined;
     linuxStop = undefined;
@@ -1990,6 +2043,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     driver = linuxLaunch.child;
   } else {
     admission.assertReady();
+    ownedSession.beginLaunch();
     driver = spawn(driverPath, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
@@ -4609,8 +4663,6 @@ try {
         clearInterval(hold);
       }
     }
-    if (installFixture) await installFixture.close();
-    if (originFixture) await originFixture.close();
-    await nativeLock.release();
+    await releaseNativeResources();
   }
 }
