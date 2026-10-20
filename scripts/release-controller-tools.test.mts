@@ -6,6 +6,7 @@ import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import {
   bundleControllerEntries,
@@ -484,6 +485,45 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     );
   }
 });
+void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, { ...f.options, deadline: 999 }),
+    /phase deadline/,
+  );
+  assert.deepEqual(await readdir(root), []);
+  let calls = 0;
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, {
+      ...f.options,
+      deadline: 2000,
+      api: {
+        request(method, endpoint) {
+          calls++;
+          const result = f.options.api.request(method, endpoint);
+          clock = 2001;
+          return result;
+        },
+      },
+    }),
+    /controller tool verification refused; retain/,
+  );
+  assert.equal(calls, 1);
+  const [partial] = await readdir(root);
+  assert.ok(partial);
+  assert.equal(
+    (await readFile(path.join(root, partial, "refusal.json"), "utf8")).includes(
+      '"phase":"provider-before"',
+    ),
+    true,
+  );
+  await assert.rejects(readdir(path.join(root, partial, "tools")));
+});
+
 void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-receiver-"));
   t.after(() => rm(root, { recursive: true, force: true }));
