@@ -6,6 +6,7 @@ import {
 import {
   candidateProgressIdentity,
   inspectCandidateStageEvidence,
+  immutableReleaseProgressDigest,
 } from "./release-candidate-progress-contract.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
@@ -85,7 +86,8 @@ async function actualProof(receipt: object, target: Phase) {
         again.checkpoint !== checkpoint ||
         again.original_context !== originalContext ||
         releaseCanonicalDigest(again.operation) !== releaseCanonicalDigest(completed.operation) ||
-        releaseCanonicalDigest(again.release) !== releaseCanonicalDigest(completed.release)
+        immutableReleaseProgressDigest(again.release) !==
+          immutableReleaseProgressDigest(completed.release)
       )
         throw new Error("owned immutable publication completion changed");
     }
@@ -119,7 +121,7 @@ async function actualProof(receipt: object, target: Phase) {
           {
             kind: "immutable-release",
             id: String(completed.release.release_id),
-            sha256: releaseCanonicalDigest(completed.release),
+            sha256: immutableReleaseProgressDigest(completed.release),
           },
         ]
       : ([] as Locator[]),
