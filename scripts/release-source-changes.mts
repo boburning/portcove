@@ -167,72 +167,8 @@ export function collectReleaseSourceChanges(
     if (!reachesBase || visited.size !== commits.length)
       throw new Error("release comparison does not close over its complete source ancestry");
   }
-  const tree = (id: string) => {
-    const response = object(request(`${base}/git/trees/${id}?recursive=1`).body);
-    if (
-      response.sha !== id ||
-      response.truncated !== false ||
-      !Array.isArray(response.tree) ||
-      response.tree.length > 5000
-    )
-      throw new Error("release source tree is truncated, unavailable or oversized");
-    const entries = new Map<string, Entry>();
-    const directories = new Map<string, string>([["", id]]);
-    for (const raw of response.tree) {
-      const entry = object(raw);
-      oid(entry.sha);
-      if (
-        typeof entry.path !== "string" ||
-        !entry.path ||
-        Buffer.byteLength(entry.path) > 1024 ||
-        entry.path.includes("\0") ||
-        entry.path.includes("\\") ||
-        entry.path.split("/").some((part) => !part || part === "." || part === "..") ||
-        entry.path.split("/").length > 32 ||
-        entries.has(entry.path) ||
-        !(
-          (entry.type === "blob" && ["100644", "100755", "120000"].includes(String(entry.mode))) ||
-          (entry.type === "tree" && entry.mode === "040000") ||
-          (entry.type === "commit" && entry.mode === "160000")
-        )
-      )
-        throw new Error("release source tree entry is invalid, duplicate or unsupported");
-      entries.set(entry.path, {
-        mode: String(entry.mode),
-        type: String(entry.type),
-        oid: entry.sha,
-      });
-      if (entry.type === "tree") directories.set(entry.path, entry.sha);
-    }
-    const children = new Map<string, { name: string; entry: Entry }[]>();
-    for (const [name, entry] of entries) {
-      const parent = path.posix.dirname(name) === "." ? "" : path.posix.dirname(name);
-      if (!directories.has(parent)) throw new Error("release source tree omits a parent directory");
-      const siblings = children.get(parent) ?? [];
-      siblings.push({ name: path.posix.basename(name), entry });
-      children.set(parent, siblings);
-    }
-    for (const [directory, expected] of directories) {
-      const rows = (children.get(directory) ?? []).sort((a, b) =>
-        byteOrder(
-          a.name + (a.entry.type === "tree" ? "/" : ""),
-          b.name + (b.entry.type === "tree" ? "/" : ""),
-        ),
-      );
-      const bytes = Buffer.concat(
-        rows.map(({ name, entry }) =>
-          Buffer.concat([
-            Buffer.from(`${entry.type === "tree" ? "40000" : entry.mode} ${name}\0`),
-            Buffer.from(entry.oid, "hex"),
-          ]),
-        ),
-      );
-      // Reuse the existing raw Git object validator and its unchanged 128 KiB
-      // object cap. Unsupported empty/large trees hold rather than weakening it.
-      inspectRemoteGitObject("tree", expected, bytes);
-    }
-    return entries;
-  };
+  const tree = (id: string) =>
+    inspectReleaseSourceTree(request(`${base}/git/trees/${id}?recursive=1`).body, id).entries;
   const oldTree = tree(previous.tree);
   const newTree = previous.tree === original.tree ? oldTree : tree(original.tree);
   const changes = [...new Set([...oldTree.keys(), ...newTree.keys()])]
@@ -264,4 +200,75 @@ export function collectReleaseSourceChanges(
       "complete provider commit comparison and raw Git net tree consistency only; no semantic classification or source authority",
     authority: "none",
   };
+}
+
+/** Reconstruct the complete bounded tree closure. Returned objects are inert
+ * digest-verified bytes, not source selection or execution authority. */
+export function inspectReleaseSourceTree(raw: unknown, id: string) {
+  oid(id);
+  const response = object(raw);
+  const objects: ReturnType<typeof inspectRemoteGitObject>[] = [];
+  if (
+    response.sha !== id ||
+    response.truncated !== false ||
+    !Array.isArray(response.tree) ||
+    response.tree.length > 5000
+  )
+    throw new Error("release source tree is truncated, unavailable or oversized");
+  const entries = new Map<string, Entry>();
+  const directories = new Map<string, string>([["", id]]);
+  for (const raw of response.tree) {
+    const entry = object(raw);
+    oid(entry.sha);
+    if (
+      typeof entry.path !== "string" ||
+      !entry.path ||
+      Buffer.byteLength(entry.path) > 1024 ||
+      entry.path.includes("\0") ||
+      entry.path.includes("\\") ||
+      entry.path.split("/").some((part) => !part || part === "." || part === "..") ||
+      entry.path.split("/").length > 32 ||
+      entries.has(entry.path) ||
+      !(
+        (entry.type === "blob" && ["100644", "100755", "120000"].includes(String(entry.mode))) ||
+        (entry.type === "tree" && entry.mode === "040000") ||
+        (entry.type === "commit" && entry.mode === "160000")
+      )
+    )
+      throw new Error("release source tree entry is invalid, duplicate or unsupported");
+    entries.set(entry.path, {
+      mode: String(entry.mode),
+      type: String(entry.type),
+      oid: entry.sha,
+    });
+    if (entry.type === "tree") directories.set(entry.path, entry.sha);
+  }
+  const children = new Map<string, { name: string; entry: Entry }[]>();
+  for (const [name, entry] of entries) {
+    const parent = path.posix.dirname(name) === "." ? "" : path.posix.dirname(name);
+    if (!directories.has(parent)) throw new Error("release source tree omits a parent directory");
+    const siblings = children.get(parent) ?? [];
+    siblings.push({ name: path.posix.basename(name), entry });
+    children.set(parent, siblings);
+  }
+  for (const [directory, expected] of directories) {
+    const rows = (children.get(directory) ?? []).sort((a, b) =>
+      byteOrder(
+        a.name + (a.entry.type === "tree" ? "/" : ""),
+        b.name + (b.entry.type === "tree" ? "/" : ""),
+      ),
+    );
+    const bytes = Buffer.concat(
+      rows.map(({ name, entry }) =>
+        Buffer.concat([
+          Buffer.from(`${entry.type === "tree" ? "40000" : entry.mode} ${name}\0`),
+          Buffer.from(entry.oid, "hex"),
+        ]),
+      ),
+    );
+    // Reuse the existing raw Git object validator and its unchanged 128 KiB
+    // object cap. Unsupported empty/large trees hold rather than weakening it.
+    objects.push(inspectRemoteGitObject("tree", expected, bytes));
+  }
+  return { entries, objects };
 }
