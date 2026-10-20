@@ -11,6 +11,13 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [request-bound semantic handoff](slice4-534-request-bound-semantic-handoff-2026-10-20.md)
+connects neutral coordinator requests, direct proposal/full-review capture,
+isolated issuer preparation and complete GET-only Check reconciliation. It also
+preserves original versus prepared publication source across following reviews.
+Automatic local execution, actual producer evidence and the remaining stage
+joins are still pending; this delivery grants or activates nothing.
+
 The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
 records an owner-visible unconfigured project site and absent parent user-site
 repository, bracketed around fixed public-route 404 observations. This is

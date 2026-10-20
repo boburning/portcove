@@ -299,6 +299,24 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
+  ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
+  ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
+  [
+    "scripts/release-semantic-disposition-reader.mts",
+    ["scripts/release-semantic-disposition-reader.test.mts"],
+  ],
+  [
+    "scripts/release-authority-configuration.mts",
+    ["scripts/production-controller-admission.test.mts"],
+  ],
+  [
+    "scripts/fixtures/release-semantic-disposition-fixture.mts",
+    [
+      "scripts/release-semantic-disposition.test.mts",
+      "scripts/release-semantic-disposition-reader.test.mts",
+    ],
+  ],
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   [
     "scripts/release-coordinator-journal-api.mts",
