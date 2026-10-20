@@ -348,5 +348,10 @@ export async function requireActualNativeInvocation(receipt: object) {
     selected.request.request.invocation_id !== value.invocation
   )
     throw new Error("native invocation claim changed");
-  return { ...selected, capture_directory: value.directory, authority: "none" as const };
+  return {
+    ...selected,
+    source_selection: value.selection,
+    capture_directory: value.directory,
+    authority: "none" as const,
+  };
 }
