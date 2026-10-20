@@ -12,7 +12,10 @@ import {
   requireReservedAggregate,
   inspectAggregateDescriptor,
 } from "./production-aggregate-steps.mts";
-import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
+import {
+  verifyUploadedAggregate,
+  stageAggregatePackages,
+} from "./trusted-aggregate-attestation.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { classifyApplicationVersion } from "../apps/desktop/scripts/release-version-policy.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -324,7 +327,6 @@ export async function prepareImmutableReleasePublication(
     qualification_parent: string;
     descriptor: string;
     aggregate: Parameters<typeof verifyUploadedAggregate>[1];
-    package_root: string;
     public_configuration_root: string;
     updater_roots: { platform: "windows-x86_64" | "linux-x86_64"; directory: string }[];
     sbom: string;
@@ -365,6 +367,20 @@ export async function prepareImmutableReleasePublication(
       throw new Error("publication aggregate must match the exact reserved beta descriptor");
     phase = "actual-uploaded-aggregate-verification";
     const aggregate = await verifyUploadedAggregate(directory, request.aggregate);
+    phase = "verified-aggregate-package-materialization";
+    // Consume the archive retained by the actual provider/Sigstore verifier.
+    // A separate caller-selected package directory is neither necessary nor a
+    // custody proof. Every output remains inert until the maintained finalizer.
+    const packageRoot = path.join(directory, "packages");
+    await stageAggregatePackages(
+      packageRoot,
+      await boundedBytes(
+        path.join(aggregate.acquisition_directory, "input", "aggregate.zip"),
+        512 * 1024 * 1024,
+      ),
+      accepted,
+      request.aggregate.sha256,
+    );
     phase = "fixed-public-inputs";
     const pin = accepted.public_build_inputs;
     const publicInputs = await prepareReleasePublicBuildInputs({
@@ -471,13 +487,10 @@ export async function prepareImmutableReleasePublication(
       const frozen = accepted.files.find((file) => file.filename === filename)!;
       await assertOwnedUnlinkedPath(
         request.private_root,
-        path.join(request.package_root, filename),
+        path.join(packageRoot, filename),
         "release package",
       );
-      const bytes = await boundedBytes(
-        path.join(request.package_root, filename),
-        512 * 1024 * 1024,
-      );
+      const bytes = await boundedBytes(path.join(packageRoot, filename), 512 * 1024 * 1024);
       if (bytes.length !== frozen.bytes || sha(bytes) !== frozen.sha256)
         throw new Error("final package differs from verified aggregate");
       await writeFile(path.join(assetsRoot, filename), bytes, { flag: "wx", mode: 0o600 });
