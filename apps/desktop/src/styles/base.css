@@ -30,7 +30,7 @@
     line-height: var(--leading-tight);
   }
   h1 {
-    font-size: clamp(var(--text-2xl), 3vw, var(--text-3xl));
+    font-size: var(--text-2xl);
     letter-spacing: -0.045em;
   }
   h2 {

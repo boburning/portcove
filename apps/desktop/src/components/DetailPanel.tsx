@@ -1,5 +1,5 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
-import { gameTitle, gameProjectLabel } from "../port-identity";
+import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
@@ -544,6 +544,20 @@ function DetailBody({
           />
         </div>
       </div>
+      {installed && !external && (
+        <UpdatesGroup
+          perform={perform}
+          port={port}
+          status={status}
+          installed={installed}
+          deferSetupChoices={deferSetupChoices}
+          selectedChannel={selectedChannel}
+          policy={policy}
+          libraryGeneration={libraryGeneration}
+          busy={busy}
+          actions={actions}
+        />
+      )}
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
@@ -570,7 +584,7 @@ function DetailBody({
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
         </DetailGroup>
       )}
-      {!external && (
+      {!installed && !external && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -936,13 +950,6 @@ function UpdatesGroup({
   );
   return (
     <DetailGroup title="Updates">
-      <FutureSetupDisclosure
-        deferred={deferSetupChoices}
-        title="Release and update choices for later"
-        description="Game files are still required before installation. These choices apply to a future managed install."
-      >
-        {preferences}
-      </FutureSetupDisclosure>
       {status?.staged && (
         <section aria-label="Use update saved for later">
           <p>
@@ -958,12 +965,24 @@ function UpdatesGroup({
             portId={port.id}
             generation={libraryGeneration}
             policy={policy}
+            gameName={gameIdentityLabel(port)}
             busy={Boolean(busy)}
             perform={perform}
           />
           <UpdateCheckAction busy={busy} check={actions.check} />
         </>
       )}
+      <details className="mt-4">
+        <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+          Future update preferences
+        </summary>
+        <p className="text-xs text-pc-muted-foreground">
+          {deferSetupChoices ? "Game files are still required before installation. " : ""}
+          These choices apply to future checks and managed updates. Saving them does not run an
+          update.
+        </p>
+        {preferences}
+      </details>
     </DetailGroup>
   );
 }

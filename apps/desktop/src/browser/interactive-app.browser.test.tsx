@@ -33,7 +33,7 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await expect
     .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
     .toBeVisible();
-  await userEvent.fill(page.getByPlaceholder("Search ports"), "Harbor");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
   await expect
     .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
     .not.toBeInTheDocument();
@@ -57,12 +57,12 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
   await userEvent.click(
     page.getByRole("button", { name: "Back to previous workspace", exact: true }),
   );
-  await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("Harbor");
+  await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   // Reset remounts the renderer fixture; private browsing preferences still restore.
-  await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("Harbor");
-  await userEvent.fill(page.getByPlaceholder("Search ports"), "");
-  await expect.element(page.getByPlaceholder("Search ports")).toHaveValue("");
+  await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("Harbor");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "");
+  await expect.element(page.getByPlaceholder("Game or port name")).toHaveValue("");
   await expect
     .element(page.getByRole("button", { name: "View details for Orchard Quest", exact: true }))
     .toBeVisible();
@@ -133,7 +133,7 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Use platform default", exact: true }));
-  await expect.element(page.getByPlaceholder("Search ports")).toBeVisible();
+  await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   await expect
     .element(page.getByRole("button", { name: "Resume move", exact: true }))

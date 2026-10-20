@@ -1401,6 +1401,118 @@ export async function preparationScenarios({
       "Returning from overflow details must focus the originating card menu",
     );
   });
+  await scenario("native-library-layout", async () => {
+    const first = await seed("opengoal-jak1", "success");
+    const second = await seed("opengoal-jak2", "success");
+    const before = [await status(first.port.id), await status(second.port.id)];
+    const originalWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    const observations: unknown[] = [];
+    const measure = () =>
+      executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        contentWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        layout: document.querySelector(".collection-rows") ? "rows" : "covers",
+        entries: document.querySelectorAll(".collection-entry").length,
+        query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+        zoom: localStorage.getItem("portcove.appearance.interface-size"),
+        theme: document.documentElement.dataset.theme,
+      }));
+    try {
+      for (const theme of ["dark", "light"]) {
+        await shortcut("0");
+        await openUpdateTheme(browser, theme);
+        await clickVisible(
+          browser,
+          await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')),
+        );
+        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        const search = await browser.findElement(By.id("port-search"));
+        await search.clear();
+        await search.sendKeys("Jak");
+        for (const layout of ["Covers", "Compact rows"]) {
+          await clickVisible(browser, await browser.findElement(button(layout)));
+          for (const { width, height } of [
+            { width: 960, height: 640 },
+            { width: 1280, height: 800 },
+            { width: 1366, height: 768 },
+            { width: 1600, height: 1000 },
+            { width: 1920, height: 1080 },
+          ]) {
+            await browser.manage().window().setRect({ width, height });
+            const state = await measure();
+            assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
+            assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+            observations.push({ window: { width, height }, ...state });
+            const file = path.join(
+              output,
+              `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
+            );
+            await writeFile(file, await browser.takeScreenshot(), {
+              encoding: "base64",
+              flag: "wx",
+            });
+            artifacts.push(file);
+          }
+          await browser.manage().window().setRect({ width: 960, height: 640 });
+          for (const size of [125, 150, 175, 200, 250, 300, 400]) {
+            await shortcut("+");
+            await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+          }
+          await browser.wait(async () => (await measure()).zoom === "400", 10_000);
+          const enlarged = await measure();
+          assert.ok(
+            enlarged.width <= 240 && enlarged.scrollWidth <= enlarged.contentWidth + 1,
+            JSON.stringify(enlarged),
+          );
+          observations.push(enlarged);
+          const identity = await browser.findElement(
+            By.css(".collection-entry button[data-detail-game-id]"),
+          );
+          await clickVisible(browser, identity);
+          await clickVisible(
+            browser,
+            await browser.findElement(button("Back to previous workspace")),
+          );
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => document.activeElement?.hasAttribute("data-detail-game-id") === true,
+              ),
+            5000,
+          );
+          await shortcut("-");
+          await browser.wait(async () => (await measure()).zoom === "300", 10_000);
+          const narrow = await measure();
+          assert.ok(
+            narrow.width <= 320 && narrow.scrollWidth <= narrow.contentWidth + 1,
+            JSON.stringify(narrow),
+          );
+          assert.equal(narrow.query, "Jak");
+          observations.push(narrow);
+          await shortcut("0");
+          await browser.wait(async () => (await measure()).zoom === "100", 10_000);
+        }
+        await browser.navigate().refresh();
+        await browser.wait(until.elementLocated(By.css(".collection-rows")), 15_000);
+        assert.equal((await measure()).query, "Jak");
+      }
+      for (const [index, port] of [first.port, second.port].entries()) {
+        assert.deepEqual((await status(port.id)).active, before[index]!.active);
+      }
+      const file = path.join(output, "native-library-layout-observations.json");
+      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    } finally {
+      await shortcut("0");
+      await browser.manage().window().setRect(originalWindow);
+    }
+  });
   await scenario("native-ready-detail-composition", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const readyStatus = await status(port.id);

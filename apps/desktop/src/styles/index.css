@@ -6,6 +6,7 @@
 @import "./motion.css";
 @import "./variants.css";
 @import "./adaptive.css";
+@import "./collection.css";
 
 @source "../";
 @source not "../**/*.test.{ts,tsx,js,mjs}";

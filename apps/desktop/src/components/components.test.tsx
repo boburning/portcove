@@ -1019,13 +1019,19 @@ describe("desktop components", () => {
       />,
     );
     expect(html).toContain("Ready to play");
-    expect(html).toContain("Update downloaded</span>");
+    expect(html).toContain(
+      view === "library" ? "Review downloaded update" : "Update downloaded</span>",
+    );
     const expectedAvailable =
       difference !== "same target" &&
       difference !== "unspecified asset size" &&
       difference !== "unknown artifact" &&
       !difference.startsWith("stale ");
-    expect(html.includes("Update available</span>")).toBe(expectedAvailable);
+    expect(
+      html.includes(
+        view === "library" ? "Another update available at last check" : "Update available</span>",
+      ),
+    ).toBe(expectedAvailable);
   });
 
   it.each([
@@ -2520,8 +2526,8 @@ describe("desktop components", () => {
     );
     expect(
       missingBoth.match(/class="future-setup-disclosure advanced-settings is-deferred[^"]*"/gu),
-    ).toHaveLength(2);
-    expect(missingBoth).toContain("Release and update choices for later");
+    ).toHaveLength(1);
+    expect(missingBoth).toContain("Future update preferences");
     expect(missingBoth).toContain("Folder for a future install");
     expect(missingBoth).toContain("Release channel");
     expect(missingBoth).toContain("Folder for future installs");
@@ -3200,9 +3206,9 @@ describe("desktop components", () => {
     );
     const headings = [
       'aria-label="Game actions"',
+      "Updates",
       "Requirements",
       "Installation and version",
-      "Updates",
       "Saves and storage",
       "Compatibility and testing",
       "Project and release",
@@ -3428,13 +3434,13 @@ describe("desktop components", () => {
     expect(html).toContain('data-slot="button"');
     expect(html).toContain('data-variant="outline"');
     expect(html).toContain('data-variant="primary"');
-    expect(html).toMatch(/<small[^>]*>Release channel: Stable<\/small>/u);
+    expect(html).not.toContain("Release channel: Stable");
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
     expect(html).toContain("All can launch");
     expect(html).not.toContain("updates downloaded");
-    expect(html).toContain("Update available");
+    expect(html).toContain("Review update seen at last check");
     expect(html).not.toContain("need attention");
     expect(html).not.toContain("Launch ready");
     expect(html).not.toContain("Play options");
@@ -3480,9 +3486,11 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Update downloaded");
+    expect(html).toContain("Review downloaded update");
     expect(html).toContain("1 update downloaded");
-    expect(html).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
+    expect(html).toMatch(
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+    );
     expect(html).toContain("View details for Sample Port");
     expect(html).not.toContain("Update staged");
     expect(html).not.toContain("Staged updates");
@@ -3572,9 +3580,9 @@ describe("desktop components", () => {
         loading={false}
       />,
     );
-    expect(html).toContain("CONTINUE");
+    expect(html).toContain("Last played");
     expect(html).toContain("Play again");
-    expect(html).toContain(`Version ${install.version}`);
+    expect(html).not.toContain(`Version ${install.version}`);
     expect(html).not.toContain("Last played ·");
     expect(html).toContain('data-successful-launches="1"');
     expect(html).toContain(`data-detail-origin="library:continue-details:${port.id}"`);

@@ -110,6 +110,7 @@ import {
 } from "./view-model";
 import { gameIdentityLabel } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
@@ -1022,6 +1023,7 @@ function CurrentView({
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
+  const collection = useCollectionLayout(bootstrap.library_root);
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -1176,6 +1178,9 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      collectionLayout={collection.value}
+      setCollectionLayout={collection.set}
+      collectionLayoutFailure={collection.failure}
       favorites={favorites}
       view={ui.view}
       ports={model.visible}

@@ -295,6 +295,16 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     source: "desktop-preparation-test.mts",
   }),
   scenario(
+    "native-library-layout",
+    "Native covers/rows preserve identity, search and profile preference through effective 320/240px reflow.",
+    {
+      prerequisites: ["desktop", "owned-fixture"],
+      source: "desktop-preparation-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-ready-detail-composition",
     "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
     {

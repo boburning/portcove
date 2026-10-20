@@ -1,5 +1,12 @@
 # Portcove theme and CSS ownership
 
+`collection.css` owns Library geometry in the components layer after adaptive
+shell rules. It consumes shared tokens and adds no palette. Fixed 2:3 contained
+artwork frames remain independent of identity/status height. Covers and compact
+rows share status, focus, selection and action variants. The 36/40px controls
+are content-driven minima; 15px body, 13px secondary and 28px heading roles all
+enlarge through the native controller.
+
 Activity sections reuse shared button variants and their persistent pressed cue. Contextual task records reuse existing info, neutral, warning and failure roles; temporary exclusion does not recolor or reinterpret Core readiness. Foreground progress and exact-ID Activity progress share one component and bounded numeric presentation. No separate Activity palette or progress implementation is introduced.
 
 Portcove keeps its graphite dark and warm controller-gray light identity, with

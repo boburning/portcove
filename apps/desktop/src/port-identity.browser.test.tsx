@@ -51,6 +51,12 @@ it.each(["catalog", "library"] as const)(
     await userEvent.keyboard("{Enter}");
     expect(onSelect).toHaveBeenLastCalledWith("same-game-1", `${view}:card:same-game-1`);
     expect(onSelect).toHaveBeenCalledTimes(2);
-    await expect.element(page.getByText("US edition", { exact: true })).toBeVisible();
+    await expect
+      .element(
+        page.getByText(view === "library" ? "Port: Cobalt Project · US edition" : "US edition", {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
   },
 );

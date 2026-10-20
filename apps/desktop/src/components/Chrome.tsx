@@ -253,15 +253,18 @@ export function PageHeader({
             htmlFor="port-search"
           >
             <Icon glyph={Search} />
-            <span className="sr-only">Search ports</span>
+            <span className="sr-only">
+              {view === "library" ? "Search your library" : "Search Find games"}
+            </span>
             <input
               className="h-full min-h-0 w-full min-w-0 border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
               id="port-search"
+              aria-label={view === "library" ? "Search your library" : "Search Find games"}
               style={{ outline: "none" }}
               data-focusable
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ports"
+              placeholder="Game or port name"
             />
             <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
           </label>
