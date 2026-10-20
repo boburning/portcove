@@ -1476,7 +1476,7 @@ export async function preparationScenarios({
           await clickVisible(browser, identity);
           await clickVisible(
             browser,
-            await browser.findElement(button("Back to previous workspace")),
+            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
           );
           await browser.wait(
             () =>
@@ -1595,9 +1595,9 @@ export async function preparationScenarios({
           assert.match(required(hierarchy.state), /Ready to play/);
           assert.deepEqual(hierarchy.groups, [
             "Status and actions",
+            "Updates",
             "Requirements",
             "Installation and version",
-            "Updates",
             "Saves and storage",
             "Compatibility and testing",
             "Project and release",
@@ -2831,7 +2831,9 @@ export async function preparationScenarios({
     await browser.findElement(card).click();
     await clickVisible(
       browser,
-      await browser.findElement(By.css("details.advanced-settings > summary")),
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+      ),
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
@@ -2939,7 +2941,9 @@ export async function preparationScenarios({
       await browser.findElement(card).click();
       await clickVisible(
         browser,
-        await browser.findElement(By.css("details.advanced-settings > summary")),
+        await browser.findElement(
+          By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+        ),
       );
       const channel = await browser.findElement(
         By.css('section[aria-label="Game release channel"]'),

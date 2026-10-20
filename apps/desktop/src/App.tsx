@@ -371,6 +371,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
@@ -655,6 +656,7 @@ function Workspace({
       />
     ) : (
       <CurrentView
+        collection={collection}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -985,6 +987,7 @@ function selectedPort(
 }
 
 function CurrentView({
+  collection,
   favorites,
   data,
   ui,
@@ -1004,6 +1007,7 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
@@ -1023,7 +1027,6 @@ function CurrentView({
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
-  const collection = useCollectionLayout(bootstrap.library_root);
   if (ui.view === "updates")
     return (
       <UpdateCenter

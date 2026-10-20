@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from "vite-plus/test";
+import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
@@ -14,6 +14,7 @@ afterEach(async () => {
   transport?.dispose();
   transport = undefined;
   localStorage.clear();
+  vi.restoreAllMocks();
   document.documentElement.removeAttribute("data-theme");
   document.querySelector("#collection-spacing")?.remove();
 });
@@ -32,6 +33,35 @@ async function mount(theme: string) {
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }
+
+it("retains a session-only layout through the real details unmount and return", async () => {
+  localStorage.clear();
+  await page.viewport(1280, 800);
+  const key = collectionLayoutKey("fixture/library");
+  const write = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (
+    this: Storage,
+    keyToWrite,
+    value,
+  ) {
+    if (keyToWrite === key) throw new Error("fixture layout storage unavailable");
+    return write.call(this, keyToWrite, value);
+  });
+  await mount("dark");
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  expect(localStorage.getItem(key)).toBeNull();
+  await page.getByRole("button", { name: /^View details for Super Mario 64 · sm64-port$/ }).click();
+  expect(document.querySelector(".collection-rows")).toBeNull();
+  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await expect
+    .element(page.getByRole("button", { name: "Compact rows", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  expect(document.querySelectorAll(".collection-row")).toHaveLength(12);
+  expect(document.body.textContent).toContain(
+    "This collection view is available for this session; it could not be saved.",
+  );
+  expect(document.activeElement?.getAttribute("data-detail-game-id")).toBe("collection-0");
+});
 
 for (const theme of ["dark", "light"]) {
   it(`keeps distinct identities, bounded art and shared actions in ${theme} covers and rows`, async () => {

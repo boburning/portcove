@@ -3448,7 +3448,9 @@ describe("desktop components", () => {
       /<article class="port-card [^"]*\bport-card-library\b[^>]*>[\s\S]*?<\/article>/u,
     )?.[0];
     expect(card).toBeDefined();
-    expect(card).toMatch(/<h2[^>]*>[\s\S]*?Sample Port[\s\S]*?<\/h2>[\s\S]*?Ready to play/u);
+    expect(card).toMatch(
+      /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
+    );
     expect(card).not.toContain(port.summary);
     expect(card).not.toContain(">Windows</span>");
     expect(card).not.toContain(install.version);
