@@ -254,3 +254,26 @@ ancestor guard refused it as foreign-replaceable. That outcome remains a
 refusal; the focused fixture now exercises only rejection of a foreign reader
 on its new disposable file, without claiming protected temporary-directory
 custody. The initial setup still has to establish the real protected roots.
+
+The local selector now reuses the complete admission collector's source/run/
+archive/reservation acquisition. Its private default transport reads the
+separately protected source token after actual-parent recheck, admits only
+fixed-repository GETs and read-only GraphQL queries, and supplies the token only
+to a hash-pinned GitHub CLI child's closed environment. The initial transport
+record therefore also names `github_cli: {path, sha256}`. It never modifies the
+parent's authentication environment. The reused admission result retains
+`injected-provider` scope; that result cannot become native or admission
+acceptance. The selector reconstructs the exact NSIS/AppImage package tuple,
+rechecks the remote checkpoint, retains a pre-sign data-only request, and exposes
+it only through its private selection map with fresh parent/package/checkpoint
+readback. Native execution and Check issuance remain unimplemented by this
+selection component. No post-sign or public journey is inferred from it.
+
+One bounded, read-only WSL capability inspection saw Ubuntu and docker-desktop
+registered as stopped WSL2 distributions. The single fixed Ubuntu owner/tool
+query then reached its 20-second child timeout without stdout or stderr. It
+returned `ETIMEDOUT`, not Linux OS, tool, interop or native evidence. At
+2026-10-20T22:39:40.323Z, the owned wrapper/Node/WSL process inventory was empty;
+no global WSL shutdown or reset was performed. The query was not repeated. A
+cold-start timeout does not establish an unsupported host; the actual Linux
+account, cgroup, GUI and minimum-platform route remain unobserved.

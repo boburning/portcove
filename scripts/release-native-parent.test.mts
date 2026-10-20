@@ -31,6 +31,7 @@ function fixture() {
   const transport = {
     schema_version: 1,
     source_read_token: "C:\\Portcove\\credentials\\read.token",
+    github_cli: { path: "C:\\Program Files\\GitHub CLI\\gh.exe", sha256: "4".repeat(64) },
     native_issuer: {
       private_key: "C:\\Portcove\\credentials\\native.pem",
       public_key_sha256: "4".repeat(64),
@@ -129,6 +130,8 @@ void test("initial native transport separates source read custody and native iss
     { ...transport, token: "caller-token" },
     { ...transport, native_issuer: { ...transport.native_issuer, app_id: 102 } },
     { ...transport, source_read_token: "relative-token" },
+    { ...transport, github_cli: { ...transport.github_cli, path: "gh" } },
+    { ...transport, github_cli: { ...transport.github_cli, sha256: "changed" } },
   ])
     assert.throws(() => inspectLocalNativeTransport(raw, "windows-x86_64"));
 });

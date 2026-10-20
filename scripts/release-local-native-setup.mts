@@ -86,9 +86,10 @@ export function inspectLocalNativeTransport(
   raw: unknown,
   platform: "windows-x86_64" | "linux-x86_64",
 ) {
-  exact(raw, "native_issuer,schema_version,source_read_token");
+  exact(raw, "github_cli,native_issuer,schema_version,source_read_token");
   if (raw.schema_version !== 1) throw new Error("native transport schema differs");
   exact(raw.native_issuer, "private_key,public_key_sha256");
+  exact(raw.github_cli, "path,sha256");
   const windows = platform === "windows-x86_64";
   const source = canonical(raw.source_read_token, windows),
     key = canonical(raw.native_issuer.private_key, windows);
@@ -97,6 +98,10 @@ export function inspectLocalNativeTransport(
   return {
     schema_version: 1 as const,
     source_read_token: source,
+    github_cli: {
+      path: canonical(raw.github_cli.path, windows),
+      sha256: digest(raw.github_cli.sha256),
+    },
     native_issuer: {
       private_key: key,
       public_key_sha256: digest(raw.native_issuer.public_key_sha256),

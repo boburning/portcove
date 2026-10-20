@@ -364,6 +364,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
   ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
+  ["scripts/release-native-candidate.mts", ["scripts/release-native-candidate.test.mts"]],
   [
     "scripts/fixtures/native-authority-configuration-fixture.mts",
     ["scripts/release-native-parent.test.mts"],
@@ -702,6 +703,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-native-stage-capture.test.mts",
   "scripts/release-native-scheduler.test.mts",
   "scripts/release-native-parent.test.mts",
+  "scripts/release-native-candidate.test.mts",
   "scripts/release-local-native-setup.test.mts",
   "scripts/release-native-acceptance.test.mts",
   "scripts/release-native-admission.test.mts",
