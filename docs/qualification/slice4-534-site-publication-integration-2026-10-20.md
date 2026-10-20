@@ -64,12 +64,37 @@ exact result and records independent readback before confirmed remote settlement
 Stable logical destinations preserve retry accounting across regenerated IDs.
 Fresh provider controls are required; an injected control source cannot publish.
 
+Independent review found and repaired pre-effect gaps: maintenance now compares
+the actual private assembler output with the frozen renewal's exact root,
+offline Targets, unchanged records, six next versions and expirations before
+any pending provider effect. Actual Rust composition and five output-mismatch
+refusals pass in `work/slice4/site-renewal-pre-effect-binding.log` (six cases).
+The transport accepts the fixed documented acknowledgement `/status` URL form
+without following it; its own GET route stays fixed. It recognizes the maintained
+terminal failure states. These capabilities were checked against the
+[GitHub Pages REST contract](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-deployment)
+and [maintained deploy-pages status handling](https://github.com/actions/deploy-pages/blob/v4/src/internal/deployment.js),
+not a live protected Pages operation.
+
+The connected publisher reauthenticates its actual executor and reads fresh
+controls after Pages token acquisition, immediately before the single POST.
+The actual transport refuses a missing final guard. Seven provider contracts
+pass, including a clock advanced beyond freshness during token acquisition
+which produces zero POSTs and refuses repeat entry.
+
 The site continuation checks the existing prior public generation and complete
 prepared archive. Application publication also requires a private actual Release
 preparation and fresh complete immutable Release/tag/asset readback. Maintenance
 uses its own authenticated published-component lifecycle without a candidate or
 new semantic review. Availability and headroom remain Unknown; no capacity
 reservation is asserted.
+
+Normal application feed execution currently has an explicit additional hold:
+its full reconstructed record set must be privately bound to that exact accepted
+aggregate/candidate/signature context. An unrelated validly signed context and
+an immutable Release do not establish this relationship. The subsequent fixed
+context integration must finish that connection before this hold is removed.
+It is remaining engineering, not a new owner mechanism decision.
 
 The report-capable Rust verifier built from `2a9f379f4ac48d87620410485468b99ab205c78b`
 has SHA-256 `ed5811dc5e58e602196067a50ee4b815c34fe1c51adc5e44377a3e73ed0abdcb`.
