@@ -4,7 +4,7 @@ import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts"
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
-const semanticReaderTools = ["list", "read", "search"] as const;
+const semanticReaderTools = ["list", "read", "read_text", "net_diff", "search"] as const;
 const pageBytes = 16 * 1024;
 
 /** A child may read only the payload pinned by its trusted parent's fixed argv.
@@ -112,6 +112,46 @@ export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFroze
       throw new Error("reader snapshot differs");
     return bundle.manifest.snapshots[snapshot];
   };
+  const selected = (snapshot: unknown, name: string) => {
+    if (snapshot === "manifest") return name === "manifest.json" ? manifest : undefined;
+    const entry = entries(snapshot).find((row) => row.path === name);
+    return entry ? files.get(`objects/${entry.oid}.data`) : undefined;
+  };
+  const textKinds = new Map<Buffer, boolean>();
+  const isText = (bytes: Buffer) => {
+    if (!textKinds.has(bytes)) {
+      let valid = !bytes.some((byte) => byte < 32 && ![9, 10, 13].includes(byte));
+      try {
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+      } catch {
+        valid = false;
+      }
+      textKinds.set(bytes, valid);
+    }
+    return textKinds.get(bytes)!;
+  };
+  const textPage = (bytes: Buffer, offset: number, length: number, stop = bytes.length) => {
+    const identity = {
+      bytes: bytes.length,
+      sha256: createHash("sha256").update(bytes).digest("hex"),
+      offset,
+    };
+    if (!isText(bytes))
+      return { ...identity, encoding: "binary", data: null, next: null, binary: true };
+    if (offset < bytes.length && (bytes[offset]! & 0xc0) === 0x80)
+      throw new Error("UTF8 page offset is not a codepoint boundary");
+    let end = Math.min(stop, offset + length);
+    while (end < bytes.length && end > offset && (bytes[end]! & 0xc0) === 0x80) end--;
+    if (end === offset && offset < stop) throw new Error("UTF8 page cannot fit the next codepoint");
+    return {
+      ...identity,
+      encoding: "utf8",
+      data: bytes.subarray(offset, end).toString("utf8"),
+      next: end < stop ? end : null,
+      binary: false,
+    };
+  };
+  const diffRanges = new Map<string, { prefix: number; suffix: number }>();
   return (tool: unknown, args: unknown): unknown => {
     if (++calls > 1024) throw new Error("reader lifetime call bound exceeded");
     if (!isSemanticReaderCall(tool, args)) throw new Error("unauthorized reader operation");
@@ -125,28 +165,67 @@ export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFroze
         entries: structuredClone(inventory.slice(offset, offset + 100)),
         next: offset + 100 < inventory.length ? offset + 100 : null,
       };
-    } else if (tool === "read") {
+    } else if (tool === "read" || tool === "read_text") {
       const selectedPath = text(request.path, 4096);
-      const bytes =
-        request.snapshot === "manifest"
-          ? selectedPath === "manifest.json"
-            ? manifest
-            : undefined
-          : (() => {
-              const entry = entries(request.snapshot).find((row) => row.path === selectedPath);
-              return entry ? files.get(`objects/${entry.oid}.data`) : undefined;
-            })();
+      const bytes = selected(request.snapshot, selectedPath);
       if (!bytes) throw new Error("reader path absent from frozen snapshot");
       const offset = integer(request.offset, bytes.length);
       const length = integer(request.length, pageBytes);
       if (length === 0) throw new Error("reader requires a nonempty page");
+      result =
+        tool === "read_text"
+          ? textPage(bytes, offset, length)
+          : {
+              bytes: bytes.length,
+              sha256: createHash("sha256").update(bytes).digest("hex"),
+              offset,
+              encoding: "base64",
+              data: bytes.subarray(offset, offset + length).toString("base64"),
+              next: offset + length < bytes.length ? offset + length : null,
+            };
+    } else if (tool === "net_diff") {
+      const name = text(request.path, 4096);
+      const change = bundle.manifest.source.changes.find((row) => row.path === name);
+      if (!change) throw new Error("path is not in the frozen net delta");
+      const before = selected("baseline", name),
+        after = selected("source", name);
+      if (!diffRanges.has(name)) {
+        let prefix = 0,
+          suffix = 0;
+        if (before && after) {
+          while (prefix < Math.min(before.length, after.length) && before[prefix] === after[prefix])
+            prefix++;
+          while (
+            suffix < Math.min(before.length, after.length) - prefix &&
+            before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
+          )
+            suffix++;
+        }
+        diffRanges.set(name, { prefix, suffix });
+      }
+      const { prefix, suffix } = diffRanges.get(name)!;
+      const view = (snapshot: "baseline" | "source", bytes: Buffer | undefined) => {
+        if (!bytes) return null;
+        const row = entries(snapshot).find((entry) => entry.path === name)!;
+        const unchanged = Boolean(before?.equals(after ?? Buffer.alloc(0)));
+        const start =
+          unchanged || prefix === 0 ? 0 : Math.max(0, bytes.lastIndexOf(10, prefix - 1) + 1);
+        const newline = bytes.indexOf(10, Math.max(prefix, bytes.length - suffix));
+        const end = unchanged ? 0 : newline < 0 ? bytes.length : newline + 1;
+        const page = textPage(bytes, start, 4096, end);
+        return {
+          ...page,
+          git_oid: row.oid,
+          mode: row.mode,
+          range: { start, end },
+          truncated: page.next !== null,
+        };
+      };
       result = {
-        bytes: bytes.length,
-        sha256: createHash("sha256").update(bytes).digest("hex"),
-        offset,
-        encoding: "base64",
-        data: bytes.subarray(offset, offset + length).toString("base64"),
-        next: offset + length < bytes.length ? offset + length : null,
+        path: name,
+        change: structuredClone(change),
+        baseline: view("baseline", before),
+        source: view("source", after),
       };
     } else {
       const needle = Buffer.from(text(request.literal, 256));
@@ -195,7 +274,14 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
       nonnegative(args.offset) &&
       Number(args.offset) <= 20000
     );
-  if (tool === "read")
+  if (tool === "net_diff")
+    return (
+      keys === "path" &&
+      typeof args.path === "string" &&
+      Buffer.byteLength(args.path) <= 4096 &&
+      !args.path.includes("\0")
+    );
+  if (tool === "read" || tool === "read_text")
     return (
       keys === "length,offset,path,snapshot" &&
       (snapshot || args.snapshot === "manifest") &&
@@ -207,7 +293,7 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
       Number(args.offset) <= 16 * 1024 * 1024 &&
       nonnegative(args.length) &&
       Number(args.length) > 0 &&
-      Number(args.length) <= pageBytes
+      Number(args.length) <= (tool === "read_text" ? 8192 : pageBytes)
     );
   return (
     tool === "search" &&
@@ -260,29 +346,41 @@ export function createSemanticSnapshotRpc(raw: ReturnType<typeof prepareFrozenSe
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            properties: {
-              snapshot: {
-                type: "string",
-                enum: name === "read" ? ["baseline", "source", "manifest"] : ["baseline", "source"],
-              },
-              ...(name === "search"
-                ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
+            properties:
+              name === "net_diff"
+                ? { path: { type: "string", maxLength: 4096 } }
                 : {
-                    offset: { type: "integer", minimum: 0 },
-                    ...(name === "read"
-                      ? {
-                          path: { type: "string", maxLength: 4096 },
-                          length: { type: "integer", minimum: 1, maximum: pageBytes },
-                        }
-                      : {}),
-                  }),
-            },
+                    snapshot: {
+                      type: "string",
+                      enum:
+                        name === "read" || name === "read_text"
+                          ? ["baseline", "source", "manifest"]
+                          : ["baseline", "source"],
+                    },
+                    ...(name === "search"
+                      ? { literal: { type: "string", minLength: 1, maxLength: 256 } }
+                      : {
+                          offset: { type: "integer", minimum: 0 },
+                          ...(name === "read" || name === "read_text"
+                            ? {
+                                path: { type: "string", maxLength: 4096 },
+                                length: {
+                                  type: "integer",
+                                  minimum: 1,
+                                  maximum: name === "read_text" ? 8192 : pageBytes,
+                                },
+                              }
+                            : {}),
+                        }),
+                  },
             required:
-              name === "list"
-                ? ["snapshot", "offset"]
-                : name === "read"
-                  ? ["snapshot", "path", "offset", "length"]
-                  : ["snapshot", "literal"],
+              name === "net_diff"
+                ? ["path"]
+                : name === "list"
+                  ? ["snapshot", "offset"]
+                  : name === "read" || name === "read_text"
+                    ? ["snapshot", "path", "offset", "length"]
+                    : ["snapshot", "literal"],
           },
           annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
         })),
