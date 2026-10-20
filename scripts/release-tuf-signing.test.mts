@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
+import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import {
   inspectTufSigningRole,
   tufRoleDependencies,
@@ -210,3 +211,77 @@ void test("actual credential-free wrong executable refuses after key release and
     await rm(f.root, { recursive: true, force: true });
   }
 });
+void test(
+  "actual pinned Rust signs five distinct disposable online roles and rejects a wrong role key",
+  { skip: !process.env.PORTCOVE_TUF_WORKER_QUALIFICATION_TOOL, timeout: 30000 },
+  async () => {
+    const tool = process.env.PORTCOVE_TUF_WORKER_QUALIFICATION_TOOL!,
+      sha256 = process.env.PORTCOVE_TUF_WORKER_QUALIFICATION_SHA256;
+    assert.ok(path.isAbsolute(tool) && sha256 && /^[a-f0-9]{64}$/u.test(sha256));
+    assert.equal(hash(await readFile(tool)), sha256);
+    const root = await mkdtemp(path.join(os.tmpdir(), "tuf-worker-real-disposable-"));
+    const input = path.join(root, "public-context"),
+      keys = await disposableTufWorkerFixture(input);
+    let passed = false;
+    try {
+      const results: Awaited<ReturnType<typeof signIsolatedTufRole>>[] = [];
+      for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
+        const signed_roles = tufRoleDependencies(role).map((dependency) => {
+          const result = results.find((entry) => entry.role === dependency);
+          assert.ok(result);
+          return {
+            filename: result.filename,
+            path: result.path,
+            bytes: result.bytes,
+            sha256: result.sha256,
+          };
+        });
+        const key = Buffer.from(keys[role]);
+        const result = await signIsolatedTufRole(
+          {
+            role,
+            context_directory: input,
+            output: path.join(root, role),
+            tool: { path: tool, sha256 },
+            signed_roles,
+          },
+          {
+            deadline: performance.now() + 10000,
+            beforeKey: async () => {},
+            keyMaterial: async () => key,
+          },
+        );
+        assert.equal(result.authority, "none");
+        assert.ok(key.every((byte) => byte === 0));
+        assert.equal(hash(await readFile(result.path)), result.sha256);
+        assert.ok(!(await readdir(path.dirname(result.path))).includes("private-work"));
+        results.push(result);
+      }
+      const wrong = Buffer.from(keys.preview);
+      await assert.rejects(
+        signIsolatedTufRole(
+          {
+            role: "releases",
+            context_directory: input,
+            output: path.join(root, "wrong-key"),
+            tool: { path: tool, sha256 },
+            signed_roles: [],
+          },
+          {
+            deadline: performance.now() + 10000,
+            beforeKey: async () => {},
+            keyMaterial: async () => wrong,
+          },
+        ),
+        /public evidence retained/u,
+      );
+      assert.ok(wrong.every((byte) => byte === 0));
+      assert.ok(!(await readdir(path.join(root, "wrong-key"))).includes("releases.json"));
+      passed = true;
+    } finally {
+      for (const key of Object.values(keys)) key.fill(0);
+      if (passed) await rm(root, { recursive: true, force: true });
+      else process.stderr.write(`Retain public disposable TUF evidence: ${root}\n`);
+    }
+  },
+);
