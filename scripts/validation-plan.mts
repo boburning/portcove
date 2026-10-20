@@ -338,6 +338,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-acceptance.mts",
   "scripts/release-native-admission.mts",
   "scripts/release-signing-handoff.mts",
+  "scripts/release-tuf-signing.mts",
   "scripts/release-signing-context.mts",
   "scripts/release-signing-context-artifact.mts",
   "scripts/release-publication-result.mts",
