@@ -3,7 +3,12 @@
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 import {
   inspectNativeQualificationCandidate,
+  inspectNativeQualificationJourney,
   nativeQualificationScenarios,
+  nativePrepublicationProfile,
+  nativePrepublicationPending,
+  nativePrepublicationScenarios,
+  nativeInitialPackageScenarios,
 } from "./release-native-qualification-contract.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -90,20 +95,8 @@ export function prepareNativeStageRequest(raw: unknown, rawAuthorities: unknown)
     throw new Error("native request stage/platform differs");
   const authorities = inspectReleaseAuthorityConfiguration(structuredClone(rawAuthorities));
   const candidate = inspectNativeQualificationCandidate(structuredClone(raw.candidate));
-  let journey = null;
-  if (raw.stage === "payload-signing") {
-    if (raw.journey !== null) throw new Error("pre-sign native request has a signed journey");
-  } else {
-    exact(raw.journey, "predecessor,signatures_sha256,signed_context_sha256");
-    const predecessor = inspectNativeQualificationCandidate(raw.journey.predecessor);
-    if (predecessor.package.sha256 === candidate.package.sha256)
-      throw new Error("native journey predecessor is unchanged");
-    journey = {
-      predecessor,
-      signed_context_sha256: sha(raw.journey.signed_context_sha256),
-      signatures_sha256: sha(raw.journey.signatures_sha256),
-    };
-  }
+  const temporal = raw.stage === "release-publication" && authorities.schema_version === 2;
+  const journey = inspectNativeQualificationJourney(raw.journey, raw.stage, candidate, temporal);
   const fixed = authorities.native[raw.platform_label];
   const request = {
     schema_version: 1 as const,
@@ -116,8 +109,21 @@ export function prepareNativeStageRequest(raw: unknown, rawAuthorities: unknown)
     authority_configuration_digest: digest(authorities),
     candidate,
     journey,
+    ...(temporal
+      ? {
+          native_report_schema_version: 2 as const,
+          native_prepublication_profile: nativePrepublicationProfile,
+          pending_obligations: [...nativePrepublicationPending],
+        }
+      : {}),
     expected: structuredClone(fixed),
-    required_scenarios: [...nativeQualificationScenarios[raw.stage]],
+    required_scenarios: temporal
+      ? [
+          ...(journey && "kind" in journey && journey.kind === "initial-empty-feed"
+            ? nativeInitialPackageScenarios
+            : nativePrepublicationScenarios),
+        ]
+      : [...nativeQualificationScenarios[raw.stage]],
   };
   return frozen({
     request,

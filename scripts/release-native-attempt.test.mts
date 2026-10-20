@@ -19,6 +19,13 @@ import {
   inspectNativeAttemptMarker,
 } from "./release-native-attempt.mts";
 import { nativeInvocationIdentity } from "./release-native-candidate.mts";
+import {
+  nativePrepublicationProfile,
+  nativePrepublicationPending,
+  nativePrepublicationScenarios,
+  nativeInitialPackageScenarios,
+  nativeEmptyRecordsSha256,
+} from "./release-native-qualification-contract.mts";
 
 function fixture() {
   const report = nativeQualificationFixture();
@@ -176,6 +183,81 @@ void test("retained Check wire reconstructs original exact invocation and reject
       expected,
       f.authorities,
     ),
+  );
+});
+
+void test("Check recovery derives temporal schema and exact bootstrap or predecessor scope from selected configuration", () => {
+  const legacy = nativeQualificationFixture("release-publication");
+  const authorities = {
+    ...nativeAuthorityConfigurationFixture(),
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+  };
+  const bootstrap = {
+    kind: "initial-empty-feed",
+    metadata_bootstrap_sha256: "1".repeat(64),
+    setup_plan_sha256: "2".repeat(64),
+    initial_site_preimage_sha256: "3".repeat(64),
+    empty_records_sha256: nativeEmptyRecordsSha256,
+    signed_context_sha256: "4".repeat(64),
+    signatures_sha256: "5".repeat(64),
+  };
+  for (const initial of [false, true]) {
+    const report = {
+      ...legacy,
+      schema_version: 2,
+      native_prepublication_profile: nativePrepublicationProfile,
+      pending_obligations: [...nativePrepublicationPending],
+      journey: initial ? bootstrap : legacy.journey,
+      scenarios: (initial ? nativeInitialPackageScenarios : nativePrepublicationScenarios).map(
+        (name, index) => ({
+          ...legacy.scenarios[index]!,
+          name,
+        }),
+      ),
+    };
+    const rawRequest = {
+      schema_version: 1,
+      stage: report.stage,
+      platform_label: report.platform_label,
+      candidate: report.candidate,
+      journey: report.journey,
+      invocation_id: report.producer.invocation_id,
+      setup_descriptor_sha256: "a".repeat(64),
+    };
+    const request = prepareNativeStageRequest(rawRequest, authorities),
+      wire = prepareNativeQualificationCheck(report);
+    const expected = {
+      method: "POST",
+      endpoint: "repos/boburning/portcove/check-runs",
+      body: wire.body,
+    };
+    const plan = inspectNativeCheckRecoveryPlan(request, expected, authorities);
+    assert.equal(plan.prepared.request.native_report_schema_version, 2);
+    assert.deepEqual(
+      plan.prepared.request.required_scenarios,
+      initial ? nativeInitialPackageScenarios : nativePrepublicationScenarios,
+    );
+    assert.deepEqual(plan.prepared.request.pending_obligations, nativePrepublicationPending);
+    assert.equal(plan.authority, "none");
+    assert.throws(() =>
+      inspectNativeCheckRecoveryPlan(request, expected, nativeAuthorityConfigurationFixture()),
+    );
+    const legacyWire = prepareNativeQualificationCheck(legacy);
+    assert.throws(() =>
+      inspectNativeCheckRecoveryPlan(request, { ...expected, body: legacyWire.body }, authorities),
+    );
+    assert.throws(() =>
+      prepareNativeStageRequest(
+        { ...rawRequest, native_prepublication_profile: nativePrepublicationProfile },
+        authorities,
+      ),
+    );
+  }
+  const pre = fixture();
+  assert.equal(
+    prepareNativeStageRequest(pre.request, authorities).request.native_report_schema_version,
+    undefined,
   );
 });
 

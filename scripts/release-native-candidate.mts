@@ -469,6 +469,13 @@ export function inspectNativeCheckRecoveryPlan(
     digest(report.journey) !== digest(prepared.request.journey)
   )
     throw new Error("native retained Check wire differs from its original invocation");
+  const schema = prepared.request.native_report_schema_version ?? 1;
+  if (
+    report.schema_version !== schema ||
+    (schema === 2 &&
+      report.native_prepublication_profile !== prepared.request.native_prepublication_profile)
+  )
+    throw new Error("native retained Check temporal profile differs from selected configuration");
   return { prepared, wire, authority: "none" as const };
 }
 
@@ -521,7 +528,12 @@ export async function reconcileActualNativeCheck(
   const receipt = await collectNativeReleaseQualification(
     retained.directory,
     {
-      schema_version: 1,
+      schema_version: plan.prepared.request.native_report_schema_version ?? 1,
+      ...(plan.prepared.request.native_report_schema_version === 2
+        ? {
+            native_prepublication_profile: plan.prepared.request.native_prepublication_profile,
+          }
+        : {}),
       check_id: id,
       native_app_id: issuer,
       semantic_app_id: value.parent.authority_configuration.apps.semantic.app_id,
