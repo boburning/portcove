@@ -57,6 +57,75 @@ import { fileURLToPath } from "node:url";
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
 
+void test(
+  "initial metadata remote pending and exact readback preserve an existing candidate",
+  { timeout: 60000 },
+  async (t) => {
+    // Real Git and existing injected provider CAS, never a live protected effect.
+    const f = await remoteCapacityFixture(t, true);
+    const original = structuredClone(f.input.active_candidate);
+    const { descriptor, published } = metadataBootstrapFixture();
+    let effects = 0;
+    const result = await runBoundedMetadataBootstrapOperation(
+      f.bare,
+      f.migrated.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "qualification:bootstrap-shared-pages" },
+      async () => f.capacity.boundary,
+      async (record, pending) => {
+        assert.equal(f.refs.get(f.stateRef), pending.checkpoint);
+        effects++;
+        await record("qualification:initial-shared-publication", "a".repeat(64));
+      },
+      { ...f.options, maximumReceipts: 1 },
+    );
+    assert.equal(result.completion, "readback-required");
+    assert.equal(result.operation.outcome, "pending");
+    assert.match(String(result.operation.executor_nonce), /^[a-f0-9]{64}$/u);
+    assert.equal(f.refs.get(f.stateRef), result.checkpoint);
+    await assert.rejects(
+      runBoundedMetadataBootstrapOperation(
+        f.bare,
+        result.checkpoint,
+        descriptor,
+        { kind: "upload", destination: "qualification:bootstrap-shared-pages" },
+        async () => f.capacity.boundary,
+        async () => {
+          effects++;
+        },
+        { ...f.options, maximumReceipts: 1 },
+      ),
+      /held|recovery|repeat/,
+    );
+    const resolved = await recordCapacityReadback(
+      f.bare,
+      result.checkpoint,
+      "effect-completed",
+      "b".repeat(64),
+      f.options,
+    );
+    const seeded = await recordPublishedMetadata(
+      f.bare,
+      resolved.checkpoint,
+      {
+        ...published,
+        operation_id: result.operation.id,
+        publication: {
+          remote_identity: "qualification:initial-shared-publication",
+          evidence_sha256: "a".repeat(64),
+          site_generation_sha256: "c".repeat(64),
+        },
+      },
+      f.options,
+    );
+    const final = await recoverReleaseOpportunity(f.bare, seeded.checkpoint);
+    assert.deepEqual(final.input.active_candidate, original);
+    assert.deepEqual(final.input.metadata_bootstrap, descriptor);
+    assert.equal(f.refs.get(f.stateRef), seeded.checkpoint);
+    assert.equal(effects, 1);
+  },
+);
+
 for (const lost of [false, true])
   void test(
     `initial metadata bootstrap ${lost ? "retains ambiguous intent through sparse recovery" : "settles exact empty publication without a candidate"}`,

@@ -108,6 +108,25 @@ async fn initial_empty_feed_uses_only_offline_public_anchors_and_separate_online
     )
     .unwrap();
     assert_eq!(manifest["records"], json!([]));
+    if let Some(output) = std::env::var_os("PORTCOVE_TUF_INITIAL_QUALIFICATION_OUTPUT") {
+        let output = PathBuf::from(output);
+        assert!(output.is_absolute());
+        fs::create_dir(&output).expect("initial public fixture export must be fresh");
+        for name in [
+            "context.json",
+            "trusted-root.json",
+            "offline-targets.json",
+            "payload.json",
+            "initial-bootstrap.json",
+        ] {
+            fs::copy(fixture.root().join(name), output.join(name)).unwrap();
+        }
+        for name in ["records", "envelopes"] {
+            copy_public_fixture(&fixture.root().join(name), &output.join(name));
+        }
+        assert!(!output.join("jobs").exists());
+        assert!(!output.join("seed").exists());
+    }
 }
 
 #[tokio::test]
