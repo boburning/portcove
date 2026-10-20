@@ -3,7 +3,11 @@ import {
   runBoundedCapacityOperation,
   recordCapacityReadback,
   ProviderCapacityRefusal,
+  runBoundedMetadataRenewalOperation,
+  recordPublishedMetadata,
 } from "./release-capacity-operation.mts";
+import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
 import { mkdtemp, mkdir, writeFile, rm, readdir } from "node:fs/promises";
@@ -20,6 +24,7 @@ import {
   coordinatorStateRef,
   exportCoordinatorCheckpoint,
   importCoordinatorCheckpoint,
+  readRetainedCapacityOperation,
 } from "./release-coordinator-state.mts";
 import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import {
@@ -1805,3 +1810,223 @@ for (const outcome of ["pending", "capacity-refused", "succeeded"]) {
     },
   );
 }
+void test(
+  "metadata renewal uses durable remote journal without allocating or changing an active candidate",
+  { timeout: 120000 },
+  async (t) => {
+    const f = await remoteCapacityFixture(t);
+    const { descriptor, published } = metadataFixture();
+    const original = (await recoverReleaseOpportunity(f.bare, f.migrated.checkpoint)).input;
+    const input = structuredClone(original);
+    assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+    input.controller.capacity_attempt.schema_version = 2;
+    const modern = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    await publishCoordinatorCheckpoint(f.bare, modern.checkpoint, f.config, { api: f.api });
+    let effects = 0;
+    await assert.rejects(
+      runBoundedMetadataRenewalOperation(
+        f.bare,
+        modern.checkpoint,
+        descriptor,
+        { kind: "upload", destination: "application-tuf:timestamp" },
+        async () => f.capacity.boundary,
+        async () => {
+          effects++;
+        },
+        f.options,
+      ),
+      /seed absent/,
+    );
+    assert.equal(effects, 0);
+    const seeded = await recordPublishedMetadata(f.bare, modern.checkpoint, published, f.options);
+    const first = await runBoundedMetadataRenewalOperation(
+      f.bare,
+      seeded.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:timestamp" },
+      async () => f.capacity.boundary,
+      async (record, pending) => {
+        effects++;
+        assert.equal(f.refs.get(f.stateRef), pending.checkpoint);
+        assert.ok(isRecord(pending.operation.metadata_renewal));
+        assert.equal(
+          pending.operation.metadata_renewal.prior_repository_sha256,
+          published.repository_sha256,
+        );
+        assert.equal(pending.operation.candidate, undefined);
+        await record("qualification:timestamp-envelope", "a".repeat(64));
+      },
+      { ...f.options, maximumReceipts: 1 },
+    );
+    assert.equal(first.operation.outcome, "pending");
+    const recovered = await recordCapacityReadback(
+      f.bare,
+      first.checkpoint,
+      "effect-completed",
+      "b".repeat(64),
+      f.options,
+    );
+    const second = await runBoundedMetadataRenewalOperation(
+      f.bare,
+      recovered.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:Pages" },
+      async () => f.capacity.boundary,
+      async (record) => record("qualification:Pages-generation", "c".repeat(64)),
+      { ...f.options, maximumReceipts: 1 },
+    );
+    const resolved = await recordCapacityReadback(
+      f.bare,
+      second.checkpoint,
+      "effect-completed",
+      "d".repeat(64),
+      f.options,
+    );
+    const saved = await recoverReleaseOpportunity(f.bare, resolved.checkpoint);
+    assert.deepEqual(saved.input.active_candidate, original.active_candidate);
+    assert.equal(saved.input.now, original.now);
+    assert.ok(
+      isRecord(saved.input.controller) && isRecord(saved.input.controller.capacity_attempt),
+    );
+    const groups = saved.input.controller.capacity_attempt.prior_operations;
+    assert.ok(
+      Array.isArray(groups) &&
+        isRecord(groups[0]) &&
+        Array.isArray(groups[0].attempts) &&
+        isRecord(groups[0].attempts[0]),
+    );
+    const proof = groups[0].attempts[0];
+    const raw = readRetainedCapacityOperation(f.bare, {
+      checkpoint: String(proof.checkpoint),
+      id: String(proof.id),
+      operation_sha256: String(proof.operation_sha256),
+    });
+    assert.equal(raw.id, first.operation.id);
+    assert.throws(() =>
+      readRetainedCapacityOperation(f.bare, {
+        checkpoint: String(proof.checkpoint),
+        id: String(proof.id),
+        operation_sha256: "0".repeat(64),
+      }),
+    );
+    await assert.rejects(
+      runBoundedMetadataRenewalOperation(
+        f.bare,
+        resolved.checkpoint,
+        { ...descriptor, generated_at: descriptor.generated_at },
+        { kind: "upload", destination: "application-tuf:timestamp" },
+        async () => f.capacity.boundary,
+        async () => assert.fail("completed effect cannot repeat"),
+        f.options,
+      ),
+      /repeat|recovery/,
+    );
+    const advanced = {
+      ...published,
+      repository_sha256: "e".repeat(64),
+      snapshot_sha256: "f".repeat(64),
+      timestamp_sha256: "0".repeat(64),
+      versions: descriptor.next_versions,
+      expires: descriptor.next_expires,
+      operation_id: second.operation.id,
+      publication: {
+        remote_identity: "qualification:Pages-generation",
+        evidence_sha256: "c".repeat(64),
+        site_generation_sha256: "9".repeat(64),
+      },
+    };
+    const final = await recordPublishedMetadata(f.bare, resolved.checkpoint, advanced, f.options);
+    const finalInput = (await recoverReleaseOpportunity(f.bare, final.checkpoint)).input;
+    assert.ok(isDeepStrictEqual(finalInput.active_candidate, original.active_candidate));
+    assert.deepEqual(finalInput.published_metadata, advanced);
+    assert.ok(isRecord(finalInput.controller) && isRecord(finalInput.controller.capacity_attempt));
+    assert.deepEqual(finalInput.controller.capacity_attempt.prior_operations, []);
+    assert.equal(f.refs.get(f.stateRef), final.checkpoint);
+  },
+);
+void test(
+  "metadata-only renewal needs no candidate and its compact state survives sparse import",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await fixture(t);
+    const before = (await recoverReleaseOpportunity(f.repository, f.initial.checkpoint)).input;
+    const capacity = { ...capacityFixture(), schema_version: 2 };
+    const input = {
+      ...before,
+      schema_version: 2,
+      controller: {
+        workflow: ".github/workflows/release-coordinator.yml",
+        revision: "3".repeat(40),
+        publication_paused: false,
+        capacity_attempt: capacity,
+      },
+    };
+    const migrated = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, input);
+    const { descriptor, published } = metadataFixture();
+    const seeded = await recordPublishedMetadata(f.repository, migrated.checkpoint, published);
+    const first = await runBoundedMetadataRenewalOperation(
+      f.repository,
+      seeded.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:releases" },
+      async () => capacity.boundary,
+      async (record) => record("qualification:release-role", "a".repeat(64)),
+      { maximumReceipts: 1 },
+    );
+    const second = await runBoundedMetadataRenewalOperation(
+      f.repository,
+      first.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:preview" },
+      async () => capacity.boundary,
+      async (record) => record("qualification:preview-role", "b".repeat(64)),
+      { maximumReceipts: 1 },
+    );
+    const transportRepository = path.join(f.repository, "metadata-transport.git");
+    execFileSync("git", ["clone", "--mirror", "--quiet", f.repository, transportRepository], {
+      windowsHide: true,
+    });
+    const exported = await exportCoordinatorCheckpoint(transportRepository, second.checkpoint);
+    const sparse = path.join(f.repository, "metadata-sparse.git");
+    execFileSync("git", ["init", "--bare", "--quiet", sparse], { windowsHide: true });
+    const objects: { kind: "commit" | "tree" | "blob"; oid: string; bytes: Buffer }[] = [];
+    for (const checkpoint of [exported.checkpoint, exported.previous]) {
+      assert.ok(checkpoint);
+      for (const [kind, suffix] of [
+        ["commit", ""],
+        ["tree", "^{tree}"],
+        ["blob", ":state.json"],
+      ] as const) {
+        const oid = execFileSync(
+          "git",
+          ["-C", transportRepository, "rev-parse", checkpoint + suffix],
+          { encoding: "utf8", windowsHide: true },
+        ).trim();
+        if (!objects.some((object) => object.oid === oid))
+          objects.push({
+            kind,
+            oid,
+            bytes: execFileSync("git", ["-C", transportRepository, "cat-file", kind, oid], {
+              windowsHide: true,
+            }),
+          });
+      }
+    }
+    await importCoordinatorCheckpoint(sparse, exported.checkpoint, objects);
+    const restored = await recoverReleaseOpportunity(sparse, exported.checkpoint);
+    assert.equal(restored.input.active_candidate, null);
+    assert.deepEqual(restored.input.published_metadata, published);
+    assert.equal(restored.input.now, before.now);
+    assert.ok(
+      isRecord(restored.input.controller) && isRecord(restored.input.controller.capacity_attempt),
+    );
+    const groups = restored.input.controller.capacity_attempt.prior_operations;
+    assert.ok(Array.isArray(groups) && groups.length === 1);
+    assert.throws(() =>
+      execFileSync("git", ["-C", sparse, "cat-file", "-e", seeded.checkpoint], {
+        windowsHide: true,
+        stdio: "ignore",
+      }),
+    );
+  },
+);
