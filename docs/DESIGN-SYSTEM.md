@@ -245,6 +245,9 @@ unidentified candidate. Its first review retains the saved policy's current
 default (automatic installs; other policies keep for later). Once Core supplies
 the release, show its consequences and offer the alternate action through a new
 reviewed plan. Switching action never reuses the previous plan's fingerprint.
+Details labels matching saved checks as earlier observations, shows their update
+version when available, and makes Check for updates primary when no available or
+saved candidate is known. Manual review remains available as a secondary action.
 The optional application-update choice notice uses a secondary review action;
 ordinary first-use Add games remains the primary task.
 

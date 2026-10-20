@@ -305,6 +305,41 @@ const missingRuntimeFixture = (updateAvailable: boolean) => {
 };
 
 describe("desktop components", () => {
+  it.each(["unknown", "available", "none", "stale-channel"] as const)(
+    "puts the %s update observation before the appropriate next action",
+    (state) => {
+      const fixture = missingRuntimeFixture(state === "available");
+      const status: PortStatus = {
+        ...fixture.status,
+        last_update_check: state === "unknown" ? null : fixture.status.last_update_check,
+        channel: state === "stale-channel" ? "beta" : "stable",
+      };
+      const html = renderToStaticMarkup(
+        <DetailPanel
+          port={port}
+          status={status}
+          sourcePath=""
+          setSourcePath={vi.fn()}
+          actions={actions}
+        />,
+      );
+      const check = html.indexOf("Check for updates");
+      const review = html.indexOf("Review game update");
+      expect(check).toBeGreaterThan(-1);
+      expect(review).toBeGreaterThan(-1);
+      expect(check < review).toBe(state !== "available");
+      const expected =
+        state === "available"
+          ? "was available at the saved check"
+          : state === "none"
+            ? "No update was found at the saved check"
+            : "There is no saved update check for this installation and channel";
+      expect(html).toContain(expected);
+      expect(html.indexOf(expected)).toBeLessThan(Math.min(check, review));
+      expect(html).not.toContain(">This update<");
+      expect(html.indexOf("Future update preferences")).toBeGreaterThan(Math.max(check, review));
+    },
+  );
   it("keeps a valid ZIP source distinct from the retained external runtime's required launch format", () => {
     const runtimePort = currentCatalogPort("wave-race-64-recomp");
     const source = {
@@ -1337,7 +1372,7 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(choice).toMatch(/data-variant="primary"[^>]*>Review options<\/button>/u);
+    expect(choice).toMatch(/data-variant="outline"[^>]*>Review options<\/button>/u);
     expect(choice).toMatch(/data-variant="ghost"[^>]*>Not now<\/button>/u);
     expect(transition).toMatch(/data-variant="primary"[^>]*>Use Stable<\/button>/u);
     expect(transition).toMatch(/data-variant="outline"[^>]*>Keep Preview<\/button>/u);

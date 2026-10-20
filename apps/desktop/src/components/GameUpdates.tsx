@@ -97,6 +97,7 @@ function useGameUpdateControl({
   busy: boolean;
   perform?: Perform | undefined;
   compact?: boolean;
+  primary?: boolean;
   gameName?: string;
   reviewScope?: { active: boolean; claim: () => void; current: () => boolean };
 }) {
@@ -357,7 +358,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         data-focusable
         className={plan ? "hidden" : undefined}
         hidden={Boolean(plan)}
-        variant={compact ? "outline" : "primary"}
+        variant={compact || props.primary === false ? "outline" : "primary"}
         disabled={busy || pending || !perform}
         onClick={() => {
           void review();
