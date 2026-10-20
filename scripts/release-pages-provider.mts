@@ -66,12 +66,14 @@ export function createPagesProviderTransport(
         throw new Error(
           "Pages POST already attempted; reconcile original evidence before any later action",
         );
+      // Claim the one-shot boundary before the first await. Two callers must
+      // not both acquire a credential and enter the same pending effect.
+      attempted = true;
       // Acquire a distinct Pages-audience token only in the actual fixed job.
       // It is never returned, retained in receipts, or included in diagnostics.
       const token = await (injected.token ?? (() => requestAssemblerToken(audience)))();
       if (typeof token !== "string" || token.length < 1 || token.length > 16384)
         throw new Error("Pages OIDC credential is unavailable");
-      attempted = true;
       let response: ReturnType<Api["request"]>;
       try {
         response = api.request("POST", endpoint, {

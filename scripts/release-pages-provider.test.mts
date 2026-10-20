@@ -18,6 +18,34 @@ const response = (body: unknown, status = 200) => ({
   headers: new Map<string, string>(),
 });
 
+void test("concurrent entry claims the one-shot boundary before asynchronous credential acquisition", async () => {
+  let release!: (value: string) => void;
+  const token = new Promise<string>((resolve) => {
+    release = resolve;
+  });
+  let tokenCalls = 0;
+  let posts = 0;
+  const provider = createPagesProviderTransport(".", {
+    token: () => {
+      tokenCalls++;
+      return token;
+    },
+    api: {
+      request() {
+        posts++;
+        return response(ack);
+      },
+    },
+  });
+  const first = provider.create(expected);
+  const refused = assert.rejects(provider.create(expected), /already attempted/u);
+  assert.equal(tokenCalls, 1);
+  assert.equal(posts, 0);
+  release("inert-token");
+  await Promise.all([first, refused]);
+  assert.equal(posts, 1);
+});
+
 void test("fixed Pages POST carries only actual opaque artifact/source and ephemeral audience token; acknowledgement is not acceptance", async () => {
   const calls: unknown[] = [];
   const provider = createPagesProviderTransport(".", {
