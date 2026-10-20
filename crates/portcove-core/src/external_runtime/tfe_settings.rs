@@ -33,13 +33,17 @@ pub(super) fn validate_declaration(spec: &UserPreparedRuntimeSpec) -> Result<()>
     Ok(())
 }
 
-pub(super) fn check(file: &File) -> Result<()> {
+pub(crate) fn check(file: &File) -> Result<()> {
     let mut bytes = Vec::new();
     file.take(MAX_BYTES + 1).read_to_end(&mut bytes)?;
+    check_bytes(&bytes)
+}
+
+pub(crate) fn check_bytes(bytes: &[u8]) -> Result<()> {
     if bytes.len() as u64 > MAX_BYTES || bytes.contains(&0) {
         return Err(invalid());
     }
-    parse(&bytes)
+    parse(bytes)
 }
 
 fn whitespace(byte: u8) -> bool {

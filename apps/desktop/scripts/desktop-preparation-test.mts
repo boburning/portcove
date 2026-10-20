@@ -169,6 +169,11 @@ const updateReviewWindows = [
 async function openUpdateTheme(browser: WebDriver, theme: string) {
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
   await browser
+    .findElement(
+      By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
+    )
+    .click();
+  await browser
     .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
     .click();
   assert.equal(
@@ -176,8 +181,17 @@ async function openUpdateTheme(browser: WebDriver, theme: string) {
     theme,
   );
   await browser
-    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
     .click();
+  await selectActivitySection(browser, "Updates");
+}
+
+async function selectActivitySection(browser: WebDriver, label: "Updates" | "Tasks & history") {
+  const button = await browser.findElement(
+    By.xpath(`//nav[@aria-label="Activity sections"]//button[normalize-space(.)="${label}"]`),
+  );
+  await clickVisible(browser, button);
+  await browser.wait(async () => (await button.getAttribute("aria-pressed")) === "true", 5000);
 }
 
 async function assertIndividualUpdateFailure({
@@ -827,7 +841,7 @@ export function assertPreparedLibrarySummary(
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} in library All ready to play`,
+    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
   );
 }
 
@@ -936,9 +950,7 @@ export async function preparationScenarios({
     );
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-    const card = By.xpath(
-      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-    );
+    const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     if (waitForPreparation)
@@ -960,6 +972,19 @@ export async function preparationScenarios({
     const { port, install } = await seed("opengoal-jak1", "success");
     await open(port);
     assert.equal(required((await status(port.id)).readiness).launchable, false);
+    const preparationHierarchy = await executeBrowserScript(browser, () => {
+      const actions = document.querySelector('section[aria-label="Game actions"]');
+      return {
+        heading: actions?.querySelector("h2")?.textContent,
+        firstAction: actions?.querySelector("button:not(:disabled)")?.textContent?.trim(),
+        disabledPlaceholder: actions?.textContent?.includes("Prepare game data first"),
+        owner: actions?.getAttribute("data-task-owner"),
+      };
+    });
+    assert.equal(preparationHierarchy.heading, "Next step: prepare game data");
+    assert.equal(preparationHierarchy.firstAction, "Review game preparation");
+    assert.equal(preparationHierarchy.disabledPlaceholder, false);
+    assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
     await outputLocationInput.sendKeys(
@@ -1060,6 +1085,110 @@ export async function preparationScenarios({
     artifacts.push(reviewImage);
     const accessibilityReport = path.join(output, "preparation-accessibility.json");
     await captureAccessibilityReport(browser, accessibilityReport, artifacts);
+    const reviewWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = async (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    try {
+      await browser.manage().window().setRect({ width: 960, height: 640 });
+      for (let step = 0; step < 7; step++) await shortcut("+");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () =>
+              localStorage.getItem("portcove.appearance.interface-size") === "400" &&
+              innerWidth <= 240,
+          ),
+        10_000,
+        "Preparation review did not reach actual native 400% enlargement",
+      );
+      await assertCompactReview(browser, '[aria-labelledby="preparation-review-title"]');
+      const confirm = await browser.findElement(button("Prepare game data"));
+      await executeBrowserScript(
+        browser,
+        (element) => {
+          element.scrollIntoView({ block: "center" });
+          (element as HTMLElement).focus();
+        },
+        confirm,
+      );
+      assert.equal(await confirm.isDisplayed(), true);
+      assert.equal(await confirm.isEnabled(), true);
+      const visibleAction = async (element: WebElement) => {
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (control) => {
+                const bounds = control.getBoundingClientRect();
+                const hit = document.elementFromPoint(
+                  bounds.x + bounds.width / 2,
+                  bounds.y + bounds.height / 2,
+                );
+                return (
+                  document.activeElement === control &&
+                  bounds.top >= 0 &&
+                  bounds.bottom <= innerHeight + 1 &&
+                  bounds.left >= 0 &&
+                  bounds.right <= innerWidth + 1 &&
+                  (hit === control || (hit !== null && control.contains(hit)))
+                );
+              },
+              element,
+            ),
+          5_000,
+          "Enlarged review action is not focused, in the viewport and unobscured",
+        );
+      };
+      await visibleAction(confirm);
+      await browser.actions().sendKeys(Key.TAB).perform();
+      const cancel = await browser.findElement(button("Cancel review"));
+      await visibleAction(cancel);
+      const enlarged = path.join(output, "preparation-native-400-observation.json");
+      await writeFile(
+        enlarged,
+        JSON.stringify(
+          await executeBrowserScript(browser, () => ({
+            width: innerWidth,
+            height: innerHeight,
+            zoomPreference: localStorage.getItem("portcove.appearance.interface-size"),
+            focus: document.activeElement?.textContent?.trim(),
+            dialog: document.querySelector('[aria-labelledby="preparation-review-title"]')
+              ?.textContent,
+          })),
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(enlarged);
+      // Exercise the real dismissal at enlargement; focus and geometry alone
+      // do not establish that the action can actually be used.
+      await cancel.click();
+      await browser.wait(
+        async () => (await browser.findElements(preparationDialog)).length === 0,
+        5_000,
+      );
+      assert.equal(
+        required((await status(port.id)).active).id,
+        install.id,
+        "Enlarged dismissal must not prepare",
+      );
+    } finally {
+      await shortcut("0");
+      await browser.wait(
+        () =>
+          executeBrowserScript(
+            browser,
+            () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+          ),
+        10_000,
+      );
+      await browser.manage().window().setRect(reviewWindow);
+    }
+    await clickVisible(browser, await browser.findElement(button("Review game preparation")));
+    await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(preparationDialog)).length === 0,
@@ -1089,9 +1218,59 @@ export async function preparationScenarios({
     assert.equal(required(prepared.previous).id, install.id);
     const log = path.join(required(prepared.active).path, "data/log/setup.log");
     await writeFile(log, "setup must not run during desktop Play");
-    await browser.wait(until.elementLocated(button("Play")), 15_000);
-    await browser.wait(until.elementIsEnabled(await browser.findElement(button("Play"))), 15_000);
-    await browser.findElement(button("Play")).click();
+    // This fixture's preliminary source is available but has no exact identity.
+    // Preparation does not upgrade that evidence into confirmed compatibility.
+    const trialLaunch = By.css("section[data-detail-workspace] .primary-actions button");
+    const trial = await browser.wait(
+      async () => {
+        const current = (await browser.findElements(trialLaunch))[0];
+        return current &&
+          (await current.isDisplayed()) &&
+          (await current.getText()) === "Try launch" &&
+          (await current.isEnabled())
+          ? current
+          : false;
+      },
+      15_000,
+      "Prepared Core state did not reach the rendered trial-launch action",
+    );
+    assert.ok(trial, "Rendered trial-launch action must be available");
+    assert.equal(await trial.getText(), "Try launch");
+    await browser.wait(until.elementIsEnabled(trial), 15_000);
+    try {
+      await browser.wait(
+        () =>
+          executeBrowserScript(browser, () => {
+            const heading = document.querySelector("[data-task-owner] h2");
+            return (
+              heading?.textContent?.trim() === "Next step" && document.activeElement === heading
+            );
+          }),
+        5_000,
+        "Unconfirmed compatibility must leave completion focus on the next-step heading",
+      );
+    } catch (error) {
+      const diagnostic = path.join(output, "preparation-completion-focus-failure.json");
+      await writeFile(
+        diagnostic,
+        JSON.stringify(
+          await executeBrowserScript(browser, () => ({
+            active: document.activeElement?.outerHTML,
+            actions: document.querySelector('[aria-label="Game actions"]')?.outerHTML,
+            overlays: [
+              ...document.querySelectorAll('[role="dialog"], [data-portcove-focus-scope]'),
+            ].map((item) => item.outerHTML),
+          })),
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(diagnostic);
+      throw error;
+    }
+
+    await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -1109,11 +1288,7 @@ export async function preparationScenarios({
     );
     assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
     const card = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-        ),
-      ),
+      until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
     );
     const cardActions = await executeBrowserScript(
@@ -1123,7 +1298,7 @@ export async function preparationScenarios({
           '[data-detail-origin^="library:card:"]',
         );
         const play = [...element.querySelectorAll("button")].find(
-          (button) => button.textContent?.trim() === "Play",
+          (button) => button.textContent?.trim() === "Try launch",
         );
         const more = element.querySelector('button[aria-label^="More actions for "]');
         const workspace = element.closest("main");
@@ -1134,10 +1309,22 @@ export async function preparationScenarios({
         const playBounds = play.getBoundingClientRect();
         const moreBounds = more.getBoundingClientRect();
         const detailsStyle = getComputedStyle(details);
+        // Cover entries use the collection's painted surface. Resolve the
+        // actual opaque ancestor instead of treating transparency as a color.
+        let painted: Element | null = element;
+        while (
+          painted &&
+          getComputedStyle(painted).backgroundColor.replace(/\s/gu, "") === "rgba(0,0,0,0)"
+        )
+          painted = painted.parentElement;
+        if (!painted || getComputedStyle(painted).backgroundImage !== "none")
+          throw new Error("Card contrast needs an identified flat painted surface");
         details.focus();
         return {
           tag: element.tagName,
           details: (details.textContent ?? "").trim(),
+          details_tag: details.tagName,
+          details_label: details.getAttribute("aria-label"),
           details_slot: details.getAttribute("data-slot"),
           details_variant: details.getAttribute("data-variant"),
           play: play.textContent.trim(),
@@ -1153,7 +1340,7 @@ export async function preparationScenarios({
             playBounds.right <= cardBounds.right &&
             moreBounds.right <= cardBounds.right,
           details_color: detailsStyle.color,
-          details_background: detailsStyle.backgroundColor,
+          details_background: getComputedStyle(painted).backgroundColor,
           nested_interactive: element.querySelectorAll("button button, button a, a button, a a")
             .length,
           details_focused: document.activeElement === details,
@@ -1168,14 +1355,16 @@ export async function preparationScenarios({
     } = cardActions;
     assert.deepEqual(cardStructure, {
       tag: "ARTICLE",
-      details: "Details",
-      details_slot: "button",
-      details_variant: "outline",
-      play: "Play",
+      details: `Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
+      details_tag: "BUTTON",
+      details_label: `View details for Jak and Daxter: The Precursor Legacy Port: ${port.name}`,
+      details_slot: null,
+      details_variant: null,
+      play: "Try launch",
       play_disabled: false,
       play_slot: "button",
       play_variant: "primary",
-      more_label: `More actions for ${port.name}`,
+      more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
       card_horizontal_overflow: false,
@@ -1183,6 +1372,7 @@ export async function preparationScenarios({
       nested_interactive: 0,
       details_focused: true,
     });
+    assert.match(detailsBackground, /^rgb\(/u, "Card contrast requires its opaque painted surface");
     const detailsContrast = contrastRatio(detailsColor, detailsBackground);
     assert.ok(
       detailsContrast >= 4.5,
@@ -1252,6 +1442,118 @@ export async function preparationScenarios({
       "Returning from overflow details must focus the originating card menu",
     );
   });
+  await scenario("native-library-layout", async () => {
+    const first = await seed("opengoal-jak1", "success");
+    const second = await seed("opengoal-jak2", "success");
+    const before = [await status(first.port.id), await status(second.port.id)];
+    const originalWindow = await browser.manage().window().getRect();
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const shortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    const observations: unknown[] = [];
+    const measure = () =>
+      executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        contentWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        layout: document.querySelector(".collection-rows") ? "rows" : "covers",
+        entries: document.querySelectorAll(".collection-entry").length,
+        query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+        zoom: localStorage.getItem("portcove.appearance.interface-size"),
+        theme: document.documentElement.dataset.theme,
+      }));
+    try {
+      for (const theme of ["dark", "light"]) {
+        await shortcut("0");
+        await openUpdateTheme(browser, theme);
+        await clickVisible(
+          browser,
+          await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')),
+        );
+        await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
+        const search = await browser.findElement(By.id("port-search"));
+        await search.clear();
+        await search.sendKeys("Jak");
+        for (const layout of ["Covers", "Compact rows"]) {
+          await clickVisible(browser, await browser.findElement(button(layout)));
+          for (const { width, height } of [
+            { width: 960, height: 640 },
+            { width: 1280, height: 800 },
+            { width: 1366, height: 768 },
+            { width: 1600, height: 1000 },
+            { width: 1920, height: 1080 },
+          ]) {
+            await browser.manage().window().setRect({ width, height });
+            const state = await measure();
+            assert.ok(state.entries >= 2 && state.query === "Jak", JSON.stringify(state));
+            assert.ok(state.scrollWidth <= state.contentWidth + 1, JSON.stringify(state));
+            observations.push({ window: { width, height }, ...state });
+            const file = path.join(
+              output,
+              `library-${theme}-${layout === "Covers" ? "covers" : "rows"}-${width}.png`,
+            );
+            await writeFile(file, await browser.takeScreenshot(), {
+              encoding: "base64",
+              flag: "wx",
+            });
+            artifacts.push(file);
+          }
+          await browser.manage().window().setRect({ width: 960, height: 640 });
+          for (const size of [125, 150, 175, 200, 250, 300, 400]) {
+            await shortcut("+");
+            await browser.wait(async () => (await measure()).zoom === String(size), 10_000);
+          }
+          await browser.wait(async () => (await measure()).zoom === "400", 10_000);
+          const enlarged = await measure();
+          assert.ok(
+            enlarged.width <= 240 && enlarged.scrollWidth <= enlarged.contentWidth + 1,
+            JSON.stringify(enlarged),
+          );
+          observations.push(enlarged);
+          const identity = await browser.findElement(
+            By.css(".collection-entry button[data-detail-game-id]"),
+          );
+          await clickVisible(browser, identity);
+          await clickVisible(
+            browser,
+            await browser.findElement(By.css('button[aria-label="Back to previous workspace"]')),
+          );
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => document.activeElement?.hasAttribute("data-detail-game-id") === true,
+              ),
+            5000,
+          );
+          await shortcut("-");
+          await browser.wait(async () => (await measure()).zoom === "300", 10_000);
+          const narrow = await measure();
+          assert.ok(
+            narrow.width <= 320 && narrow.scrollWidth <= narrow.contentWidth + 1,
+            JSON.stringify(narrow),
+          );
+          assert.equal(narrow.query, "Jak");
+          observations.push(narrow);
+          await shortcut("0");
+          await browser.wait(async () => (await measure()).zoom === "100", 10_000);
+        }
+        await browser.navigate().refresh();
+        await browser.wait(until.elementLocated(By.css(".collection-rows")), 15_000);
+        assert.equal((await measure()).query, "Jak");
+      }
+      for (const [index, port] of [first.port, second.port].entries()) {
+        assert.deepEqual((await status(port.id)).active, before[index]!.active);
+      }
+      const file = path.join(output, "native-library-layout-observations.json");
+      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+      artifacts.push(file);
+    } finally {
+      await shortcut("0");
+      await browser.manage().window().setRect(originalWindow);
+    }
+  });
   await scenario("native-ready-detail-composition", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const readyStatus = await status(port.id);
@@ -1264,6 +1566,13 @@ export async function preparationScenarios({
     try {
       for (const theme of ["dark", "light"]) {
         await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+        await browser
+          .findElement(
+            By.css(
+              'nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]',
+            ),
+          )
+          .click();
         await browser.findElement(button(theme === "dark" ? "Dark" : "Light")).click();
         await open(port, false);
         assert.equal(
@@ -1327,9 +1636,9 @@ export async function preparationScenarios({
           assert.match(required(hierarchy.state), /Ready to play/);
           assert.deepEqual(hierarchy.groups, [
             "Status and actions",
+            "Updates",
             "Requirements",
             "Installation and version",
-            "Updates",
             "Saves and storage",
             "Compatibility and testing",
             "Project and release",
@@ -1397,11 +1706,7 @@ export async function preparationScenarios({
       );
       await ready.click();
       const card = await browser.wait(
-        until.elementLocated(
-          By.xpath(
-            `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-          ),
-        ),
+        until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
       );
       const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
@@ -1615,7 +1920,6 @@ export async function preparationScenarios({
             assert.ok(
               required(comparison.blocks[0]).right <= required(comparison.blocks[1]).left + 1,
             );
-          await assertActivityLabelSeparation(browser, width);
           const comparisonScreenshot = path.join(
             output,
             `native-game-update-comparison-${theme}-${width}x${height}.png`,
@@ -1625,6 +1929,18 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(comparisonScreenshot);
+          await selectActivitySection(browser, "Tasks & history");
+          await assertActivityLabelSeparation(browser, width);
+          const historyScreenshot = path.join(
+            output,
+            `native-task-history-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(historyScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(historyScreenshot);
+          await selectActivitySection(browser, "Updates");
         }
       }
       await assertIndividualUpdateFailure({ browser, port, command, output, artifacts });
@@ -2017,7 +2333,7 @@ export async function preparationScenarios({
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         async () =>
@@ -2071,6 +2387,7 @@ export async function preparationScenarios({
   });
   const livePreparationCancellation = async (probeListener?: "late" | "reject") => {
     const { port, install } = await seed("opengoal-jak2", "wait", true);
+    const other = !probeListener ? await seed("opengoal-jak1", "success") : undefined;
     await open(port);
     interface PhaseObservation {
       phase: string;
@@ -2092,6 +2409,7 @@ export async function preparationScenarios({
       }[];
       failure?: { message: string; observed_at: string };
       listener_lifetime?: Awaited<ReturnType<typeof listenerLifetimeScenario>>;
+      overlap?: { cli_refusal: unknown; unrelated_verification?: ActivityRecord };
     } = { port_id: port.id, phases: [], inputs: [] };
     const preparationIds = (items: readonly ActivityRecord[]) =>
       items
@@ -2133,6 +2451,7 @@ export async function preparationScenarios({
         path.join(activePath, required(required(port.setup_executable_hints[host])[0])),
         path.join(activePath, "owned-setup-mode"),
         path.join(activePath, ".portcove-manifest.json"),
+        ...(other ? [path.join(output, `${other.port.id}.iso`)] : []),
       ].entries()) {
         const bytes = await readFile(input);
         const retained = path.join(output, `live-reload-input-${index}.original`);
@@ -2175,7 +2494,63 @@ export async function preparationScenarios({
         running.activities.find((item) => item.id === required(activity).id)?.status,
         "running",
       );
-      await open(port, false);
+      if (other) {
+        // A separate CLI process must still refuse this target while the native
+        // host owns preparation. Availability never grants a filesystem lock.
+        const refused = spawnCommand(
+          cli,
+          ["--library", library, "--json", "--non-interactive", "verify", port.id],
+          {
+            encoding: "utf8",
+            windowsHide: true,
+            timeout: 15_000,
+            env: { ...process.env, PORTCOVE_PREFERENCES: path.join(output, "preferences.json") },
+          },
+        );
+        assert.notEqual(refused.status, 0);
+        assert.equal(typeof refused.stdout, "string");
+        const refusal = object(JSON.parse(String(refused.stdout)));
+        assert.equal(refusal.ok, false);
+        assert.equal(object(refusal.error).code, "conflict");
+        observations.overlap = { cli_refusal: refusal };
+        // Reload discards renderer continuations, but the same Core preparation
+        // remains running. Perform a real unrelated native UI verification.
+        await open(other.port, false);
+        const verify = await browser.findElement(button("Verify installation"));
+        if (!(await verify.isDisplayed()))
+          await clickVisible(
+            browser,
+            await browser.findElement(
+              By.xpath('//summary[contains(., "Commands and maintenance")]'),
+            ),
+          );
+        await browser.wait(until.elementIsEnabled(verify), 5000);
+        const otherActiveBefore = required((await status(other.port.id)).active).id;
+        const previousActivityIds = new Set((await activities()).map((item) => item.id));
+        await clickVisible(browser, verify);
+        const verified = await browser.wait(
+          async () =>
+            (await activities()).find(
+              (item) =>
+                !previousActivityIds.has(item.id) &&
+                item.operation === "verify_install" &&
+                item.target_id === other.port.id &&
+                item.status === "succeeded",
+            ),
+          15_000,
+        );
+        observations.overlap.unrelated_verification = required(verified);
+        assert.equal(required((await status(other.port.id)).active).id, otherActiveBefore);
+        assert.equal(
+          (await activities()).find((item) => item.id === required(activity).id)?.status,
+          "running",
+        );
+        await browser
+          .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
+          .click();
+        await browser.findElement(By.xpath(`//button[@data-detail-game-id="${port.id}"]`)).click();
+        await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
+      } else await open(port, false);
       const restored = await observe("live-after-reload");
       assert.equal(restored.bootstrap.library_root, before.bootstrap.library_root);
       assert.equal(restored.bootstrap.generation, before.bootstrap.generation);
@@ -2232,9 +2607,7 @@ export async function preparationScenarios({
         await browser
           .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Library"]]'))
           .click();
-        const card = By.xpath(
-          `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-        );
+        const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
         await browser.wait(until.elementLocated(card), 15_000);
         await browser.findElement(card).click();
         await browser.wait(until.elementLocated(By.css("section[data-detail-workspace]")), 15_000);
@@ -2286,7 +2659,7 @@ export async function preparationScenarios({
       }
       await browser.findElement(By.css(".detail-back")).click();
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       const cancelledRow = await browser.wait(
         until.elementLocated(
@@ -2316,7 +2689,7 @@ export async function preparationScenarios({
         15_000,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2333,7 +2706,7 @@ export async function preparationScenarios({
         required(recorded).failure,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Game updates"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2494,14 +2867,14 @@ export async function preparationScenarios({
       15_000,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
-    const card = By.xpath(
-      `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`,
-    );
+    const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     await clickVisible(
       browser,
-      await browser.findElement(By.css("details.advanced-settings > summary")),
+      await browser.findElement(
+        By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+      ),
     );
     const before = await status(port.id);
     const activities = await invoke("get_activities");
@@ -2590,7 +2963,7 @@ export async function preparationScenarios({
   });
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const openCatalogPort = async (id: string) => {
       const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
@@ -2604,14 +2977,14 @@ export async function preparationScenarios({
         5_000,
         `catalog search did not settle on ${port.name}`,
       );
-      const card = By.xpath(
-        `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-      );
+      const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
       await browser.wait(until.elementLocated(card), 15_000, `${port.name} card did not appear`);
       await browser.findElement(card).click();
       await clickVisible(
         browser,
-        await browser.findElement(By.css("details.advanced-settings > summary")),
+        await browser.findElement(
+          By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
+        ),
       );
       const channel = await browser.findElement(
         By.css('section[aria-label="Game release channel"]'),
@@ -2713,7 +3086,7 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const restarted = await openCatalogPort("re-blue");
     assert.ok((await restarted.getText()).includes("Rolling"));
     await executeBrowserScript(

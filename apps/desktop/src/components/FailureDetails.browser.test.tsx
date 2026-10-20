@@ -1,4 +1,5 @@
 import { act } from "react";
+import axe from "axe-core";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -11,6 +12,7 @@ import { errorText, failurePresentation } from "../view-model";
 import type { ActivityRecord } from "../types";
 import { copyText } from "../clipboard";
 import { FailureDetails } from "./FailureDetails";
+import { ActionReviewFailure } from "./ActionReviewFailure";
 
 vi.mock("../clipboard", () => ({ copyText: vi.fn().mockResolvedValue(undefined) }));
 
@@ -20,6 +22,41 @@ vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
 }));
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+it("announces repeated task outcomes without creating duplicate landmarks", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  let state!: ReturnType<typeof useOperationState>;
+  function Fixture() {
+    state = useOperationState({ refresh: async () => {} });
+    return (
+      <StatusLayer clearError={() => state.setError(undefined)} invocations={state.invocations} />
+    );
+  }
+  try {
+    await act(async () => root.render(<Fixture />));
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await act(async () => {
+        await state.perform("review install", async () => undefined);
+      });
+    }
+    expect(host.querySelectorAll('[data-invocation-id][role="group"]').length).toBe(2);
+    const announcements = [...host.querySelectorAll('[role="status"]')];
+    expect(announcements).toHaveLength(2);
+    expect(announcements.map((node) => node.textContent)).toEqual([
+      expect.stringContaining("finished"),
+      expect.stringContaining("finished"),
+    ]);
+    const report = await axe.run(host, {
+      runOnly: { type: "rule", values: ["landmark-unique"] },
+    });
+    expect(report.violations).toEqual([]);
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
 });
 
 describe("diagnostic clipboard outcomes", () => {
@@ -37,6 +74,23 @@ describe("diagnostic clipboard outcomes", () => {
   async function copy() {
     await act(async () => host.querySelector("button")!.click());
   }
+
+  it("shows an exact escaped recovery path before technical details are opened", async () => {
+    const error = failureReport();
+    const directory = "C:\\Games\\token=literal-player-folder\\<preserve>\\.tfe-preparation";
+    error.presentation.summary = `Preparation copies need manual preservation before continuing.\nFolder to preserve: ${directory}`;
+    error.presentation.presentation_key = "tfe_preparation_recovery_required";
+    error.presentation.mutation_state = "recovery_required";
+    error.presentation.technical_context = { recovery_directory: "[REDACTED]" };
+    await act(async () => root.render(<ActionReviewFailure error={error} />));
+    const summary = host.querySelector('[role="alert"] > p')!;
+    expect(summary.textContent).toBe(error.presentation.summary);
+    expect(summary.closest("details")).toBeNull();
+    expect(summary.classList.contains("[overflow-wrap:anywhere]")).toBe(true);
+    expect(summary.classList.contains("[unicode-bidi:plaintext]")).toBe(true);
+    expect(host.querySelector("preserve")).toBeNull();
+    expect(host.querySelector("details")?.open).toBe(false);
+  });
 
   it("announces failure with exact selectable details and recovers without changing the outcome", async () => {
     const presentation = failurePresentation(failureReport())!;
@@ -298,6 +352,11 @@ describe("core-owned failure presentation", () => {
       await act(async () => {
         await state.perform("prepare", () => Promise.reject(cancelled));
       });
+      // A later, proven quiet cancellation cannot erase another invocation's
+      // retained failure. Only dismissing that exact feedback removes it.
+      expect(state.error).toBe(error);
+      const failed = [...state.invocations.values()].find((record) => record.failure === error)!;
+      await act(async () => state.dismissInvocation(failed.id));
       expect(state.error).toBeUndefined();
     } finally {
       await act(async () => root.unmount());

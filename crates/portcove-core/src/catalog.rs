@@ -257,7 +257,7 @@ impl Catalog {
                         profile.id
                     )));
                 }
-                SourceKind::FileSet => {
+                SourceKind::FileSet | SourceKind::RelativeFileSet => {
                     let mut member_ids = HashSet::new();
                     let mut filenames = HashSet::new();
                     let valid_members = profile.disc.is_none()
@@ -274,8 +274,15 @@ impl Catalog {
                                 });
                             let valid_filenames = !member.accepted_filenames.is_empty()
                                 && member.accepted_filenames.iter().all(|filename| {
-                                    is_safe_basename(filename)
-                                        && filenames.insert(filename.to_ascii_lowercase())
+                                    (if profile.kind == SourceKind::RelativeFileSet {
+                                        !filename.contains('\\')
+                                            && crate::archive::validate_relative_path(
+                                                filename, false,
+                                            )
+                                            .is_ok()
+                                    } else {
+                                        is_safe_basename(filename)
+                                    }) && filenames.insert(filename.to_ascii_lowercase())
                                 });
                             valid_id
                                 && member_ids.insert(member.id.as_str())
@@ -779,16 +786,9 @@ impl Catalog {
                         }
                         crate::external_runtime::validate_required_mutable_files(runtime)?;
                         crate::external_runtime::shared_preferences::validate(runtime)?;
-                        if runtime.shared_preferences.is_some()
-                            && (*platform != crate::Platform::WindowsX86_64
-                                || port.adapter != AdapterKind::StagedSourcePortable
-                                || port.runtime_subdirectory.is_some()
-                                || port.launch_arguments != ["--save-dir", "saves"])
-                        {
-                            return Err(PortcoveError::usage(
-                                "shared preferences require the Windows staged-source root route",
-                            ));
-                        }
+                        crate::external_runtime::shared_preferences::validate_route(
+                            port, *platform, runtime,
+                        )?;
                         if runtime.settings_contract.is_some()
                             && (*platform != crate::Platform::WindowsX86_64
                                 || port.runtime_subdirectory.is_some()
@@ -1052,13 +1052,25 @@ impl Catalog {
                 });
                 let valid = match materialization {
                     RuntimeSourceMaterialization::N64BigEndian => {
-                        matches!(
+                        (matches!(
                             port.adapter,
                             AdapterKind::N64RecompPortable
                                 | AdapterKind::LibultrashipPortable
                                 | AdapterKind::GeneratedCache
-                        ) && filename.ends_with(".z64")
-                            && (source_is_persistent || crate::preparation::managed(port))
+                        ) || (port.adapter == AdapterKind::StagedSourcePortable
+                            && port.runtime_data_policy.is_some()))
+                            && filename.ends_with(".z64")
+                            && (source_is_persistent
+                                || crate::preparation::managed(port)
+                                || port.runtime_data_policy.is_some())
+                    }
+                    RuntimeSourceMaterialization::RegaidenGbc => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && port.managed_shared_preferences
+                                == Some(
+                                    crate::PreparedSharedPreferencesContract::Regaiden041Windows,
+                                )
                     }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
@@ -1166,6 +1178,7 @@ impl Catalog {
                         materialization,
                         RuntimeSourceMaterialization::N64BigEndian
                             | RuntimeSourceMaterialization::Copy
+                            | RuntimeSourceMaterialization::RegaidenGbc
                             | RuntimeSourceMaterialization::GamecubeIso
                             | RuntimeSourceMaterialization::Ps2Iso
                     ) && port
@@ -1203,7 +1216,9 @@ impl Catalog {
                         )));
                     }
                 }
-                None if !port.runtime_source_hashes.is_empty() => {
+                None if !port.runtime_source_hashes.is_empty()
+                    && port.managed_initialization.is_none() =>
+                {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
                         port.id
@@ -1253,12 +1268,20 @@ impl Catalog {
                             .collect::<HashSet<_>>()
                             == source_names
                     });
-                    let valid = profile.kind == SourceKind::FileSet
-                        && !target.source_filenames.is_empty()
-                        && target
-                            .source_filenames
-                            .iter()
-                            .all(|filename| is_safe_basename(filename))
+                    let relative_set = profile.kind == SourceKind::RelativeFileSet;
+                    let valid = matches!(
+                        profile.kind,
+                        SourceKind::FileSet | SourceKind::RelativeFileSet
+                    ) && !target.source_filenames.is_empty()
+                        && target.source_filenames.iter().all(|filename| {
+                            if relative_set {
+                                !filename.contains('\\')
+                                    && crate::archive::validate_relative_path(filename, false)
+                                        .is_ok()
+                            } else {
+                                is_safe_basename(filename)
+                            }
+                        })
                         && !target.destination.is_empty()
                         && Path::new(&target.destination)
                             .components()
@@ -1270,12 +1293,49 @@ impl Catalog {
                                 | RuntimeSourceMaterialization::N64BigEndian
                         )
                         && matches_member;
+                    let valid = valid
+                        && (!relative_set
+                            || (port.managed_initialization.is_some()
+                                && target.source_filenames.len() == 1
+                                && target.materialization == RuntimeSourceMaterialization::Copy
+                                && crate::archive::validate_relative_path(
+                                    &target.destination,
+                                    false,
+                                )
+                                .is_ok()
+                                && profile.members.iter().any(|member| {
+                                    member.accepted_filenames == target.source_filenames
+                                        && member.accepted_sha256.len() == 1
+                                        && port
+                                            .runtime_source_hashes
+                                            .get(&target.destination)
+                                            .is_some_and(|hash| {
+                                                hash.eq_ignore_ascii_case(
+                                                    &member.accepted_sha256[0],
+                                                )
+                                            })
+                                })));
                     if !valid {
                         return Err(PortcoveError::usage(format!(
                             "{} has an invalid file-set runtime source target",
                             port.id
                         )));
                     }
+                }
+                if profile.kind == SourceKind::RelativeFileSet
+                    && (port.runtime_source_set.len() != profile.members.len()
+                        || port.runtime_source_hashes.len() != port.runtime_source_set.len()
+                        || port
+                            .runtime_source_set
+                            .iter()
+                            .map(|target| target.source_filenames[0].to_ascii_lowercase())
+                            .collect::<HashSet<_>>()
+                            .len()
+                            != profile.members.len())
+                {
+                    return Err(PortcoveError::usage(
+                        "relative runtime targets must cover the complete source set exactly",
+                    ));
                 }
             }
             if port.launch_from_install_root
@@ -1438,6 +1498,183 @@ fn is_crc32(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn managed_tfe_requires_complete_relative_data_and_preserves_historical_primary_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("the-force-engine-dark-forces").unwrap();
+        assert_eq!(
+            port.managed_initialization,
+            Some(crate::ManagedInitialization::TfeDarkForces122420)
+        );
+        assert_eq!(port.runtime_source_set.len(), 48);
+        assert_eq!(port.runtime_source_hashes.len(), 48);
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(profile.kind, crate::SourceKind::RelativeFileSet);
+        assert_eq!(profile.members.len(), 48);
+        assert_eq!(
+            profile
+                .members
+                .iter()
+                .filter(|member| member.accepted_filenames[0].starts_with("LFD/"))
+                .count(),
+            44
+        );
+        assert!(
+            port.runtime_mutable_paths
+                .iter()
+                .any(|path| path == "GameData")
+        );
+        assert!(
+            port.runtime_mutable_paths
+                .iter()
+                .any(|path| path == ".tfe-preparation")
+        );
+        assert!(
+            !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "GameData" || path == ".tfe-preparation")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "DARKPILO.CFG")
+        );
+        assert!(port.launch_arguments.is_empty());
+        assert!(port.release.user_prepared.is_empty());
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        let historical = Catalog::from_json(include_str!(
+            "../tests/fixtures/tfe-122420-prepared-historical.json"
+        ))
+        .unwrap();
+        let old = historical.port("the-force-engine-dark-forces").unwrap();
+        assert_eq!(old.release.provider, ReleaseSource::UserPrepared);
+        assert!(old.managed_initialization.is_none());
+        assert_eq!(
+            old.source_profile.as_deref(),
+            Some("dark-forces-pc-dark-gob")
+        );
+        assert_eq!(
+            catalog
+                .source_profile("dark-forces-pc-dark-gob")
+                .unwrap()
+                .kind,
+            SourceKind::File
+        );
+    }
+
+    #[test]
+    fn managed_tfe_lifecycle_evidence_does_not_claim_hands_on_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "the-force-engine-dark-forces".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac".into(),
+            ),
+            upstream_ref: Some("1.22.420".into()),
+            contract_id: Some("the-force-engine-dark-forces-managed-data".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dark-forces-pc-complete-installed-data".into(),
+                    variant_id: "owned-pc-installed-data".into(),
+                    representation_id: "relative-data-files".into(),
+                },
+            },
+            check_version: Some("tfe-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert!(
+            catalog
+                .port("the-force-engine-dark-forces")
+                .unwrap()
+                .manually_validated_platforms
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn managed_racewave_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| {
+                row.scope.check_version.as_deref() == Some("racewave46-managed-windows-v1")
+            })
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("wave-race-64-racewave46").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+    }
+    #[test]
+    fn managed_regaiden_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| row.scope.check_version.as_deref() == Some("regaiden-managed-windows-v1"))
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let mut other_artifact = rows[0].scope.clone();
+        other_artifact.artifact_sha256 = Some("0".repeat(64));
+        assert_eq!(
+            source
+                .assess_qualification(&other_artifact)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("resident-evil-gaiden-recomp").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+    }
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -1657,8 +1894,11 @@ mod tests {
     }
 
     #[test]
-    fn dkc3_recomp_pins_only_the_nonowning_windows_prepared_route() {
-        let catalog = Catalog::embedded().unwrap();
+    fn dkc3_historical_prepared_route_retains_its_original_qualification_scope() {
+        let catalog = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap();
         let port = catalog.port("dkc3-recomp").unwrap();
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
         assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
@@ -1751,48 +1991,278 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_pins_an_unqualified_nonowning_windows_route() {
+    fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        for (id, filename, version, original_sha256) in [
+            (
+                "dkc3-recomp",
+                "dkc3.sfc",
+                "v0.0.6",
+                "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
+            ),
+            (
+                "super-mario-world-recomp",
+                "smw.sfc",
+                "v0.12.0",
+                "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
+            ),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "zelda.sfc",
+                "v0.6.1",
+                "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
+            ),
+            (
+                "sonic-the-hedgehog-recomp",
+                "game.bin",
+                "v0.6.0",
+                "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
+            ),
+            (
+                "sonic-the-hedgehog-2-recomp",
+                "game.bin",
+                "v0.8.3",
+                "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
+            ),
+            (
+                "sonic-3-and-knuckles-recomp",
+                "game.bin",
+                "v0.5.3",
+                "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.release.provider, ReleaseSource::DirectManifest, "{id}");
+            assert!(port.release.user_prepared.is_empty(), "{id}");
+            assert_eq!(port.platforms, [Platform::WindowsX86_64], "{id}");
+            assert_eq!(
+                port.release.direct[&Platform::WindowsX86_64].version,
+                version,
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_filename.as_deref(),
+                Some(filename),
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_materialization,
+                Some(RuntimeSourceMaterialization::Copy),
+                "{id}"
+            );
+            assert!(
+                port.persistent_paths.iter().any(|path| path == filename),
+                "{id}"
+            );
+            assert_eq!(
+                port.runtime_source_hashes[filename], original_sha256,
+                "{id}"
+            );
+            assert_eq!(
+                port.windows_runtime_path_policy,
+                Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath),
+                "{id}"
+            );
+            assert!(
+                port.presentation.as_ref().unwrap().manual_setup.is_none(),
+                "{id}"
+            );
+            assert!(port.automated_tested_platforms.is_empty(), "{id}");
+            assert!(port.manually_validated_platforms.is_empty(), "{id}");
+        }
+        for id in ["sonic-the-hedgehog-2-recomp", "sonic-3-and-knuckles-recomp"] {
+            let port = catalog.port(id).unwrap();
+            assert_eq!(port.launch_arguments, ["--no-launcher", "game.bin"]);
+            for diagnostic in ["ramdump_native.bin", "last_error.log"] {
+                assert!(
+                    port.runtime_mutable_paths
+                        .iter()
+                        .any(|path| path == diagnostic)
+                );
+                assert!(!port.persistent_paths.iter().any(|path| path == diagnostic));
+            }
+        }
+        let sonic2 = catalog.port("sonic-the-hedgehog-2-recomp").unwrap();
+        for campaign in [
+            "sonic2-campaign.srm",
+            "sonic2-campaign.srm.bak",
+            "sonic2-campaign.sav",
+            "sonic2-campaign.sav.bak",
+        ] {
+            assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
+        }
+        assert_eq!(
+            serde_json::to_value(&sonic2.persistent_file_patterns).unwrap(),
+            serde_json::json!([
+                {"prefix": "sonic2-campaign.srm.", "suffix": ".tmp"},
+                {"prefix": "sonic2-campaign.sav.", "suffix": ".tmp"}
+            ])
+        );
+    }
+
+    #[test]
+    fn managed_dkc3_lifecycle_does_not_erase_its_known_startup_failure() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "dkc3-recomp".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11".into(),
+            ),
+            upstream_ref: Some("v0.0.6".into()),
+            contract_id: Some("dkc3-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dkc3-na-en-fr".into(),
+                    variant_id: "north-america-en-fr".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("snes-genesis-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
+    fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
+        assert_eq!(
+            port.windows_runtime_path_policy,
+            Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        );
         assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.support_tier, crate::SupportTier::Beta);
+        assert_eq!(
+            port.executable_hints[&Platform::WindowsX86_64],
+            ["FZeroSNESRecomp.exe"]
+        );
+        assert!(port.presentation.as_ref().unwrap().manual_setup.is_none());
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
-        assert!(port.persistent_paths.is_empty());
-        assert!(port.runtime_source_filename.is_none());
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "fzero.sfc",
+                "config.ini",
+                "fzero-video.ini",
+                "fzero-video.ini.tmp",
+                "keybinds.ini",
+                "rom.cfg",
+                "saves"
+            ]
+        );
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("fzero.sfc"));
+        assert_eq!(
+            port.runtime_source_materialization,
+            Some(RuntimeSourceMaterialization::Copy)
+        );
+        assert_eq!(
+            port.runtime_source_hashes["fzero.sfc"],
+            "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
+        );
         assert!(port.setup_executable_hints.is_empty());
-        assert!(port.launch_arguments.is_empty());
-        assert_eq!(port.release.provider, ReleaseSource::UserPrepared);
-        assert!(port.release.direct.is_empty());
+        assert_eq!(port.launch_arguments, ["fzero.sfc"]);
+        assert_eq!(port.release.provider, ReleaseSource::DirectManifest);
+        assert!(port.release.user_prepared.is_empty());
         assert!(port.release.asset_hints.is_empty());
-        let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
+        assert_eq!(
+            port.runtime_mutable_paths,
+            [
+                "diagnostics",
+                "last_run_report.json",
+                ".snesrecomp_write_probe"
+            ]
+        );
+        assert_eq!(
+            serde_json::to_value(&port.runtime_mutable_file_patterns).unwrap(),
+            serde_json::json!([
+                {"prefix": "crash_report_", "suffix": ".json"},
+                {"prefix": "crash_minidump_", "suffix": ".dmp"}
+            ])
+        );
+        let runtime = &port.release.direct[&Platform::WindowsX86_64];
         assert_eq!(runtime.version, "v1.8.3");
         assert_eq!(
-            runtime.archive_name,
-            "FZeroSNESRecomp-1.8.3-windows-x64.zip"
+            runtime.url,
+            "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip"
         );
-        assert_eq!(runtime.archive_size, 8_247_843);
+        assert_eq!(runtime.size, 8_247_843);
         assert_eq!(
-            runtime.archive_sha256,
+            runtime.sha256,
             "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
         );
-        assert_eq!(runtime.executable, "FZeroSNESRecomp.exe");
-        assert_eq!(
-            runtime.immutable_tree_sha256,
-            "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6"
-        );
-        assert_eq!(runtime.source_argument_extension.as_deref(), Some("sfc"));
-        assert!(
-            !runtime
-                .mutable_paths
-                .iter()
-                .any(|path| { path == &runtime.executable || path.starts_with("crash_report_") })
-        );
         let source_catalog = catalog.source_catalog().unwrap();
-        assert!(
+        let scope = crate::SourceEvidenceScope {
+            port_id: port.id.clone(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(runtime.sha256.clone()),
+            upstream_ref: Some(runtime.version.clone()),
+            contract_id: Some("f-zero-snes-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "f-zero-snes-usa".into(),
+                    variant_id: "usa".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("fzero-managed-startup-persistence-v1".into()),
+        };
+        let qualification = source_catalog.assess_qualification(&scope);
+        assert_eq!(
+            qualification.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            qualification.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert_eq!(
+            qualification.known_failure,
+            crate::QualificationEvidenceState::Missing
+        );
+        let changed_check = crate::SourceEvidenceScope {
+            check_version: Some("unexecuted-check-version".into()),
+            ..scope.clone()
+        };
+        assert_eq!(
             source_catalog
-                .qualification
-                .iter()
-                .all(|record| { record.scope.port_id != "f-zero-snes-recomp" })
+                .assess_qualification(&changed_check)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        let changed_artifact = crate::SourceEvidenceScope {
+            artifact_sha256: Some("0".repeat(64)),
+            ..scope
+        };
+        assert_eq!(
+            source_catalog
+                .assess_qualification(&changed_artifact)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
         assert_eq!(profile.accepted_extensions, ["sfc"]);
@@ -2114,13 +2584,27 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 20);
+        assert_eq!(qualification.len(), 43);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "the-force-engine-dark-forces")
+                .count(),
+            2
+        );
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "f-zero-snes-recomp")
+                .count(),
+            4
+        );
         assert_eq!(
             qualification
                 .iter()
                 .filter(|record| record.scope.port_id == "dkc3-recomp")
                 .count(),
-            2
+            5
         );
         assert_eq!(
             qualification
@@ -2381,7 +2865,18 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 11);
+        assert_eq!(prepared.len(), 3);
+        assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "resident-evil-gaiden-recomp")
+        );
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "wave-race-64-racewave46")
+        );
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();
             let guide = presentation.manual_setup.as_ref().unwrap();

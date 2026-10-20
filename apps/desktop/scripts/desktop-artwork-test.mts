@@ -140,7 +140,7 @@ export async function artworkScenario({
           );
           await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
         }
-        await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+        await click(By.xpath('//nav//button[contains(., "Find games")]'));
         await click(
           By.xpath(
             `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,

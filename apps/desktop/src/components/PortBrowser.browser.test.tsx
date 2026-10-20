@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { portDefinition } from "../test-fixtures";
@@ -77,6 +77,45 @@ describe("Library empty browsing context", () => {
   let host: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
+  it("returns reset focus to search without losing restored results", async () => {
+    function ResetContext() {
+      const [query, setQuery] = useState("missing");
+      return (
+        <>
+          <input
+            id="port-search"
+            aria-label="Search library"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <PortBrowser
+            view="library"
+            ports={query ? [] : [portDefinition()]}
+            statuses={new Map()}
+            overview={{ installed: 1, ready: 0, needsSetup: 1, staged: 0 }}
+            filter="all"
+            query={query}
+            setFilter={vi.fn()}
+            onSelect={vi.fn()}
+            clearFilters={() => setQuery("")}
+            loading={false}
+          />
+        </>
+      );
+    }
+    await act(async () => root.render(<ResetContext />));
+    const clear = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Clear search and filters"),
+    )!;
+    await act(async () => {
+      clear.focus();
+      clear.click();
+    });
+    await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    expect(document.activeElement).toBe(host.querySelector("#port-search"));
+    expect(host.textContent).toContain(portDefinition().name);
+  });
+
   beforeEach(() => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     host = document.createElement("div");
@@ -147,6 +186,8 @@ describe("Library empty browsing context", () => {
     };
 
     await render("all", "unmatched title");
+    const resultStatus = host.querySelector('[role="status"]');
+    expect(resultStatus?.textContent).toBe("0 library entries");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("No ports in your library match your search and filters");
     expect(host.textContent).toContain("This library has no ports yet");
@@ -162,6 +203,8 @@ describe("Library empty browsing context", () => {
     expect(host.textContent).toContain("No ports in your library match your search and filters");
 
     await render("all", "   ");
+    expect(host.querySelector('[role="status"]')).toBe(resultStatus);
+    expect(resultStatus?.textContent).toBe("Your library is empty.");
     expect(host.querySelector('[aria-label="Library readiness"]')).toBeNull();
     expect(host.textContent).toContain("Your library is empty");
     expect(host.textContent).toContain("Connect game-file folder");
@@ -171,7 +214,7 @@ describe("Library empty browsing context", () => {
         .click(),
     );
     expect(connectGameFiles).toHaveBeenCalledOnce();
-    expect(host.textContent).toContain("use an existing installation");
+    expect(host.textContent).toContain("copy a supported installation");
     expect(host.textContent).not.toContain("Clear search and filters");
   });
 });

@@ -91,7 +91,7 @@ export async function hostPublicationScenario(context: Context) {
     artifacts.push(file);
   };
   async function open(name: string) {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
     const card = By.xpath(
@@ -318,6 +318,7 @@ export async function hostPublicationScenario(context: Context) {
     const destination = path.join(output, "published-move-destination");
     const original = await fileIdentity(save);
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+    await reviewControls(browser).click(button("Advanced"));
     // Settings starts a real library-bound diagnostic worker. Let that read
     // finish before requesting an exclusive transfer; never retry a mutation
     // or treat a failed diagnostic as successful host qualification.
@@ -356,6 +357,7 @@ export async function hostPublicationScenario(context: Context) {
     };
     const move = await arm("library_move_published");
     move.result.settings_diagnostics_before_transfer = settingsDiagnostics;
+    await reviewControls(browser).click(button("Library and storage"));
     await browser.findElement(button("Move library")).click();
     await browser.wait(until.elementLocated(By.id("library-destination")), 15_000);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);
@@ -526,6 +528,7 @@ export async function hostPublicationScenario(context: Context) {
     );
     const importProbe = await arm("library_import_published", importRoot);
     await reviewControls(browser).click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await reviewControls(browser).click(button("Library and storage"));
     await reviewControls(browser).click(button("Restore from a library copy"));
     await browser.wait(until.elementLocated(By.id("import-metadata")), 15_000);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);

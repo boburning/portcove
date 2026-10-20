@@ -19,6 +19,7 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Checkpoint {
+    LaunchReadyToSpawn,
     InstallPrepared,
     InstallPublished,
     RestorePrepared,
@@ -48,6 +49,7 @@ pub(crate) fn faults(root: &Path) -> Arc<dyn LifecycleFaultInjector> {
 impl LifecycleFaultInjector for Observer {
     fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
         let checkpoint = match point {
+            LifecycleFaultPoint::LaunchReadyToSpawn => Checkpoint::LaunchReadyToSpawn,
             LifecycleFaultPoint::InstallPrepared => Checkpoint::InstallPrepared,
             LifecycleFaultPoint::InstallPublished => Checkpoint::InstallPublished,
             LifecycleFaultPoint::RestorePrepared => Checkpoint::RestorePrepared,
@@ -237,8 +239,17 @@ mod tests {
 
     #[test]
     fn explicit_release_requires_matching_nonce() {
-        for matching in [false, true] {
+        for (checkpoint, matching) in [
+            (Checkpoint::InstallPrepared, false),
+            (Checkpoint::InstallPrepared, true),
+            (Checkpoint::LaunchReadyToSpawn, false),
+            (Checkpoint::LaunchReadyToSpawn, true),
+        ] {
             let (_temporary, root, control, nonce) = fixture();
+            let mut selected: serde_json::Value =
+                serde_json::from_slice(&fs::read(&control).unwrap()).unwrap();
+            selected["checkpoint"] = serde_json::to_value(checkpoint).unwrap();
+            fs::write(&control, serde_json::to_vec(&selected).unwrap()).unwrap();
             fs::write(
                 control
                     .parent()
@@ -251,13 +262,10 @@ mod tests {
                 },
             )
             .unwrap();
-            let result = observe_at(
-                &root,
-                Checkpoint::InstallPrepared,
-                &control,
-                Duration::from_secs(1),
-            );
-            assert_eq!(result.is_ok(), matching);
+            // Marker fsync is part of this harness wait on Windows. Keep a finite
+            // disk-tolerant budget without changing the instrumented observer.
+            let result = observe_at(&root, checkpoint, &control, Duration::from_secs(15));
+            assert_eq!(result.is_ok(), matching, "{checkpoint:?}: {result:?}");
         }
     }
 

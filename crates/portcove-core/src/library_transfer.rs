@@ -41,6 +41,16 @@ impl PortcoveService {
         let catalogs =
             crate::library_import::PortabilityCatalogs::from_root(&metadata, &source_root)?;
         crate::library_import::validate_metadata(&metadata, &catalogs)?;
+        for install in &metadata.application_versions {
+            let retained_catalog = catalogs.catalog_for_install(install)?;
+            crate::runtime_path_policy::check_executable(
+                retained_catalog.port(&install.port_id)?,
+                crate::Platform::current()?,
+                &destination_root
+                    .join(&install.path)
+                    .join(&install.selected_executable),
+            )?;
+        }
         let content = metadata
             .content_roots
             .iter()

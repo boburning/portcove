@@ -3,6 +3,46 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "the-force-engine-complete-data-archive-2026-10-18",
+        "role": "byte_identity",
+        "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
+        "immutable_url": "https://github.com/boburning/portcove/blob/9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a/docs/qualification/tfe-prepared-source-windows-2026-10-18.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-source-windows-2026-10-18.md",
+        "claim": "Archive SHA256 983e6f1c9f20c6ced106a675ffc32ee66f6d09aeafa0c0a3c0a3b0add7f820c2 contains 48 original files, 68386776 expanded bytes. Catalog member identities are derived from the retained bounded exact-archive inventory; these are owner-provided byte facts, not upstream-published digests or gameplay evidence.",
+        "authority": "boburning/portcove owner-provided archive",
+        "reviewed_at": "2026-10-18"
+      },
+      {
+        "id": "snes-genesis-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "020a88efcd3c7a1e1169abf684924af58e7f21d2",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows acquisition, original-file validation/materialization, process startup/ordinary close and administrative preservation for six fixed packages. DKC3 startup failure remains confirmed; no gameplay, in-game save/load, new-version update/rollback or Supported promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/020a88efcd3c7a1e1169abf684924af58e7f21d2/docs/qualification/snes-genesis-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/snes-genesis-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "f-zero-managed-windows-path-policy-2026-10-19",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "1267645e779f47540fba7305721a2ddb2a2964ea",
+        "reviewed_at": "2026-10-19",
+        "claim": "Policy-bearing API73 Windows v1.8.3 managed checks, actual title-menu startup, ordinary close, administrative preservation and matching-marker source recreation; no gameplay or version update/rollback qualification",
+        "immutable_url": "https://github.com/boburning/portcove/blob/1267645e779f47540fba7305721a2ddb2a2964ea/docs/qualification/f-zero-managed-windows-path-policy-2026-10-19.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/f-zero-managed-windows-path-policy-2026-10-19.md"
+      },
+      {
+        "id": "f-zero-managed-windows-2026-10-19",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "2c5c929d814642b6961ff5c874a1c5c76cd74edc",
+        "reviewed_at": "2026-10-19",
+        "claim": "Exact Windows v1.8.3 managed source/package checks, native title-menu startup and administrative persistence; gameplay and version update/rollback remain untested",
+        "immutable_url": "https://github.com/boburning/portcove/blob/2c5c929d814642b6961ff5c874a1c5c76cd74edc/docs/qualification/f-zero-managed-windows-2026-10-19.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/f-zero-managed-windows-2026-10-19.md"
+      },
+      {
         "id": "alpha1-schema1-source-contracts",
         "role": "byte_identity",
         "authority": "Portcove Alpha 1 source catalog",
@@ -812,6 +852,86 @@
         "claim": "Pins the documented original and private local source-build workflow. Core independently enforces exact source, SDK/toolchain and output contracts. Upstream source identity does not authenticate arbitrary prepared executables or establish actual build, native, gameplay or binary redistribution acceptance.",
         "immutable_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/fe1155dc26ffc40df36a8003dd0e639e17af3349/README.md",
         "live_url": "https://github.com/nickclyde/EarthBoundRecomp/blob/main/README.md"
+      },
+      {
+        "id": "super-mario-bros-remastered-11-world-subset",
+        "role": "upstream_support",
+        "authority": "JHDev2006/Super-Mario-Bros.-Remastered-Public",
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-10-19",
+        "claim": "Pinned verifier identifies the original using a normalized SHA256 of Base64 text after removing the 16-byte NES header. Independent bounded qualification matched this unchanged 40976-byte World original (whole-file SHA256 0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea, SHA1 33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd) to normalized protocol digest c9b34443c0414f3b91ef496d8cfee9fdd72405d673985afa11fb56732c96152b. This route deliberately accepts that exact whole-file subset; it does not mislabel the upstream normalized digest as a ROM hash.",
+        "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
+      },
+      {
+        "id": "render96-fixed-source-contract-2026-10-19",
+        "role": "upstream_support",
+        "authority": "Render96/Render96ex",
+        "authority_ref": "48da5c491c8abfb2f5192b59278c1c269411e533",
+        "reviewed_at": "2026-10-19",
+        "claim": "Pins the selected US original contract and source recipe. Core independently enforces raw canonical source, immutable archive pins, fixed build flags and output scope. Source identity is not arbitrary prepared-executable authority, runtime acceptance or redistribution permission.",
+        "immutable_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1",
+        "live_url": "https://github.com/Render96/Render96ex/blob/master/sm64.us.sha1"
+      },
+      {
+        "id": "tfe-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "eba686b4a7568b51da3789852f9ad54ac6df99d3",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows complete-data ZIP intake, reviewed official engine acquisition, two supervised process starts and ordinary closes with one fully visible main menu, private cache recreation, manual preservation hold, backup/restore, reviewed removal preserving data/backups and same-version reinstall. No gameplay, save loading, version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/eba686b4a7568b51da3789852f9ad54ac6df99d3/docs/qualification/tfe-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "racewave46-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "2bcc4459133ab6f06ab277f0432da9d1f593d0a7",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows original intake, reviewed unchanged official package acquisition, supervised startup/ordinary close and administrative preservation. Startup screenshot shows logo over water, not menu arrival. Synthetic version-local sign-in excluded from canonical data/backups, preserved through restore and deleted on removal. No gameplay, save/load, new-version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/2bcc4459133ab6f06ab277f0432da9d1f593d0a7/docs/qualification/racewave46-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/racewave46-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "regaiden-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "4c95de4dedb80ccee4a4dd7fc1c0b869fd9d59d5",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows original intake, separate shared-preferences consent, unchanged official package acquisition, supervised startup/ordinary close and local administrative preservation. Screenshot shows copyright/startup, not menu arrival. Account-wide preferences absent and untouched. No gameplay, save/load, new-version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/4c95de4dedb80ccee4a4dd7fc1c0b869fd9d59d5/docs/qualification/regaiden-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/regaiden-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "super-bomberman-v011-source-contract-2026-10-19",
+        "role": "upstream_support",
+        "authority": "elliotttate/BombermanRecomp",
+        "authority_ref": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+        "reviewed_at": "2026-10-19",
+        "claim": "The pinned v0.1.1 source accepts the exact stock headerless Super Bomberman USA payload and direct positional invocation; the checked official package contains the native Windows x64 host. Package, source and original identities are separate from operation/gameplay acceptance.",
+        "immutable_url": "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c",
+        "live_url": "https://github.com/elliotttate/BombermanRecomp/blob/main/runner/verified_rom.c"
+      },
+      {
+        "id": "gundam-wing-endless-duel-recomp-source-contract-2026-10-20",
+        "role": "upstream_support",
+        "authority": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+        "authority_ref": "c7aaaa152192db5d750db3fb190e8f93b6240c19",
+        "reviewed_at": "2026-10-20",
+        "claim": "The pinned generator declares the exact raw Japanese original SHA256 and CRC32. The closed offline managed recipe verifies this identity, authenticates its fixed build inputs and selects positional game.sfc. Source identity and private build evidence do not establish game operation acceptance or redistribution permission.",
+        "immutable_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/c7aaaa152192db5d750db3fb190e8f93b6240c19/src/codegen_setup.c",
+        "live_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/main/src/codegen_setup.c"
+      },
+      {
+        "id": "dkc2-v002-prepared-source-contract-2026-10-20",
+        "role": "upstream_support",
+        "authority": "mstan/DKC2Recomp",
+        "authority_ref": "e181419f2f8ff7b12494453e74840a4828bdb723",
+        "reviewed_at": "2026-10-20",
+        "claim": "Pinned Windows WinMain accepts a positional raw verified USA original. SNESRECOMP_NO_LAUNCHER bypasses the artwork launcher. Private player-prepared projection omits retail cover art, preserves all remaining published runtime bytes and notices, and grants no acquisition or redistribution authority. Actual operations remain separately qualified.",
+        "immutable_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/desktop_main.c",
+        "live_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/desktop_main.c"
       }
     ],
     "identities": [
@@ -6007,14 +6127,39 @@
               {
                 "id": "raw-big-endian-bin",
                 "extensions": [
-                  "bin"
+                  "bin",
+                  "md"
                 ],
                 "kind": "raw-file",
                 "identities": [
                   {
                     "scope": "original-file",
                     "sha1": "6ddb7de1e17e7f6cdb88927bd906352030daa194",
-                    "sha256": null,
+                    "sha256": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-recomp-0-6-0-source-contract",
+                  "sonic-genesis-jue-rev00-no-intro-byte-identity"
+                ]
+              },
+              {
+                "id": "raw-big-endian-zip",
+                "extensions": [
+                  "bin",
+                  "md"
+                ],
+                "kind": "archive-member",
+                "member_extensions": [
+                  "bin",
+                  "md"
+                ],
+                "identities": [
+                  {
+                    "scope": "archive-member",
+                    "sha1": "6ddb7de1e17e7f6cdb88927bd906352030daa194",
+                    "sha256": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6",
                     "crc32": null
                   }
                 ],
@@ -6090,14 +6235,39 @@
               {
                 "id": "raw-big-endian-bin",
                 "extensions": [
-                  "bin"
+                  "bin",
+                  "md"
                 ],
                 "kind": "raw-file",
                 "identities": [
                   {
                     "scope": "original-file",
                     "sha1": "8bca5dcef1af3e00098666fd892dc1c2a76333f9",
-                    "sha256": null,
+                    "sha256": "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
+                  "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+                ]
+              },
+              {
+                "id": "raw-big-endian-zip",
+                "extensions": [
+                  "bin",
+                  "md"
+                ],
+                "kind": "archive-member",
+                "member_extensions": [
+                  "bin",
+                  "md"
+                ],
+                "identities": [
+                  {
+                    "scope": "archive-member",
+                    "sha1": "8bca5dcef1af3e00098666fd892dc1c2a76333f9",
+                    "sha256": "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b",
                     "crc32": null
                   }
                 ],
@@ -6132,14 +6302,39 @@
               {
                 "id": "raw-big-endian-bin",
                 "extensions": [
-                  "bin"
+                  "bin",
+                  "md"
                 ],
                 "kind": "raw-file",
                 "identities": [
                   {
                     "scope": "original-file",
                     "sha1": "cfbf98c36c776677290a872547ac47c53d2761d6",
-                    "sha256": null,
+                    "sha256": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "sonic-3-and-knuckles-recomp-0-5-3-source-contract",
+                  "sonic-3-and-knuckles-genesis-usa-lockon-no-intro-byte-identity"
+                ]
+              },
+              {
+                "id": "raw-big-endian-zip",
+                "extensions": [
+                  "bin",
+                  "md"
+                ],
+                "kind": "archive-member",
+                "member_extensions": [
+                  "bin",
+                  "md"
+                ],
+                "identities": [
+                  {
+                    "scope": "archive-member",
+                    "sha1": "cfbf98c36c776677290a872547ac47c53d2761d6",
+                    "sha256": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23",
                     "crc32": null
                   }
                 ],
@@ -6402,6 +6597,486 @@
             ],
             "evidence_ids": [
               "earthbound-recomp-fixed-source-contract-2026-10-19"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "smb1r-world-nes",
+        "label": "Super Mario Bros. (World) exact NES original",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "world-retail",
+            "title": "Super Mario Bros.",
+            "region": "World",
+            "revision": "Retail",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "ines-file",
+                "extensions": [
+                  "nes"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": "33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd",
+                    "sha256": "0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-mario-bros-remastered-11-world-subset"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-mario-bros-remastered-11-world-subset"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "dark-forces-pc-complete-installed-data",
+        "label": "Dark Forces PC installed data: complete folder or ZIP",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "owned-pc-installed-data",
+            "title": "Reviewed PC installed data",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "evidence_ids": [
+              "the-force-engine-complete-data-archive-2026-10-18"
+            ],
+            "representations": [
+              {
+                "id": "relative-data-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "dark-gob",
+                    "path": "DARK.GOB",
+                    "size": 14244049,
+                    "sha256": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b"
+                  },
+                  {
+                    "id": "lfd-1e-lfd",
+                    "path": "LFD/1E.LFD",
+                    "size": 386159,
+                    "sha256": "1f132ae57c788411abbd65f068347b8466c1b1268d4464aab966c9c926f1901b"
+                  },
+                  {
+                    "id": "lfd-agentmnu-lfd",
+                    "path": "LFD/AGENTMNU.LFD",
+                    "size": 51808,
+                    "sha256": "e59e1bdd7ecb9a08aa89a02dbc901fcbb7fe7823aaf303b469ecc321fb17b6cd"
+                  },
+                  {
+                    "id": "lfd-arcext-lfd",
+                    "path": "LFD/ARCEXT.LFD",
+                    "size": 69403,
+                    "sha256": "5b959d01147482ecbfa9e27099751480cbd171c561fc13659f3ef62768efb540"
+                  },
+                  {
+                    "id": "lfd-arcfly-lfd",
+                    "path": "LFD/ARCFLY.LFD",
+                    "size": 449178,
+                    "sha256": "2ce1b6c03b26317d209170046b742b080c10ac370bb80c06c71db04610f8631a"
+                  },
+                  {
+                    "id": "lfd-award1-lfd",
+                    "path": "LFD/AWARD1.LFD",
+                    "size": 1339773,
+                    "sha256": "7b9a40f3bc88cc6f577aac47f260cbb1a7468409f95d8f414bf2634cbc5268b7"
+                  },
+                  {
+                    "id": "lfd-award2-lfd",
+                    "path": "LFD/AWARD2.LFD",
+                    "size": 99827,
+                    "sha256": "7c6e0c8859bdf6e91745c3a2bf22dd13c402073a63edf3ab6d59a0374cdbebfc"
+                  },
+                  {
+                    "id": "lfd-award3-lfd",
+                    "path": "LFD/AWARD3.LFD",
+                    "size": 809308,
+                    "sha256": "6668e2a0751902df74a079ec03c6140b6a74245bf140c860d5b792d82c0cd319"
+                  },
+                  {
+                    "id": "lfd-award4-lfd",
+                    "path": "LFD/AWARD4.LFD",
+                    "size": 837011,
+                    "sha256": "9406d7ca508523bb2f49495d5221e8560935675e67f5743fcc3a2d08ce6f9867"
+                  },
+                  {
+                    "id": "lfd-boba-lfd",
+                    "path": "LFD/BOBA.LFD",
+                    "size": 591083,
+                    "sha256": "d506439f6e1cb77c9eb6c306c7bdeb22e61bbbc19288d228b932e5ab026a6564"
+                  },
+                  {
+                    "id": "lfd-brief1-lfd",
+                    "path": "LFD/BRIEF1.LFD",
+                    "size": 486992,
+                    "sha256": "41562bfba6e130d82084908159866773059fde666546dd260a19a7fe938fbc51"
+                  },
+                  {
+                    "id": "lfd-brief2-lfd",
+                    "path": "LFD/BRIEF2.LFD",
+                    "size": 378007,
+                    "sha256": "2251a82a1be49ee3e57f04c99dbe9e8c4c7281b4e96a890bcd326a0e3ce4faa4"
+                  },
+                  {
+                    "id": "lfd-cargo1-lfd",
+                    "path": "LFD/CARGO1.LFD",
+                    "size": 742172,
+                    "sha256": "cdcd7c0a5ffd7e79a6b00ead22427364329f4ad94221e99b7e62057717698fd5"
+                  },
+                  {
+                    "id": "lfd-cargo3-lfd",
+                    "path": "LFD/CARGO3.LFD",
+                    "size": 1682384,
+                    "sha256": "798301011299c824dc66cf9179ba94d7825d23c833d016bdd19183d7e023bad1"
+                  },
+                  {
+                    "id": "lfd-darklogo-lfd",
+                    "path": "LFD/DARKLOGO.LFD",
+                    "size": 611741,
+                    "sha256": "d7552fc09f29160ca8629413d8c0abde0e486d932acf651c0b413306fda42ee5"
+                  },
+                  {
+                    "id": "lfd-dfbrief-lfd",
+                    "path": "LFD/DFBRIEF.LFD",
+                    "size": 1073784,
+                    "sha256": "53d8b495607fa8a8ab138f354f6a2ce12e2f4e9b00524aaf8aa4e7b3c0320dd2"
+                  },
+                  {
+                    "id": "lfd-endfly-lfd",
+                    "path": "LFD/ENDFLY.LFD",
+                    "size": 88001,
+                    "sha256": "cba548394757245ddaf8d82211c2b97852f8403836462db6a658d1f70311cfa7"
+                  },
+                  {
+                    "id": "lfd-execcomp-lfd",
+                    "path": "LFD/EXECCOMP.LFD",
+                    "size": 397323,
+                    "sha256": "63eb69be42ab9ab245133ce0442437722850a5b2b32b56e8a0ae9518d42559cc"
+                  },
+                  {
+                    "id": "lfd-execx-lfd",
+                    "path": "LFD/EXECX.LFD",
+                    "size": 1217657,
+                    "sha256": "6bac072bd974b743546f9ba52ebd27f07176e2c7e2583c8e0071b269503c59e9"
+                  },
+                  {
+                    "id": "lfd-exitneb-lfd",
+                    "path": "LFD/EXITNEB.LFD",
+                    "size": 452579,
+                    "sha256": "83a49baf1ae13cb498c92cd0a2e17b718f3b86aa6e05c9346e97559432dfe881"
+                  },
+                  {
+                    "id": "lfd-exp1xx-lfd",
+                    "path": "LFD/EXP1XX.LFD",
+                    "size": 223728,
+                    "sha256": "0d0990750cb10b1aec59a0bc5511a1166d0c51e46377c239749984dffd8a85d5"
+                  },
+                  {
+                    "id": "lfd-exp2x-lfd",
+                    "path": "LFD/EXP2X.LFD",
+                    "size": 932081,
+                    "sha256": "abe6026d2e16bdc382fef94eee025dd9743c5a5cde7d27dbe1009bee79bde648"
+                  },
+                  {
+                    "id": "lfd-exp3xx-lfd",
+                    "path": "LFD/EXP3XX.LFD",
+                    "size": 428211,
+                    "sha256": "3085c4ffe0b8e942da50f3d6eb6f8031b0bac76e4bc485edbcba29acb0ab6059"
+                  },
+                  {
+                    "id": "lfd-ftextcra-lfd",
+                    "path": "LFD/FTEXTCRA.LFD",
+                    "size": 85891,
+                    "sha256": "4055a34140f4e84bd3b29dfb499e040477c4c239d959ca22a40da249fab9804b"
+                  },
+                  {
+                    "id": "lfd-fullcred-lfd",
+                    "path": "LFD/FULLCRED.LFD",
+                    "size": 611729,
+                    "sha256": "776a71b300a4ffae95984dd0411ba940ccdfb8537a6a41eb2b7359a0248fa57f"
+                  },
+                  {
+                    "id": "lfd-gromas1-lfd",
+                    "path": "LFD/GROMAS1.LFD",
+                    "size": 824906,
+                    "sha256": "f2620271ad58554e3ff6dcb14fc349ac336b5dcb41dc9bc5abf8dd73cad923a1"
+                  },
+                  {
+                    "id": "lfd-gromasx-lfd",
+                    "path": "LFD/GROMASX.LFD",
+                    "size": 1495927,
+                    "sha256": "4b178b52c85e270fb3650c2ea644644b52246a97658c0e7ecf43c93945afca55"
+                  },
+                  {
+                    "id": "lfd-holocu-lfd",
+                    "path": "LFD/HOLOCU.LFD",
+                    "size": 1292375,
+                    "sha256": "e80e0593ecc532ff5435a56bdd6a113967644831cbfa2b4cba01137057a91eb5"
+                  },
+                  {
+                    "id": "lfd-jabba1-lfd",
+                    "path": "LFD/JABBA1.LFD",
+                    "size": 1746245,
+                    "sha256": "4494a1cb51f285290d14379d3d70c5099b3b495d5048a509e3a5bee5878f2e6b"
+                  },
+                  {
+                    "id": "lfd-jabba2-lfd",
+                    "path": "LFD/JABBA2.LFD",
+                    "size": 1071870,
+                    "sha256": "550847b81ef3d6471f08a67ea90d1035f0c017c22e38759c18152c408101de7b"
+                  },
+                  {
+                    "id": "lfd-jabba3-lfd",
+                    "path": "LFD/JABBA3.LFD",
+                    "size": 1192747,
+                    "sha256": "ed7068d3d0e4fb8538bbb9a794197293ed2b5bf54002cfdb04bb0aaf6fe02ce0"
+                  },
+                  {
+                    "id": "lfd-jabescp-lfd",
+                    "path": "LFD/JABESCP.LFD",
+                    "size": 569161,
+                    "sha256": "7defee44d1e2887834663eddc373d7b6c75eb3209f04f01d320e77c79183cc50"
+                  },
+                  {
+                    "id": "lfd-jedisfx-lfd",
+                    "path": "LFD/JEDISFX.LFD",
+                    "size": 7175669,
+                    "sha256": "2877610360133fdce7ae783ea208bc73bc14c63f277ca23226cede64386a07c4"
+                  },
+                  {
+                    "id": "lfd-kflyby-lfd",
+                    "path": "LFD/KFLYBY.LFD",
+                    "size": 87977,
+                    "sha256": "a4988bcfad93053cd302cbaaf1d250aadcb1d5908244fb1dd1a4ebb0290daa40"
+                  },
+                  {
+                    "id": "lfd-logo-lfd",
+                    "path": "LFD/LOGO.LFD",
+                    "size": 67779,
+                    "sha256": "0a0c3a3d00ef26886dea01262796f75344d9c48f22ed91ac7d9f86da34293355"
+                  },
+                  {
+                    "id": "lfd-madine1-lfd",
+                    "path": "LFD/MADINE1.LFD",
+                    "size": 216483,
+                    "sha256": "7f4c09d1584d65bcf519423c04bbbffb4289cb05de23ae8eac7cd1dc44356896"
+                  },
+                  {
+                    "id": "lfd-menu-lfd",
+                    "path": "LFD/MENU.LFD",
+                    "size": 207749,
+                    "sha256": "bbb0c99e9d1448883a5d26aead330ca8f0905af02fe9759c69b669a557ad134b"
+                  },
+                  {
+                    "id": "lfd-neb1-lfd",
+                    "path": "LFD/NEB1.LFD",
+                    "size": 1106290,
+                    "sha256": "0c3e7812d2245ad789bf148429b43c1bbf31395e609ba935680f31ae28870b15"
+                  },
+                  {
+                    "id": "lfd-pit-lfd",
+                    "path": "LFD/PIT.LFD",
+                    "size": 1244180,
+                    "sha256": "2896586ef66af19aac0ba737b689beea32d9145535f8ba719f9c65ff0c3a07de"
+                  },
+                  {
+                    "id": "lfd-rob1-lfd",
+                    "path": "LFD/ROB1.LFD",
+                    "size": 869213,
+                    "sha256": "da02769732261ace923362272f1e52737d42deb39091b1c5334581a8c8a27217"
+                  },
+                  {
+                    "id": "lfd-robotx-lfd",
+                    "path": "LFD/ROBOTX.LFD",
+                    "size": 1247007,
+                    "sha256": "a6dbcc3380d8d344cf90d8b2379866747478edfba0b61edc94d1376c54526efa"
+                  },
+                  {
+                    "id": "lfd-standard-lfd",
+                    "path": "LFD/STANDARD.LFD",
+                    "size": 19191,
+                    "sha256": "d09b0e731de47ebeda259f9ffaded3412220d6d728e3eb6ed0d74829feffa939"
+                  },
+                  {
+                    "id": "lfd-succes-lfd",
+                    "path": "LFD/SUCCES.LFD",
+                    "size": 124435,
+                    "sha256": "b6ebfd30779deafcc02512a61bca6739c5c6116701b9714e962150a0a47e889c"
+                  },
+                  {
+                    "id": "lfd-swlogo-lfd",
+                    "path": "LFD/SWLOGO.LFD",
+                    "size": 431268,
+                    "sha256": "4a2de752430786bef3de237465f548f192637a0022087ededfe6536dd93ff487"
+                  },
+                  {
+                    "id": "lfd-tubecomp-lfd",
+                    "path": "LFD/TUBECOMP.LFD",
+                    "size": 1410657,
+                    "sha256": "5f354a2a45cb8458eeeea1a1c7f0ff1892a408bd2f0599e928e0dcf90e0d4ef3"
+                  },
+                  {
+                    "id": "sounds-gob",
+                    "path": "SOUNDS.GOB",
+                    "size": 5950117,
+                    "sha256": "5cc43a1762341ba1ddeda6b3fa105f097fb59e4126d4b3d8e73cd5e7228c9d1c"
+                  },
+                  {
+                    "id": "sprites-gob",
+                    "path": "SPRITES.GOB",
+                    "size": 2816419,
+                    "sha256": "d7d5d7f8125c28b9917a470091ca1d37e26303e53b384d71f85bfe64579452ab"
+                  },
+                  {
+                    "id": "textures-gob",
+                    "path": "TEXTURES.GOB",
+                    "size": 8929232,
+                    "sha256": "b36e507471ee2b64c18236503c34c58fc37233988424ce25f0767e412650ce42"
+                  }
+                ],
+                "evidence_ids": [
+                  "the-force-engine-complete-data-archive-2026-10-18"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "super-bomberman-snes-usa",
+        "label": "Super Bomberman (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "Super Bomberman",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "super-bomberman-v011-source-contract-2026-10-19"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "super-bomberman-v011-source-contract-2026-10-19"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "gundam-wing-endless-duel-snes-japan",
+        "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "japan-stock",
+            "title": "Shin Kidou Senki Gundam W: Endless Duel",
+            "region": "Japan",
+            "revision": "Stock Japan",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
+      {
+        "id": "donkey-kong-country-2-snes-usa",
+        "label": "Donkey Kong Country 2 (USA) stock headerless SNES source",
+        "kind": "file",
+        "variants": [
+          {
+            "id": "usa-stock",
+            "title": "Donkey Kong Country 2: Diddy's Kong Quest",
+            "region": "USA",
+            "revision": "Stock USA",
+            "product_codes": [],
+            "representations": [
+              {
+                "id": "headerless-sfc",
+                "extensions": [
+                  "sfc"
+                ],
+                "kind": "raw-file",
+                "identities": [
+                  {
+                    "scope": "original-file",
+                    "sha1": null,
+                    "sha256": "35421a9af9dd011b40b91f792192af9f99c93201d8d394026bdfb42cbf2d8633",
+                    "crc32": null
+                  }
+                ],
+                "evidence_ids": [
+                  "dkc2-v002-prepared-source-contract-2026-10-20"
+                ]
+              }
+            ],
+            "evidence_ids": [
+              "dkc2-v002-prepared-source-contract-2026-10-20"
             ]
           }
         ],
@@ -9080,10 +9755,10 @@
         "tombstones": []
       },
       {
-        "id": "the-force-engine-dark-forces-game-source",
+        "id": "the-force-engine-dark-forces-managed-data",
         "port_id": "the-force-engine-dark-forces",
         "role": "game",
-        "profile_id": "dark-forces-pc-dark-gob",
+        "profile_id": "dark-forces-pc-complete-installed-data",
         "admission_mode": "enforced",
         "supported_variant_ids": [
           "owned-pc-installed-data"
@@ -9091,7 +9766,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "the-force-engine-pc-data-2026-10-12",
-          "the-force-engine-1-22-420-source-contract"
+          "the-force-engine-1-22-420-source-contract",
+          "the-force-engine-complete-data-archive-2026-10-18"
         ],
         "authority_ref": "cc25205cc94c36a396f6f50295772f6ec83069a2",
         "reviewed_at": "2026-10-18",
@@ -9328,6 +10004,141 @@
         ],
         "aliases": [],
         "tombstones": []
+      },
+      {
+        "id": "super-mario-bros-remastered-game-source",
+        "port_id": "super-mario-bros-remastered",
+        "role": "game",
+        "profile_id": "smb1r-world-nes",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "world-retail"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-mario-bros-remastered-11-world-subset"
+        ],
+        "authority_ref": "f379a3257ef1cf89cf4bf911f40c9262447da2c6",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
+        "live_review_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.1-stable",
+            "artifact_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "render96ex-game-source",
+        "port_id": "render96ex",
+        "role": "game",
+        "profile_id": "ghostship-source",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "super-mario-64-us"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "render96-fixed-source-contract-2026-10-19"
+        ],
+        "authority_ref": "48da5c491c8abfb2f5192b59278c1c269411e533",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1",
+        "live_review_url": "https://github.com/Render96/Render96ex/blob/master/sm64.us.sha1",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "source-48da5c491c8a",
+            "artifact_sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "super-bomberman-recomp-game-source",
+        "port_id": "super-bomberman-recomp",
+        "role": "game",
+        "profile_id": "super-bomberman-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "super-bomberman-v011-source-contract-2026-10-19"
+        ],
+        "authority_ref": "56106599c1fb2f612fd642ee37c0e015611fc31d",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/runner/verified_rom.c",
+        "live_review_url": "https://github.com/elliotttate/BombermanRecomp/blob/main/runner/verified_rom.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.1.1",
+            "artifact_sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "gundam-wing-endless-duel-recomp-game-source",
+        "port_id": "gundam-wing-endless-duel-recomp",
+        "role": "game",
+        "profile_id": "gundam-wing-endless-duel-snes-japan",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "japan-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "gundam-wing-endless-duel-recomp-source-contract-2026-10-20"
+        ],
+        "authority_ref": "c7aaaa152192db5d750db3fb190e8f93b6240c19",
+        "reviewed_at": "2026-10-20",
+        "immutable_review_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/c7aaaa152192db5d750db3fb190e8f93b6240c19/src/codegen_setup.c",
+        "live_review_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/blob/main/src/codegen_setup.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "source-c7aaaa152192",
+            "artifact_sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "dkc2-recomp-game-source",
+        "port_id": "dkc2-recomp",
+        "role": "game",
+        "profile_id": "donkey-kong-country-2-snes-usa",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "usa-stock"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "dkc2-v002-prepared-source-contract-2026-10-20"
+        ],
+        "authority_ref": "e181419f2f8ff7b12494453e74840a4828bdb723",
+        "reviewed_at": "2026-10-20",
+        "immutable_review_url": "https://github.com/mstan/DKC2Recomp/blob/e181419f2f8ff7b12494453e74840a4828bdb723/runner/verified_rom.c",
+        "live_review_url": "https://github.com/mstan/DKC2Recomp/blob/main/runner/verified_rom.c",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.0.2",
+            "artifact_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
       }
     ],
     "validators": [
@@ -9365,6 +10176,114 @@
       }
     ],
     "qualification": [
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-path-policy-startup-persistence-v2"
+        },
+        "outcome": "passed",
+        "observed_at": 1792452741,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "7563fedf1915faaecd87f83f1a4a4f48e0b86c27",
+        "kind": "structural_check",
+        "method": "Actual API73 CLI: invalid source, Unicode and overlong runtime-output refusal before acquisition, changed-original refusal after review, exact official package installation and 70-file verification. Original Unicode path remains usable.",
+        "evidence_ids": [
+          "f-zero-managed-windows-path-policy-2026-10-19"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-path-policy-startup-persistence-v2"
+        },
+        "outcome": "passed",
+        "observed_at": 1792452741,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "7563fedf1915faaecd87f83f1a4a4f48e0b86c27",
+        "kind": "automated_lifecycle",
+        "method": "Actual isolated policy-bearing Core/CLI and native Windows process: visible title-menu startup, ordinary close, active synthetic-probe backup/restore/removal/reinstall preservation, matching-marker corrupted-source recreation and unchanged originals. Cache-check screenshot black; no menu claim for that session. No gameplay, GUI workflow, in-game save/load, version update/rollback or minimum-OS qualification.",
+        "evidence_ids": [
+          "f-zero-managed-windows-path-policy-2026-10-19"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-startup-persistence-v1"
+        },
+        "outcome": "passed",
+        "observed_at": 1792439748,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "67550c6c7b3cafc63914d6ec59a37863ed842458",
+        "kind": "structural_check",
+        "method": "Pinned source/package/ownership review; actual invalid source and stale-review refusal, exact original registration, official package acquisition and 70-file immutable verification. Windows x64 v1.8.3 and headerless USA source only.",
+        "evidence_ids": [
+          "f-zero-managed-windows-2026-10-19"
+        ]
+      },
+      {
+        "scope": {
+          "port_id": "f-zero-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+          "upstream_ref": "v1.8.3",
+          "contract_id": "f-zero-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "f-zero-snes-usa",
+              "variant_id": "usa",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "fzero-managed-startup-persistence-v1"
+        },
+        "outcome": "passed",
+        "observed_at": 1792439748,
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "67550c6c7b3cafc63914d6ec59a37863ed842458",
+        "kind": "automated_lifecycle",
+        "method": "Actual isolated Core/CLI install, native title/menu startup and ordinary close; synthetic persistence probe backup/restore, reviewed removal, reinstall and corrupted runtime-source recreation with matching retained marker. Protected and registered originals unchanged. No gameplay, input, audio, in-game save/load, GUI workflow, version-to-version update/rollback or minimum-OS claim.",
+        "evidence_ids": [
+          "f-zero-managed-windows-2026-10-19"
+        ]
+      },
       {
         "scope": {
           "port_id": "snap64-recomp",
@@ -9904,6 +10823,519 @@
         "kind": "known_failure",
         "outcome": "failed",
         "method": "Actual v0.0.6 Windows stderr reported an interpreter cap and unresolved-abandon at guest site $808CAD frame 58; pinned source confirms stack balancing skips handler side effects. Known guest semantic gap retained independently of passed Portcove operations; no dispatch authorization, cap change or gameplay-correctness claim"
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455650,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456302,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456250,
+        "kind": "known_failure",
+        "outcome": "failed",
+        "method": "Actual managed v0.0.6 Windows startup reproduced interpreter cap and unresolved-abandon at guest site $808CAD, frame58, with handler side effects skipped. Partial intro and clean process close do not resolve the game-logic failure; gameplay and visual correctness remain unqualified."
+      },
+      {
+        "scope": {
+          "port_id": "super-mario-world-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+          "upstream_ref": "v0.12.0",
+          "contract_id": "super-mario-world-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "super-mario-world-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455661,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "super-mario-world-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+          "upstream_ref": "v0.12.0",
+          "contract_id": "super-mario-world-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "super-mario-world-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456368,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+          "upstream_ref": "v0.6.1",
+          "contract_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "a-link-to-the-past-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455674,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+          "upstream_ref": "v0.6.1",
+          "contract_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "a-link-to-the-past-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456433,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+          "upstream_ref": "v0.6.0",
+          "contract_id": "sonic-the-hedgehog-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-genesis-jue-rev00",
+              "variant_id": "jue-rev00",
+              "representation_id": "raw-big-endian-bin"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455683,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+          "upstream_ref": "v0.6.0",
+          "contract_id": "sonic-the-hedgehog-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-genesis-jue-rev00",
+              "variant_id": "jue-rev00",
+              "representation_id": "raw-big-endian-bin"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456490,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-2-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+          "upstream_ref": "v0.8.3",
+          "contract_id": "sonic-the-hedgehog-2-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-2-genesis-world-reva",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456179,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-2-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+          "upstream_ref": "v0.8.3",
+          "contract_id": "sonic-the-hedgehog-2-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-2-genesis-world-reva",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456889,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. A separate post-reinstall launch recreated a poisoned ZIP-derived runtime copy with the real matching marker retained, preserving original ZIP and both prior synthetic probes. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-3-and-knuckles-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+          "upstream_ref": "v0.5.3",
+          "contract_id": "sonic-3-and-knuckles-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456194,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-3-and-knuckles-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+          "upstream_ref": "v0.5.3",
+          "contract_id": "sonic-3-and-knuckles-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456624,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461737,
+        "kind": "structural_check",
+        "method": "Actual isolated API75 CLI rejects invalid ZIP and a changed reviewed original, admits all 48 exact members from the owned complete ZIP with Unicode filename, installs the exact official engine and verifies its immutable manifest. Protected originals remain unchanged; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461955,
+        "kind": "automated_lifecycle",
+        "method": "Two actual isolated Windows supervised process starts and ordinary closes; one fully visible main menu and an incomplete second startup capture; all 48 private copies checked, compatible local profile and synthetic persistence probes; deliberately corrupted private LFD recreated, actual removal hold and manual preservation verified; backup/restore, reviewed removal preserving canonical data/backups and same-version reinstall. No mission gameplay, save/load, version update/rollback, Portcove GUI or support promotion."
+      },
+      {
+        "scope": {
+          "port_id": "wave-race-64-racewave46",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+          "upstream_ref": "v1.0.0",
+          "contract_id": "wave-race-64-racewave46-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "wave-race-64",
+              "variant_id": "usa-rev-a",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "racewave46-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "71ec71f89d3fbb23914e8185a03b102b1af80886",
+        "evidence_ids": [
+          "racewave46-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792466685,
+        "kind": "structural_check",
+        "method": "Actual isolated API76 CLI refuses invalid and changed reviewed originals, registers exact owner-provided USA RevA original with Unicode filename, installs unchanged exact official Windows package and verifies immutable inventory. Protected original unchanged; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "wave-race-64-racewave46",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+          "upstream_ref": "v1.0.0",
+          "contract_id": "wave-race-64-racewave46-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "wave-race-64",
+              "variant_id": "usa-rev-a",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "racewave46-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "71ec71f89d3fbb23914e8185a03b102b1af80886",
+        "evidence_ids": [
+          "racewave46-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792467404,
+        "kind": "automated_lifecycle",
+        "method": "Actual supervised Windows startup/ordinary close with durable exit0 and exact private original; screenshot shows logo/water startup, not menu arrival. Synthetic ordinary persistence probe backup/restore/removal/reinstall passes. Synthetic credential filenames stay version-local, are excluded from canonical data/backups, retained during restore and removed with version; no credential payload inspection. No real sign-in, gameplay, save/load, new-version update/rollback, GUI or support promotion."
+      },
+      {
+        "scope": {
+          "port_id": "resident-evil-gaiden-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+          "upstream_ref": "v0.4.1",
+          "contract_id": "resident-evil-gaiden-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "resident-evil-gaiden-gbc-usa",
+              "variant_id": "usa-retail",
+              "representation_id": "raw-gbc"
+            }
+          },
+          "check_version": "regaiden-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "61ed99e1e8a5d49c68f24d34b7493ee365dc43d5",
+        "evidence_ids": [
+          "regaiden-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792469868,
+        "kind": "structural_check",
+        "method": "Actual isolated API77 CLI refuses invalid/stale originals and generic confirmation without separate shared-scope acceptance, admits exact USA original under Unicode filename, installs unchanged official Windows package with initialized local saves directory, and verifies immutable inventory. Protected original unchanged; global preferences absent and untouched; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "resident-evil-gaiden-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
+          "upstream_ref": "v0.4.1",
+          "contract_id": "resident-evil-gaiden-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "resident-evil-gaiden-gbc-usa",
+              "variant_id": "usa-retail",
+              "representation_id": "raw-gbc"
+            }
+          },
+          "check_version": "regaiden-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "61ed99e1e8a5d49c68f24d34b7493ee365dc43d5",
+        "evidence_ids": [
+          "regaiden-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792470030,
+        "kind": "automated_lifecycle",
+        "method": "Actual supervised Windows startup/ordinary close with durable exit0 and exact private original; inspected screenshot shows copyright/startup, not menu arrival. Synthetic local persistence probe backup/restore/reviewed removal/reinstall passes with fresh explicit acceptance. Account-wide preferences remain absent and untouched. No gameplay, save/load, changed-account native execution, new-version update/rollback, GUI or support promotion."
       }
     ]
   },
@@ -16247,7 +17679,7 @@
     {
       "id": "wave-race-64-racewave46",
       "name": "RaceWave46",
-      "summary": "Native Wave Race 64 recompilation using a player-prepared runtime.",
+      "summary": "Native Wave Race 64 recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/DomazinUS/RaceWave46",
       "support_tier": "beta",
       "channels": [
@@ -16256,24 +17688,17 @@
       "platforms": [
         "windows-x86-64"
       ],
-      "adapter": "n64-recomp-portable",
+      "adapter": "staged-source-portable",
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "DomazinUS/RaceWave46",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v1.0.0",
-            "archive_name": "RaceWave46-Windows-x64-v1.0.0.zip",
-            "archive_size": 35768574,
-            "archive_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
-            "executable": "WaveRace64Recompiled.exe",
-            "immutable_tree_sha256": "77dc97d78610f5cbb3258991af44e834bff912d4ab0bfe904f477e01a32a4663",
-            "source_argument_extension": "z64",
-            "mutable_paths": [
-              ".runtime"
-            ]
+            "url": "https://github.com/DomazinUS/RaceWave46/releases/download/v1.0.0/RaceWave46-Windows-x64-v1.0.0.zip",
+            "size": 35768574,
+            "sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
           }
         }
       },
@@ -16284,11 +17709,12 @@
         ]
       },
       "launch_arguments": [
+        "game.z64",
         "--launch"
       ],
       "presentation": {
         "original_game_title": "Wave Race 64",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -16297,8 +17723,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the complete official v1.0.0 Windows ZIP into a writable folder, keeping the executable, DLLs, assets and notices together. Choose that folder for review, then select and validate your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove. Portcove uses the reviewed original when you choose Play. The game keeps its imported data, settings and saves in .runtime beside the executable. You manage runtime updates; preserve .runtime when updating outside Portcove.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose your own Wave Race 64 (USA Rev A) original. Portcove installs the unchanged official Windows package and manages saves and settings. RetroAchievements sign-in stays with each installed version, is excluded from backups and is deleted when that version is removed. Sign in again after installing another version. Existing external copies remain yours to manage. Windows gameplay remains untested.",
         "artwork": {
           "game_id": 3629,
           "cover_id": 478764,
@@ -16306,28 +17732,21 @@
           "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
           "game_slug": "wave-race-64",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the complete official v1.0.0 Windows ZIP into a writable folder outside your Portcove library. Keep its DLLs, assets and notices together."
-            },
-            {
-              "title": "Connect the original",
-              "instruction": "Choose and check your own uncompressed Wave Race 64 USA Rev A .z64 file in Portcove."
-            },
-            {
-              "title": "Review the port folder",
-              "instruction": "Choose the extracted folder below. Portcove will use the checked original when you launch the game."
-            }
-          ],
-          "warnings": [
-            "Preserve the .runtime folder when updating outside Portcove; it contains imported game data, settings and saves."
-          ]
         }
       },
-      "persistent_paths": []
+      "persistent_paths": [
+        ".runtime"
+      ],
+      "runtime_data_policy": "racewave46-v1.0.0-windows",
+      "runtime_source_filename": "game.z64",
+      "runtime_source_materialization": "n64-big-endian",
+      "runtime_source_hashes": {
+        "game.z64": "f35d2423ebcb86eaf86fa935b613c7532b123a7bc50fb74996984c3b02fc3999"
+      },
+      "launch_from_install_root": true,
+      "runtime_mutable_paths": [
+        "game.z64"
+      ]
     },
     {
       "id": "f-zero-snes-recomp",
@@ -16345,25 +17764,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/FZeroSNESRecomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v1.8.3",
-            "archive_name": "FZeroSNESRecomp-1.8.3-windows-x64.zip",
-            "archive_size": 8247843,
-            "archive_sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
-            "executable": "FZeroSNESRecomp.exe",
-            "immutable_tree_sha256": "41d4aea0b97cfe01dc26cf7e2a7c509f7f0030688ed66760d82a3efb69f69eb6",
-            "source_argument_extension": "sfc",
-            "mutable_paths": [
-              "config.ini",
-              "fzero-video.ini",
-              "keybinds.ini",
-              "saves",
-              "diagnostics",
-              "last_run_report.json"
-            ]
+            "url": "https://github.com/mstan/FZeroSNESRecomp/releases/download/v1.8.3/FZeroSNESRecomp-1.8.3-windows-x64.zip",
+            "size": 8247843,
+            "sha256": "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658",
+            "published_at": "2026-09-22T03:42:21Z"
           }
         }
       },
@@ -16376,7 +17784,7 @@
       "presentation": {
         "original_game_title": "F-Zero",
         "variant_label": "SNES",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -16385,8 +17793,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v1.8.3 Windows ZIP outside your Portcove library. Choose its FZeroSNESRecomp-1.8.3-windows-x64 folder for exact-file review and register your original headerless F-Zero (USA) .sfc separately. Windows runtime and gameplay are not tested. Additional files, including crash reports, may prevent later verification; preserve them for troubleshooting. Portcove does not update, back up or delete this folder.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Portcove installs the Windows port and manages its saves and settings separately from existing external copies. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location.",
         "artwork": {
           "game_id": 3490,
           "cover_id": 319391,
@@ -16394,27 +17802,41 @@
           "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
           "game_slug": "f-zero",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the complete official v1.8.3 Windows ZIP outside your Portcove library."
-            },
-            {
-              "title": "Connect the original",
-              "instruction": "Choose and check your own headerless F-Zero (USA) .sfc file in Portcove."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the extracted FZeroSNESRecomp-1.8.3-windows-x64 folder below."
-            }
-          ],
-          "warnings": [
-            "Windows runtime and gameplay are untested. Crash reports or other extra files may prevent later checks; preserve them for troubleshooting."
-          ]
         }
-      }
+      },
+      "runtime_source_filename": "fzero.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "fzero.sfc": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
+      },
+      "launch_arguments": [
+        "fzero.sfc"
+      ],
+      "persistent_paths": [
+        "fzero.sfc",
+        "config.ini",
+        "fzero-video.ini",
+        "fzero-video.ini.tmp",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves"
+      ],
+      "runtime_mutable_paths": [
+        "diagnostics",
+        "last_run_report.json",
+        ".snesrecomp_write_probe"
+      ],
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "road-rash-64-recompiled",
@@ -16527,7 +17949,7 @@
     {
       "id": "dkc3-recomp",
       "name": "DKC3Recomp",
-      "summary": "Native Donkey Kong Country 3 recompilation.",
+      "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; gameplay remains unqualified.",
       "project_url": "https://github.com/elliotttate/DKC3Recomp",
       "support_tier": "beta",
       "channels": [
@@ -16540,26 +17962,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "elliotttate/DKC3Recomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.0.6",
-            "archive_name": "DKC3Recomp-v0.0.6-windows-x64.zip",
-            "archive_size": 6009000,
-            "archive_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
-            "executable": "DKC3Recomp.exe",
-            "immutable_tree_sha256": "3b8e1a483ada9a544a084717eba4eeb5c8f4b7168cda85b3697776f1a0dacdee",
-            "source_argument_extension": "sfc",
-            "mutable_paths": [
-              "saves",
-              "launcher.cfg",
-              "rom.cfg",
-              "performance.log",
-              "diagnostics",
-              "keybinds.ini",
-              ".snesrecomp_write_probe"
-            ]
+            "url": "https://github.com/elliotttate/DKC3Recomp/releases/download/v0.0.6/DKC3Recomp-v0.0.6-windows-x64.zip",
+            "size": 6009000,
+            "sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+            "published_at": "2026-09-13T04:22:33Z"
           }
         }
       },
@@ -16571,7 +17981,7 @@
       },
       "presentation": {
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -16580,8 +17990,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the official v0.0.6 Windows ZIP outside your Portcove library. Choose its DKC3Recomp-v0.0.6-windows-x64 folder for exact-file review and register your original headerless North American En/Fr DKC3 .sfc separately. Portcove passes that verified source directly and skips the upstream launcher; in-game settings remain available. Keep package and ROM paths short and representable in the Windows system code page. Windows registration, startup, ordinary close and external-file preservation were observed. Upstream reports skipped game logic during startup; gameplay, visual correctness and save/load remain unqualified. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not update, back up or delete this folder or its saves.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. This build has a known game-logic failure during startup. Gameplay, visual correctness and save/load remain unqualified.",
         "artwork": {
           "game_id": 1094,
           "cover_id": 94883,
@@ -16589,31 +17999,32 @@
           "image_sha256": "f4e13f77be3f1695208fb6de7e5ad3cc902e95e75505315bf183d1373d29648c",
           "game_slug": "donkey-kong-country-3-dixie-kong-s-double-trouble",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the complete official v0.0.6 Windows ZIP outside your Portcove library."
-            },
-            {
-              "title": "Connect the original",
-              "instruction": "Choose and check your own headerless North American English/French DKC3 .sfc file in Portcove."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose DKC3Recomp-v0.0.6-windows-x64 below. Portcove passes the checked original directly and skips the upstream launcher; in-game settings remain available."
-            }
-          ],
-          "warnings": [
-            "Use short package and ROM paths whose characters Windows can represent in its system code page.",
-            "Upstream reports skipped game logic at startup. Gameplay, visual correctness and save/load remain unqualified."
-          ]
         }
       },
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"
-      }
+      },
+      "runtime_source_filename": "dkc3.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "dkc3.sfc": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"
+      },
+      "launch_arguments": [
+        "dkc3.sfc"
+      ],
+      "persistent_paths": [
+        "dkc3.sfc",
+        "saves",
+        "launcher.cfg",
+        "keybinds.ini",
+        "rom.cfg"
+      ],
+      "runtime_mutable_paths": [
+        "performance.log",
+        "diagnostics",
+        ".snesrecomp_write_probe"
+      ],
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "alexbeav-ape-escape-recomp",
@@ -18083,7 +19494,7 @@
     {
       "id": "super-mario-world-recomp",
       "name": "SuperMarioWorldRecomp",
-      "summary": "Native Super Mario World recompilation with a player-prepared Windows runtime.",
+      "summary": "Native Super Mario World recompilation.",
       "project_url": "https://github.com/mstan/SuperMarioWorldRecomp",
       "support_tier": "beta",
       "channels": [
@@ -18096,27 +19507,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/SuperMarioWorldRecomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.12.0",
-            "archive_name": "SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
-            "archive_size": 9490376,
-            "archive_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-            "executable": "SuperMarioWorldSNESRecomp.exe",
-            "immutable_tree_sha256": "14ef59aaf6afb54be86eefea3ab98bf842685064df6ed487356aeaf927f0f28e",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "config.ini",
-              "keybinds.ini",
-              "rom.cfg",
-              "saves",
-              "mods/state.toml",
-              "mods/state.toml.tmp",
-              "last_run_report.json",
-              ".snesrecomp_write_probe"
-            ]
+            "url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/download/v0.12.0/SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+            "size": 9490376,
+            "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+            "published_at": "2026-09-11T08:01:27Z"
           }
         }
       },
@@ -18128,7 +19526,7 @@
       },
       "presentation": {
         "original_game_title": "Super Mario World",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -18137,8 +19535,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v0.12.0 Windows ZIP outside your Portcove library and select the folder containing SuperMarioWorldSNESRecomp.exe. Place your exact stock headerless 512 KiB USA ROM in the extracted package root as smw.sfc, then register that file separately. Portcove passes smw.sfc directly; the verified same-path branch avoids source relocation. Keep this ROM and mods/packages unchanged. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. Use ordinary runtime defaults: before starting Portcove, unset inherited developer options SNESRECOMP_WRAM_TRACE_FILE, SNESRECOMP_APURAM_TRACE_FILE, SNESRECOMP_DSPREG_TRACE_FILE, SNESRECOMP_DSPOUT, SNESRECOMP_STALL_LOG, SNESRECOMP_LUA_PORT. Portcove does not clear these options or sandbox the external process; trace options can write outside the runtime and the optional Lua setting enables a loopback listener.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified.",
         "artwork": {
           "game_id": 1070,
           "cover_id": 401336,
@@ -18146,31 +19544,6 @@
           "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
           "game_slug": "super-mario-world",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v0.12.0 Windows ZIP outside your Portcove library."
-            },
-            {
-              "title": "Make a working copy of the original",
-              "instruction": "Copy your exact stock headerless 512 KiB USA ROM into the extracted package root as smw.sfc. Keep your original file unchanged."
-            },
-            {
-              "title": "Connect that working copy",
-              "instruction": "Choose and check this same smw.sfc file in Portcove."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the folder containing SuperMarioWorldSNESRecomp.exe below. Keep smw.sfc and the shipped mods/packages unchanged."
-            }
-          ],
-          "warnings": [
-            "Use short paths whose characters Windows can represent in its system code page.",
-            "Use ordinary runtime defaults. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write elsewhere and the Lua option can open a local listener.",
-            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
-          ]
         }
       },
       "launch_arguments": [
@@ -18178,12 +19551,41 @@
       ],
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"
-      }
+      },
+      "runtime_source_filename": "smw.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "smw.sfc": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "persistent_paths": [
+        "smw.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp"
+      ],
+      "runtime_mutable_paths": [
+        "last_run_report.json",
+        ".snesrecomp_write_probe"
+      ]
     },
     {
       "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
       "name": "ZeldaALttPSNESRecomp",
-      "summary": "Native The Legend of Zelda: A Link to the Past recompilation with a player-prepared Windows runtime.",
+      "summary": "Native The Legend of Zelda: A Link to the Past recompilation.",
       "project_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp",
       "support_tier": "beta",
       "channels": [
@@ -18196,28 +19598,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/ZeldaAlttPSNESRecomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.6.1",
-            "archive_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
-            "archive_size": 11388312,
-            "archive_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-            "executable": "ZeldaALttPSNESRecomp.exe",
-            "immutable_tree_sha256": "0bf47793d4f53fe258e94be76e8b28e4ca3c8c19ef6d702dddc54dfb58e3335e",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "config.ini",
-              "keybinds.ini",
-              "rom.cfg",
-              "saves",
-              "mods/state.toml",
-              "mods/state.toml.tmp",
-              "last_run_report.json",
-              ".snesrecomp_write_probe",
-              "tier2_coverage.json"
-            ]
+            "url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/releases/download/v0.6.1/ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+            "size": 11388312,
+            "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+            "published_at": "2026-08-06T01:58:24Z"
           }
         }
       },
@@ -18229,7 +19617,7 @@
       },
       "presentation": {
         "original_game_title": "The Legend of Zelda: A Link to the Past",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -18238,8 +19626,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v0.6.1 Windows ZIP outside your Portcove library and select the folder containing ZeldaALttPSNESRecomp.exe. Place your exact stock headerless 1 MiB USA ROM in the extracted package root as zelda.sfc, then register that file separately. Portcove passes zelda.sfc directly; the verified same-path branch avoids source relocation. Keep this ROM and mods/packages unchanged. The package README directs personal prebuilt use; the project license is undeclared and dependency notice completeness remains unresolved. Preserve its README unchanged. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. Use ordinary runtime defaults: before starting Portcove, unset inherited developer options SNESRECOMP_WRAM_TRACE_FILE, SNESRECOMP_APURAM_TRACE_FILE, SNESRECOMP_DSPREG_TRACE_FILE, SNESRECOMP_DSPOUT. Portcove does not clear these options or sandbox the external process; trace options can write outside the runtime.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Upstream documents prebuilt use but has not declared a project license; the package is downloaded unchanged from its original publisher.",
         "artwork": {
           "game_id": 1026,
           "cover_id": 181427,
@@ -18247,31 +19635,6 @@
           "image_sha256": "915a51bfc7b7945bdae988ef18d315b98ad8d70855136f4b2f24f4e30ebe007a",
           "game_slug": "the-legend-of-zelda-a-link-to-the-past",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v0.6.1 Windows ZIP outside your Portcove library. Preserve its README and other notices."
-            },
-            {
-              "title": "Make a working copy of the original",
-              "instruction": "Copy your exact stock headerless 1 MiB USA ROM into the extracted package root as zelda.sfc. Keep your original file unchanged."
-            },
-            {
-              "title": "Connect that working copy",
-              "instruction": "Choose and check this same zelda.sfc file in Portcove."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the folder containing ZeldaALttPSNESRecomp.exe below. Keep zelda.sfc and the shipped mods/packages unchanged."
-            }
-          ],
-          "warnings": [
-            "Use short paths whose characters Windows can represent in its system code page. Clear the inherited developer options listed in the technical notes before starting Portcove; trace options can write outside this folder.",
-            "The project license and completeness of dependency notices remain unresolved. The README directs personal prebuilt use; it does not grant redistribution rights.",
-            "Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified."
-          ]
         }
       },
       "launch_arguments": [
@@ -18279,12 +19642,42 @@
       ],
       "launch_environment": {
         "SNESRECOMP_NO_LAUNCHER": "1"
-      }
+      },
+      "runtime_source_filename": "zelda.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "zelda.sfc": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "crash_report_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "crash_minidump_",
+          "suffix": ".dmp"
+        }
+      ],
+      "persistent_paths": [
+        "zelda.sfc",
+        "config.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves",
+        "mods/state.toml",
+        "mods/state.toml.tmp"
+      ],
+      "runtime_mutable_paths": [
+        "last_run_report.json",
+        ".snesrecomp_write_probe",
+        "tier2_coverage.json"
+      ]
     },
     {
       "id": "sonic-the-hedgehog-recomp",
       "name": "SonicTheHedgehogRecomp",
-      "summary": "Native Sonic the Hedgehog recompilation with a player-prepared Windows runtime.",
+      "summary": "Native Sonic the Hedgehog recompilation.",
       "project_url": "https://github.com/mstan/SonicTheHedgehogRecomp",
       "support_tier": "beta",
       "channels": [
@@ -18297,39 +19690,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/SonicTheHedgehogRecomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.6.0",
-            "archive_name": "SonicTheHedgehogRecomp-v0.6.0-win64.zip",
-            "archive_size": 3776546,
-            "archive_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
-            "executable": "SonicTheHedgehogRecomp.exe",
-            "immutable_tree_sha256": "7dff505742639ce34c28c40066fe0493b54eaf33ee463b2bf7708ddfc9b37e68",
-            "source_argument_extension": "bin",
-            "mutable_paths": [
-              "settings.ini",
-              "rom-Sonic1.cfg",
-              "native_save_1.bin",
-              "native_save_2.bin",
-              "native_save_3.bin",
-              "native_save_4.bin",
-              "native_save_5.bin",
-              "native_save_6.bin",
-              "native_save_7.bin",
-              "native_save_8.bin",
-              "native_save_9.bin",
-              "framelog_step2.txt",
-              "ramdump_native.bin",
-              "dispatch_misses.log",
-              "interior_label_misses.log",
-              "interp_fallbacks.log",
-              "last_error.log",
-              "chip_ring.txt",
-              "snd_ring.txt",
-              "yield_log_native.log"
-            ]
+            "url": "https://github.com/mstan/SonicTheHedgehogRecomp/releases/download/v0.6.0/SonicTheHedgehogRecomp-v0.6.0-win64.zip",
+            "size": 3776546,
+            "sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+            "published_at": "2026-06-17T05:17:11Z"
           }
         }
       },
@@ -18341,7 +19709,7 @@
       },
       "presentation": {
         "original_game_title": "Sonic the Hedgehog",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -18350,8 +19718,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v0.6.0 Windows ZIP outside your Portcove library and select the folder containing SonicTheHedgehogRecomp.exe. Register your exact raw big-endian 512 KiB JUE REV00 Genesis .bin separately. Portcove passes the verified original path directly without copying or modifying it. Keep debug.ini absent; adding it refuses package verification. Upstream reports Green Hill complete and later zones partial; full-game correctness remains unknown. Preserve LICENSE, THIRD-PARTY-LICENSES.md and README.txt unchanged. Project licensing does not grant rights to translated original-game code. Use short paths representable in the Windows system code page. Settings and saves remain player-owned. Unknown files refuse verification and remain preserved. Updates are user-managed; Portcove does not acquire, update, back up or delete the external runtime, source or saves. Windows registration, startup, ordinary close, restart, revalidation and registration-only removal were observed with ordinary developer options disabled. Gameplay, save/load, visual correctness, audio and controller behavior remain unqualified. If your exact raw source uses .md, make a byte-identical .bin working copy; no byte-order conversion or headered source is accepted.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic the Hedgehog (Japan/USA/Europe) raw big-endian Genesis source. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Upstream reports Green Hill complete and later zones partial.",
         "artwork": {
           "game_id": 3192,
           "cover_id": 497143,
@@ -18359,33 +19727,48 @@
           "image_sha256": "ac739a2272e2eab518c7d9814becf6f64cc61e8de57e5b357562f577d0d845d3",
           "game_slug": "sonic-the-hedgehog",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v0.6.0 Windows ZIP outside your Portcove library. Keep its licenses and notices unchanged."
-            },
-            {
-              "title": "Connect the original",
-              "instruction": "Choose and check your exact raw big-endian 512 KiB JUE REV00 Genesis .bin. If it uses .md, make a byte-identical .bin working copy. Do not convert byte order or add a header."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the folder containing SonicTheHedgehogRecomp.exe below. Portcove passes the checked file directly without copying or changing it."
-            }
-          ],
-          "warnings": [
-            "Keep debug.ini absent; it prevents package verification. Use short paths whose characters Windows can represent in its system code page.",
-            "Upstream reports Green Hill complete and later zones partial. Full-game correctness and gameplay acceptance remain unknown."
-          ]
         }
-      }
+      },
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "46160baa06362c711c9f1a5017cb7371026444936c8af5e93a78996cf32ff2a6"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "launch_arguments": [
+        "game.bin"
+      ],
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic1.cfg",
+        "native_save_1.bin",
+        "native_save_2.bin",
+        "native_save_3.bin",
+        "native_save_4.bin",
+        "native_save_5.bin",
+        "native_save_6.bin",
+        "native_save_7.bin",
+        "native_save_8.bin",
+        "native_save_9.bin"
+      ],
+      "runtime_mutable_paths": [
+        "framelog_step2.txt",
+        "ramdump_native.bin",
+        "dispatch_misses.log",
+        "interior_label_misses.log",
+        "interp_fallbacks.log",
+        "last_error.log",
+        "chip_ring.txt",
+        "snd_ring.txt",
+        "yield_log_native.log",
+        "z80_ram.bin"
+      ]
     },
     {
       "id": "the-force-engine-dark-forces",
       "name": "The Force Engine: Dark Forces",
-      "summary": "Dark Forces with an exact player-prepared Windows runtime and PC data.",
+      "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Gameplay remains unqualified.",
       "project_url": "https://github.com/TheForceEngine/TheForceEngine",
       "support_tier": "beta",
       "channels": [
@@ -18398,39 +19781,18 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
+        "provider": "direct-manifest",
         "repository": "TheForceEngine/TheForceEngine",
-        "user_prepared": {
+        "direct": {
           "windows-x86-64": {
             "version": "1.22.420",
-            "archive_name": "TheForceEngine-v1.22.420.zip",
-            "archive_size": 10561878,
-            "archive_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
-            "executable": "TheForceEngine.exe",
-            "immutable_tree_sha256": "e07fc26a2027500b74548e511c5677ea78357e466d23510d94161e144ce6eaf8",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "settings.ini",
-              "settings_default.ini",
-              "tfe_input_remapping.bin",
-              "DARKPILO.CFG",
-              "imgui.ini",
-              "the_force_engine_log.txt",
-              "the_force_engine_log.txt.1",
-              "the_force_engine_log.txt.2",
-              "the_force_engine_log.txt.3",
-              "Screenshots",
-              "Saves"
-            ],
-            "required_mutable_files": [
-              "settings.ini",
-              "DARKPILO.CFG"
-            ],
-            "settings_contract": "tfe-dark-forces-v1.22.420"
+            "url": "https://github.com/TheForceEngine/TheForceEngine/releases/download/v1.22.420/TheForceEngine-v1.22.420.zip",
+            "size": 10561878,
+            "sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac"
           }
         }
       },
-      "source_profile": "dark-forces-pc-dark-gob",
+      "source_profile": "dark-forces-pc-complete-installed-data",
       "executable_hints": {
         "windows-x86-64": [
           "TheForceEngine.exe"
@@ -18439,48 +19801,429 @@
       "presentation": {
         "original_game_title": "Star Wars: Dark Forces",
         "variant_label": "PC",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "staged-game-files",
         "source_requirements": [
           {
             "role": "game",
-            "profile_id": "dark-forces-pc-dark-gob",
-            "label": "Dark Forces PC installed data: exact primary DARK.GOB",
+            "profile_id": "dark-forces-pc-complete-installed-data",
+            "label": "Dark Forces PC installed data: complete folder or ZIP",
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library. Place the reviewed owned PC installed-data member set under GameData/ and register GameData/DARK.GOB as the original source. Prepare portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or create a deliberately fresh pilot using the reviewed non-overwriting procedure at https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md . Core neither seeds nor imports pilots. A present required pilot skips automatic absent-file imports while observed present; TFE may regenerate a malformed local pilot. Keep the shipped package, GameData and built-in Mods/TFE immutable. Additional mods/editor output require separate qualification. Settings, input mappings, pilot, saves, screenshots and fixed logs remain player-owned; registration-only removal preserves all files. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not freeze external writes or sandbox TFE. Windows registration, revalidation, startup, ordinary close, restart and removal were observed with the exact qualification CLI/private catalog. Gameplay, in-game save/load, visual correctness, audio, controllers and other platforms remain unqualified.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v1.22.420 Windows package into a fresh local folder outside your Portcove library."
-            },
-            {
-              "title": "Provide the complete original game data",
-              "instruction": "Place the reviewed owned PC installed-data member set under GameData/. Choose and check GameData/DARK.GOB in Portcove; that one file does not replace the complete required member set."
-            },
-            {
-              "title": "Prepare settings and a pilot",
-              "instruction": "Create portable settings.ini with [Game] game=\"Dark Forces\" and [Dark_Forces] sourcePath=\"GameData/\". Preserve a compatible owned DARKPILO.CFG, or follow the preparation guide to create a fresh pilot without overwriting an existing one."
-            },
-            {
-              "title": "Review the game folder",
-              "instruction": "Choose the extracted folder below. Keep the shipped package, GameData and built-in Mods/TFE unchanged."
-            }
+        "saves_and_settings": "portcove-managed"
+      },
+      "managed_initialization": "tfe-dark-forces-v1.22.420",
+      "launch_from_install_root": true,
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "DARK.GOB"
           ],
-          "warnings": [
-            "Portcove neither seeds nor imports a pilot. The game may regenerate a malformed pilot; preserve an existing compatible copy before preparing this folder.",
-            "Additional mods or editor output need separate qualification. Gameplay and in-game save/load remain unqualified."
+          "destination": "GameData/DARK.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/1E.LFD"
           ],
-          "help_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-prepared-windows-2026-10-18.md"
+          "destination": "GameData/LFD/1E.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AGENTMNU.LFD"
+          ],
+          "destination": "GameData/LFD/AGENTMNU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCEXT.LFD"
+          ],
+          "destination": "GameData/LFD/ARCEXT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ARCFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ARCFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD1.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD2.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD3.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/AWARD4.LFD"
+          ],
+          "destination": "GameData/LFD/AWARD4.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BOBA.LFD"
+          ],
+          "destination": "GameData/LFD/BOBA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF1.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/BRIEF2.LFD"
+          ],
+          "destination": "GameData/LFD/BRIEF2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO1.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/CARGO3.LFD"
+          ],
+          "destination": "GameData/LFD/CARGO3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DARKLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/DARKLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/DFBRIEF.LFD"
+          ],
+          "destination": "GameData/LFD/DFBRIEF.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ENDFLY.LFD"
+          ],
+          "destination": "GameData/LFD/ENDFLY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECCOMP.LFD"
+          ],
+          "destination": "GameData/LFD/EXECCOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXECX.LFD"
+          ],
+          "destination": "GameData/LFD/EXECX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXITNEB.LFD"
+          ],
+          "destination": "GameData/LFD/EXITNEB.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP1XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP1XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP2X.LFD"
+          ],
+          "destination": "GameData/LFD/EXP2X.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/EXP3XX.LFD"
+          ],
+          "destination": "GameData/LFD/EXP3XX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FTEXTCRA.LFD"
+          ],
+          "destination": "GameData/LFD/FTEXTCRA.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/FULLCRED.LFD"
+          ],
+          "destination": "GameData/LFD/FULLCRED.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMAS1.LFD"
+          ],
+          "destination": "GameData/LFD/GROMAS1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/GROMASX.LFD"
+          ],
+          "destination": "GameData/LFD/GROMASX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/HOLOCU.LFD"
+          ],
+          "destination": "GameData/LFD/HOLOCU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA1.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA2.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA2.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABBA3.LFD"
+          ],
+          "destination": "GameData/LFD/JABBA3.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JABESCP.LFD"
+          ],
+          "destination": "GameData/LFD/JABESCP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/JEDISFX.LFD"
+          ],
+          "destination": "GameData/LFD/JEDISFX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/KFLYBY.LFD"
+          ],
+          "destination": "GameData/LFD/KFLYBY.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/LOGO.LFD"
+          ],
+          "destination": "GameData/LFD/LOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MADINE1.LFD"
+          ],
+          "destination": "GameData/LFD/MADINE1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/MENU.LFD"
+          ],
+          "destination": "GameData/LFD/MENU.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/NEB1.LFD"
+          ],
+          "destination": "GameData/LFD/NEB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/PIT.LFD"
+          ],
+          "destination": "GameData/LFD/PIT.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROB1.LFD"
+          ],
+          "destination": "GameData/LFD/ROB1.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/ROBOTX.LFD"
+          ],
+          "destination": "GameData/LFD/ROBOTX.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/STANDARD.LFD"
+          ],
+          "destination": "GameData/LFD/STANDARD.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SUCCES.LFD"
+          ],
+          "destination": "GameData/LFD/SUCCES.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/SWLOGO.LFD"
+          ],
+          "destination": "GameData/LFD/SWLOGO.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "LFD/TUBECOMP.LFD"
+          ],
+          "destination": "GameData/LFD/TUBECOMP.LFD",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SOUNDS.GOB"
+          ],
+          "destination": "GameData/SOUNDS.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "SPRITES.GOB"
+          ],
+          "destination": "GameData/SPRITES.GOB",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "TEXTURES.GOB"
+          ],
+          "destination": "GameData/TEXTURES.GOB",
+          "materialization": "copy"
         }
-      }
+      ],
+      "runtime_source_hashes": {
+        "GameData/DARK.GOB": "3ff0efca4fb5ce82b2e02bbf1ef3fc4246f1ecce5625959f5e729f80a0576c1b",
+        "GameData/LFD/1E.LFD": "1f132ae57c788411abbd65f068347b8466c1b1268d4464aab966c9c926f1901b",
+        "GameData/LFD/AGENTMNU.LFD": "e59e1bdd7ecb9a08aa89a02dbc901fcbb7fe7823aaf303b469ecc321fb17b6cd",
+        "GameData/LFD/ARCEXT.LFD": "5b959d01147482ecbfa9e27099751480cbd171c561fc13659f3ef62768efb540",
+        "GameData/LFD/ARCFLY.LFD": "2ce1b6c03b26317d209170046b742b080c10ac370bb80c06c71db04610f8631a",
+        "GameData/LFD/AWARD1.LFD": "7b9a40f3bc88cc6f577aac47f260cbb1a7468409f95d8f414bf2634cbc5268b7",
+        "GameData/LFD/AWARD2.LFD": "7c6e0c8859bdf6e91745c3a2bf22dd13c402073a63edf3ab6d59a0374cdbebfc",
+        "GameData/LFD/AWARD3.LFD": "6668e2a0751902df74a079ec03c6140b6a74245bf140c860d5b792d82c0cd319",
+        "GameData/LFD/AWARD4.LFD": "9406d7ca508523bb2f49495d5221e8560935675e67f5743fcc3a2d08ce6f9867",
+        "GameData/LFD/BOBA.LFD": "d506439f6e1cb77c9eb6c306c7bdeb22e61bbbc19288d228b932e5ab026a6564",
+        "GameData/LFD/BRIEF1.LFD": "41562bfba6e130d82084908159866773059fde666546dd260a19a7fe938fbc51",
+        "GameData/LFD/BRIEF2.LFD": "2251a82a1be49ee3e57f04c99dbe9e8c4c7281b4e96a890bcd326a0e3ce4faa4",
+        "GameData/LFD/CARGO1.LFD": "cdcd7c0a5ffd7e79a6b00ead22427364329f4ad94221e99b7e62057717698fd5",
+        "GameData/LFD/CARGO3.LFD": "798301011299c824dc66cf9179ba94d7825d23c833d016bdd19183d7e023bad1",
+        "GameData/LFD/DARKLOGO.LFD": "d7552fc09f29160ca8629413d8c0abde0e486d932acf651c0b413306fda42ee5",
+        "GameData/LFD/DFBRIEF.LFD": "53d8b495607fa8a8ab138f354f6a2ce12e2f4e9b00524aaf8aa4e7b3c0320dd2",
+        "GameData/LFD/ENDFLY.LFD": "cba548394757245ddaf8d82211c2b97852f8403836462db6a658d1f70311cfa7",
+        "GameData/LFD/EXECCOMP.LFD": "63eb69be42ab9ab245133ce0442437722850a5b2b32b56e8a0ae9518d42559cc",
+        "GameData/LFD/EXECX.LFD": "6bac072bd974b743546f9ba52ebd27f07176e2c7e2583c8e0071b269503c59e9",
+        "GameData/LFD/EXITNEB.LFD": "83a49baf1ae13cb498c92cd0a2e17b718f3b86aa6e05c9346e97559432dfe881",
+        "GameData/LFD/EXP1XX.LFD": "0d0990750cb10b1aec59a0bc5511a1166d0c51e46377c239749984dffd8a85d5",
+        "GameData/LFD/EXP2X.LFD": "abe6026d2e16bdc382fef94eee025dd9743c5a5cde7d27dbe1009bee79bde648",
+        "GameData/LFD/EXP3XX.LFD": "3085c4ffe0b8e942da50f3d6eb6f8031b0bac76e4bc485edbcba29acb0ab6059",
+        "GameData/LFD/FTEXTCRA.LFD": "4055a34140f4e84bd3b29dfb499e040477c4c239d959ca22a40da249fab9804b",
+        "GameData/LFD/FULLCRED.LFD": "776a71b300a4ffae95984dd0411ba940ccdfb8537a6a41eb2b7359a0248fa57f",
+        "GameData/LFD/GROMAS1.LFD": "f2620271ad58554e3ff6dcb14fc349ac336b5dcb41dc9bc5abf8dd73cad923a1",
+        "GameData/LFD/GROMASX.LFD": "4b178b52c85e270fb3650c2ea644644b52246a97658c0e7ecf43c93945afca55",
+        "GameData/LFD/HOLOCU.LFD": "e80e0593ecc532ff5435a56bdd6a113967644831cbfa2b4cba01137057a91eb5",
+        "GameData/LFD/JABBA1.LFD": "4494a1cb51f285290d14379d3d70c5099b3b495d5048a509e3a5bee5878f2e6b",
+        "GameData/LFD/JABBA2.LFD": "550847b81ef3d6471f08a67ea90d1035f0c017c22e38759c18152c408101de7b",
+        "GameData/LFD/JABBA3.LFD": "ed7068d3d0e4fb8538bbb9a794197293ed2b5bf54002cfdb04bb0aaf6fe02ce0",
+        "GameData/LFD/JABESCP.LFD": "7defee44d1e2887834663eddc373d7b6c75eb3209f04f01d320e77c79183cc50",
+        "GameData/LFD/JEDISFX.LFD": "2877610360133fdce7ae783ea208bc73bc14c63f277ca23226cede64386a07c4",
+        "GameData/LFD/KFLYBY.LFD": "a4988bcfad93053cd302cbaaf1d250aadcb1d5908244fb1dd1a4ebb0290daa40",
+        "GameData/LFD/LOGO.LFD": "0a0c3a3d00ef26886dea01262796f75344d9c48f22ed91ac7d9f86da34293355",
+        "GameData/LFD/MADINE1.LFD": "7f4c09d1584d65bcf519423c04bbbffb4289cb05de23ae8eac7cd1dc44356896",
+        "GameData/LFD/MENU.LFD": "bbb0c99e9d1448883a5d26aead330ca8f0905af02fe9759c69b669a557ad134b",
+        "GameData/LFD/NEB1.LFD": "0c3e7812d2245ad789bf148429b43c1bbf31395e609ba935680f31ae28870b15",
+        "GameData/LFD/PIT.LFD": "2896586ef66af19aac0ba737b689beea32d9145535f8ba719f9c65ff0c3a07de",
+        "GameData/LFD/ROB1.LFD": "da02769732261ace923362272f1e52737d42deb39091b1c5334581a8c8a27217",
+        "GameData/LFD/ROBOTX.LFD": "a6dbcc3380d8d344cf90d8b2379866747478edfba0b61edc94d1376c54526efa",
+        "GameData/LFD/STANDARD.LFD": "d09b0e731de47ebeda259f9ffaded3412220d6d728e3eb6ed0d74829feffa939",
+        "GameData/LFD/SUCCES.LFD": "b6ebfd30779deafcc02512a61bca6739c5c6116701b9714e962150a0a47e889c",
+        "GameData/LFD/SWLOGO.LFD": "4a2de752430786bef3de237465f548f192637a0022087ededfe6536dd93ff487",
+        "GameData/LFD/TUBECOMP.LFD": "5f354a2a45cb8458eeeea1a1c7f0ff1892a408bd2f0599e928e0dcf90e0d4ef3",
+        "GameData/SOUNDS.GOB": "5cc43a1762341ba1ddeda6b3fa105f097fb59e4126d4b3d8e73cd5e7228c9d1c",
+        "GameData/SPRITES.GOB": "d7d5d7f8125c28b9917a470091ca1d37e26303e53b384d71f85bfe64579452ab",
+        "GameData/TEXTURES.GOB": "b36e507471ee2b64c18236503c34c58fc37233988424ce25f0767e412650ce42"
+      },
+      "persistent_paths": [
+        "settings.ini",
+        "settings_default.ini",
+        "tfe_input_remapping.bin",
+        "DARKPILO.CFG",
+        "imgui.ini",
+        "Screenshots",
+        "Saves"
+      ],
+      "runtime_mutable_paths": [
+        "GameData",
+        "the_force_engine_log.txt",
+        "the_force_engine_log.txt.1",
+        "the_force_engine_log.txt.2",
+        "the_force_engine_log.txt.3",
+        ".tfe-preparation"
+      ]
     },
     {
       "id": "sonic-the-hedgehog-2-recomp",
       "name": "SonicTheHedgehog2Recomp",
-      "summary": "Native Sonic the Hedgehog 2 recompilation with a player-prepared Windows runtime.",
+      "summary": "Native Sonic the Hedgehog 2 recompilation.",
       "project_url": "https://github.com/mstan/SonicTheHedgehog2Recomp",
       "support_tier": "beta",
       "channels": [
@@ -18493,53 +20236,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/SonicTheHedgehog2Recomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.8.3",
-            "archive_name": "SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
-            "archive_size": 7204657,
-            "archive_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
-            "executable": "SonicTheHedgehog2Recomp.exe",
-            "immutable_tree_sha256": "f48f6ca9b1c1068d4438f23cc4c6101ca7a3c134ec497bd59eb21780f833ff0e",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "settings.ini",
-              "rom-Sonic2.cfg",
-              "dispatch_misses.toml",
-              "dispatch_misses.toml.tmp",
-              "dispatch_misses.prev.toml",
-              "floor_coverage.toml",
-              "floor_coverage.toml.tmp",
-              "floor_coverage.prev.toml",
-              "interior_label_misses.toml",
-              "interior_label_misses.toml.tmp",
-              "interior_label_misses.prev.toml",
-              "floor_unsafe.toml",
-              "floor_unsafe.toml.tmp",
-              "floor_unsafe.prev.toml",
-              "sonic2-party.ini",
-              "sonic2-party.ini.tmp",
-              "native_save_1.bin",
-              "native_save_1.bin.thumb",
-              "native_save_2.bin",
-              "native_save_2.bin.thumb",
-              "native_save_3.bin",
-              "native_save_3.bin.thumb",
-              "native_save_4.bin",
-              "native_save_4.bin.thumb",
-              "native_save_5.bin",
-              "native_save_5.bin.thumb",
-              "native_save_6.bin",
-              "native_save_6.bin.thumb",
-              "native_save_7.bin",
-              "native_save_7.bin.thumb",
-              "native_save_8.bin",
-              "native_save_8.bin.thumb",
-              "native_save_9.bin",
-              "native_save_9.bin.thumb"
-            ]
+            "url": "https://github.com/mstan/SonicTheHedgehog2Recomp/releases/download/v0.8.3/SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+            "size": 7204657,
+            "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+            "published_at": "2026-10-18T14:31:39Z"
           }
         }
       },
@@ -18551,7 +20255,7 @@
       },
       "presentation": {
         "original_game_title": "Sonic the Hedgehog 2",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -18560,8 +20264,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v0.8.3 Windows ZIP outside the Portcove library. Place a byte-identical copy of the exact original in the package root as game.bin and register game.bin separately; it remains immutable and is passed directly with --no-launcher. Use only the exact World Rev A original. Optional party settings and nine fixed local-state slots are preserved, without operation acceptance. Campaign stores, configurable destinations and PID-named temporary files are outside this route; do not enable campaign modifications. Keep debug.ini and legacy interp_fallbacks.log absent; unknown files refuse verification before launch. Preserve all package licenses and notices. PolyForm Noncommercial terms do not establish ROM rights or redistribution permission. Use short Windows-code-page representable paths. Settings/saves remain player-owned. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not sandbox the runtime or disable inherited developer opt-ins. Windows consent-bound registration, revalidation, two Core-mediated startup/ordinary-close/restart cycles, immutable/original checks and registration-only removal were observed with the recorded qualification CLI/private catalog and named developer opt-ins cleared in the child environment. Gameplay, in-game save/load, optional features, controller/audio/visual correctness and other platforms remain unqualified.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged.",
         "artwork": {
           "game_id": 4438,
           "cover_id": 259939,
@@ -18569,37 +20273,78 @@
           "image_sha256": "ed88c95469e863e440f5edf598a957211bb6f28a3e7a78fe06fe79bbf84b656f",
           "game_slug": "sonic-the-hedgehog-2",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact official v0.8.3 Windows ZIP outside your Portcove library. Keep all package licenses and notices."
-            },
-            {
-              "title": "Make a working copy of the original",
-              "instruction": "Copy the exact World Rev A original into the package root as game.bin, without changing its bytes."
-            },
-            {
-              "title": "Connect and review",
-              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
-            }
-          ],
-          "warnings": [
-            "Keep debug.ini and interp_fallbacks.log absent. Do not enable campaign modifications or configurable save destinations; this route covers only fixed local outputs.",
-            "Use short Windows-code-page representable paths and ordinary runtime defaults. Optional features and gameplay remain unqualified; inherited developer options are not sandboxed."
-          ]
         }
       },
       "launch_arguments": [
         "--no-launcher",
         "game.bin"
+      ],
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "193bc4064ce0daf27ea9e908ed246d87ec576cc294833badebb590b6ad8e8f6b"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_file_patterns": [
+        {
+          "prefix": "sonic2-campaign.srm.",
+          "suffix": ".tmp"
+        },
+        {
+          "prefix": "sonic2-campaign.sav.",
+          "suffix": ".tmp"
+        }
+      ],
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic2.cfg",
+        "sonic2-party.ini",
+        "sonic2-party.ini.tmp",
+        "native_save_1.bin",
+        "native_save_1.bin.thumb",
+        "native_save_2.bin",
+        "native_save_2.bin.thumb",
+        "native_save_3.bin",
+        "native_save_3.bin.thumb",
+        "native_save_4.bin",
+        "native_save_4.bin.thumb",
+        "native_save_5.bin",
+        "native_save_5.bin.thumb",
+        "native_save_6.bin",
+        "native_save_6.bin.thumb",
+        "native_save_7.bin",
+        "native_save_7.bin.thumb",
+        "native_save_8.bin",
+        "native_save_8.bin.thumb",
+        "native_save_9.bin",
+        "native_save_9.bin.thumb",
+        "sonic2-campaign.srm",
+        "sonic2-campaign.srm.bak",
+        "sonic2-campaign.sav",
+        "sonic2-campaign.sav.bak"
+      ],
+      "runtime_mutable_paths": [
+        "dispatch_misses.toml",
+        "dispatch_misses.toml.tmp",
+        "dispatch_misses.prev.toml",
+        "floor_coverage.toml",
+        "floor_coverage.toml.tmp",
+        "floor_coverage.prev.toml",
+        "interior_label_misses.toml",
+        "interior_label_misses.toml.tmp",
+        "interior_label_misses.prev.toml",
+        "floor_unsafe.toml",
+        "floor_unsafe.toml.tmp",
+        "floor_unsafe.prev.toml",
+        "ramdump_native.bin",
+        "last_error.log"
       ]
     },
     {
       "id": "sonic-3-and-knuckles-recomp",
       "name": "Sonic3KRecomp",
-      "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation with a player-prepared Windows runtime.",
+      "summary": "Native Sonic & Knuckles + Sonic the Hedgehog 3 recompilation.",
       "project_url": "https://github.com/mstan/Sonic3AndKnucklesRecomp",
       "support_tier": "beta",
       "channels": [
@@ -18612,38 +20357,14 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "repository": "mstan/Sonic3AndKnucklesRecomp",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
             "version": "v0.5.3",
-            "archive_name": "Sonic3KRecomp-windows-x64-v0.5.3.zip",
-            "archive_size": 16694619,
-            "archive_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
-            "executable": "Sonic3KRecomp.exe",
-            "immutable_tree_sha256": "c25d601197f0abefb362275df0d3248cde2991c09d0358e70390bf18a17b24b1",
-            "source_argument_extension": null,
-            "mutable_paths": [
-              "settings.ini",
-              "rom-Sonic3K.cfg",
-              "game.srm",
-              "dispatch_misses.toml",
-              "floor_coverage.toml",
-              "yield_log_native.log",
-              "floor_unsafe.log",
-              "interior_label_misses.log",
-              "sonic3k-mods.ini",
-              "sonic3k-mods.ini.tmp",
-              "native_save_1.bin",
-              "native_save_2.bin",
-              "native_save_3.bin",
-              "native_save_4.bin",
-              "native_save_5.bin",
-              "native_save_6.bin",
-              "native_save_7.bin",
-              "native_save_8.bin",
-              "native_save_9.bin"
-            ]
+            "url": "https://github.com/mstan/Sonic3AndKnucklesRecomp/releases/download/v0.5.3/Sonic3KRecomp-windows-x64-v0.5.3.zip",
+            "size": 16694619,
+            "sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+            "published_at": "2026-10-18T14:30:37Z"
           }
         }
       },
@@ -18656,7 +20377,7 @@
       "presentation": {
         "original_game_title": "Sonic 3 & Knuckles",
         "variant_label": "Combined Sonic 3 + Sonic & Knuckles",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -18665,8 +20386,8 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact official v0.5.3 Windows ZIP outside the Portcove library. Place a byte-identical copy of the exact original in the package root as game.bin and register game.bin separately; it remains immutable and is passed directly with --no-launcher. Use the combined Sonic3K package only. Upstream validates size but disables its expected ROM CRC, so Core strong source admission and immutable game.bin bind the reviewed original. README says 0.5.2 while exact build-info and release say 0.5.3; preserve both. The fixed game.srm is player-owned SRAM. Optional mod settings and local states are preserved without operation acceptance; extra donor assets remain immutable. Keep debug.ini and legacy interp_fallbacks.log absent; unknown files refuse verification before launch. Preserve all package licenses and notices. PolyForm Noncommercial terms do not establish ROM rights or redistribution permission. Use short Windows-code-page representable paths. Settings/saves remain player-owned. Updates are user-managed; no acquisition, managed maintenance, backup or external deletion is offered. Sequential checks do not sandbox the runtime or disable inherited developer opt-ins. Windows consent-bound registration, revalidation, two Core-mediated startup/ordinary-close/restart cycles, immutable/original checks and registration-only removal were observed with the recorded qualification CLI/private catalog and named developer opt-ins cleared in the child environment. Gameplay, in-game save/load, optional features, controller/audio/visual correctness and other platforms remain unqualified.",
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Sonic & Knuckles + Sonic the Hedgehog 3 (USA) Lock-On raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted.",
         "artwork": {
           "game_id": 11219,
           "cover_id": 342176,
@@ -18674,31 +20395,43 @@
           "image_sha256": "b1861fa5813026f582beb11e665cefee8eaa27e8871e154ddc91a22819c7989e",
           "game_slug": "sonic-the-hedgehog-3-and-knuckles",
           "match_kind": "underlying-game"
-        },
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the combined port",
-              "instruction": "Extract the exact official v0.5.3 combined Sonic3K Windows ZIP outside your Portcove library. Keep all package licenses, notices and donor assets unchanged."
-            },
-            {
-              "title": "Make a working copy of the original",
-              "instruction": "Copy the exact combined Sonic3K original into the package root as game.bin, without changing its bytes."
-            },
-            {
-              "title": "Connect and review",
-              "instruction": "Choose and check that same game.bin in Portcove, then choose the extracted port folder below. Portcove launches with the upstream launcher skipped."
-            }
-          ],
-          "warnings": [
-            "Keep debug.ini and interp_fallbacks.log absent. Preserve the fixed game.srm SRAM file; optional mod settings and local states are preserved without operation acceptance.",
-            "The shipped README says 0.5.2 while release/build information says 0.5.3. Preserve both. Use short Windows-code-page representable paths and ordinary runtime defaults; gameplay remains unqualified."
-          ]
         }
       },
       "launch_arguments": [
         "--no-launcher",
         "game.bin"
+      ],
+      "runtime_source_filename": "game.bin",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.bin": "fba0677fde9f76df93f3e98d6310d8af68b9847bde16e253d73cd4dd8134ed23"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "game.bin",
+        "settings.ini",
+        "rom-Sonic3K.cfg",
+        "game.srm",
+        "sonic3k-mods.ini",
+        "sonic3k-mods.ini.tmp",
+        "native_save_1.bin",
+        "native_save_2.bin",
+        "native_save_3.bin",
+        "native_save_4.bin",
+        "native_save_5.bin",
+        "native_save_6.bin",
+        "native_save_7.bin",
+        "native_save_8.bin",
+        "native_save_9.bin"
+      ],
+      "runtime_mutable_paths": [
+        "dispatch_misses.toml",
+        "floor_coverage.toml",
+        "yield_log_native.log",
+        "floor_unsafe.log",
+        "interior_label_misses.log",
+        "ramdump_native.bin",
+        "last_error.log"
       ]
     },
     {
@@ -19001,7 +20734,7 @@
     {
       "id": "resident-evil-gaiden-recomp",
       "name": "Resident Evil Gaiden Recompiled",
-      "summary": "Exact Windows use-in-place route with explicit shared preference consent.",
+      "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
       "support_tier": "beta",
       "channels": [
@@ -19014,24 +20747,13 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {
-        "provider": "user-prepared",
-        "user_prepared": {
+        "provider": "direct-manifest",
+        "direct": {
           "windows-x86-64": {
-            "version": "0.4.1",
-            "archive_name": "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
-            "archive_size": 33085815,
-            "archive_sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6",
-            "executable": "Resident_Evil_Gaiden__USA_.exe",
-            "immutable_tree_sha256": "0dee3194883214a9842093ca511a899ca0a95689e01c837e8f0546655daeb4ef",
-            "source_argument_extension": "gbc",
-            "shared_preferences": "regaiden041-windows",
-            "mutable_paths": [
-              "config.ini",
-              "runtime_prefs.ini",
-              "saves",
-              "snapshots",
-              "imgui.ini"
-            ]
+            "version": "v0.4.1",
+            "url": "https://github.com/sergiomanzur/regaiden-recomp/releases/download/v0.4.1/Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip",
+            "size": 33085815,
+            "sha256": "d16ba320c75a23765ef1e84c6f70f551612834914c70fd4c542e20ae7ce5dcc6"
           }
         }
       },
@@ -19042,13 +20764,22 @@
         ]
       },
       "launch_arguments": [
+        "--rom",
+        "game.gbc",
         "--save-dir",
         "saves"
       ],
-      "persistent_paths": [],
+      "persistent_paths": [
+        "game.gbc",
+        "config.ini",
+        "runtime_prefs.ini",
+        "imgui.ini",
+        "saves",
+        "snapshots"
+      ],
       "presentation": {
         "original_game_title": "Resident Evil Gaiden",
-        "installation_method": "user-prepared-runtime",
+        "installation_method": "portable-recompilation",
         "source_requirements": [
           {
             "role": "game",
@@ -19057,33 +20788,17 @@
             "verification": "catalog-identity"
           }
         ],
-        "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Extract the exact authenticated v0.4.1 Windows archive outside the Portcove library and create its empty saves directory. Keep all package files and notices unchanged except config.ini and game-owned imgui.ini window state. Register the exact original separately. Explicitly accept the resolved account-wide roaming preference file and local fallback; running the game may create or overwrite these files and discard unknown entries. Existing safe printable ASCII paths and MAX_PATH bounds apply. Portcove does not own, update, back up, restore or delete the external runtime, local outputs or shared preferences. Removal unregisters only. MIT/clean-room/original-mod-assets statements are attributed upstream assertions, not blanket redistribution rights. Optional replacement music/HD changes, extra CLI options and gameplay acceptance are outside the offered route.",
-        "manual_setup": {
-          "steps": [
-            {
-              "title": "Extract the port",
-              "instruction": "Extract the exact authenticated v0.4.1 Windows archive outside your Portcove library. Keep its package files and notices unchanged."
-            },
-            {
-              "title": "Create a local save folder",
-              "instruction": "Create an empty saves directory in the extracted package. Only config.ini and game-owned imgui.ini window state may change among package files."
-            },
-            {
-              "title": "Connect your original",
-              "instruction": "Choose and check the exact supported original separately in Portcove."
-            },
-            {
-              "title": "Review the folder and shared preferences",
-              "instruction": "Choose the port folder below. Review and explicitly accept the resolved account-wide roaming preference file and its local fallback before launch."
-            }
-          ],
-          "warnings": [
-            "The game may create or overwrite shared preference files and discard unknown entries. Portcove does not own or back up those shared preferences.",
-            "Use safe printable ASCII paths within the Windows MAX_PATH limit. Optional music/HD changes, extra launch options and gameplay acceptance are outside this route."
-          ]
-        }
-      }
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission."
+      },
+      "managed_shared_preferences": "regaiden041-windows",
+      "runtime_source_filename": "game.gbc",
+      "runtime_source_materialization": "regaiden-gbc",
+      "runtime_source_hashes": {
+        "game.gbc": "9a97678cbd8da02c8763e977674e17f460c06ea8b73bad35c52fe6817f506d44"
+      },
+      "launch_from_install_root": true,
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "earthbound-recomp",
@@ -19160,6 +20875,397 @@
           "suffix": ".dmp"
         }
       ]
+    },
+    {
+      "id": "super-mario-bros-remastered",
+      "name": "Super Mario Bros. Remastered",
+      "summary": "Use the exact stock Windows runtime with disabled mods and separately reviewed shared game data.",
+      "project_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "1.1-stable",
+            "archive_name": "Windows.zip",
+            "archive_size": 76214255,
+            "archive_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109",
+            "executable": "SMB1R.exe",
+            "immutable_tree_sha256": "a8cb5667881f64dead389d8e8dd821bd4787f2b345156953d645f27412398b6a",
+            "shared_preferences": "smb1r-1.1-stable-windows",
+            "mutable_paths": []
+          }
+        }
+      },
+      "source_profile": "smb1r-world-nes",
+      "executable_hints": {
+        "windows-x86-64": [
+          "SMB1R.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--disable-mods"
+      ],
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "smb1r-world-nes",
+            "label": "Super Mario Bros. (World) exact NES original",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Download the exact official 1.1-stable Windows.zip and extract its five unchanged files outside the Portcove library. Do not add portable.txt or mods. Register your recognized World NES original separately. Explicitly review and accept the current Windows account and effective APPDATA/SMB1R shared directory, then manually copy your original there as baserom.nes. Existing settings.cfg must be bounded ordinary data without Godot object/resource constructors. Refresh after manual preparation. Other game copies share originals, settings, saves and custom data; the game can regenerate or trash caches and prune logs. Portcove does not seed, own, migrate, update, back up, restore or delete this shared directory or the prepared runtime. Removal unregisters only. Mods and extra engine/CLI arguments are not offered. Registration is distinct from launch readiness and gameplay observations. This limited route accepts only vanilla BaseAssets. Existing settings must select only BaseAssets. Move custom levels/autosaves, blueprints, custom-character inputs, extra resource packs and Godot loader metadata elsewhere manually before use, preserving their files. Core refuses those executable-bearing inputs without changing them. The route does not offer the optional editor/import workflow or sandbox independent imports while the game runs.",
+        "original_game_title": "Super Mario Bros.",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Extract the exact stock runtime",
+              "instruction": "Extract the official 1.1-stable Windows.zip outside the Portcove library. Keep its five files unchanged; do not add portable.txt, loader metadata or mods."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check your exact Super Mario Bros. (World) NES original separately in Portcove."
+            },
+            {
+              "title": "Review the shared account directory",
+              "instruction": "Choose the runtime folder below. Review the resolved Windows account and APPDATA/SMB1R directory, then explicitly accept the shared-data disclosure."
+            },
+            {
+              "title": "Prepare the cached original manually",
+              "instruction": "Copy your checked original unchanged into that shared directory as baserom.nes. Refresh readiness before Play. Core never creates or seeds this shared directory."
+            }
+          ],
+          "warnings": [
+            "Other copies share originals, settings and saves. The game can regenerate or trash caches and prune logs. Portcove does not own, update, back up, restore or delete these files; removal unregisters only.",
+            "Only vanilla BaseAssets is accepted. Preserve and manually move other packs, custom characters, levels/autosaves, blueprints and Godot loader metadata elsewhere before use. Editor/import operations and extra arguments are outside this route."
+          ]
+        }
+      }
+    },
+    {
+      "id": "render96ex",
+      "name": "Super Mario 64 Render96",
+      "summary": "Play Super Mario 64 through the Render96 engine.",
+      "project_url": "https://github.com/Render96/Render96ex",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "Render96/Render96ex",
+        "direct": {
+          "windows-x86-64": {
+            "version": "source-48da5c491c8a",
+            "url": "https://github.com/Render96/Render96ex/archive/48da5c491c8abfb2f5192b59278c1c269411e533.zip",
+            "size": 11615689,
+            "sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403",
+            "published_at": null
+          }
+        },
+        "managed_build": {
+          "windows-x86-64": "render96-us-source-48da5c491c8a"
+        }
+      },
+      "source_profile": "ghostship-source",
+      "executable_hints": {
+        "windows-x86-64": [
+          "sm64.us.f3dex2e.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ghostship-source",
+            "label": "Super Mario 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Super Mario 64",
+        "manual_preparation": "Supply the exact raw Super Mario 64 USA 1.0 original as .z64, .n64 or .v64. Extract ZIP inputs before registration. The pinned Windows x64 build uses stock resources and needs a library path containing only ASCII letters, digits, slash, colon, dot, underscore or hyphen. Remove SDL_DYNAMIC_API before starting Portcove. Settings and the binary save file are managed by Portcove. Optional models, texture packs, TAS inputs and runtime overrides are not offered. A different Render96 source release requires a reviewed compatible recipe.",
+        "artwork": {
+          "game_id": 1074,
+          "cover_id": 329251,
+          "image_id": "co721v",
+          "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+          "game_slug": "super-mario-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--savepath",
+        "!"
+      ],
+      "persistent_paths": [
+        "sm64config.txt",
+        "sm64_save_file.bin"
+      ]
+    },
+    {
+      "id": "super-bomberman-recomp",
+      "name": "BombermanRecomp",
+      "summary": "Play Super Bomberman on your desktop.",
+      "project_url": "https://github.com/elliotttate/BombermanRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.1.1",
+            "url": "https://github.com/elliotttate/BombermanRecomp/releases/download/v0.1.1/BombermanRecomp-windows-x64-v0.1.1.zip",
+            "size": 1245795,
+            "sha256": "079744154b82c7d89c39e693cc1440ad63c2e4fc71762b436c03eb1a4faa778a",
+            "published_at": "2026-08-26T16:01:04Z"
+          }
+        }
+      },
+      "source_profile": "super-bomberman-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "BombermanRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "original_game_title": "Super Bomberman",
+        "installation_method": "portable-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "super-bomberman-snes-usa",
+            "label": "Super Bomberman (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own stock headerless Super Bomberman (USA) source. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route.",
+        "artwork": {
+          "game_id": 3450,
+          "cover_id": 292645,
+          "image_id": "co69t1",
+          "image_sha256": "ca7bb95b008bfa7dcfd4a2fe0da3af70abeeaa52b084f5a08504f0130a0a7669",
+          "game_slug": "super-bomberman",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "launch_environment": {},
+      "runtime_source_filename": "game.sfc",
+      "runtime_source_materialization": "copy",
+      "runtime_source_hashes": {
+        "game.sfc": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f"
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "runtime_mutable_file_patterns": [
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".json"
+        },
+        {
+          "prefix": "tier2_super_bomberman_",
+          "suffix": ".jsonl"
+        }
+      ],
+      "persistent_paths": [
+        "game.sfc",
+        "saves"
+      ],
+      "runtime_mutable_paths": []
+    },
+    {
+      "id": "gundam-wing-endless-duel-recomp",
+      "name": "Gundam Wing: Endless Duel Recomp",
+      "summary": "Build and play Gundam Wing: Endless Duel from your own Japanese original.",
+      "project_url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+        "direct": {
+          "windows-x86-64": {
+            "version": "source-c7aaaa152192",
+            "url": "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp/archive/c7aaaa152192db5d750db3fb190e8f93b6240c19.zip",
+            "size": 3363589,
+            "sha256": "bfe295943d83d144def7f355ac47f04fd90fb5bd2000ca0217e7874dfc33c2ee",
+            "published_at": null
+          }
+        },
+        "managed_build": {
+          "windows-x86-64": "gundam-wing-snes-source-c7aaaa152192-japan-offline"
+        }
+      },
+      "source_profile": "gundam-wing-endless-duel-snes-japan",
+      "executable_hints": {
+        "windows-x86-64": [
+          "GundamWingEndlessDuelSNESRecomp.exe"
+        ]
+      },
+      "presentation": {
+        "original_game_title": "Shin Kidou Senki Gundam W: Endless Duel",
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "gundam-wing-endless-duel-snes-japan",
+            "label": "Gundam Wing: Endless Duel (Japan) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own stock headerless Japanese original. Portcove builds the fixed offline source recipe with optional mods, setup and netplay disabled. Use a short library path with basic Latin characters. Close the game with its titlebar close button. Your original remains separate from managed settings and saves; gameplay completion and populated save/load remain unverified."
+      },
+      "launch_arguments": [
+        "game.sfc"
+      ],
+      "persistent_paths": [
+        "config.ini",
+        "config.local.ini",
+        "keybinds.ini",
+        "rom.cfg",
+        "saves"
+      ],
+      "runtime_mutable_paths": [
+        ".snesrecomp_write_probe"
+      ],
+      "runtime_mutable_file_patterns": [],
+      "launch_environment": {}
+    },
+    {
+      "id": "dkc2-recomp",
+      "name": "DKC2Recomp",
+      "summary": "Play Donkey Kong Country 2 with a reviewed player-prepared Windows runtime.",
+      "project_url": "https://github.com/mstan/DKC2Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "staged-source-portable",
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "release": {
+        "provider": "user-prepared",
+        "repository": "mstan/DKC2Recomp",
+        "user_prepared": {
+          "windows-x86-64": {
+            "version": "v0.0.2",
+            "archive_name": "DKC2Recomp-windows-x64-v0.0.2.zip",
+            "archive_size": 8488768,
+            "archive_sha256": "33e36ad0a83b47de4a723fbe2d45e17a30c3bbbb15f6998173684317dc1abb89",
+            "executable": "DKC2Recomp.exe",
+            "immutable_tree_sha256": "980bdaf31d4ddf573b49447513abe3825f41ce0a4d2f457475d2c04599c5eb55",
+            "source_argument_extension": "sfc",
+            "mutable_paths": [
+              "launcher.cfg",
+              "rom.cfg",
+              "performance.log",
+              "diagnostics",
+              "saves",
+              ".snesrecomp_write_probe"
+            ]
+          }
+        }
+      },
+      "source_profile": "donkey-kong-country-2-snes-usa",
+      "executable_hints": {
+        "windows-x86-64": [
+          "DKC2Recomp.exe"
+        ]
+      },
+      "launch_arguments": [],
+      "presentation": {
+        "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
+        "installation_method": "user-prepared-runtime",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "donkey-kong-country-2-snes-usa",
+            "label": "Donkey Kong Country 2 (USA) stock headerless SNES source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Prepare the exact official v0.0.2 Windows runtime outside the Portcove library, omitting assets/img/boxart.tga. Keep all other executable, DLL, asset and license files unchanged. Select your own exact stock headerless USA .sfc original. Use short basic-Latin paths for both the runtime and original. Portcove bypasses the artwork launcher, fixes the GDI compatibility presenter and diagnostic destinations, and passes the checked original directly to the game. You manage saves, diagnostics, settings and runtime updates. Known upstream alpha rendering and level-dispatch limitations remain; startup acceptance is separate from gameplay completion.",
+        "artwork": {
+          "game_id": 1092,
+          "cover_id": 94882,
+          "image_id": "co217m",
+          "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
+          "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
+          "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the exact runtime",
+              "instruction": "Extract the complete official v0.0.2 Windows x64 ZIP into a writable folder outside your Portcove library. Omit assets/img/boxart.tga and leave every other file unchanged."
+            },
+            {
+              "title": "Choose compatible folders",
+              "instruction": "Use short paths with basic Latin characters for both the runtime folder and your original game file."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check your own stock headerless USA .sfc original in Portcove, then choose the prepared runtime folder below for review."
+            }
+          ],
+          "warnings": [
+            "Portcove selects the GDI compatibility renderer and bypasses the artwork launcher. You manage updates, settings, diagnostics and saves in this external folder; removal unregisters only.",
+            "Known upstream alpha rendering and level-dispatch limitations remain. Startup checks do not establish completed gameplay or populated save/load."
+          ]
+        }
+      },
+      "persistent_paths": [],
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "launch_environment": {
+        "SNESRECOMP_NO_LAUNCHER": "1",
+        "DKC2_DESKTOP_FORCE_GDI": "1",
+        "SNESRECOMP_TIER2_MANIFEST": "diagnostics/tier2_dkc2.json",
+        "SNESRECOMP_TIER2_JOURNAL": "diagnostics/tier2_dkc2.jsonl"
+      }
     }
   ]
 }

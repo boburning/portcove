@@ -187,7 +187,7 @@ namespace Portcove.ReferenceClient
                 "available", "route_not_offered", "already_registered", "unsupported_platform", "not_installed", "review_required",
                 "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
                 "unreadable_bios", "changed_bios", "incompatible_bios", "missing_runtime", "preparation_required",
-                "invalid_installation", "definition_ineligible", "missing_data", "missing_backup", "unreadable_data", "unsafe_data", "recovery_required", "assessment_incomplete"
+                "invalid_installation", "shared_preferences_review_required", "shared_preferences_unavailable", "definition_ineligible", "missing_data", "missing_backup", "unreadable_data", "unsafe_data", "recovery_required", "assessment_incomplete"
             }.Contains(reason))
                 throw new InvalidOperationException("Unknown Portcove action reason. Update the client before managing this game.");
             if ((availability == "allowed") != (reason == "available"))
@@ -290,6 +290,10 @@ namespace Portcove.ReferenceClient
             var decisions = Read(status);
             if (decisions.Length == 0) return null;
             return string.Join("\n", decisions.Select(value =>
+                value.Reason == "shared_preferences_unavailable" ?
+                "Shared preferences cannot be checked safely. Leave the file unchanged, close other game copies, check Windows profile availability, then refresh. Reinstalling does not fix this inspection failure." :
+                value.Reason == "shared_preferences_review_required" ?
+                "Shared preferences require review: remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the account-wide preferences file in place." :
                 "Action " + value.Action.Replace('_', ' ') + ": " + value.Availability.Replace('_', ' ') +
                 " — " + (value.DefinitionReason ?? value.Reason).Replace('_', ' ')));
         }
@@ -299,6 +303,10 @@ namespace Portcove.ReferenceClient
             var decisions = Read(status);
             var definitions = DefinitionOperations.Read(status);
             var readiness = Json.OptionalObjectField(status, "readiness");
+            object sharedBlockers;
+            if (schema < 77 && (decisions.Any(value => value.Reason == "shared_preferences_review_required" || value.Reason == "shared_preferences_unavailable") ||
+                (readiness != null && Json.TryField(readiness, "blockers", out sharedBlockers) && Json.Array(sharedBlockers).Any(value => Equals(value,"shared_preferences_review_required") || Equals(value,"shared_preferences_unavailable")))))
+                throw new InvalidOperationException("Managed shared-preferences guidance requires API schema77. Update the selected CLI/client pair.");
             SourceInputAssessment.Validate(readiness, schema);
             if (schema < 70 && decisions.Any(value => value.Reason == "incompatible_bios"))
                 throw new InvalidOperationException("Portcove BIOS compatibility guidance does not match its API schema.");
@@ -544,6 +552,7 @@ namespace Portcove.ReferenceClient
             "\n\nLibrary: " + library + "\nManaged folders to remove:\n" + string.Join("\n", ManagedPaths) +
             "\n\nSaved data kept at: " + PersistentDataPath +
             "\nOriginal game files and backups are not in this managed-folder preview." +
+            "\nSign-ins stored only inside installed versions are deleted with those versions." +
             "\n\nThis is game uninstallation. Hiding or removing a Playnite entry is a separate action.";
     }
 
@@ -679,9 +688,10 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 72;
+        internal const int Schema = 77;
         internal static bool SupportsExternalRelink(object capabilities) =>
-            Json.Number(capabilities, "schema_version") == 72 &&
+            Json.Number(capabilities, "schema_version") >= 72 &&
+            Json.Number(capabilities, "schema_version") <= Schema &&
             SupportsReviewedExternal(capabilities) &&
             Json.Array(Json.Field(capabilities, "commands")).Contains("external.relink");
         private static bool SupportedSchema(long version) => (version >= 42 && version <= 57) || (version >= 60 && version <= 63) || (version >= 65 && version <= Schema);
@@ -715,7 +725,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 72; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 77; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -838,7 +848,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 72. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 77. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

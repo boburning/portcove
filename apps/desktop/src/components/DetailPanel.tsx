@@ -1,5 +1,6 @@
 import { GameFileObservationSummary } from "../features/browsing/GameFileObservationSummary";
-import { gameTitle, gameProjectLabel } from "../port-identity";
+import { usePreparationCompletionFocus } from "../features/preparation/use-preparation-completion-focus";
+import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import type { GameFileObservationPresentation } from "../features/browsing/use-game-file-observation";
 import { cn } from "cn";
 import { RemovalControl, type ApplyRemoval } from "./RemovalReview";
@@ -75,6 +76,10 @@ import { SourceIdentityPanel } from "./SourceIdentity";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { portActionPresentation } from "../features/port-actions/port-action-presentation";
+import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
 
 export interface DetailActions {
   activate: AsyncAction;
@@ -169,7 +174,15 @@ export function DetailPanel(props: DetailPanelProps) {
     actions,
   } = props;
   const [outputApplying, setOutputApplying] = useState(false);
-  const effectiveBusy = busy ?? (outputApplying ? "storage location" : undefined);
+  const operationOwner = useOperationPresentation();
+  const actionState = presentPortAction(
+    operationOwner,
+    port.id,
+    status,
+    status?.active || status?.external_runtime ? "launch" : "install",
+    busy,
+  );
+  const effectiveBusy = actionState.busy ?? (outputApplying ? "storage location" : undefined);
   const selectedChannel = status?.channel ?? defaultReleaseChannel(port);
   const policy = status?.update_policy ?? "notify";
   const {
@@ -179,7 +192,8 @@ export function DetailPanel(props: DetailPanelProps) {
     installed,
     pendingSetup,
   } = detailReadiness(port, status, source, sourcePath, bios, biosPath);
-  const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
+  // Pending work excludes controls without rewriting observed readiness.
+  const actionPresentation = actionState.readiness;
   const launchReady = readinessLaunchReady && (!installed || !actionPresentation.blocked);
   const selectedRequirement = selectedSourceRequirement(source, sourcePath, bios, biosPath);
   const missingRequirement: SelectedRequirement | undefined =
@@ -319,7 +333,7 @@ export function DetailPanel(props: DetailPanelProps) {
       backupReadState={backupReadState}
       retryBackupRead={retryBackupRead}
       busy={effectiveBusy}
-      outputExternalBusy={busy}
+      outputExternalBusy={actionState.busy}
       libraryGeneration={props.libraryGeneration ?? 0}
       outputLocationChanged={props.outputLocationChanged}
       externalRuntimeChanged={props.externalRuntimeChanged}
@@ -520,6 +534,7 @@ function DetailBody({
             pendingSetup={pendingSetup}
             runtimeUpdateAvailable={runtimeUpdateAvailable}
             managedPreparation={managedPreparation}
+            prepare={prepare}
             installPlan={installPlan}
             busy={busy}
             libraryGeneration={libraryGeneration}
@@ -529,17 +544,28 @@ function DetailBody({
           />
         </div>
       </div>
+      {installed && !external && (
+        <UpdatesGroup
+          perform={perform}
+          port={port}
+          status={status}
+          installed={installed}
+          deferSetupChoices={deferSetupChoices}
+          selectedChannel={selectedChannel}
+          policy={policy}
+          libraryGeneration={libraryGeneration}
+          busy={busy}
+          actions={actions}
+        />
+      )}
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
         port={port}
-        status={status}
         installed={installed}
         sources={sources}
         managedPreparation={managedPreparation}
         pendingSetup={pendingSetup}
-        libraryGeneration={libraryGeneration}
         busy={busy}
-        prepare={prepare}
       />
       <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
         {port.summary}
@@ -558,7 +584,7 @@ function DetailBody({
           <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
         </DetailGroup>
       )}
-      {!external && (
+      {!installed && !external && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -640,6 +666,7 @@ function StatusActionsGroup({
   pendingSetup,
   runtimeUpdateAvailable,
   managedPreparation,
+  prepare,
   installPlan,
   busy,
   libraryGeneration,
@@ -659,6 +686,7 @@ function StatusActionsGroup({
   pendingSetup: boolean;
   runtimeUpdateAvailable: boolean;
   managedPreparation: boolean;
+  prepare?: RunPreparation | undefined;
   installPlan?: InstallPlan | undefined;
   busy?: string | undefined;
   libraryGeneration: number;
@@ -666,6 +694,14 @@ function StatusActionsGroup({
   actions: DetailActions;
   openLibraryStorage?: (() => void) | undefined;
 }) {
+  const gameActions = useRef<HTMLElement>(null);
+  const nextStep = useRef<HTMLHeadingElement>(null);
+  const preparedFocus = usePreparationCompletionFocus({
+    owner: gameActions,
+    nextStep,
+    identity: `${port.id}:${libraryGeneration}`,
+    busy: Boolean(busy),
+  });
   const actionPresentation = portActionPresentation(status, installed ? "launch" : "install");
   const trial =
     hasUnconfirmedLaunchInput(status, port) ||
@@ -679,6 +715,21 @@ function StatusActionsGroup({
         {status?.external_runtime && actionPresentation.blocked && (
           <p role="status">{actionPresentation.reason}</p>
         )}
+        {status?.external_runtime?.shared_preferences?.contract === "smb1r-1.1-stable-windows" &&
+          status.readiness?.blockers.some(
+            (blocker) => blocker === "preparation_required" || blocker === "invalid_installation",
+          ) && (
+            <p role="status">
+              Copy your recognized Super Mario Bros. (World) NES original to{" "}
+              <code>{status.external_runtime.shared_preferences.path}</code> as{" "}
+              <code>baserom.nes</code>. If <code>settings.cfg</code> exists there, review it as
+              ordinary data without Godot object or resource constructors and use only the
+              BaseAssets resource pack. Move custom levels and autosaves, blueprints, custom
+              characters, extra resource packs and Godot loader metadata elsewhere manually,
+              preserving their files. Refresh afterward. Portcove does not seed, own, update, back
+              up or delete this shared directory.
+            </p>
+          )}
         {status?.external_runtime && (
           <PrimaryActions
             trial={trial}
@@ -730,9 +781,37 @@ function StatusActionsGroup({
       </section>
     );
   return (
-    <section aria-label="Game actions" className="grid gap-3">
+    <section
+      ref={gameActions}
+      data-task-owner={`${port.id}:${libraryGeneration}`}
+      aria-label="Game actions"
+      className="grid gap-3"
+    >
       <RetiredNotice port={port} />
       {actionPresentation.blocked && <p role="status">{actionPresentation.reason}</p>}
+      {(!launchReady || managedPreparation) && (
+        <h2 ref={nextStep} tabIndex={-1} className="m-0 text-base">
+          {managedPreparation && pendingSetup ? "Next step: prepare game data" : "Next step"}
+        </h2>
+      )}
+      {managedPreparation && pendingSetup && sources.sourceReady && sources.biosReady && (
+        <>
+          <PreparationControl
+            key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
+            portId={port.id}
+            taskLabel={`${gameTitle(port)}${gameProjectLabel(port) ? ` · Port: ${gameProjectLabel(port)}` : ""}`}
+            generation={libraryGeneration}
+            disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
+            run={prepare}
+            onPrepared={preparedFocus}
+            focusFallback={() =>
+              gameActions.current?.querySelector<HTMLElement>(
+                "[data-confirmed-play]:not(:disabled)",
+              ) ?? nextStep.current
+            }
+          />
+        </>
+      )}
       <PrimaryActions
         trial={trial}
         installCancellations={installCancellations}
@@ -764,24 +843,18 @@ const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
 function RequirementsGroup({
   port,
-  status,
   installed,
   sources,
   managedPreparation,
   pendingSetup,
-  libraryGeneration,
   busy,
-  prepare,
 }: {
   port: PortDefinition;
-  status?: PortStatus | undefined;
   installed: boolean;
   sources: SourceControls;
   managedPreparation: boolean;
   pendingSetup: boolean;
-  libraryGeneration: number;
   busy?: string | undefined;
-  prepare?: RunPreparation | undefined;
 }) {
   const needsAttention =
     !installed ||
@@ -790,7 +863,6 @@ function RequirementsGroup({
     (managedPreparation && pendingSetup);
   const [initiallyOpen] = useState(needsAttention);
   const disclosure = useRef<HTMLDetailsElement>(null);
-  const preparationFocus = useRef<HTMLElement>(null);
   useEffect(() => {
     if (needsAttention && disclosure.current) disclosure.current.open = true;
   }, [needsAttention]);
@@ -802,11 +874,7 @@ function RequirementsGroup({
         className="requirements-disclosure border-y border-pc-border"
         open={initiallyOpen}
       >
-        <summary
-          ref={preparationFocus}
-          data-focusable
-          className={`requirements-summary ${disclosureSummaryStyle}`}
-        >
+        <summary data-focusable className={`requirements-summary ${disclosureSummaryStyle}`}>
           Game-file requirements and setup
           <span className={`requirements-summary-meta ${disclosureMetaStyle}`}>File controls</span>
           <Icon className="text-[var(--color-interactive-text)]" glyph={ChevronDown} />
@@ -815,16 +883,6 @@ function RequirementsGroup({
           <RequirementsSummary port={port} />
           <SourceFields controls={sources} />
           <SourceIntakeActions controls={sources} busy={Boolean(busy)} />
-          {managedPreparation && pendingSetup && (
-            <PreparationControl
-              key={`${port.id}:${libraryGeneration}:${status?.active?.id}`}
-              portId={port.id}
-              generation={libraryGeneration}
-              disabled={Boolean(busy) || !sources.sourceReady || !sources.biosReady}
-              run={prepare}
-              focusFallback={() => preparationFocus.current}
-            />
-          )}
         </div>
       </details>
     </DetailGroup>
@@ -878,13 +936,6 @@ function UpdatesGroup({
   );
   return (
     <DetailGroup title="Updates">
-      <FutureSetupDisclosure
-        deferred={deferSetupChoices}
-        title="Release and update choices for later"
-        description="Game files are still required before installation. These choices apply to a future managed install."
-      >
-        {preferences}
-      </FutureSetupDisclosure>
       {status?.staged && (
         <section aria-label="Use update saved for later">
           <p>
@@ -900,12 +951,24 @@ function UpdatesGroup({
             portId={port.id}
             generation={libraryGeneration}
             policy={policy}
+            gameName={gameIdentityLabel(port)}
             busy={Boolean(busy)}
             perform={perform}
           />
           <UpdateCheckAction busy={busy} check={actions.check} />
         </>
       )}
+      <details className="mt-4">
+        <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+          Future update preferences
+        </summary>
+        <p className="text-xs text-pc-muted-foreground">
+          {deferSetupChoices ? "Game files are still required before installation. " : ""}
+          These choices apply to future checks and managed updates. Saving them does not run an
+          update.
+        </p>
+        {preferences}
+      </details>
     </DetailGroup>
   );
 }
@@ -1665,7 +1728,7 @@ function sourceHealthNote(health: SourceHealth | null | undefined, bios: boolean
 }
 
 function sourceFieldCopy(profile: SourceProfile | undefined, bios: boolean) {
-  if (profile?.kind === "file-set")
+  if (profile?.kind === "file-set" || profile?.kind === "relative-file-set")
     return {
       placeholder: "Choose the folder or ZIP file that contains the required game files",
       note: "Portcove checks this location without uploading or changing it.",
@@ -1832,37 +1895,37 @@ function InstalledPlayActions({
   busy?: string | undefined;
   actions: DetailActions;
 }) {
+  if (preparationRequired)
+    return <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />;
   return (
     <div className="actions primary-actions mt-[16px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
       <Button
         data-focusable
+        data-launch-action
+        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
         className="wide flex-1"
         variant="primary"
         size="lg"
         title={
-          preparationRequired
-            ? "Prepare game data before playing"
-            : launchReady
-              ? trial
-                ? "Try launching; compatibility is unconfirmed"
-                : "Launch this port"
-              : "Review the current launch requirements"
+          launchReady
+            ? trial
+              ? "Try launching; compatibility is unconfirmed"
+              : "Launch this port"
+            : "Review the current launch requirements"
         }
-        disabled={preparationRequired || !launchReady || Boolean(busy)}
+        disabled={!launchReady || Boolean(busy)}
         onClick={() => {
           void actions.launch();
         }}
       >
         <Icon glyph={!launchReady ? AlertTriangle : pendingSetup ? Wrench : Gamepad2} />
-        {preparationRequired
-          ? "Prepare game data first"
-          : !launchReady
-            ? "Play unavailable"
-            : pendingSetup
-              ? "Start setup"
-              : trial
-                ? "Try launch"
-                : "Play"}
+        {!launchReady
+          ? "Play unavailable"
+          : pendingSetup
+            ? "Start setup"
+            : trial
+              ? "Try launch"
+              : "Play"}
       </Button>
       <StagedActivation version={stagedVersion} busy={busy} activate={actions.activate} />
     </div>
@@ -2190,6 +2253,21 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
             <p>Temporary space is checked at install. Final installed size is unknown.</p>
           )}
         </div>
+      )}
+      {plan.preservation_notices?.map((notice) => (
+        <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
+          {notice}
+        </p>
+      ))}
+      {plan.shared_preferences && (
+        <p className="col-span-full text-[length:var(--text-sm)]">
+          ReGaiden can rewrite shared preferences at{" "}
+          <bdi dir="ltr">{plan.shared_preferences.binding.path}</bdi> and affect other copies in
+          this Windows account. Portcove does not own or back up that shared file. Its local
+          fallback at <bdi dir="ltr">{plan.shared_preferences.local_fallback_path}</bdi> is managed
+          with this installation. The Windows confirmation will ask you to accept this scope before
+          installing.
+        </p>
       )}
     </div>
   );
@@ -2525,7 +2603,12 @@ function availableInstallState(
   if (selectedRequirement === "game")
     description =
       "Selected game files have not been checked. Portcove validates them when you continue installation.";
-  return { title: "Available to install", description, tone: "available", icon: Download };
+  return {
+    title: selectedRequirement ? "Files selected · not checked" : "Available to install",
+    description,
+    tone: "available",
+    icon: Download,
+  };
 }
 
 function runtimeRequirementState(updateAvailable: boolean): DetailState {

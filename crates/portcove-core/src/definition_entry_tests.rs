@@ -30,6 +30,21 @@ fn fixture() -> Value {
     entry_for_port(&fixture_catalog().ports()[0])
 }
 
+#[test]
+fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("wave-race-64-racewave46").unwrap();
+    let mut entry = entry_for_port(port);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(14);
+    entry["required_capabilities"][0]["minimum_version"] = json!(14);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(15);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(15);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
 fn catalog_fixture() -> Value {
     entry_for_port(&crate::Catalog::embedded().unwrap().ports()[0])
 }
@@ -130,6 +145,20 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
 }
 
 #[test]
+fn managed_shared_preferences_require_a_window_excluding_older_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(15);
+    entry["required_capabilities"][0]["minimum_version"] = json!(15);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(16);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(16);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn every_existing_official_projection_keeps_its_complete_fields() {
     let mut value = fixture();
     for port in crate::Catalog::embedded().unwrap().ports() {
@@ -138,13 +167,26 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port
+        let version = if port.managed_shared_preferences.is_some() {
+            16
+        } else if port.runtime_data_policy.is_some() {
+            15
+        } else if port.managed_initialization.is_some() {
+            12
+        } else if port.windows_runtime_path_policy.is_some() {
+            crate::runtime_path_policy::minimum_capability(port)
+        } else if let Some(minimum) = port
             .release
             .user_prepared
             .values()
-            .any(|runtime| runtime.shared_preferences.is_some())
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|contract| contract.minimum_template_version())
+            })
+            .max()
         {
-            8
+            minimum
         } else if let Some(version) = port
             .release
             .managed_build
@@ -154,6 +196,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
                 crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
                 crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
                 | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
+                crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
+                crate::CartridgeBuildRecipe::GundamWingSnesSourceV1 => 14,
             })
             .max()
         {
@@ -431,10 +475,37 @@ fn unrelated_catalog_port_does_not_change_generic_entry_or_index_bytes() {
     assert_eq!(fixture(), original);
 }
 
+fn historical_prepared_catalog() -> crate::Catalog {
+    crate::Catalog::from_json(include_str!(
+        "../tests/fixtures/dkc3-006-prepared-historical.json"
+    ))
+    .unwrap()
+}
+
+#[test]
+fn prepared_windows_path_semantics_refuse_pre_v17_envelopes() {
+    let mut port = historical_prepared_catalog()
+        .port("dkc3-recomp")
+        .unwrap()
+        .clone();
+    port.platforms = vec![crate::Platform::WindowsX86_64];
+    port.release
+        .user_prepared
+        .retain(|platform, _| *platform == crate::Platform::WindowsX86_64);
+    port.windows_runtime_path_policy = Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(17);
+    for version in [1, 11, 14, 15, 16] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        assert!(inspect(&entry).is_err());
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(17);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
 #[test]
 fn prepared_private_data_requires_version_two_without_widening_legacy_entries() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -455,8 +526,7 @@ fn prepared_private_data_requires_version_two_without_widening_legacy_entries() 
 
 #[test]
 fn shared_preferences_require_v8_and_preserve_unknown_variant_refusal() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -479,8 +549,7 @@ fn shared_preferences_require_v8_and_preserve_unknown_variant_refusal() {
 
 #[test]
 fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -494,7 +563,7 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
     entry["required_capabilities"][0]["minimum_version"] = json!(3);
     assert!(inspect(&entry).is_ok());
     port.adapter = crate::AdapterKind::N64RecompPortable;
-    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut document = historical_prepared_catalog().authoritative_document();
     *document
         .ports
         .iter_mut()
@@ -510,7 +579,7 @@ fn prepared_nested_directory_requires_version_three_and_staged_adapter() {
 
 #[test]
 fn prepared_settings_require_version_five_and_narrow_declaration() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = historical_prepared_catalog();
     let mut port = catalog.port("dkc3-recomp").unwrap().clone();
     for runtime in port.release.user_prepared.values_mut() {
         runtime.version = "1.22.420".into();
@@ -575,8 +644,7 @@ fn prepared_settings_require_version_five_and_narrow_declaration() {
 
 #[test]
 fn prepared_required_mutable_files_require_version_four_and_complete_projection() {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
+    let mut port = historical_prepared_catalog()
         .port("dkc3-recomp")
         .unwrap()
         .clone();
@@ -601,7 +669,7 @@ fn prepared_required_mutable_files_require_version_four_and_complete_projection(
     assert!(inspect(&entry).is_err());
     assert!(inspect(&legacy).is_ok());
     port.adapter = crate::AdapterKind::N64RecompPortable;
-    let mut document = crate::Catalog::embedded().unwrap().authoritative_document();
+    let mut document = historical_prepared_catalog().authoritative_document();
     *document
         .ports
         .iter_mut()

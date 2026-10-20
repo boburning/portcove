@@ -39,7 +39,12 @@
     "super-metroid-snes-japan-usa",
     "mega-man-x2-snes-usa",
     "resident-evil-gaiden-gbc-usa",
-    "earthbound-snes-usa"
+    "earthbound-snes-usa",
+    "smb1r-world-nes",
+    "dark-forces-pc-complete-installed-data",
+    "super-bomberman-snes-usa",
+    "gundam-wing-endless-duel-snes-japan",
+    "donkey-kong-country-2-snes-usa"
   ],
   "port_ids": [
     "snap64-recomp",
@@ -82,6 +87,11 @@
     "super-metroid-recomp",
     "mega-man-x2-snes-recomp",
     "resident-evil-gaiden-recomp",
-    "earthbound-recomp"
+    "earthbound-recomp",
+    "super-mario-bros-remastered",
+    "render96ex",
+    "super-bomberman-recomp",
+    "gundam-wing-endless-duel-recomp",
+    "dkc2-recomp"
   ]
 }

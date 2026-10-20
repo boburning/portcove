@@ -1,5 +1,24 @@
 # Portcove CLI
 
+API77 adds the closed managed ReGaiden shared-preferences review. Register the
+supported original, run `installation plan resident-evil-gaiden-recomp`, then pass
+its exact `--expected-plan` and `--acknowledge-shared-preferences` to
+`installation run`. Ordinary `--yes` does not acknowledge this scope. See
+[ownership and changed-account recovery](reference/managed-regaiden.md). Existing
+prepared registrations retain their non-owning contract. Local saves/settings
+remain managed; the resolved account-wide preferences file is never owned or
+included in backup/restore. The reference client accepts public API77 and requires
+explicit confirmation before transmitting acknowledgment; unknown API78 is refused.
+
+For managed Dark Forces on Windows, register the complete reviewed installed-data
+folder or ZIP with
+`portcove source add dark-forces-pc-complete-installed-data PATH`, then use the ordinary
+reviewed installation and launch commands. The full source check validates all
+48 relative members; quick file-filter refresh remains `NotChecked`. Existing
+prepared registrations retain their non-owning route. See
+[managed Dark Forces setup](reference/managed-tfe.md), including manual
+preservation when `.tfe-preparation` recovery material prevents removal.
+
 The private startup policy exhaustively classifies every CLI command and nested
 variant as read-only or recovering. Adding a variant requires an explicit choice.
 Artwork handoff and status observations leave pending constructor recovery alone;
@@ -218,6 +237,12 @@ registration is local library state; metadata export/import does not transfer
 the outside runtime or grant ownership of it. On another host or after moving
 the external folder, prepare and register it again against an accepted catalog
 entry.
+
+Schema 74 adds the optional retained `windows_runtime_path_policy` declaration.
+Core enforces it during managed readiness and before launch preparation; clients
+must retain Core's readiness/refusal result rather than infer that an installed
+runtime can run from every path. Staged-source template version11 is required for
+independent definitions using this policy. Operation-event schemas remain unchanged.
 
 Schema 72 adds `external.relink` and the `relink_external` activity operation.
 Read `external relink-preview PORT_ID PATH`, disclose the previous and proposed
@@ -1335,3 +1360,35 @@ requires separate setup, Play or explicit update; it cannot become an update
 through first-install consent. Existing `install`, `ensure` and `update`
 commands retain their contracts. `ensure` still reuses a ready active version
 without resolving the latest upstream release.
+
+### Shared-directory external runtimes (API 73)
+
+API 73 adds the closed `smb1r-1.1-stable-windows` shared-data contract.
+The registration preview binds the effective APPDATA/SMB1R directory and current
+Windows account. Its `local_fallback_path` is null and
+`local_fallback_present` is false. The existing ReGaiden file contract still
+returns its fallback path. Unknown or inconsistent variants must be refused.
+Review this directory separately and supply `--acknowledge-shared-preferences`
+with the exact preview digest; ordinary `--yes` does not grant shared writes.
+
+This non-owning route uses the exact five-file stock Windows 1.1-stable tree,
+fixed `--disable-mods` arguments and no portable marker. The game can share
+settings, saves, custom data and original files with other copies, regenerate
+or trash caches and prune logs. Portcove never seeds, owns, migrates, updates,
+backs up, restores or deletes that directory. Registration removal preserves it.
+Manually copy the recognized Super Mario Bros. (World) original to
+`baserom.nes` in the reviewed directory. Existing `settings.cfg` must be
+bounded ordinary data without Godot object/resource constructors; Core checks
+this and the original before launch and immediately before spawning. Missing or
+unsafe settings yield `preparation_required` without offering Core setup.
+Unsafe shared loader metadata or aliases fail existing registration-safety checks.
+This is an execution admission check, not a sandbox or lock against other apps.
+
+For SMB1R, this limited route accepts only vanilla BaseAssets. Shared Godot
+loader sidecars, custom levels/autosaves, blueprints, custom-character files
+and extra resource packs are refused without changes. Their empty directories
+may remain. Generated BaseAssets PNGs and its root pack_info.json remain mutable.
+Existing visuals.resource_packs must select only BaseAssets. Move unreviewed
+inputs elsewhere manually before using this route. Import/editor workflows are
+outside this offered route; independently importing files while the game runs
+is outside Core admission and its checks are not a sandbox.

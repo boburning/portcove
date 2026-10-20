@@ -80,13 +80,26 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed
+    let version = if typed.managed_shared_preferences.is_some() {
+        16
+    } else if typed.runtime_data_policy.is_some() {
+        15
+    } else if typed.managed_initialization.is_some() {
+        12
+    } else if typed.windows_runtime_path_policy.is_some() {
+        crate::runtime_path_policy::minimum_capability(&typed)
+    } else if let Some(minimum) = typed
         .release
         .user_prepared
         .values()
-        .any(|runtime| runtime.shared_preferences.is_some())
+        .filter_map(|runtime| {
+            runtime
+                .shared_preferences
+                .map(|scope| scope.minimum_template_version())
+        })
+        .max()
     {
-        8
+        minimum
     } else if let Some(version) = typed
         .release
         .managed_build
@@ -96,6 +109,8 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
             crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
             crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
             | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
+            crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
+            crate::CartridgeBuildRecipe::GundamWingSnesSourceV1 => 14,
         })
         .max()
     {
@@ -168,6 +183,95 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
         &bytes,
         contract,
     )
+}
+
+#[test]
+fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
+    let document = projection();
+    let contract = serde_json::to_vec(&document).unwrap();
+    for (id, version) in [
+        ("resident-evil-gaiden-recomp", 16),
+        ("wave-race-64-racewave46", 15),
+        ("render96ex", 13),
+        ("f-zero-snes-recomp", 11),
+    ] {
+        let position = document["catalog"]["ports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .position(|port| port["id"] == id)
+            .unwrap();
+        let valid = entry(&document, &contract, position);
+        assert_eq!(
+            valid["required_capabilities"][0]["minimum_version"],
+            version
+        );
+        assert_eq!(
+            valid["required_capabilities"][0]["maximum_version"],
+            version
+        );
+        inspect(&valid, &contract).unwrap();
+        let mut stale = valid;
+        stale["required_capabilities"][0]["minimum_version"] = json!(version - 1);
+        stale["required_capabilities"][0]["maximum_version"] = json!(version - 1);
+        assert!(inspect(&stale, &contract).is_err(), "{id}");
+    }
+}
+
+#[test]
+fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "f-zero-snes-recomp")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    inspect(&valid, &contract).unwrap();
+    let mut stale = valid;
+    stale["required_capabilities"][0]["minimum_version"] = json!(10);
+    stale["required_capabilities"][0]["maximum_version"] = json!(10);
+    assert!(
+        inspect(&stale, &contract)
+            .unwrap_err()
+            .message
+            .contains("capability version 11")
+    );
+    stale["required_capabilities"][0]["minimum_version"] = json!(1);
+    stale["required_capabilities"][0]["maximum_version"] = json!(10);
+    assert!(
+        inspect(&stale, &contract)
+            .unwrap_err()
+            .message
+            .contains("capability version 11")
+    );
+}
+
+#[test]
+fn managed_tfe_cannot_omit_or_widen_its_capability_floor() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "the-force-engine-dark-forces")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    inspect(&valid, &contract).unwrap();
+    for (minimum, maximum) in [(1, 1), (11, 11), (1, 12)] {
+        let mut stale = valid.clone();
+        stale["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        stale["required_capabilities"][0]["maximum_version"] = json!(maximum);
+        assert!(
+            inspect(&stale, &contract)
+                .unwrap_err()
+                .message
+                .contains("capability version 12")
+        );
+    }
 }
 
 #[test]

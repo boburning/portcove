@@ -1,3 +1,4 @@
+import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
 import { Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import desktopPackage from "../../package.json";
 import type { ThemeState, ThemePreference } from "../theme";
+import { InterfaceSizeSettings } from "../InterfaceSize";
 import type {
   ActivityRecord,
   PortDefinition,
@@ -55,7 +57,6 @@ import {
   formatBytes,
   formatCountMessage,
   navigationActivityState,
-  progressPresentation,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -64,10 +65,10 @@ import { FailureDetails } from "./FailureDetails";
 import type { SourceInspectionReadState } from "../features/source-health/use-source-health";
 import { BrandAvatar, BrandMascot, BrandWordmark } from "./Brand";
 import { ExternalLink } from "./ExternalLink";
-import { LibraryMoveButton } from "./LibraryMove";
-import { LibraryImportButton } from "./LibraryImport";
+import { LibraryRecovery } from "./LibraryRecovery";
 import { CatalogOrigin, CatalogSettings } from "./CatalogUpdates";
 import { SourceDiscoveryButton } from "./SourceDiscovery";
+import { invocationFailure, type InvocationRecord } from "../features/operations/invocation-state";
 import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
@@ -103,8 +104,8 @@ export function Sidebar({
   const activityState = navigationActivityState(activities);
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
-    { view: "catalog", label: "Port catalog", icon: Boxes, shortcut: "2" },
-    { view: "updates", label: "Updates & activity", icon: Download, shortcut: "3" },
+    { view: "catalog", label: "Find games", icon: Boxes, shortcut: "2" },
+    { view: "updates", label: "Activity", icon: Download, shortcut: "3" },
     { view: "settings", label: "Settings", icon: Settings, shortcut: "4" },
   ] satisfies Array<{
     view: View;
@@ -114,7 +115,7 @@ export function Sidebar({
   }>;
   return (
     <aside
-      className="sidebar flex flex-col bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
+      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
       data-focus-region="sidebar"
     >
       <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
@@ -242,26 +243,29 @@ export function PageHeader({
         )}
       </div>
       <div
-        className="header-tools flex items-center justify-end gap-2 max-[75rem]:ms-auto"
+        className="header-tools flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 max-[75rem]:ms-auto"
         data-focus-group
       >
         {(view === "library" || view === "catalog") && (
           <label
-            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
+            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] max-w-full min-w-0 items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
             htmlFor="port-search"
           >
             <Icon glyph={Search} />
-            <span className="sr-only">Search ports</span>
+            <span className="sr-only">
+              {view === "library" ? "Search your library" : "Search Find games"}
+            </span>
             <input
-              className="h-full min-h-0 w-full border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
+              className="h-full min-h-0 w-full min-w-0 border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
               id="port-search"
+              aria-label={view === "library" ? "Search your library" : "Search Find games"}
               style={{ outline: "none" }}
               data-focusable
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search ports"
+              placeholder="Game or port name"
             />
-            <Shortcut className="ms-auto">/</Shortcut>
+            <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
           </label>
         )}
         <Button
@@ -288,11 +292,11 @@ function pageCopy(view: View, portCount: number) {
       title: "Your library",
     },
     catalog: {
-      title: "Port catalog",
+      title: "Find games",
       description: `Browse ${portCount} native game ${portCount === 1 ? "port" : "ports"}.`,
     },
     updates: {
-      title: "Updates & activity",
+      title: "Activity",
     },
     settings: {
       title: "Settings",
@@ -309,6 +313,11 @@ export function StatusLayer({
   operation,
   busy,
   featureNotices,
+  invocations,
+  operationEvents,
+  dismissInvocation,
+  openActivity,
+  preparationRecovery,
 }: {
   error?: unknown;
   clearError: () => void;
@@ -317,19 +326,82 @@ export function StatusLayer({
   operation?: OperationEvent | undefined;
   busy?: string | undefined;
   featureNotices?: ReactNode;
+  invocations?: ReadonlyMap<number, InvocationRecord>;
+  operationEvents?: ReadonlyMap<string, OperationEvent>;
+  dismissInvocation?: (id: number) => void;
+  openActivity?: (id?: string) => void;
+  preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
   return (
     <>
-      {error != null && (
-        <ErrorNotice
-          error={error}
-          clearError={clearError}
-          reviewPreparation={reviewPreparation}
-          reviewCurrentState={reviewCurrentState}
-        />
-      )}
+      {invocations
+        ? [...invocations.values()].map((record) => (
+            <div
+              key={record.id}
+              role="group"
+              aria-label={`${record.context.action} · ${record.context.target.label}`}
+              data-invocation-id={record.id}
+              className={
+                record.phase === "settled" && invocationFailure(record) === undefined
+                  ? "sr-only"
+                  : "mb-3 min-w-0"
+              }
+            >
+              {invocationFailure(record) !== undefined && (
+                <ErrorNotice
+                  error={invocationFailure(record)}
+                  clearError={() => dismissInvocation?.(record.id)}
+                  reviewPreparation={preparationRecovery?.(record)}
+                  reviewCurrentState={reviewCurrentState}
+                  invocation={record}
+                  openActivity={openActivity}
+                />
+              )}
+              {record.phase === "pending" ? (
+                <>
+                  <p className="mb-1 text-sm font-semibold [overflow-wrap:anywhere]">
+                    {record.context.action} · {record.context.target.label}
+                  </p>
+                  <OperationProgress
+                    // Invocation and event identities are distinct. Only an actual
+                    // explicitly owned ID permits this progress association.
+                    operation={
+                      record.context.activityId
+                        ? operationEvents?.get(record.context.activityId)
+                        : undefined
+                    }
+                    busy={record.outcome ? "refresh current state" : record.name}
+                  />
+                  {openActivity && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      onClick={() => openActivity(record.context.activityId)}
+                    >
+                      {record.context.activityId ? "View task in Activity" : "Open Activity"}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                invocationFailure(record) === undefined && (
+                  <p role="status" className="sr-only">
+                    {record.context.action} · {record.context.target.label}:{" "}
+                    {record.outcome === "cancelled" ? "cancelled" : "finished"}.
+                  </p>
+                )
+              )}
+            </div>
+          ))
+        : error != null && (
+            <ErrorNotice
+              error={error}
+              clearError={clearError}
+              reviewPreparation={reviewPreparation}
+              reviewCurrentState={reviewCurrentState}
+            />
+          )}
       {featureNotices}
-      {busy && (
+      {!invocations && busy && (
         <OperationProgress
           operation={operation?.type === "finished" ? undefined : operation}
           busy={busy}
@@ -344,11 +416,15 @@ function ErrorNotice({
   clearError,
   reviewPreparation,
   reviewCurrentState,
+  invocation,
+  openActivity,
 }: {
   error: unknown;
   clearError: () => void;
   reviewPreparation?: (() => void) | undefined;
   reviewCurrentState?: (() => unknown) | undefined;
+  invocation?: InvocationRecord | undefined;
+  openActivity?: ((id?: string) => void) | undefined;
 }) {
   const presentation = failurePresentation(error);
   const committed = presentation?.mutation_state === "committed";
@@ -359,23 +435,43 @@ function ErrorNotice({
   const code =
     typeof error === "object" && error && "code" in error ? String(error.code) : undefined;
   const cancelled = code === "cancelled";
+  const readbackOnly = invocation?.outcome === "succeeded" && invocation.failure === undefined;
   const renderFailureDetails = () => (
     <div>
+      {invocation && (
+        <p className="mb-1 font-semibold [overflow-wrap:anywhere]">
+          {invocation.context.action} · {invocation.context.target.label}
+        </p>
+      )}
       <strong>
-        {committed
-          ? "Change saved; review the current state"
-          : neutral
-            ? "Operation cancelled"
-            : cancelled
-              ? presentation?.mutation_state === "recovery_required"
-                ? "Cancelled operation needs recovery review"
-                : "Cancellation outcome needs review"
-              : "Portcove couldn’t finish that action"}
+        {readbackOnly
+          ? "Action finished; current state could not be refreshed"
+          : committed
+            ? "Change saved; review the current state"
+            : neutral
+              ? "Operation cancelled"
+              : cancelled
+                ? presentation?.mutation_state === "recovery_required"
+                  ? "Cancelled operation needs recovery review"
+                  : "Cancellation outcome needs review"
+                : "Portcove couldn’t finish that action"}
       </strong>
       {!((neutral || committed || cancelled) && summary === "The operation was cancelled.") && (
         <p>{summary}</p>
       )}
-      {presentation && <FailureDetails presentation={presentation} code={code} />}
+      {presentation && (
+        <FailureDetails
+          presentation={presentation}
+          code={code}
+          showMutationSummary={!readbackOnly}
+        />
+      )}
+      {invocation?.failure !== undefined && invocation.refreshFailure !== undefined && (
+        <p>
+          Refreshing the current state also failed: {errorText(invocation.refreshFailure)}. The
+          original action result above is retained.
+        </p>
+      )}
     </div>
   );
   return (
@@ -392,6 +488,16 @@ function ErrorNotice({
       </span>
       <div data-slot="notice-body">{renderFailureDetails()}</div>
       <div data-slot="notice-actions" className="error-actions flex gap-1">
+        {openActivity && invocation && (
+          <Button
+            data-focusable
+            variant="outline"
+            size="sm"
+            onClick={() => openActivity(invocation.context.activityId)}
+          >
+            {invocation.context.activityId ? "View task in Activity" : "Open Activity"}
+          </Button>
+        )}
         {reviewCurrentState && presentation?.recovery_actions.includes("review_current_state") && (
           <Button
             data-focusable
@@ -418,57 +524,13 @@ function ErrorNotice({
           variant="ghost"
           size="icon-sm"
           aria-label={neutral ? "Dismiss notice" : "Dismiss error"}
+          disabled={invocation?.phase === "pending"}
           onClick={clearError}
         >
           <Icon glyph={X} />
         </Button>
       </div>
     </Notice>
-  );
-}
-
-function OperationProgress({
-  operation,
-  busy,
-}: {
-  operation?: OperationEvent | undefined;
-  busy: string;
-}) {
-  const { label, detail, range } = progressPresentation(operation, busy);
-  return (
-    <div className="operation-bar mb-4 grid grid-cols-[auto_minmax(8rem,_auto)_minmax(12rem,_1fr)] items-center gap-3 rounded-pc-md border border-pc-info bg-pc-info-subtle px-3 py-2 text-xs text-pc-muted-foreground">
-      <span className="text-pc-info-foreground motion-safe:[&_.icon]:animate-spin">
-        <Icon glyph={LoaderCircle} />
-      </span>
-      <div className="min-w-0 break-words">
-        <strong
-          className="block font-medium text-pc-foreground"
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-        >
-          {label}
-        </strong>
-        <span className="mt-0.5 block">{detail}</span>
-      </div>
-      <div
-        className={`progress-track h-[5px] overflow-hidden rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)]${range ? "" : " indeterminate"}`}
-        role="progressbar"
-        aria-label={label}
-        aria-valuemin={range ? 0 : undefined}
-        aria-valuemax={range?.total}
-        aria-valuenow={range?.current}
-        aria-valuetext={detail}
-      >
-        <i
-          className={cn(
-            "block h-full bg-pc-loading motion-safe:transition-[width] motion-safe:duration-300 motion-reduce:animate-none",
-            !range && "w-[32%] animate-pc-progress",
-          )}
-          style={range ? { width: `${range.percent}%` } : undefined}
-        />
-      </div>
-    </div>
   );
 }
 
@@ -791,7 +853,8 @@ function SourceRequirements({
                 ? "Add BIOS file"
                 : "Add game files"}
             </Button>
-            {requirement.profile.kind === "file-set" && (
+            {(requirement.profile.kind === "file-set" ||
+              requirement.profile.kind === "relative-file-set") && (
               <Button
                 data-focusable
                 variant="outline"
@@ -1428,6 +1491,8 @@ export function SettingsView({
   setSetupSource,
   onCatalogChanged,
   onOpenGameUpdates,
+  onOpenActivity,
+  onReviewSaves,
   hostToolActions,
   openSourceEvidence,
   applicationUpdates,
@@ -1471,6 +1536,8 @@ export function SettingsView({
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;
   onOpenGameUpdates?: () => void;
+  onOpenActivity?: () => void;
+  onReviewSaves?: (portId: string, origin: string) => void;
   hostToolActions?: HostToolActions | undefined;
   applicationUpdates?: ReactNode;
   diagnosticsRefreshing?: boolean;
@@ -1521,11 +1588,16 @@ export function SettingsView({
         switchLibrary={switchLibrary}
         reset={resetLibrary}
       />
-      <StorageCard
+      <StorageCard libraryRoot={storage?.library_root ?? libraryRoot} storage={storage} />
+      <LibraryRecovery
+        key={generation}
         libraryRoot={storage?.library_root ?? libraryRoot}
-        storage={storage}
+        ports={ports}
+        statuses={statuses}
         busy={busy}
         exportMetadata={exportMetadata}
+        onOpenActivity={onOpenActivity}
+        onReviewSaves={onReviewSaves}
       />
     </SettingsSection>
   );
@@ -1620,11 +1692,11 @@ export function SettingsView({
       active={selectedCategory === "updates"}
       eyebrow="UPDATES"
       title="Portcove & catalog updates"
-      description="Manage verified Portcove application and catalog updates here. Open Updates & activity for game updates and recent tasks."
+      description="Manage verified Portcove application and catalog updates here. Open Updates in Activity for game updates."
       action={
         onOpenGameUpdates && (
           <Button data-focusable variant="link" size="xs" onClick={onOpenGameUpdates}>
-            Open Updates & activity
+            Open game updates in Activity
           </Button>
         )
       }
@@ -1662,6 +1734,7 @@ export function SettingsView({
           description="Choose how Portcove looks on this device."
         >
           <AppearanceSettings appearance={appearance} />
+          <InterfaceSizeSettings />
           <LanguageSettings />
         </SettingsSection>
         {renderStorageSettings()}
@@ -2188,15 +2261,10 @@ export function HostToolRow({
 function StorageCard({
   libraryRoot,
   storage,
-  busy,
-  exportMetadata,
 }: {
   libraryRoot: string;
   storage?: StorageSummary | undefined;
-  busy?: string | undefined;
-  exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
 }) {
-  const [exported, setExported] = useState<LibraryMetadataFile>();
   const total = storage?.volume_total_bytes;
   const available = storage?.volume_available_bytes;
   const measurable =
@@ -2248,28 +2316,6 @@ function StorageCard({
         <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
         saves and settings.
       </p>
-      <Button
-        data-focusable
-        variant="outline"
-        size="sm"
-        disabled={Boolean(busy) || !exportMetadata}
-        onClick={() => {
-          void exportMetadata?.().then(setExported);
-        }}
-      >
-        Export metadata
-      </Button>
-      <p>
-        Export saved file locations and installed-version settings. Game files, BIOS files, saves,
-        backups, toolchains, and credentials are not included.
-      </p>
-      {exported && (
-        <p role="status">
-          Exported to <code className="[overflow-wrap:anywhere]">{exported.path}</code>
-        </p>
-      )}
-      <LibraryMoveButton disabled={Boolean(busy)} />
-      <LibraryImportButton disabled={Boolean(busy) || !libraryRoot} libraryRoot={libraryRoot} />
     </SettingsRow>
   );
 }

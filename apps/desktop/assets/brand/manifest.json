@@ -252,5 +252,10 @@
       "color_mode": "RGB",
       "sha256": "c20b79b0c36ea4a72fccd06d567c544155a95f4f014f1c729609d09bf104298e"
     }
-  ]
+  ],
+  "vector_family": {
+    "path": "apps/desktop/assets/brand/vector/original-2d-20261019/manifest.generated.json",
+    "sha256": "ebb961af30bd4528b6aa89259104b3d7444ce188e4271d1b2d29de368aa4ba58",
+    "status": "candidate"
+  }
 }

@@ -7,6 +7,25 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Credential-publication fixtures reached the 30s Windows harness cutoff; import
+# setup alone took about 20s, and move covers both publication boundaries.
+# Retain complete fixtures/assertions, two workers, zero retries and finite 60s.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
+# Managed TFE's two complete Windows recovery lifecycles passed at 5.6s/15.3s,
+# then one hit the 30s harness cutoff while its peer completed at 27.1s on the
+# shared host. Preserve all versions, reopen/resume and preservation assertions,
+# two test workers and zero retries; only these exact cases get finite 60s room.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # This exact Windows ownership regression passed at 19.3s, then reached the
 # 30s harness cutoff during shared-drive contention. Retain all five provider
 # refusal operations, preservation assertions, two workers and zero retries.
@@ -48,6 +67,16 @@ success-output = "immediate"
 # variability reached the final reopen at the default cutoff; keep a finite
 # exact-case harness budget without changing product deadlines.
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
+
+# CI39365675418/1 passed 1,859 tests; this exact Windows lifecycle reached
+# its second startup/status at 22.8s/27.5s before the 30s harness cutoff.
+# Keep both rollback/reopen/preservation attempts, two workers and zero retries;
+# only this case gets finite 60s headroom. Product deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
 
 # Historical #706 calibration (issuecomment-6190196270), exact Intel case only.
 # Preserve both real rollback/restart/preservation attempts and all assertions.

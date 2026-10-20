@@ -1,5 +1,21 @@
 # Architecture
 
+Library collection layout is a profile-local React preference scoped by the
+canonical library browsing key. `useCollectionLayout` owns covers/rows persistence
+separately from existing browsing envelopes. Invalid/missing values start at
+covers; failed storage keeps the session choice with feedback. It creates no
+Core migration or membership authority. Covers and rows reuse identity,
+readiness, actions and the shared exclusion selector. Changing layout preserves
+query, filters and durable entries.
+
+Desktop invocation context and action presentation are owned by `features/operations`; see [ADR 0003](adr/0003-ephemeral-desktop-orchestration.md). React combines Core assessments with known local exclusions, retains independent task/readback failures and suppresses outgoing library continuations. Activity consumes existing durable records and exact-ID live progress. This adds no scheduler, durable queue, Core authority or operation database; Tauri application-update trust and native consent remain separate host responsibilities.
+Desktop interface enlargement is presentation authority: `InterfaceSizeController`
+serializes the existing Tauri WebView zoom API and persists acknowledged choices
+within the browser profile, independently of library generations. React owns
+pending intent and recovery feedback. No Core library record, durable operation,
+installation lock or host scheduler is created for interface scaling. See
+[theme ownership](THEME.md#whole-interface-enlargement-and-reflow).
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 ## Current ownership and deliverables
@@ -527,6 +543,30 @@ migrates, backs up, restores or deletes this shared data. Other runtime copies
 can rewrite the same file and discard unknown entries; this contract provides
 neither private isolation nor a cross-application lock.
 
+The exact SMB1R 1.1-stable Windows opt-in reuses this non-owning shared-write
+boundary for the effective APPDATA/SMB1R directory. It binds account and location,
+requires separate consent, accepts only the exact five-file immutable stock tree
+and fixed disabled-mods arguments, and has no portable marker or local fallback.
+Core does not seed the original or own shared data. A bounded read-only check
+requires the exact recognized World original at baserom.nes and constructor-free
+settings before launch, including the immediate spawn check. The selected Godot
+ConfigFile parser can instantiate objects/load resources: disabling mods alone
+is insufficient. The conservative settings filter rejects constructors, unsafe
+paths, non-single-link files and excessive bytes/depth/token work. It is not a
+Godot parser, sandbox or cross-application lock. Missing/unsafe manual inputs
+report preparation_required without offering managed preparation. Staged template
+version 10 makes the new executable semantics explicit; versions 1–9 are retained.
+
+The limited vanilla route also rejects Godot loader sidecars (.remap, .import
+and .uid), custom levels/autosaves, blueprints, custom-character files and
+extra resource packs. These can reach unrestricted Variant parsing or executable
+scene loaders even with mods disabled. Existing import directories may remain
+empty; generated BaseAssets PNGs and its root pack_info.json remain mutable.
+Existing visuals.resource_packs settings must select only BaseAssets. Core
+refuses unreviewed inputs without changing them; manual relocation is explicit.
+This does not prevent a player from independently importing files while the
+game is running and does not qualify the optional editor/import workflow.
+
 For an inspected successor catalog projection, core carries an immutable exact
 definition snapshot with the catalog for its selected port only. Catalog clones
 share that snapshot; a newly parsed unrelated catalog does not inherit it. This
@@ -983,16 +1023,21 @@ requires a new review. The CLI and core machine contract remain unchanged.
 
 ## Source-reference removal and shared review state
 
-Settings exposes the existing core source-removal preview with the original path,
+Settings exposes the existing core source-removal preview inline with the original path,
 installed dependents and all catalog dependents. The review explains that only the
 library reference is removed, other files/state remain, and later use requires
 registration under current checks. Both preview and application use the selected
 library generation. The adapter checks the fingerprint before backend-owned native
 confirmation, then reacquires the current service and delegates authorization and
 locked deletion to core. A changed reference or dependency set requires a fresh
-review; no renderer request can bypass native consent.
+review; no renderer request can bypass native consent. Explicit review intent
+loads fresh impact. A location/generation change discards the inline intent;
+returning to an old identity never revives it. Remove saved location… opens only
+the host's final approval. The host resolves requirement and game/port names from
+its catalog, shows the exact location, affected-entry count and preserved data,
+and points to the full inline affected set when the native summary is bounded.
 
-Backup, installed-game and source-removal dialogs share one presentation-only
+Backup/installed-game dialogs and the inline saved-location preview share one presentation-only
 review lifecycle: stale request rejection, synchronous duplicate-apply exclusion,
 neutral native cancellation and renewed review after failure. Each domain keeps
 its own core preview, confirmation, action and detailed copy. Source-list refresh
@@ -2415,6 +2460,38 @@ and inherited `SDL_DYNAMIC_API`. EarthBound alone permits the reviewed
 `dbghelp.dll` import. The NES compile graphs and storage identities are unchanged.
 A shipped recipe alone admits neither a catalog title nor a runtime operation.
 
+Staged-source v12 adds the fixed Render96 US source recipe in
+[`render96_build`](../crates/portcove-core/src/render96_build.rs). Its three
+authenticated inputs reuse cartridge acquisition, private install workers,
+supervised tools, cancellation drain, immutable receipts and publication/recovery.
+The internal archive collection supports three inputs without changing earlier
+four-input storage identities. A private closed Make environment uses the pinned
+toolchain, shell, Python and SDL2 SDK; catalogue data cannot supply commands.
+Core bounds original-asset extraction to 32 assets, texture generation to 16
+targets, sound conversion to eight samples, and compilation to two objects per
+supervised invocation. Audio-library compilation has its own complete diagnostic
+phase. LLVM extracts the raw sound-player section into a separate output; exact
+source-derived size/hash checks precede sequence assembly, and packaging verifies
+the fixed table entry. A COFF object wrapper cannot become sequence bytecode.
+The fixed generated C files remain secondary between compiler invocations.
+The 309-object plan is verified before link, with a supervised dry run requiring
+exactly one authenticated linker command from complete stdout. Compiled-object
+hashes are checked before and after link. Core copies the stock resource layout
+directly, avoiding upstream's oversized Windows shell command for its resource
+list. The full immutable manifest also retains the authenticated primary source
+tree. Build work never launches the game.
+
+The recipe accepts only the exact raw USA N64 original, reuses bounded byte-order
+normalization, and verifies canonical bytes separately from stored bytes. ZIP
+inputs receive extraction/registration guidance before any parser runs. Runtime
+launch fixes the root working directory and `--savepath !`, refuses forwarded
+arguments and inherited `SDL_DYNAMIC_API`, and permits only the two exact root
+save/config files. `res`, executable inputs, DLLs and TAS input names remain
+immutable. Recipe implementation, managed producer proof, runtime operation
+acceptance and protected production delivery remain separate evidence scopes.
+Render96 requires no retained Windows runtime path policy; its build-path rule
+is recipe-local. The independent v11 path capability retains its prior meaning.
+
 ### Setup configuration dispositions
 
 The seven `AdapterKind` families retain catalog data and existing generic
@@ -2439,6 +2516,32 @@ gameplay or native termination qualification. New contradictory inputs require
 an exact causal case and compatible normal/recovery consumer migration.
 
 Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
+
+For an observed cartridge ZIP, exact-copy preparation selects the admitted member
+by its retained name and content identity, independently of the runtime filename.
+It checks the original-container digest and size, streams the member into private
+staging, and verifies its digest and size before replacing the destination. Cache
+reuse also checks the destination bytes even when the catalog has no additional
+runtime hash. Legacy registrations without structured member observations retain
+their extension-based selection; a fresh source check is required to establish a
+different member-extension/runtime-filename pairing. This copies bytes without
+converting the original game format.
+
+Cartridge ZIP inspection and this observed-member copy use a private anonymous
+snapshot with a bounded ZIP32 metadata preflight before the ZIP parser allocates.
+The limits are 1 GiB of container bytes (or a smaller profile limit), 4,096 entries,
+16 MiB of encoded central-directory metadata, 64 extra records per entry and
+16,384 extra records in total. Stored and Deflate members are supported; ZIP64,
+multipart, encrypted, ambiguous-footer and offset-corrected containers are
+rejected with an extracted-original recovery path. Constructor reads cannot fall
+back outside the checked metadata region. Snapshot hashing charges actual
+container bytes to discovery's shared budget, including failed metadata checks;
+selected-member hashing remains separately bounded and charged. Preparation
+requires the parser's entry count to match the raw records so duplicate names
+cannot hide entries. Preparation validates the complete output namespace before
+creating its staged member and preserves the previous destination on cancellation
+or validation failure before publication. A later error may leave the newly
+verified runtime copy in place without a new success sidecar.
 
 Catalog entries may add fixed launch environment values and one dynamic user-data environment variable. Validation rejects session-critical, Portcove-owned, credential-shaped, duplicate, multiline, or empty values before a process is constructed. The dynamic value always resolves to the canonical per-port library user directory; fixed values express an upstream selector or disable an upstream updater that would otherwise compete with Portcove's verified lifecycle. Reviewed nonpersistent exact paths and bounded filename patterns created by managed portable runtimes remain catalog-owned integrity exclusions and cannot overlap persistent data.
 
@@ -2513,6 +2616,11 @@ publishing selection. Source and fixture checks do not establish native or
 upstream acceptance; those remain separate qualification gates.
 
 `portcove-core::ChildProcessPolicy` is the single construction path for every production child process. Callers select a typed class for games, upstream setup, host tools such as `chdman` and DolphinTool, managed builders, or operating-system integration. All classes begin from the same reviewed session allowlist rather than inheriting the complete Portcove environment. The allowlist preserves cross-platform process discovery, profile/home, temporary-directory, locale, desktop/display, audio/graphics, Steam/Proton, Wine, and dynamic-runtime variables needed by native ports. GitHub variables and other credential-shaped token, secret, password, API-key, cloud-key, SSH-agent, and askpass variables are removed centrally. Catalog/adapter overlays are checked by the same policy and cannot reintroduce a credential-shaped variable.
+
+Inherited `SDL_DYNAMIC_API` is excluded case-insensitively: SDL can load its value
+as a native implementation library before validating the entry point. Ordinary
+SDL hints retain their existing inheritance. This closes that specific ambient
+code-selection path; the process policy is not a filesystem or library sandbox.
 
 Manual host-tool selection crosses that policy only through the core registry's fixed probe. Core rejects nonregular files, symlink paths, scripts, and executables that do not satisfy the host platform; fingerprints the candidate before spawn; rechecks it immediately before and after the probe; supplies only registry-owned arguments; and bounds executable size, combined output, and elapsed time. Timeout, cancellation, and excessive output terminate the probe process tree. A path and SHA-256 fingerprint are published atomically to host preferences only after the expected tool identity and required command markers appear, so failure preserves the previous valid selection and a later byte change becomes `misconfigured`. This fingerprint binds the saved choice to the probed bytes; it does not establish publisher authenticity or prove arbitrary software safe.
 
@@ -2747,3 +2855,57 @@ observation. Timer and visibility notifications refer to their own observation
 and cannot expire a replacement result. These browsing observations provide no
 setup or launch shortcut and do not establish native UI, game or whole-issue
 acceptance.
+
+### Guided manual library recovery
+
+Settings > Library & storage owns one Library recovery composition: prepare a
+manual recovery copy, checked restore, and Move as distinct tasks. The guide links
+to Tasks & history and each installed entry’s existing Saves and storage page;
+only that page’s current Core assessment grants save-backup eligibility. An empty
+or idle Activity view cannot prove process quiescence. Export metadata after
+applicable backups; then close games, Portcove and all other clients before copying.
+No writes may intervene between the export and content copy; otherwise repeat
+both from a matching state. The guide adds no copy API, durable workflow or bundle.
+
+Current schema-3 export declares six content roots: `versions`, `user`,
+`source-inbox`, `backups`, `toolchains`, and `artwork`. Copy existing roots with
+names and structure intact into one content folder, retaining the metadata export.
+External originals/BIOS, external installations/saves and credentials are excluded
+and require separate preservation. Retained admission may require the originating
+host's secure-storage key; ordinary copying does not mint another host's trust.
+The UI reports metadata export only, never a verified backup or a manual checkbox
+as verification. Existing content-bound import checks publication into a new/empty
+destination; Move separately switches authority and retains its original tree.
+Profile/workspace presentation state cannot change these Core guarantees.
+
+The manual-copy guide must also disclose host-local version credentials before
+copy instructions. The [managed RaceWave46 recovery contract](reference/managed-racewave46.md#manual-transfer-recovery)
+owns exact refusal handling: sign out and close the affected version; temporary
+credential leaves may remain. Privately preserve a specifically refused leaf on
+this host outside all Portcove trees before manual removal from its listed transfer
+tree, then obtain fresh review/export/copy. Never upload it or silently filter it
+into an alleged verified backup. Checked whole-library transfer refuses reserved
+credential leaves rather than granting portable sign-in authority.
+
+### Contextual Add games workspace
+
+Library and its legitimate empty state open one in-flow Add games workspace. Its
+file route explicitly selects a game/port before the existing profile-scoped
+inspection: the current inspector is not a catalog-wide file recognizer. Saved
+folder scanning remains the bounded multi-game recognition route, preserving its
+sixteen-port ephemeral setup-review selection and current route checks. Find
+games, installation copy and supported external routes remain available.
+The visible stages connect choosing inputs, recognition/port choice, current
+route checks, consequence review, preparation and completion/Play. The existing
+details, source-import, installation and preparation contracts own each review;
+labels do not turn unknown compatibility or saved-data facts into guarantees.
+
+The workspace remains mounted, hidden when inactive, within the generation-keyed
+library workspace. Its drafts, scan observation and return origin survive normal
+navigation/details/back; library replacement invalidates outgoing continuations.
+Navigation does not cancel a Core worker. Existing cancellation settlement and
+valid recovery plans remain authoritative; there is no scheduler or durable queue.
+Add games and Settings reuse saved-folder composition with unique instance IDs,
+scoped focus queries and return origins. Hidden siblings cannot supply focus or
+another instance's heading. Scroll capture/restoration uses the shell's current
+scroll-owner helpers, including document flow at enlarged effective widths.

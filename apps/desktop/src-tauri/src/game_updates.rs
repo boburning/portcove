@@ -20,6 +20,7 @@ pub(crate) async fn plan_game_update(
 
 #[tauri::command]
 pub(crate) async fn apply_game_update(
+    app: tauri::AppHandle,
     state: tauri::State<'_, DesktopState>,
     port_id: String,
     activate: bool,
@@ -31,8 +32,47 @@ pub(crate) async fn apply_game_update(
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
         tauri::async_runtime::block_on(async {
+            let reviewed = service.plan_game_update(&port_id, activate).await?;
+            if reviewed.plan_sha256 != expected_plan {
+                return Err(portcove_core::PortcoveError::conflict(
+                    "update inputs changed; review again",
+                ));
+            }
+            let acknowledged = if let Some(scope) = &reviewed.plan.shared_preferences {
+                let destination = scope.local_fallback_path.parent().ok_or_else(|| {
+                    portcove_core::PortcoveError::verification(
+                        "shared preferences installation location is missing",
+                    )
+                })?;
+                if !crate::confirm_destructive(
+                    &app,
+                    "Allow ReGaiden's shared preferences?",
+                    format!(
+                        "Update {} to {}\nLocation: {}\n\n{}",
+                        service.catalog().port(&port_id)?.name,
+                        reviewed.plan.release.version,
+                        destination.display(),
+                        scope.write_scope_disclosure()
+                    ),
+                    "Accept scope and update",
+                )
+                .await
+                {
+                    return Err(portcove_core::PortcoveError::usage(
+                        "shared preferences review was canceled",
+                    ));
+                }
+                Some(expected_plan.as_str())
+            } else {
+                None
+            };
             let authorization = service
-                .authorize_game_update(&port_id, activate, &expected_plan)
+                .authorize_game_update_with_shared_preferences_ack(
+                    &port_id,
+                    activate,
+                    &expected_plan,
+                    acknowledged,
+                )
                 .await?;
             service
                 .apply_game_update(&port_id, activate, &authorization.token, |event| {

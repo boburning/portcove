@@ -257,6 +257,9 @@ pub(crate) fn inspect(
         }
         return inspect_file(catalog, profile_id, path, u64::MAX, &mut budget);
     }
+    if profile.kind == SourceKind::RelativeFileSet {
+        return crate::relative_file_set::inspect(catalog, profile_id, path);
+    }
     if profile.kind == SourceKind::FileSet {
         return inspect_file_set(catalog, profile_id, path);
     }
@@ -2209,6 +2212,82 @@ mod tests {
             max_zip_entries: 4096,
         };
         inspect_file(catalog, profile_id, path, u64::MAX, &mut budget).unwrap()
+    }
+
+    #[test]
+    fn genesis_zip_declarations_match_member_extensions_and_exact_member_bytes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let bytes = b"Synthetic identity fixture, never a game original";
+        for profile_id in [
+            "sonic-the-hedgehog-genesis-jue-rev00",
+            "sonic-the-hedgehog-2-genesis-world-reva",
+            "sonic-3-and-knuckles-genesis-usa-lockon",
+        ] {
+            // Retain the production extension/scope declarations. Only substitute
+            // synthetic digest values so this test contains no original game data.
+            let catalog = catalog_with_identity(profile_id, |profile| {
+                for representation in &mut profile.variants[0].representations {
+                    let identities = match &mut representation.kind {
+                        SourceRepresentationKind::RawFile { identities }
+                        | SourceRepresentationKind::ArchiveMember { identities, .. } => identities,
+                        _ => panic!("unexpected Genesis source representation"),
+                    };
+                    for identity in identities {
+                        identity.sha1 = Some(hex::encode(Sha1::digest(bytes)));
+                        identity.sha256 = Some(hex::encode(Sha256::digest(bytes)));
+                    }
+                }
+            });
+            for extension in ["bin", "md"] {
+                let path = temporary
+                    .path()
+                    .join(format!("{profile_id}-{extension}.zip"));
+                let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+                archive
+                    .start_file(
+                        format!("original.{extension}"),
+                        zip::write::SimpleFileOptions::default(),
+                    )
+                    .unwrap();
+                archive.write_all(bytes).unwrap();
+                archive.finish().unwrap();
+                let inspection = inspect(&catalog, profile_id, &path);
+                assert!(
+                    matches!(
+                        inspection.assessment.admission,
+                        SourceAdmission::Admitted {
+                            mode: SourceAdmissionMode::ExactIdentity
+                        }
+                    ),
+                    "{profile_id}/{extension}: {}",
+                    inspection.message
+                );
+                let SourceClassification::Recognized { identity } =
+                    &inspection.assessment.classification
+                else {
+                    panic!("ZIP member was not recognized")
+                };
+                assert_eq!(identity.representation_id, "raw-big-endian-zip");
+                let record = inspection.require_admitted_record().unwrap();
+                assert_eq!(record.sha256, hex::encode(Sha256::digest(bytes)));
+                assert_ne!(record.storage_sha256, record.sha256);
+                let mut archive = zip::ZipWriter::new(fs::File::create(&path).unwrap());
+                archive
+                    .start_file(
+                        format!("original.{extension}"),
+                        zip::write::SimpleFileOptions::default(),
+                    )
+                    .unwrap();
+                archive.write_all(b"Different member bytes").unwrap();
+                archive.finish().unwrap();
+                assert!(matches!(
+                    inspect(&catalog, profile_id, &path).assessment.admission,
+                    SourceAdmission::Rejected {
+                        reason: SourceRejectionReason::KnownMismatch
+                    }
+                ));
+            }
+        }
     }
 
     fn observed_disc_source(

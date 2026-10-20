@@ -29,6 +29,26 @@ const executableNames = {
   "preparation-tool": "baseline-tool.exe",
 };
 
+void test("native interface enlargement retains its exact assertion source without changing ordinary profiles", () => {
+  const id = "native-interface-size";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) =>
+        input.kind !== "executable" &&
+        receiptFilePath(input) === "apps/desktop/scripts/desktop-interface-size-test.mts",
+    ).length,
+    1,
+  );
+  for (const profile of ["smoke", "presentation", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
+});
+
 void test("real prepared runtimes use production builds and positive owned closure", () => {
   const id = "native-real-prepared-runtime";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
@@ -278,6 +298,8 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-real-prepared-runtime",
             "native-linux-interrupted-preparation",
             "native-rejected-listener-registration",
+            "native-interface-size",
+            "native-library-layout",
           ].includes(id),
       ),
     });

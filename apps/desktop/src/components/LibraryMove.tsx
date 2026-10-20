@@ -89,7 +89,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         </DialogDescription>
         <NavigationHints />
         <label htmlFor="library-destination">New library folder</label>
-        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
+        <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
           <Input
             data-autofocus
             data-focusable
@@ -171,14 +171,17 @@ export function LibraryMoveRecovery({
   source,
   canKeepOriginal,
   onBusyChange,
+  disabled = false,
 }: {
   source: string;
   canKeepOriginal: boolean;
   onBusyChange?: (active: boolean) => void;
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const recover = async (abort: boolean) => {
+    if (busy || disabled) return;
     setBusy(true);
     setError(undefined);
     onBusyChange?.(true);
@@ -194,6 +197,10 @@ export function LibraryMoveRecovery({
   };
   return (
     <section aria-label="Library move recovery">
+      <h2 className="text-base">Finish the interrupted library move</h2>
+      <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
+        Original library: {source}
+      </p>
       <p>Resume the move to check the new copy and finish switching libraries.</p>
       {canKeepOriginal ? (
         <p>Keep using the original library before the new copy is activated.</p>
@@ -205,7 +212,7 @@ export function LibraryMoveRecovery({
         <Button
           data-focusable
           variant="primary"
-          disabled={busy}
+          disabled={busy || disabled}
           onClick={() => {
             void recover(false);
           }}
@@ -216,7 +223,7 @@ export function LibraryMoveRecovery({
           <Button
             data-focusable
             variant="outline"
-            disabled={busy}
+            disabled={busy || disabled}
             onClick={() => {
               void recover(true);
             }}

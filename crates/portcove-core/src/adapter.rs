@@ -22,6 +22,9 @@ pub(crate) const UPSTREAM_SETUP_METADATA: &str = ".portcove-upstream-setup.json"
 pub(crate) const GAMECUBE_DISC_CAPACITY_BYTES: u64 = 1_459_978_240;
 const MANAGED_PSX_RUNTIME_CONFIG: &str = ".portcove-psx-runtime.toml";
 
+#[path = "admitted_zip_source.rs"]
+mod admitted_zip_source;
+
 #[derive(Debug, Clone, Copy)]
 pub struct LaunchSpecRequest<'a> {
     pub library: &'a Library,
@@ -134,6 +137,9 @@ impl Adapter for StandardAdapter {
         crate::path::unicode(path, "source")?;
         let absolute = std::path::absolute(path)?;
         let path = absolute.as_path();
+        if profile.kind == SourceKind::RelativeFileSet {
+            return crate::relative_file_set::validate_profile(profile, path);
+        }
         if profile.kind == SourceKind::FileSet {
             return validate_file_set_source(profile, path);
         }
@@ -205,13 +211,23 @@ impl Adapter for StandardAdapter {
         let LaunchSpecRequest {
             library,
             port,
-            platform: _,
+            platform,
             install_root,
             selected_executable,
             source,
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_data_policy::validate(port)?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::validate(port)?;
+            if platform != Platform::WindowsX86_64 {
+                return Err(PortcoveError::unsupported(
+                    "managed TFE initialization requires Windows",
+                ));
+            }
+        }
+        crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
                 "selected executable is not a file in the registered install",
@@ -329,11 +345,14 @@ impl Adapter for StandardAdapter {
             recipe.require_runtime_environment()?;
         }
         Ok(LaunchSpec {
-            fixed_arguments_only: port
-                .release
-                .managed_build
-                .values()
-                .any(|recipe| recipe.fixed_launch_arguments_only()),
+            fixed_arguments_only: port.managed_initialization.is_some()
+                || port.managed_shared_preferences.is_some()
+                || port.runtime_data_policy.is_some()
+                || port
+                    .release
+                    .managed_build
+                    .values()
+                    .any(|recipe| recipe.fixed_launch_arguments_only()),
             launch_kind: LaunchKind::for_executable(&executable),
             executable,
             install_root: install_root.to_path_buf(),
@@ -357,6 +376,16 @@ impl Adapter for StandardAdapter {
             ..
         } = request;
         checkpoint()?;
+        crate::runtime_data_policy::validate(port)?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::validate(port)?;
+            if platform != Platform::WindowsX86_64 {
+                return Err(PortcoveError::unsupported(
+                    "managed TFE initialization requires Windows",
+                ));
+            }
+        }
+        crate::runtime_path_policy::check_executable(port, platform, selected_executable)?;
         if !selected_executable.starts_with(install_root) || !selected_executable.is_file() {
             return Err(PortcoveError::verification(
                 "selected executable is not a file in the registered install",
@@ -408,14 +437,33 @@ impl Adapter for StandardAdapter {
             if let Some(parent) = stored_source.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            prepare_runtime_source(
-                source,
-                &stored_source,
-                port.runtime_source_materialization
-                    .unwrap_or(RuntimeSourceMaterialization::N64BigEndian),
-                &port.runtime_source_hashes,
-                checkpoint,
-            )?;
+            let materialization = port
+                .runtime_source_materialization
+                .unwrap_or(RuntimeSourceMaterialization::N64BigEndian);
+            if let Some(record) = request.source_record {
+                if record.path != source {
+                    return Err(PortcoveError::verification(
+                        "runtime source does not match its admitted record",
+                    ));
+                }
+                prepare_admitted_runtime_source(
+                    record,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    None,
+                    checkpoint,
+                    crate::tool_process::ToolProcessObserver::default(),
+                )?;
+            } else {
+                prepare_runtime_source(
+                    source,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    checkpoint,
+                )?;
+            }
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -444,7 +492,17 @@ impl Adapter for StandardAdapter {
             )?;
             checkpoint()?;
         }
-        if let Some(source) = source {
+        if port.managed_initialization.is_some() {
+            let record = request.source_record.ok_or_else(|| {
+                PortcoveError::source("managed original data needs its checked registration")
+            })?;
+            if source != Some(record.path.as_path()) {
+                return Err(PortcoveError::verification(
+                    "managed original data changed its selected path",
+                ));
+            }
+            crate::relative_file_set::materialize(port, record, &working_directory, checkpoint)?;
+        } else if let Some(source) = source {
             for target in &port.runtime_source_set {
                 let destination = working_directory.join(&target.destination);
                 if let Some(parent) = destination.parent() {
@@ -465,6 +523,9 @@ impl Adapter for StandardAdapter {
             plan_libultraship_source(request, has_generated_archive)?.prepare(checkpoint)?;
         }
         crate::n64_graphics::prepare(port, platform, &working_directory, checkpoint)?;
+        if port.managed_initialization.is_some() {
+            crate::managed_tfe::prepare(&working_directory, checkpoint)?;
+        }
         self.launch_spec_with_executable(request, checkpoint)
     }
 }
@@ -646,8 +707,70 @@ pub(crate) fn prepare_runtime_source_with_tool(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
 ) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Legacy(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        observer,
+    )
+}
+
+pub(crate) fn prepare_admitted_runtime_source(
+    source: &SourceRecord,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    prepare_runtime_source_input(
+        RuntimeSourceInput::Admitted(source),
+        destination,
+        materialization,
+        required_hashes,
+        pinned_host_tool,
+        checkpoint,
+        observer,
+    )
+}
+
+enum RuntimeSourceInput<'a> {
+    Legacy(&'a Path),
+    Admitted(&'a SourceRecord),
+}
+
+fn prepare_runtime_source_input(
+    input: RuntimeSourceInput<'_>,
+    destination: &Path,
+    materialization: RuntimeSourceMaterialization,
+    required_hashes: &BTreeMap<String, String>,
+    pinned_host_tool: Option<&Path>,
+    checkpoint: &dyn Fn() -> Result<()>,
+    observer: crate::tool_process::ToolProcessObserver<'_>,
+) -> Result<()> {
+    let (source, admitted_zip) = match input {
+        RuntimeSourceInput::Legacy(path) => (path, None),
+        RuntimeSourceInput::Admitted(record) => (
+            record.path.as_path(),
+            admitted_zip_source::AdmittedZipCopy::select(record, materialization, required_hashes)?,
+        ),
+    };
     let marker_path = runtime_source_marker_path(destination)?;
-    let expected = runtime_source_marker(source, None, materialization, checkpoint)?;
+    let expected = runtime_source_marker(
+        source,
+        admitted_zip
+            .as_ref()
+            .map(|copy| copy.member_name().to_owned()),
+        materialization,
+        checkpoint,
+    )?;
+    if let Some(copy) = &admitted_zip {
+        copy.verify_container(&expected.storage_sha256, expected.storage_size)?;
+    }
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
         | RuntimeSourceMaterialization::PsxRawSet
@@ -661,7 +784,13 @@ pub(crate) fn prepare_runtime_source_with_tool(
             .as_ref()
             == Some(&expected);
     if reusable {
-        match verify_runtime_source_hashes(destination, required_hashes, checkpoint) {
+        let verified = verify_runtime_source_hashes(destination, required_hashes, checkpoint)
+            .and_then(|()| {
+                admitted_zip.as_ref().map_or(Ok(()), |copy| {
+                    copy.verify_destination(destination, checkpoint)
+                })
+            });
+        match verified {
             Ok(()) => return Ok(()),
             Err(error) if error.code == crate::ErrorCode::Verification => {}
             Err(error) => return Err(error),
@@ -670,7 +799,12 @@ pub(crate) fn prepare_runtime_source_with_tool(
 
     match materialization {
         RuntimeSourceMaterialization::N64BigEndian => prepare_n64_source(source, destination)?,
-        RuntimeSourceMaterialization::Copy => copy_runtime_source(source, destination)?,
+        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc => {
+            match &admitted_zip {
+                Some(copy) => copy.materialize(destination, checkpoint)?,
+                None => copy_runtime_source(source, destination)?,
+            }
+        }
         RuntimeSourceMaterialization::GamecubeIso => materialize_gamecube_iso_with_tool(
             source,
             destination,
@@ -691,6 +825,9 @@ pub(crate) fn prepare_runtime_source_with_tool(
     }
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
+    if let Some(copy) = &admitted_zip {
+        copy.verify_destination(destination, checkpoint)?;
+    }
     atomic_write_json(&marker_path, &expected)
 }
 
@@ -828,11 +965,13 @@ fn prepare_runtime_source_set_member(
             checkpoint,
         );
     }
-    if materialization != RuntimeSourceMaterialization::Copy
-        || source_root
-            .extension()
-            .and_then(|value| value.to_str())
-            .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
+    if !matches!(
+        materialization,
+        RuntimeSourceMaterialization::Copy | RuntimeSourceMaterialization::RegaidenGbc
+    ) || source_root
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_none_or(|extension| !extension.eq_ignore_ascii_case("zip"))
     {
         return Err(PortcoveError::source(format!(
             "file-set archives only support copied ZIP members: {}",
@@ -1569,15 +1708,51 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
         )));
     }
 
-    let mut rom = if extension.eq_ignore_ascii_case("zip") {
+    let rom = if extension.eq_ignore_ascii_case("zip") {
         read_zip_source(source, &["z64", "v64", "n64"], 512 * 1024 * 1024)?
     } else {
         std::fs::read(source)?
     };
+    write_n64_big_endian(rom, destination)
+}
+
+/// Fixed source builders consume raw cartridge bytes, never a container parser.
+/// The caller independently binds the canonical digest and stored identity.
+pub(crate) fn prepare_raw_n64_source(
+    source: &Path,
+    destination: &Path,
+    exact_size: u64,
+) -> Result<()> {
+    if !source
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| {
+            ["z64", "n64", "v64"]
+                .iter()
+                .any(|allowed| extension.eq_ignore_ascii_case(allowed))
+        })
+    {
+        return Err(PortcoveError::source(
+            "this source build requires a raw .z64, .n64 or .v64 original; extract and register the raw original before building",
+        ));
+    }
+    if exact_size == 0 || exact_size > 512 * 1024 * 1024 {
+        return Err(PortcoveError::state("invalid fixed raw N64 size"));
+    }
+    let rom = crate::path::read_bounded_regular(source, exact_size)?;
+    if rom.len() as u64 != exact_size {
+        return Err(PortcoveError::source(
+            "raw N64 original has the wrong exact size",
+        ));
+    }
+    write_n64_big_endian(rom, destination)
+}
+
+fn write_n64_big_endian(mut rom: Vec<u8>, destination: &Path) -> Result<()> {
     if rom.len() < 4 {
         return Err(PortcoveError::source(format!(
-            "N64 ROM is too short: {}",
-            source.display()
+            "N64 ROM is too short: {} bytes",
+            rom.len()
         )));
     }
     let padding = (4 - rom.len() % 4) % 4;
@@ -1597,8 +1772,8 @@ fn prepare_n64_source(source: &Path, destination: &Path) -> Result<()> {
         }
         _ => {
             return Err(PortcoveError::source(format!(
-                "unrecognized N64 ROM byte order: {}",
-                source.display()
+                "unrecognized N64 ROM byte order: {:02x?}",
+                &rom[..4]
             )));
         }
     }
@@ -2404,7 +2579,10 @@ pub(crate) fn inspect_source_health(
         }
         Err(_) => return crate::SourceHealth::Unreadable,
     };
-    let identity = if profile.kind == SourceKind::FileSet && metadata.is_dir() {
+    let identity = if profile.kind == SourceKind::RelativeFileSet && metadata.is_dir() {
+        crate::relative_file_set::validate_profile(profile, &source.path)
+            .map(|current| (current.storage_sha256, current.storage_size))
+    } else if profile.kind == SourceKind::FileSet && metadata.is_dir() {
         validate_file_set_source(profile, &source.path)
             .map(|current| (current.storage_sha256, current.storage_size))
     } else {
@@ -4185,6 +4363,36 @@ mod tests {
             std::fs::write(&source, bytes).unwrap();
             prepare_n64_source(&source, &destination).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
+        }
+    }
+
+    #[test]
+    fn raw_n64_build_materialization_is_exact_bounded_and_never_parses_zip() {
+        let root = tempfile::tempdir().unwrap();
+        let canonical = [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4];
+        for (name, bytes) in [
+            ("game.z64", canonical),
+            ("game.v64", [0x37, 0x80, 0x40, 0x12, 2, 1, 4, 3]),
+            ("game.n64", [0x40, 0x12, 0x37, 0x80, 4, 3, 2, 1]),
+        ] {
+            let source = root.path().join(name);
+            let target = root.path().join(format!("{name}.owned"));
+            std::fs::write(&source, bytes).unwrap();
+            prepare_raw_n64_source(&source, &target, 8).unwrap();
+            assert_eq!(std::fs::read(target).unwrap(), canonical);
+        }
+        for (name, bytes) in [
+            ("too-short.z64", &canonical[..4]),
+            ("too-long.z64", &[0_u8; 9][..]),
+            ("wrong-order.z64", &[0_u8; 8][..]),
+            ("unparsed.zip", &canonical[..]),
+        ] {
+            let source = root.path().join(name);
+            let target = root.path().join(format!("{name}.refused"));
+            std::fs::write(&source, bytes).unwrap();
+            assert!(prepare_raw_n64_source(&source, &target, 8).is_err());
+            assert!(!target.exists());
+            assert_eq!(std::fs::read(source).unwrap(), bytes);
         }
     }
 

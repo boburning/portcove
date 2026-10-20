@@ -134,6 +134,9 @@ pub enum SourceRepresentationKind {
     FileSet {
         members: Vec<SourceMemberIdentity>,
     },
+    RelativeFileSet {
+        members: Vec<RelativeSourceMemberIdentity>,
+    },
     GamecubeNormalizedIso {
         identities: Vec<DigestIdentity>,
     },
@@ -173,6 +176,16 @@ pub struct SourceMemberIdentity {
     pub label: String,
     pub filenames: Vec<String>,
     pub identities: Vec<DigestIdentity>,
+}
+
+/// Exact relative paths and bytes; distinct from the existing basename file set.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RelativeSourceMemberIdentity {
+    pub id: String,
+    pub path: String,
+    pub size: u64,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -842,6 +855,19 @@ impl SourceIdentityProfile {
                         });
                         SourceKind::PsxDisc
                     }
+                    SourceRepresentationKind::RelativeFileSet { members } => {
+                        for member in members {
+                            legacy.members.push(SourceMemberProfile {
+                                id: member.id.clone(),
+                                label: member.path.clone(),
+                                accepted_filenames: vec![member.path.clone()],
+                                accepted_sha1: Vec::new(),
+                                accepted_sha256: vec![member.sha256.clone()],
+                                accepted_crc32: Vec::new(),
+                            });
+                        }
+                        SourceKind::RelativeFileSet
+                    }
                     SourceRepresentationKind::FileSet { members } => {
                         for member in members {
                             let mut accepted_sha1 = Vec::new();
@@ -946,6 +972,7 @@ impl SourceRepresentation {
             | SourceRepresentationKind::OpticalTrackSet { identities, .. }
             | SourceRepresentationKind::Compound { identities, .. } => identities,
             SourceRepresentationKind::FileSet { .. }
+            | SourceRepresentationKind::RelativeFileSet { .. }
             | SourceRepresentationKind::MultiDiscSet { .. }
             | SourceRepresentationKind::VolumeId { .. } => {
                 return Ok(vec![serde_json::to_string(&self.kind)?]);
@@ -984,6 +1011,13 @@ impl SourceRepresentation {
             } => {
                 validate_extensions(member_extensions)?;
                 validate_identities(identities)?;
+            }
+            SourceRepresentationKind::RelativeFileSet { members } => {
+                unique_ids(
+                    "relative source member",
+                    members.iter().map(|member| &member.id),
+                )?;
+                crate::relative_file_set::validate(members)?;
             }
             SourceRepresentationKind::FileSet { members } => {
                 if members.is_empty() {

@@ -254,6 +254,8 @@ impl AdapterKind {
 pub enum RuntimeSourceMaterialization {
     N64BigEndian,
     Copy,
+    /// Closed, consent-bearing ReGaiden route; older engines reject this value.
+    RegaidenGbc,
     GamecubeIso,
     PsxBinCue,
     PsxRawSet,
@@ -267,6 +269,7 @@ pub enum SourceKind {
     #[default]
     File,
     FileSet,
+    RelativeFileSet,
     GamecubeDisc,
     PsxDisc,
     UpstreamValidatedDisc,
@@ -372,6 +375,17 @@ pub enum PreparedRuntimeSettingsContract {
 #[serde(rename_all = "kebab-case")]
 pub enum PreparedSharedPreferencesContract {
     Regaiden041Windows,
+    #[serde(rename = "smb1r-1.1-stable-windows")]
+    Smb1r11Windows,
+}
+
+impl PreparedSharedPreferencesContract {
+    pub(crate) const fn minimum_template_version(self) -> u32 {
+        match self {
+            Self::Regaiden041Windows => 8,
+            Self::Smb1r11Windows => 10,
+        }
+    }
 }
 
 /// Explicitly accepted account and location; mutable contents are not authority.
@@ -383,13 +397,81 @@ pub struct AcceptedSharedPreferencesBinding {
     pub path: PathBuf,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SharedPreferencesReview {
     pub binding: AcceptedSharedPreferencesBinding,
     pub present: bool,
-    pub local_fallback_path: PathBuf,
+    pub local_fallback_path: Option<PathBuf>,
     pub local_fallback_present: bool,
+}
+
+/// Managed local fallback and non-owned account-wide preferences have distinct ownership.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ManagedSharedPreferencesReview {
+    pub binding: AcceptedSharedPreferencesBinding,
+    pub local_fallback_path: PathBuf,
+    pub shared_present: bool,
+    pub local_fallback_present: bool,
+}
+
+impl ManagedSharedPreferencesReview {
+    pub fn write_scope_disclosure(&self) -> String {
+        format!(
+            "This game can rewrite shared preferences at {}, discard unknown entries and affect other copies in this Windows account. Portcove never owns, moves, backs up, restores or deletes that shared file. If it is unavailable, the game can instead use {}. That local fallback is part of this installation's managed saves and settings.",
+            self.binding.path.display(),
+            self.local_fallback_path.display()
+        )
+    }
+}
+
+impl SharedPreferencesReview {
+    pub fn write_scope_disclosure(&self) -> Result<String> {
+        use PreparedSharedPreferencesContract::{Regaiden041Windows, Smb1r11Windows};
+        match (self.binding.contract, self.local_fallback_path.as_ref()) {
+            (Regaiden041Windows, Some(fallback)) if !fallback.as_os_str().is_empty() => {
+                Ok(format!(
+                    "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies in this Windows account. If that location is unavailable, it can instead rewrite {}. Portcove does not own, migrate, back up, restore or delete these files.",
+                    self.binding.path.display(),
+                    fallback.display()
+                ))
+            }
+            (Smb1r11Windows, None) if !self.local_fallback_present => Ok(format!(
+                "This game uses the shared directory {} for original game files, settings, saves and custom data. Other copies in this Windows account use the same data. The game can regenerate or trash generated caches and prune its logs. This route accepts only vanilla BaseAssets; custom levels and autosaves, blueprints, custom characters and extra resource packs require manual relocation before use. Portcove refuses these inputs without changing them. Portcove does not seed, own, migrate, back up, restore or delete this directory or its files.",
+                self.binding.path.display()
+            )),
+            _ => Err(PortcoveError::verification(
+                "inconsistent shared write scope review",
+            )),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for SharedPreferencesReview {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Fields {
+            binding: AcceptedSharedPreferencesBinding,
+            present: bool,
+            local_fallback_path: Option<PathBuf>,
+            local_fallback_present: bool,
+        }
+        let fields = Fields::deserialize(deserializer)?;
+        let value = Self {
+            binding: fields.binding,
+            present: fields.present,
+            local_fallback_path: fields.local_fallback_path,
+            local_fallback_present: fields.local_fallback_present,
+        };
+        value
+            .write_scope_disclosure()
+            .map_err(serde::de::Error::custom)?;
+        Ok(value)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -448,6 +530,27 @@ pub struct PersistentFilePattern {
     pub suffix: String,
 }
 
+/// A declared upstream limitation, checked by Core rather than left to the game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum WindowsRuntimePathPolicy {
+    PrintableAsciiMaxPath,
+}
+
+/// Closed initialization recipes, never catalog-supplied scripts or file contents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum ManagedInitialization {
+    #[serde(rename = "tfe-dark-forces-v1.22.420")]
+    TfeDarkForces122420,
+}
+
+/// Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum RuntimeDataPolicy {
+    #[serde(rename = "racewave46-v1.0.0-windows")]
+    Racewave46V100Windows,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -479,11 +582,19 @@ pub struct PortDefinition {
     pub runtime_mutable_paths: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub runtime_mutable_file_patterns: Vec<PersistentFilePattern>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub windows_runtime_path_policy: Option<WindowsRuntimePathPolicy>,
     #[serde(default)]
     pub portable_marker: bool,
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_initialization: Option<ManagedInitialization>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_data_policy: Option<RuntimeDataPolicy>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_shared_preferences: Option<PreparedSharedPreferencesContract>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]
@@ -1224,6 +1335,10 @@ pub struct InstallPlan {
     pub source_requirements: Vec<InstallSourceRequirement>,
     pub storage: StorageSummary,
     pub output_location: PortOutputLocation,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub preservation_notices: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_preferences: Option<ManagedSharedPreferencesReview>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -1367,6 +1482,8 @@ pub enum LaunchBlocker {
     IncompatibleBios,
     MissingRuntime,
     PreparationRequired,
+    SharedPreferencesReviewRequired,
+    SharedPreferencesUnavailable,
     InvalidInstallation,
 }
 

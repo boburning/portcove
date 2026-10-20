@@ -67,6 +67,7 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
   assert.ok(Object.keys(repositoryPackage.devDependencies).length > 0);
   assert.ok(Object.keys(desktopPackage.devDependencies).length > 0);
   assert.deepEqual(Object.keys(repositoryPackage.devDependencies).sort(), [
+    "@resvg/resvg-js",
     "@types/node",
     "@types/selenium-webdriver",
     "@types/semver",
@@ -74,6 +75,8 @@ void test("the root owns the only pnpm workspace lock and repository tool depend
     "vite-plus",
     "yaml",
   ]);
+  assert.equal(repositoryPackage.devDependencies["@resvg/resvg-js"], "2.6.2");
+  assert.equal(Object.hasOwn(desktopPackage.dependencies, "@resvg/resvg-js"), false);
   assert.deepEqual(
     Object.keys(repositoryPackage.devDependencies).filter((name) =>
       Object.hasOwn(desktopPackage.devDependencies, name),

@@ -73,6 +73,10 @@ pub(crate) fn recover_published_install(
         &operation.id,
         &staging,
     )?;
+    if operation.kind == LifecycleOperationKind::Adopt {
+        crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
+        crate::runtime_data_policy::refuse_sensitive_tree(&install.path)?;
+    }
     if matches!(
         operation.phase,
         LifecyclePhase::Prepared | LifecyclePhase::PayloadPublished
@@ -202,6 +206,7 @@ pub(crate) fn recover_published_install(
             }
         }
         if staging.exists() {
+            crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
             fs::remove_dir_all(&staging)?;
         }
         store.remove(&operation.id)?;
@@ -223,6 +228,11 @@ fn require_install_publication_authority(
         return Ok(());
     }
     let installer = Installer::new(service.library.clone())?;
+    let destination = operation
+        .install
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("publication has no final installation"))?;
+    installer.require_shared_preferences_for(install, &destination.path)?;
     installer.require_curated_operation(
         install,
         if operation.kind == LifecycleOperationKind::Install {
@@ -268,6 +278,10 @@ pub(crate) fn recover_removal(
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
     let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    for paths in removal.paths(&service.library)? {
+        crate::managed_tfe::require_no_recovery_data(&paths.live)?;
+        crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+    }
     if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {
             store.remove(&operation.id)?;
@@ -297,6 +311,9 @@ pub(crate) fn recover_removal(
         removal.advance(RemovalPhase::Quarantined, operation, store)?;
     }
     if removal.phase == RemovalPhase::Quarantined {
+        for paths in removal.paths(&service.library)? {
+            crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+        }
         service.library.remove_port(&operation.port_id)?;
         removal.advance(RemovalPhase::Committed, operation, store)?;
     }
@@ -311,6 +328,9 @@ pub(crate) fn recover_removal(
             .collect::<std::collections::BTreeSet<_>>();
         for cleanup_root in cleanup_roots {
             if cleanup_root.exists() {
+                for paths in removal.paths(&service.library)? {
+                    crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+                }
                 fs::remove_dir_all(cleanup_root)?;
             }
         }
@@ -546,6 +566,7 @@ impl ActivationOperation {
             }
         };
         if phase == ActivationPhase::Preparing {
+            service.require_installed_shared_preferences(install)?;
             let status = service
                 .library
                 .status(&operation.port_id, install.channel)?;

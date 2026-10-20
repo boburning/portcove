@@ -29,7 +29,7 @@ export async function primaryFilePickerScenario({
   await scenario("native-primary-file-pickers", async () => {
     const port = transportValue("port", command(["catalog", "show", "mortal-kombat-4-recompiled"]));
     const { button, click } = reviewControls(browser);
-    await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+    await click(By.xpath('//nav//button[contains(., "Find games")]'));
     await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await browser.findElement(By.id("port-search")).sendKeys(port.name);
     const card = By.css(`button.port-card[data-detail-origin][aria-label^="${port.name}."]`);

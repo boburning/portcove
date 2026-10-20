@@ -1268,7 +1268,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -1279,7 +1280,10 @@
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           "local_fallback_path": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "local_fallback_present": {
             "type": "boolean"
@@ -1491,7 +1495,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       }
@@ -1638,7 +1643,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -1649,7 +1655,10 @@
             "$ref": "#/$defs/AcceptedSharedPreferencesBinding"
           },
           "local_fallback_path": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "local_fallback_present": {
             "type": "boolean"
@@ -4206,6 +4215,33 @@
         ],
         "type": "string"
       },
+      "RelativeSourceMemberIdentity": {
+        "additionalProperties": false,
+        "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
+      },
       "SourceAdmission": {
         "oneOf": [
           {
@@ -5237,6 +5273,25 @@
               "members": {
                 "items": {
                   "$ref": "#/$defs/SourceMemberIdentity"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "relative-file-set",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/RelativeSourceMemberIdentity"
                 },
                 "type": "array"
               }
@@ -6686,7 +6741,9 @@
           "yoshis-cookie-nes-cycle-v1.1.0",
           "dr-mario-nes-cycle-v1.3.0-usa",
           "advance-wars-gba-source-cb3facb53b6b-usa-rev1",
-          "earthbound-snes-source-fe1155dc26ff-usa"
+          "earthbound-snes-source-fe1155dc26ff-usa",
+          "render96-us-source-48da5c491c8a",
+          "gundam-wing-snes-source-c7aaaa152192-japan-offline"
         ],
         "type": "string"
       },
@@ -7642,6 +7699,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation"
         ],
         "type": "string"
@@ -7733,6 +7792,13 @@
           "root"
         ],
         "type": "object"
+      },
+      "ManagedInitialization": {
+        "description": "Closed initialization recipes, never catalog-supplied scripts or file contents.",
+        "enum": [
+          "tfe-dark-forces-v1.22.420"
+        ],
+        "type": "string"
       },
       "ManualSetupGuide": {
         "additionalProperties": false,
@@ -8027,6 +8093,8 @@
           "incompatible_bios",
           "missing_runtime",
           "preparation_required",
+          "shared_preferences_review_required",
+          "shared_preferences_unavailable",
           "invalid_installation",
           "definition_ineligible",
           "missing_data",
@@ -8134,6 +8202,26 @@
             "default": false,
             "type": "boolean"
           },
+          "managed_initialization": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ManagedInitialization"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "managed_shared_preferences": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PreparedSharedPreferencesContract"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "manually_validated_platforms": {
             "default": [],
             "items": {
@@ -8187,6 +8275,16 @@
           },
           "release": {
             "$ref": "#/$defs/ReleaseSpec"
+          },
+          "runtime_data_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimeDataPolicy"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "runtime_mutable_file_patterns": {
             "items": {
@@ -8321,6 +8419,16 @@
             "type": [
               "string",
               "null"
+            ]
+          },
+          "windows_runtime_path_policy": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WindowsRuntimePathPolicy"
+              },
+              {
+                "type": "null"
+              }
             ]
           }
         },
@@ -8660,7 +8768,8 @@
       "PreparedSharedPreferencesContract": {
         "description": "A reviewed shared write scope, never a caller-selected external path.",
         "enum": [
-          "regaiden041-windows"
+          "regaiden041-windows",
+          "smb1r-1.1-stable-windows"
         ],
         "type": "string"
       },
@@ -8671,6 +8780,33 @@
           "view_technical_details"
         ],
         "type": "string"
+      },
+      "RelativeSourceMemberIdentity": {
+        "additionalProperties": false,
+        "description": "Exact relative paths and bytes; distinct from the existing basename file set.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "size",
+          "sha256"
+        ],
+        "type": "object"
       },
       "ReleaseAsset": {
         "properties": {
@@ -8875,6 +9011,13 @@
         ],
         "type": "object"
       },
+      "RuntimeDataPolicy": {
+        "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
+        "enum": [
+          "racewave46-v1.0.0-windows"
+        ],
+        "type": "string"
+      },
       "RuntimeIdentity": {
         "properties": {
           "archive_root": {
@@ -8910,16 +9053,25 @@
         "type": "string"
       },
       "RuntimeSourceMaterialization": {
-        "enum": [
-          "n64-big-endian",
-          "copy",
-          "gamecube-iso",
-          "psx-bin-cue",
-          "psx-raw-set",
-          "ps2-iso",
-          "stfs-directory"
-        ],
-        "type": "string"
+        "oneOf": [
+          {
+            "enum": [
+              "n64-big-endian",
+              "copy",
+              "gamecube-iso",
+              "psx-bin-cue",
+              "psx-raw-set",
+              "ps2-iso",
+              "stfs-directory"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "regaiden-gbc",
+            "description": "Closed, consent-bearing ReGaiden route; older engines reject this value.",
+            "type": "string"
+          }
+        ]
       },
       "RuntimeSourceTarget": {
         "properties": {
@@ -9528,6 +9680,7 @@
         "enum": [
           "file",
           "file-set",
+          "relative-file-set",
           "gamecube-disc",
           "psx-disc",
           "upstream-validated-disc"
@@ -9812,6 +9965,25 @@
               "members": {
                 "items": {
                   "$ref": "#/$defs/SourceMemberIdentity"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "relative-file-set",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/RelativeSourceMemberIdentity"
                 },
                 "type": "array"
               }
@@ -10344,6 +10516,13 @@
           "mutable_paths"
         ],
         "type": "object"
+      },
+      "WindowsRuntimePathPolicy": {
+        "description": "A declared upstream limitation, checked by Core rather than left to the game.",
+        "enum": [
+          "printable-ascii-max-path"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

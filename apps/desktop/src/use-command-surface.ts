@@ -23,6 +23,8 @@ interface CommandSurfaceOptions {
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
   focusSearch: () => void;
+  focusLibrarySearch: () => void;
+  openUpdates?: () => void;
 }
 
 export function commandSurfaceCommands({
@@ -34,6 +36,8 @@ export function commandSurfaceCommands({
   setSelectedId,
   checkAll,
   focusSearch,
+  focusLibrarySearch,
+  openUpdates,
 }: CommandSurfaceOptions): PaletteCommand[] {
   return [
     {
@@ -47,7 +51,7 @@ export function commandSurfaceCommands({
     },
     {
       id: "catalog",
-      label: "Open port catalog",
+      label: "Open Find games",
       description: "Browse native game ports",
       icon: Boxes,
       shortcut: commandShortcut("2"),
@@ -55,21 +59,35 @@ export function commandSurfaceCommands({
       action: () => setView("catalog"),
     },
     {
+      id: "search-library",
+      label: "Search library",
+      description: "Find a game or port in your library",
+      icon: Search,
+      action: focusLibrarySearch,
+    },
+    {
       id: "search",
-      label: "Search port catalog",
+      label: "Search Find games",
       description: "Find a port by title, installation method, or platform",
       icon: Search,
-      shortcut: "/",
       action: focusSearch,
     },
     {
       id: "updates",
-      label: "Go to Updates",
-      description: "Review updates and recent activity",
+      label: "Open Activity",
+      description: "Review tasks, history and recovery",
       icon: Download,
       shortcut: commandShortcut("3"),
       keywords: "navigate activity",
       action: () => setView("updates"),
+    },
+    {
+      id: "game-updates",
+      label: "Review game updates",
+      description: "Open the Updates section in Activity",
+      icon: Download,
+      keywords: "installed versions update",
+      action: openUpdates ?? (() => setView("updates")),
     },
     {
       id: "check",
@@ -118,6 +136,7 @@ export function commandSurfaceCommands({
 }
 
 export function useCommandSurface({
+  view,
   recent,
   installedCount,
   busy,
@@ -125,7 +144,9 @@ export function useCommandSurface({
   setAdoptOpen,
   setSelectedId,
   checkAll,
+  openUpdates,
 }: {
+  view: View;
   recent?: RecentPort | undefined;
   installedCount: number;
   busy: boolean;
@@ -133,14 +154,23 @@ export function useCommandSurface({
   setAdoptOpen: (open: boolean) => void;
   setSelectedId: (portId: string) => void;
   checkAll: () => Promise<void>;
+  openUpdates?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const focusSearch = useCallback(() => {
-    setView("catalog");
-    window.requestAnimationFrame(() =>
-      document.querySelector<HTMLInputElement>("#port-search")?.focus(),
-    );
-  }, [setView]);
+  const openSearch = useCallback(
+    (destination: View) => {
+      setView(destination);
+      window.requestAnimationFrame(() =>
+        document.querySelector<HTMLInputElement>("#port-search")?.focus(),
+      );
+    },
+    [setView],
+  );
+  const focusSearch = useCallback(() => openSearch("catalog"), [openSearch]);
+  const focusLibrarySearch = useCallback(() => openSearch("library"), [openSearch]);
+  const focusCurrentSearch = useCallback(() => {
+    document.querySelector<HTMLInputElement>("#port-search")?.focus();
+  }, []);
   const commands = useMemo<PaletteCommand[]>(
     () =>
       commandSurfaceCommands({
@@ -152,14 +182,28 @@ export function useCommandSurface({
         setSelectedId,
         checkAll,
         focusSearch,
+        focusLibrarySearch,
+        ...(openUpdates ? { openUpdates } : {}),
       }),
-    [busy, checkAll, focusSearch, installedCount, recent, setAdoptOpen, setSelectedId, setView],
+    [
+      busy,
+      checkAll,
+      focusLibrarySearch,
+      focusSearch,
+      installedCount,
+      openUpdates,
+      recent,
+      setAdoptOpen,
+      setSelectedId,
+      setView,
+    ],
   );
   useGlobalShortcuts({
     paletteOpen: open,
     setPaletteOpen: setOpen,
     setView,
-    focusSearch,
+    focusSearch: focusCurrentSearch,
+    searchAvailable: view === "library" || view === "catalog",
   });
   return { open, setOpen, commands };
 }

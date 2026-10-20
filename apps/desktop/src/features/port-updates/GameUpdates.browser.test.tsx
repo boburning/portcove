@@ -98,6 +98,8 @@ async function pressEscape() {
   });
 }
 
+// The retained cold-browser trace completed the UI save but spent >15s in browser
+// attachment/transport. Keep every assertion and a finite budget; no test retries.
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
   const save = vi.fn().mockResolvedValue({ ...portStatus(), update_policy: "automatic" });
   const review = vi.spyOn(desktopApi, "planGameUpdate");
@@ -111,7 +113,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("No update was run");
-});
+}, 45_000);
 
 it("does not report a settings save as successful after failure", async () => {
   const save = vi.fn().mockRejectedValue(new Error("Library changed"));
@@ -154,6 +156,65 @@ it("reviews without execution and submits the exact download-only plan on confir
     "Update saved for later. Your current version is unchanged.",
   );
   expect(container.textContent).not.toContain("Update downloaded for later");
+});
+
+it("shows per-version sign-in limits in update review before confirmation", async () => {
+  const notice = "Sign-in stays with each installed version and is excluded from backups.";
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    plan: { ...plan.plan, preservation_notices: [notice] },
+  });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain(notice);
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("shows shared and local preference paths before an update without accepting them", async () => {
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    plan: {
+      ...plan.plan,
+      shared_preferences: {
+        binding: {
+          contract: "regaiden041-windows",
+          account_sid_sha256: "a".repeat(64),
+          path: "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+        },
+        local_fallback_path: "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+        shared_present: false,
+        local_fallback_present: false,
+      },
+    },
+  });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain(
+    "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain(
+    "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain("requires acceptance");
+  expect(apply).not.toHaveBeenCalled();
 });
 
 it("reviews an immediate update in place and obtains new consent before keeping it for later", async () => {
@@ -261,6 +322,7 @@ it("plays the current version independently and reviews a saved update without o
   };
   await root.rerender(
     <UpdateCenter
+      section="updates"
       generation={9}
       ports={[port]}
       statuses={new Map([[port.id, status]])}
@@ -310,6 +372,7 @@ it("shows only the newest game review when two row requests complete out of orde
   );
   await root.rerender(
     <UpdateCenter
+      section="updates"
       generation={9}
       ports={ports}
       statuses={statuses}
@@ -608,7 +671,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
 const refreshOperation = vi.fn(async () => undefined);
 let actualOperation: ReturnType<typeof useOperationState>;
 function ActualOperationFixture({ generation = 9 }: { generation?: number }) {
-  actualOperation = useOperationState({ refresh: refreshOperation });
+  actualOperation = useOperationState({ refresh: refreshOperation, libraryGeneration: generation });
   return (
     <GameUpdateControl
       key={generation}

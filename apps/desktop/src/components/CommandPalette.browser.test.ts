@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite-plus/test";
 import { Boxes, Library } from "lucide-react";
+import { userEvent } from "vite-plus/test/browser";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette";
@@ -15,7 +16,7 @@ const commands: [PaletteCommand, PaletteCommand] = [
   },
   {
     id: "catalog",
-    label: "Open port catalog",
+    label: "Open Find games",
     description: "Browse supported ports",
     keywords: "discover",
     icon: Boxes,
@@ -433,10 +434,64 @@ describe("command input ownership", () => {
     await act(async () =>
       root.render(createElement(CommandPalette, { open: true, commands: available, close })),
     );
+    // Let the reopened dialog complete its initial-focus lifecycle before input.
+    await vi.waitFor(() => expect(document.activeElement).toBe(search()));
     await key("ArrowDown");
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-catalog");
     await key("Enter");
     expect(close).toHaveBeenCalledTimes(2);
     expect(available[0].action).toHaveBeenCalledOnce();
+    expect(available[1].action).toHaveBeenCalledOnce();
+  });
+
+  it("keeps keyboard selection when reopening under a stationary pointer", async () => {
+    await act(async () =>
+      userEvent.hover(document.querySelector<HTMLButtonElement>("#command-library")!),
+    );
+    await key("Enter");
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: false, commands: available, close })),
+    );
+    await act(async () =>
+      root.render(createElement(CommandPalette, { open: true, commands: available, close })),
+    );
+    await key("ArrowDown");
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-catalog");
+    // A popup appearing beneath a stationary pointer emits entry without movement.
+    await act(async () => {
+      document
+        .querySelector("#command-library")!
+        .dispatchEvent(
+          new MouseEvent("mouseover", { bubbles: true, relatedTarget: document.body }),
+        );
+    });
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-catalog");
+    await key("Enter");
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(available[0].action).toHaveBeenCalledOnce();
+    expect(available[1].action).toHaveBeenCalledOnce();
+  });
+
+  it("lets pointer movement and option focus choose a command", async () => {
+    await key("ArrowDown");
+    const library = document.querySelector<HTMLButtonElement>("#command-library")!;
+    await act(async () => userEvent.hover(search()));
+    await act(async () => userEvent.hover(library));
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-library");
+    await key("ArrowDown");
+    await act(async () => library.focus());
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-library");
+    await act(async () => userEvent.keyboard("{Enter}"));
+    expect(close).toHaveBeenCalledOnce();
+    expect(available[0].action).toHaveBeenCalledOnce();
+    expect(available[1].action).not.toHaveBeenCalled();
+  });
+
+  it("clicks an option directly without first changing the active command", async () => {
+    expect(search().getAttribute("aria-activedescendant")).toBe("command-library");
+    await act(async () => document.querySelector<HTMLButtonElement>("#command-catalog")!.click());
+    expect(close).toHaveBeenCalledOnce();
+    expect(available[0].action).not.toHaveBeenCalled();
     expect(available[1].action).toHaveBeenCalledOnce();
   });
 });

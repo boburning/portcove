@@ -9,6 +9,44 @@ namespace Portcove.ReferenceClient
     {
         internal string Fingerprint { get; private set; }
         internal string Description { get; private set; }
+        private string sharedDescription;
+        private bool sharedAcknowledged;
+        private string port;
+
+        internal bool ConfirmSharedScope(Func<string, bool> confirm)
+        {
+            if (sharedDescription == null) return true;
+            sharedAcknowledged = confirm(sharedDescription);
+            return sharedAcknowledged;
+        }
+
+        internal string[] InstallationArguments()
+        {
+            if (sharedDescription != null && !sharedAcknowledged)
+                throw new InvalidOperationException("The reviewed shared preferences need separate confirmation.");
+            var args = new List<string> { "installation", "run", port, "--expected-plan", Fingerprint, "--yes" };
+            if (sharedAcknowledged) args.Add("--acknowledge-shared-preferences");
+            return args.ToArray();
+        }
+
+        private static string SharedScope(object plan)
+        {
+            var shared = Json.OptionalObjectField(plan, "shared_preferences");
+            if (shared == null) return null;
+            var binding = Json.Field(shared, "binding");
+            if (RequiredText(binding, "contract") != "regaiden041-windows")
+                throw new InvalidOperationException("Unsupported managed shared preferences contract.");
+            Digest(binding, "account_sid_sha256");
+            var sharedPath = RequiredText(binding, "path");
+            var fallback = RequiredText(shared, "local_fallback_path");
+            PublicCli.RequireAbsolute(sharedPath);
+            PublicCli.RequireAbsolute(fallback);
+            Json.Boolean(shared, "shared_present");
+            Json.Boolean(shared, "local_fallback_present");
+            return "This game can rewrite shared preferences at " + sharedPath +
+                ", discard unknown entries and affect other copies in this Windows account. Portcove never owns, moves, backs up, restores or deletes that shared file. If unavailable, the game can instead use " + fallback +
+                ". That local fallback is part of this installation's managed saves and settings.";
+        }
 
         private static string RequiredText(object value, string field)
         {
@@ -94,6 +132,8 @@ namespace Portcove.ReferenceClient
             }
             return new InstallationReview
             {
+                port = port,
+                sharedDescription = SharedScope(plan),
                 Fingerprint = Digest(value, "plan_sha256"),
                 Description = "Install and activate this reviewed release? Portcove rechecks these inputs before applying it. Changed inputs require another review.\n\n" +
                     "Requested release version: " + RequiredText(release, "version") + "\nRequested channel: " + ChannelLabel(channel) +
@@ -101,8 +141,21 @@ namespace Portcove.ReferenceClient
                     runtimeDescription + "\n" + downloadDescription +
                     "\n" + destinationDescription + "\nSaved data: " + saves +
                     "\nOriginal inputs: " + (sources.Count == 0 ? "none required" : string.Join(", ", sources)) +
+                    PreservationNotices(plan) +
                     "\n\nOriginal files remain in place. Free space, source bytes and destination safety are checked at execution. Cancellation may retain private work for recovery."
             };
+        }
+
+        internal static string PreservationNotices(object plan)
+        {
+            object value;
+            if (!Json.TryField(plan, "preservation_notices", out value)) return "";
+            return string.Concat(Json.Array(value).Select(item =>
+            {
+                var text = item as string;
+                if (string.IsNullOrWhiteSpace(text)) throw new InvalidOperationException("Invalid preservation notice.");
+                return "\n" + text;
+            }));
         }
     }
 }

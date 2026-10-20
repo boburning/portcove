@@ -43,6 +43,9 @@ struct AssetAcquisition<'a> {
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
+    runtime_data_policy: Option<crate::RuntimeDataPolicy>,
+    managed_shared_preferences: Option<crate::PreparedSharedPreferencesContract>,
+    shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
     native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
@@ -63,6 +66,23 @@ pub struct InstallQualification {
 }
 
 impl InstallQualification {
+    pub(crate) fn with_shared_preferences(
+        mut self,
+        accepted: Option<crate::managed_shared_preferences::Acceptance>,
+        root: &Path,
+    ) -> Result<Self> {
+        let contract = self.retained_contract.as_ref().ok_or_else(|| {
+            PortcoveError::verification("shared preference acceptance requires a retained catalog")
+        })?;
+        let catalog = contract.catalog(contract.port_id())?;
+        crate::managed_shared_preferences::require_acceptance(
+            catalog.port(contract.port_id())?,
+            accepted.as_ref(),
+            root,
+        )?;
+        self.shared_preferences = accepted;
+        Ok(self)
+    }
     fn require_cartridge_build_preparation(
         &self,
         release: &ResolvedRelease,
@@ -154,6 +174,9 @@ impl InstallQualification {
         }
         Ok(Self {
             strict_staged_source: port.adapter == AdapterKind::StagedSourcePortable,
+            runtime_data_policy: port.runtime_data_policy,
+            managed_shared_preferences: port.managed_shared_preferences,
+            shared_preferences: None,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             native_build_preparation: None,
             acquisition: None,
@@ -337,6 +360,8 @@ struct InstallManifest {
     schema_version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     retained_contract: Option<crate::installed_contract::InstalledContract>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     #[serde(default)]
     platform: Option<Platform>,
     install_id: String,
@@ -550,6 +575,21 @@ impl Installer {
             required_bytes,
         )?;
         let destination = prepared_root.root.join(&storage_key);
+        if request.qualification.managed_shared_preferences.is_some() {
+            let contract = request
+                .qualification
+                .retained_contract
+                .as_ref()
+                .ok_or_else(|| {
+                    PortcoveError::verification("shared scope has no retained catalog")
+                })?;
+            let catalog = contract.catalog(&request.port_id)?;
+            crate::managed_shared_preferences::require_acceptance(
+                catalog.port(&request.port_id)?,
+                request.qualification.shared_preferences.as_ref(),
+                &destination,
+            )?;
+        }
         if destination.exists() {
             return Err(PortcoveError::conflict(format!(
                 "version {} already exists for {}",
@@ -640,10 +680,74 @@ impl Installer {
         &self,
         request: &InstallRequest,
     ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        if request.qualification.runtime_data_policy.is_some()
+            && request.qualification.retained_contract.is_none()
+        {
+            return Err(PortcoveError::verification(
+                "version-local credential policy requires its retained catalog before acquisition",
+            ));
+        }
         let catalog = match &request.qualification.retained_contract {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
+        if request.qualification.managed_shared_preferences.is_some()
+            || request
+                .release
+                .asset
+                .sha256
+                .eq_ignore_ascii_case(crate::managed_shared_preferences::SHA)
+        {
+            let port = catalog.port(&request.port_id)?;
+            if request.qualification.retained_contract.is_none()
+                || request.qualification.managed_shared_preferences
+                    != port.managed_shared_preferences
+            {
+                return Err(PortcoveError::verification(
+                    "shared preferences require the matching retained qualification before acquisition",
+                ));
+            }
+            crate::managed_shared_preferences::require_artifact(
+                port,
+                &request.release.version,
+                &ArtifactIdentity {
+                    asset_name: request.release.asset.name.clone(),
+                    sha256: request.release.asset.sha256.clone(),
+                    size: request.release.asset.size,
+                },
+                Some(request.qualification.platform),
+            )?;
+            let destination = request
+                .output_root
+                .join(artifact_storage_key(&request.release.asset.sha256)?);
+            crate::managed_shared_preferences::require_acceptance(
+                port,
+                request.qualification.shared_preferences.as_ref(),
+                &destination,
+            )?;
+        }
+        if request.qualification.runtime_data_policy.is_some()
+            || crate::runtime_data_policy::known_artifact(&request.release.asset.sha256)
+        {
+            if request.qualification.retained_contract.is_none()
+                || request.qualification.runtime_data_policy
+                    != catalog.port(&request.port_id)?.runtime_data_policy
+            {
+                return Err(PortcoveError::verification(
+                    "credential-safe acquisition requires the matching retained qualification",
+                ));
+            }
+            crate::runtime_data_policy::require_artifact(
+                catalog.port(&request.port_id)?,
+                &request.release.version,
+                &ArtifactIdentity {
+                    asset_name: request.release.asset.name.clone(),
+                    sha256: request.release.asset.sha256.clone(),
+                    size: request.release.asset.size,
+                },
+                Some(request.qualification.platform),
+            )?;
+        }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &catalog,
@@ -776,6 +880,20 @@ impl Installer {
                 acquisition,
             )
             .await?;
+        if request.qualification.managed_shared_preferences.is_some() {
+            let catalog = request
+                .qualification
+                .retained_contract
+                .as_ref()
+                .ok_or_else(|| {
+                    PortcoveError::verification("shared scope lost its retained catalog")
+                })?
+                .catalog(&request.port_id)?;
+            crate::managed_shared_preferences::prepare_owned_saves(
+                catalog.port(&request.port_id)?,
+                &payload_root,
+            )?;
+        }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
         if let Some(runtime) = &request.qualification.runtime {
             let unpacked = lifecycle.operation_root.join("runtime");
@@ -1598,6 +1716,34 @@ impl Installer {
         retained_catalog_for_install(install)
     }
 
+    pub(crate) fn retained_shared_preferences(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<Option<crate::managed_shared_preferences::Acceptance>> {
+        Ok(verified_manifest(install)?.shared_preferences)
+    }
+
+    pub(crate) fn require_shared_preferences_for(
+        &self,
+        install: &InstallRecord,
+        destination: &Path,
+    ) -> Result<()> {
+        let manifest = verified_manifest(install)?;
+        if let Some(contract) = manifest.retained_contract {
+            let catalog = contract.catalog(&install.port_id)?;
+            crate::managed_shared_preferences::require_acceptance(
+                catalog.port(&install.port_id)?,
+                manifest.shared_preferences.as_ref(),
+                destination,
+            )?;
+        } else if manifest.shared_preferences.is_some() {
+            return Err(PortcoveError::verification(
+                "shared-preferences acceptance has no retained contract",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn require_same_retained_contract(
         &self,
         original: &InstallRecord,
@@ -1790,9 +1936,14 @@ pub(crate) fn portability_catalog_for_install(
     {
         // Legacy metadata can name an embedded install without carrying the newer retained
         // manifest. It receives only the embedded contract and cannot claim successor admission.
+        crate::managed_shared_preferences::refuse_scope_transfer(embedded.port(&install.port_id)?)?;
         return Ok(None);
     }
-    retained_catalog_for_install(install)
+    let retained = retained_catalog_for_install(install)?;
+    if let Some(catalog) = &retained {
+        crate::managed_shared_preferences::refuse_scope_transfer(catalog.port(&install.port_id)?)?;
+    }
+    Ok(retained)
 }
 
 fn write_manifest(
@@ -1811,7 +1962,36 @@ fn write_manifest(
             "manifest and retained port identity differ",
         ));
     }
-    retained_contract.catalog(port_id)?;
+    let catalog = retained_contract.catalog(port_id)?;
+    crate::managed_shared_preferences::require_artifact(
+        catalog.port(port_id)?,
+        version,
+        artifact,
+        Some(qualification.platform),
+    )?;
+    match (
+        catalog.port(port_id)?.managed_shared_preferences,
+        &qualification.shared_preferences,
+    ) {
+        (None, None) => {}
+        (Some(_), Some(accepted)) => accepted.validate_for(catalog.port(port_id)?)?,
+        _ => {
+            return Err(PortcoveError::verification(
+                "manifest publication has no exact shared-preferences acceptance",
+            ));
+        }
+    }
+    if qualification.runtime_data_policy != catalog.port(port_id)?.runtime_data_policy {
+        return Err(PortcoveError::verification(
+            "credential policy differs from the retained qualification",
+        ));
+    }
+    crate::runtime_data_policy::require_artifact(
+        catalog.port(port_id)?,
+        version,
+        artifact,
+        Some(qualification.platform),
+    )?;
     validate_artifact(artifact)?;
     let selected = resolve_declared_executable(root, qualification)?;
     let selected_relative = manifest_relative(root, &selected)?;
@@ -1851,8 +2031,13 @@ fn write_manifest(
         }
     }
     let manifest = InstallManifest {
-        schema_version: 6,
+        schema_version: if qualification.shared_preferences.is_some() {
+            7
+        } else {
+            6
+        },
         retained_contract: Some(retained_contract.clone()),
+        shared_preferences: qualification.shared_preferences.clone(),
         platform: Some(qualification.platform),
         runtime: runtime.clone(),
         runtime_root,
@@ -2138,7 +2323,8 @@ fn verified_manifest_with_budget(
             ));
         }
     }
-    if !matches!(manifest.schema_version, 2..=6)
+    if !matches!(manifest.schema_version, 2..=7)
+        || (manifest.schema_version == 7) != manifest.shared_preferences.is_some()
         || (manifest.schema_version < 6 && manifest.retained_contract.is_some())
         || (manifest.schema_version >= 6 && manifest.retained_contract.is_none())
         || (manifest.schema_version < 4 && !manifest.mutable_file_patterns.is_empty())
@@ -2168,6 +2354,30 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        crate::managed_shared_preferences::require_artifact(
+            catalog.port(&install.port_id)?,
+            &install.version,
+            &install.artifact,
+            manifest.platform,
+        )?;
+        match (
+            catalog.port(&install.port_id)?.managed_shared_preferences,
+            &manifest.shared_preferences,
+        ) {
+            (None, None) => {}
+            (Some(_), Some(accepted)) => accepted.validate_for(catalog.port(&install.port_id)?)?,
+            _ => {
+                return Err(PortcoveError::verification(
+                    "retained manifest has no matching shared-preferences acceptance",
+                ));
+            }
+        }
+        crate::runtime_data_policy::require_artifact(
+            catalog.port(&install.port_id)?,
+            &install.version,
+            &install.artifact,
+            manifest.platform,
+        )?;
         if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
             if manifest.platform != Some(Platform::WindowsX86_64) {
                 return Err(PortcoveError::verification(
@@ -2743,6 +2953,241 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    #[tokio::test]
+    async fn uppercase_racewave_without_policy_refuses_before_contact_or_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        server.set_nonblocking(true).unwrap();
+        let output = library.versions_dir().join("sample");
+        let installer = Installer::with_network_bounds(
+            library.clone(),
+            Duration::from_millis(200),
+            Duration::from_millis(200),
+        )
+        .unwrap();
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: output.clone(),
+            activate: false,
+            managed: None,
+            qualification: InstallQualification::test("game.exe"),
+            release: ResolvedRelease {
+                version: "v1.0.0".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
+                    size: 35_768_574,
+                    sha256: "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                        .to_uppercase(),
+                    url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
+                },
+            },
+        };
+        let failure = installer
+            .install(
+                request,
+                &OperationCoordinator::new("uppercase-credential-fence", None),
+                |_| {},
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            failure.message.contains("actual reviewed RaceWave46"),
+            "{failure}"
+        );
+        assert_eq!(
+            server.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(!output.exists());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    #[tokio::test]
+    async fn uppercase_regaiden_without_acceptance_refuses_before_contact_or_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        server.set_nonblocking(true).unwrap();
+        let output = library.versions_dir().join("sample");
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: output.clone(),
+            activate: false,
+            managed: None,
+            qualification: InstallQualification::test("game.exe"),
+            release: ResolvedRelease {
+                version: "v0.4.1".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip".into(),
+                    size: 33_085_815,
+                    sha256: crate::managed_shared_preferences::SHA.to_uppercase(),
+                    url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
+                },
+            },
+        };
+        let installer = Installer::with_network_bounds(
+            library.clone(),
+            Duration::from_millis(200),
+            Duration::from_millis(200),
+        )
+        .unwrap();
+        let failure = installer
+            .install(
+                request,
+                &OperationCoordinator::new("uppercase-shared-fence", None),
+                |_| {},
+            )
+            .await
+            .unwrap_err();
+        assert!(failure.message.contains("reviewed ReGaiden"), "{failure}");
+        assert_eq!(
+            server.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(!output.exists());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn retained_shared_scope_distinguishes_inspection_failure_from_account_change() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "resident-evil-gaiden-recomp";
+        let port = catalog.port(id).unwrap();
+        let root = library
+            .versions_dir()
+            .join(id)
+            .join(crate::managed_shared_preferences::SHA);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("Resident_Evil_Gaiden__USA_.exe"),
+            b"synthetic manifest fixture, never executed",
+        )
+        .unwrap();
+        let scope = crate::managed_shared_preferences::review(port, &root)
+            .unwrap()
+            .unwrap();
+        let mut qualification =
+            InstallQualification::from_catalog(&catalog, id, Platform::WindowsX86_64)
+                .unwrap()
+                .with_shared_preferences(
+                    Some(crate::managed_shared_preferences::Acceptance::after_review(
+                        &scope,
+                    )),
+                    &root,
+                )
+                .unwrap();
+        let artifact = ArtifactIdentity {
+            asset_name: "Resident_Evil_Gaiden_Recomp_v0.4.1_Windows.zip".into(),
+            size: 33_085_815,
+            sha256: crate::managed_shared_preferences::SHA.into(),
+        };
+        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+            "shared-fixture",
+            id,
+            "v0.4.1",
+            &artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        let mut install = InstallRecord {
+            id: "shared-fixture".into(),
+            port_id: id.into(),
+            version: "v0.4.1".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: artifact.clone(),
+            manifest_sha256,
+            selected_executable,
+            runtime,
+        };
+        library.register_install(&install, true).unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            verified_manifest(&install)
+                .unwrap()
+                .shared_preferences
+                .is_some()
+        );
+        assert_eq!(verified_manifest(&install).unwrap().schema_version, 7);
+        assert!(crate::install::portability_catalog_for_install(&install, &catalog).is_err());
+        assert!(
+            !service
+                .status(id)
+                .unwrap()
+                .readiness
+                .unwrap()
+                .blockers
+                .contains(&crate::LaunchBlocker::SharedPreferencesReviewRequired)
+        );
+        fs::create_dir(root.join("runtime_prefs.ini")).unwrap();
+        let blockers = service.status(id).unwrap().readiness.unwrap().blockers;
+        assert!(blockers.contains(&crate::LaunchBlocker::SharedPreferencesUnavailable));
+        assert!(!blockers.contains(&crate::LaunchBlocker::SharedPreferencesReviewRequired));
+        fs::remove_dir(root.join("runtime_prefs.ini")).unwrap();
+        // Model a retained manifest from another account without changing host
+        // identity, global preferences or production authorization machinery.
+        let mut changed = scope;
+        changed.binding.account_sid_sha256 = "0".repeat(64);
+        qualification.shared_preferences = Some(
+            crate::managed_shared_preferences::Acceptance::after_review(&changed),
+        );
+        let (digest, _, _) = write_manifest(
+            "shared-fixture",
+            id,
+            "v0.4.1",
+            &artifact,
+            &qualification,
+            &root,
+        )
+        .unwrap();
+        install.manifest_sha256 = digest;
+        library.register_install(&install, true).unwrap();
+        let blockers = service.status(id).unwrap().readiness.unwrap().blockers;
+        assert!(blockers.contains(&crate::LaunchBlocker::SharedPreferencesReviewRequired));
+        assert!(!blockers.contains(&crate::LaunchBlocker::SharedPreferencesUnavailable));
+        assert!(
+            service
+                .require_installed_shared_preferences(&install)
+                .is_err()
+        );
+        assert!(root.is_dir());
+        // Synthetic launch marker exercises the real keep-data removal path;
+        // no game, account identity or global preferences are changed here.
+        fs::create_dir_all(root.join("saves")).unwrap();
+        fs::write(
+            root.join("saves/recovery-probe.bin"),
+            b"local recovery data",
+        )
+        .unwrap();
+        fs::write(root.join(".portcove-launched"), b"synthetic test marker").unwrap();
+        let preview = service.preview_removal(id).unwrap();
+        assert!(preview.persistent_data_will_be_preserved);
+        let authorization = service
+            .authorize_removal(id, &preview.preview_sha256)
+            .unwrap();
+        service.remove(id, &authorization.token).unwrap();
+        assert!(!root.exists());
+        assert_eq!(
+            fs::read(library.user_dir(id).join("saves/recovery-probe.bin")).unwrap(),
+            b"local recovery data"
+        );
+        assert!(library.all_installs().unwrap().is_empty());
+    }
 
     #[tokio::test]
     async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {

@@ -308,9 +308,15 @@ impl InboxScan<'_> {
             let Some(specialized_hash_charge) = self.preflight(&path)? else {
                 continue;
             };
+            let relative_set = self.profile.kind == SourceKind::RelativeFileSet;
+            if relative_set {
+                self.stats.candidates_inspected += 1;
+            }
             match self.inspect(&path) {
                 Ok(inspection) => {
-                    self.stats.candidates_inspected += 1;
+                    if !relative_set {
+                        self.stats.candidates_inspected += 1;
+                    }
                     let automatically_reusable = matches!(
                         inspection.assessment.admission,
                         SourceAdmission::Admitted {
@@ -325,12 +331,16 @@ impl InboxScan<'_> {
                 Err(error) if error.code == crate::ErrorCode::Cancelled => return Err(error),
                 Err(error) => {
                     if let Some(limit) = error.details.get("scan_limit") {
-                        self.reached.insert(if limit == "file_size" {
-                            SourceDiscoveryLimit::FileSize
-                        } else {
-                            SourceDiscoveryLimit::HashBytes
+                        self.reached.insert(match limit.as_str() {
+                            "file_size" => SourceDiscoveryLimit::FileSize,
+                            "entries" => SourceDiscoveryLimit::Entries,
+                            "depth" => SourceDiscoveryLimit::Depth,
+                            _ => SourceDiscoveryLimit::HashBytes,
                         });
-                    } else {
+                    } else if !(relative_set
+                        && path.is_dir()
+                        && error.code == crate::ErrorCode::SourceInvalid)
+                    {
                         self.issue(Some(path.clone()), &error.message);
                     }
                 }
@@ -414,6 +424,32 @@ impl InboxScan<'_> {
                     &mut self.hash_budget,
                 )
             }
+            SourceKind::RelativeFileSet => {
+                let depth = path
+                    .strip_prefix(&self.profile_root)
+                    .map_err(|_| PortcoveError::state("relative source escaped its Inbox"))?
+                    .components()
+                    .count()
+                    .saturating_sub(1) as u32;
+                let mut limits = crate::relative_file_set::ReadLimits {
+                    max_entries: self
+                        .limits
+                        .max_entries
+                        .saturating_sub(self.stats.entries_examined),
+                    max_depth: self.limits.max_depth.saturating_sub(depth),
+                    max_file_bytes: self.limits.max_file_bytes,
+                    entries: 0,
+                };
+                let result = crate::relative_file_set::inspect_with_limits(
+                    self.service.catalog(),
+                    &self.profile.id,
+                    path,
+                    &mut self.hash_budget,
+                    &mut limits,
+                );
+                self.stats.entries_examined += limits.entries;
+                result
+            }
             SourceKind::FileSet => crate::source_inspection::inspect_file_set(
                 self.service.catalog(),
                 &self.profile.id,
@@ -431,7 +467,7 @@ impl InboxScan<'_> {
 
     fn accepts_directory(&self) -> bool {
         match self.profile.kind {
-            SourceKind::FileSet => true,
+            SourceKind::FileSet | SourceKind::RelativeFileSet => true,
             SourceKind::PsxDisc => self
                 .profile
                 .disc
@@ -455,7 +491,9 @@ impl InboxScan<'_> {
                         .iter()
                         .any(|allowed| allowed.eq_ignore_ascii_case(extension))
             }
-            SourceKind::FileSet => extension.eq_ignore_ascii_case("zip"),
+            SourceKind::FileSet | SourceKind::RelativeFileSet => {
+                extension.eq_ignore_ascii_case("zip")
+            }
             SourceKind::PsxDisc => {
                 !self.accepts_directory() && extension.eq_ignore_ascii_case("chd")
             }
@@ -482,6 +520,10 @@ impl InboxScan<'_> {
                 return Ok(None);
             }
             metadata.len()
+        } else if metadata.is_dir() && self.profile.kind == SourceKind::RelativeFileSet {
+            // The exact relative reader inventories nested entries once, under
+            // the remaining caller budget, before reading any member bytes.
+            0
         } else if metadata.is_dir() {
             let mut total = 0_u64;
             for entry in fs::read_dir(path)? {
@@ -509,7 +551,7 @@ impl InboxScan<'_> {
             return Ok(None);
         };
         let charge = match self.profile.kind {
-            SourceKind::File | SourceKind::UpstreamValidatedDisc => 0,
+            SourceKind::File | SourceKind::UpstreamValidatedDisc | SourceKind::RelativeFileSet => 0,
             SourceKind::FileSet if metadata.is_file() => {
                 let mut archive = zip::ZipArchive::new(fs::File::open(path)?).map_err(|error| {
                     PortcoveError::source(format!("invalid file-set ZIP: {error}"))

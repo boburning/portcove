@@ -80,6 +80,7 @@ import { selectedSetupCompletionScenario } from "./desktop-selected-setup-comple
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
+import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -623,6 +624,7 @@ function captureBackupFocusCleanup(evidenceName = cleanupName) {
 }
 async function verifySettingsRows() {
   const browser = driverBrowser();
+  await selectSettingsCategory("game-files");
   const savedFolders = await browser.wait(
     until.elementLocated(
       By.xpath(
@@ -646,6 +648,7 @@ async function verifySettingsRows() {
     false,
     "an empty saved-root registry must not start a scan",
   );
+  await selectSettingsCategory("advanced");
   const bundleWarningVisible = await executeBrowserScript(browser, () => {
     const card = document.querySelector('[data-settings-group="advanced"] .diagnostics-card');
     const warning = [...(card?.querySelectorAll("p") ?? [])].find((element) =>
@@ -683,60 +686,6 @@ async function verifySettingsRows() {
         { width: 1280, height: 800 },
       ]) {
         await setVerifiedWindowSize(size, "Settings");
-        const rows = await executeBrowserScript(browser, () => {
-          const rect = (element: Element) => {
-            const bounds = element.getBoundingClientRect();
-            return {
-              left: bounds.left,
-              top: bounds.top,
-              bottom: bounds.bottom,
-              width: bounds.width,
-              fits: element.scrollWidth <= element.clientWidth + 1,
-            };
-          };
-          const groups = [
-            "appearance",
-            "library-storage",
-            "game-files",
-            "updates",
-            "integrations",
-            "advanced",
-          ];
-          return {
-            viewportWidth: window.innerWidth,
-            groups: Object.fromEntries(
-              groups.map((group) => {
-                const content = document.querySelector(
-                  `[data-settings-group="${group}"] .settings-section-content`,
-                );
-                if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
-                const children = [...content.children];
-                if (!children.every((child) => child.classList.contains("settings-row")))
-                  throw new Error(`${group} contains an unmigrated Settings card`);
-                return [group, { content: rect(content), rows: children.map(rect) }];
-              }),
-            ),
-            bundlePathFits: (() => {
-              const path = document.querySelector(
-                '[data-settings-group="advanced"] .diagnostics-card code',
-              );
-              if (!(path instanceof HTMLElement)) throw new Error("Saved bundle path is missing");
-              return path.scrollWidth <= path.clientWidth + 1;
-            })(),
-            recommendationFits: (() => {
-              const label = document.querySelector(
-                '[aria-label="Application update mode"] button small',
-              );
-              const button = label?.closest("button");
-              if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
-                throw new Error("Recommended update-mode label is missing");
-              return (
-                label.getBoundingClientRect().bottom <= button.getBoundingClientRect().bottom - 2
-              );
-            })(),
-          };
-        });
-        assertSettingsRowGeometry(rows, size);
         for (const group of [
           "appearance",
           "library-storage",
@@ -745,6 +694,64 @@ async function verifySettingsRows() {
           "integrations",
           "advanced",
         ]) {
+          await selectSettingsCategory(group);
+          const rows = await executeBrowserScript(
+            browser,
+            (group) => {
+              const rect = (element: Element) => {
+                const bounds = element.getBoundingClientRect();
+                return {
+                  left: bounds.left,
+                  top: bounds.top,
+                  bottom: bounds.bottom,
+                  width: bounds.width,
+                  fits: element.scrollWidth <= element.clientWidth + 1,
+                };
+              };
+              const groups = [group];
+              return {
+                viewportWidth: window.innerWidth,
+                groups: Object.fromEntries(
+                  groups.map((group) => {
+                    const content = document.querySelector(
+                      `[data-settings-group="${group}"] .settings-section-content`,
+                    );
+                    if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
+                    const children = [...content.children];
+                    if (!children.every((child) => child.classList.contains("settings-row")))
+                      throw new Error(`${group} contains an unmigrated Settings card`);
+                    return [group, { content: rect(content), rows: children.map(rect) }];
+                  }),
+                ),
+                bundlePathFits:
+                  group !== "advanced" ||
+                  (() => {
+                    const path = document.querySelector(
+                      '[data-settings-group="advanced"] .diagnostics-card code',
+                    );
+                    if (!(path instanceof HTMLElement))
+                      throw new Error("Saved bundle path is missing");
+                    return path.scrollWidth <= path.clientWidth + 1;
+                  })(),
+                recommendationFits:
+                  group !== "updates" ||
+                  (() => {
+                    const label = document.querySelector(
+                      '[aria-label="Application update mode"] button small',
+                    );
+                    const button = label?.closest("button");
+                    if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
+                      throw new Error("Recommended update-mode label is missing");
+                    return (
+                      label.getBoundingClientRect().bottom <=
+                      button.getBoundingClientRect().bottom - 2
+                    );
+                  })(),
+              };
+            },
+            group,
+          );
+          assertSettingsRowGeometry(rows, size);
           const section = await browser.findElement(By.css(`[data-settings-group="${group}"]`));
           await executeBrowserScript(
             browser,
@@ -767,6 +774,7 @@ async function verifySettingsRows() {
     }
   } finally {
     await browser.manage().window().setRect(originalWindow);
+    await selectSettingsCategory("appearance");
     await browser
       .findElement(
         By.xpath(
@@ -820,14 +828,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
 
 async function verifyLongTitleCatalogDetail(theme: string) {
   const browser = driverBrowser();
-  await executeBrowserScript(browser, () => {
-    const card = [...document.querySelectorAll(".port-card-selectable")].find((item) =>
-      item.textContent?.includes("Castlevania: Legacy of Darkness Recompiled"),
-    );
-    if (!(card instanceof HTMLElement)) throw new Error("Long-title catalog card is missing");
-    card.scrollIntoView({ block: "center", inline: "nearest" });
-    card.click();
-  });
+  await browser.findElement(By.css('[data-detail-origin="catalog:card:cvlod-recomp"]')).click();
   await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
   await browser.wait(
     () =>
@@ -859,6 +860,7 @@ async function verifyLongTitleCatalogDetail(theme: string) {
       const main = document.querySelector("main");
       return {
         title: title.textContent?.trim(),
+        project: title.parentElement?.querySelector("h1 + p")?.textContent?.trim(),
         titleClientWidth: title.clientWidth,
         titleScrollWidth: title.scrollWidth,
         titleClientHeight: title.clientHeight,
@@ -882,10 +884,9 @@ async function verifyLongTitleCatalogDetail(theme: string) {
       };
     });
     await captureScenarioScreenshot(`game-details-long-title-${theme}-${size.width}`, true);
-    assert.equal(layout.title, "Castlevania: Legacy of Darkness Recompiled");
+    assert.equal(layout.title, "Castlevania: Legacy of Darkness");
+    assert.equal(layout.project, "Port project: Castlevania: Legacy of Darkness Recompiled");
     assert.equal(layout.titleFits, true, JSON.stringify(layout));
-    if (size.width === 960)
-      assert.ok(layout.titleHeight > layout.lineHeight * 1.5, JSON.stringify(layout));
     assert.equal(layout.action.label, "Choose game files");
     assert.equal(layout.horizontalOverflow, false);
     assert.ok(
@@ -901,11 +902,36 @@ async function verifyLongTitleCatalogDetail(theme: string) {
   await browser.manage().window().setRect({ width: 960, height: 640 });
 }
 
-async function refreshSettings() {
+async function refreshSettings(category?: string) {
   const browser = driverBrowser();
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
   await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  if (category) await selectSettingsCategory(category);
+}
+
+async function selectSettingsCategory(id: string) {
+  const browser = driverBrowser();
+  await browser
+    .findElement(
+      By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Settings")]'),
+    )
+    .click();
+  const category = By.css(
+    `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
+  );
+  await browser.wait(until.elementLocated(category), 15_000);
+  await browser.findElement(category).click();
+  await browser.wait(
+    () =>
+      executeBrowserScript(
+        browser,
+        (categoryId) => document.activeElement?.id === `settings-${categoryId}-heading`,
+        id,
+      ),
+    5_000,
+    `Settings ${id} heading did not receive focus`,
+  );
 }
 
 // Includes owned native artwork picker/restart coverage in addition to lifecycle reviews.
@@ -1087,7 +1113,11 @@ async function captureScenarioScreenshot(name: string, required = false) {
   }
 }
 
-async function captureKeyboardTarget(name: string, element: WebElement) {
+async function captureKeyboardTarget(
+  name: string,
+  element: WebElement,
+  scenarioId = "keyboard-layout",
+) {
   const session = driverBrowser();
   assert.match(name, /^[a-z0-9-]+$/u);
   const label = `native-${name}`;
@@ -1130,7 +1160,7 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
       browser: session,
       output,
       name,
-      scenario: "keyboard-layout",
+      scenario: scenarioId,
       target,
       observeTarget: async () => {
         const state = await executeBrowserScript(
@@ -1151,7 +1181,7 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
         const body = `${JSON.stringify({
           format_version: 1,
           outcome: "failed",
-          scenario: "keyboard-layout",
+          scenario: scenarioId,
           target,
           label,
           message: errorMessage(error),
@@ -1192,6 +1222,7 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
 
 async function selectSettingsTheme(theme: string) {
   const browser = driverBrowser();
+  await selectSettingsCategory("appearance");
   await browser
     .findElement(
       By.xpath(
@@ -1223,6 +1254,7 @@ async function captureApplicationUpdateSettingsComparison() {
   try {
     for (const theme of ["dark", "light"]) {
       await selectSettingsTheme(theme);
+      await selectSettingsCategory("updates");
       for (const size of [
         { width: 960, height: 640 },
         { width: 1280, height: 800 },
@@ -2005,15 +2037,15 @@ async function captureSelectedDriverLaunch(launchStarted: number) {
 
 async function verifyCompactSettingsJumps() {
   const browser = driverBrowser();
-  const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
-  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 6);
+  const index = await browser.findElement(By.css('nav[aria-label="Settings categories"]'));
+  assert.equal((await index.findElements(By.css('button[data-slot="button"]'))).length, 7);
   await executeBrowserScript(
     browser,
     (element) => element.scrollIntoView({ block: "start" }),
     index,
   );
   await captureScenarioScreenshot("settings-section-index-compact");
-  await index.findElement(By.xpath('.//button[normalize-space(.)="Game files"]')).click();
+  await selectSettingsCategory("game-files");
   const jump = await executeBrowserScript(browser, () => {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement)) return null;
@@ -2027,7 +2059,7 @@ async function verifyCompactSettingsJumps() {
     };
   });
   assert.equal(jump?.id, "settings-game-files-heading");
-  assert.equal(jump.tabIndex, 0);
+  assert.equal(jump.tabIndex, -1);
   assert.equal(jump.outlineStyle, "solid");
   assert.ok(jump.top >= 0 && jump.bottom <= 640);
   await captureScenarioScreenshot("settings-section-jump-game-files");
@@ -2059,7 +2091,7 @@ async function verifyCompactSettingsJumps() {
       (element) => element.scrollIntoView({ block: "start" }),
       index,
     );
-    await index.findElement(By.xpath('.//button[normalize-space(.)="Advanced"]')).click();
+    await selectSettingsCategory("advanced");
     const focus = await executeBrowserScript(browser, () => {
       const active = document.activeElement;
       if (!(active instanceof HTMLElement)) return null;
@@ -2116,6 +2148,7 @@ async function verifyCompactSettingsJumps() {
       diagnosticCopy,
     );
   }
+  await selectSettingsCategory("about");
   const about = await browser.findElement(By.css(".about-card"));
   const aboutLayout = await executeBrowserScript(
     browser,
@@ -2141,7 +2174,7 @@ async function verifyCompactSettingsJumps() {
 
 async function verifySettingsIndexTheme(theme: string) {
   const browser = driverBrowser();
-  const index = await browser.findElement(By.css('[role="group"][aria-label="Settings sections"]'));
+  const index = await browser.findElement(By.css('nav[aria-label="Settings categories"]'));
   const geometry = await executeBrowserScript(
     browser,
     (element) => {
@@ -2587,7 +2620,7 @@ try {
     assert.ok(status.ok);
     assert.equal(status.value.filter((item) => item.active).length, 0);
     const firstCatalog = await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Find games"]')),
       15_000,
     );
     assert.equal(await firstCatalog.isDisplayed(), true);
@@ -2625,7 +2658,7 @@ try {
         typeof entryState.right === "number",
     );
     assert.ok(typeof viewport.height === "number" && typeof viewport.width === "number");
-    assert.equal(entryState.title, "Port catalog");
+    assert.equal(entryState.title, "Find games");
     assert.ok(entryState.top >= 0 && entryState.bottom <= viewport.height);
     assert.ok(entryState.left >= 0 && entryState.right <= viewport.width);
     const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
@@ -2830,7 +2863,7 @@ try {
     assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const catalog = await invoke("get_catalog");
     assert.ok(catalog.ok);
@@ -3052,7 +3085,7 @@ try {
       );
     };
     await switchTo(alternate, "library-picker-select-alternate", original.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
     const alternateBeta = await browser.findElement(
@@ -3064,7 +3097,7 @@ try {
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
     const restoredBeta = await browser.findElement(
@@ -3126,7 +3159,7 @@ try {
       );
       assert.deepEqual(
         labels.map((label) => label.text),
-        ["Library", "Port catalog", "Game updates", "Settings"],
+        ["Library", "Find games", "Activity", "Settings"],
       );
       assert.ok(labels.every((label) => label.widthFits && label.heightFits && label.buttonFits));
     };
@@ -3140,6 +3173,30 @@ try {
     await verifySidebarLabels();
     await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
     await browser.wait(until.elementLocated(By.css('[data-settings-group="appearance"]')), 15_000);
+    const visibleGroups: { name: string; columns: number }[] = [];
+    for (const id of [
+      "appearance",
+      "library-storage",
+      "game-files",
+      "updates",
+      "integrations",
+      "advanced",
+      "about",
+    ]) {
+      await selectSettingsCategory(id);
+      const columns = await executeBrowserScript(
+        browser,
+        (categoryId) => {
+          const section = document.querySelector(`[data-settings-group="${categoryId}"]`);
+          const content = section?.querySelector(".settings-section-content");
+          if (!(content instanceof HTMLElement) || section?.closest("[hidden]"))
+            throw new Error("Selected Settings category is not visible");
+          return getComputedStyle(content).gridTemplateColumns.split(" ").length;
+        },
+        id,
+      );
+      visibleGroups.push({ name: id, columns });
+    }
     const layout = await executeBrowserScript(browser, () => ({
       document_overflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       about_columns: (() => {
@@ -3147,14 +3204,6 @@ try {
         if (!(about instanceof HTMLElement)) throw new Error("About card is missing");
         return getComputedStyle(about).gridTemplateColumns.split(" ").length;
       })(),
-      groups: [...document.querySelectorAll("[data-settings-group]")].map((group) => {
-        const content = group.querySelector(".settings-section-content");
-        if (!(content instanceof HTMLElement)) throw new Error("Settings group content is missing");
-        return {
-          name: group.getAttribute("data-settings-group"),
-          columns: getComputedStyle(content).gridTemplateColumns.split(" ").length,
-        };
-      }),
       overflowing_cards: [...document.querySelectorAll(".settings-row")]
         .filter((card) => card.scrollWidth > card.clientWidth + 1)
         .map((card) => card.getAttribute("aria-labelledby") ?? card.className),
@@ -3171,13 +3220,14 @@ try {
     }));
     assert.equal(layout.document_overflow, false);
     assert.equal(layout.about_columns, 1);
-    assert.deepEqual(layout.groups, [
+    assert.deepEqual(visibleGroups, [
       { name: "appearance", columns: 1 },
       { name: "library-storage", columns: 1 },
       { name: "game-files", columns: 1 },
       { name: "updates", columns: 1 },
       { name: "integrations", columns: 1 },
       { name: "advanced", columns: 1 },
+      { name: "about", columns: 1 },
     ]);
     assert.deepEqual(layout.overflowing_cards, []);
     assert.deepEqual(layout.legacy_buttons, []);
@@ -3208,6 +3258,7 @@ try {
     assert.notEqual(focus.tag, "BODY");
     assert.ok(focus.left >= 0 && focus.right <= 640);
     assert.ok(focus.top >= 0 && focus.bottom <= 640);
+    await selectSettingsCategory("about");
     const about = await browser.findElement(By.css(".about-card"));
     await executeBrowserScript(
       browser,
@@ -3232,9 +3283,10 @@ try {
       await about.findElement(By.css("h2")),
     );
 
+    await selectSettingsCategory("updates");
     const gameUpdatesLink = await browser.findElement(
       By.xpath(
-        '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open Game updates"]',
+        '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open game updates in Activity"]',
       ),
     );
     await executeBrowserScript(
@@ -3245,7 +3297,15 @@ try {
     await captureKeyboardTarget("settings-game-update-destination-link", gameUpdatesLink);
     await gameUpdatesLink.click();
     await browser.wait(until.elementLocated(By.css(".update-center")), 15_000);
-    assert.equal(await browser.findElement(By.css("main h1")).getText(), "Game updates & activity");
+    assert.equal(await browser.findElement(By.css("main h1")).getText(), "Activity");
+    assert.equal(
+      await browser.findElement(By.css('[aria-label="Game updates"]')).isDisplayed(),
+      true,
+    );
+    assert.equal(
+      await browser.findElement(By.css('[aria-label="Tasks and history"]')).isDisplayed(),
+      false,
+    );
     assert.equal(
       await executeBrowserScript(browser, () => {
         const stat = [...document.querySelectorAll(".update-stat")].find(
@@ -3262,7 +3322,7 @@ try {
       "Game updates heading did not receive focus",
     );
     const applicationUpdatesLink = await browser.findElement(
-      By.xpath('//button[normalize-space(.)="Open Portcove & catalog update settings"]'),
+      By.xpath('//button[normalize-space(.)="Open Portcove update settings"]'),
     );
     await executeBrowserScript(
       browser,
@@ -3275,17 +3335,18 @@ try {
       until.elementLocated(By.css('[data-settings-group="updates"]')),
       15_000,
     );
-    assert.ok((await updateSettings.getText()).includes("Portcove & catalog updates"));
+    assert.ok((await updateSettings.getText()).includes("Portcove updates"));
     await browser.wait(
       () =>
-        executeBrowserScript(browser, () =>
-          document.activeElement?.matches('[data-settings-control="catalog-updates"]'),
+        executeBrowserScript(
+          browser,
+          () => document.activeElement?.id === "settings-updates-heading",
         ),
       5_000,
-      "Catalog update settings did not receive focus",
+      "Application update settings did not receive focus",
     );
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
@@ -3529,7 +3590,7 @@ try {
             card: await browser.findElement(
               By.css('[data-settings-group="library-storage"] article.storage-card'),
             ),
-            group: "storage",
+            group: "library-storage",
           },
           {
             name: "disc-tools",
@@ -3545,6 +3606,7 @@ try {
         ]) {
           await setVerifiedWindowSize(size, "Settings");
           for (const { name, card, group } of settingsCards) {
+            await selectSettingsCategory(group);
             await executeBrowserScript(
               browser,
               (element) => element.scrollIntoView({ block: "start", inline: "nearest" }),
@@ -3563,7 +3625,7 @@ try {
           }
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
-        await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+        await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,
           15_000,
@@ -3575,7 +3637,7 @@ try {
             documentOverflow:
               document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
             items: cards.map((card) => {
-              const description = card.querySelector(".card-content > p");
+              const description = card.querySelector(".card-content > p.line-clamp-2");
               const rect = description?.getBoundingClientRect();
               const style = description ? getComputedStyle(description) : null;
               return {
@@ -3672,27 +3734,32 @@ try {
           await executeBrowserScript(
             browser,
             () =>
-              document.activeElement?.closest(".application-update-settings") !== null &&
-              document.activeElement?.textContent?.trim() === "Preview",
+              document.activeElement ===
+              document.querySelector(
+                '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
+              ),
           ),
         15_000,
       );
     } catch (error) {
       const focus = await executeBrowserScript(browser, () => ({
         active: document.activeElement?.outerHTML,
-        firstControl: document.querySelector(".application-update-settings button:not(:disabled)")
-          ?.outerHTML,
+        firstControl: document.querySelector(
+          '.application-update-settings [aria-label="Application update channel"] button:not(:disabled)',
+        )?.outerHTML,
       }));
       throw new Error(`Review options focus: ${JSON.stringify(focus)}`, { cause: error });
     }
+    const initialChoice = await browser.switchTo().activeElement();
     await browser.actions().sendKeys(Key.ARROW_DOWN).perform();
     await browser.wait(
       async () =>
         await executeBrowserScript(
           browser,
-          () =>
+          (initial) =>
             document.activeElement?.closest(".application-update-settings") !== null &&
-            document.activeElement?.textContent?.trim() !== "Preview",
+            document.activeElement !== initial,
+          initialChoice,
         ),
       5_000,
       "Directional navigation left application update settings",
@@ -3750,7 +3817,7 @@ try {
       15_000,
     );
 
-    await refreshSettings();
+    await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Application update channel"]')),
       15_000,
@@ -3807,7 +3874,7 @@ try {
     assert.deepEqual(success(await invoke("get_activities")), activities.value);
 
     await writeFile(path.join(output, "application-updates.json"), "not-json\n");
-    await refreshSettings();
+    await refreshSettings("updates");
     await browser.wait(
       until.elementLocated(By.xpath('//button[normalize-space(.)="Reset update settings"]')),
       15_000,
@@ -3869,9 +3936,7 @@ try {
     await verifySettingsRows();
   });
   await scenario("appearance-restart", async () => {
-    const browser = driverBrowser();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
-    await browser.findElement(By.xpath('//button[normalize-space(.)="Light"]')).click();
+    await selectSettingsTheme("light");
     assert.equal(
       await executeBrowserScript(driverBrowser(), () => document.documentElement.dataset.theme),
       "light",
@@ -4088,6 +4153,16 @@ try {
   await controllerScenario({ browser: required(browser), scenario, output, artifacts });
   if (!linuxPackagedInspector) {
     await accessibleNavigationScenario({ browser: driverBrowser(), scenario, output, artifacts });
+    await interfaceSizeScenario({
+      browser: driverBrowser,
+      scenario,
+      output,
+      artifacts,
+      restart: restartApplication,
+      setTheme: selectSettingsTheme,
+      capture: captureScenarioScreenshot,
+      captureTarget: (name, target) => captureKeyboardTarget(name, target, "native-interface-size"),
+    });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
       invoke,

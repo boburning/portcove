@@ -57,6 +57,7 @@ impl PortcoveService {
         }
         let catalog = self.installed_catalog(active)?;
         let port = catalog.port(&active.port_id)?;
+        self.require_installed_shared_preferences(active)?;
         self.require_ghostship_install_data_compatibility(active, None)?;
         let qualification = self.installed_mutability_qualification(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
@@ -65,7 +66,9 @@ impl PortcoveService {
         checkpoint()?;
         self.managed_install_root(&port.id, &active.path)?;
         checkpoint()?;
-        Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        let executable =
+            Installer::new(self.library.clone())?.verify_critical(active, &qualification)?;
+        crate::runtime_path_policy::check_executable(port, Platform::current()?, &executable)?;
         checkpoint()?;
         let source = if let Some(path) = source_override {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {

@@ -114,6 +114,7 @@ export function RemovalReviewDialog({
             </ul>
             <p className="[overflow-wrap:anywhere]">
               This game's saved release-channel and update-policy settings will also be removed.
+              Sign-ins stored only inside installed versions are deleted with those versions.
             </p>
             <p className="[overflow-wrap:anywhere]">
               <strong>Saved data will be preserved at:</strong>

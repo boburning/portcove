@@ -488,8 +488,8 @@ impl PortcoveService {
         }
         let mut conversion_quiesced =
             || record_preparation_process_quiescence(self, operation.operation_id(), true);
-        crate::adapter::prepare_runtime_source_with_tool(
-            &plan.inputs.source.path,
+        crate::adapter::prepare_admitted_runtime_source(
+            &plan.inputs.source,
             &source,
             port.runtime_source_materialization.ok_or_else(|| {
                 PortcoveError::state("managed preparation has no source materialization contract")

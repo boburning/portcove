@@ -1,5 +1,19 @@
 # Desktop localization
 
+Saved-location impact distinguishes entry counts from game titles and includes
+game/port identity for affected entries. The host resolves its own native-dialog
+names. Full Unicode paths remain visible and wrap inline. A bounded native
+summary points to the complete inline set instead of silently omitting entries.
+
+Library distinguishes game title, port project/variant and library entry count.
+Separate ports for one game remain separate entries. Search labels identify
+Library or Find games. Covers/Compact rows preserve full identity; expanding
+strings wrap without changing artwork proportions. Current update decisions stay
+distinct from Future update preferences. These English labels add no supported
+locale; engineering pseudo-locales remain tests.
+
+Navigation copy is Library / Find games / Activity / Settings. Activity sections are Tasks & history and Updates. These display labels do not rename serialized route IDs. Contextual task messages must retain complete action and target identity; an operation ID is not translated or inferred from a display name. English remains the supported product language; engineering locales do not become release commitments through this presentation change. Preserve the existing bounded namespace-migration scope below.
+
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 Portcove's desktop localization foundation is an offline presentation concern. React owns translated copy and live direction; the Tauri adapter persists the user's optional locale choice through `HostPreferenceStore`. Core and CLI machine-readable output remain English and unchanged unless their owning contracts are revised separately.
@@ -50,6 +64,25 @@ Unused-key removal is deliberately conservative. The extractor does not delete c
 
 ## Qualification boundary
 
+Interface enlargement remains independent of language and library selection.
+Its whole-WebView scale changes controls and text together; shared narrow layouts
+must tolerate long labels and user text-spacing overrides without dropping
+actions. English remains the supported language. A narrow layout or an engineering
+pseudo-locale is not a phone-platform or translated-product commitment. Native
+zoom, actual authored-content widths and enlarged-text/spacing checks retain
+their separate evidence identities.
+
 Unit and contract tests cover exact and fallback resolution, malformed and empty catalogs, missing-key presentation, plural selection, durable success and failure, live RTL direction, focus retention, and generated key checks. The selected `native-localization-foundation` scenario exercises the real Tauri Settings journey, host persistence, renderer reload, accessibility scan, RTL presentation, focus restoration, and absence of external network resources. Tauri's internal `tauri.localhost` asset origin and `ipc.localhost` bridge are explicitly local and remain allowed.
 
 A current Windows or Linux native pass is evidence only for its recorded revision, artifact, OS, architecture, and embedded webview. It is not historical-minimum, packaged-build, Steam Deck, macOS, or publication qualification. Missing initial-beta Windows/Linux stack or minimum evidence remains owned by [#993](https://github.com/boburning/portcove/issues/993). Full macOS qualification belongs to #45/#226 during beta before 1.0; Deck proof remains with #51/#217. Keep practical macOS build health and portable architecture without making absent Mac/device observations a beta gate. Development and merge of this non-publishing foundation do not authorize publication to an unqualified platform.
+
+Guided library recovery strings distinguish metadata export, manually copied
+content, verified restore and authority-changing Move. Content-root filenames are
+literal code; surrounding explanations and entry labels are localizable. Unicode
+paths retain their exact bytes with LTR isolation. No supported language is added.
+
+Add games displays game and port identity independently of stable IDs. File-check
+copy distinguishes a selected-port check from folder recognition; do not translate
+an unknown or preliminary match into compatibility. Step labels describe phases,
+not automatically completed milestones. Keep cancellation-request versus terminal
+cancellation wording distinct. No supported language is added.

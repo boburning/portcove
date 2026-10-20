@@ -84,6 +84,10 @@ const actionReasons: Record<string, string> = {
     "This BIOS edition is not supported by the installed version. Choose a supported BIOS file.",
   missing_runtime: "A required runtime component is missing.",
   preparation_required: "Prepare game data before playing.",
+  shared_preferences_review_required:
+    "Windows account or shared preferences location changed. Remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the shared preferences file in place.",
+  shared_preferences_unavailable:
+    "Portcove cannot safely check this game's shared preferences. Leave the file unchanged, close other copies of the game, check that your Windows profile is available, then refresh. Reinstalling does not fix an unsafe or unreadable shared location.",
   invalid_installation: "Portcove could not verify the installed files.",
 };
 
@@ -166,7 +170,7 @@ function presentAssessment(
 }
 
 /** Presentation only: an allowed snapshot never supplies execution authority. */
-export function portActionPresentation(
+function corePortActionPresentation(
   status: PortStatus | undefined,
   action: PresentedAction,
 ): ActionPresentation {
@@ -181,6 +185,17 @@ export function portActionPresentation(
   return action === "rollback"
     ? presentRollbackAssessment(assessment)
     : presentAssessment(assessment, action, status);
+}
+
+export function portActionPresentation(
+  status: PortStatus | undefined,
+  action: PresentedAction,
+  localConflict?: string,
+): ActionPresentation {
+  const assessment = corePortActionPresentation(status, action);
+  return assessment.blocked || !localConflict
+    ? assessment
+    : { blocked: true, reason: localConflict };
 }
 
 type SetupRoute = "install" | "register_external";

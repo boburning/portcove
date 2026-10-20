@@ -15,6 +15,7 @@ import type {
 import { errorText } from "../../view-model";
 import { Button } from "../../components/ui/button";
 import { focusAndReveal } from "../../focus";
+import type { Perform } from "../operations/use-operation-state";
 
 const recommendedChoice: ApplicationUpdateChoice = {
   channel: "preview",
@@ -449,7 +450,29 @@ type BoundUpdateResult = {
   value: ApplicationUpdateCheckResult;
 };
 
+function performApplicationTask<T>(
+  perform: Perform | undefined,
+  generation: number,
+  action: string,
+  task: () => Promise<T>,
+) {
+  return perform
+    ? perform(action, task, {
+        refresh: "none",
+        invalidateDiagnostics: false,
+        context: {
+          action,
+          target: { kind: "application", id: "portcove", label: "Portcove" },
+          libraryGeneration: generation,
+          exclusionScope: "application",
+        },
+      })
+    : task();
+}
+
 function useApplicationUpdateOperation({
+  perform,
+  generation,
   preferences,
   changed,
   onStart,
@@ -457,6 +480,8 @@ function useApplicationUpdateOperation({
   automaticNotice,
   initialChannel,
 }: {
+  perform?: Perform | undefined;
+  generation: number;
   preferences: ApplicationUpdatePreferences | undefined;
   changed: boolean;
   onStart: () => void;
@@ -521,10 +546,21 @@ function useApplicationUpdateOperation({
     setError(undefined);
     onStart();
     try {
-      const nextResult = await execute((nextPhase) => {
-        if (requests.current.isCurrent(request)) setPhase(nextPhase);
-      });
+      const task = () =>
+        execute((nextPhase) => {
+          if (requests.current.isCurrent(request)) setPhase(nextPhase);
+        });
+      const nextResult = await performApplicationTask(
+        perform,
+        generation,
+        operation === "check" ? "Check application update" : "Download application update",
+        task,
+      );
       if (!requests.current.isCurrent(request)) return;
+      if (!nextResult) {
+        setError("The request did not complete. Review Activity before trying again.");
+        return;
+      }
       setBoundResult({ preferenceRevision, ...nextResult });
       if (operation === "download") await onComplete();
     } catch (value) {
@@ -759,12 +795,14 @@ function ApplicationUpdateCheckPanel({
 }
 
 function useApplicationUpdateSettings({
+  perform,
   currentVersion,
   generation = 0,
   disabled = false,
   automaticNotice,
   preferencesState,
 }: {
+  perform?: Perform | undefined;
   currentVersion: string;
   generation?: number | undefined;
   disabled?: boolean;
@@ -836,6 +874,8 @@ function useApplicationUpdateSettings({
   };
 
   const updateOperation = useApplicationUpdateOperation({
+    perform,
+    generation,
     initialChannel:
       Number(currentVersion.split(".")[0]) >= 1 && !currentVersion.includes("-")
         ? "stable"
@@ -934,8 +974,17 @@ function useApplicationUpdateSettings({
     setStatusError(undefined);
     setNotice(undefined);
     try {
-      const value = await desktopApi.recoverApplicationUpdateState(area);
+      const value = await performApplicationTask(
+        perform,
+        generation,
+        "Repair application update",
+        () => desktopApi.recoverApplicationUpdateState(area),
+      );
       if (!statusRequests.current.isCurrent(request)) return;
+      if (!value) {
+        setStatusError("Repair did not complete. Review Activity and refresh the current state.");
+        return;
+      }
       setStatus(value);
       setNotice(
         {
@@ -958,7 +1007,20 @@ function useApplicationUpdateSettings({
     setError(undefined);
     setNotice(undefined);
     try {
-      await desktopApi.restartToApplyApplicationUpdate(generation);
+      const accepted = await performApplicationTask(
+        perform,
+        generation,
+        "Restart to update Portcove",
+        async () => {
+          await desktopApi.restartToApplyApplicationUpdate(generation);
+          return true;
+        },
+      );
+      if (!accepted) {
+        setBusy("");
+        setError("Restart was not confirmed. Review Activity and refresh the current state.");
+        return;
+      }
       setBusy("Restarting Portcove to apply the verified update…");
     } catch (value) {
       setError(errorText(value));
@@ -971,11 +1033,17 @@ function useApplicationUpdateSettings({
 
   useEffect(() => {
     const heading = headingRef.current;
-    if (unavailable || !heading || document.activeElement !== heading) return;
+    if (unavailable || !heading) return;
+    const settings = heading.closest(".application-update-settings");
+    const preferencesHeading = settings?.querySelector("#application-preferences-title");
+    const active = document.activeElement;
+    if (active !== heading && active !== preferencesHeading) return;
     focusAndReveal(
-      heading
-        .closest(".application-update-settings")
-        ?.querySelector<HTMLElement>("button:not(:disabled)"),
+      settings?.querySelector<HTMLElement>(
+        active === preferencesHeading
+          ? '[aria-label="Application update channel"] button:not(:disabled)'
+          : "button:not(:disabled)",
+      ),
     );
   }, [unavailable]);
 

@@ -96,6 +96,9 @@ pub(crate) struct FailureContext {
 /// Facts attached at the refusing domain branch, never recovered from diagnostics.
 #[derive(Debug)]
 pub(crate) enum KnownFailureCause {
+    HostLocalCredential {
+        path: std::path::PathBuf,
+    },
     CatalogValidity,
     CatalogReplay,
     NewerLibrary,
@@ -108,9 +111,13 @@ pub(crate) enum KnownFailureCause {
     StaleRemoval,
     RestoreRecovery,
     BackupDeletionRecovery,
+    TfePreparationRecovery {
+        directory: std::path::PathBuf,
+    },
     DestinationCapacity,
     ArchiveLimit,
     UnicodePath,
+    RuntimePathRequirement,
     UnsupportedStfs,
     DeviceLoginUnavailable,
     ProviderRequest {
@@ -130,6 +137,15 @@ pub(crate) enum FailureProvider {
 impl KnownFailureCause {
     fn presentation(&self) -> (&'static str, String) {
         let (key, summary) = match self {
+            Self::HostLocalCredential { path } => {
+                return (
+                    "host_local_credential_transfer_refused",
+                    format!(
+                        "Portcove cannot transfer this file because its name is reserved for RetroAchievements sign-in. Sign out in that installed version and close it before retrying. If it cannot run, preserve the listed file privately on this Windows host and remove it manually from the listed transfer or recovery tree. Temporary credential files can remain after sign-out and need the same treatment. Do not upload these files.\nFile to preserve or remove: {}",
+                        path.display()
+                    ),
+                );
+            }
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
                 "The signed catalog sequence or validity period was not accepted. Check the system clock and obtain a current catalog from its configured source.",
@@ -178,6 +194,15 @@ impl KnownFailureCause {
                 "backup_deletion_recovery_required",
                 "A backup deletion is unfinished. Restart Portcove to retry recovery; if it remains held, review doctor output before further changes.",
             ),
+            Self::TfePreparationRecovery { directory } => {
+                return (
+                    "tfe_preparation_recovery_required",
+                    format!(
+                        "Preparation copies need manual preservation before continuing. Close the game, move the entire folder outside all Portcove installation and recovery folders, verify the preserved files, then review and retry this operation.\nFolder to preserve: {}",
+                        directory.display()
+                    ),
+                );
+            }
             Self::DestinationCapacity => (
                 "destination_space_insufficient",
                 "The prepared files cannot fit in the available destination space. Free space or select a suitable destination, then review the operation again.",
@@ -189,6 +214,10 @@ impl KnownFailureCause {
             Self::UnicodePath => (
                 "path_not_representable",
                 "This path cannot be represented by Portcove's Unicode path contract. Select a path with a valid Unicode name; a lossy replacement cannot identify the original files safely.",
+            ),
+            Self::RuntimePathRequirement => (
+                "runtime_path_requirement",
+                "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Review the original-file location too when the runtime uses it directly.",
             ),
             Self::UnsupportedStfs => (
                 "stfs_format_unsupported",

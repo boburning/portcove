@@ -337,7 +337,7 @@ namespace Portcove.ReferenceClient
             var blockers = readiness == null ? "Readiness unknown" : string.Join(", ", Json.Array(Json.Field(readiness, "blockers")).Select(value => Convert.ToString(value).Replace('_', ' ')));
             var definitionOperations = DefinitionOperations.Summary(status);
             var portActions = PortActions.Summary(status);
-            var presentation = Json.OptionalObjectField(catalog, "presentation");
+            var presentation = SetupInstructions.ForRuntime(status, catalog);
             var preparationText = SetupInstructions.Summary(presentation);
             preparationNotes.Text = SetupInstructions.TechnicalNotes(presentation) ?? "";
             preparationNotesSection.Visibility = externalRoute && !string.IsNullOrWhiteSpace(preparationNotes.Text)
@@ -424,9 +424,10 @@ namespace Portcove.ReferenceClient
                 var review = InstallationReview.Read(plan, port, cli.LibraryRoot);
                 if (MessageBox.Show(window, review.Description, "Review installation", MessageBoxButton.OKCancel,
                     MessageBoxImage.Question) != MessageBoxResult.OK) return;
+                if (!review.ConfirmSharedScope(message => MessageBox.Show(window, message,
+                    "Allow shared preferences?", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)) return;
                 CurrentStatus = null;
-                await cli.Manage("installation.run", new[] { "installation", "run", port,
-                    "--expected-plan", review.Fingerprint, "--yes" }, OnProgress);
+                await cli.Manage("installation.run", review.InstallationArguments(), OnProgress);
                 await Refresh();
                 return;
             }
@@ -439,6 +440,13 @@ namespace Portcove.ReferenceClient
             if (sourcePath.Length != 0) args.AddRange(new[] { "--source", sourcePath });
             if (biosPath.Length != 0) args.AddRange(new[] { "--bios", biosPath });
             var prompt = "Check the selected channel now, then download, verify and activate its eligible update? The release is resolved when you continue. Supplied source files may be registered.";
+            object dataPolicy;
+            if (Json.TryField(currentCatalog, "runtime_data_policy", out dataPolicy) && dataPolicy != null)
+            {
+                var plan = await cli.Read("plan", "plan", port);
+                if (Json.Text(plan, "port_id") != port) throw new InvalidOperationException("Preservation review targets another game.");
+                prompt += InstallationReview.PreservationNotices(plan);
+            }
             if (MessageBox.Show(window, prompt + "\n\nLibrary: " + cli.LibraryRoot + "\nGame: " + game.Name,
                 "Portcove", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
@@ -458,12 +466,13 @@ namespace Portcove.ReferenceClient
             var preview = await cli.Read("external.preview", "external", "preview", port, selected);
             technical.Text = Json.Print(preview);
             var review = ExternalRuntimeReview.Read(preview, port, selected);
+            if (!review.ConfirmSharedScope(description => MessageBox.Show(window, description,
+                "Review shared game data", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)) return;
             if (MessageBox.Show(window, review.Description, "Review external runtime", MessageBoxButton.OKCancel,
                 MessageBoxImage.Question) != MessageBoxResult.OK) return;
             await cli.AssertIdentity();
             CurrentStatus = null;
-            var result = await cli.Manage("external.register", new[] { "external", "register", port, review.Path,
-                "--expected-preview", review.Fingerprint, "--yes" }, OnProgress);
+            var result = await cli.Manage("external.register", review.RegistrationArguments(), OnProgress);
             var registration = review.RequireRegistered(result);
             var fresh = await cli.Read("status", "status", port);
             var record = Json.OptionalObjectField(fresh, "external_runtime");

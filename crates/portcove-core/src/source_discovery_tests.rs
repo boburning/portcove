@@ -3240,7 +3240,7 @@ fn directory_depth_entry_file_size_and_hash_budgets_bound_work() {
 }
 
 #[test]
-fn zip_payload_and_container_hashing_are_both_budgeted_before_expansion() {
+fn zip_snapshot_and_member_hashing_respect_the_budget_before_expansion() {
     let temporary = tempfile::tempdir().unwrap();
     let payload = b"synthetic cartridge bytes";
     let path = temporary.path().join("source.zip");
@@ -3250,11 +3250,30 @@ fn zip_payload_and_container_hashing_are_both_budgeted_before_expansion() {
         .unwrap();
     archive.write_all(payload).unwrap();
     archive.finish().unwrap();
-    let bytes = fs::metadata(&path).unwrap().len() + payload.len() as u64;
+    let container_bytes = fs::metadata(&path).unwrap().len();
+    let bytes = container_bytes + payload.len() as u64;
     let mut selected = request(temporary.path());
-    selected.limits.max_hash_bytes = bytes - 1;
+    selected.limits.max_hash_bytes = container_bytes - 1;
     let limited = scan(&catalog(payload), &selected).unwrap();
     assert_eq!(limited.hash_bytes, 0);
+    assert!(limited.candidates.is_empty());
+    assert!(
+        limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
+    selected.limits.max_hash_bytes = bytes - 1;
+    let limited = scan(&catalog(payload), &selected).unwrap();
+    // The bounded private snapshot is hashed before ZIP metadata is parsed.
+    // Its actual cost is charged, but insufficient member budget cannot expand
+    // or hash the payload or publish a candidate.
+    assert_eq!(limited.hash_bytes, container_bytes);
+    assert!(limited.candidates.is_empty());
+    assert!(
+        limited
+            .limits_reached
+            .contains(&SourceDiscoveryLimit::HashBytes)
+    );
     selected.limits.max_hash_bytes = bytes;
     let found = scan(&catalog(payload), &selected).unwrap();
     assert_eq!(found.hash_bytes, bytes);

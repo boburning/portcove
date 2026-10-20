@@ -5,7 +5,7 @@ import { controlClassName, controlFocus, controlMotion } from "./control-style";
 
 const buttonVariants = cva(
   cn(
-    "group/button inline-flex shrink-0 items-center justify-center rounded-pc-md border border-transparent bg-clip-padding text-sm font-medium [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+    "group/button inline-flex max-w-full shrink-0 items-center justify-center rounded-pc-md border border-transparent bg-clip-padding text-sm font-medium [overflow-wrap:anywhere] whitespace-normal transition-[color,background-color,border-color,box-shadow,transform] select-none active:bg-[var(--color-bg-active)] active:shadow-(--shadow-pressed) active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:border-pc-border disabled:bg-pc-surface-muted disabled:text-pc-muted-foreground disabled:opacity-70 disabled:shadow-none aria-busy:pointer-events-none aria-busy:opacity-70 aria-invalid:border-pc-danger [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
     controlFocus,
     controlMotion,
   ),
@@ -17,7 +17,7 @@ const buttonVariants = cva(
         primary:
           "border-pc-primary bg-pc-primary text-pc-action-foreground shadow-sm hover:border-pc-primary-hover hover:bg-pc-primary-hover active:border-pc-primary-active active:bg-pc-primary-active",
         selected:
-          "border-pc-interactive bg-pc-selection text-pc-selection-foreground shadow-sm hover:bg-pc-selection hover:text-pc-selection-foreground active:bg-[var(--color-interactive-active)] active:text-pc-action-foreground",
+          "relative border-pc-interactive bg-pc-selection text-pc-selection-foreground shadow-sm after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border-[3px] after:border-double after:border-current hover:bg-pc-selection hover:text-pc-selection-foreground active:bg-[var(--color-interactive-active)] active:text-pc-action-foreground",
         outline:
           "border-pc-border bg-pc-background text-pc-selection-foreground hover:bg-pc-surface-muted hover:text-pc-foreground aria-expanded:bg-pc-surface-muted aria-expanded:text-pc-foreground dark:border-pc-input dark:bg-pc-surface-muted/30 dark:hover:bg-pc-surface-muted/50",
         secondary:

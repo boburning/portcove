@@ -160,8 +160,24 @@ fn read_zip_identity_from_file(
                 .detail("scan_limit", "file_size"),
         );
     }
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|error| PortcoveError::source(format!("invalid source ZIP: {error}")))?;
+    // Snapshot and bound raw central metadata before the parser allocates it.
+    // Charge that digest pass even if metadata or later member admission fails.
+    budget.reserve(storage_size)?;
+    let checked =
+        crate::source_zip::open(file, maximum_size, budget.max_zip_entries, &mut |bytes| {
+            budget.reserve(bytes)?;
+            if let Some(operation) = &budget.operation {
+                operation.checkpoint()?;
+            }
+            budget.hashed += bytes;
+            Ok(())
+        })?;
+    if checked.storage_size != storage_size {
+        return Err(PortcoveError::source(
+            "source ZIP changed size before its private snapshot",
+        ));
+    }
+    let mut archive = checked.archive;
     if archive.len() > budget.max_zip_entries {
         return Err(PortcoveError::source(
             "source ZIP has too many entries for discovery",
@@ -187,11 +203,7 @@ fn read_zip_identity_from_file(
                 .detail("scan_limit", "file_size"),
         );
     }
-    budget.reserve(
-        expected
-            .checked_add(storage_size)
-            .ok_or_else(|| PortcoveError::source("source ZIP size overflowed"))?,
-    )?;
+    budget.reserve(expected)?;
     let identity = hash_reader(
         entry,
         expected,
@@ -199,18 +211,15 @@ fn read_zip_identity_from_file(
         budget,
         true,
     )?;
-    // The outer archive is retained as storage identity only. Its member receives
-    // the full content-identity treatment above.
-    let mut storage_file = archive.into_inner();
-    storage_file.rewind()?;
-    let storage = hash_storage_reader(storage_file, storage_size, maximum_size, budget)?;
+    // The outer archive was hashed while making the same private snapshot whose
+    // member received the full content-identity treatment above.
     Ok(FileIdentity {
         sha256: identity.sha256,
         sha1: identity.sha1,
         crc32: identity.crc32,
         size: identity.size,
-        storage_sha256: storage.sha256,
-        storage_size: storage.size,
+        storage_sha256: checked.storage_sha256,
+        storage_size: checked.storage_size,
         content_extension,
         archive_member: true,
         archive_member_name: Some(archive_member_name),
@@ -535,8 +544,8 @@ pub(crate) fn validate_source_hashes(
     Ok(())
 }
 
-pub(crate) fn single_zip_source_index(
-    archive: &mut zip::ZipArchive<File>,
+pub(crate) fn single_zip_source_index<R: Read + Seek>(
+    archive: &mut zip::ZipArchive<R>,
     extensions: &[String],
 ) -> Result<usize> {
     let mut matches = Vec::new();

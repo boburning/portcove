@@ -1,4 +1,5 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { vectorFamilyManifest, verifyVectorFamily } from "./brand-vector-contract.mts";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { access, readFile } from "node:fs/promises";
@@ -292,6 +293,16 @@ export function validateBrandManifestDefinition(input: unknown) {
   const errors = [];
   if (manifest?.schema_version !== 1) errors.push("brand manifest schema_version must be 1");
   if (manifest?.brand_version !== 2) errors.push("brand manifest brand_version must be 2");
+  if (manifest.vector_family !== undefined) {
+    const family = record(manifest.vector_family);
+    if (
+      family.path !== vectorFamilyManifest ||
+      typeof family.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(family.sha256) ||
+      !["candidate", "approved"].includes(String(family.status))
+    )
+      errors.push("brand vector-family reference is invalid");
+  }
   if (!Array.isArray(manifest?.assets) || manifest.assets.length === 0) {
     errors.push("brand manifest assets must be a non-empty array");
     return errors;
@@ -402,7 +413,19 @@ async function collectBrandManifest(root: string) {
       }
     }),
   );
-  return { assetCount: assets.length, errors: errors.sort() };
+  let vectorCount = 0;
+  if (record(manifest).vector_family !== undefined) {
+    try {
+      const reference = record(record(manifest).vector_family);
+      const result = await verifyVectorFamily(root);
+      if (result.sha256 !== reference.sha256 || result.family.status !== reference.status)
+        throw new Error("Vector-family reference does not bind the current manifest/status");
+      vectorCount = result.family.masters.length + result.family.derivatives.length;
+    } catch (error) {
+      errors.push(`brand vector family is invalid: ${errorMessage(error)}`);
+    }
+  }
+  return { assetCount: assets.length + vectorCount, errors: errors.sort() };
 }
 
 const requiredModelFileIds = new Set([

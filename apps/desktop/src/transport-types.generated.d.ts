@@ -82,7 +82,7 @@ export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "mac
 /**
  * A reviewed shared write scope, never a caller-selected external path.
  */
-export type PreparedSharedPreferencesContract = "regaiden041-windows";
+export type PreparedSharedPreferencesContract = "regaiden041-windows" | "smb1r-1.1-stable-windows";
 /**
  * A read-only projection of the existing operation guards for client presentation.
  * An `allowed` result is not an authorization token: execution rechecks current
@@ -116,6 +116,8 @@ export type PortActionReason =
   | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
+  | "shared_preferences_review_required"
+  | "shared_preferences_unavailable"
   | "invalid_installation"
   | "definition_ineligible"
   | "missing_data"
@@ -219,6 +221,8 @@ export type LaunchBlocker =
   | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
+  | "shared_preferences_review_required"
+  | "shared_preferences_unavailable"
   | "invalid_installation";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
@@ -278,6 +282,10 @@ export type AdapterKind =
   | "upstream-managed-setup"
   | "psx-recomp-managed";
 /**
+ * Closed initialization recipes, never catalog-supplied scripts or file contents.
+ */
+export type ManagedInitialization = "tfe-dark-forces-v1.22.420";
+/**
  * User-facing installation behavior supplied by the catalog. Adapters remain an
  * implementation detail and must not be translated into product copy by clients.
  */
@@ -297,15 +305,26 @@ export type CartridgeBuildRecipe =
   | "yoshis-cookie-nes-cycle-v1.1.0"
   | "dr-mario-nes-cycle-v1.3.0-usa"
   | "advance-wars-gba-source-cb3facb53b6b-usa-rev1"
-  | "earthbound-snes-source-fe1155dc26ff-usa";
+  | "earthbound-snes-source-fe1155dc26ff-usa"
+  | "render96-us-source-48da5c491c8a"
+  | "gundam-wing-snes-source-c7aaaa152192-japan-offline";
 /**
  * Catalog-accepted identity for a runtime the player prepares outside Portcove.
  * Portcove never downloads or owns this package through this route.
  */
 export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
+/**
+ * Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.
+ */
+export type RuntimeDataPolicy = "racewave46-v1.0.0-windows";
 export type RuntimeSourceMaterialization =
-  "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
+  | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
+  | "regaiden-gbc";
 export type SupportTier = "stable" | "beta" | "rolling";
+/**
+ * A declared upstream limitation, checked by Core rather than left to the game.
+ */
+export type WindowsRuntimePathPolicy = "printable-ascii-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
@@ -336,6 +355,11 @@ export type SourceRepresentation1 =
   | {
       kind: "file-set";
       members: SourceMemberIdentity[];
+      [k: string]: unknown;
+    }
+  | {
+      kind: "relative-file-set";
+      members: RelativeSourceMemberIdentity[];
       [k: string]: unknown;
     }
   | {
@@ -1270,6 +1294,8 @@ export interface PortDefinition {
     [k: string]: string;
   };
   launch_from_install_root: boolean;
+  managed_initialization?: ManagedInitialization | null;
+  managed_shared_preferences?: PreparedSharedPreferencesContract | null;
   manually_validated_platforms: Platform[];
   /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
@@ -1283,6 +1309,7 @@ export interface PortDefinition {
   presentation?: PortPresentation | null;
   project_url: string;
   release: ReleaseSpec;
+  runtime_data_policy?: RuntimeDataPolicy | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
   runtime_source_filename: string | null;
@@ -1307,6 +1334,7 @@ export interface PortDefinition {
   support_tier: SupportTier;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
+  windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
   [k: string]: unknown;
 }
 export interface BundledRuntime {
@@ -1554,6 +1582,15 @@ export interface SourceMemberIdentity {
   identities: DigestIdentity[];
   label: string;
 }
+/**
+ * Exact relative paths and bytes; distinct from the existing basename file set.
+ */
+export interface RelativeSourceMemberIdentity {
+  id: string;
+  path: string;
+  sha256: string;
+  size: number;
+}
 export interface SourceDiscIdentity {
   id: string;
   identities: DigestIdentity[];
@@ -1573,7 +1610,7 @@ export interface SourceProfile {
   accepted_sha256: string[];
   disc: DiscSourceProfile | null;
   id: string;
-  kind: "file" | "file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
+  kind: "file" | "file-set" | "relative-file-set" | "gamecube-disc" | "psx-disc" | "upstream-validated-disc";
   label: string;
   members: SourceMemberProfile[];
   [k: string]: unknown;
@@ -1815,7 +1852,7 @@ export interface ExternalRuntimePreview {
 }
 export interface SharedPreferencesReview {
   binding: AcceptedSharedPreferencesBinding;
-  local_fallback_path: string;
+  local_fallback_path: string | null;
   local_fallback_present: boolean;
   present: boolean;
 }
@@ -2046,7 +2083,9 @@ export interface InstallPlan {
   output_location: PortOutputLocation;
   platform: Platform;
   port_id: string;
+  preservation_notices?: string[];
   release: ResolvedRelease;
+  shared_preferences?: ManagedSharedPreferencesReview | null;
   source_requirements: InstallSourceRequirement[];
   storage: StorageSummary;
   /**
@@ -2054,6 +2093,15 @@ export interface InstallPlan {
    */
   temporary_space?: InstallSpaceRequirement | null;
   [k: string]: unknown;
+}
+/**
+ * Managed local fallback and non-owned account-wide preferences have distinct ownership.
+ */
+export interface ManagedSharedPreferencesReview {
+  binding: AcceptedSharedPreferencesBinding;
+  local_fallback_path: string;
+  local_fallback_present: boolean;
+  shared_present: boolean;
 }
 export interface InstallSourceRequirement {
   label: string;

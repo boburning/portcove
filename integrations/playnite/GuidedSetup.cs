@@ -6,6 +6,15 @@ namespace Portcove.ReferenceClient
     // Descriptive instructions only. No step is treated as completed or authorized.
     internal static class SetupInstructions
     {
+        internal static object ForRuntime(object status, object catalog)
+        {
+            // A current managed definition cannot describe preparation of a
+            // previously registered, player-owned external installation.
+            if (Json.OptionalObjectField(status, "external_runtime") != null &&
+                Json.Text(Json.Field(catalog, "release"), "provider") != "user-prepared") return null;
+            return Json.OptionalObjectField(catalog, "presentation");
+        }
+
         internal static string Summary(object presentation)
         {
             if (presentation == null) return null;
@@ -152,7 +161,7 @@ namespace Portcove.ReferenceClient
         {
             "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
             "unreadable_bios", "changed_bios", "incompatible_bios", "missing_runtime", "preparation_required",
-            "invalid_installation"
+            "invalid_installation", "shared_preferences_review_required", "shared_preferences_unavailable"
         };
 
         internal GuidedStepKind Kind { get; private set; }
@@ -185,6 +194,12 @@ namespace Portcove.ReferenceClient
             var actions = PortActions.Read(status);
             var launch = actions.FirstOrDefault(value => value.Action == "launch");
             var installed = StatusInstallation.Current(status) != null;
+            if (installed && blockers.Contains("shared_preferences_unavailable"))
+                return Step(GuidedStepKind.ReviewProblem, "Check shared preferences",
+                    "Portcove cannot safely inspect shared preferences. Leave the file unchanged, close other game copies, check that your Windows profile is available, then refresh. Reinstalling does not fix an unsafe or unreadable shared location.");
+            if (installed && blockers.Contains("shared_preferences_review_required"))
+                return Step(GuidedStepKind.ReviewProblem, "Review shared preferences",
+                    "Windows account or shared preferences location changed. Remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the account-wide preferences file in place.");
             var install = actions.FirstOrDefault(value => value.Action == "install");
             if (!installed && install != null && install.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review installation hold",
@@ -192,7 +207,8 @@ namespace Portcove.ReferenceClient
             if (installed && launch != null && launch.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review launch hold",
                     "This game is registered, but Portcove has held launch. Review the action reason above before registering more files or retrying.");
-            var external = Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
+            var external = Json.OptionalObjectField(status, "external_runtime") != null ||
+                Json.Text(Json.Field(catalog, "release"), "provider") == "user-prepared";
             var register = actions.FirstOrDefault(value => value.Action == "register_external");
             if (external && !installed && register != null && register.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review registration hold",
@@ -229,6 +245,15 @@ namespace Portcove.ReferenceClient
             if (external && !installed && !reviewedExternal)
                 return Step(GuidedStepKind.ReviewProblem, "Update Portcove CLI",
                     "Reviewed external registration requires supported public API schema 67 or later and external.review. Update the selected CLI; existing managed Play remains available.");
+            if (external && installed && blockers.Any(value => value == "preparation_required" || value == "invalid_installation"))
+            {
+                var runtime = Json.OptionalObjectField(status, "external_runtime");
+                var shared = runtime == null ? null : Json.OptionalObjectField(runtime, "shared_preferences");
+                if (shared != null && Json.Text(shared, "contract") == "smb1r-1.1-stable-windows")
+                    return Step(GuidedStepKind.ReviewProblem, "Prepare shared game data manually",
+                        "Copy your recognized Super Mario Bros. (World) NES original to " + Json.Text(shared, "path") +
+                        " as baserom.nes. If settings.cfg exists there, review it as ordinary data without Godot object or resource constructors and use only the BaseAssets resource pack. Move custom levels and autosaves, blueprints, custom characters, extra resource packs and Godot loader metadata elsewhere manually, preserving their files. Refresh afterward. Portcove does not seed, own, update, back up or delete this shared directory.");
+            }
             if (external)
                 return installed ? Step(GuidedStepKind.ReviewProblem, "Review external runtime",
                     "This player-owned runtime is registered but cannot launch. Review the readiness and launch-action reasons above; refresh after resolving them.") :

@@ -1254,6 +1254,12 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             PortActionReason::InvalidInstallation if assessment.action == PortAction::Rollback => {
                 "Portcove could not verify the previous version; rollback is on hold."
             }
+            PortActionReason::SharedPreferencesReviewRequired => {
+                "Windows account or shared preferences location changed. Remove managed versions with remove-preview and remove, keeping saved data; review a fresh installation. Leave the shared file unchanged."
+            }
+            PortActionReason::SharedPreferencesUnavailable => {
+                "Shared preferences cannot be checked safely. Leave the file unchanged, close other game copies, check Windows profile availability and retry. Reinstalling does not repair an unsafe or unreadable shared location."
+            }
             PortActionReason::InvalidInstallation => {
                 "The installation or external runtime needs verification or repair."
             }
@@ -1544,7 +1550,7 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         .collect::<Vec<_>>()
         .join("; ");
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}",
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}{}",
         clean(&plan.port_id),
         install_action(plan.action),
         release_channel(plan.channel),
@@ -1570,6 +1576,10 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         ),
         output_location_source(plan.output_location.selection_source),
         format_bytes(plan.storage.volume_available_bytes),
+        plan.preservation_notices
+            .iter()
+            .map(|notice| format!("\n{}", clean(notice)))
+            .collect::<String>() + &plan.shared_preferences.as_ref().map(|scope| format!("\n{}\nExplicit acceptance is required. For first installation, use installation run with --acknowledge-shared-preferences and the reviewed plan SHA-256. Desktop reviewed updates ask separately. --yes alone does not accept this scope.", scope.write_scope_disclosure())).unwrap_or_default(),
     )
 }
 
@@ -2025,6 +2035,8 @@ fn readiness(status: &PortStatus) -> String {
             LaunchBlocker::IncompatibleBios => "unsupported BIOS edition",
             LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
             LaunchBlocker::PreparationRequired => "needs game data preparation",
+            LaunchBlocker::SharedPreferencesReviewRequired => "needs a fresh shared preferences review after preserving local data and removing managed versions",
+            LaunchBlocker::SharedPreferencesUnavailable => "shared preferences cannot be checked safely; leave them unchanged and inspect Windows profile access",
             LaunchBlocker::InvalidInstallation => "installation needs verification or repair",
         })
         .collect::<Vec<_>>()

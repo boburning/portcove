@@ -27,6 +27,10 @@ impl BundledRuntime {
 }
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    crate::managed_shared_preferences::validate(port)?;
+    crate::managed_tfe::validate(port)?;
+    crate::runtime_data_policy::validate(port)?;
+    crate::runtime_path_policy::validate(port)?;
     if port.bundled_runtime.is_empty() {
         return Ok(());
     }

@@ -132,17 +132,65 @@ impl DefinitionContentIndex {
             ));
         }
         let adapter = serde_json::to_value(port.adapter)?;
-        if port
-            .release
-            .user_prepared
-            .values()
-            .any(|runtime| runtime.shared_preferences.is_some())
+        if port.managed_shared_preferences.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "staged-source-portable" && requirement.minimum_version >= 8
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 16
             })
         {
             return Err(PortcoveError::verification(
-                "shared preferences require staged-source capability version 8",
+                "managed shared preferences require staged-source capability version 16",
+            ));
+        }
+        if port.runtime_data_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 15
+            })
+        {
+            return Err(PortcoveError::verification(
+                "version-local credentials require staged-source capability version 15",
+            ));
+        }
+        if port.managed_initialization.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 12
+            })
+        {
+            return Err(PortcoveError::verification(
+                "managed TFE initialization requires staged-source capability version 12",
+            ));
+        }
+        if port.windows_runtime_path_policy.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version
+                        >= crate::runtime_path_policy::minimum_capability(&port)
+            })
+        {
+            return Err(PortcoveError::verification(format!(
+                "Windows runtime paths require staged-source capability version {}",
+                crate::runtime_path_policy::minimum_capability(&port)
+            )));
+        }
+        if let Some(minimum) = port
+            .release
+            .user_prepared
+            .values()
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= minimum
+            })
+        {
+            return Err(PortcoveError::verification(
+                "shared write scope requires its staged-source capability version",
             ));
         }
         if let Some(minimum) = port

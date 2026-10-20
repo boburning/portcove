@@ -1,5 +1,18 @@
 # Portcove theme and CSS ownership
 
+The inline saved-location impact uses the ordinary text, border and destructive
+button roles. It introduces no overlay, palette or fixed footer. Long locations
+and affected-entry names wrap in document flow, including enlargement.
+
+`collection.css` owns Library geometry in the components layer after adaptive
+shell rules. It consumes shared tokens and adds no palette. Fixed 2:3 contained
+artwork frames remain independent of identity/status height. Covers and compact
+rows share status, focus, selection and action variants. The 36/40px controls
+are content-driven minima; 15px body, 13px secondary and 28px heading roles all
+enlarge through the native controller.
+
+Activity sections reuse shared button variants and their persistent pressed cue. Contextual task records reuse existing info, neutral, warning and failure roles; temporary exclusion does not recolor or reinterpret Core readiness. Foreground progress and exact-ID Activity progress share one component and bounded numeric presentation. No separate Activity palette or progress implementation is introduced.
+
 Portcove keeps its graphite dark and warm controller-gray light identity, with
 red, blue, green and yellow families carrying explicit meaning. Illustration
 remains owned by [BRAND-ASSETS](BRAND-ASSETS.md); this CSS cutover does not change
@@ -95,6 +108,30 @@ status text without decorative movement. Business logic never waits on a
 stylesheet animation. `tw-animate-css` and cross-framework state aliases are
 retired.
 
+## Whole-interface enlargement and reflow
+
+Appearance offers 100, 125, 150, 175, 200, 250, 300 and 400 percent interface sizes.
+`InterfaceSizeProvider` owns the picker, Ctrl/Command plus/minus and zero reset,
+including while a dialog is open. It changes the whole WebView through Tauri's
+existing zoom API, rather than changing root font size or maintaining a second
+CSS scale. Independent native zoom hotkeys stay disabled. OS display scaling is
+a separate input and is not inferred from this preference.
+
+`InterfaceSizeController` serializes calls and coalesces waiting intent. The
+profile-local `portcove.appearance.interface-size` preference is independent of
+the active library; only acknowledged native applications are saved. Missing,
+invalid or unreadable preferences start at 100 percent. A write failure keeps
+the applied size for the session. A native failure retains the last confirmed
+preference and exposes retry/reset without asserting an unobserved actual size.
+
+`styles/adaptive.css`, assembled by the existing stylesheet entry, owns the
+shared below-48rem reading flow. Navigation wraps in the document, the workspace
+does not require a side pane, Settings navigation stops sticking, and shared
+dialog footers remain in their scrolling flow. The native 960 by 640 minimum
+stays intact. Actual 320 CSS-pixel and 240 by 160 authored-content checks are
+distinct from observing native 400-percent zoom and other platforms. These
+layouts do not announce phone-platform support.
+
 ## Composition and validation
 
 Settings rows and notices are real reusable patterns. Grid/flex and size container
@@ -121,3 +158,13 @@ Use the canonical root `pnpm check`, `pnpm test`, `pnpm test:browser` and `pnpm 
 routes; focused tests use the existing exact-file runner. Never regenerate copied
 controls over these theme, state, accessibility and composition decisions without
 review. [DESIGN-SYSTEM](DESIGN-SYSTEM.md) retains the wider product acceptance.
+
+Library recovery uses existing semantic text, surface, action, disclosure, status
+and error roles in both themes. Step headings and explicit manual-copy wording
+carry state without relying on color. The guide flows at enlarged effective widths;
+paths wrap and retain isolated LTR direction. No separate recovery palette exists.
+
+Add games uses shared semantic action, selected, focus, status and error roles in
+both themes. In-flow stages and wrapping controls remain readable at effective
+240px widths. Native HTML port selection retains OS/forced-color behavior; it
+adds no independent palette, panel surface or durable selection authority.

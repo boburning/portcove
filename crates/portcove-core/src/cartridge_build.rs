@@ -22,6 +22,12 @@ pub(crate) mod tests;
 #[path = "cartridge_source_build.rs"]
 mod source_build;
 
+#[path = "render96_build.rs"]
+mod render96;
+
+#[path = "gundam_build.rs"]
+mod gundam;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum CartridgeBuildRecipe {
@@ -33,6 +39,10 @@ pub enum CartridgeBuildRecipe {
     AdvanceWarsGbaSourceV1,
     #[serde(rename = "earthbound-snes-source-fe1155dc26ff-usa")]
     EarthBoundSnesSourceV1,
+    #[serde(rename = "render96-us-source-48da5c491c8a")]
+    Render96UsSourceV1,
+    #[serde(rename = "gundam-wing-snes-source-c7aaaa152192-japan-offline")]
+    GundamWingSnesSourceV1,
 }
 
 #[cfg(test)]
@@ -173,7 +183,10 @@ impl CartridgeBuildRecipe {
                 prg_identity: "8F8C755E",
                 compile_objects: 92,
             },
-            Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => {
+            Self::AdvanceWarsGbaSourceV1
+            | Self::EarthBoundSnesSourceV1
+            | Self::GundamWingSnesSourceV1
+            | Self::Render96UsSourceV1 => {
                 return Err(PortcoveError::state(
                     "source-only recipe has no NES cycle facts",
                 ));
@@ -181,14 +194,16 @@ impl CartridgeBuildRecipe {
         })
     }
 
-    pub(crate) fn archives(self) -> [BuildArchive; 4] {
+    pub(crate) fn archives(self) -> Vec<BuildArchive> {
         match self {
-            Self::YoshisCookieNesCycle110 => [GAME, ENGINE, UI, TOOLCHAIN],
-            Self::DrMarioNesCycle130Usa => [DR_MARIO_GAME, ENGINE, UI, TOOLCHAIN],
+            Self::YoshisCookieNesCycle110 => vec![GAME, ENGINE, UI, TOOLCHAIN],
+            Self::DrMarioNesCycle130Usa => vec![DR_MARIO_GAME, ENGINE, UI, TOOLCHAIN],
             Self::AdvanceWarsGbaSourceV1 => {
                 source_build::SourceRecipe::AdvanceWarsUsaRev1.archives()
             }
             Self::EarthBoundSnesSourceV1 => source_build::SourceRecipe::EarthBoundUsa.archives(),
+            Self::GundamWingSnesSourceV1 => source_build::SourceRecipe::GundamWingJapan.archives(),
+            Self::Render96UsSourceV1 => render96::archives(),
         }
     }
 
@@ -196,20 +211,29 @@ impl CartridgeBuildRecipe {
         match self {
             Self::AdvanceWarsGbaSourceV1 => Some(source_build::SourceRecipe::AdvanceWarsUsaRev1),
             Self::EarthBoundSnesSourceV1 => Some(source_build::SourceRecipe::EarthBoundUsa),
-            Self::YoshisCookieNesCycle110 | Self::DrMarioNesCycle130Usa => None,
+            Self::GundamWingSnesSourceV1 => Some(source_build::SourceRecipe::GundamWingJapan),
+            Self::YoshisCookieNesCycle110
+            | Self::DrMarioNesCycle130Usa
+            | Self::Render96UsSourceV1 => None,
         }
     }
 
     pub(crate) fn original_filename(self) -> &'static str {
+        if self == Self::Render96UsSourceV1 {
+            return "baserom.us.z64";
+        }
         self.source_recipe()
             .map_or("game.nes", |recipe| recipe.facts().original_filename)
     }
 
     pub(crate) fn fixed_launch_arguments_only(self) -> bool {
-        self.source_recipe().is_some()
+        self.source_recipe().is_some() || self == Self::Render96UsSourceV1
     }
 
     pub(crate) fn require_runtime_environment(self) -> Result<()> {
+        if self == Self::Render96UsSourceV1 {
+            return source_build::SourceRecipe::EarthBoundUsa.require_runtime_environment();
+        }
         match self.source_recipe() {
             Some(recipe) => recipe.require_runtime_environment(),
             None => Ok(()),
@@ -217,10 +241,18 @@ impl CartridgeBuildRecipe {
     }
 
     pub(crate) fn acquisition_assets(self) -> Vec<ReleaseAsset> {
-        self.archives().map(|archive| archive.asset()).into()
+        self.archives()
+            .into_iter()
+            .map(|archive| archive.asset())
+            .collect()
     }
 
     pub(crate) fn temporary_bytes(self, primary_bytes: u64) -> u64 {
+        if self == Self::GundamWingSnesSourceV1 {
+            // The authenticated setup archive expands to 861 MiB in addition
+            // to the 798 MiB toolchain, SDK, archive spools and private build.
+            return primary_bytes.saturating_add(4 * 1024 * 1024 * 1024);
+        }
         primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
     }
 
@@ -229,6 +261,8 @@ impl CartridgeBuildRecipe {
             Self::YoshisCookieNesCycle110 => 6,
             Self::DrMarioNesCycle130Usa => 7,
             Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => 9,
+            Self::Render96UsSourceV1 => 13,
+            Self::GundamWingSnesSourceV1 => 14,
         }
     }
 
@@ -261,6 +295,9 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
         .get(&Platform::WindowsX86_64)
         .copied()
         .ok_or_else(|| PortcoveError::verification("cartridge recipe requires Windows x64"))?;
+    if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
+        return render96::validate_port(port, profile);
+    }
     if let Some(source_recipe) = recipe.source_recipe() {
         return source_recipe.validate_port(port, profile);
     }
@@ -338,6 +375,9 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
 
 impl CartridgeBuildPreparation {
     pub(crate) fn storage_identity(&self, primary_sha256: &str) -> Result<String> {
+        if self.recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
+            return render96::storage_identity(primary_sha256, &self.source);
+        }
         match self.recipe.source_recipe() {
             Some(recipe) => recipe.storage_identity(primary_sha256, &self.source.sha256),
             None => self.recipe.storage_identity(primary_sha256),
@@ -355,6 +395,9 @@ impl CartridgeBuildPreparation {
     }
 
     pub(crate) fn verify_release(&self, release: &ResolvedRelease) -> Result<()> {
+        if self.recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
+            return render96::verify_release(release);
+        }
         if let Some(recipe) = self.recipe.source_recipe() {
             let asset = recipe.primary_asset();
             if release.version != recipe.facts().version
@@ -391,6 +434,9 @@ pub(crate) fn verify_original(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
+    if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
+        return render96::verify_original(source, checkpoint);
+    }
     if let Some(recipe) = recipe.source_recipe() {
         return recipe.verify_original(source, checkpoint);
     }
@@ -409,11 +455,15 @@ pub(crate) fn verify_original(
     checkpoint()
 }
 
-pub(crate) fn source_roots(work: &Path, recipe: CartridgeBuildRecipe) -> [PathBuf; 4] {
-    recipe.archives().map(|archive| {
-        work.join(archive.name.trim_end_matches(".zip"))
-            .join(archive.root)
-    })
+pub(crate) fn source_roots(work: &Path, recipe: CartridgeBuildRecipe) -> Vec<PathBuf> {
+    recipe
+        .archives()
+        .into_iter()
+        .map(|archive| {
+            work.join(archive.name.trim_end_matches(".zip"))
+                .join(archive.root)
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -556,8 +606,8 @@ fn apply_patch(engine: &Path) -> Result<()> {
 
 struct BuildInputs {
     recipe: CartridgeBuildRecipe,
-    roots: [PathBuf; 4],
-    identities: [Vec<FileIdentity>; 4],
+    roots: Vec<PathBuf>,
+    identities: Vec<Vec<FileIdentity>>,
 }
 
 impl BuildInputs {
@@ -568,13 +618,9 @@ impl BuildInputs {
     ) -> Result<Self> {
         let roots = source_roots(work, recipe);
         let identities = roots
-            .each_ref()
+            .iter()
             .map(|r| inventory(r, checkpoint))
-            .into_iter()
             .collect::<Result<Vec<_>>>()?;
-        let identities = identities
-            .try_into()
-            .map_err(|_| PortcoveError::state("build input count differs"))?;
         Ok(Self {
             recipe,
             roots,
@@ -592,9 +638,35 @@ impl BuildInputs {
         }
         Ok(())
     }
+    fn toolchain_index(&self) -> Result<usize> {
+        let matches: Vec<_> = self
+            .recipe
+            .archives()
+            .iter()
+            .enumerate()
+            .filter_map(|(index, archive)| {
+                (archive.sha256 == TOOLCHAIN.sha256
+                    && archive.url == TOOLCHAIN.url
+                    && archive.root == TOOLCHAIN.root)
+                    .then_some(index)
+            })
+            .collect();
+        match matches.as_slice() {
+            [index] => Ok(*index),
+            _ => Err(PortcoveError::verification(
+                "build requires one fixed toolchain",
+            )),
+        }
+    }
+
+    fn toolroot(&self) -> Result<&Path> {
+        Ok(&self.roots[self.toolchain_index()?])
+    }
+
     fn tool(&self, name: &str) -> Result<PathBuf> {
-        let path = self.roots[3].join(name);
-        let expected = self.identities[3]
+        let index = self.toolchain_index()?;
+        let path = self.roots[index].join(name);
+        let expected = self.identities[index]
             .iter()
             .find(|f| f.path == name)
             .ok_or_else(|| PortcoveError::verification("pinned build tool is absent"))?;
@@ -617,6 +689,19 @@ struct BuildSession<'a> {
     port_id: &'a str,
 }
 
+struct BuildCommandOutput {
+    output: String,
+    stdout: Option<String>,
+}
+
+impl BuildCommandOutput {
+    fn complete_stdout(&self) -> Result<&str> {
+        self.stdout.as_deref().ok_or_else(|| {
+            PortcoveError::verification("cartridge build command has no complete stdout capture")
+        })
+    }
+}
+
 impl BuildSession<'_> {
     fn run(
         &self,
@@ -625,6 +710,19 @@ impl BuildSession<'_> {
         phase: &str,
         quiesced: &mut bool,
     ) -> Result<String> {
+        self.run_configured(arguments, program, phase, quiesced, |_| Ok(()))
+            .map(|result| result.output)
+    }
+
+    fn run_configured(
+        &self,
+        arguments: &[String],
+        program: &str,
+        phase: &str,
+        quiesced: &mut bool,
+        configure: impl FnOnce(&mut crate::process::NativeToolLaunchSpec) -> Result<()>,
+    ) -> Result<BuildCommandOutput> {
+        crate::activity_diagnostics::require_managed_install_phase(phase, self.port_id)?;
         let Self {
             inputs,
             work,
@@ -647,7 +745,7 @@ impl BuildSession<'_> {
             crate::ChildProcessClass::ManagedBuilder,
             inputs.tool(program)?,
         )?;
-        let toolroot = &inputs.roots[3];
+        let toolroot = inputs.toolroot()?;
         let path = std::env::join_paths([toolroot.join("bin"), toolroot.join("python")])
             .map_err(|_| PortcoveError::verification("build tool PATH is invalid"))?;
         command
@@ -695,6 +793,7 @@ impl BuildSession<'_> {
         ] {
             command.env_remove(variable);
         }
+        configure(&mut command)?;
         let previous = *quiesced;
         *quiesced = false;
         let mut child_quiesced = false;
@@ -718,8 +817,8 @@ impl BuildSession<'_> {
             },
         );
         *quiesced = previous && child_quiesced;
-        if let Some(snapshot) = captured {
-            library.record_managed_install_diagnostic(&snapshot, port_id)?;
+        if let Some(snapshot) = &captured {
+            library.record_managed_install_diagnostic(snapshot, port_id)?;
         }
         let result = result?;
         if !result.status.success() {
@@ -735,7 +834,12 @@ impl BuildSession<'_> {
             ));
         }
         checkpoint()?;
-        Ok(result.output)
+        Ok(BuildCommandOutput {
+            output: result.output,
+            stdout: captured
+                .filter(|snapshot| snapshot.complete && !snapshot.stdout.truncated)
+                .map(|snapshot| snapshot.stdout.text),
+        })
     }
 }
 
@@ -1160,6 +1264,9 @@ fn prepare_install_inner(
     }
     let checkpoint = || operation.checkpoint();
     let recipe = preparation.recipe;
+    if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
+        return render96::prepare_install(work, payload, preparation, library, operation, quiesced);
+    }
     if let Some(source_recipe) = recipe.source_recipe() {
         return source_recipe.prepare_install(
             work,
@@ -1273,7 +1380,9 @@ fn prepare_install_inner(
             ),
         ]),
         CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
-        | CartridgeBuildRecipe::EarthBoundSnesSourceV1 => {
+        | CartridgeBuildRecipe::EarthBoundSnesSourceV1
+        | CartridgeBuildRecipe::GundamWingSnesSourceV1
+        | CartridgeBuildRecipe::Render96UsSourceV1 => {
             return Err(PortcoveError::state(
                 "source-only recipe reached NES cycle configuration",
             ));

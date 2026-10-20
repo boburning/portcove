@@ -94,6 +94,12 @@ describe("detail actions", () => {
     expect(perform).toHaveBeenCalledWith("check", expect.any(Function), {
       refresh: "workspace",
       invalidateDiagnostics: false,
+      context: {
+        action: "check",
+        target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
+        libraryGeneration: 9,
+        exclusionScope: "target",
+      },
     });
   });
 
@@ -193,7 +199,14 @@ describe("detail actions", () => {
       libraryGeneration: 9,
     }).backup();
 
-    expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function));
+    expect(perform).toHaveBeenCalledWith("back up data", expect.any(Function), {
+      context: {
+        action: "back up data",
+        target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
+        libraryGeneration: 9,
+        exclusionScope: "target",
+      },
+    });
     expect(desktopApi.backup).toHaveBeenCalledWith(port.id, 9);
   });
 
@@ -300,7 +313,14 @@ describe("detail actions", () => {
       libraryGeneration: 9,
     }).remove("reviewed-removal");
 
-    expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
+    expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      context: {
+        action: "remove",
+        target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
+        libraryGeneration: 9,
+        exclusionScope: "target",
+      },
+    });
     expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).not.toHaveBeenCalled();
   });
@@ -392,7 +412,14 @@ describe("detail actions", () => {
       libraryGeneration: 9,
     }).remove("reviewed-removal");
 
-    expect(perform).toHaveBeenCalledWith("remove", expect.any(Function));
+    expect(perform).toHaveBeenCalledWith("remove", expect.any(Function), {
+      context: {
+        action: "remove",
+        target: { kind: "port", id: "lighthouse", label: "Lighthouse" },
+        libraryGeneration: 9,
+        exclusionScope: "target",
+      },
+    });
     expect(desktopApi.remove).toHaveBeenCalledWith(port.id, "reviewed-removal", 9);
     expect(close).toHaveBeenCalledOnce();
   });

@@ -246,6 +246,9 @@ enum InstallationCommand {
         /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
         #[arg(long)]
         expected_plan: String,
+        /// Accept the exact shared-preferences scope shown by this plan. --yes alone is insufficient.
+        #[arg(long)]
+        acknowledge_shared_preferences: bool,
         /// Confirm this reviewed install without a prompt; the plan check still applies.
         #[arg(long)]
         yes: bool,
@@ -259,6 +262,8 @@ enum InstallationCommand {
         port_id: String,
         #[arg(long)]
         expected_plan: String,
+        #[arg(long)]
+        acknowledge_shared_preferences: bool,
         #[arg(long)]
         yes: bool,
     },
@@ -1393,6 +1398,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 InstallationCommand::Run {
                     port_id,
                     expected_plan,
+                    acknowledge_shared_preferences,
                     yes,
                 },
         } => {
@@ -1402,7 +1408,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_install(&port_id, &expected_plan)
+                .authorize_game_install_with_shared_preferences_ack(
+                    &port_id,
+                    &expected_plan,
+                    acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                )
                 .await?;
             let mut progress = progress_renderer(mode);
             let installed = service
@@ -1428,6 +1438,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 InstallationCommand::QualificationUpdateRun {
                     port_id,
                     expected_plan,
+                    acknowledge_shared_preferences,
                     yes,
                 },
         } => {
@@ -1437,7 +1448,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_update(&port_id, true, &expected_plan)
+                .authorize_game_update_with_shared_preferences_ack(
+                    &port_id,
+                    true,
+                    &expected_plan,
+                    acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                )
                 .await?;
             let mut progress = progress_renderer(mode);
             let installed = service
@@ -2257,6 +2273,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 let port_id = args
                     .port_id
                     .ok_or_else(|| PortcoveError::usage("provide PORT_ID or --all"))?;
+                if mode == OutputMode::Human {
+                    for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                        println!("{notice}");
+                    }
+                }
                 let mut progress = progress_renderer(mode);
                 render_success(
                     mode,
@@ -2312,6 +2333,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let activate = !args.stage && status.update_policy != UpdatePolicy::Stage;
                     let mut progress = progress_renderer(mode);
                     let port_id = status.port_id;
+                    if mode == OutputMode::Human {
+                        for notice in service.catalog().port(&port_id)?.preservation_notices() {
+                            println!("{notice}");
+                        }
+                    }
                     updated.push(
                         match service
                             .update(&port_id, None, None, activate, &mut progress)
@@ -2368,7 +2394,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 println!("{}", human::document(&preview)?);
             }
             require_confirmation(
-                &format!("Remove managed versions for {port_id}? Persistent data will be kept."),
+                &format!(
+                    "Remove managed versions for {port_id}? Persistent data will be kept. Sign-ins stored only in installed versions will be deleted."
+                ),
                 yes,
                 cli.non_interactive,
             )?;
@@ -2405,11 +2433,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 if let Some(shared) = &preview.proposed.shared_preferences {
                     if mode == OutputMode::Human {
-                        println!(
-                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies in this Windows account. If unavailable, it can rewrite {} instead. Portcove does not own, back up, restore or delete these files.",
-                            shared.binding.path.display(),
-                            shared.local_fallback_path.display()
-                        );
+                        println!("{}", shared.write_scope_disclosure()?);
                     }
                     if !acknowledge_shared_preferences {
                         return Err(PortcoveError::usage(
@@ -2462,11 +2486,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 if let Some(shared) = &preview.shared_preferences {
                     if mode == OutputMode::Human {
-                        println!(
-                            "This game can rewrite shared preferences at {}, discard unknown entries and affect other runtime copies. If that location is unavailable, it can instead rewrite {}. Portcove does not own, back up, restore or delete these files.",
-                            shared.binding.path.display(),
-                            shared.local_fallback_path.display()
-                        );
+                        println!("{}", shared.write_scope_disclosure()?);
                     }
                     if !acknowledge_shared_preferences {
                         return Err(PortcoveError::usage(

@@ -36,11 +36,12 @@ it.each(["catalog", "library"] as const)(
       />,
     );
     const prefix = view === "library" ? "View details for " : "";
+    const separator = view === "library" ? " Port: " : " · ";
     const first = page.getByRole("button", {
-      name: new RegExp(`^${prefix}A Familiar Adventure · Cobalt Project · US edition`),
+      name: new RegExp(`^${prefix}A Familiar Adventure${separator}Cobalt Project · US edition`),
     });
     const second = page.getByRole("button", {
-      name: new RegExp(`^${prefix}A Familiar Adventure · Amber Recompiled`),
+      name: new RegExp(`^${prefix}A Familiar Adventure${separator}Amber Recompiled`),
     });
     await expect.element(first).toBeVisible();
     await expect.element(second).toBeVisible();
@@ -51,6 +52,12 @@ it.each(["catalog", "library"] as const)(
     await userEvent.keyboard("{Enter}");
     expect(onSelect).toHaveBeenLastCalledWith("same-game-1", `${view}:card:same-game-1`);
     expect(onSelect).toHaveBeenCalledTimes(2);
-    await expect.element(page.getByText("US edition", { exact: true })).toBeVisible();
+    await expect
+      .element(
+        page.getByText(view === "library" ? "Port: Cobalt Project · US edition" : "US edition", {
+          exact: true,
+        }),
+      )
+      .toBeVisible();
   },
 );

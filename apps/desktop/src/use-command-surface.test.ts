@@ -17,6 +17,7 @@ function commands(recent = true) {
       ...actions,
       checkAll: vi.fn(async () => undefined),
       focusSearch: vi.fn(),
+      focusLibrarySearch: vi.fn(),
     }),
   };
 }
@@ -28,8 +29,8 @@ describe("command surface player-facing copy", () => {
       description: "Browse native game ports",
     });
     expect(available.find(({ id }) => id === "updates")).toMatchObject({
-      label: "Go to Updates",
-      description: "Review updates and recent activity",
+      label: "Open Activity",
+      description: "Review tasks, history and recovery",
     });
     expect(available.find(({ id }) => id === "settings")).toMatchObject({
       description: "Manage game files, GitHub, storage, and appearance",
@@ -48,6 +49,7 @@ describe("command surface player-facing copy", () => {
         setSelectedId: vi.fn(),
         checkAll: vi.fn(async () => undefined),
         focusSearch: vi.fn(),
+        focusLibrarySearch: vi.fn(),
       }).find(({ id }) => id === "check");
     expect(make(0, false)).toMatchObject({
       disabled: true,

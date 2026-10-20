@@ -40,6 +40,11 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
             source_build::tests::fixture(source_build::SourceRecipe::EarthBoundUsa),
             228_366_267,
         ),
+        (
+            CartridgeBuildRecipe::GundamWingSnesSourceV1,
+            source_build::tests::fixture(source_build::SourceRecipe::GundamWingJapan),
+            467_081_447,
+        ),
     ] {
         let (version, asset) = if let Some(source) = recipe.source_recipe() {
             (source.facts().version, source.primary_asset())
@@ -104,7 +109,12 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
                 .collect::<Vec<_>>()
         );
         let space = plan.temporary_space.unwrap();
-        assert_eq!(space.required_bytes, 2_147_483_648 + primary_bytes);
+        let capacity = if recipe == CartridgeBuildRecipe::GundamWingSnesSourceV1 {
+            4_294_967_296
+        } else {
+            2_147_483_648
+        };
+        assert_eq!(space.required_bytes, capacity + primary_bytes);
         assert_eq!(space.path, plan.output_location.effective_output_directory);
         assert_eq!(space.volume_identity.as_deref(), Some("fixture-volume"));
         assert_eq!(space.sufficient, Some(false));
@@ -117,11 +127,10 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
 }
 
 pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("sonic-the-hedgehog-2-recomp")
-        .unwrap()
-        .clone();
+    let mut port: PortDefinition = serde_json::from_str(include_str!(
+        "../tests/fixtures/sonic2-083-prepared-port-historical.json"
+    ))
+    .unwrap();
     port.id = "yoshis-cookie-recomp".into();
     port.presentation = None;
     port.source_profile = Some("yoshis-cookie-nes-usa".into());
@@ -540,8 +549,8 @@ fn host_configuration_uses_the_authenticated_tool_paths_and_config_directories()
     ];
     let inputs = BuildInputs {
         recipe: CartridgeBuildRecipe::YoshisCookieNesCycle110,
-        roots,
-        identities,
+        roots: roots.into(),
+        identities: identities.into(),
     };
     let arguments = configure_arguments(
         &inputs,

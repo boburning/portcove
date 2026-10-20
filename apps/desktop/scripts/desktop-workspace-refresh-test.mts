@@ -101,7 +101,7 @@ export async function workspaceRefreshScenario({
   tool,
 }: RefreshContext) {
   await scenario("native-workspace-refresh-recovery", async () => {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     await browser.wait(until.elementLocated(By.css(".port-card")), 10_000);
     const before = await browser.findElements(By.css(".port-card"));
     const observations: RefreshObservations = {

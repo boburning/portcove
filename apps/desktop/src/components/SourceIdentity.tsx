@@ -576,6 +576,11 @@ function expectedGroups(
       label: `${member.label} · ${member.filenames.join(", ")}`,
       identities: member.identities,
     }));
+  if (representation.kind === "relative-file-set")
+    return representation.members.map((member) => ({
+      label: `${member.path} · ${member.size.toLocaleString()} bytes`,
+      identities: [{ scope: "file-set-member", sha256: member.sha256, sha1: null, crc32: null }],
+    }));
   if (representation.kind === "multi-disc-set")
     return representation.discs.map((disc) => ({
       label: `${disc.label} · ${disc.track_counts.join("/")} tracks`,
@@ -604,6 +609,11 @@ function sourceDisplayState(report: SourceInspectionReport) {
       ? "Basic file checks passed · compatibility unconfirmed"
       : "Edition unknown · review check details";
   const known = {
+    check_failed: {
+      label: "File checks failed",
+      tone: "danger",
+      icon: ShieldAlert,
+    },
     recognized_exact: { label: "Exact match", tone: "success", icon: Check },
     accepted_identity_unknown: {
       label: unknownEditionLabel,
@@ -803,6 +813,7 @@ function representationKindLabel(value: string) {
     "canonical-n64": "Normalized N64 file",
     "archive-member": "File inside archive",
     "file-set": "Set of files",
+    "relative-file-set": "Complete data folder",
     "gamecube-normalized-iso": "Normalized GameCube disc",
     "optical-track-set": "Disc tracks",
     "multi-disc-set": "Set of discs",

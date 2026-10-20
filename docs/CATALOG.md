@@ -1,5 +1,48 @@
 # Catalog policy
 
+## Managed ReGaiden shared preferences
+
+The exact v0.4.1 Windows package has a closed consent-bearing managed route.
+`managed_shared_preferences` requires staged-source capability16 and the
+`regaiden-gbc` materialization that older engines cannot parse. Core retains
+explicit review of the Windows account and both shared/local preference paths
+in schema7 installation manifests. Local saves/settings are managed; the
+account-wide file is never owned, backed up, restored or deleted. Scope cannot
+travel through adoption, relocation or library transfer. See the
+[exact contract and manual reinstall recovery](reference/managed-regaiden.md).
+Historical prepared registrations retain their previous non-owning semantics;
+this route neither migrates them nor establishes gameplay qualification.
+
+## Managed RaceWave46 sign-in boundary
+
+The exact official Windows v1.0.0 package uses a closed retained runtime-data
+policy requiring staged-source capability 15. Ordinary `.runtime` saves and
+settings are managed; RetroAchievements credentials stay inside each version.
+They are never opened, hashed or copied. Whole-tree transfer and recovery refuse
+known credential names before reading payloads and again before publication.
+See [data ownership and manual recovery](reference/managed-racewave46.md).
+This user-side acquisition route does not authorize redistribution or remove
+upstream contribution-license caveats. Existing external registrations retain
+their historical contract.
+
+## Exact relative-file sources and managed TFE
+
+`relative-file-set` is an explicit source representation and projected source
+kind. Unlike historical basename-only file sets, each member declares a portable
+relative path, exact size and SHA-256. Required members must cover the managed
+runtime targets bijectively with matching hashes; directory and ZIP namespace,
+size and caller-budget checks precede member admission. The normalized aggregate
+uses its own versioned SHA-256 protocol, including single-member sets. Existing
+basename file-set identities and aggregates are unchanged.
+
+The closed Windows TFE v1.22.420 initializer requires staged-source capability
+**12** as a minimum, rather than a range admitting an older implementation.
+Transport schema **75** adds the relative source shape and managed initializer;
+older consumers must refuse unsupported semantics. Full source inspection and
+bounded quick filter observations are distinct: the latter returns `NotChecked`
+for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
+for player workflow, persistence boundaries and the removal recovery hold.
+
 ## Default covers
 
 For a whole ordinary catalog proposal, use
@@ -531,6 +574,77 @@ NES recipe storage identities remain unchanged. Capability implementation,
 repository title admission, actual operation acceptance, optional gameplay and
 protected installed-client delivery retain their separate evidence requirements.
 
+Staged-source version 13 adds `render96-us-source-48da5c491c8a`, a closed
+Windows x64 source recipe for `render96ex`. It pins Render96 source commit
+`48da5c491c8abfb2f5192b59278c1c269411e533`, SDL2 2.32.10 and the existing
+authenticated toolchain. The selected output is `sm64.us.f3dex2e.exe`, built
+with the US/f3dex2e, D3D11/DXGI and SDL2 settings, external stock resources,
+and text saves, Discord RPC and RMODERN disabled. No optional model or texture
+pack is acquired. Fixed client patches declare the standard I/O header,
+adapt the assembler driver, preserve generated C across compiler batches, extract
+raw sound-player bytecode from the COFF section with exact identity checks, and
+divide extraction/build work into supervised phases. The linker-only plan is
+checked before execution. These patches do not authorize catalogue-supplied code
+or arbitrary executables. The independent version 11 Windows path capability
+retains its existing meaning; the fixed Render96 contract requires that optional
+retained path policy to be absent.
+
+The source contract selects only the USA 1.0 variant of the existing
+`ghostship-source` identity. Building requires an exact 8,388,608-byte raw
+`.z64`, `.n64` or `.v64` file whose canonical big-endian SHA256 is
+`17ce077343c6133f8c9f2d6d6d9a4ab62c8cd2aa57c40aea1f490b4c8bb21d91`.
+Registering a ZIP for another consumer does not make it a build input; extract
+and register its raw original first. Stored bytes and canonical identity are
+verified separately. The private runtime retains an immutable owned canonical
+copy; the external original remains outside removal authority.
+
+Core fixes launch to `--savepath !` from the runtime root, without forwarded
+arguments. Only `sm64config.txt` and `sm64_save_file.bin` are persistent.
+Resources, DLLs, extra roots and `cont.m64` remain immutable; no broad save-folder
+or file-pattern exception is allowed. Nonempty inherited `SDL_DYNAMIC_API` is
+refused. The initial Make recipe requires build paths containing only ASCII
+letters, digits, slash, colon, dot, underscore or hyphen. A different source
+revision or ambiguous path requires a reviewed compatible recipe. Source and
+private build evidence establish no redistribution, signing or publication grant.
+
+Staged-source version 14 adds the closed Windows x64 recipe
+`gundam-wing-snes-source-c7aaaa152192-japan-offline`. It pins the game,
+framework and UI source trees, SDL2 SDK, toolchain and official setup package.
+Only the package-authenticated native analyzer is selected from that kit; the
+setup host and bundled build commands never run. Its directory must contain
+exactly the admitted analyzer, whose imports are checked independently from
+runtime imports. The fixed generator receives its explicit path and cannot
+fall back to a Cargo or network build. Generation and compilation reuse Core's
+supervised worker, finite deadline, compiler batches, quiescence and publication
+fences. The measured larger inputs require a separate 4 GiB temporary allowance.
+
+The recipe requires the headerless 2,097,152-byte Japanese original, SHA256
+`dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1`.
+It generates C with the pinned project's recipe and builds a stock offline
+runtime. Exact preimage-bound patches disable launcher/setup, netplay, optional
+mods and diagnostics, keep the real presentation/state-digest helpers, restrict
+configuration resolution to `config.ini` in the runtime directory, and identify
+the offline build truthfully. Launch takes only the owned `game.sfc`; forwarded
+arguments and inherited `SDL_DYNAMIC_API` are refused. Persistent paths are
+`config.ini`, `config.local.ini`, `keybinds.ini`, `rom.cfg` and `saves`; the
+transient writable-directory probe is the only other declared runtime write.
+Configuration `!include` can read additional data files; this is not a filesystem
+sandbox or ownership of those external files. Four-input Advance Wars and
+EarthBound storage identities remain unchanged. Capability 14 does not imply
+catalog admission, actual offered-operation acceptance or protected delivery.
+
+Staged-source version 17 extends the printable-ASCII/MAX_PATH policy to a
+Windows-only user-prepared runtime with a positional original-file argument.
+The complete retained definition must require capability 17; managed version 11
+keeps its existing meaning. Registration and folder changes check the canonical
+executable and actual working directory. Readiness and launch also check the
+selected registered original or source override, because these runtimes receive
+that external path directly. Launch repeats the checks before child creation and
+refuses caller-supplied arguments. Shared-preferences variants are outside this
+narrow combination. This adds no acquisition, modification, backup or removal
+authority over the external runtime or original files, and implies no particular
+port's admission or actual operation acceptance.
+
 Hosted
 installation still requires a provider digest or verified checksum sidecar;
 an exact direct manifest still requires an accepted HTTPS URL, size, version and
@@ -898,6 +1012,18 @@ or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
+`windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
+upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+known unsuitable output roots before acquisition, and checks the selected executable
+and its probe filename budget during readiness and again before preparation. The
+requirement is retained with the installation and survives an output-folder move;
+it grants no relocation or adoption permission. Source files may remain in their
+original Unicode locations when the adapter passes a checked relative runtime copy.
+This policy currently excludes external runtimes, setup executables and managed
+build recipes. Independent definition entries must require staged-source template
+version11. Absent policy retains the prior route contract; this is not a blanket
+ASCII restriction or a claim that every other runtime supports Unicode paths.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path
@@ -1010,6 +1136,24 @@ digest present in one identity must match; representations remain alternatives,
 and multiple matching representations are an ambiguity rather than an automatic
 choice. Extension-only compatibility can pass existing structural admission but
 is never reported by discovery as an exact identity.
+
+An admitted cartridge archive member may be copied unchanged to a different fixed
+runtime filename, such as `game.md` inside a ZIP becoming `game.bin`. The source
+representation must explicitly admit that member extension; the runtime filename
+does not broaden source admission. Preparation binds both the outer ZIP identity
+and the checked member's name, size and SHA-256, and freshly verifies cached
+runtime bytes. This is exact byte copying, not interleaving or header conversion.
+Registrations without structured member observations retain legacy selection
+until checked again. The bounded ZIP32 source-reader limits and unsupported
+container recovery are documented in the architecture contract.
+
+For an `archive-member` representation, `extensions` is matched against the
+decompressed original's extension, just like `member_extensions`; the reader
+recognizes the ZIP container separately. For example, an unchanged Genesis
+original stored as `.bin` or `.md` uses those extensions in both lists and
+`archive-member` digest scope. Putting `zip` in `extensions` does not admit a
+`.md` member. The outer ZIP hash is a container observation, never the expected
+original-byte identity.
 
 File-set representations match only when every declared member has exactly one
 top-level filename match and one conjunctive digest identity. Directory

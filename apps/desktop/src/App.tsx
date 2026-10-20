@@ -1,4 +1,7 @@
 import desktopPackage from "../package.json";
+import { AddGames } from "./components/AddGames";
+import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
+import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
 import { Notice } from "./components/ui/patterns";
@@ -8,7 +11,7 @@ import {
   useApplicationUpdateNotice,
   useApplicationUpdateProductionTransition,
 } from "./features/application-update/use-application-update";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { usePortcoveData } from "./features/workspace/use-workspace-data";
 import { useGithubAuth } from "./features/github-auth/use-github-auth";
 import { useSourceHealth } from "./features/source-health/use-source-health";
@@ -107,6 +110,10 @@ import {
   summarizeLibrary,
   type DetailDestination,
 } from "./view-model";
+import { gameIdentityLabel } from "./port-identity";
+import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { useCollectionLayout } from "./features/browsing/use-collection-layout";
+import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
   code: "state",
@@ -115,6 +122,16 @@ export const missingBootstrapError = {
 } as const;
 
 export default function App() {
+  return (
+    <InterfaceSizeProvider>
+      <InvocationOwnerProvider>
+        <PortcoveApp />
+      </InvocationOwnerProvider>
+    </InterfaceSizeProvider>
+  );
+}
+
+function PortcoveApp() {
   const [browsingContexts, setBrowsingContexts] = useState(
     () => new Map<string, LibraryBrowsingContext>(),
   );
@@ -205,10 +222,12 @@ export function BootstrapRecovery({
   resetLibrary?: () => Promise<void>;
 }) {
   const [actionError, setActionError] = useState<string>();
+  const [transferPending, setTransferPending] = useState(false);
   useGamepadNavigation(() => {});
   const recoveryRoot = transferRecoveryRoot(error);
   const canKeepOriginal = transferRecoveryCanKeepOriginal(error);
   const importRoot = transferRecoveryRoot(error, "import_destination");
+  const pending = recoveryPending || transferPending;
   return (
     <main className="bootstrap-state bootstrap-error m-[0_auto] flex min-h-[100vh] w-[min(42rem,_calc(100%_-_2_*_var(--space-8)))] flex-col justify-center gap-4">
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)] [&:not(.eyebrow)]:text-[var(--color-text-muted)]">
@@ -227,15 +246,32 @@ export function BootstrapRecovery({
       ) : (
         <StartupTechnicalDetails error={error} />
       )}
+      {recoveryRoot && (
+        <LibraryMoveRecovery
+          source={recoveryRoot}
+          canKeepOriginal={canKeepOriginal}
+          disabled={pending}
+          onBusyChange={setTransferPending}
+        />
+      )}
+      {importRoot && (
+        <LibraryImportRecovery
+          destination={importRoot}
+          disabled={pending}
+          onBusyChange={setTransferPending}
+        />
+      )}
       <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
-        Review the error details, then retry startup. If the current library is the cause, you can
-        choose another library or return to the platform default.
+        {recoveryRoot || importRoot
+          ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
+          : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
       </p>
-      <div className="button-row" aria-busy={recoveryPending}>
+      <div className="button-row" aria-busy={pending}>
         <Button
           className="[align-self:flex-start]"
           type="button"
-          variant="primary"
+          variant={recoveryRoot || importRoot ? "outline" : "primary"}
+          disabled={pending}
           onClick={() => window.location.reload()}
         >
           Retry startup
@@ -244,7 +280,7 @@ export function BootstrapRecovery({
           className="[align-self:flex-start]"
           type="button"
           variant="outline"
-          disabled={recoveryPending}
+          disabled={pending || !chooseLibrary}
           onClick={() => {
             void chooseLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -255,7 +291,7 @@ export function BootstrapRecovery({
           className="[align-self:flex-start]"
           type="button"
           variant="outline"
-          disabled={recoveryPending}
+          disabled={pending || !resetLibrary}
           onClick={() => {
             void resetLibrary?.().catch((value) => setActionError(errorText(value)));
           }}
@@ -268,10 +304,6 @@ export function BootstrapRecovery({
           {actionError}
         </p>
       )}
-      {recoveryRoot && (
-        <LibraryMoveRecovery source={recoveryRoot} canKeepOriginal={canKeepOriginal} />
-      )}
-      {importRoot && <LibraryImportRecovery destination={importRoot} />}
     </main>
   );
 }
@@ -341,9 +373,12 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
+    libraryGeneration: bootstrap.generation,
+    libraryLabel: bootstrap.library_root ?? "Current library",
     refresh: data.retryRefresh,
     refreshActivities: data.refreshActivities,
     invalidateDiagnostics: data.invalidateDiagnostics,
@@ -462,9 +497,14 @@ function Workspace({
     open: openPortDetails,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
   const [pendingToolId, setPendingToolId] = useState<string>();
+  const [addGamesOpen, setAddGamesOpen] = useState(false);
+  const [addGamesStarted, setAddGamesStarted] = useState(false);
+  const addGamesReturn = useRef(0);
+  const { setActivitySection } = ui;
   const setPrimaryView = useCallback(
     (...args: Parameters<typeof setView>) => {
       const nextView = typeof args[0] === "function" ? args[0](ui.view) : args[0];
+      if (nextView === "updates") setActivitySection("tasks");
       if (nextView !== "settings") setPendingToolId(undefined);
       const detailReturn = invalidatePortDetails();
       switchView(
@@ -479,7 +519,7 @@ function Workspace({
         },
       );
     },
-    [invalidatePortDetails, setSelectedId, setView, switchView, ui.view],
+    [invalidatePortDetails, setSelectedId, setView, switchView, ui.view, setActivitySection],
   );
   const openHostTool = (toolId: string) => {
     setPendingToolId(toolId);
@@ -487,8 +527,28 @@ function Workspace({
     setPrimaryView("settings");
     window.requestAnimationFrame(() => focusDiscTool());
   };
+  const openAddGames = () => {
+    addGamesReturn.current = workspaceScrollTop(workspace.current);
+    setAddGamesStarted(true);
+    setAddGamesOpen(true);
+    setPrimaryView("library");
+    requestAnimationFrame(() => {
+      scrollWorkspaceTo(workspace.current, 0);
+      workspace.current?.querySelector<HTMLElement>("h1")?.focus();
+    });
+  };
+  const closeAddGames = () => {
+    setAddGamesOpen(false);
+    requestAnimationFrame(() => {
+      scrollWorkspaceTo(workspace.current, addGamesReturn.current);
+      workspace.current
+        ?.querySelector<HTMLElement>("[data-add-games-trigger]")
+        ?.focus({ preventScroll: true });
+    });
+  };
   usePendingHostToolFocus(data, ui.view, pendingToolId, setPendingToolId);
   const commandSurface = useCommandSurface({
+    view: ui.view,
     recent: model.recent,
     installedCount: model.overview.installed,
     busy: Boolean(operations.busy),
@@ -496,8 +556,14 @@ function Workspace({
     setAdoptOpen: ui.setAdoptOpen,
     setSelectedId: (portId) => openPortDetails(portId, `command-trigger:${ui.view}`),
     checkAll: updates.checkAll,
+    openUpdates: () => {
+      setPrimaryView("updates");
+      ui.setActivitySection("updates");
+    },
   });
-  const adopting = [...operations.pendingOperations.values()].includes("adopt");
+  const adopting = [...operations.pendingOperations.values()].some(
+    (record) => record.name === "adopt",
+  );
   const { open: commandOpen, setOpen: setCommandOpen } = commandSurface;
   const handleBack = useCallback(() => {
     const action = overlayBackAction({
@@ -557,7 +623,10 @@ function Workspace({
   };
 
   const renderPageHeader = () =>
-    !model.port && (
+    !model.port &&
+    (addGamesOpen && ui.view === "library" ? (
+      <h1 tabIndex={-1}>Add games</h1>
+    ) : (
       <PageHeader
         view={ui.view}
         query={ui.query}
@@ -565,7 +634,7 @@ function Workspace({
         portCount={data.catalog?.ports.length ?? 0}
         onOpenCommands={() => commandSurface.setOpen(true)}
       />
-    );
+    ));
   const renderPreferenceFailure = () =>
     preferenceFailure && (
       <Notice intent="danger" className="" role="alert">
@@ -612,8 +681,10 @@ function Workspace({
         }}
         close={closePortDetails}
       />
-    ) : (
+    ) : addGamesOpen && ui.view === "library" ? null : (
       <CurrentView
+        onAddGames={openAddGames}
+        collection={collection}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -630,6 +701,7 @@ function Workspace({
         hostToolActions={hostToolActions}
         applicationUpdates={
           <ApplicationUpdateSettings
+            perform={operations.perform}
             currentVersion={desktopPackage.version}
             generation={bootstrap.generation}
             disabled={Boolean(operations.busy)}
@@ -655,6 +727,9 @@ function Workspace({
           return (
             detail?.querySelector<HTMLButtonElement>(".primary-actions button:not(:disabled)") ??
             detail?.querySelector<HTMLButtonElement>(".detail-back") ??
+            document.querySelector<HTMLButtonElement>(
+              'section[aria-label="Add games workspace"]:not([hidden]) #add-games-check-files',
+            ) ??
             null
           );
         }}
@@ -669,99 +744,129 @@ function Workspace({
         hostToolActions={hostToolActions}
       />
     );
-  const recoveryPort = preparationRecoveryPort(
-    operations.error,
-    data.catalog?.ports ?? [],
-    data.statuses,
-  );
   return (
-    <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
-      <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
-        <Sidebar
-          view={ui.view}
-          setView={setPrimaryView}
-          controller={controller}
-          installedCount={model.overview.installed}
-          updateCount={
-            data.statuses.filter((status) => currentUpdateSnapshot(status)?.check.update_available)
-              .length
-          }
-          activities={data.activities}
-          onAdopt={() => ui.setAdoptOpen(true)}
-          onAbout={() => {
-            ui.setSettingsCategory("about");
-            setPrimaryView("settings");
-            window.requestAnimationFrame(() => {
-              const heading = document.getElementById("settings-about-heading");
-              heading?.scrollIntoView({ block: "start" });
-              heading?.focus({ preventScroll: true });
-            });
-          }}
-        />
-        <main
-          className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
-          ref={workspace}
-          data-focus-region="workspace"
-          tabIndex={-1}
-        >
-          {renderPageHeader()}
-          <StatusLayer
-            error={operations.error}
-            clearError={() => operations.setError(undefined)}
-            reviewCurrentState={data.retryRefresh}
-            reviewPreparation={
-              recoveryPort
-                ? () => {
-                    const id = recoveryPort;
-                    if (id) openPortDetails(id, "error:preparation-review");
+    <OperationPresentationProvider
+      generation={bootstrap.generation}
+      pending={operations.pendingOperations}
+    >
+      <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
+        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
+          <Sidebar
+            view={ui.view}
+            setView={setPrimaryView}
+            controller={controller}
+            installedCount={model.overview.installed}
+            updateCount={
+              data.statuses.filter(
+                (status) => currentUpdateSnapshot(status)?.check.update_available,
+              ).length
+            }
+            activities={data.activities}
+            onAdopt={() => ui.setAdoptOpen(true)}
+            onAbout={() => {
+              ui.setSettingsCategory("about");
+              setPrimaryView("settings");
+              window.requestAnimationFrame(() => {
+                const heading = document.getElementById("settings-about-heading");
+                heading?.scrollIntoView({ block: "start" });
+                heading?.focus({ preventScroll: true });
+              });
+            }}
+          />
+          <main
+            className="w-full max-w-(--layout-content-max) overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
+            ref={workspace}
+            data-focus-region="workspace"
+            tabIndex={-1}
+          >
+            {renderPageHeader()}
+            <StatusLayer
+              invocations={operations.invocations}
+              operationEvents={operations.operationEvents}
+              dismissInvocation={operations.dismissInvocation}
+              openActivity={(id) => {
+                ui.setReviewedActivityId(id);
+                setPrimaryView("updates");
+              }}
+              error={operations.error}
+              clearError={() => operations.setError(undefined)}
+              reviewCurrentState={data.retryRefresh}
+              preparationRecovery={(record) => {
+                const id = preparationRecoveryPort(
+                  record.failure,
+                  data.catalog?.ports ?? [],
+                  data.statuses,
+                );
+                return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+              }}
+              operation={operations.operation}
+              busy={operations.busy}
+              featureNotices={
+                <ApplicationUpdateNotices
+                  updateNotice={applicationUpdate.notice}
+                  updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                  productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
+                  productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                  reviewUpdate={reviewApplicationUpdate}
+                  dismissUpdate={applicationUpdate.dismiss}
+                  dismissUpdateChoice={dismissApplicationUpdateChoice}
+                  useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
+                  keepPreview={() =>
+                    void completeApplicationUpdateProductionTransition("keep-preview")
                   }
-                : undefined
-            }
-            operation={operations.operation}
-            busy={operations.busy}
-            featureNotices={
-              <ApplicationUpdateNotices
-                updateNotice={applicationUpdate.notice}
-                updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-                productionTransitionRequired={applicationUpdateProductionTransition.offerRequired}
-                productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                reviewUpdate={reviewApplicationUpdate}
-                dismissUpdate={applicationUpdate.dismiss}
-                dismissUpdateChoice={dismissApplicationUpdateChoice}
-                useStable={() => void completeApplicationUpdateProductionTransition("use-stable")}
-                keepPreview={() =>
-                  void completeApplicationUpdateProductionTransition("keep-preview")
-                }
-                dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                  dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                />
+              }
+            />
+            <WorkspaceRefreshNotice
+              failure={data.refreshFailure}
+              recoveryFailure={data.recoveryFailure}
+              hasSnapshot={Boolean(data.catalog)}
+              refreshing={data.refreshing}
+              retry={data.retryRefresh}
+              retryRecovery={data.retryRecovery}
+              subscriptionFailure={
+                data.subscriptionFailure?.error ?? operations.subscriptionFailure
+              }
+            />
+            {renderPreferenceFailure()}
+            {renderWorkspaceView()}
+            {addGamesStarted && (
+              <AddGames
+                key={bootstrap.generation}
+                active={addGamesOpen && ui.view === "library" && !model.port}
+                generation={bootstrap.generation}
+                ports={data.catalog?.ports ?? []}
+                profiles={data.catalog?.source_profiles ?? []}
+                statuses={model.statusMap}
+                sources={data.sources}
+                refreshFailed={Boolean(data.refreshFailure)}
+                onAdded={data.refreshAfterMutation}
+                onOpenPort={openPortDetails}
+                onCheckFiles={openSourceIntake}
+                onBrowseCatalog={() => setPrimaryView("catalog")}
+                onCopyInstallation={() => ui.setAdoptOpen(true)}
+                setupSource={setupSource}
+                setSetupSource={setSetupSource}
+                close={closeAddGames}
               />
-            }
+            )}
+          </main>
+          <AdoptionOverlay
+            ui={ui}
+            operations={operations}
+            libraryGeneration={bootstrap.generation}
+            ports={data.catalog?.ports ?? []}
           />
-          <WorkspaceRefreshNotice
-            failure={data.refreshFailure}
-            recoveryFailure={data.recoveryFailure}
-            hasSnapshot={Boolean(data.catalog)}
-            refreshing={data.refreshing}
-            retry={data.retryRefresh}
-            retryRecovery={data.retryRecovery}
-            subscriptionFailure={data.subscriptionFailure?.error ?? operations.subscriptionFailure}
+          <CommandPalette
+            open={commandSurface.open}
+            commands={commandSurface.commands}
+            close={() => commandSurface.setOpen(false)}
           />
-          {renderPreferenceFailure()}
-          {renderWorkspaceView()}
-        </main>
-        <AdoptionOverlay
-          ui={ui}
-          operations={operations}
-          libraryGeneration={bootstrap.generation}
-          ports={data.catalog?.ports ?? []}
-        />
-        <CommandPalette
-          open={commandSurface.open}
-          commands={commandSurface.commands}
-          close={() => commandSurface.setOpen(false)}
-        />
-        {renderSourceIntake()}
-      </div>
-    </ArtworkProvider>
+          {renderSourceIntake()}
+        </div>
+      </ArtworkProvider>
+    </OperationPresentationProvider>
   );
 }
 
@@ -933,6 +1038,8 @@ function selectedPort(
 }
 
 function CurrentView({
+  onAddGames,
+  collection,
   favorites,
   data,
   ui,
@@ -952,6 +1059,8 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  onAddGames: () => void;
+  collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
@@ -974,6 +1083,9 @@ function CurrentView({
   if (ui.view === "updates")
     return (
       <UpdateCenter
+        operationEvents={operations.operationEvents}
+        section={ui.activitySection}
+        onSectionChange={ui.setActivitySection}
         generation={bootstrap.generation}
         ports={data.catalog?.ports ?? []}
         sourceProfiles={data.catalog?.source_profiles ?? []}
@@ -996,9 +1108,20 @@ function CurrentView({
         checkAll={updates.checkAll}
         perform={operations.perform}
         onLaunch={(portId) => {
-          void operations.perform("launch", () =>
-            desktopApi.launch(portId, "", bootstrap.generation),
-          );
+          const port = data.catalog?.ports.find((port) => port.id === portId);
+          if (port)
+            void operations.perform(
+              "launch",
+              () => desktopApi.launch(portId, "", bootstrap.generation),
+              {
+                context: {
+                  action: "Launch",
+                  target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+                  libraryGeneration: bootstrap.generation,
+                  exclusionScope: "target",
+                },
+              },
+            );
         }}
         onSelect={openPortDetails}
         onOpenSettings={(target, sourceProfileId) => {
@@ -1030,11 +1153,20 @@ function CurrentView({
         sourceProfiles={data.catalog?.source_profiles ?? []}
         onSourceAdded={data.refreshAfterMutation}
         onOpenPort={openPortDetails}
+        onReviewSaves={(portId, origin) => openPortDetails(portId, origin, "saves")}
+        onOpenActivity={() => {
+          ui.setView("updates");
+          ui.setActivitySection("tasks");
+          window.requestAnimationFrame(() =>
+            document.querySelector<HTMLElement>("main h1")?.focus(),
+          );
+        }}
         setupSource={setupSource}
         setSetupSource={setSetupSource}
         onCatalogChanged={data.refreshAfterMutation}
         onOpenGameUpdates={() => {
           ui.setView("updates");
+          ui.setActivitySection("updates");
           window.requestAnimationFrame(() => {
             const heading = document.querySelector<HTMLElement>("main h1");
             heading?.scrollIntoView({ block: "start" });
@@ -1110,6 +1242,9 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      collectionLayout={collection.value}
+      setCollectionLayout={collection.set}
+      collectionLayoutFailure={collection.failure}
       favorites={favorites}
       view={ui.view}
       ports={model.visible}
@@ -1129,11 +1264,22 @@ function CurrentView({
       setFilter={ui.setFilter}
       onSelect={openPortDetails}
       onContinue={(portId) => {
-        void operations.perform("launch", () =>
-          desktopApi.launch(portId, "", bootstrap.generation),
-        );
+        const port = data.catalog?.ports.find((port) => port.id === portId);
+        if (port)
+          void operations.perform(
+            "launch",
+            () => desktopApi.launch(portId, "", bootstrap.generation),
+            {
+              context: {
+                action: "Launch",
+                target: { kind: "port", id: portId, label: gameIdentityLabel(port) },
+                libraryGeneration: bootstrap.generation,
+                exclusionScope: "target",
+              },
+            },
+          );
       }}
-      onBrowseCatalog={() => ui.setView("catalog")}
+      onBrowseCatalog={onAddGames}
       onConnectGameFiles={() => {
         ui.setSettingsCategory("game-files");
         ui.setView("settings");
@@ -1198,7 +1344,7 @@ function SelectedPortPanel({
       }
     : undefined;
   const pickArchive =
-    model.sourceProfile?.kind === "file-set"
+    model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
@@ -1220,8 +1366,17 @@ function SelectedPortPanel({
     <DetailPanel
       perform={operations.perform}
       prepare={(expectedPlan, onEvent) =>
-        operations.perform("prepare game data", () =>
-          desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
+        operations.perform(
+          "prepare game data",
+          () => desktopApi.prepare(model.port.id, expectedPlan, libraryGeneration, onEvent),
+          {
+            context: {
+              action: "Prepare game data",
+              target: { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
+              libraryGeneration,
+              exclusionScope: "target",
+            },
+          },
         )
       }
       port={model.port}

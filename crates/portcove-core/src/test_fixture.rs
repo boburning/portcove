@@ -99,7 +99,27 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = target(contract);
         let port = self.port;
         let port_id = &port.id;
-        let capability_version = if let Some(minimum) = port
+        let capability_version = if port.managed_shared_preferences.is_some() {
+            16
+        } else if port.runtime_data_policy.is_some() {
+            15
+        } else if port.managed_initialization.is_some() {
+            12
+        } else if port.windows_runtime_path_policy.is_some() {
+            crate::runtime_path_policy::minimum_capability(port)
+        } else if let Some(minimum) = port
+            .release
+            .user_prepared
+            .values()
+            .filter_map(|runtime| {
+                runtime
+                    .shared_preferences
+                    .map(|scope| scope.minimum_template_version())
+            })
+            .max()
+        {
+            minimum
+        } else if let Some(minimum) = port
             .release
             .managed_build
             .values()
@@ -156,6 +176,36 @@ impl<'a> IndexedCatalogFixture<'a> {
                 (target(contract), contract.clone()),
             ],
         }
+    }
+}
+
+#[test]
+fn indexed_policy_fixtures_keep_delivered_reader_floors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, version) in [
+        ("resident-evil-gaiden-recomp", 16),
+        ("wave-race-64-racewave46", 15),
+        ("render96ex", 13),
+    ] {
+        let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
+        let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();
+        assert_eq!(
+            entry["required_capabilities"][0]["minimum_version"], version,
+            "{id}"
+        );
+        assert_eq!(
+            entry["required_capabilities"][0]["maximum_version"], version,
+            "{id}"
+        );
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        index
+            .inspect_catalog_projection(
+                "official",
+                id,
+                &bundle.contents[0].1,
+                &bundle.contents[1].1,
+            )
+            .unwrap();
     }
 }
 

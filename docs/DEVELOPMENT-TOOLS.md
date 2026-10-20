@@ -1287,6 +1287,13 @@ marker, then waits at most 120 seconds for an explicit matching release; invalid
 controls, collisions and expired waits fail qualification. The marker cannot
 authorize operation recovery or process termination.
 
+The same instrumented observer supports `launch_ready_to_spawn` immediately
+before Core rechecks retained external-runtime inputs and creates the child.
+A qualification harness can change only its own disposable input after the
+observation, release the exact nonce and assert a real pre-spawn refusal. This
+does not authorize a child process, alter production deadlines or establish
+normal exit/gameplay; ordinary builds still ignore checkpoint controls.
+
 The five cases observe install Prepared, install payload Published, restore
 Prepared, whole-library move Published and whole-library import Published. Install payload publication precedes
 SQLite registration; it is not a post-database-commit crash. Each case independently
@@ -1692,11 +1699,21 @@ owner in place, or cancel only the queued command with Ctrl-C if other work is
 more useful. If the finite admission limit expires, ownership is unreadable, or
 cleanup cannot prove quiescence, preserve the exact message and inspect the named
 PID/workspace before retrying. When the recorded containment is not proven
-quiescent, the exact resume condition is a supported owner/containment exit plus
-the wrapper's valid cleanup evidence. Preserve the lock and report that condition;
-do not invent a manual recovery path or keep rerunning expensive checks while it
-remains false. Do not remove the lock, kill another worker, or use direct
-Cargo/nextest to evade it.
+quiescent, preserve the lock and report the missing exit/cleanup evidence; do not
+keep rerunning expensive checks while that condition remains false. Do not kill
+another worker or use direct Cargo/nextest to evade admission.
+
+Correctly engineered manual recovery is permitted when the maintained route
+cannot interpret a task-owned damaged record or represent independently proven
+quiescence. Follow [owned resource recovery](reference/owned-resource-recovery.md):
+prove ownership and exit, preserve exact preimages, coordinate with the actual
+acquirer, validate and independently review the bounded mutator, and verify its
+readback before resuming through the normal guard. A verified later host boot can
+prove earlier processes have exited; age or an absent PID alone cannot. Retaining
+a malformed leaf is not permission to clear foreign records, invent a cleanup
+receipt or claim the interrupted command passed. Existing task authority covers
+this necessary recovery; a missing automatic route alone does not require
+another permission request.
 
 At a real safe checkpoint before an authorized environment replacement, use the
 existing source and evidence channels to preserve the essential continuation:
