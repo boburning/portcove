@@ -531,7 +531,9 @@ consequences beside the enabled review action. A managed setup does not lead wit
 a disabled Play placeholder. Requirement fields remain in their dedicated group;
 missing-file recovery stays ahead of preparation when inputs are unavailable.
 After confirmed preparation, the current detail owner returns focus to enabled
-Play or its next-step heading. Library-generation/owner replacement and deliberate
+confirmed Play or its next-step heading. Unconfirmed compatibility keeps Try launch
+available but returns completion focus to the heading; Start setup is not a confirmed
+Play target either. Library-generation/owner replacement and deliberate
 focus elsewhere suppress that deferred handoff.
 
 Startup recovery places a specific interrupted Move or restore before generic

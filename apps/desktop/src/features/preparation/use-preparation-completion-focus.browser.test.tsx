@@ -8,12 +8,14 @@ afterEach(cleanup);
 function Owner({
   busy,
   prepared = false,
+  trial = false,
   modal = false,
   identity = "sample:1",
   onCapture,
 }: {
   busy: boolean;
   prepared?: boolean;
+  trial?: boolean;
   modal?: boolean;
   identity?: string;
   onCapture?: (callback: () => void) => void;
@@ -37,8 +39,8 @@ function Owner({
           </div>
         )}
         {prepared && (
-          <button data-launch-action disabled={busy}>
-            Play
+          <button data-launch-action data-confirmed-play={trial ? undefined : ""} disabled={busy}>
+            {trial ? "Try launch" : "Play"}
           </button>
         )}
       </section>
@@ -65,6 +67,13 @@ it("waits for popup teardown instead of consuming the completion intent", async 
   await expect.element(page.getByRole("dialog")).toBeVisible();
   await screen.rerender(<Owner busy={false} prepared />);
   await expect.element(page.getByRole("button", { name: "Play" })).toHaveFocus();
+});
+it("focuses the next step when preparation leaves compatibility unconfirmed", async () => {
+  const screen = await render(<Owner busy />);
+  await page.getByRole("button", { name: "Complete owned preparation" }).click();
+  await screen.rerender(<Owner busy={false} prepared trial />);
+  await expect.element(page.getByRole("heading", { name: "Next step" })).toHaveFocus();
+  await expect.element(page.getByRole("button", { name: "Try launch" })).toBeEnabled();
 });
 it("retains deliberate navigation while readback settles", async () => {
   const screen = await render(<Owner busy />);

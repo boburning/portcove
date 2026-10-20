@@ -806,7 +806,7 @@ function StatusActionsGroup({
             onPrepared={preparedFocus}
             focusFallback={() =>
               gameActions.current?.querySelector<HTMLElement>(
-                "[data-launch-action]:not(:disabled)",
+                "[data-confirmed-play]:not(:disabled)",
               ) ?? nextStep.current
             }
           />
@@ -1902,6 +1902,7 @@ function InstalledPlayActions({
       <Button
         data-focusable
         data-launch-action
+        data-confirmed-play={launchReady && !trial && !pendingSetup ? "" : undefined}
         className="wide flex-1"
         variant="primary"
         size="lg"

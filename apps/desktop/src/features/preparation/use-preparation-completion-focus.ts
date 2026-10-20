@@ -53,7 +53,7 @@ export function usePreparationCompletionFocus({
         return;
       }
       const active = document.activeElement;
-      const launch = element.querySelector<HTMLElement>("[data-launch-action]");
+      const launch = element.querySelector<HTMLElement>("[data-confirmed-play]");
       if (
         active !== document.body &&
         active !== nextStep.current &&
@@ -70,7 +70,7 @@ export function usePreparationCompletionFocus({
       }
       if (busy) return;
       const target =
-        element.querySelector<HTMLElement>("[data-launch-action]:not(:disabled)") ??
+        element.querySelector<HTMLElement>("[data-confirmed-play]:not(:disabled)") ??
         nextStep.current;
       stop();
       setIntent(undefined);

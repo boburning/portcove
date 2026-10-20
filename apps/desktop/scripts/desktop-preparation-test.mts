@@ -1238,9 +1238,13 @@ export async function preparationScenarios({
     assert.equal(await trial.getText(), "Try launch");
     await browser.wait(until.elementIsEnabled(trial), 15_000);
     await browser.wait(
-      () => executeBrowserScript(browser, (element) => document.activeElement === element, trial),
+      () =>
+        executeBrowserScript(browser, () => {
+          const heading = document.querySelector("[data-task-owner] h2");
+          return heading?.textContent?.trim() === "Next step" && document.activeElement === heading;
+        }),
       5_000,
-      "Successful preparation did not hand focus to the available launch action",
+      "Unconfirmed compatibility must leave completion focus on the next-step heading",
     );
     await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);

@@ -911,10 +911,11 @@ export async function selectedSetupCompletionScenario({
       report.observations.result_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionResultFocus, port.name),
         5_000,
-        "Preparation must restore natural focus to a visible enabled control in the selected detail workspace",
+        "Preparation must restore natural focus to the next step when compatibility is unconfirmed",
       );
       assert.ok(report.observations.result_focus);
-      assert.equal(report.observations.result_focus.text, "Try launch");
+      assert.equal(report.observations.result_focus.tag, "H2");
+      assert.equal(report.observations.result_focus.text, "Next step");
       await screenshot("selected-setup-prepared");
       await click(By.css('[aria-label="Back to previous workspace"]'));
       await browser.wait(until.elementLocated(continuation), 5_000);
