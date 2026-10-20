@@ -30,6 +30,26 @@ void test("direct Linux desktop finalization cannot bypass missing release evide
   assert.deepEqual(await readFile(path.join(item.assets, "SHA256SUMS.txt")), before);
 });
 
+void test("separate qualification root still requires the maintained scanner before final asset mutation", async (t) => {
+  const item = await fixture(t);
+  const inventory: unknown = JSON.parse(await readFile(item.inventoryPath, "utf8"));
+  assert.ok(isRecord(inventory) && Array.isArray(inventory.packages));
+  const first: unknown = inventory.packages[0];
+  assert.ok(isRecord(first));
+  first.filename = "Portcove_1.2.3_amd64.AppImage";
+  await writeFile(item.inventoryPath, JSON.stringify(inventory));
+  const before = await readFile(path.join(item.assets, "SHA256SUMS.txt"));
+  await assert.rejects(
+    finalizeReleaseAssets(item.assets, item.inventoryPath, {
+      projectRoot: item.root,
+      sbomSubjectChecksums: item.sbomSubjectChecksums,
+      linuxQualificationRoot: path.join(item.root, "missing-exact-candidate"),
+    }),
+    /git|ENOENT|no such|candidate/u,
+  );
+  assert.deepEqual(await readFile(path.join(item.assets, "SHA256SUMS.txt")), before);
+});
+
 function sha256(contents: string | Buffer) {
   return createHash("sha256").update(contents).digest("hex");
 }
