@@ -9,6 +9,7 @@ import { createHash, generateKeyPairSync, verify } from "node:crypto";
 import {
   authenticateCapturedSemanticIssuer,
   prepareSemanticAppJwt,
+  inspectSemanticInstallationToken,
 } from "./release-semantic-issuer.mts";
 import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
@@ -196,6 +197,24 @@ void test("App JWT uses the selected public key, RS256 and a bounded clock windo
     () => prepareSemanticAppJwt(Buffer.from(pem), 123, "0".repeat(64), 1800000000),
     /identity changed/,
   );
+  const now = Date.parse("2026-10-20T00:00:00Z");
+  const response = {
+    token: "inert-token-only",
+    permissions: { checks: "write", metadata: "read" },
+    expires_at: "2026-10-20T01:00:00Z",
+  };
+  assert.equal(inspectSemanticInstallationToken(201, response, now), response.token);
+  for (const expires_at of [
+    "invalid",
+    "2026-02-30T00:00:00Z",
+    "2026-10-20T00:00:00Z",
+    "2026-10-20T01:06:00Z",
+    "2026-10-20T01:00:00.000Z",
+  ])
+    assert.throws(
+      () => inspectSemanticInstallationToken(201, { ...response, expires_at }, now),
+      /boundary unavailable/,
+    );
 });
 
 void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {

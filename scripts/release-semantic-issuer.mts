@@ -208,9 +208,19 @@ async function authenticateSemanticIssuerRequest(
     `app/installations/${config.issuer.installation_id}/access_tokens`,
     { repository_ids: [1354613114], permissions: { checks: "write", metadata: "read" } },
   );
-  const value = response.body;
+  const token = inspectSemanticInstallationToken(response.status, response.body, Date.now());
+  return { app, installation: client("installation", token) };
+}
+
+/** Response integrity only; token presence never grants producer authority. */
+export function inspectSemanticInstallationToken(
+  status: number | undefined,
+  value: unknown,
+  now: number,
+) {
   if (
-    response.status !== 201 ||
+    status !== 201 ||
+    !Number.isFinite(now) ||
     !isRecord(value) ||
     typeof value.token !== "string" ||
     !value.token ||
@@ -219,9 +229,12 @@ async function authenticateSemanticIssuerRequest(
     !isRecord(value.permissions) ||
     capacityDigest(value.permissions) !== capacityDigest({ checks: "write", metadata: "read" }) ||
     typeof value.expires_at !== "string" ||
-    Date.parse(value.expires_at) <= Date.now() ||
-    Date.parse(value.expires_at) > Date.now() + 65 * 60 * 1000
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u.test(value.expires_at) ||
+    !Number.isFinite(Date.parse(value.expires_at)) ||
+    new Date(value.expires_at).toISOString().replace(".000Z", "Z") !== value.expires_at ||
+    Date.parse(value.expires_at) <= now ||
+    Date.parse(value.expires_at) > now + 65 * 60 * 1000
   )
     throw new Error("semantic installation token boundary unavailable");
-  return { app, installation: client("installation", value.token) };
+  return value.token;
 }
