@@ -351,7 +351,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-semantic-broker.test.mts",
     ],
   ]),
-  ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
+  ...["inputs", "proposal", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
     (name): [string, string[]] => [
       `scripts/release-semantic-${name}.mts`,
       ["scripts/release-semantic-broker.test.mts"],
