@@ -11,6 +11,14 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [phase-specific late controls](slice4-payload-phase-controls-2026-10-20.md)
+connect payload preparation to its own fresh isolated observation after aggregate
+and opaque package acquisition. Site maintenance can read pause/capacity without
+a classification record or candidate. All production fragments remain held; the
+ordinary credential-free process fixture establishes hosted lifetime only when
+its actual CI run succeeds. Custody, final resource/digest reconciliation and
+protected acceptance remain pending.
+
 The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
 connect actual controller/reader and isolated observer identities to existing
 classification, pause and capacity readers. Large acquisition precedes the
