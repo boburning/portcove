@@ -12,10 +12,6 @@ const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
 };
-const payloadSignerProfile = {
-  workflow: productionControllerWorkflow,
-  job: "Sign admitted updater payloads",
-};
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",

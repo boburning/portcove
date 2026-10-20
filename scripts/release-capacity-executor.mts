@@ -5,7 +5,7 @@ import {
   verifyCapacityExecutorJobIdentity,
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, inspectCapacityExecutorIdentity } from "./release-capacity.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
@@ -171,7 +171,7 @@ export async function executeOwnedCapacityEffect(
   );
   const remote = { configuration: input.remote_configuration, api };
   let ownedId: string | null = null;
-  let completed: { remote_identity: string; evidence_sha256: string } | null = null;
+  const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
     const executorIdentity = await refreshCapacityExecutor(session);
     // Existing transport checks every remote ref and returns only exact public
@@ -179,9 +179,9 @@ export async function executeOwnedCapacityEffect(
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
       api,
     });
-    const perform = async (
-      recordCompleted: (identity: string, evidence: string) => Promise<void>,
-      pending: { checkpoint: string; operation: Record<string, unknown> },
+    const perform: Parameters<typeof runBoundedCapacityOperation>[4] = async (
+      recordCompleted,
+      pending,
     ) => {
       if (capacityDigest(pending.operation.executor_identity) !== capacityDigest(executorIdentity))
         throw new Error("durable operation belongs to another executor");
@@ -203,7 +203,7 @@ export async function executeOwnedCapacityEffect(
         !/^[a-f0-9]{64}$/u.test(receipt.evidence_sha256)
       )
         throw new Error("exact provider/readback evidence unavailable");
-      completed = structuredClone(receipt);
+      captured.completed = structuredClone(receipt);
       await recordCompleted(receipt.remote_identity, receipt.evidence_sha256);
     };
     const options = { remote, executorIdentity, maximumReceipts: 1 };
@@ -228,8 +228,9 @@ export async function executeOwnedCapacityEffect(
             input.request,
             readBoundary,
             perform,
-            { ...options, recovery: input.recovery },
+            { ...options, ...(input.recovery === undefined ? {} : { recovery: input.recovery }) },
           );
+    const completed = captured.completed;
     if (
       !ownedId ||
       !completed ||
@@ -263,7 +264,7 @@ export async function executeOwnedCapacityEffect(
       completed.evidence_sha256,
       { remote, executorIdentity },
     );
-    if (settled.durable_checkpoint !== settled.checkpoint)
+    if (!("durable_checkpoint" in settled) || settled.durable_checkpoint !== settled.checkpoint)
       throw new Error("remote settlement is unresolved");
     return {
       checkpoint: settled.checkpoint,
@@ -285,9 +286,7 @@ export async function executeOwnedCapacityEffect(
 export async function recoverOwnedCapacityEffect(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
-  readback: (
-    operation: Readonly<Record<string, unknown>>,
-  ) => Promise<{
+  readback: (operation: Readonly<Record<string, unknown>>) => Promise<{
     resolution: "effect-completed" | "effect-not-applied" | "partial-effects-retained";
     evidence_sha256: string;
   }>,
@@ -333,13 +332,13 @@ export async function recoverOwnedCapacityEffect(
       !isRecord(operation.executor_identity)
     )
       throw new Error("an unresolved identity-bound capacity operation is required");
-    const original = operation.executor_identity;
+    const original = inspectCapacityExecutorIdentity(operation.executor_identity);
     if (original.job_id === executorIdentity.job_id && original.run_id === executorIdentity.run_id)
       throw new Error("live executor cannot appoint itself as terminal-job recovery");
     const terminal = () => {
       const response = api.request(
         "GET",
-        `repos/boburning/portcove/actions/jobs/${original.job_id}`,
+        `repos/boburning/portcove/actions/jobs/${String(original.job_id)}`,
       );
       const job = response.body;
       if (
@@ -353,7 +352,7 @@ export async function recoverOwnedCapacityEffect(
         typeof job.conclusion !== "string" ||
         !job.conclusion ||
         job.check_run_url !==
-          `https://api.github.com/repos/boburning/portcove/check-runs/${original.check_run_id}`
+          `https://api.github.com/repos/boburning/portcove/check-runs/${String(original.check_run_id)}`
       )
         throw new Error("original exact executor is not observed terminal; recovery remains held");
     };
@@ -379,7 +378,7 @@ export async function recoverOwnedCapacityEffect(
       resolution.evidence_sha256,
       { remote, executorIdentity },
     );
-    if (settled.durable_checkpoint !== settled.checkpoint)
+    if (!("durable_checkpoint" in settled) || settled.durable_checkpoint !== settled.checkpoint)
       throw new Error("recovery remote settlement unresolved");
     return { checkpoint: settled.checkpoint, operation_id: operation.id, ...resolution };
   } catch (error) {

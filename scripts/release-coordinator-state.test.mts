@@ -33,6 +33,19 @@ import {
 } from "./release-coordinator-remote.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import childProcess from "node:child_process";
+import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+import {
+  authenticateCapacityExecutor,
+  executeOwnedCapacityEffect,
+} from "./release-capacity-executor.mts";
+import {
+  assemblerIdentityFixture,
+  expected as identityExpected,
+  jwk as identityJwk,
+} from "./fixtures/assembler-identity-fixture.mts";
+import { productionControllerWorkflow } from "./production-controller-admission.mts";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
@@ -1356,6 +1369,178 @@ async function remoteCapacityFixture(t: test.TestContext) {
   await publishCoordinatorCheckpoint(f.bare, migrated.checkpoint, f.config, { api: f.api });
   return { ...f, capacity, migrated, options: { remote: { configuration: f.config, api: f.api } } };
 }
+
+for (const lost of [false, true])
+  void test(
+    `actual executor integration ${lost ? "retains a lost provider outcome and forbids retry" : "settles only its exact durably retained effect"}`,
+    { timeout: 180000 },
+    async (t) => {
+      // Real local Git journal with simulated GitHub/JWKS/OIDC transport. No real
+      // issuer credential, GitHub request, publication or protected grant is used.
+      const f = await remoteCapacityFixture(t);
+      const signed = assemblerIdentityFixture(
+        { aud: "portcove-capacity-executor" },
+        {},
+        { workflow: productionControllerWorkflow, job: "Publish authenticated application site" },
+      );
+      const savedEnv = new Map(
+        ["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"].map((k) => [
+          k,
+          process.env[k],
+        ]),
+      );
+      process.env.ACTIONS_ID_TOKEN_REQUEST_URL =
+        "https://fixture.actions.githubusercontent.com/oidc";
+      process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
+      t.after(() => {
+        for (const [key, value] of savedEnv) {
+          if (value === undefined) delete process.env[key];
+          else process.env[key] = value;
+        }
+      });
+      const http = t.mock.method(globalThis, "fetch", async (raw: Parameters<typeof fetch>[0]) => {
+        if (typeof raw !== "string" && !(raw instanceof URL))
+          throw new Error("fixture expects a fixed URL");
+        const url = typeof raw === "string" ? raw : raw.href;
+        if (url === "https://token.actions.githubusercontent.com/.well-known/jwks")
+          return new Response(JSON.stringify({ keys: [identityJwk] }));
+        assert.equal(
+          url,
+          "https://fixture.actions.githubusercontent.com/oidc?audience=portcove-capacity-executor",
+        );
+        return new Response(JSON.stringify({ value: signed.token }));
+      });
+      const original = childProcess.spawnSync;
+      const command = t.mock.method(
+        childProcess,
+        "spawnSync",
+        (name: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+          if (name !== "gh") return original(name, args, options);
+          assert.deepEqual(args.slice(-2), ["--hostname", "github.com"]);
+          if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
+            return signed.transport.spawn(name, args, options);
+          let body: unknown;
+          let status: number;
+          if (args[1] === "graphql") {
+            assert.ok(typeof options.input === "string");
+            const request: unknown = JSON.parse(options.input);
+            assert.ok(
+              isRecord(request) && typeof request.query === "string" && isRecord(request.variables),
+            );
+            body = f.api.graphql(request.query, request.variables);
+            status = 200;
+          } else {
+            assert.equal(args[0], "api");
+            const method = args[args.indexOf("--method") + 1];
+            assert.ok(method === "GET" || method === "POST");
+            assert.ok(options.input === undefined || typeof options.input === "string");
+            const response = f.api.request(
+              method,
+              args[2]!,
+              options.input === undefined ? undefined : JSON.parse(options.input),
+            );
+            body = response.body;
+            status = response.status!;
+          }
+          return {
+            status: 0,
+            stdout: `HTTP/2 ${status}\r\n\r\n${JSON.stringify(body)}`,
+            stderr: "",
+          };
+        },
+      );
+      syncBuiltinESMExports();
+      t.after(() => {
+        command.mock.restore();
+        http.mock.restore();
+        syncBuiltinESMExports();
+      });
+      const executor = await authenticateCapacityExecutor(
+        "site-publication",
+        { ...identityExpected, audience: "portcove-capacity-executor" },
+        f.repository,
+      );
+      const request = {
+        repository: f.bare,
+        checkpoint: f.migrated.checkpoint,
+        remote_configuration: f.config,
+        request: {
+          kind: "upload" as const,
+          destination: "github-pages:boburning/portcove:complete-site",
+        },
+      };
+      let effects = 0;
+      const receipt = async (pending: { checkpoint: string; operation_id: string }) => {
+        effects++;
+        assert.equal(
+          f.refs.get(f.stateRef),
+          pending.checkpoint,
+          "pending intent must already be remote",
+        );
+        const observed = await recoverReleaseOpportunity(f.bare, pending.checkpoint);
+        assert.ok(
+          isRecord(observed.input.controller) &&
+            isRecord(observed.input.controller.capacity_attempt),
+        );
+        const operation = observed.input.controller.capacity_attempt.operation;
+        assert.ok(isRecord(operation) && isRecord(operation.executor_identity));
+        assert.equal(operation.id, pending.operation_id);
+        assert.equal(operation.executor_identity.job_id, 501);
+        assert.equal(operation.outcome, "pending");
+        if (lost) throw new Error("simulated response lost after provider effect");
+        return {
+          remote_identity: "github-pages:boburning/portcove:fixture-deployment",
+          evidence_sha256: "d".repeat(64),
+        };
+      };
+      if (lost) {
+        await assert.rejects(
+          executeOwnedCapacityEffect(executor, request, async () => f.capacity.boundary, receipt),
+          /read back before/u,
+        );
+        await assert.rejects(
+          executeOwnedCapacityEffect(executor, request, async () => f.capacity.boundary, receipt),
+          /stopped/u,
+        );
+        const retained = await recoverReleaseOpportunity(f.bare, f.refs.get(f.stateRef)!);
+        assert.ok(
+          isRecord(retained.input.controller) &&
+            isRecord(retained.input.controller.capacity_attempt),
+        );
+        assert.ok(isRecord(retained.input.controller.capacity_attempt.operation));
+        assert.equal(retained.input.controller.capacity_attempt.operation.outcome, "ambiguous");
+      } else {
+        const result = await executeOwnedCapacityEffect(
+          executor,
+          request,
+          async () => f.capacity.boundary,
+          receipt,
+        );
+        assert.equal(
+          f.refs.get(f.stateRef),
+          result.checkpoint,
+          "settlement must be remotely confirmed",
+        );
+        const settled = await recoverReleaseOpportunity(f.bare, result.checkpoint);
+        assert.ok(
+          isRecord(settled.input.controller) && isRecord(settled.input.controller.capacity_attempt),
+        );
+        const operation = settled.input.controller.capacity_attempt.operation;
+        assert.ok(
+          isRecord(operation) &&
+            isRecord(operation.recovery) &&
+            isRecord(operation.recovery.executor_identity),
+        );
+        assert.equal(operation.id, result.operation_id);
+        assert.equal(operation.outcome, "recovered");
+        assert.equal(operation.recovery.resolution, "effect-completed");
+        assert.equal(operation.recovery.executor_identity.job_id, 501);
+        assert.equal(result.evidence_sha256, "d".repeat(64));
+        assert.deepEqual(settled.input.active_candidate, f.input.active_candidate);
+      }
+      assert.equal(effects, 1);
+    },
+  );
 void test(
   "separate executors cannot share an identical remote pending intent",
   { timeout: 60000 },
