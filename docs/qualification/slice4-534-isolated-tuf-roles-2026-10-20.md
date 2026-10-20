@@ -40,8 +40,10 @@ explicitly recorded binary and is not relabeled as this repaired binary's proof.
 
 ## Remaining integration
 
-Metadata-only preparation, current public-feed import, coordinator maintenance
-subjects, isolated hosted role jobs, immutable artifact handoffs, final expiry/
+The subsequent [metadata-renewal checkpoint](slice4-534-metadata-renewal-2026-10-20.md)
+adds public-only preparation, current-feed authentication and coordinator
+maintenance subjects. Isolated hosted role jobs, immutable artifact handoffs,
+final expiry/
 resource configuration and actual custody/public-key observations remain separate
 connections. This CLI implementation and its disposable keys establish none of
 those production outcomes. No signing, feed or key installation has been activated.

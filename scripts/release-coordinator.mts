@@ -1,4 +1,8 @@
-import { assessBoundedCapacity } from "./release-capacity.mts";
+import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
+import {
+  inspectPublishedMetadata,
+  inspectMetadataRenewalDescriptor,
+} from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
@@ -359,6 +363,8 @@ type Authority = {
   change_set_sha256: string;
   reviewed_classification_sha256: string;
   capacity_attempt?: ReturnType<typeof assessBoundedCapacity>;
+  published_metadata_sha256?: string;
+  metadata_renewal_sha256?: string;
 };
 function activePlan(
   active: NonNullable<ReturnType<typeof validateActive>>,
@@ -442,7 +448,7 @@ export function planReleaseOpportunity(input: unknown) {
   exactKeys(
     input,
     ["schema_version", "now", "controller", "opportunity", "publication", "active_candidate"],
-    [],
+    ["published_metadata", "metadata_renewal"],
     "release coordinator input",
   );
   if (input.schema_version !== 1 && input.schema_version !== 2)
@@ -452,7 +458,28 @@ export function planReleaseOpportunity(input: unknown) {
   const opportunity = validateOpportunity(input.opportunity);
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
+  const hasMetadata =
+    Object.hasOwn(input, "published_metadata") || Object.hasOwn(input, "metadata_renewal");
+  if (
+    hasMetadata &&
+    (input.schema_version !== 2 ||
+      !isRecord(input.controller) ||
+      !isRecord(input.controller.capacity_attempt) ||
+      input.controller.capacity_attempt.schema_version !== 2)
+  )
+    throw new Error("metadata journal fields require bounded capacity schema2");
+  const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
+  const metadataRenewal =
+    input.metadata_renewal === undefined || input.metadata_renewal === null
+      ? null
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
   const authority = {
+    ...(Object.hasOwn(input, "published_metadata")
+      ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
+      : {}),
+    ...(Object.hasOwn(input, "metadata_renewal")
+      ? { metadata_renewal_sha256: capacityDigest(metadataRenewal) }
+      : {}),
     ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
     controller_workflow: controller.workflow,
     controller_revision: controller.revision,

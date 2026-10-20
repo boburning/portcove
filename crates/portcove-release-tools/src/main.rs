@@ -9,6 +9,20 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
+    if let [command, config] = arguments.as_slice()
+        && command == "prepare-tuf-renewal"
+    {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let report = runtime.block_on(
+            portcove_release_tools::tuf_repository::isolated::prepare_tuf_renewal(Path::new(
+                config,
+            )),
+        )?;
+        println!("{}", serde_json::to_string(&report)?);
+        return Ok(());
+    }
     if let [command, role, config] = arguments.as_slice()
         && command == "sign-tuf-role"
     {
@@ -53,7 +67,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
     let [command, artifact, signature, public_key, sha256, bytes] = arguments.as_slice() else {
         return Err(
-            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG"
+            "usage: portcove-release-tools verify ARTIFACT SIGNATURE PUBLIC_KEY SHA256 BYTES\n       portcove-release-tools build-tuf CONFIG\n       portcove-release-tools sign-tuf-role releases|preview|stable|snapshot|timestamp CONFIG\n       portcove-release-tools assemble-tuf CONFIG\n       portcove-release-tools prepare-tuf-renewal CONFIG"
                 .into(),
         );
     };
