@@ -439,6 +439,16 @@ fn verify_history(
                 {
                     return invalid("historical target identity differs");
                 }
+                if online == OnlineRole::Releases
+                    && context
+                        .targets
+                        .get(name.raw())
+                        .is_none_or(|expected| expected.as_slice() != payload)
+                {
+                    return invalid(
+                        "immutable published release history: historical published release cannot disappear or change",
+                    );
+                }
                 referenced.insert(path);
             }
         }

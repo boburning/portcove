@@ -551,3 +551,139 @@ async fn public_artifacts_refuse_extra_private_files_before_signing_or_assembly(
     );
     assert!(!fixture.root().join("assembled").exists());
 }
+
+async fn sign_fixture_role<T: tough::schema::Role + serde::Serialize>(
+    fixture: &Fixture,
+    role: &str,
+    value: T,
+    holder: &KeyHolder,
+) -> Vec<u8> {
+    let path = fixture.root().join("one-test-role.der");
+    fs::write(&path, &fixture.keys[role]).unwrap();
+    let signed = SignedRole::new(value, holder, &[key(path.clone())], &SystemRandom::new())
+        .await
+        .unwrap();
+    fs::remove_file(path).unwrap();
+    signed.buffer().to_vec()
+}
+
+fn refresh_public_manifest(root: &Path) {
+    fn visit(
+        root: &Path,
+        path: &Path,
+        files: &mut std::collections::BTreeMap<String, serde_json::Value>,
+    ) {
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let kind = entry.file_type().unwrap();
+            assert!(!kind.is_symlink());
+            if kind.is_dir() {
+                visit(root, &entry.path(), files);
+            } else {
+                assert!(kind.is_file());
+                let name = entry
+                    .path()
+                    .strip_prefix(root)
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .replace('\\', "/");
+                if name == "repository-manifest.json" {
+                    continue;
+                }
+                let bytes = fs::read(entry.path()).unwrap();
+                files.insert(
+                    name.clone(),
+                    json!({"path":name,"bytes":bytes.len(),"sha256":sha256(&bytes)}),
+                );
+            }
+        }
+    }
+    let path = root.join("repository-manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    let mut files = std::collections::BTreeMap::new();
+    visit(root, root, &mut files);
+    manifest["files"] = json!(files.into_values().collect::<Vec<_>>());
+    write_json(&path, &manifest);
+}
+
+#[tokio::test]
+async fn refuses_validly_signed_historical_logical_release_rewrite() {
+    let mut fixture = Fixture::new(false).await;
+    fixture.sign_all().await;
+    let assembled = assemble_tuf_repository(&fixture.assembly_config())
+        .await
+        .unwrap();
+    let root: tough::schema::Signed<Root> =
+        serde_json::from_slice(&fs::read(fixture.root().join("trusted-root.json")).unwrap())
+            .unwrap();
+    let top: tough::schema::Signed<tough::schema::Targets> = serde_json::from_slice(
+        &fs::read(assembled.output.join("metadata/1.targets.json")).unwrap(),
+    )
+    .unwrap();
+    let path = assembled.output.join("metadata/1.releases.json");
+    let mut historical: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    let (name, identity) = historical["signed"]["targets"]
+        .as_object_mut()
+        .unwrap()
+        .iter_mut()
+        .next()
+        .unwrap();
+    let mut payload = fs::read(assembled.output.join(format!(
+        "targets/{}.{}",
+        identity["hashes"]["sha256"].as_str().unwrap(),
+        name
+    )))
+    .unwrap();
+    payload.push(b' ');
+    identity["length"] = json!(payload.len());
+    identity["hashes"]["sha256"] = json!(sha256(&payload));
+    let target_path = assembled
+        .output
+        .join(format!("targets/{}.{}", sha256(&payload), name));
+    fs::create_dir_all(target_path.parent().unwrap()).unwrap();
+    fs::write(target_path, &payload).unwrap();
+    let historical: tough::schema::Signed<tough::schema::Targets> =
+        serde_json::from_value(historical).unwrap();
+    let bytes = sign_fixture_role(
+        &fixture,
+        "releases",
+        tough::schema::DelegatedTargets {
+            name: "releases".into(),
+            targets: historical.signed,
+        },
+        &KeyHolder::Delegations(top.signed.delegations.unwrap()),
+    )
+    .await;
+    fs::write(path, &bytes).unwrap();
+    let snapshot_path = assembled.output.join("metadata/1.snapshot.json");
+    let mut snapshot: serde_json::Value =
+        serde_json::from_slice(&fs::read(&snapshot_path).unwrap()).unwrap();
+    snapshot["signed"]["meta"]["releases.json"]["length"] = json!(bytes.len());
+    snapshot["signed"]["meta"]["releases.json"]["hashes"]["sha256"] = json!(sha256(&bytes));
+    let snapshot: tough::schema::Signed<tough::schema::Snapshot> =
+        serde_json::from_value(snapshot).unwrap();
+    let bytes = sign_fixture_role(
+        &fixture,
+        "snapshot",
+        snapshot.signed,
+        &KeyHolder::Root(root.signed),
+    )
+    .await;
+    fs::write(snapshot_path, bytes).unwrap();
+    refresh_public_manifest(&assembled.output);
+    fixture.context["previous_repository"] = json!("assembled");
+    for role in ["releases", "preview", "stable", "snapshot", "timestamp"] {
+        fixture.context["versions"][role] = json!(3);
+    }
+    fixture.save_context();
+    fs::remove_file(fixture.root().join("jobs/releases/role.json")).unwrap();
+    let error = fixture.sign_with("releases", "releases").await.unwrap_err();
+    assert!(
+        error.to_string().contains("historical published release"),
+        "{error}"
+    );
+    assert!(!fixture.root().join("jobs/releases/role.json").exists());
+}
