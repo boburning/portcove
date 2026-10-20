@@ -1,4 +1,5 @@
 import desktopPackage from "../package.json";
+import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
 import { Notice } from "./components/ui/patterns";
@@ -115,6 +116,14 @@ export const missingBootstrapError = {
 } as const;
 
 export default function App() {
+  return (
+    <InterfaceSizeProvider>
+      <PortcoveApp />
+    </InterfaceSizeProvider>
+  );
+}
+
+function PortcoveApp() {
   const [browsingContexts, setBrowsingContexts] = useState(
     () => new Map<string, LibraryBrowsingContext>(),
   );

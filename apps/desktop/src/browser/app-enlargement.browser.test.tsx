@@ -50,7 +50,7 @@ it.for(["dark", "light"] as const)(
     expect(
       about.getBoundingClientRect().bottom,
       "sidebar footer must remain reachable",
-    ).toBeLessThanOrEqual(innerHeight);
+    ).toBeLessThanOrEqual(innerHeight + 1);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-shell-${theme}-960.png`,

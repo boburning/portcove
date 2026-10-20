@@ -864,6 +864,16 @@
         "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
       },
       {
+        "id": "render96-fixed-source-contract-2026-10-19",
+        "role": "upstream_support",
+        "authority": "Render96/Render96ex",
+        "authority_ref": "48da5c491c8abfb2f5192b59278c1c269411e533",
+        "reviewed_at": "2026-10-19",
+        "claim": "Pins the selected US original contract and source recipe. Core independently enforces raw canonical source, immutable archive pins, fixed build flags and output scope. Source identity is not arbitrary prepared-executable authority, runtime acceptance or redistribution permission.",
+        "immutable_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1",
+        "live_url": "https://github.com/Render96/Render96ex/blob/master/sm64.us.sha1"
+      },
+      {
         "id": "tfe-managed-windows-2026-10-20",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -9847,6 +9857,33 @@
           {
             "upstream_ref": "1.1-stable",
             "artifact_sha256": "164f5160b7b73f161b956fa1470813c8e21fa92424f94c8889de46111a59c109"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "render96ex-game-source",
+        "port_id": "render96ex",
+        "role": "game",
+        "profile_id": "ghostship-source",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "super-mario-64-us"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "render96-fixed-source-contract-2026-10-19"
+        ],
+        "authority_ref": "48da5c491c8abfb2f5192b59278c1c269411e533",
+        "reviewed_at": "2026-10-19",
+        "immutable_review_url": "https://github.com/Render96/Render96ex/blob/48da5c491c8abfb2f5192b59278c1c269411e533/sm64.us.sha1",
+        "live_review_url": "https://github.com/Render96/Render96ex/blob/master/sm64.us.sha1",
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "source-48da5c491c8a",
+            "artifact_sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403"
           }
         ],
         "aliases": [],
@@ -20589,6 +20626,74 @@
           ]
         }
       }
+    },
+    {
+      "id": "render96ex",
+      "name": "Super Mario 64 Render96",
+      "summary": "Play Super Mario 64 through the Render96 engine.",
+      "project_url": "https://github.com/Render96/Render96ex",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "automated_tested_platforms": [],
+      "manually_validated_platforms": [],
+      "adapter": "staged-source-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "repository": "Render96/Render96ex",
+        "direct": {
+          "windows-x86-64": {
+            "version": "source-48da5c491c8a",
+            "url": "https://github.com/Render96/Render96ex/archive/48da5c491c8abfb2f5192b59278c1c269411e533.zip",
+            "size": 11615689,
+            "sha256": "43091630151c8023b72e7faa2726c3914376fee2cc3becbfefba30423b71b403",
+            "published_at": null
+          }
+        },
+        "managed_build": {
+          "windows-x86-64": "render96-us-source-48da5c491c8a"
+        }
+      },
+      "source_profile": "ghostship-source",
+      "executable_hints": {
+        "windows-x86-64": [
+          "sm64.us.f3dex2e.exe"
+        ]
+      },
+      "presentation": {
+        "installation_method": "managed-recompilation",
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "ghostship-source",
+            "label": "Super Mario 64 (US) source",
+            "verification": "catalog-identity"
+          }
+        ],
+        "saves_and_settings": "portcove-managed",
+        "original_game_title": "Super Mario 64",
+        "manual_preparation": "Supply the exact raw Super Mario 64 USA 1.0 original as .z64, .n64 or .v64. Extract ZIP inputs before registration. The pinned Windows x64 build uses stock resources and needs a library path containing only ASCII letters, digits, slash, colon, dot, underscore or hyphen. Remove SDL_DYNAMIC_API before starting Portcove. Settings and the binary save file are managed by Portcove. Optional models, texture packs, TAS inputs and runtime overrides are not offered. A different Render96 source release requires a reviewed compatible recipe.",
+        "artwork": {
+          "game_id": 1074,
+          "cover_id": 329251,
+          "image_id": "co721v",
+          "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+          "game_slug": "super-mario-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "launch_arguments": [
+        "--savepath",
+        "!"
+      ],
+      "persistent_paths": [
+        "sm64config.txt",
+        "sm64_save_file.bin"
+      ]
     }
   ]
 }
