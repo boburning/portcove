@@ -168,11 +168,30 @@ export function admitReviewedInputsController(
     workflowBytes,
   );
 }
+export function admitReviewedInputsWriter(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    ".github/workflows/release-reviewed-inputs.yml",
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_writer",
+  );
+}
 
 export async function readProductionControllerWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(productionControllerWorkflow);
+}
+export async function readReviewedInputsWorkflowBytes() {
+  return readFixedControllerWorkflowBytes(".github/workflows/release-reviewed-inputs.yml");
+}
+async function readFixedControllerWorkflowBytes(workflow: string) {
   // A fixed trusted-checkout path, never a candidate-supplied file. Read from one
   // handle with a one-byte growth probe; no dependency install or candidate code.
-  const filename = new URL(`../${productionControllerWorkflow}`, import.meta.url);
+  const filename = new URL(`../${workflow}`, import.meta.url);
   const handle = await open(filename, "r");
   try {
     if (!(await handle.stat()).isFile()) refuse("workflow must be a regular file");

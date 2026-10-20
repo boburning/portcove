@@ -4,6 +4,8 @@ import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.
 import {
   admitProductionInputReader,
   readProductionControllerWorkflowBytes,
+  admitReviewedInputsWriter,
+  readReviewedInputsWorkflowBytes,
 } from "./production-controller-admission.mts";
 
 const roles = [
@@ -206,6 +208,28 @@ export async function requireControllerReleaseAuthorities(phase: unknown) {
     await readProductionControllerWorkflowBytes(),
     phase,
   );
+  return inspectBoundControllerAuthorities(configuration, source);
+}
+
+/** Fixed classification writer only. Its separate workflow must be admitted
+ * against its own byte digest; production workflow admission cannot substitute.
+ * Actual writer OIDC and isolated protection evidence remain mandatory. */
+export async function requireReviewedInputsReleaseAuthorities() {
+  const configuration = process.env.PORTCOVE_RELEASE_AUTHORITIES;
+  if (!configuration || Buffer.byteLength(configuration) > 32 * 1024)
+    throw new Error("protected release authority configuration unavailable");
+  const source = admitReviewedInputsWriter(
+    process.env.PORTCOVE_CONTROLLER_ADMISSION,
+    process.env,
+    await readReviewedInputsWorkflowBytes(),
+  );
+  return inspectBoundControllerAuthorities(configuration, source);
+}
+
+function inspectBoundControllerAuthorities(
+  configuration: string,
+  source: ReturnType<typeof admitProductionInputReader>,
+) {
   if (
     source.mode !== "bounded-application-release" ||
     !source.authority_configuration_sha256 ||
