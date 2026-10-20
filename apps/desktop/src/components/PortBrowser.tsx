@@ -50,7 +50,8 @@ import {
 import { BrandMascot, BrandWordmark } from "./Brand";
 import { BrandMotif, EmptyState, Icon } from "./ui";
 import type { NativeSourceDragState } from "../native-source-drop";
-import { ArtworkImage } from "./Artwork";
+import { ArtworkImage, ArtworkFrame, artworkDisplayNotice } from "./Artwork";
+import { useArtwork, useArtworkVisibility } from "../artwork";
 import { Button } from "./ui/button";
 import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
@@ -1006,6 +1007,9 @@ function LibraryEntry({
   dropTarget: boolean;
   favoriteToggle: ReactNode;
 }) {
+  const { element: artworkElement, visible } = useArtworkVisibility();
+  const { display: artwork } = useArtwork(port.id, "cover", visible);
+  const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
       className={cn(
@@ -1029,19 +1033,25 @@ function LibraryEntry({
         data-detail-origin={detailOrigin}
         onClick={() => onSelect(port.id, detailOrigin)}
       >
-        <ArtworkImage port={port} className="card-art collection-art" />
+        <ArtworkFrame
+          element={artworkElement}
+          display={artwork}
+          identityArtwork
+          className="card-art collection-art"
+        />
         <span
           role="heading"
           aria-level={2}
           className="collection-title block text-sm leading-snug font-semibold wrap-anywhere"
         >
           {gameTitle(port)}
-        </span>
+        </span>{" "}
         <span className="collection-project block text-xs leading-normal wrap-anywhere text-[var(--color-text-secondary)]">
           Port: {gameProjectLabel(port) ?? port.name}
         </span>
       </button>
       <div className="collection-state flex min-w-0 flex-col items-start gap-1 text-xs leading-normal wrap-anywhere">
+        {artworkNotice && <p className="m-0 text-pc-muted-foreground">{artworkNotice}</p>}
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,

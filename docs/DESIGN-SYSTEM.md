@@ -586,3 +586,7 @@ folder search supplies multi-game recognition. Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
+
+### Library identity and artwork feedback
+
+The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
