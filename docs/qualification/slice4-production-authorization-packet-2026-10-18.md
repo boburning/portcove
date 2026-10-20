@@ -11,6 +11,14 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
+connects actual aggregate verification and existing reservation association to
+strict diagnostic requests for the two beta updater payloads. Actual disposable
+Tauri/Rust signing tests retain their component scope. The production caller
+remains held until fresh positive controls and all independent acceptance are
+connected; no key or production signing authority is activated.
+
+
 The October 20 [keyless complete-site composer](slice4-534-shared-site-2026-10-20.md)
 passed actual disposable-key TUF CLI composition, unchanged replay and corrupt
 envelope refusal. Catalog/history preservation is implemented; provider deployment,
