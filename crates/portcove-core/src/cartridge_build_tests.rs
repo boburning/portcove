@@ -539,8 +539,8 @@ fn host_configuration_uses_the_authenticated_tool_paths_and_config_directories()
     ];
     let inputs = BuildInputs {
         recipe: CartridgeBuildRecipe::YoshisCookieNesCycle110,
-        roots,
-        identities,
+        roots: roots.into(),
+        identities: identities.into(),
     };
     let arguments = configure_arguments(
         &inputs,
