@@ -381,6 +381,13 @@ it.each(["failed", "cancelled"])(
 
     await act(async () => state.verifyAll());
     expect(state.outcomes).toBe(recovered);
+    // A later result must not erase a separately attributable earlier failure.
+    expect(operation.error).toBe(failure);
+    const failed = [...operation.invocations.values()].find(
+      (record) => record.failure === failure,
+    )!;
+    expect(failed.phase).toBe("settled");
+    await act(async () => operation.dismissInvocation(failed.id));
     expect(operation.error).toBeUndefined();
   },
 );

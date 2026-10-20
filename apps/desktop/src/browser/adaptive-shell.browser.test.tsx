@@ -139,10 +139,9 @@ for (const theme of ["dark", "light"]) {
       expect(navigationEnd).toBeLessThanOrEqual(workspaceStart + 1);
       expect(getComputedStyle(workspace).overflowY).toBe(vertical ? "visible" : "auto");
     }
-    await page.getByRole("button", { name: /^Updates & activity/ }).click();
-    await expect
-      .element(page.getByRole("heading", { name: "Updates & activity", level: 1 }))
-      .toBeVisible();
+    await page.getByRole("button", { name: /^Activity/ }).click();
+    await expect.element(page.getByRole("heading", { name: "Activity", level: 1 })).toBeVisible();
+    await page.getByRole("button", { name: "Updates", exact: true }).click();
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
