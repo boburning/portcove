@@ -144,6 +144,9 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
   if (process.platform !== (descriptor.platform_label === "windows-x86_64" ? "win32" : "linux"))
     throw new Error("local native setup platform differs");
   if (process.platform === "linux") {
+    // Source hashes do not prevent a separate account from replacing a later
+    // imported helper. The installed controller is private owner staging too.
+    await linuxOwnerPath(checkout, true);
     for (const file of [
       descriptor.authority_configuration.path,
       descriptor.native_boundary_configuration.path,
