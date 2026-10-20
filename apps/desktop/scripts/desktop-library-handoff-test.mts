@@ -327,6 +327,21 @@ export async function libraryHandoffScenario({
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
 
+    const restoredSave = await fileIdentity(
+      path.join(restoreRoot, path.relative(destination, exportedSave.path)),
+    );
+    assert.equal(restoredSave.sha256, exportedSave.sha256);
+    const backupSource = required(preserved[2]);
+    const restoredBackup = await fileIdentity(
+      path.join(restoreRoot, path.relative(paths.library_root, backupSource.path)),
+    );
+    assert.equal(restoredBackup.sha256, backupSource.sha256);
+    assert.ok(
+      transportValue(
+        "backup_inventory",
+        command(["backup", "list", portId], restoreRoot),
+      ).backups.some((item) => item.id === backup.id),
+    );
     // Restore retained the disconnected original reference, rather than
     // silently adopting the copied managed content as another original.
     assert.deepEqual(transportValues("source", success(await invoke("get_sources"))), sources);
@@ -400,6 +415,8 @@ export async function libraryHandoffScenario({
           preserved_originals: preserved,
           copied,
           restore: {
+            restored_save: restoredSave,
+            restored_backup_snapshot: restoredBackup,
             manually_copied_content: contentCopy,
             missing_content_refused_before_execution: true,
             disconnected_original_reference_retained: true,
