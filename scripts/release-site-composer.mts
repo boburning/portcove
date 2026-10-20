@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -29,6 +30,16 @@ interface Generation {
 }
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+
+function remaining(deadline: number | undefined, maximum = 300000) {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new Error("site composition phase deadline exhausted");
+  const value =
+    deadline === undefined ? maximum : Math.floor(Math.min(maximum, deadline - performance.now()));
+  if (!Number.isFinite(value) || value < 1)
+    throw new Error("site composition phase deadline exhausted");
+  return value;
+}
 
 async function boundedFile(file: string, maximum: number, qualifiedTool = false) {
   const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
@@ -73,7 +84,8 @@ export const isSafeSitePath = (name: string) =>
         (segment) =>
           /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(segment) && segment !== "." && segment !== "..",
       ));
-async function tree(root: string): Promise<Files> {
+async function tree(root: string, deadline?: number): Promise<Files> {
+  remaining(deadline);
   const rootInfo = await lstat(root);
   if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink())
     throw new Error("site input root is linked or not a directory");
@@ -83,6 +95,7 @@ async function tree(root: string): Promise<Files> {
   const walk = async (relative: string, depth: number) => {
     if (depth > 16) throw new Error("site input depth exceeded");
     for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
+      remaining(deadline);
       if (++entries > maximumFiles + 128) throw new Error("site input entry bound exceeded");
       const name = relative ? `${relative}/${entry.name}` : entry.name;
       if (!isSafeSitePath(name))
@@ -93,6 +106,7 @@ async function tree(root: string): Promise<Files> {
         if (!entry.isFile() || files.size >= maximumFiles)
           throw new Error("site input type/count refused");
         const bytes = await boundedFile(path.join(root, name), maximumFileBytes);
+        remaining(deadline);
         total += bytes.length;
         if (total > maximumBytes) throw new Error("site input aggregate byte bound exceeded");
         files.set(name, bytes);
@@ -100,6 +114,7 @@ async function tree(root: string): Promise<Files> {
     }
   };
   await walk("", 0);
+  remaining(deadline);
   return files;
 }
 function identities(files: Files): SiteFile[] {
@@ -141,8 +156,13 @@ function inspectPrior(files: Files, expected: string, rootHash: string) {
 
 /** Bounded filesystem readback only. A matching marker is not authentication;
  * expected identities must come from the protected caller's real composition. */
-export async function readComposedSite(directory: string, expected: string, rootHash: string) {
-  const files = await tree(directory);
+export async function readComposedSite(
+  directory: string,
+  expected: string,
+  rootHash: string,
+  deadline?: number,
+) {
+  const files = await tree(directory, deadline);
   const generation = inspectPrior(files, expected, rootHash);
   return { files, generation };
 }
@@ -157,7 +177,9 @@ export async function composeSiteFiles(request: {
   application: string;
   application_root_sha256: string;
   output_parent: string;
+  deadline?: number;
 }) {
+  remaining(request.deadline);
   if (
     !digest(request.application_root_sha256) ||
     ![
@@ -176,7 +198,9 @@ export async function composeSiteFiles(request: {
     )
   )
     throw new Error("site output would mutate its input tree");
-  const old = request.previous ? await tree(request.previous) : new Map<string, Buffer>();
+  const old = request.previous
+    ? await tree(request.previous, request.deadline)
+    : new Map<string, Buffer>();
   for (const name of old.keys())
     if (
       name !== "publication.json" &&
@@ -189,7 +213,7 @@ export async function composeSiteFiles(request: {
   const prior = request.previous
     ? inspectPrior(old, request.expected_previous_generation!, request.application_root_sha256)
     : null;
-  const app = await tree(request.application);
+  const app = await tree(request.application, request.deadline);
   const next: Files = new Map([...old].filter(([name]) => name.startsWith("catalog/")));
   for (const [name, bytes] of app) {
     if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
@@ -235,10 +259,11 @@ export async function composeSiteFiles(request: {
   const output = await mkdtemp(path.join(request.output_parent, "site-"));
   await chmod(output, 0o700);
   for (const [name, bytes] of next) {
+    remaining(request.deadline);
     await mkdir(path.dirname(path.join(output, name)), { recursive: true, mode: 0o700 });
     await writeFile(path.join(output, name), bytes, { flag: "wx", mode: 0o600 });
   }
-  const observed = await tree(output);
+  const observed = await tree(output, request.deadline);
   inspectPrior(observed, generation.generation, request.application_root_sha256);
   return {
     authority: "none",
@@ -264,7 +289,9 @@ export async function assembleAuthenticatedApplicationSite(request: {
   previous_site: string | null;
   expected_previous_generation: string | null;
   output_parent: string;
+  deadline?: number;
 }) {
+  remaining(request.deadline);
   if (
     !digest(request.trusted_root_sha256) ||
     !digest(request.verifier_sha256) ||
@@ -304,7 +331,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
     throw new Error("independent application root differs");
   // Snapshot the complete public input tree. Its strict bounds reject unrelated
   // credential/hook/cache material; all actual inputs are checked again later.
-  const before = identities(await tree(request.input_root));
+  const before = identities(await tree(request.input_root, request.deadline));
   const tool = await boundedFile(request.verifier, 128 * 1024 * 1024, true);
   if (sha(tool) !== request.verifier_sha256) throw new Error("trusted keyless verifier changed");
   const work = await mkdtemp(path.join(request.output_parent, "compose-"));
@@ -330,10 +357,11 @@ export async function assembleAuthenticatedApplicationSite(request: {
   )
     throw new Error("site work overlaps public inputs");
   let result: { stdout: string; stderr: string };
+  const timeout = remaining(request.deadline);
   try {
     result = await run(executable, ["assemble-tuf", assembly], {
       cwd: work,
-      timeout: 300000,
+      timeout,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       env: {
@@ -352,7 +380,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
       path.join(work, "verifier.failure.json"),
       JSON.stringify({
         stage: "keyless-TUF-process",
-        timeout_ms: 300000,
+        timeout_ms: timeout,
         code:
           isRecord(error) && (typeof error.code === "string" || typeof error.code === "number")
             ? error.code
@@ -381,8 +409,10 @@ export async function assembleAuthenticatedApplicationSite(request: {
     flag: "wx",
     mode: 0o600,
   });
+  remaining(request.deadline);
   if (
-    JSON.stringify(before) !== JSON.stringify(identities(await tree(request.input_root))) ||
+    JSON.stringify(before) !==
+      JSON.stringify(identities(await tree(request.input_root, request.deadline))) ||
     sha(await boundedFile(root, 1024 * 1024)) !== request.trusted_root_sha256 ||
     sha(await boundedFile(executable, 128 * 1024 * 1024)) !== request.verifier_sha256
   )
@@ -393,7 +423,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
       ? inspectTufPublicationFacts(report.publication)
       : null;
   if (publication) {
-    const publicFiles = await tree(assembled);
+    const publicFiles = await tree(assembled, request.deadline);
     publicFiles.delete("repository-manifest.json");
     const bytes = (name: string) => {
       const value = publicFiles.get(name);
@@ -417,6 +447,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
     application: assembled,
     application_root_sha256: request.trusted_root_sha256,
     output_parent: request.output_parent,
+    ...(request.deadline === undefined ? {} : { deadline: request.deadline }),
   });
   return { ...site, publication };
 }
