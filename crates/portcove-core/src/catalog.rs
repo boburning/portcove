@@ -1601,6 +1601,36 @@ mod tests {
                 .is_empty()
         );
     }
+
+    #[test]
+    fn managed_racewave_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| {
+                row.scope.check_version.as_deref() == Some("racewave46-managed-windows-v1")
+            })
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("wave-race-64-racewave46").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+    }
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -2510,7 +2540,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 39);
+        assert_eq!(qualification.len(), 41);
         assert_eq!(
             qualification
                 .iter()
