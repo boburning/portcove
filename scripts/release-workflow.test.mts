@@ -301,7 +301,20 @@ void test("tag releases attest exact final bytes and the SBOM before draft mutat
     "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')",
   );
   needs("attest", ["identity", "assemble"]);
-  assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 2);
+  assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 3);
+  const compilerAttest = steps("attest").find(
+    (step) =>
+      step.name ===
+      "Attest retained compiler report bytes without claiming compiler or native acceptance",
+  );
+  assert.equal(
+    compilerAttest?.if,
+    "needs.identity.outputs.release_profile == 'initial-beta-win-linux'",
+  );
+  assert.match(
+    attestSection,
+    /subject-path: release-compiler-observations\/compiler-result-\*\.json/,
+  );
   assert.match(attestSection, /subject-path: release-assets-aggregate\/\*/);
   assert.match(attestSection, /name: release-attestation-metadata/);
   assert.match(

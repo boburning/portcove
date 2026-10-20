@@ -8,7 +8,11 @@ import {
   compareReleaseCompilerSource,
   prepareReleaseCompilerSourceClosure,
   inspectReleaseCompilerSourceClosure,
+  inspectPreparedCompilerSource,
 } from "./release-compiler-source.mts";
+import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
+import { createHash } from "node:crypto";
 
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "compiler-source-"));
@@ -155,4 +159,110 @@ void test("bootstrap closure binds exact source/tree plus complete explicit abse
   );
   await writeFile(path.join(f.root, "scripts/indirect-helper.mts"), "dirty tracked helper");
   await assert.rejects(prepareReleaseCompilerSourceClosure(f.root, expected), /changed|dirty/);
+});
+
+void test("actual deterministic four version edits pass while dependencies and extra source changes refuse", async (t) => {
+  const f = await fixture(t);
+  const files = new Map([
+    [
+      "Cargo.toml",
+      '[workspace]\nmembers = ["crates/example"]\n[workspace.package]\nversion = "0.1.0"\nedition = "2024"\n',
+    ],
+    ["Cargo.lock", 'version = 4\n\n[[package]]\nname = "example"\nversion = "0.1.0"\n'],
+    ["crates/example/Cargo.toml", '[package]\nname = "example"\nversion.workspace = true\n'],
+    [
+      "apps/desktop/package.json",
+      '{\n  "version": "0.1.0",\n  "dependencies": {"inert": "fixed"}\n}\n',
+    ],
+    ["apps/desktop/src-tauri/tauri.conf.json", '{\n  "version": "0.1.0",\n  "app": {}\n}\n'],
+  ]);
+  for (const [filename, bytes] of files) {
+    await mkdir(path.dirname(path.join(f.root, filename)), { recursive: true });
+    await writeFile(path.join(f.root, filename), bytes);
+  }
+  f.commit();
+  const sourceTree = f.git(["rev-parse", "HEAD^{tree}"]);
+  const source = sourceFixtureCommit(sourceTree, [], "original\n");
+  const expected = reproducePreparedReleaseVersionFiles(
+    (filename) => {
+      const value = files.get(filename);
+      assert.notEqual(value, undefined);
+      return value!;
+    },
+    { base_version: "0.1.0", version: "0.2.0" },
+  );
+  const response = (body: unknown) => ({ status: 200, body, headers: new Map<string, string>() });
+  const run = (preparedTree: string) => {
+    const prepared = sourceFixtureCommit(preparedTree, [source.sha], "prepared\n");
+    const api = {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        const url = new URL(
+          endpoint.startsWith("https:") ? endpoint : `https://api.github.com/${endpoint}`,
+        );
+        const route = url.pathname.replace("/repos/boburning/portcove", "");
+        if (route === `/git/commits/${source.sha}`) return response(source);
+        if (route === `/git/commits/${prepared.sha}`) return response(prepared);
+        if (route === `/compare/${source.sha}...${prepared.sha}`)
+          return response({
+            status: "ahead",
+            ahead_by: 1,
+            behind_by: 0,
+            total_commits: 1,
+            base_commit: { sha: source.sha },
+            merge_base_commit: { sha: source.sha },
+            commits: [{ sha: prepared.sha, commit: prepared, parents: prepared.parents }],
+          });
+        const tree = /^\/git\/trees\/([a-f0-9]{40})$/u.exec(route);
+        if (tree)
+          return response({
+            sha: tree[1],
+            truncated: false,
+            tree: f
+              .git(["ls-tree", "-r", "-t", "-z", tree[1]!])
+              .split("\0")
+              .filter(Boolean)
+              .map((entry) => {
+                const parsed = /^(\d+) (\w+) ([a-f0-9]{40})\t(.+)$/u.exec(entry)!;
+                return { mode: parsed[1], type: parsed[2], sha: parsed[3], path: parsed[4] };
+              }),
+          });
+        if (route.startsWith("/contents/")) {
+          assert.equal(url.searchParams.get("ref"), source.sha);
+          const filename = route.slice("/contents/".length);
+          const content = files.get(filename);
+          assert.notEqual(content, undefined);
+          const bytes = Buffer.from(content!);
+          return response({
+            type: "file",
+            path: filename,
+            encoding: "base64",
+            content: bytes.toString("base64"),
+            size: bytes.length,
+            sha: createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex"),
+          });
+        }
+        throw new Error(`unexpected route ${route}`);
+      },
+    };
+    return inspectPreparedCompilerSource(api, {
+      source_commit: source.sha,
+      source_tree: sourceTree,
+      prepared_commit: prepared.sha,
+      prepared_tree: preparedTree,
+      version: "0.2.0",
+    });
+  };
+  for (const [filename, content] of expected) await writeFile(path.join(f.root, filename), content);
+  f.commit();
+  assert.equal(run(f.git(["rev-parse", "HEAD^{tree}"])).authority, "none");
+  await writeFile(
+    path.join(f.root, "apps/desktop/package.json"),
+    expected.get("apps/desktop/package.json")!.replace('"fixed"', '"changed"'),
+  );
+  f.commit();
+  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /version bytes differ/);
+  await writeFile(path.join(f.root, "extra-source.rs"), "unapproved preparation change\n");
+  f.commit();
+  assert.throws(() => run(f.git(["rev-parse", "HEAD^{tree}"])), /more than exact/);
 });

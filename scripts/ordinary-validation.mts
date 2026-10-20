@@ -299,6 +299,36 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  [
+    "scripts/release-compiler-source-closure.mts",
+    ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source-admission.mts",
+    [
+      "scripts/release-compiler-source-admission.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-source-attestation.mts",
+    ["scripts/release-source-attestation.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source.mts",
+    [
+      "scripts/release-compiler-source.test.mts",
+      "scripts/release-compiler-source-admission.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-compiler-evidence.mts",
+    ["scripts/release-compiler-evidence.test.mts", "scripts/acquire-release-admission.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-outputs.mts",
+    ["scripts/release-compiler-outputs.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ...[

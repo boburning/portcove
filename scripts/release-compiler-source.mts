@@ -1,84 +1,25 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { execFileSync } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
+import { collectReleaseSourceChanges } from "./release-source-changes.mts";
+import { reproducePreparedReleaseVersionFiles } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { parseWorkspacePackage } from "./check-release-metadata.mts";
+import { inspectRemoteGitObject } from "./release-coordinator-recovery.mts";
 
-// Conservatively bind complete maintained helper trees, including all local
-// imports, rather than trying to infer a security closure using import regexes.
-export const compilerProducerPaths = Object.freeze([
-  "scripts",
-  "apps/desktop/scripts",
-  ".github/workflows/release.yml",
-  ".github/actions",
-  "apps/desktop/src-tauri/tauri.release-public.conf.json",
-  "apps/desktop/package.json",
-  "package.json",
-  "pnpm-workspace.yaml",
-  "pnpm-lock.yaml",
-  ".node-version",
-  ".npmrc",
-  ".pnpmfile.cjs",
-  "rust-toolchain.toml",
-  "Cargo.lock",
-  ".cargo",
-  "apps/.cargo",
-  "apps/desktop/.cargo",
-  "apps/desktop/src-tauri/.cargo",
-  "crates/.cargo",
-  "crates/portcove-cli/.cargo",
-] as const);
-
-export interface CompilerSourceClosure {
-  schema_version: 1;
-  source_commit: string;
-  source_tree: string;
-  paths: { path: string; entry: { mode: string; type: string; sha: string } | null }[];
-}
-export function inspectReleaseCompilerSourceClosure(raw: unknown): CompilerSourceClosure {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !== "paths,schema_version,source_commit,source_tree" ||
-    raw.schema_version !== 1 ||
-    typeof raw.source_commit !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(raw.source_commit) ||
-    typeof raw.source_tree !== "string" ||
-    !/^[a-f0-9]{40}$/u.test(raw.source_tree) ||
-    !Array.isArray(raw.paths) ||
-    raw.paths.length !== compilerProducerPaths.length
-  )
-    throw new Error("complete fixed compiler source closure required");
-  const paths = raw.paths.map((value: unknown, index) => {
-    if (
-      !isRecord(value) ||
-      Object.keys(value).sort().join(",") !== "entry,path" ||
-      value.path !== compilerProducerPaths[index]
-    )
-      throw new Error("compiler source closure inventory differs");
-    if (value.entry === null) return { path: compilerProducerPaths[index]!, entry: null };
-    const entry = value.entry;
-    if (
-      !isRecord(entry) ||
-      Object.keys(entry).sort().join(",") !== "mode,sha,type" ||
-      !["100644", "100755", "040000"].includes(String(entry.mode)) ||
-      entry.type !== (entry.mode === "040000" ? "tree" : "blob") ||
-      typeof entry.sha !== "string" ||
-      !/^[a-f0-9]{40}$/u.test(entry.sha)
-    )
-      throw new Error("compiler source closure entry malformed");
-    return {
-      path: compilerProducerPaths[index]!,
-      entry: { mode: String(entry.mode), type: String(entry.type), sha: entry.sha },
-    };
-  });
-  return {
-    schema_version: 1,
-    source_commit: raw.source_commit,
-    source_tree: raw.source_tree,
-    paths,
-  };
-}
+import {
+  compilerProducerPaths,
+  inspectReleaseCompilerSourceClosure,
+} from "./release-compiler-source-closure.mts";
+import type { CompilerSourceClosure } from "./release-compiler-source-closure.mts";
+export {
+  compilerProducerPaths,
+  inspectReleaseCompilerSourceClosure,
+} from "./release-compiler-source-closure.mts";
+export type { CompilerSourceClosure } from "./release-compiler-source-closure.mts";
 
 /** Generated only during the existing guarded bootstrap. Its serialized bytes
  * acquire trust only inside that existing authenticated tool artifact/manifest. */
@@ -170,6 +111,21 @@ export async function compareReleaseCompilerSource(
     source_commit: controllerCommit,
     source_tree: git(["rev-parse", "HEAD^{tree}"]).trim(),
   });
+  const result = await compareCompilerClosure(closure, trustedRoot, candidateTree, options);
+  if (git(["rev-parse", "HEAD"]).trim() !== controllerCommit)
+    throw new Error("fixed controller changed during compiler source comparison");
+  return result;
+}
+
+export async function compareCompilerClosure(
+  closure: CompilerSourceClosure,
+  trustedRoot: string,
+  candidateTree: string,
+  options: { api?: GitHubRestReader },
+) {
+  if (!/^[a-f0-9]{40}$/u.test(candidateTree))
+    throw new Error("compiler candidate tree unavailable");
+  const controllerCommit = closure.source_commit;
   const local = new Map(closure.paths.map((entry) => [entry.path, entry.entry]));
   const runner = createGitHubRunner({
     cwd: trustedRoot,
@@ -204,6 +160,8 @@ export async function compareReleaseCompilerSource(
         !isRecord(raw) ||
         typeof raw.path !== "string" ||
         !raw.path ||
+        raw.path === "." ||
+        raw.path === ".." ||
         raw.path.length > 256 ||
         /[\\/\0\r\n]/u.test(raw.path) ||
         entries.has(raw.path) ||
@@ -215,6 +173,33 @@ export async function compareReleaseCompilerSource(
         throw new Error("compiler Git tree entry is malformed or duplicated");
       entries.set(raw.path, { mode: raw.mode, type: raw.type, sha: raw.sha });
     }
+    const rows = [...entries.entries()].sort(([a, left], [b, right]) =>
+      Buffer.compare(
+        Buffer.from(a + (left.type === "tree" ? "/" : "")),
+        Buffer.from(b + (right.type === "tree" ? "/" : "")),
+      ),
+    );
+    for (const [, entry] of rows)
+      if (
+        !(
+          (entry.type === "tree" && entry.mode === "040000") ||
+          (entry.type === "blob" && ["100644", "100755", "120000"].includes(entry.mode)) ||
+          (entry.type === "commit" && entry.mode === "160000")
+        )
+      )
+        throw new Error("unsupported compiler Git tree entry kind");
+    inspectRemoteGitObject(
+      "tree",
+      sha,
+      Buffer.concat(
+        rows.map(([name, entry]) =>
+          Buffer.concat([
+            Buffer.from(`${entry.mode === "040000" ? "40000" : entry.mode} ${name}\0`),
+            Buffer.from(entry.sha, "hex"),
+          ]),
+        ),
+      ),
+    );
     trees.set(sha, entries);
     return entries;
   };
@@ -236,8 +221,6 @@ export async function compareReleaseCompilerSource(
       throw new Error(`candidate compiler workflow/helper/configuration differs: ${filename}`);
     return { path: filename, ...(found ?? { absent: true }) };
   });
-  if (git(["rev-parse", "HEAD"]).trim() !== controllerCommit)
-    throw new Error("fixed controller changed during compiler source comparison");
   return Object.freeze({
     evidence_scope: options.api ? "injected-provider" : "github.com",
     authority: "none",
@@ -247,4 +230,125 @@ export async function compareReleaseCompilerSource(
     paths: Object.freeze(observed),
     scope: "exact producing workflow and conservative maintained helper/configuration closure only",
   });
+}
+
+export interface PreparedCompilerSource {
+  source_commit: string;
+  source_tree: string;
+  prepared_commit: string;
+  prepared_tree: string;
+  version: string;
+}
+/** Reuse the actual four-file preparation transform. Complete authenticated net
+ * trees, one exact parent and expected blob hashes prohibit a blanket version
+ * exception from hiding dependency, script, configuration or arbitrary edits. */
+export function inspectPreparedCompilerSource(
+  reader: GitHubRestReader,
+  candidate: PreparedCompilerSource,
+) {
+  for (const oid of [
+    candidate.source_commit,
+    candidate.source_tree,
+    candidate.prepared_commit,
+    candidate.prepared_tree,
+  ])
+    if (!/^[a-f0-9]{40}$/u.test(oid))
+      throw new Error("exact compiler preparation source identities unavailable");
+  const delta = collectReleaseSourceChanges(reader, {
+    base_commit: candidate.source_commit,
+    source_commit: candidate.prepared_commit,
+    source_tree: candidate.prepared_tree,
+  });
+  if (
+    delta.base_tree !== candidate.source_tree ||
+    delta.commits.length !== 1 ||
+    delta.commits[0]!.oid !== candidate.prepared_commit ||
+    !isDeepStrictEqual(delta.commits[0]!.parents, [candidate.source_commit])
+  )
+    throw new Error(
+      "compiler prepared source is not the exact single-parent reservation transform",
+    );
+  const changes = delta.changes.filter(
+    (entry) => !(entry.before?.type === "tree" && entry.after?.type === "tree"),
+  );
+  const names = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "apps/desktop/package.json",
+    "apps/desktop/src-tauri/tauri.conf.json",
+  ].sort();
+  if (
+    !isDeepStrictEqual(changes.map((entry) => entry.path).sort(), names) ||
+    changes.some(
+      (entry) =>
+        entry.before?.type !== "blob" ||
+        entry.after?.type !== "blob" ||
+        entry.before.mode !== "100644" ||
+        entry.after.mode !== "100644",
+    )
+  )
+    throw new Error("prepared source changes more than exact existing version authorities");
+  let requests = 0;
+  const blobs = new Map<string, string>();
+  const read = (filename: string) => {
+    const cached = blobs.get(filename);
+    if (cached !== undefined) return cached;
+    if (
+      !/^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/u.test(filename) ||
+      filename.split("/").some((part) => part === "." || part === "..") ||
+      ++requests > 32
+    )
+      throw new Error("prepared compiler source reader escaped its bound");
+    const response = reader.request(
+      "GET",
+      `repos/boburning/portcove/contents/${filename}?ref=${candidate.source_commit}`,
+    );
+    const body = response.body;
+    if (
+      response.status !== 200 ||
+      !isRecord(body) ||
+      body.type !== "file" ||
+      body.path !== filename ||
+      body.encoding !== "base64" ||
+      typeof body.content !== "string" ||
+      body.content.length > 2 * 1024 * 1024 ||
+      typeof body.size !== "number" ||
+      !Number.isSafeInteger(body.size) ||
+      body.size < 1 ||
+      body.size > 1024 * 1024 ||
+      typeof body.sha !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(body.sha)
+    )
+      throw new Error("prepared compiler original source blob unavailable");
+    const bytes = Buffer.from(body.content, "base64");
+    const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    if (
+      bytes.length !== body.size ||
+      oid !== body.sha ||
+      !Buffer.from(bytes.toString("utf8")).equals(bytes) ||
+      (changes.some((entry) => entry.path === filename) &&
+        changes.find((entry) => entry.path === filename)!.before!.oid !== oid)
+    )
+      throw new Error("prepared compiler original blob bytes differ");
+    blobs.set(filename, bytes.toString("utf8"));
+    return bytes.toString("utf8");
+  };
+  const baseVersion = parseWorkspacePackage(read("Cargo.toml")).version;
+  if (typeof baseVersion !== "string") throw new Error("original source base version unavailable");
+  const expected = reproducePreparedReleaseVersionFiles(read, {
+    base_version: baseVersion,
+    version: candidate.version,
+  });
+  for (const [filename, content] of expected) {
+    const bytes = Buffer.from(content);
+    const oid = createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+    if (changes.find((entry) => entry.path === filename)?.after?.oid !== oid)
+      throw new Error(`compiler prepared version bytes differ: ${filename}`);
+  }
+  return {
+    authority: "none",
+    ...candidate,
+    prepared_change_set_sha256: delta.change_set_sha256,
+    source_blob_reads: requests,
+  };
 }
