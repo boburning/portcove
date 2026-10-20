@@ -84,6 +84,42 @@ export interface PreparedReleaseAdmissionFacts {
   contexts: unknown;
   allocations: unknown;
 }
+export interface ActualReleaseAdmissionContext {
+  stage: "payload-signing" | "release-publication";
+  facts: Readonly<PreparedReleaseAdmissionFacts>;
+  controls: AuthenticatedReleaseControlSource;
+  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+  checkpoint: string;
+  native_qualifications: readonly object[];
+  pending_obligations: readonly string[];
+}
+const actualAdmissionContexts = new WeakMap<
+  object,
+  { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
+>();
+/** Same-process authority continuation only. Serialization, imported snapshots,
+ * fixture source brands and an assembly artifact cannot mint this context. Each
+ * protected consumer must still perform its own fresh controls/reservation check. */
+export function requireActualReleaseAdmissionContext(
+  raw: object,
+  expectedStage: ActualReleaseAdmissionContext["stage"],
+): Readonly<ActualReleaseAdmissionContext> {
+  const retained = actualAdmissionContexts.get(raw);
+  if (
+    !retained ||
+    !["payload-signing", "release-publication"].includes(expectedStage) ||
+    retained.context.stage !== expectedStage ||
+    retained.context.admission.decision !== "admitted" ||
+    retained.context.admission.holds.length !== 0 ||
+    retained.context.admission.evidence_scope !== "github.com" ||
+    retained.context.controls.evidence_scope !== "github.com" ||
+    retained.context.facts.checkpoint !== retained.context.checkpoint ||
+    retained.context.admission.checkpoint !== retained.context.checkpoint
+  )
+    throw new Error("actual same-process zero-hold release admission context required");
+  requireAuthenticatedReleaseControlSource(retained.context.controls, retained.phase);
+  return retained.context;
+}
 function freezePreparedFacts<T>(value: T, depth = 0): T {
   if (depth > 32) throw new Error("private prepared facts nesting bound exceeded");
   if (value !== null && typeof value === "object") {
@@ -976,14 +1012,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     facts: Readonly<PreparedReleaseAdmissionFacts>,
     factsSha256: string,
   ) => Promise<string>,
-  onAdmitted?: (
-    context: Readonly<{
-      facts: Readonly<PreparedReleaseAdmissionFacts>;
-      controls: AuthenticatedReleaseControlSource;
-      admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
-      checkpoint: string;
-    }>,
-  ) => Promise<void>,
+  onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
@@ -1036,14 +1065,19 @@ export async function acquireReleaseAdmissionWithControlHandshake(
         "positive continuation requires actual same-process facts/control/reservation binding",
       );
     requireAuthenticatedReleaseControlSource(controls, phase);
-    await onAdmitted(
-      Object.freeze({
-        facts,
-        controls,
-        admission: freezePreparedFacts(structuredClone(admission)),
-        checkpoint: admission.checkpoint,
-      }),
-    );
+    if (phase !== "release-publication")
+      throw new Error("full admission context cannot appoint another execution stage");
+    const context = Object.freeze({
+      stage: "release-publication" as const,
+      facts,
+      controls,
+      admission: freezePreparedFacts(structuredClone(admission)),
+      checkpoint: admission.checkpoint,
+      native_qualifications: Object.freeze([] as object[]),
+      pending_obligations: Object.freeze(["post-publication-full-public-V0-to-V1-acceptance"]),
+    });
+    actualAdmissionContexts.set(context, { context, phase });
+    await onAdmitted(context);
   }
   return admission;
 }

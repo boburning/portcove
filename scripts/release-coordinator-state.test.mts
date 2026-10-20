@@ -40,6 +40,7 @@ import {
   authenticateCapacityExecutor,
   executeOwnedCapacityEffect,
   recoverOwnedPublishedMetadata,
+  recoverOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import {
   assemblerIdentityFixture,
@@ -1353,10 +1354,10 @@ async function capacityStateFixture(t: Parameters<typeof fixture>[0]) {
   const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
   return { ...f, capacity, migrated };
 }
-async function remoteCapacityFixture(t: test.TestContext) {
+async function remoteCapacityFixture(t: test.TestContext, modern = false) {
   const f = await remoteFixture(t);
   await publishCoordinatorCheckpoint(f.bare, f.saved.checkpoint, f.config, { api: f.api });
-  const capacity = capacityFixture();
+  const capacity = { ...capacityFixture(), schema_version: modern ? 2 : 1 };
   const input = {
     ...f.input,
     schema_version: 2,
@@ -1379,7 +1380,7 @@ for (const lost of [false, true])
     async (t) => {
       // Real local Git journal with simulated GitHub/JWKS/OIDC transport. No real
       // issuer credential, GitHub request, publication or protected grant is used.
-      const f = await remoteCapacityFixture(t);
+      const f = await remoteCapacityFixture(t, true);
       const signed = assemblerIdentityFixture(
         {
           aud: "portcove-capacity-executor",
@@ -1391,6 +1392,30 @@ for (const lost of [false, true])
       );
       let activeIdentity = signed;
       let publisherTerminal = false;
+      const coordinatorSubject = controllerOidcSubject(
+        identityExpected.controller_ref,
+        "production-release-coordinator",
+      );
+      const coordinatorIdentity = () =>
+        assemblerIdentityFixture(
+          {
+            aud: "portcove-capacity-executor",
+            environment: "production-release-coordinator",
+            sub: coordinatorSubject,
+          },
+          {},
+          {
+            workflow: productionControllerWorkflow,
+            job: "Coordinate application release",
+            jobId: 502,
+            checkRunId: 779,
+          },
+        );
+      const recoveryExpected = {
+        ...identityExpected,
+        audience: "portcove-capacity-executor",
+        subject: coordinatorSubject,
+      };
       const metadata = metadataFixture();
       const seeded = lost
         ? f.migrated
@@ -1401,14 +1426,18 @@ for (const lost of [false, true])
             f.options,
           );
       const savedEnv = new Map(
-        ["ACTIONS_ID_TOKEN_REQUEST_URL", "ACTIONS_ID_TOKEN_REQUEST_TOKEN"].map((k) => [
-          k,
-          process.env[k],
-        ]),
+        [
+          "ACTIONS_ID_TOKEN_REQUEST_URL",
+          "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+          "GH_TOKEN",
+          "PORTCOVE_COORDINATOR_JOURNAL_TOKEN",
+        ].map((k) => [k, process.env[k]]),
       );
       process.env.ACTIONS_ID_TOKEN_REQUEST_URL =
         "https://fixture.actions.githubusercontent.com/oidc";
       process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN = "inert-runner-token";
+      process.env.GH_TOKEN = "inert-provider-read-only-token";
+      process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "inert-dedicated-journal-token";
       t.after(() => {
         for (const [key, value] of savedEnv) {
           if (value === undefined) delete process.env[key];
@@ -1450,6 +1479,9 @@ for (const lost of [false, true])
             };
           if (args[2]?.includes("/actions/") || args[2]?.includes("/check-runs/"))
             return activeIdentity.transport.spawn(name, args, options);
+          assert.equal(options.env?.GH_TOKEN, "inert-dedicated-journal-token");
+          assert.equal(options.env?.ACTIONS_ID_TOKEN_REQUEST_TOKEN, undefined);
+          assert.equal(options.env?.PORTCOVE_COORDINATOR_JOURNAL_TOKEN, undefined);
           let body: unknown;
           let status: number;
           if (args[1] === "graphql") {
@@ -1544,6 +1576,59 @@ for (const lost of [false, true])
         );
         assert.ok(isRecord(retained.input.controller.capacity_attempt.operation));
         assert.equal(retained.input.controller.capacity_attempt.operation.outcome, "ambiguous");
+        assert.equal(retained.input.controller.capacity_attempt.operation.receipt_limit, 1);
+        assert.deepEqual(
+          retained.input.controller.capacity_attempt.operation.completed_effects,
+          [],
+        );
+        activeIdentity = coordinatorIdentity();
+        const recoveryInput = {
+          repository: f.bare,
+          checkpoint: retained.checkpoint,
+          remote_configuration: f.config,
+        };
+        let readbacks = 0;
+        const completedEffect = {
+          remote_identity: "github-pages:boburning/portcove:fixture-deployment",
+          evidence_sha256: "d".repeat(64),
+        };
+        const readback = async () => {
+          readbacks++;
+          return {
+            resolution: "effect-completed" as const,
+            evidence_sha256: "e".repeat(64),
+            completed_effect: completedEffect,
+          };
+        };
+        const live = await authenticateCapacityExecutor(
+          "coordinator",
+          recoveryExpected,
+          f.repository,
+        );
+        await assert.rejects(
+          recoverOwnedCapacityEffect(live, recoveryInput, readback),
+          /not observed terminal/,
+        );
+        assert.equal(readbacks, 0);
+        publisherTerminal = true;
+        const recovery = await authenticateCapacityExecutor(
+          "coordinator",
+          recoveryExpected,
+          f.repository,
+        );
+        const completed = await recoverOwnedCapacityEffect(recovery, recoveryInput, readback);
+        const final = await recoverReleaseOpportunity(f.bare, completed.checkpoint);
+        assert.ok(
+          isRecord(final.input.controller) && isRecord(final.input.controller.capacity_attempt),
+        );
+        const operation = final.input.controller.capacity_attempt.operation;
+        assert.ok(isRecord(operation) && isRecord(operation.recovery));
+        assert.equal(operation.outcome, "recovered");
+        assert.equal(operation.recovery.resolution, "effect-completed");
+        assert.deepEqual(operation.completed_effects, [completedEffect]);
+        assert.equal(readbacks, 1);
+        assert.equal(f.refs.get(f.stateRef), completed.checkpoint);
+        assert.deepEqual(final.input.active_candidate, retained.input.active_candidate);
       } else {
         const result = await executeOwnedCapacityEffect(
           executor,
@@ -1572,31 +1657,7 @@ for (const lost of [false, true])
         assert.equal(operation.recovery.executor_identity.job_id, 501);
         assert.equal(result.evidence_sha256, "d".repeat(64));
         assert.deepEqual(settled.input.active_candidate, f.input.active_candidate);
-        activeIdentity = assemblerIdentityFixture(
-          {
-            aud: "portcove-capacity-executor",
-            environment: "production-release-coordinator",
-            sub: controllerOidcSubject(
-              identityExpected.controller_ref,
-              "production-release-coordinator",
-            ),
-          },
-          {},
-          {
-            workflow: productionControllerWorkflow,
-            job: "Coordinate application release",
-            jobId: 502,
-            checkRunId: 779,
-          },
-        );
-        const recoveryExpected = {
-          ...identityExpected,
-          audience: "portcove-capacity-executor",
-          subject: controllerOidcSubject(
-            identityExpected.controller_ref,
-            "production-release-coordinator",
-          ),
-        };
+        activeIdentity = coordinatorIdentity();
         let readbacks = 0;
         const observed = async () => {
           readbacks++;

@@ -11,6 +11,16 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [publication guards and recovery integration](slice4-534-publication-guards-2026-10-20.md)
+connects isolated fresh immutable-release observation, dedicated journal
+credential transport, observed-effect recovery and actual publication-stage
+executor admission. Release preparation consumes all six packages directly from
+its verified retained aggregate; fresh renewal workers can reconstruct the
+journal-pinned public application component. Fixture evidence does not supply
+native/semantic/signer acceptance, live credentials or protected execution.
+The final controller, initial feed bootstrap and consolidated setup remain
+pending; no recurring elevated diagnostic is introduced.
+
 The October 20 [isolated role continuation](slice4-isolated-role-continuation-2026-10-20.md)
 connects the genuine private admission callback to current-control checks and
 one-use job-local payload key transport, expands the fixed tool inventory with

@@ -19,6 +19,21 @@ import {
 } from "./release-live-control-admission.mts";
 import { prepareProductionProtectionHandoff } from "./release-input-protections.mts";
 import { isRecord } from "./runtime-values.mts";
+import { capacityDigest } from "./release-capacity.mts";
+
+function publicationProtection(commit: string, enabled = true) {
+  const original = protectionFixture(commit);
+  const inventory = {
+    ...original.inventory,
+    immutable_releases: { enabled, enforced_by_owner: false },
+  };
+  return {
+    ...original,
+    inventory,
+    coverage: "current-repository-input-branches-and-release-immutability",
+    inventory_sha256: capacityDigest(inventory),
+  };
+}
 
 function fixture(document: unknown = capacityDocumentFixture(), paused = false) {
   const control = releaseControlInputsFixture(document, opportunity, config, paused);
@@ -246,6 +261,28 @@ void test("payload reader and observer are fresh distinct fixed jobs and cannot 
   assert.throws(() => source.read(control.api, opportunity), /fresh/);
 });
 
+void test("publication source requires isolated fresh enabled setting and never accepts input-only observation", async () => {
+  const f = fixture();
+  for (const mode of ["enabled", "disabled", "missing"] as const) {
+    const observation =
+      mode === "missing"
+        ? protectionFixture(f.control.head())
+        : publicationProtection(f.control.head(), mode === "enabled");
+    const runtime = liveControlRuntimeFixture(observation, config, "release-publication");
+    if (mode !== "enabled") {
+      await assert.rejects(runtime.create(), /immutability/);
+      continue;
+    }
+    const source = await runtime.create();
+    requireAuthenticatedReleaseControlSource(source, "release-publication");
+    const result = source.read(f.control.api, opportunity);
+    assert.equal(result.protection.release_immutability?.enabled, true);
+    assert.equal(source.evidence_scope, "injected-provider");
+    runtime.advance(60001);
+    assert.throws(() => source.read(f.control.api, opportunity), /fresh/);
+  }
+});
+
 void test("site maintenance reads only current pause/capacity under the same fresh isolated source proof", async () => {
   // Deliberately no persisted semantic classification or opportunity acceptance.
   const control = releaseControlInputsFixture(capacityDocumentFixture(), opportunity, config, true);
@@ -277,7 +314,13 @@ void test("site maintenance reads only current pause/capacity under the same fre
   runtime.advance(60001);
   assert.throws(() => source.readMaintenance(api), /fresh/);
   for (const phase of ["admission", "payload", "release-publication"] as const) {
-    const wrong = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
+    const wrong = liveControlRuntimeFixture(
+      phase === "release-publication"
+        ? publicationProtection(control.head())
+        : protectionFixture(control.head()),
+      config,
+      phase,
+    );
     const wrongSource = await wrong.create();
     assert.throws(() => wrongSource.readMaintenance(control.api), /fixed maintenance/);
   }
