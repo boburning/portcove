@@ -43,15 +43,68 @@ jobs:
           package-manager-cache: false
       - run: node scripts/production-controller-admission.mts
 
+  protection_observation:
+    if: ${{ false }}
+    needs: admission
+    name: Observe production release input protections
+    environment: production-release-protection-observer
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    outputs:
+      observation: ${{ steps.observe.outputs.observation }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      # Administration-write is released only to GET-only observer code.
+      # This new held source invalidates the previous capacity/workflow binding;
+      # the final complete job set must fit the unchanged 100-minute ceiling.
+      - id: observer-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-administration: write
+          permission-metadata: read
+      - id: observe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer-token.outputs.token }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+        run: node scripts/release-reviewed-inputs.mts observe-production
+      - name: Retain token-free observer evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: trusted-release-protection-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/release-reviewed-inputs-observe-production.jsonl
+          if-no-files-found: warn
+          overwrite: false
+          retention-days: 7
+
   independent_admission:
     # Data acquisition is implemented; missing independent authorities HOLD.
     if: ${{ false }}
-    needs: admission
+    needs: [admission, protection_observation]
+    name: Authenticate release control inputs
     runs-on: ubuntu-22.04
     timeout-minutes: 25
     permissions:
       contents: read
       actions: read
+      checks: read
+      id-token: write
     outputs:
       descriptor: ${{ steps.accept.outputs.descriptor }}
     steps:
@@ -75,6 +128,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_HOST: github.com
           PORTCOVE_COORDINATOR_CONFIGURATION: ${{ vars.PORTCOVE_COORDINATOR_CONFIGURATION }}
+          PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
+          PORTCOVE_CONTROLLER_REF: ${{ vars.PORTCOVE_CONTROLLER_REF }}
+          PORTCOVE_CONTROLLER_ADMISSION: ${{ vars.PORTCOVE_CONTROLLER_ADMISSION }}
+          PORTCOVE_REVIEW_PRODUCER: ${{ vars.PORTCOVE_REVIEW_PRODUCER }}
+          PORTCOVE_TRUSTED_PROTECTION_OBSERVATION: ${{ needs.protection_observation.outputs.observation }}
         run: node scripts/acquire-release-admission.mts
       - name: Retain token-free admission holds and diagnostic facts
         if: ${{ always() }}
