@@ -4798,7 +4798,18 @@ impl PortcoveService {
         self.managed_install_root(&install.port_id, &install.path)?;
         match Installer::new(self.library.clone())?.retained_catalog(install)? {
             Some(catalog) => Ok(catalog),
-            None => Ok(self.catalog.clone()),
+            None => {
+                if self
+                    .catalog
+                    .port(&install.port_id)
+                    .is_ok_and(|port| port.runtime_data_policy.is_some())
+                {
+                    return Err(PortcoveError::verification(
+                        "this legacy installation has no retained credential-handling contract; it cannot inherit the managed route from today's catalog",
+                    ));
+                }
+                Ok(self.catalog.clone())
+            }
         }
     }
 

@@ -629,6 +629,98 @@ mod tests {
     }
 
     #[test]
+    fn legacy_manifest_cannot_inherit_current_credential_omission_policy() {
+        use sha2::{Digest, Sha256};
+        let temp = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temp.path().join("library")).unwrap();
+        let historical = crate::Catalog::from_json(include_str!(
+            "../tests/fixtures/racewave46-100-prepared-historical.json"
+        ))
+        .unwrap();
+        let id = "wave-race-64-racewave46";
+        let root = library.versions_dir().join(id).join("legacy");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("WaveRace64Recompiled.exe"),
+            b"synthetic legacy executable",
+        )
+        .unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "local-adoption".into(),
+            sha256: "a".repeat(64),
+            size: 4,
+        };
+        let qualification = crate::InstallQualification::from_catalog(
+            &historical,
+            id,
+            crate::Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (_, selected_executable, runtime) = crate::Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                "legacy-racewave",
+                id,
+                "legacy",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+        let path = root.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        manifest["schema_version"] = serde_json::json!(5);
+        manifest
+            .as_object_mut()
+            .unwrap()
+            .remove("retained_contract");
+        let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let install = crate::InstallRecord {
+            id: "legacy-racewave".into(),
+            port_id: id.into(),
+            version: "legacy".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            manifest_sha256: hex::encode(Sha256::digest(&bytes)),
+            selected_executable,
+            runtime,
+        };
+        assert!(
+            crate::Installer::new(library.clone())
+                .unwrap()
+                .retained_catalog(&install)
+                .unwrap()
+                .is_none()
+        );
+        library.register_install(&install, true).unwrap();
+        fs::create_dir(root.join(".runtime")).unwrap();
+        fs::write(root.join(".runtime").join(CREDENTIAL), b"synthetic").unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            service
+                .installed_catalog(&install)
+                .unwrap_err()
+                .message
+                .contains("legacy installation")
+        );
+        assert!(service.collect_user_data(id).is_err());
+        assert!(root.join(".runtime").join(CREDENTIAL).exists());
+        assert!(
+            !library
+                .user_dir(id)
+                .join(".runtime")
+                .join(CREDENTIAL)
+                .exists()
+        );
+    }
+
+    #[test]
     fn reserved_credentials_match_only_exact_upstream_names() {
         for name in [
             CREDENTIAL,
