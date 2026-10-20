@@ -681,6 +681,7 @@ function useCompletedScanView(
 }
 
 export function GameFileLibraries({
+  instanceId = "game-file-libraries",
   generation,
   ports,
   profiles,
@@ -692,6 +693,7 @@ export function GameFileLibraries({
   setupSource,
   setSetupSource,
 }: {
+  instanceId?: string;
   generation: number;
   ports: PortDefinition[];
   profiles: SourceProfile[];
@@ -703,6 +705,9 @@ export function GameFileLibraries({
   setupSource?: SourceRecord | undefined;
   setSetupSource?: ((source?: SourceRecord) => void) | undefined;
 }) {
+  const headingId = `${instanceId}-heading`;
+  const returnOrigin = `${instanceId}-setup`;
+  const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
   const [busy, setBusy] = useState("");
   const scanState = useGameFileScanObserver(generation);
   const { scanning, operationId, candidates: liveCandidates } = scanState;
@@ -747,8 +752,9 @@ export function GameFileLibraries({
     if (scanning || viewCompletion !== scanState.completion || !focusAfterScan.current) return;
     const candidate = focusAfterScan.current;
     focusAfterScan.current = undefined;
-    if (document.activeElement !== document.body) return;
-    const row = [...document.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (document.activeElement !== document.body || !scope?.getClientRects().length) return;
+    const row = [...scope.querySelectorAll<HTMLElement>("[data-completed-candidate]")].find(
       (element) =>
         element.dataset.profileId === candidate.profile_id &&
         element.dataset.path === candidate.path,
@@ -760,16 +766,20 @@ export function GameFileLibraries({
   }, [scanning, snapshot, viewCompletion, scanState.completion]);
   useEffect(() => {
     if (!plan || busy) return;
-    document
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
+    scope
       .querySelector<HTMLButtonElement>('[aria-label="Source import review"] button:not(:disabled)')
       ?.focus();
   }, [plan, busy]);
   useEffect(() => {
     if (plan || busy || !focusAfterReview.current) return;
+    const scope = heading.current?.closest<HTMLElement>("[data-saved-folders-workspace]");
+    if (!scope?.getClientRects().length) return;
     focusAfterReview.current = false;
     if (focusToSetup.current) {
       focusToSetup.current = false;
-      const setup = document.querySelector<HTMLButtonElement>(
+      const setup = scope.querySelector<HTMLButtonElement>(
         '[aria-label="Continue to a game"] button:not(:disabled)',
       );
       if (setup) {
@@ -778,7 +788,7 @@ export function GameFileLibraries({
       }
     }
     const candidate = reviewedCandidate.current;
-    const rows = document.querySelectorAll<HTMLElement>(
+    const rows = scope.querySelectorAll<HTMLElement>(
       scanning
         ? "[data-live-candidate], [data-preliminary-selection]"
         : "[data-completed-candidate], [data-preliminary-selection]",
@@ -930,12 +940,7 @@ export function GameFileLibraries({
     });
   const renderHeading = () => (
     <div className="settings-title flex items-center justify-between gap-[12px]">
-      <h2
-        className="m-0 flex items-center gap-2"
-        ref={heading}
-        id="game-file-libraries-heading"
-        tabIndex={-1}
-      >
+      <h2 className="m-0 flex items-center gap-2" ref={heading} id={headingId} tabIndex={-1}>
         Game-file libraries
       </h2>
       <Button
@@ -1010,7 +1015,7 @@ export function GameFileLibraries({
       statuses={statuses}
       registrationConfirmed={refreshConfirmed && !workspaceRefreshFailed}
       workspaceRefreshFailed={workspaceRefreshFailed}
-      onOpenPort={onOpenPort}
+      onOpenPort={openPort}
       busy={Boolean(busy)}
       review={(candidate) => void review(candidate)}
     />
@@ -1028,7 +1033,8 @@ export function GameFileLibraries({
         (scanning || (readConfirmed && snapshot?.freshness === "inputs_match"))
       }
       busy={Boolean(busy) || Boolean(plan)}
-      onOpenPort={onOpenPort}
+      onOpenPort={openPort}
+      focusFallback={() => heading.current}
     />
   );
   const renderSourceReview = () => (
@@ -1050,15 +1056,16 @@ export function GameFileLibraries({
       busy={Boolean(busy)}
       retryRefresh={onAdded ? () => void retryRefresh() : undefined}
       ports={ports}
-      onOpenPort={onOpenPort}
+      onOpenPort={openPort}
     />
   );
   return (
     <SettingsRow
       className="source-health col-span-full min-h-0"
       data-focus-group
-      data-detail-origin={setupReturnOrigin}
-      aria-labelledby="game-file-libraries-heading"
+      data-saved-folders-workspace
+      data-detail-origin={returnOrigin}
+      aria-labelledby={headingId}
       tabIndex={-1}
       onFocusCapture={(event) => {
         const row = event.target.closest<HTMLElement>("[data-live-candidate]");

@@ -1,5 +1,7 @@
-export function observeCompletionReturnFocus() {
-  const origin = document.querySelector('[data-detail-origin="game-file-libraries-setup"]');
+export function observeCompletionReturnFocus(originKey = "game-file-libraries-setup") {
+  const origin = [...document.querySelectorAll<HTMLElement>("[data-detail-origin]")].find(
+    (element) => element.dataset.detailOrigin === originKey,
+  );
   const continuation = origin?.querySelector('[aria-label="Continue to a game"]');
   const control = document.activeElement;
   if (!origin || !continuation || !control) return false;

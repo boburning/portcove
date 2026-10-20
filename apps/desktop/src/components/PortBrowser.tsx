@@ -417,8 +417,13 @@ export function PortBrowser({
           data-focus-group
         >
           {renderLibrarySummary()}
-          {onBrowseCatalog && (
-            <Button data-focusable variant="outline" onClick={onBrowseCatalog}>
+          {onBrowseCatalog && overview.installed > 0 && (
+            <Button
+              data-focusable
+              data-add-games-trigger
+              variant="outline"
+              onClick={onBrowseCatalog}
+            >
               Add games
             </Button>
           )}
@@ -681,12 +686,18 @@ function BrowserEmptyState({
         }
         eyebrow="EMPTY LIBRARY"
         title="Your library is empty"
-        description="Browse the catalog to install a supported port or use an existing installation. You can also copy a supported installation without changing its original folder."
+        description="Add games using your original files, search a chosen folder, or find a port. You can also copy a supported installation without changing its original folder."
         action={
           <>
-            <Button data-focusable variant="primary" size="lg" onClick={onBrowseCatalog}>
+            <Button
+              data-focusable
+              data-add-games-trigger
+              variant="primary"
+              size="lg"
+              onClick={onBrowseCatalog}
+            >
               <Icon glyph={Boxes} />
-              Browse port catalog
+              Add games
             </Button>
             {onConnectGameFiles && (
               <Button data-focusable variant="outline" size="lg" onClick={onConnectGameFiles}>

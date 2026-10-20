@@ -158,3 +158,8 @@ Use the canonical root `pnpm check`, `pnpm test`, `pnpm test:browser` and `pnpm 
 routes; focused tests use the existing exact-file runner. Never regenerate copied
 controls over these theme, state, accessibility and composition decisions without
 review. [DESIGN-SYSTEM](DESIGN-SYSTEM.md) retains the wider product acceptance.
+
+Add games uses shared semantic action, selected, focus, status and error roles in
+both themes. In-flow stages and wrapping controls remain readable at effective
+240px widths. Native HTML port selection retains OS/forced-color behavior; it
+adds no independent palette, panel surface or durable selection authority.

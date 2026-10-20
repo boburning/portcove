@@ -1239,9 +1239,15 @@ export async function preparationScenarios({
     await browser.wait(until.elementIsEnabled(trial), 15_000);
     try {
       await browser.wait(
-        () => executeBrowserScript(browser, (element) => document.activeElement === element, trial),
+        () =>
+          executeBrowserScript(browser, () => {
+            const heading = document.querySelector("[data-task-owner] h2");
+            return (
+              heading?.textContent?.trim() === "Next step" && document.activeElement === heading
+            );
+          }),
         5_000,
-        "Successful preparation did not hand focus to the available launch action",
+        "Unconfirmed compatibility must leave completion focus on the next-step heading",
       );
     } catch (error) {
       const diagnostic = path.join(output, "preparation-completion-focus-failure.json");
@@ -1263,6 +1269,7 @@ export async function preparationScenarios({
       artifacts.push(diagnostic);
       throw error;
     }
+
     await trial.click();
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
