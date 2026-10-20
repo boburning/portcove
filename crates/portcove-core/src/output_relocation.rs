@@ -467,6 +467,7 @@ impl RelocationOperation {
         if let Some(staging) = &self.staging {
             crate::output_root::validate_staging_path(library, &self.port_id, &self.id, staging)?;
             if staging.exists() {
+                crate::runtime_data_policy::refuse_sensitive_tree(staging)?;
                 fs::remove_dir_all(staging)?;
             }
         }
@@ -539,6 +540,8 @@ fn execute_relocation(
                     service.check_lifecycle_fault(
                         LifecycleFaultPoint::RelocationPublicationPrepared,
                     )?;
+                    crate::runtime_data_policy::refuse_sensitive_tree(&entry.install.path)?;
+                    crate::runtime_data_policy::refuse_sensitive_tree(&staged)?;
                     crate::durability::rename_noreplace(&staged, &entry.destination_path)?;
                     crate::durability::sync_publication(&plan.destination_root)?;
                 }
@@ -568,6 +571,10 @@ fn execute_relocation(
     }
 
     if checked.phase == RelocationPhase::Published {
+        for entry in &plan.installs {
+            crate::runtime_data_policy::refuse_sensitive_tree(&entry.install.path)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(&entry.destination_path)?;
+        }
         match authority_state(service.library(), &plan)? {
             AuthorityState::Old => commit_new_authority(service.library(), &plan)?,
             AuthorityState::New => {}
@@ -828,6 +835,7 @@ fn remove_old_copy(
         retired_install_paths,
     )?;
     verify_remaining_tree(&old_path, &entry.copy)?;
+    crate::runtime_data_policy::refuse_sensitive_tree(&old_path)?;
     fs::remove_dir_all(&old_path)?;
     crate::durability::sync_publication(
         old_path
@@ -1177,6 +1185,60 @@ mod tests {
             .authorize_output_relocation(PORT, destination, &plan.plan_sha256)
             .unwrap()
             .token
+    }
+
+    fn assert_late_credentials_hold_relocation(point: LifecycleFaultPoint) {
+        let fixture = Fixture::new();
+        let service =
+            PortcoveService::with_faults(fixture.library.clone(), Arc::new(FailAt(point))).unwrap();
+        let before = fixture.library.all_installs().unwrap();
+        let plan = service
+            .plan_output_relocation(PORT, &fixture.destination)
+            .unwrap();
+        let token = authorize(&service, &fixture.destination);
+        assert!(
+            service
+                .relocate_output(PORT, &fixture.destination, &token)
+                .is_err()
+        );
+        let store = OperationStore::new(fixture.library.clone());
+        let mut operation = store
+            .all()
+            .unwrap()
+            .into_iter()
+            .find(|operation| operation.relocation.is_some())
+            .unwrap();
+        let root = if point == LifecycleFaultPoint::RelocationPrepared {
+            operation
+                .paths
+                .staging
+                .as_ref()
+                .unwrap()
+                .join(&plan.installs[0].install.id)
+        } else {
+            plan.installs[0].destination_path.clone()
+        };
+        let credential = root.join("retroachievements.credentials");
+        fs::write(&credential, b"synthetic-no-account").unwrap();
+        let recovered = PortcoveService::new(fixture.library.clone()).unwrap();
+        let error = recover(&recovered, &store, &mut operation).unwrap_err();
+        assert!(error.details.contains_key("host_local_credential_path"));
+        assert!(credential.exists());
+        assert_eq!(
+            serde_json::to_value(fixture.library.all_installs().unwrap()).unwrap(),
+            serde_json::to_value(before).unwrap()
+        );
+        assert!(!store.all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn late_credentials_hold_prepared_relocation() {
+        assert_late_credentials_hold_relocation(LifecycleFaultPoint::RelocationPrepared);
+    }
+
+    #[test]
+    fn late_credentials_hold_published_relocation_before_authority_commit() {
+        assert_late_credentials_hold_relocation(LifecycleFaultPoint::RelocationPublished);
     }
 
     #[test]

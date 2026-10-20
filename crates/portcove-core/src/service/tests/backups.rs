@@ -1,6 +1,120 @@
 //! Complete backup lifecycle fixture family; production authority stays in its owner.
 use super::*;
 
+struct InjectCredentialIntoBackup {
+    parent: PathBuf,
+    point: LifecycleFaultPoint,
+}
+
+impl LifecycleFaultInjector for InjectCredentialIntoBackup {
+    fn check(&self, point: LifecycleFaultPoint) -> Result<()> {
+        if point == self.point {
+            for entry in fs::read_dir(&self.parent)? {
+                let entry = entry?;
+                if entry.file_name().to_string_lossy().starts_with(".backup-") {
+                    fs::write(
+                        entry.path().join("data/retroachievements.credentials"),
+                        b"synthetic-no-account",
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn credential_injected_after_backup_copy_is_retained_without_publication() {
+    for point in [
+        LifecycleFaultPoint::BackupDataCopied,
+        LifecycleFaultPoint::BackupManifestSynced,
+        LifecycleFaultPoint::BackupStagingKept,
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let library = Library::open(temp.path().join("library")).unwrap();
+        let user = library.user_dir("zelda64-recomp");
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("save.dat"), b"save").unwrap();
+        let parent = library.backups_dir().join("zelda64-recomp");
+        let service = PortcoveService::with_provider_and_faults(
+            library.clone(),
+            Arc::new(StaticReleaseProvider {
+                version: "v1".into(),
+            }),
+            Arc::new(InjectCredentialIntoBackup {
+                parent: parent.clone(),
+                point,
+            }),
+        )
+        .unwrap();
+        assert!(service.create_backup("zelda64-recomp").is_err());
+        let entries = fs::read_dir(&parent)
+            .unwrap()
+            .collect::<std::io::Result<Vec<_>>>()
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+        assert!(
+            entries[0]
+                .file_name()
+                .to_string_lossy()
+                .starts_with(".backup-")
+        );
+        assert!(
+            entries[0]
+                .path()
+                .join("data/retroachievements.credentials")
+                .exists()
+        );
+        assert_eq!(fs::read(user.join("save.dat")).unwrap(), b"save");
+    }
+}
+
+#[test]
+fn credential_injected_into_restore_staging_or_previous_data_holds_recovery() {
+    for phase in [
+        LifecyclePhase::Prepared,
+        LifecyclePhase::PayloadPublished,
+        LifecyclePhase::MetadataCommitted,
+        LifecyclePhase::CleanupPending,
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let library = Library::open(temp.path().join("library")).unwrap();
+        let service = service_with_release(library.clone(), "v1");
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            Uuid::new_v4().to_string(),
+            LifecycleOperationKind::Restore,
+            "zelda64-recomp",
+        );
+        let recovery = library.recovery_dir().join(&operation.id);
+        let user = library.user_dir("zelda64-recomp");
+        let previous = recovery.join("previous-data");
+        let staged = recovery.join("staged-data");
+        fs::create_dir_all(&staged).unwrap();
+        fs::create_dir_all(&previous).unwrap();
+        fs::create_dir_all(&user).unwrap();
+        fs::write(user.join("save.dat"), b"current").unwrap();
+        let contaminated = if phase == LifecyclePhase::Prepared {
+            &staged
+        } else {
+            &previous
+        };
+        let credential = contaminated.join("retroachievements.credentials");
+        fs::write(&credential, b"synthetic").unwrap();
+        operation.phase = phase;
+        operation.activate = true;
+        operation.paths.staging = Some(recovery.clone());
+        operation.paths.final_path = Some(user.clone());
+        operation.paths.quarantine = Some(previous);
+        store.put(&mut operation).unwrap();
+        assert!(crate::recovery::recover_restore(&service, &store, &mut operation).is_err());
+        assert!(credential.exists());
+        assert_eq!(fs::read(user.join("save.dat")).unwrap(), b"current");
+        assert!(!user.join("retroachievements.credentials").exists());
+        assert_eq!(store.all().unwrap().len(), 1);
+    }
+}
+
 #[test]
 fn backup_restore_assessment_distinguishes_unknown_root_from_missing_backup() {
     let temporary = tempfile::tempdir().unwrap();

@@ -439,6 +439,13 @@ namespace Portcove.ReferenceClient
             if (sourcePath.Length != 0) args.AddRange(new[] { "--source", sourcePath });
             if (biosPath.Length != 0) args.AddRange(new[] { "--bios", biosPath });
             var prompt = "Check the selected channel now, then download, verify and activate its eligible update? The release is resolved when you continue. Supplied source files may be registered.";
+            object dataPolicy;
+            if (Json.TryField(currentCatalog, "runtime_data_policy", out dataPolicy) && dataPolicy != null)
+            {
+                var plan = await cli.Read("plan", "plan", port);
+                if (Json.Text(plan, "port_id") != port) throw new InvalidOperationException("Preservation review targets another game.");
+                prompt += InstallationReview.PreservationNotices(plan);
+            }
             if (MessageBox.Show(window, prompt + "\n\nLibrary: " + cli.LibraryRoot + "\nGame: " + game.Name,
                 "Portcove", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             CurrentStatus = null;
