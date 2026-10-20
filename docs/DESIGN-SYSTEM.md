@@ -48,7 +48,7 @@ The React/Vite/Tauri desktop is migrating incrementally under [#917](https://git
 
 `apps/desktop/components.json` records Base UI, Base Nova (`style: base-nova`), React Server Components off, Lucide, the Tailwind entry, and the app-local aliases. The initial checked-in controls are Button, Dialog, and Select. They exist to prove the difficult installation-review nesting; they do not authorize broad screen migration by themselves. Portcove retained the generated internal implementations but removed the unused generated helper and unused public exports after static analysis; future regeneration must preserve that deliberately smaller maintained surface.
 
-The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.4.0 and Tailwind 4.3.3 under Vite+ 1.2.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
+The following table preserves the initial generation inputs. Current runtime inputs are Base UI 1.9.0, cn 0.5.0 and Tailwind 4.3.3 under Vite+ 1.3.0. The finite [CSS architecture cutover](reference/css-architecture.md) uses Preflight, explicit layers and Base UI transitions; tw-animate-css is removed. The wider #917 acceptance remains open.
 
 | Input                             | Version | License    | Demonstrated purpose                                              |
 | --------------------------------- | ------- | ---------- | ----------------------------------------------------------------- |
@@ -124,7 +124,7 @@ Game-port release channels display as **Stable / Preview / Rolling**. Current ga
 
 - Import only controls demonstrated by current product needs. Checked-in controls should stay close to official composition, refs, events, and accessibility behavior; do not put a near-identical Portcove wrapper around every shadcn control.
 - A specific Base UI control may be replaced when a reproducible Tauri, controller, accessibility, or supported-platform failure remains after bounded repair. Preserve the shared API, semantics, and theme where practical, record the evidence, and review the replacement independently; one incompatible control does not reopen the selected system.
-- Controls use the shared 30, 36, and 42-pixel-equivalent height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
+- Controls use shared 36-pixel-equivalent compact and 40-pixel-equivalent ordinary/large minimum-height tokens and modest radius scale. Shared selects use these as minimum heights: option labels and selected decision text wrap within the available width, including long unbroken values, rather than clipping source requirements or relying on hover. Pills are reserved for compact status badges.
 - Ordinary buttons are neutral by default. Signature-red Play, Install, or Apply emphasis is an explicit variant; destructive actions have distinct semantics, wording, placement, and confirmation behavior. Focus remains gold and visibly distinct from both selection and destructive intent, including the combined selected-and-focused state.
 - Buttons name the action or review: `Review installation`, `Play`, `Check game files`, and `Remove managed files`. Avoid `Submit`, `Proceed`, `Execute`, `Yes`, and `No` when the action can be named.
 - Setup and launch controls consume the current core action availability and supplied reason. A scoped hold or unoffered managed setup route has a readable explanation instead of an enabled installation review; source and BIOS input keep their existing selection/review flow. Installed launch still requires positive core readiness, and a retained-definition hold explains its exact reason. Missing legacy action projections keep the existing readiness behavior; malformed or incomplete current projections do not enable an action. An existing review can still be dismissed during a hold, and owned-operation cancellation stays reachable. A later allowed snapshot can restore the control, but preview and presentation never authorize execution: core rechecks current inputs under its existing guards.
@@ -615,3 +615,17 @@ opening another destination must not imply cancellation or task completion.
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
 
 Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.
+
+## Read-only diagnostics
+
+`components/ui/read-only-text-field.tsx` owns the shared read-only field used by
+error-detail manual-copy fallback and Activity's retained output, error and
+manual-copy fields. Its label and exact value come from the feature. The field
+uses semantic inset/input/text roles and the shared focus treatment, wraps long
+content within the available width, and allows vertical resize and scrolling.
+Its 80–384px equivalent height bounds preserve access to long output without
+expanding the whole task; text remains selectable with keyboard or pointer.
+
+Features retain lazy capture, redaction, request/generation guards, clipboard
+outcomes and announcements. The primitive does not fetch, redact, copy or store
+diagnostics. Existing failure and Activity semantics remain authoritative.
