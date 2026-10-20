@@ -5,7 +5,10 @@ import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { capacityDigest } from "./release-capacity.mts";
-import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
+import {
+  inspectTufPublicationFacts,
+  assertMetadataRenewalPublication,
+} from "./release-metadata-contract.mts";
 import {
   composeSiteFiles,
   assembleAuthenticatedApplicationSite,
@@ -61,6 +64,22 @@ void test(
       output_parent: f.output,
     });
     assert.ok(composed.publication);
+    const renewal: unknown = JSON.parse(await readFile(path.join(input, "renewal.json"), "utf8"));
+    assertMetadataRenewalPublication(renewal, composed.publication);
+    for (const changed of [
+      { ...composed.publication, root_sha256: "0".repeat(64) },
+      { ...composed.publication, offline_targets_sha256: "0".repeat(64) },
+      { ...composed.publication, records_sha256: "0".repeat(64) },
+      { ...composed.publication, versions: { ...composed.publication.versions, timestamp: "3" } },
+      {
+        ...composed.publication,
+        expires: { ...composed.publication.expires, timestamp: "2026-10-23T00:00:00Z" },
+      },
+    ])
+      assert.throws(
+        () => assertMetadataRenewalPublication(renewal, changed),
+        /differs from frozen/,
+      );
     assert.equal(composed.publication.versions.snapshot, "2");
     assert.equal(
       composed.publication.timestamp_sha256,

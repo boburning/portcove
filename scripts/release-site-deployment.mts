@@ -32,6 +32,7 @@ import type { AuthenticatedReleaseControlSource } from "./release-live-control-a
 import { performance } from "node:perf_hooks";
 import { verifyPreparedImmutableRelease } from "./release-immutable-publication.mts";
 import type { PreparedReleasePublication } from "./release-immutable-publication.mts";
+import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const block = 512;
@@ -398,6 +399,11 @@ export async function publishPreparedSiteDeployment(
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
+  if (input.metadata_renewal !== undefined)
+    input.metadata_renewal = assertMetadataRenewalPublication(
+      input.metadata_renewal,
+      prepared.publication,
+    );
   const executorIdentity = capacityExecutorIdentity(executor);
   if (
     executorIdentity.role !== "site-publication" ||

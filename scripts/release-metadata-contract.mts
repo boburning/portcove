@@ -135,6 +135,23 @@ export function inspectTufPublicationFacts(raw: unknown) {
   };
 }
 
+/** Match actual verifier output to the exact frozen maintenance opportunity
+ * before any public mutation. Valid signatures alone cannot authorize different
+ * records, offline anchors, versions or expirations. */
+export function assertMetadataRenewalPublication(rawDescriptor: unknown, rawFacts: unknown) {
+  const descriptor = inspectMetadataRenewalDescriptor(rawDescriptor);
+  const facts = inspectTufPublicationFacts(rawFacts);
+  if (
+    facts.root_sha256 !== descriptor.root_sha256 ||
+    facts.offline_targets_sha256 !== descriptor.offline_targets_sha256 ||
+    facts.records_sha256 !== descriptor.unchanged_records_sha256 ||
+    digest(facts.versions) !== digest(descriptor.next_versions) ||
+    digest(facts.expires) !== digest(descriptor.next_expires)
+  )
+    throw new Error("assembled publication differs from frozen metadata renewal");
+  return descriptor;
+}
+
 export function inspectPublishedMetadata(raw: unknown) {
   if (raw === null || raw === undefined) return null;
   exact(
