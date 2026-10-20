@@ -152,6 +152,101 @@ mod tests {
     }
 
     #[test]
+    fn cvlod_game_graph_selects_only_exact_reviewed_windows_object_aliases() {
+        let fixed: BTreeMap<String, Vec<String>> =
+            serde_json::from_str(include_str!("objects.json")).unwrap();
+        let aliases: BTreeMap<String, String> =
+            serde_json::from_str(include_str!("object-aliases.json")).unwrap();
+        assert_eq!(aliases.len(), 13);
+        let helpers: BTreeMap<String, Vec<Helper>> =
+            serde_json::from_str(include_str!("helpers.json")).unwrap();
+        let graph = |shortened: bool| {
+            let mut lines = vec!["include CMakeFiles/rules.ninja".to_owned()];
+            for canonical in &fixed["game"] {
+                let target = if shortened {
+                    aliases.get(canonical).unwrap_or(canonical)
+                } else {
+                    canonical
+                };
+                let group = canonical
+                    .rsplit_once("CMakeFiles/")
+                    .unwrap()
+                    .1
+                    .split_once(".dir/")
+                    .unwrap()
+                    .0;
+                lines.push(format!(
+                    "build {target}: C_COMPILER__{group}_unscanned_RelWithDebInfo fixed-source"
+                ));
+            }
+            for helper in &helpers["game"] {
+                lines.push(format!("build {}: phony", helper.target));
+            }
+            lines.join("\n") + "\n"
+        };
+        let temporary = tempfile::tempdir().unwrap();
+        let build = temporary.path();
+        std::fs::create_dir(build.join("CMakeFiles")).unwrap();
+        std::fs::write(
+            build.join("CMakeFiles/rules.ninja"),
+            "rule fixed\n  command = fixed\n",
+        )
+        .unwrap();
+        let inspect = |text: &str| {
+            std::fs::write(build.join("build.ninja"), text).unwrap();
+            Plan::read(build, Stage::Game)
+        };
+        let plain = graph(false);
+        let shortened = graph(true);
+        assert_eq!(inspect(&plain).unwrap().objects, fixed["game"]);
+        let selected = inspect(&shortened).unwrap();
+        assert_eq!(selected.objects.len(), 851);
+        for (canonical, alias) in &aliases {
+            assert!(selected.objects.contains(alias));
+            assert!(!selected.objects.contains(canonical));
+            let diagnostic = format!("[1/1] Building C object {alias}\n");
+            assert_eq!(
+                selected.actions(&diagnostic, true).unwrap().objects,
+                [alias.clone()]
+            );
+            assert!(
+                selected
+                    .actions(&format!("[1/1] Building C object {canonical}\n"), true)
+                    .is_err()
+            );
+            // Every reviewed alias also works in a mixed graph, independently.
+            assert!(inspect(&plain.replace(canonical, alias)).is_ok());
+            let line = shortened
+                .lines()
+                .find(|line| line.starts_with(&format!("build {alias}:")))
+                .unwrap();
+            assert!(inspect(&shortened.replace(line, "")).is_err());
+            assert!(
+                inspect(&(shortened.clone() + &line.replace(alias, canonical) + "\n")).is_err()
+            );
+            assert!(inspect(&(shortened.clone() + line + "\n")).is_err());
+            let unknown = alias.replacen(".dir/", ".dir/unknown/", 1);
+            assert!(inspect(&shortened.replace(alias, &unknown)).is_err());
+            assert!(inspect(&shortened.replace(alias, &(alias.clone() + ".obj"))).is_err());
+        }
+        assert!(inspect(&shortened.replace("_RelWithDebInfo", "_Debug")).is_err());
+        assert!(
+            inspect(&shortened.replace("C_COMPILER__rabbitizer", "CUSTOM_COMMAND__rabbitizer"))
+                .is_err()
+        );
+        assert!(
+            inspect(&shortened.replace(
+                "include CMakeFiles/rules.ninja",
+                "include CMakeFiles/other.ninja"
+            ))
+            .is_err()
+        );
+        let selected = inspect(&shortened).unwrap();
+        std::fs::write(build.join("build.ninja"), plain).unwrap();
+        assert!(selected.require_unchanged(build).is_err());
+    }
+
+    #[test]
     fn cvlod_graph_allows_only_one_fixed_rule_include_with_either_separator() {
         for manifest in [
             "include CMakeFiles/rules.ninja\n",
@@ -295,6 +390,25 @@ impl Plan {
                 .ok_or_else(|| PortcoveError::verification("CVLoD compiler group differs"))?;
             groups.insert(group);
         }
+        // CMake shortens these reviewed Rabbitizer paths on Windows. Admit only
+        // the exact observed spellings, never a basename or arbitrary hash.
+        let aliases: BTreeMap<String, String> = if matches!(stage, Stage::Game) {
+            serde_json::from_str(include_str!("object-aliases.json"))?
+        } else {
+            BTreeMap::new()
+        };
+        let mut canonical_aliases = BTreeMap::new();
+        for (canonical, alias) in &aliases {
+            validate_target(alias)?;
+            if !wanted.contains(canonical)
+                || wanted.contains(alias)
+                || canonical_aliases.insert(alias, canonical).is_some()
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed object alias differs",
+                ));
+            }
+        }
         let (manifest, rules) = graph(build)?;
         let manifest_text = std::str::from_utf8(&manifest)
             .map_err(|_| PortcoveError::verification("CVLoD graph is not UTF-8"))?;
@@ -302,6 +416,7 @@ impl Plan {
             .map_err(|_| PortcoveError::verification("CVLoD rules are not UTF-8"))?;
         validate_graph_includes(manifest_text, rule_text)?;
         let mut declared = BTreeSet::new();
+        let mut selected = BTreeMap::new();
         let mut outputs = BTreeSet::new();
         for line in manifest_text
             .lines()
@@ -332,14 +447,18 @@ impl Plan {
             validate_target(&target)?;
             let expected = ["C_COMPILER", "CXX_COMPILER", "RC_COMPILER"]
                 .map(|kind| format!("{kind}__{group}_unscanned_{}", stage.configuration()));
+            let canonical = canonical_aliases
+                .get(&target)
+                .map_or(target.as_str(), |canonical| canonical.as_str());
             if !expected.contains(&rule.to_owned())
                 || targets.contains(' ')
-                || !declared.insert(target)
+                || !declared.insert(canonical.to_owned())
             {
                 return Err(PortcoveError::verification(
                     "CVLoD compiler graph differs from its fixed target contract",
                 ));
             }
+            selected.insert(canonical.to_owned(), target);
         }
         if declared != wanted {
             return Err(
@@ -375,7 +494,10 @@ impl Plan {
             }
         }
         Ok(Self {
-            objects,
+            objects: objects
+                .into_iter()
+                .map(|object| selected[&object].clone())
+                .collect(),
             helpers,
             manifest_sha256: digest(&manifest),
             rules_sha256: digest(&rules),
