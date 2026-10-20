@@ -6,13 +6,147 @@ import os from "node:os";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
+import { GitHubApiError } from "./github-api.mts";
 import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
   materializePublishedApplicationComponent,
+  observeInitialApplicationSite,
 } from "./release-site-readback.mts";
 
 const origin = "https://boburning.github.io/portcove/";
+
+async function initialFixture(t: test.TestContext) {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-initial-site-test-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const calls: string[] = [];
+  const state = { owner: true, scope: "repo", project: 404, parent: 404, change: false };
+  const api = {
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      calls.push(endpoint);
+      const headers = new Map([["x-oauth-scopes", state.scope]]);
+      if (endpoint === "user")
+        return {
+          status: 200,
+          headers,
+          body: { id: state.owner ? 43177418 : 1, login: "boburning" },
+        };
+      if (endpoint === "repos/boburning/portcove")
+        return {
+          status: 200,
+          headers,
+          body: {
+            id: 1354613114,
+            full_name: "boburning/portcove",
+            private: false,
+            owner: { id: 43177418 },
+            permissions: { admin: true },
+          },
+        };
+      const status =
+        endpoint === "repos/boburning/portcove/pages"
+          ? state.change && calls.length > 4
+            ? 200
+            : state.project
+          : endpoint === "repos/boburning/boburning.github.io"
+            ? state.parent
+            : 500;
+      if (status === 404) throw new GitHubApiError("command_failed", "Not Found", { status });
+      return { status, headers, body: {} };
+    },
+  };
+  const fetcher = (async (url, options) => {
+    assert.ok(typeof url === "string");
+    assert.equal(options?.credentials, "omit");
+    assert.equal(options?.redirect, "error");
+    assert.equal(options?.cache, "no-store");
+    assert.equal(
+      Object.keys(options?.headers ?? {}).some((key) => /auth/i.test(key)),
+      false,
+    );
+    return response(url, Buffer.from("not found"), 404);
+  }) as typeof fetch;
+  return { root, calls, state, api, fetcher };
+}
+
+void test("initial setup observes owner-visible unconfigured project and parent namespace around fixed credential-free 404 routes", async (t) => {
+  const f = await initialFixture(t);
+  const result = await observeInitialApplicationSite(f.root, { api: f.api, fetch: f.fetcher });
+  assert.equal(result.receipt.authority, "none");
+  assert.equal(result.receipt.evidence_scope, "injected-provider");
+  assert.equal(result.receipt.observations.length, 6);
+  assert.equal(f.calls.length, 8);
+  assert.equal(
+    createHash("sha256")
+      .update(await readFile(path.join(result.directory, "initial-site.json")))
+      .digest("hex"),
+    result.sha256,
+  );
+});
+
+void test("public 404 alone cannot appoint an empty site: wrong owner, limited visibility and existing namespaces refuse", async (t) => {
+  const f = await initialFixture(t);
+  for (const kind of ["owner", "scope", "project", "parent"] as const) {
+    const before = { ...f.state };
+    if (kind === "owner") f.state.owner = false;
+    else if (kind === "scope") f.state.scope = "read:user";
+    else f.state[kind] = 200;
+    await assert.rejects(
+      observeInitialApplicationSite(f.root, {
+        api: f.api,
+        fetch: async () => assert.fail("provider preimage refused before HTTP"),
+      }),
+      /initial site observation refused/,
+    );
+    Object.assign(f.state, before);
+  }
+});
+
+void test("changing injected setup options while awaiting cannot relabel evidence or replace the fixed reader", async (t) => {
+  const f = await initialFixture(t);
+  const options: Parameters<typeof observeInitialApplicationSite>[1] = { api: f.api };
+  options.fetch = async (...args) => {
+    delete options.api;
+    delete options.fetch;
+    return f.fetcher(...args);
+  };
+  const result = await observeInitialApplicationSite(f.root, options);
+  assert.equal(result.receipt.evidence_scope, "injected-provider");
+  assert.equal(f.calls.length, 8);
+});
+
+void test("initial observation retains partial facts and refuses present routes, unavailable HTTP and changing provider state", async (t) => {
+  const f = await initialFixture(t);
+  for (const status of [200, 301, 403, 500]) {
+    await assert.rejects(
+      observeInitialApplicationSite(f.root, {
+        api: f.api,
+        fetch: async (url) => {
+          assert.ok(typeof url === "string");
+          return response(url, Buffer.alloc(0), status);
+        },
+      }),
+      /initial site observation refused/,
+    );
+  }
+  f.calls.length = 0;
+  f.state.change = true;
+  await assert.rejects(
+    observeInitialApplicationSite(f.root, { api: f.api, fetch: f.fetcher }),
+    /refused/,
+  );
+  const records = await readdir(f.root);
+  assert.equal(records.length, 5);
+  for (const directory of records) {
+    const record: unknown = JSON.parse(
+      await readFile(path.join(f.root, directory, "refusal.json"), "utf8"),
+    );
+    assert.ok(isRecord(record));
+    assert.equal(record.automatic_retry, false);
+    assert.ok(Array.isArray(record.observations) && record.observations.length >= 2);
+  }
+});
 function fixture() {
   const files = new Map([
     [".nojekyll", Buffer.alloc(0)],
