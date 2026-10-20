@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import { crc32, inflateRawSync } from "node:zlib";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -142,30 +143,52 @@ export async function waitForControlArtifact(
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
     sleep?: (milliseconds: number) => Promise<void>;
+    /** Caller may only tighten the existing finite wait, never extend it. */
+    deadline?: number;
+    phaseDeadline?: number;
   } = {},
 ) {
   const input = attempt(raw);
   if (role === "observation" && input.round) inspectControlRound(input.round);
   const phaseProfile = releaseControlPhaseProfile(input.phase);
-  const runner = createGitHubRunner({
-    ...options.transport,
-    cwd: privateRoot,
-    maxBuffer: 512 * 1024,
-    timeoutMs: 5000,
-  });
-  const api =
-    options.api ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const now = options.now ?? Date.now;
   const start = now();
   let requests = 0;
   // Waiting precedes observation. The separate 60-second protection freshness
   // guard still applies after the actual report arrives.
-  const limit = 240000;
+  const limit =
+    options.deadline === undefined ? 240000 : Math.min(240000, options.deadline - start);
+  const phaseDeadline = options.phaseDeadline;
+  const remaining = (maximum = 240000) => {
+    const phase = phaseDeadline === undefined ? Infinity : phaseDeadline - performance.now();
+    const left = Math.floor(Math.min(limit - (now() - start), phase, maximum));
+    if (
+      !Number.isFinite(left) ||
+      left < 1 ||
+      (phaseDeadline !== undefined && (!Number.isFinite(phaseDeadline) || phase > 600000))
+    )
+      throw new Error("control handshake phase deadline exhausted");
+    return left;
+  };
+  remaining();
+  const api =
+    options.api ??
+    new GitHubApiClient((args, input) => {
+      const result = createGitHubRunner({
+        ...options.transport,
+        cwd: privateRoot,
+        maxBuffer: 512 * 1024,
+        timeoutMs: remaining(5000),
+      })([...args, "--hostname", "github.com"], input);
+      remaining();
+      return result;
+    });
   const get = (endpoint: string) => {
+    remaining();
     if (++requests > 256 || now() - start >= limit)
       throw new Error("control handshake request or deadline bound exhausted");
     const response = api.request("GET", `${base}/${endpoint}`);
+    remaining();
     if (
       response.status !== 200 ||
       now() - start >= limit ||
@@ -284,9 +307,10 @@ export async function waitForControlArtifact(
           {
             cwd: privateRoot,
             maxBytes: Number(artifact.size_in_bytes),
-            timeoutMs: 5000,
+            timeoutMs: remaining(5000),
           },
         );
+        remaining();
         await writeFile(path.join(privateRoot, `control-${role}.zip`), zip, {
           flag: "wx",
           mode: 0o600,
@@ -392,9 +416,12 @@ export async function waitForControlArtifact(
           JSON.stringify(proof),
           { flag: "wx", mode: 0o600 },
         );
+        remaining();
         return proof;
       }
-      await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(3000);
+      await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(
+        remaining(3000),
+      );
     }
     throw new Error("control handshake poll count exhausted");
   } catch {

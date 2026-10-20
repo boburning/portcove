@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
 import {
   config,
@@ -83,6 +84,37 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
   return { control, runtime };
 }
+
+void test("controls cap the actual observer subprocess and refuse its late response without minting a source", async (t) => {
+  const f = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const { observerApi, ...options } = f.runtime.options;
+  let requests = 0;
+  await assert.rejects(
+    authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+      ...options,
+      deadline: 2000,
+      observerTransport: {
+        spawn(_command, args, settings) {
+          requests++;
+          assert.ok(settings.timeout && settings.timeout <= 1000);
+          const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+          assert.ok(endpoint);
+          const response = observerApi.request("GET", endpoint);
+          clock = 2001;
+          return {
+            status: 0,
+            stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
+            stderr: "",
+          };
+        },
+      },
+    }),
+    /phase deadline/u,
+  );
+  assert.equal(requests, 1);
+});
 
 void test("default observer REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
   const f = fixture();
