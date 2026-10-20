@@ -567,6 +567,11 @@ identities and those proofs before an exact production-authority request.
 
 ### Durable local coordinator checkpoints
 
+The [coordinator and initial empty-feed implementation receipt](qualification/slice4-534-coordinator-and-initial-feed-2026-10-20.md)
+describes the request-bound continuation, automatic classification writer and
+explicit no-prior bootstrap context, including the remaining runtime joins and
+ungranted production prerequisites.
+
 `await checkpointReleaseOpportunity(repository, expectedPrevious, input)` in
 `scripts/release-coordinator-state.mts` persists the existing planner's validated
 input and returns its plan plus an exact checkpoint commit. It executes no plan.

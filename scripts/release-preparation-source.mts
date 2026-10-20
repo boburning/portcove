@@ -20,8 +20,15 @@ export function hydrateReleasePreparationSource(
   repository: string,
   source: { source_commit: string; source_tree: string },
   api: GitHubRestReader,
+  options: { trustedReleaseWorkflow?: Buffer } = {},
 ) {
   const expected = structuredClone(source);
+  const trustedWorkflow =
+    options.trustedReleaseWorkflow === undefined
+      ? null
+      : Buffer.from(options.trustedReleaseWorkflow);
+  if (trustedWorkflow && (trustedWorkflow.length < 1 || trustedWorkflow.length > 256 * 1024))
+    throw new Error("trusted release workflow exceeds bound");
   if (
     !oid(expected.source_commit) ||
     !oid(expected.source_tree) ||
@@ -98,6 +105,20 @@ export function hydrateReleasePreparationSource(
     get(`git/trees/${expected.source_tree}?recursive=1`),
     expected.source_tree,
   );
+  if (trustedWorkflow) {
+    const entry = trees.entries.get(".github/workflows/release.yml");
+    const expectedWorkflow = createHash("sha1")
+      .update(`blob ${trustedWorkflow.length}\0`)
+      .update(trustedWorkflow)
+      .digest("hex");
+    if (
+      !entry ||
+      entry.mode !== "100644" ||
+      entry.type !== "blob" ||
+      entry.oid !== expectedWorkflow
+    )
+      throw new Error("candidate release workflow differs from fixed trusted controller workflow");
+  }
   // Every tree was reconstructed and hashed by the existing source verifier.
   for (const object of trees.objects) store("tree", object.oid, Buffer.from(object.bytes));
   store("commit", original.object.oid, Buffer.from(original.object.bytes));

@@ -254,6 +254,29 @@ void test("missing ready artifact exhausts a finite wait and retains refusal wit
   assert.equal(failure.elapsed_ms, 240000);
 });
 
+void test("caller deadline can only tighten the handshake and bounds retained elapsed wait", async (t) => {
+  for (const deadline of [0, -1, 240001, Infinity, 1.5]) {
+    const f = await fixture(t);
+    await assert.rejects(
+      waitForControlArtifact(f.root, "ready", f.input, { ...f.options, deadline }),
+      /tighten/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
+  const f = await fixture(t);
+  f.missing(1000);
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, { ...f.options, deadline: 1000 }),
+    /retain exact attempt/,
+  );
+  const result: unknown = JSON.parse(
+    await readFile(path.join(f.root, "control-ready-refusal.json"), "utf8"),
+  );
+  assert.ok(isRecord(result));
+  assert.equal(result.elapsed_ms, 1000);
+  assert.equal(f.calls.length, 2);
+});
+
 void test("wrong source, foreign repository, stale attempt, expired archive and failed producer independently refuse", async (t) => {
   for (const change of [
     (f: Awaited<ReturnType<typeof fixture>>) => {

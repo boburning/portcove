@@ -230,6 +230,7 @@ const nativeScenarioFiles = new Set([
 // qualification, and updater authorities. Node contract tests are protected
 // with their implementations so a gate cannot weaken its own required proof.
 const releaseSecurityFiles = withNodeTestCompanions([
+  "scripts/release-classification-request.mts",
   ".github/release.yml",
   ".agents/skills/portcove-port-qualification/SKILL.md",
   ".agents/skills/portcove-release-validation/SKILL.md",
@@ -250,7 +251,11 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/production-controller-admission.mts",
   "scripts/release-site-composer.mts",
   "scripts/release-coordinator-journal-api.mts",
+  "scripts/release-publication-inventory.mts",
   "scripts/release-preparation-source.mts",
+  "scripts/release-coordinator-driver.mts",
+  "scripts/release-review-request.mts",
+  "scripts/release-candidate-dispatch.mts",
   "scripts/release-site-readback.mts",
   "scripts/release-site-deployment.mts",
   "scripts/release-pages-provider.mts",
@@ -321,6 +326,12 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-compiler-source.mts",
   "scripts/release-compiler-source-closure.mts",
   "scripts/release-native-qualification-contract.mts",
+  "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-bridge.ps1",
+  "scripts/native-qualification-account-client.ps1",
+  "scripts/native-qualification-account-client.mts",
+  "scripts/native-qualification-account-adapter.psm1",
+  "apps/desktop/scripts/desktop-native-account-session.mts",
   "scripts/release-native-acceptance.mts",
   "scripts/release-native-admission.mts",
   "scripts/release-signing-handoff.mts",

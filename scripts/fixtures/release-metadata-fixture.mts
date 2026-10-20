@@ -1,7 +1,9 @@
 import {
   inspectMetadataRenewalDescriptor,
   inspectPublishedMetadata,
+  inspectMetadataBootstrapDescriptor,
 } from "../release-metadata-contract.mts";
+import { capacityDigest } from "../release-capacity.mts";
 
 // Disposable declared facts, never authenticated public feed/source evidence.
 export function metadataFixture(at = Date.now()) {
@@ -72,4 +74,30 @@ export function metadataFixture(at = Date.now()) {
     },
   })!;
   return { descriptor, published, now: time(0) };
+}
+
+export function metadataBootstrapFixture(at = Date.now()) {
+  const seed = metadataFixture(at);
+  const descriptor = inspectMetadataBootstrapDescriptor({
+    schema_version: 1,
+    kind: "application-tuf-initial-bootstrap",
+    generated_at: seed.now,
+    setup_plan_sha256: "a".repeat(64),
+    initial_site_preimage_sha256: "b".repeat(64),
+    root_sha256: seed.published.root_sha256,
+    offline_targets_sha256: seed.published.offline_targets_sha256,
+    payload_key_registry_sha256: "c".repeat(64),
+    initial_records_sha256: capacityDigest([]),
+    versions: seed.published.versions,
+    expires: { ...seed.published.expires, targets: seed.published.expires.releases },
+  });
+  return {
+    descriptor,
+    published: {
+      ...seed.published,
+      records_sha256: descriptor.initial_records_sha256,
+      versions: descriptor.versions,
+      expires: descriptor.expires,
+    },
+  };
 }
