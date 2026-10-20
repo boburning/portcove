@@ -47,6 +47,7 @@ import {
   jwk as identityJwk,
 } from "./fixtures/assembler-identity-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
@@ -1572,7 +1573,14 @@ for (const lost of [false, true])
         assert.equal(result.evidence_sha256, "d".repeat(64));
         assert.deepEqual(settled.input.active_candidate, f.input.active_candidate);
         activeIdentity = assemblerIdentityFixture(
-          { aud: "portcove-capacity-executor" },
+          {
+            aud: "portcove-capacity-executor",
+            environment: "production-release-coordinator",
+            sub: controllerOidcSubject(
+              identityExpected.controller_ref,
+              "production-release-coordinator",
+            ),
+          },
           {},
           {
             workflow: productionControllerWorkflow,
@@ -1581,7 +1589,14 @@ for (const lost of [false, true])
             checkRunId: 779,
           },
         );
-        const recoveryExpected = { ...identityExpected, audience: "portcove-capacity-executor" };
+        const recoveryExpected = {
+          ...identityExpected,
+          audience: "portcove-capacity-executor",
+          subject: controllerOidcSubject(
+            identityExpected.controller_ref,
+            "production-release-coordinator",
+          ),
+        };
         let readbacks = 0;
         const observed = async () => {
           readbacks++;
