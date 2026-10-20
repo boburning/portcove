@@ -144,7 +144,10 @@ void test("cold inventory hydrates once, joins by opaque identity, and keeps arc
   got.issues[0]!.body = "tampered";
   assert.throws(() => requireRoadmapInventory(got, config.repository), /collector-validated/);
 });
-async function temporarySession(t: test.TestContext, cache?: InventoryCache) {
+async function temporarySession(
+  t: test.TestContext,
+  cache?: InventoryCache & { baseline_completed_at?: string },
+) {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
   const state = await mkdtemp(path.join(work, "discovery-fixture-"));
@@ -334,7 +337,6 @@ void test("charged final recollection fits the scheduled budget and refuses genu
       });
       assert.equal(session.budget.usage.profile, "ordinary");
       session.inventory = previous;
-      session.inventoryCache = { ...previous, baseline_completed_at: new Date().toISOString() };
       session.inventoryStarted = true;
       session.budget.delivery = true;
       session.budget.charge("GET", "prior collection and delivery", priorRequests, 3500000, "200");
