@@ -581,6 +581,7 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
           "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
           "native-reviewed-source-reference-removal",
+          "native-reviewed-steam-batch-add",
           "native-host-publication-recovery",
           "native-game-update-review",
           "native-selected-setup-completion",

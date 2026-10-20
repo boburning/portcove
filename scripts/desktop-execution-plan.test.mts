@@ -588,14 +588,30 @@ void test("execution planning preserves the independently reviewed pre-change or
           expectedSession.cleanupName = "game-update-review";
       }
       // Source-reference removal adds positive Windows custody through the existing
-      // owner. Retain the immutable oracle and every existing cleanup-name priority.
+      // owner. Preserve the oracle and restore explicit backup-focus name priority.
       if (
         row.platform === "win32" &&
         selection.selected_scenarios.includes("native-reviewed-source-reference-removal")
       ) {
         expectedSession.identityBoundSession = true;
-        if (expectedSession.cleanupName === "backup-focus")
+        if (
+          expectedSession.cleanupName === "backup-focus" &&
+          !selection.selected_scenarios.includes("native-backup-delete-focus")
+        )
           expectedSession.cleanupName = "source-reference-removal";
+      }
+      // Steam batch adds Windows custody without rewriting historical oracle bytes
+      // or displacing any existing cleanup name, including explicit backup focus.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-steam-batch-add")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (
+          expectedSession.cleanupName === "backup-focus" &&
+          !selection.selected_scenarios.includes("native-backup-delete-focus")
+        )
+          expectedSession.cleanupName = "steam-batch";
       }
       assert.deepEqual(plan.session, expectedSession);
     }
@@ -853,6 +869,53 @@ void test("source-reference removal adds Windows custody without changing builds
     ["native-reviewed-backup-restore-and-delete", "backup-review"],
     ["native-game-update-review", "game-update-review"],
     ["native-retained-contract-repair-state", "retained-contract-repair"],
+    ["native-backup-delete-focus", "backup-focus"],
+  ] as const) {
+    for (const scenarios of [
+      [id, other],
+      [other, id],
+    ]) {
+      const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+        platform: "win32",
+      });
+      assert.equal(plan.session.identityBoundSession, true);
+      assert.equal(plan.session.cleanupName, cleanupName);
+    }
+  }
+});
+
+void test("Steam batch adds Windows custody without changing builds, setup or cleanup priorities", () => {
+  const id = "native-reviewed-steam-batch-add";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(plan.session.cleanupName, platform === "win32" ? "steam-batch" : "backup-focus");
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.fixtures.steam, true);
+    assert.deepEqual(selection.prerequisites, [
+      "desktop",
+      "owned-fixture",
+      "native-dialog",
+      "steam-fixture",
+    ]);
+    assert.deepEqual(selection.host_resources, [
+      "native-desktop",
+      "keyboard-pointer",
+      "native-dialog",
+    ]);
+    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
+  for (const [other, cleanupName] of [
+    ["native-reviewed-backup-restore-and-delete", "backup-review"],
+    ["native-game-update-review", "game-update-review"],
+    ["native-retained-contract-repair-state", "retained-contract-repair"],
+    ["native-reviewed-source-reference-removal", "source-reference-removal"],
+    ["native-backup-delete-focus", "backup-focus"],
   ] as const) {
     for (const scenarios of [
       [id, other],
@@ -880,6 +943,7 @@ void test("qualified reviews and a running setup restart reject missing or forei
     { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
     { scenario: "native-reviewed-source-reference-removal" },
+    { scenario: "native-reviewed-steam-batch-add" },
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-late-listener-disposal" },
     { scenario: "native-rejected-listener-registration" },
@@ -912,7 +976,10 @@ void test("qualified reviews and a running setup restart reject missing or forei
         requireQualified,
       ),
     );
-    if (scenario === "native-reviewed-source-reference-removal") {
+    if (
+      scenario === "native-reviewed-source-reference-removal" ||
+      scenario === "native-reviewed-steam-batch-add"
+    ) {
       assert.throws(() =>
         validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
       );
