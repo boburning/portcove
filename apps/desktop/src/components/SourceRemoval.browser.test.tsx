@@ -6,6 +6,7 @@ import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { SourceRemovalPreview } from "../types";
 import { SourceRemovalControl, SourceRemovalReview } from "./SourceRemoval";
+import "../styles/index.css";
 
 const ports = [
   { ...portDefinition(), id: "installed", name: "Installed game" },
@@ -37,6 +38,7 @@ afterEach(async () => {
   container.remove();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  document.documentElement.removeAttribute("dir");
 });
 function button(label: string) {
   const result = [...document.body.querySelectorAll("button")].find(
@@ -55,6 +57,28 @@ function impact() {
   expect(result).not.toBeNull();
   return result!;
 }
+
+it("isolates a mixed-script Windows path in an RTL layout without changing its text", async () => {
+  const path = "D:\\Originals ü\\العربية\\game.iso";
+  document.documentElement.dir = "rtl";
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue({
+    ...preview,
+    source: { ...preview.source, path },
+  });
+  await root.rerender(
+    <SourceRemovalReview
+      profileId="source"
+      generation={3}
+      ports={ports}
+      close={vi.fn()}
+      onRemoved={vi.fn()}
+    />,
+  );
+  const code = impact().querySelector("code")!;
+  expect(code.textContent).toBe(path);
+  expect(getComputedStyle(code).direction).toBe("ltr");
+  expect(getComputedStyle(code).unicodeBidi).toBe("isolate");
+});
 
 it("requires fresh intent after location identity changes and never opens renderer approval", async () => {
   const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);

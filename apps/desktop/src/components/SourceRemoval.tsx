@@ -193,7 +193,9 @@ function SourceRemovalDetails({
       <p>
         <strong>Exact saved location:</strong>
       </p>
-      <code className="block break-all whitespace-normal">{preview.source.path}</code>
+      <code dir="ltr" className="block break-all whitespace-normal [unicode-bidi:isolate]">
+        {preview.source.path}
+      </code>
       <p>
         Removing this location does not move or delete files at the path above, installed game
         versions, game saves, backups, or other saved locations. Only this library's location is
