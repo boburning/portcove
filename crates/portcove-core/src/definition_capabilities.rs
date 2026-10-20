@@ -78,6 +78,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 13,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 14,
+        });
         supported
     }
 }
@@ -292,7 +296,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 14, 14)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 15, 15)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -336,6 +340,31 @@ mod tests {
             DefinitionCapabilityOutcome::UnsupportedVersion
         );
         assert_eq!(old.checks[0].installed_version, Some(8));
+    }
+
+    #[test]
+    fn runtime_credentials_require_v14_beyond_render96_only_v13() {
+        let render96_only: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 13
+            })
+            .collect();
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 13, 13), &render96_only)
+                .unwrap()
+                .compatible
+        );
+        let refused =
+            check_with_inventory(&request("staged-source-portable", 14, 14), &render96_only)
+                .unwrap();
+        assert!(!refused.compatible);
+        assert_eq!(refused.checks[0].installed_version, Some(13));
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 14, 14))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

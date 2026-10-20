@@ -35,10 +35,13 @@ fn runtime_credential_policy_requires_the_exact_new_reader_floor() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("wave-race-64-racewave46").unwrap();
     let mut entry = entry_for_port(port);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 13"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 14"));
     entry["required_capabilities"][0]["maximum_version"] = json!(13);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 13"));
     entry["required_capabilities"][0]["minimum_version"] = json!(13);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 14"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(14);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 14"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(14);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
@@ -151,7 +154,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if port.runtime_data_policy.is_some() {
-            13
+            14
         } else if port.managed_initialization.is_some() {
             12
         } else if port.windows_runtime_path_policy.is_some() {

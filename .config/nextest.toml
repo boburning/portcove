@@ -85,16 +85,6 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
-# Windows CI39368464909/a1 reached the second retained rollback execution at
-# the default30s cutoff (second status completed at25.86s). Keep both real
-# reopen/rollback attempts and every preservation assertion, with the same45s
-# finite case budget already used on Intel. Product deadlines/retries stay intact.
-[[profile.default.overrides]]
-platform = 'x86_64-pc-windows-msvc'
-filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
-slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
-success-output = "immediate"
-
 # The Intel run reached the second real retained launch at 28.2s before the
 # default 30s cutoff. Keep both reopen/launch attempts and all preservation
 # assertions; 45s gives this exact lifecycle case finite execution headroom.

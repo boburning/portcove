@@ -81,7 +81,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
     let version = if typed.runtime_data_policy.is_some() {
-        13
+        14
     } else if typed.managed_initialization.is_some() {
         12
     } else if typed.windows_runtime_path_policy.is_some() {
@@ -186,7 +186,11 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 fn render96_and_retained_windows_paths_keep_distinct_capability_floors() {
     let document = projection();
     let contract = serde_json::to_vec(&document).unwrap();
-    for (id, version) in [("render96ex", 13), ("f-zero-snes-recomp", 11)] {
+    for (id, version) in [
+        ("wave-race-64-racewave46", 14),
+        ("render96ex", 13),
+        ("f-zero-snes-recomp", 11),
+    ] {
         let position = document["catalog"]["ports"]
             .as_array()
             .unwrap()
