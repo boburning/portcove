@@ -109,6 +109,41 @@ fn batch_distinguishes_changed_missing_and_unsupported_container() {
 }
 
 #[test]
+fn relative_file_sets_remain_unchecked_in_the_quick_batch_without_opening_them() {
+    let (temporary, service, mut record) = fixture();
+    record.profile_id = "dark-forces-pc-complete-installed-data".into();
+    for directory in [false, true] {
+        record.path = temporary.path().join(if directory {
+            "relative-directory"
+        } else {
+            "relative.zip"
+        });
+        if directory {
+            std::fs::create_dir(&record.path).unwrap();
+        } else {
+            std::fs::write(&record.path, b"not a ZIP: quick batch must not parse it").unwrap();
+        }
+        service.library().register_source(&record).unwrap();
+        let before = serde_json::to_vec(&service.library().sources().unwrap()).unwrap();
+        let batch = service
+            .inspect_registered_sources_bounded(
+                &[record.profile_id.clone()],
+                &limits(),
+                &operation(),
+            )
+            .unwrap();
+        assert_eq!(batch.hash_bytes, 0);
+        assert_eq!(report(&batch).health, SourceHealth::NotChecked);
+        assert!(report(&batch).inspection.is_none());
+        assert_eq!(report(&batch).problem.as_ref().unwrap().code, "unsupported");
+        assert_eq!(
+            before,
+            serde_json::to_vec(&service.library().sources().unwrap()).unwrap()
+        );
+    }
+}
+
+#[test]
 fn batch_shares_bytes_only_for_matching_complete_input_baselines() {
     let (_temporary, service, mut record) = fixture();
     record.profile_id = "star-fox-64".into();

@@ -1,5 +1,23 @@
 # Catalog policy
 
+## Exact relative-file sources and managed TFE
+
+`relative-file-set` is an explicit source representation and projected source
+kind. Unlike historical basename-only file sets, each member declares a portable
+relative path, exact size and SHA-256. Required members must cover the managed
+runtime targets bijectively with matching hashes; directory and ZIP namespace,
+size and caller-budget checks precede member admission. The normalized aggregate
+uses its own versioned SHA-256 protocol, including single-member sets. Existing
+basename file-set identities and aggregates are unchanged.
+
+The closed Windows TFE v1.22.420 initializer requires staged-source capability
+**12** as a minimum, rather than a range admitting an older implementation.
+Transport schema **75** adds the relative source shape and managed initializer;
+older consumers must refuse unsupported semantics. Full source inspection and
+bounded quick filter observations are distinct: the latter returns `NotChecked`
+for this shape. See [managed Dark Forces setup and recovery](reference/managed-tfe.md)
+for player workflow, persistence boundaries and the removal recovery hold.
+
 ## Default covers
 
 For a whole ordinary catalog proposal, use

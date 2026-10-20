@@ -268,6 +268,10 @@ pub(crate) fn recover_removal(
     operation: &mut LifecycleOperation,
 ) -> Result<()> {
     let mut removal = RemovalOperation::decode(&service.library, operation)?;
+    for paths in removal.paths(&service.library)? {
+        crate::managed_tfe::require_no_recovery_data(&paths.live)?;
+        crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+    }
     if removal.phase == RemovalPhase::Quarantining {
         if operation.original_paths.is_empty() {
             store.remove(&operation.id)?;
@@ -297,6 +301,9 @@ pub(crate) fn recover_removal(
         removal.advance(RemovalPhase::Quarantined, operation, store)?;
     }
     if removal.phase == RemovalPhase::Quarantined {
+        for paths in removal.paths(&service.library)? {
+            crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+        }
         service.library.remove_port(&operation.port_id)?;
         removal.advance(RemovalPhase::Committed, operation, store)?;
     }
@@ -311,6 +318,9 @@ pub(crate) fn recover_removal(
             .collect::<std::collections::BTreeSet<_>>();
         for cleanup_root in cleanup_roots {
             if cleanup_root.exists() {
+                for paths in removal.paths(&service.library)? {
+                    crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
+                }
                 fs::remove_dir_all(cleanup_root)?;
             }
         }

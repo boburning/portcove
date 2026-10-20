@@ -14,7 +14,9 @@ export function ActionReviewFailure({ error }: { error: unknown }) {
       : undefined;
   return (
     <div role={neutral ? "status" : "alert"}>
-      <p>{errorText(error)}</p>
+      <p className="min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap [unicode-bidi:plaintext]">
+        {errorText(error)}
+      </p>
       {presentation && <FailureDetails presentation={presentation} code={code} />}
     </div>
   );

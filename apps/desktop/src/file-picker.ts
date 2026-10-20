@@ -17,12 +17,12 @@ export async function pickSourcePath(
   currentPath: string,
   purpose: SourcePickerPurpose = "game",
 ) {
-  if (profile.kind === "file-set" && currentPath.toLowerCase().endsWith(".zip")) {
+  const fileSet = profile.kind === "file-set" || profile.kind === "relative-file-set";
+  if (fileSet && currentPath.toLowerCase().endsWith(".zip")) {
     return pickSourceArchivePath(currentPath, purpose);
   }
   const directory =
-    profile.kind === "file-set" ||
-    (profile.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1);
+    fileSet || (profile.kind === "psx-disc" && (profile.disc?.discs?.length ?? 0) > 1);
   const extensions = profile.accepted_extensions.map((extension) =>
     extension.replace(/^\./, "").toLowerCase(),
   );

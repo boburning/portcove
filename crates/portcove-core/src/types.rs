@@ -267,6 +267,7 @@ pub enum SourceKind {
     #[default]
     File,
     FileSet,
+    RelativeFileSet,
     GamecubeDisc,
     PsxDisc,
     UpstreamValidatedDisc,
@@ -514,6 +515,13 @@ pub enum WindowsRuntimePathPolicy {
     PrintableAsciiMaxPath,
 }
 
+/// Closed initialization recipes, never catalog-supplied scripts or file contents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum ManagedInitialization {
+    #[serde(rename = "tfe-dark-forces-v1.22.420")]
+    TfeDarkForces122420,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PortDefinition {
     pub id: String,
@@ -552,6 +560,8 @@ pub struct PortDefinition {
     /// Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub n64_windows_initial_d3d12: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub managed_initialization: Option<ManagedInitialization>,
     #[serde(default)]
     pub source_environment: Option<String>,
     #[serde(default)]

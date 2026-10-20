@@ -7,6 +7,16 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Managed TFE's two complete Windows recovery lifecycles passed at 5.6s/15.3s,
+# then one hit the 30s harness cutoff while its peer completed at 27.1s on the
+# shared host. Preserve all versions, reopen/resume and preservation assertions,
+# two test workers and zero retries; only these exact cases get finite 60s room.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # This exact Windows ownership regression passed at 19.3s, then reached the
 # 30s harness cutoff during shared-drive contention. Retain all five provider
 # refusal operations, preservation assertions, two workers and zero retries.

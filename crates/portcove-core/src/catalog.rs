@@ -257,7 +257,7 @@ impl Catalog {
                         profile.id
                     )));
                 }
-                SourceKind::FileSet => {
+                SourceKind::FileSet | SourceKind::RelativeFileSet => {
                     let mut member_ids = HashSet::new();
                     let mut filenames = HashSet::new();
                     let valid_members = profile.disc.is_none()
@@ -274,8 +274,15 @@ impl Catalog {
                                 });
                             let valid_filenames = !member.accepted_filenames.is_empty()
                                 && member.accepted_filenames.iter().all(|filename| {
-                                    is_safe_basename(filename)
-                                        && filenames.insert(filename.to_ascii_lowercase())
+                                    (if profile.kind == SourceKind::RelativeFileSet {
+                                        !filename.contains('\\')
+                                            && crate::archive::validate_relative_path(
+                                                filename, false,
+                                            )
+                                            .is_ok()
+                                    } else {
+                                        is_safe_basename(filename)
+                                    }) && filenames.insert(filename.to_ascii_lowercase())
                                 });
                             valid_id
                                 && member_ids.insert(member.id.as_str())
@@ -1196,7 +1203,9 @@ impl Catalog {
                         )));
                     }
                 }
-                None if !port.runtime_source_hashes.is_empty() => {
+                None if !port.runtime_source_hashes.is_empty()
+                    && port.managed_initialization.is_none() =>
+                {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
                         port.id
@@ -1246,12 +1255,20 @@ impl Catalog {
                             .collect::<HashSet<_>>()
                             == source_names
                     });
-                    let valid = profile.kind == SourceKind::FileSet
-                        && !target.source_filenames.is_empty()
-                        && target
-                            .source_filenames
-                            .iter()
-                            .all(|filename| is_safe_basename(filename))
+                    let relative_set = profile.kind == SourceKind::RelativeFileSet;
+                    let valid = matches!(
+                        profile.kind,
+                        SourceKind::FileSet | SourceKind::RelativeFileSet
+                    ) && !target.source_filenames.is_empty()
+                        && target.source_filenames.iter().all(|filename| {
+                            if relative_set {
+                                !filename.contains('\\')
+                                    && crate::archive::validate_relative_path(filename, false)
+                                        .is_ok()
+                            } else {
+                                is_safe_basename(filename)
+                            }
+                        })
                         && !target.destination.is_empty()
                         && Path::new(&target.destination)
                             .components()
@@ -1263,12 +1280,49 @@ impl Catalog {
                                 | RuntimeSourceMaterialization::N64BigEndian
                         )
                         && matches_member;
+                    let valid = valid
+                        && (!relative_set
+                            || (port.managed_initialization.is_some()
+                                && target.source_filenames.len() == 1
+                                && target.materialization == RuntimeSourceMaterialization::Copy
+                                && crate::archive::validate_relative_path(
+                                    &target.destination,
+                                    false,
+                                )
+                                .is_ok()
+                                && profile.members.iter().any(|member| {
+                                    member.accepted_filenames == target.source_filenames
+                                        && member.accepted_sha256.len() == 1
+                                        && port
+                                            .runtime_source_hashes
+                                            .get(&target.destination)
+                                            .is_some_and(|hash| {
+                                                hash.eq_ignore_ascii_case(
+                                                    &member.accepted_sha256[0],
+                                                )
+                                            })
+                                })));
                     if !valid {
                         return Err(PortcoveError::usage(format!(
                             "{} has an invalid file-set runtime source target",
                             port.id
                         )));
                     }
+                }
+                if profile.kind == SourceKind::RelativeFileSet
+                    && (port.runtime_source_set.len() != profile.members.len()
+                        || port.runtime_source_hashes.len() != port.runtime_source_set.len()
+                        || port
+                            .runtime_source_set
+                            .iter()
+                            .map(|target| target.source_filenames[0].to_ascii_lowercase())
+                            .collect::<HashSet<_>>()
+                            .len()
+                            != profile.members.len())
+                {
+                    return Err(PortcoveError::usage(
+                        "relative runtime targets must cover the complete source set exactly",
+                    ));
                 }
             }
             if port.launch_from_install_root
@@ -1431,6 +1485,118 @@ fn is_crc32(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn managed_tfe_requires_complete_relative_data_and_preserves_historical_primary_route() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("the-force-engine-dark-forces").unwrap();
+        assert_eq!(
+            port.managed_initialization,
+            Some(crate::ManagedInitialization::TfeDarkForces122420)
+        );
+        assert_eq!(port.runtime_source_set.len(), 48);
+        assert_eq!(port.runtime_source_hashes.len(), 48);
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(profile.kind, crate::SourceKind::RelativeFileSet);
+        assert_eq!(profile.members.len(), 48);
+        assert_eq!(
+            profile
+                .members
+                .iter()
+                .filter(|member| member.accepted_filenames[0].starts_with("LFD/"))
+                .count(),
+            44
+        );
+        assert!(
+            port.runtime_mutable_paths
+                .iter()
+                .any(|path| path == "GameData")
+        );
+        assert!(
+            port.runtime_mutable_paths
+                .iter()
+                .any(|path| path == ".tfe-preparation")
+        );
+        assert!(
+            !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "GameData" || path == ".tfe-preparation")
+        );
+        assert!(
+            port.persistent_paths
+                .iter()
+                .any(|path| path == "DARKPILO.CFG")
+        );
+        assert!(port.launch_arguments.is_empty());
+        assert!(port.release.user_prepared.is_empty());
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+        let historical = Catalog::from_json(include_str!(
+            "../tests/fixtures/tfe-122420-prepared-historical.json"
+        ))
+        .unwrap();
+        let old = historical.port("the-force-engine-dark-forces").unwrap();
+        assert_eq!(old.release.provider, ReleaseSource::UserPrepared);
+        assert!(old.managed_initialization.is_none());
+        assert_eq!(
+            old.source_profile.as_deref(),
+            Some("dark-forces-pc-dark-gob")
+        );
+        assert_eq!(
+            catalog
+                .source_profile("dark-forces-pc-dark-gob")
+                .unwrap()
+                .kind,
+            SourceKind::File
+        );
+    }
+
+    #[test]
+    fn managed_tfe_lifecycle_evidence_does_not_claim_hands_on_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "the-force-engine-dark-forces".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac".into(),
+            ),
+            upstream_ref: Some("1.22.420".into()),
+            contract_id: Some("the-force-engine-dark-forces-managed-data".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dark-forces-pc-complete-installed-data".into(),
+                    variant_id: "owned-pc-installed-data".into(),
+                    representation_id: "relative-data-files".into(),
+                },
+            },
+            check_version: Some("tfe-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert!(
+            catalog
+                .port("the-force-engine-dark-forces")
+                .unwrap()
+                .manually_validated_platforms
+                .is_empty()
+        );
+    }
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -2340,7 +2506,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 37);
+        assert_eq!(qualification.len(), 39);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "the-force-engine-dark-forces")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()
@@ -2614,7 +2787,7 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 5);
+        assert_eq!(prepared.len(), 4);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
         for port in prepared {
             let presentation = port.presentation.as_ref().unwrap();

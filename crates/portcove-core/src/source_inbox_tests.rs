@@ -84,6 +84,84 @@ fn exact_bios_catalog(bytes: &[u8]) -> Catalog {
 }
 
 #[test]
+fn relative_inbox_checks_nested_members_and_honors_caller_limits() {
+    let bytes = b"inert nested companion";
+    let catalog = catalog_with(
+        "relative-inbox",
+        "file-set",
+        crate::SourceRepresentation {
+            id: "relative-files".into(),
+            extensions: vec![],
+            kind: SourceRepresentationKind::RelativeFileSet {
+                members: vec![crate::RelativeSourceMemberIdentity {
+                    id: "companion".into(),
+                    path: "LFD/MENU.LFD".into(),
+                    size: bytes.len() as u64,
+                    sha256: hex::encode(Sha256::digest(bytes)),
+                }],
+            },
+            evidence_ids: vec!["inbox-fixture-bytes".into()],
+        },
+    );
+    let (_temporary, service) = service(catalog);
+    let inbox = profile_dir(&service, "relative-inbox");
+    fs::create_dir(inbox.join("LFD")).unwrap();
+    fs::write(inbox.join("LFD/MENU.LFD"), bytes).unwrap();
+    let result = service
+        .scan_source_inbox("relative-inbox", &SourceDiscoveryLimits::default())
+        .unwrap();
+    assert_eq!(result.state, SourceInboxResolutionState::ExactMatch);
+    assert_eq!(
+        result.selected.unwrap().path,
+        fs::canonicalize(&inbox).unwrap()
+    );
+    assert!(result.stats.limits_reached.is_empty());
+    for (limits, expected) in [
+        (
+            SourceDiscoveryLimits {
+                max_entries: 2,
+                ..SourceDiscoveryLimits::default()
+            },
+            SourceDiscoveryLimit::Entries,
+        ),
+        (
+            SourceDiscoveryLimits {
+                max_file_bytes: 1,
+                ..SourceDiscoveryLimits::default()
+            },
+            SourceDiscoveryLimit::FileSize,
+        ),
+        (
+            SourceDiscoveryLimits {
+                max_depth: 0,
+                ..SourceDiscoveryLimits::default()
+            },
+            SourceDiscoveryLimit::Depth,
+        ),
+        (
+            SourceDiscoveryLimits {
+                max_hash_bytes: 1,
+                ..SourceDiscoveryLimits::default()
+            },
+            SourceDiscoveryLimit::HashBytes,
+        ),
+    ] {
+        let result = service
+            .scan_source_inbox("relative-inbox", &limits)
+            .unwrap();
+        assert_eq!(result.state, SourceInboxResolutionState::Incomplete);
+        assert!(result.selected.is_none());
+        assert!(
+            result.stats.limits_reached.contains(&expected),
+            "{:?}",
+            result.stats
+        );
+        assert!(result.stats.entries_examined <= limits.max_entries);
+        assert!(result.stats.hash_bytes <= limits.max_hash_bytes);
+    }
+}
+
+#[test]
 fn exact_inbox_fixture_validates_its_independent_schema2_graph() {
     let bytes = b"synthetic exact BIOS";
     let catalog = exact_bios_catalog(bytes);
