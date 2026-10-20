@@ -39,6 +39,7 @@ interface PrivateSession {
   directory: string;
   identity: CapacityExecutorIdentity;
   observed: number;
+  deadline?: number;
 }
 const sessions = new WeakMap<ExecutorSession, PrivateSession>();
 const audience = "portcove-capacity-executor";
@@ -48,12 +49,13 @@ async function observe(
   role: CapacityExecutorRole,
   expected: ReturnType<typeof inspectAssemblerIdentityExpectation>,
   directory: string,
+  deadline?: number,
 ): Promise<CapacityExecutorIdentity> {
   if (expected.audience !== audience)
     throw new Error("capacity executor audience differs from its fixed role");
-  const token = await requestAssemblerToken(audience);
+  const token = await requestAssemblerToken(audience, process.env, fetch, deadline);
   const actual = await verifyCapacityExecutorJobIdentity(role, token, expected, {
-    transport: { cwd: directory },
+    transport: { cwd: directory, ...(deadline === undefined ? {} : { deadline }) },
   });
   if (actual.evidence_scope !== "github.com")
     throw new Error("capacity executor requires actual provider identity");
@@ -77,17 +79,29 @@ export async function authenticateCapacityExecutor(
   role: CapacityExecutorRole,
   rawExpected: unknown,
   directory: string,
+  deadline?: number,
 ): Promise<ExecutorSession> {
   const expected = inspectAssemblerIdentityExpectation(structuredClone(rawExpected));
-  const identity = await observe(role, expected, directory);
+  const identity = await observe(role, expected, directory, deadline);
   const session: ExecutorSession = Object.freeze({ kind: "authenticated-capacity-executor" });
-  sessions.set(session, { role, expected, directory, identity, observed: performance.now() });
+  sessions.set(session, {
+    role,
+    expected,
+    directory,
+    identity,
+    observed: performance.now(),
+    ...(deadline === undefined ? {} : { deadline }),
+  });
   return session;
 }
 
 export function capacityExecutorIdentity(session: ExecutorSession): CapacityExecutorIdentity {
   const value = sessions.get(session);
-  if (!value || performance.now() - value.observed > 60_000)
+  if (
+    !value ||
+    performance.now() - value.observed > 60_000 ||
+    (value.deadline !== undefined && performance.now() >= value.deadline)
+  )
     throw new Error("actual fresh executor session unavailable");
   return structuredClone(value.identity);
 }
@@ -97,7 +111,7 @@ export function capacityExecutorIdentity(session: ExecutorSession): CapacityExec
 export async function refreshCapacityExecutor(session: ExecutorSession) {
   const value = sessions.get(session);
   if (!value) throw new Error("imported executor sessions cannot execute or recover");
-  const actual = await observe(value.role, value.expected, value.directory);
+  const actual = await observe(value.role, value.expected, value.directory, value.deadline);
   if (capacityDigest(actual) !== capacityDigest(value.identity))
     throw new Error("capacity executor identity changed during the attempt");
   value.observed = performance.now();
@@ -129,7 +143,7 @@ export function assertCapacityExecutorEffectScope(
           request.destination === "github-actions:boburning/portcove:release.yml:dispatch"
         : role === "payload-signing"
           ? request.kind === "upload" &&
-            /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:payload-signatures$/u.test(
+            /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
               request.destination,
             )
           : role.startsWith("tuf-") &&
@@ -190,7 +204,7 @@ export async function executeOwnedCapacityEffect(
   state.busy = true;
   const remote = {
     configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory),
+    api: createCoordinatorJournalApi(value.directory, value.deadline),
   };
   let ownedId: string | null = null;
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
@@ -344,7 +358,7 @@ export async function recoverOwnedCapacityEffect(
   );
   const remote = {
     configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory),
+    api: createCoordinatorJournalApi(value.directory, value.deadline),
   };
   try {
     const executorIdentity = await refreshCapacityExecutor(session);
@@ -464,7 +478,7 @@ export async function recoverOwnedPublishedMetadata(
   );
   const remote = {
     configuration: input.remote_configuration,
-    api: createCoordinatorJournalApi(value.directory),
+    api: createCoordinatorJournalApi(value.directory, value.deadline),
   };
   try {
     const current = await refreshCapacityExecutor(session);
