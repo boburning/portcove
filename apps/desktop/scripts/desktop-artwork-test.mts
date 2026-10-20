@@ -55,10 +55,10 @@ export async function artworkScenario({
       // This owned fixture deliberately has no catalog artwork mapping. Real
       // ports can gain a default cover without changing fallback semantics.
       const portId = "portcove-install-fixture";
-      const port = transportValue(
-        "port",
-        command(["catalog", "show", portId], required(bootstrap.library_root)),
-      );
+      // The qualification fixture belongs to the running application's catalog,
+      // not the standalone CLI's ordinary catalog.
+      const catalog = transportValue("catalog", success(await invoke("get_catalog")));
+      const port = required(catalog.ports.find((candidate) => candidate.id === portId));
       const source = path.join(output, "owned-local-artwork.png");
       const bytes = Buffer.from(
         "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGOQCFgAAAGMAQm4OT/aAAAAAElFTkSuQmCC",

@@ -177,6 +177,11 @@ export async function interruptedPreparationScenario({
       return feed.records;
     };
     const before = command(["status", "opengoal-jak2"]);
+    const port = required(
+      transportValue("catalog", (await invoke("get_catalog")).value).ports.find(
+        (candidate) => candidate.id === before.port_id,
+      ),
+    );
     const activity = cliActivities().find(
       (item) =>
         item.operation === "prepare" &&
@@ -298,8 +303,7 @@ export async function interruptedPreparationScenario({
     // consent. This does not claim that a real external process is still live.
     const unprovenQuiescenceError =
       "retained preparation process quiescence is not proven; cleanup is refused";
-    const unprovenQuiescenceSummary =
-      "The selection changed or another operation is using it. Review its current state.";
+    const unprovenQuiescenceSummary = `Game preparation for ${port.name} (${port.id}): The selection changed or another operation is using it. Review its current state.`;
     setPreparationProcessQuiescence(library, activity.id, null);
     const cleanupGeneration = transportValue(
       "desktop_bootstrap_status",

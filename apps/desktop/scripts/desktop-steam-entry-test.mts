@@ -178,12 +178,14 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.equal(currentValue.writes_required, false);
     await click(button("Close"));
     const sourcesBeforeUninstall = sources();
-    const backupsBeforeUninstall = backups(port.id);
     const savedDataRoot = transportValue("port_paths", command(["paths", port.id])).user_data_root;
     const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
     await mkdir(savedDataRoot, { recursive: true });
     await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
     const savedDataBefore = await fileIdentity(savedData);
+    // Creating owned saved data changes backup eligibility. Capture the full
+    // pre-removal inventory after that deliberate fixture mutation.
+    const backupsBeforeUninstall = backups(port.id);
     const removedInstall = command(["remove", port.id, "--yes"]);
     const removedPaths = object(removedInstall).removed;
     assert.ok(Array.isArray(removedPaths));

@@ -47,6 +47,12 @@ export async function removalReviewScenario({
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak3"]));
     const original = path.join(output, `owned-${port.id}`);
+    // The backup prerequisite intentionally finishes with retained saves and no
+    // installed game. Restore this scenario's owned installation through Core.
+    if (transportValue("status", command(["status", port.id])).active === null) {
+      installObservation(command(["adopt", original, "--port", port.id, "--yes"]));
+    }
+    assert.ok(transportValue("status", command(["status", port.id])).active);
     const paths = transportValue("port_paths", command(["paths", port.id]));
     const save = path.join(paths.user_data_root, "owned-review-save.bin");
     const { portId: otherInstallPortId, install: otherInstall } = installedPreservationWitness(

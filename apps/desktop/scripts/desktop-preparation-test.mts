@@ -1723,7 +1723,7 @@ export async function preparationScenarios({
             ["Installed version", readyStatus.active.version],
             ["Selected channel", "Stable"],
             ["Installed channel", "Stable"],
-            ["Latest eligible release", "No current check"],
+            ["Latest available for your settings", "No current check"],
             ["Installed folder", readyStatus.active.path],
           ]);
           assert.equal(facts.horizontalOverflow, false);
@@ -1750,7 +1750,14 @@ export async function preparationScenarios({
   await scenario("native-game-return-continuity", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const before = await status(port.id);
-    assert.equal(required(before.readiness).launchable, true);
+    const preimage = path.join(output, "game-return-continuity-before.json");
+    await writeFile(preimage, JSON.stringify(before, null, 2), { flag: "wx" });
+    artifacts.push(preimage);
+    assert.equal(
+      required(before.readiness).launchable,
+      true,
+      "Game return requires a launchable fixture",
+    );
     assert.notEqual(before.readiness?.source_assessment?.admission.mode, "exact_identity");
     await browser.navigate().refresh();
     await browser.wait(
@@ -1852,11 +1859,20 @@ export async function preparationScenarios({
         },
         play,
       );
+      const observation = path.join(output, "game-return-continuity-observation.json");
+      await writeFile(observation, JSON.stringify({ scrollBefore, returned }, null, 2), {
+        flag: "wx",
+      });
+      artifacts.push(observation);
       assert.equal(returned.query, port.name);
       assert.equal(returned.filter, readyLabel);
-      assert.equal(returned.playConnected, true);
-      assert.equal(returned.playFocused, true);
-      assert.equal(returned.cardVisible, true);
+      assert.equal(returned.playConnected, true, "Original Play control disconnected after return");
+      assert.equal(returned.playFocused, true, "Play control lost focus after return");
+      assert.equal(
+        returned.cardVisible,
+        true,
+        "Launched card is outside the reading viewport after return",
+      );
       assert.ok(
         Math.abs(required(returned.scrollTop) - scrollBefore) <= 2,
         `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,

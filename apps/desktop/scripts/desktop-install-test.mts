@@ -133,9 +133,7 @@ export async function installScenarios({
       Key.BACK_SPACE,
       port.name,
     );
-    const card = By.xpath(
-      `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
-    );
+    const card = By.xpath(`//button[@data-detail-origin="catalog:card:${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
     if (!installed) await browser.wait(until.elementLocated(button("Review installation")), 15_000);
