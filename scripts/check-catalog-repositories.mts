@@ -4,7 +4,7 @@ import type {
   SourceEvidenceScope,
 } from "../apps/desktop/src/transport-types.generated.d.ts";
 import { isRecord } from "./runtime-values.mts";
-import type { GithubPinScope } from "./upstream-observer.mts";
+import type { GithubPinScope, GithubSourceArchiveScope } from "./upstream-observer.mts";
 import { readFile, open } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
@@ -13,9 +13,16 @@ import {
   observationHash,
   githubDirectPin,
   validateGithubPinMetadata,
+  githubSourceArchive,
+  validateGithubSourceArchiveMetadata,
 } from "./upstream-observer.mts";
 
 export interface ReviewedPin extends GithubPinScope {
+  port_id: string;
+  port_contract_sha256: string;
+  platform: string;
+}
+export interface ReviewedSourceArchive extends GithubSourceArchiveScope {
   port_id: string;
   port_contract_sha256: string;
   platform: string;
@@ -37,6 +44,7 @@ export interface HealthAccountingPolicy {
   authority: string;
   decision: string;
   pins: ReviewedPin[];
+  source_archives?: ReviewedSourceArchive[];
   original_conditions: OriginalCondition[];
 }
 
@@ -94,6 +102,19 @@ type PinAssessment =
       accounting_scope_sha256: string;
       reason?: never;
     };
+type SourceArchiveAssessment =
+  | { status: "unknown"; reason: string | null }
+  | {
+      status: "provider-reported-commit-present";
+      repository_id: number;
+      commit_sha: string;
+      tree_sha: string;
+      commit_facts_sha256: string;
+      destination_availability: "unknown";
+      accepted_bytes: "unverified";
+      accounting_scope_sha256: string;
+      reason?: never;
+    };
 interface HealthObservation extends LocationRecord {
   attempted: boolean;
   metadata_reused: boolean;
@@ -108,6 +129,7 @@ interface HealthObservation extends LocationRecord {
   retry_at: string | null;
   resume_condition: string | null;
   pin_assessment: PinAssessment | null;
+  source_archive_assessment: SourceArchiveAssessment | null;
   reviewed_condition_sha256: string | null;
   observed_redirect_repository_id: number | null;
   observed_size?: number | null;
@@ -260,7 +282,7 @@ class HealthFailure extends Error {
     this.reason = reason;
   }
 }
-const HARD_REQUEST_CEILING = 256;
+const HARD_REQUEST_CEILING = 320;
 const PRIOR_REPORT_ENTRIES = 512;
 const resourceLimits = Object.freeze({
   duration_ms: 180_000,
@@ -292,13 +314,23 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
     value.length <= 200 &&
     /^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/u.test(value);
   if (
-    !objectKeys(policy, [
-      "format_version",
-      "authority",
-      "decision",
-      "pins",
-      "original_conditions",
-    ]) ||
+    !(
+      objectKeys(policy, [
+        "format_version",
+        "authority",
+        "decision",
+        "pins",
+        "original_conditions",
+      ]) ||
+      objectKeys(policy, [
+        "format_version",
+        "authority",
+        "decision",
+        "pins",
+        "original_conditions",
+        "source_archives",
+      ])
+    ) ||
     policy.format_version !== 1 ||
     typeof policy.authority !== "string" ||
     !policy.authority ||
@@ -306,7 +338,11 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
     !policy.decision ||
     !Array.isArray(policy.pins) ||
     !Array.isArray(policy.original_conditions) ||
-    policy.pins.length + policy.original_conditions.length > 32
+    (Object.hasOwn(policy, "source_archives") && !Array.isArray(policy.source_archives)) ||
+    policy.pins.length +
+      policy.original_conditions.length +
+      (Array.isArray(policy.source_archives) ? policy.source_archives.length : 0) >
+      64
   )
     throw new Error("Invalid reviewed health accounting policy");
   const identities = new Set();
@@ -351,6 +387,47 @@ function assertHealthAccountingPolicy(policy: unknown): asserts policy is Health
       throw new Error("Reviewed pin URL scope differs");
     const key = `pin:${pin.port_id}:${pin.platform}`;
     if (identities.has(key)) throw new Error("Duplicate reviewed pin scope");
+    identities.add(key);
+  }
+  const archives: unknown[] = Array.isArray(policy.source_archives) ? policy.source_archives : [];
+  for (const archive of archives) {
+    if (
+      !objectKeys(archive, [
+        "port_id",
+        "port_contract_sha256",
+        "platform",
+        "repository",
+        "url",
+        "size",
+        "sha256",
+        "repository_id",
+        "archived",
+        "commit_sha",
+        "tree_sha",
+        "commit_facts_sha256",
+      ]) ||
+      !port(archive.port_id) ||
+      !hash(archive.port_contract_sha256) ||
+      typeof archive.platform !== "string" ||
+      !archive.platform ||
+      !repository(archive.repository) ||
+      typeof archive.url !== "string" ||
+      !positive(archive.size) ||
+      !hash(archive.sha256) ||
+      !positive(archive.repository_id) ||
+      typeof archive.archived !== "boolean" ||
+      typeof archive.commit_sha !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(archive.commit_sha) ||
+      typeof archive.tree_sha !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(archive.tree_sha) ||
+      !hash(archive.commit_facts_sha256)
+    )
+      throw new Error("Invalid reviewed source archive scope");
+    const parsed = githubSourceArchive(archive.url);
+    if (parsed.repository !== archive.repository || parsed.commit_sha !== archive.commit_sha)
+      throw new Error("Reviewed source archive URL scope differs");
+    const key = `pin:${archive.port_id}:${archive.platform}`;
+    if (identities.has(key)) throw new Error("Duplicate reviewed acquisition scope");
     identities.add(key);
   }
   const conditions: unknown[] = policy.original_conditions;
@@ -761,6 +838,8 @@ export async function collectRepositoryHealth(
     rule.port_id === id &&
     rule.port_contract_sha256 ===
       portContract(requiredValue(catalog.ports.find((port) => port.id === id)));
+  // Policy binds tag to the exact release URL; the whole-port hash separately
+  // binds catalog version labels, which may legitimately omit a provider v prefix.
   const pinRules = (record: LocationRecord) => {
     if (record.provider !== "direct-manifest") return [];
     const rules = requiredValue(record.artifact_identities).map((identity) =>
@@ -770,29 +849,47 @@ export async function collectRepositoryHealth(
           rule.platform === identity.platform &&
           rule.url === record.repository &&
           rule.size === identity.size &&
-          rule.sha256 === identity.sha256 &&
-          rule.tag === identity.version,
+          rule.sha256 === identity.sha256,
       ),
     );
     return rules.every((rule) => rule !== undefined) ? rules : [];
   };
   const networkRecords = records.filter((record) => record.provider !== "unlocated-historical");
+  const archiveRules = (record: LocationRecord) => {
+    if (record.provider !== "direct-manifest") return [];
+    const rules = requiredValue(record.artifact_identities).map((identity) =>
+      (reviewedAccounting.source_archives ?? []).find(
+        (rule) =>
+          contractMatches(rule, identity.port_id) &&
+          rule.platform === identity.platform &&
+          rule.url === record.repository &&
+          rule.size === identity.size &&
+          rule.sha256 === identity.sha256,
+      ),
+    );
+    return rules.every((rule) => rule !== undefined) ? rules : [];
+  };
   const pinnedRecords = records.filter((record) => pinRules(record).length);
+  const archiveRecords = records.filter((record) => archiveRules(record).length);
   const conditionalPinRequests = pinnedRecords.length * 3;
-  const conservativeRequests = networkRecords.length + conditionalPinRequests;
+  const conditionalArchiveRequests = archiveRecords.length * 2;
+  const conservativeRequests =
+    networkRecords.length + conditionalPinRequests + conditionalArchiveRequests;
   const overflow = conservativeRequests > HARD_REQUEST_CEILING;
   const requestPlan = Object.freeze({
     method: "validated selected inventory; no speculative reuse credit",
     network_records: networkRecords.length,
     conditional_pin_requests: conditionalPinRequests,
+    conditional_archive_requests: conditionalArchiveRequests,
     conditional_repository_reuses: records.filter(
       (record, index) =>
         record.provider === "github" &&
         !record.release_ref &&
-        pinnedRecords.some(
+        [...pinnedRecords, ...archiveRecords].some(
           (pin) =>
             records.indexOf(pin) < index &&
-            requiredValue(pinRules(pin)[0]).repository === record.repository,
+            requiredValue(pinRules(pin)[0] ?? archiveRules(pin)[0]).repository ===
+              record.repository,
         ),
     ).length,
     conservative_requests: conservativeRequests,
@@ -873,7 +970,7 @@ export async function collectRepositoryHealth(
       }
       if (response.headers.has("link")) throw new HealthFailure("invalid-metadata");
       const facts = await metadata(response, consumed, now, deadline);
-      if (!endpoint.includes("/releases/"))
+      if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(endpoint))
         repositoryMetadata.set(`https://api.github.com/repos/${endpoint}`, facts);
       return facts;
     } catch (error) {
@@ -911,6 +1008,7 @@ export async function collectRepositoryHealth(
       retry_at: null,
       resume_condition: null,
       pin_assessment: null,
+      source_archive_assessment: null,
       reviewed_condition_sha256: null,
       observed_redirect_repository_id: null,
     };
@@ -1091,6 +1189,41 @@ export async function collectRepositoryHealth(
               "Reassess exact declared pin metadata; changed, unavailable, ambiguous or incomplete facts remain unaccounted. No redirect destination or bytes were inspected.";
           }
         }
+        const archives = archiveRules(record);
+        if (plain && direct && response.status === 302 && archives.length) {
+          result.source_archive_assessment = { status: "unknown", reason: null };
+          try {
+            const archive = requiredValue(archives[0]);
+            const repo = await readGithubMetadata(archive.repository);
+            const commit = await readGithubMetadata(
+              `${archive.repository}/git/commits/${archive.commit_sha}`,
+            );
+            let facts;
+            for (const scope of archives)
+              facts = validateGithubSourceArchiveMetadata(repo, commit, scope);
+            if (!facts) throw new HealthFailure("invalid-metadata");
+            result.source_archive_assessment = {
+              status: "provider-reported-commit-present",
+              repository_id: facts.repository.id,
+              commit_sha: facts.commit.sha,
+              tree_sha: facts.commit.tree_sha,
+              commit_facts_sha256: observationHash(facts.commit),
+              destination_availability: "unknown",
+              accepted_bytes: "unverified",
+              accounting_scope_sha256: observationHash(archives),
+            };
+          } catch (error) {
+            result.source_archive_assessment = {
+              status: "unknown",
+              reason:
+                error instanceof HealthFailure
+                  ? error.reason
+                  : "invalid-or-changed-commit-metadata",
+            };
+            result.resume_condition =
+              "Reassess the exact declared source commit metadata; missing, changed or incomplete facts remain unaccounted. Archive destination and accepted bytes remain unverified.";
+          }
+        }
         if (result.reason === "rate-limit") {
           result.retry_at = retryAt(response.headers, now());
           deferred.set(budgetProvider, result.retry_at);
@@ -1226,20 +1359,25 @@ export async function collectRepositoryHealth(
           ),
       );
     const pinPresent = record.pin_assessment?.status === "provider-reported-pin-present";
+    const commitPresent =
+      record.source_archive_assessment?.status === "provider-reported-commit-present";
     record.accounted_for =
       record.status === "reachable" ||
       knownMaintenance ||
       record.reviewed_condition_sha256 !== null ||
-      pinPresent;
+      pinPresent ||
+      commitPresent;
     record.classification = pinPresent
       ? "provider-reported-pin-present; destination-unknown; bytes-unverified"
-      : record.reviewed_condition_sha256 !== null
-        ? "reviewed-original-condition; availability-and-lineage-unresolved"
-        : knownMaintenance
-          ? "catalog-declared-unavailable-original"
-          : record.status === "reachable"
-            ? "location-reachable; exact-bytes-unverified"
-            : "unclassified-or-actionable";
+      : commitPresent
+        ? "provider-reported-commit-present; destination-unknown; bytes-unverified"
+        : record.reviewed_condition_sha256 !== null
+          ? "reviewed-original-condition; availability-and-lineage-unresolved"
+          : knownMaintenance
+            ? "catalog-declared-unavailable-original"
+            : record.status === "reachable"
+              ? "location-reachable; exact-bytes-unverified"
+              : "unclassified-or-actionable";
   }
   const portHealth = selectedPorts.map((port) => {
     const locations = observations.filter((record) => record.port_ids.includes(port.id));
@@ -1328,6 +1466,7 @@ export async function collectRepositoryHealth(
             size: record.observed_size ?? null,
             classification: record.classification,
             pin_assessment: record.pin_assessment,
+            source_archive_assessment: record.source_archive_assessment,
             reviewed_condition_sha256: record.reviewed_condition_sha256,
             observed_redirect_repository_id: record.observed_redirect_repository_id,
           });
@@ -1401,7 +1540,7 @@ export async function collectRepositoryHealth(
     started_at: new Date(started).toISOString(),
     completed_at: new Date(now()).toISOString(),
     collection_method:
-      "metadata per hosted location or HEAD per direct location; reviewed GitHub pins may add three fixed metadata reads; identical successful repository metadata reused only within this collection; no redirects or retries; accepted bytes unverified",
+      "metadata per hosted location or HEAD per direct location; reviewed GitHub release pins add up to three fixed metadata reads and exact source archives up to two; identical successful repository metadata reused only within this collection; no redirects or retries; accepted bytes unverified",
     resolved_incidents: resolvedIncidents,
     material_changes: portHealth
       .flatMap((port) => port.canonical_incidents)
@@ -1482,6 +1621,10 @@ export function renderRepositoryHealth(
     if (record.pin_assessment)
       lines.push(
         `  Pin metadata: ${record.pin_assessment.status}${record.pin_assessment.reason ? ` (${record.pin_assessment.reason})` : ""}; destination unknown; bytes unverified.`,
+      );
+    if (record.source_archive_assessment)
+      lines.push(
+        `  Source commit metadata: ${record.source_archive_assessment.status}${record.source_archive_assessment.reason ? ` (${record.source_archive_assessment.reason})` : ""}; destination unknown; bytes unverified.`,
       );
   }
   for (const health of report.port_health) {
