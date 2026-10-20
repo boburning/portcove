@@ -3,6 +3,8 @@ import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 import { isSafeSitePath } from "./release-site-composer.mts";
+import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
@@ -161,4 +163,106 @@ export async function readPublicApplicationSiteMarker(expectedMarker: unknown) {
     authority: "none",
     scope: "expected generation marker only",
   };
+}
+
+/** Reconstruct only the journal-pinned public application component for a fresh
+ * renewal worker. Downloaded bytes confer no root, signer or execution authority;
+ * the existing renewal adapter must still run its independently pinned verifier. */
+export async function materializePublishedApplicationComponent(
+  raw: {
+    site_generation_sha256: string;
+    root_sha256: string;
+    repository_sha256: string;
+  },
+  privateParent: string,
+) {
+  const expected = structuredClone(raw);
+  if (
+    !isRecord(expected) ||
+    Object.keys(expected).sort().join(",") !==
+      "repository_sha256,root_sha256,site_generation_sha256" ||
+    !digest(expected.site_generation_sha256) ||
+    !digest(expected.root_sha256) ||
+    !digest(expected.repository_sha256)
+  )
+    throw new Error("independent published component identities required");
+  if (!path.isAbsolute(privateParent)) throw new Error("private component parent required");
+  const parent = await lstat(privateParent);
+  if (
+    !parent.isDirectory() ||
+    parent.isSymbolicLink() ||
+    (await realpath(privateParent)) !== path.resolve(privateParent)
+  )
+    throw new Error("private component parent is linked or unavailable");
+  const retained = await mkdtemp(path.join(privateParent, "published-component-"));
+  const directory = path.join(retained, "repository");
+  await mkdir(directory, { mode: 0o700 });
+  try {
+    const read = publicReader(performance.now() + 120_000);
+    const first = await read("publication.json", 4 * 1024 * 1024);
+    const observed = marker(JSON.parse(first.toString("utf8")), expected.site_generation_sha256);
+    if (observed.application_root_sha256 !== expected.root_sha256)
+      throw new Error("public component root differs from ratified root");
+    const files = observed.files
+      .filter((file) => file.path.startsWith("application/"))
+      .map((file) => ({ ...file, path: file.path.slice("application/".length) }));
+    const directories = new Set<string>();
+    for (const file of files) {
+      const segments = file.path.split("/");
+      for (let count = 1; count < segments.length; count++)
+        directories.add(segments.slice(0, count).join("/"));
+    }
+    if (
+      files.length > 1100 ||
+      files.length + directories.size > 4096 ||
+      files.some((file) => directories.has(file.path)) ||
+      files.some((file) => file.bytes > 1024 * 1024) ||
+      files.reduce((total, file) => total + file.bytes, 0) > 64 * 1024 * 1024 ||
+      capacityDigest(files) !== expected.repository_sha256
+    )
+      throw new Error("public component inventory differs or exceeds renewal bounds");
+    const roots = files.filter(
+      (file) =>
+        /^metadata\/[1-9][0-9]*\.root\.json$/u.test(file.path) &&
+        file.sha256 === expected.root_sha256,
+    );
+    if (roots.length !== 1) throw new Error("exact independently pinned public root unavailable");
+    for (const file of files) {
+      const bytes = await read(`application/${file.path}`, file.bytes);
+      if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
+        throw new Error(`public component bytes differ: ${file.path}`);
+      const filename = path.join(directory, file.path);
+      await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
+      await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
+    }
+    const last = await read("publication.json", 4 * 1024 * 1024);
+    if (!first.equals(last)) throw new Error("public generation changed during materialization");
+    const receipt = {
+      schema_version: 1,
+      ...expected,
+      marker_sha256: hash(first),
+      files,
+      authority: "none",
+      scope: "journal-pinned public application bytes only; verifier still required",
+    };
+    await writeFile(path.join(retained, "readback.json"), JSON.stringify(receipt), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    return { directory, root_path: path.join(directory, roots[0]!.path), receipt };
+  } catch (error) {
+    await writeFile(
+      path.join(retained, "refusal.json"),
+      JSON.stringify({
+        schema_version: 1,
+        ...expected,
+        authority: "none",
+        completed: false,
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+    throw new Error(`public component materialization refused; retain ${retained}`, {
+      cause: error,
+    });
+  }
 }
