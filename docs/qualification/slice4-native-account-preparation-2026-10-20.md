@@ -315,3 +315,35 @@ remain explicitly unbranded and cannot clear native admission. Focused fixture
 coverage passes nine tests, including lost custody, changed counters, ambiguous
 cleanup, changed wire and imported-receipt refusals. Actual task, native launch,
 Check issuance and scheduler/account qualification remain unobserved.
+
+The fixed installed worker now has a Windows driver connection through the
+existing resource supervisor. It privately selects and claims the candidate,
+rechecks source/reservation after resource admission, and launches only the
+fixed owner-side PowerShell driver. Its closed environment carries no source,
+issuer or signing credential. The driver stages the exact installer under the
+protected controller inputs, creates only per-invocation work/capture children,
+and uses the existing separate-account bridge for every installer, application,
+driver and WebView root. The parent owns one latched final group-finish request.
+The new capture leaf makes inherited entries explicit without adding rights or
+altering the existing root. This code has not changed any real host ACL.
+
+Initial installation data can now supply strict `windows_tools` pins for an
+owned PowerShell7 runtime, Git, Node, Tauri driver and WebView driver. No runtime
+is discovered, downloaded or installed by the worker. Missing tools hold. The
+driver checks owner/ancestor custody and bounded hashes before and after use;
+the selected Node bound remains 128 MiB. Its owner-side bridge/harness streams
+use the same four-MiB raw prefix and strict UTF-8 guard as candidate streams.
+Faults stop the affected child and retain the prefix. Child/group identities,
+nonzero outcomes and ambiguous completion remain separate from native success.
+
+The isolated installer now checks registration in the actual qualification SID
+hive rather than the broker's HKCU. The installed empty-library observation
+also retains the existing Core capability IPC response, actual WebView process
+snapshot and bounded loaded-image hashes. No product command or client trust
+path was added. Seventeen focused local tests pass, including actual inert
+PowerShell child streams with normal output, invalid UTF-8 and overflow, plus
+wrong-hive and imported-capture refusals. Those are component observations;
+the fixed Task/account route has not run. Whole-stage report construction,
+native Check handoff, the signed-context/post-sign selector and the Linux
+separate-account backend remain engineering work. The current worker reports
+HOLD after driver capture and cannot publish native acceptance or a Release.

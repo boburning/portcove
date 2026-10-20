@@ -281,6 +281,7 @@ const selections = new WeakMap<
     packagePath: string;
     packageSha256: string;
     packageBytes: number;
+    version: string;
     facts: Readonly<PreparedReleaseAdmissionFacts>;
     request: ReturnType<typeof prepareNativeStageRequest>;
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
@@ -407,6 +408,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     packagePath,
     packageSha256: value.identity.candidate.package.sha256,
     packageBytes: value.identity.candidate.package.bytes,
+    version: value.identity.version,
     facts: value.facts,
     request,
     recovery: invocation.counters,
@@ -580,6 +582,7 @@ export async function requireActualNativeCandidate(receipt: object) {
     parent,
     request: value.request,
     package_path: value.packagePath,
+    version: value.version,
     directory: value.directory,
     checkpoint: value.facts.checkpoint,
     recovery: value.recovery,

@@ -7,6 +7,51 @@ import {
 import { inspectLocalNativeTransport } from "./release-local-native-setup.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 
+void test("initial Windows tool configuration is exact and cannot overlap credentials or qualify Linux", () => {
+  const f = fixture();
+  const tool = (name: string) => ({
+    path: `C:\\Portcove\\tools\\${name}.exe`,
+    sha256: "a".repeat(64),
+  });
+  const windows_tools = {
+    powershell: tool("pwsh"),
+    git: tool("git"),
+    desktop_tools: {
+      node: tool("node"),
+      tauri_driver: tool("tauri-driver"),
+      webview_driver: tool("msedgedriver"),
+    },
+  };
+  const transport = { ...f.transport_configuration, windows_tools };
+  assert.deepEqual(
+    inspectLocalNativeTransport(transport, "windows-x86_64").windows_tools,
+    windows_tools,
+  );
+  for (const changed of [
+    { ...transport, windows_tools: { ...windows_tools, unreviewed: "tool" } },
+    {
+      ...transport,
+      windows_tools: { ...windows_tools, powershell: { ...tool("pwsh"), sha256: "unknown" } },
+    },
+    {
+      ...transport,
+      windows_tools: {
+        ...windows_tools,
+        git: { ...tool("git"), path: transport.source_read_token },
+      },
+    },
+    {
+      ...transport,
+      windows_tools: {
+        ...windows_tools,
+        desktop_tools: { ...windows_tools.desktop_tools, node: tool("pwsh") },
+      },
+    },
+  ])
+    assert.throws(() => inspectLocalNativeTransport(changed, "windows-x86_64"));
+  assert.throws(() => inspectLocalNativeTransport(transport, "linux-x86_64"));
+});
+
 function fixture() {
   const configurationPath = "C:\\Portcove\\setup\\descriptor.json",
     controller = "C:\\Portcove\\controller";

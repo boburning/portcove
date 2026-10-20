@@ -86,7 +86,18 @@ export function inspectLocalNativeTransport(
   raw: unknown,
   platform: "windows-x86_64" | "linux-x86_64",
 ) {
-  exact(raw, "github_cli,native_issuer,schema_version,source_read_token");
+  exact(
+    raw,
+    [
+      "github_cli",
+      "native_issuer",
+      "schema_version",
+      "source_read_token",
+      ...(isRecord(raw) && Object.hasOwn(raw, "windows_tools") ? ["windows_tools"] : []),
+    ]
+      .sort()
+      .join(","),
+  );
   if (raw.schema_version !== 1) throw new Error("native transport schema differs");
   exact(raw.native_issuer, "private_key,public_key_sha256");
   exact(raw.github_cli, "path,sha256");
@@ -95,6 +106,45 @@ export function inspectLocalNativeTransport(
     key = canonical(raw.native_issuer.private_key, windows);
   if ((windows ? source.toLowerCase() : source) === (windows ? key.toLowerCase() : key))
     throw new Error("native source reader and issuer custody are conflated");
+  let tools:
+    | {
+        git: { path: string; sha256: string };
+        powershell: { path: string; sha256: string };
+        desktop_tools: {
+          node: { path: string; sha256: string };
+          tauri_driver: { path: string; sha256: string };
+          webview_driver: { path: string; sha256: string };
+        };
+      }
+    | undefined;
+  if (Object.hasOwn(raw, "windows_tools")) {
+    if (!windows) throw new Error("Windows native tools cannot qualify a Linux parent");
+    exact(raw.windows_tools, "desktop_tools,git,powershell");
+    exact(raw.windows_tools.desktop_tools, "node,tauri_driver,webview_driver");
+    const tool = (value: unknown) => {
+      exact(value, "path,sha256");
+      return { path: canonical(value.path, true), sha256: digest(value.sha256) };
+    };
+    tools = {
+      git: tool(raw.windows_tools.git),
+      powershell: tool(raw.windows_tools.powershell),
+      desktop_tools: {
+        node: tool(raw.windows_tools.desktop_tools.node),
+        tauri_driver: tool(raw.windows_tools.desktop_tools.tauri_driver),
+        webview_driver: tool(raw.windows_tools.desktop_tools.webview_driver),
+      },
+    };
+    const paths = [
+      tools.powershell.path,
+      tools.git.path,
+      ...Object.values(tools.desktop_tools).map((value) => value.path),
+      canonical(raw.github_cli.path, true),
+      source,
+      key,
+    ].map((value) => value.toLowerCase());
+    if (new Set(paths).size !== paths.length)
+      throw new Error("native tool and credential paths overlap");
+  }
   return {
     schema_version: 1 as const,
     source_read_token: source,
@@ -106,6 +156,7 @@ export function inspectLocalNativeTransport(
       private_key: key,
       public_key_sha256: digest(raw.native_issuer.public_key_sha256),
     },
+    ...(tools ? { windows_tools: tools } : {}),
   };
 }
 
@@ -225,16 +276,27 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
         )
       : []),
   ];
+  const tools = [
+    transport.github_cli.path,
+    ...(transport.windows_tools
+      ? [
+          transport.windows_tools.powershell.path,
+          transport.windows_tools.git.path,
+          ...Object.values(transport.windows_tools.desktop_tools).map((value) => value.path),
+        ]
+      : []),
+  ];
   if (
-    [...credentials, ...publicFiles].some(
-      (file) => normalize(file) === normalize(transport.github_cli.path),
-    ) ||
-    candidateRoots
-      .filter((root) => root !== checkout)
-      .some((root) => {
-        const relative = parser.relative(normalize(root), normalize(transport.github_cli.path));
-        return relative === "" || (!relative.startsWith("..") && !parser.isAbsolute(relative));
-      })
+    tools.some(
+      (tool) =>
+        [...credentials, ...publicFiles].some((file) => normalize(file) === normalize(tool)) ||
+        candidateRoots
+          .filter((root) => root !== checkout)
+          .some((root) => {
+            const relative = parser.relative(normalize(root), normalize(tool));
+            return relative === "" || (!relative.startsWith("..") && !parser.isAbsolute(relative));
+          }),
+    )
   )
     throw new Error("native source tool overlaps credential, candidate or capture custody");
   for (const file of credentials) {

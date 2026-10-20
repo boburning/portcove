@@ -11,6 +11,7 @@ param(
     [string]$NormalPackageAdmissionPath,
     [string]$NativeAccountBindingPath,
     [string]$NativeAccountBindingSha256,
+    [switch]$NativeParentOwnsFinish,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -37,6 +38,9 @@ $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
+if ($NativeParentOwnsFinish -and (-not $NativeAccountBindingPath -or -not $NativeAccountBindingSha256)) {
+    throw 'Parent-owned settlement requires the exact isolated account binding'
+}
 if ($NativeAccountBindingPath -or $NativeAccountBindingSha256) {
     if (-not $NativeAccountBindingPath -or $NativeAccountBindingSha256 -cnotmatch '^[a-f0-9]{64}$' -or
         -not $EvidencePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath) {
@@ -95,6 +99,16 @@ function Get-UninstallEntries([string]$InstallLocation) {
         )
         $locationMatches -or $uninstallMatches
     })
+}
+
+function Assert-InstallerUserRegistration([string]$RegistrationPath, [string]$QualificationSid = '') {
+    # HKCU in the fixed harness belongs to the broker. The isolated candidate's
+    # real loaded hive is addressed through its appointed SID instead.
+    $hive = if ($QualificationSid) { 'HKEY_USERS\' + $QualificationSid } else { 'HKEY_CURRENT_USER' }
+    $prefix = 'Microsoft.PowerShell.Core\Registry::' + $hive + '\Software\Microsoft\Windows\CurrentVersion\Uninstall\'
+    if (-not $RegistrationPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Expected installation ownership in the exact current-user qualification hive'
+    }
 }
 
 function Assert-NoReparseAncestry([string]$Path) {
@@ -1221,9 +1235,8 @@ try {
         if ($registryEntries[0].DisplayVersion -ne $ExpectedVersion) {
             throw "Installed registration does not match expected version $ExpectedVersion"
         }
-        if ($registryEntries[0].PSPath -notmatch 'HKEY_CURRENT_USER') {
-            throw "Expected current-user installation ownership"
-        }
+        $qualificationSid = if ($nativeAccount) { [string]$nativeAccount.binding.account_sid } else { '' }
+        Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid
     }
     $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
@@ -1475,7 +1488,7 @@ finally {
 }
 } catch { $nativeFailure=$_; throw }
 finally {
-    if ($nativeAccount) {
+    if ($nativeAccount -and -not $NativeParentOwnsFinish) {
         try {
             $settlement=Invoke-PortcoveNativeAccountCommand $nativeAccount finish 'installer-stage-finish'
             if ($settlement.group_empty -isnot [bool] -or -not $settlement.group_empty) { throw 'Isolated installer group settlement is incomplete' }
