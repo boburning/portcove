@@ -390,84 +390,97 @@ impl PortcoveService {
         let temporary = tempfile::Builder::new()
             .prefix(".backup-")
             .tempdir_in(&parent)?;
-        let staging_name = temporary
-            .path()
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(|| PortcoveError::state("private backup staging name is not Unicode"))?
-            .to_owned();
-        let backup_id = Uuid::new_v4().to_string();
-        let marker_path = temporary.path().join(BACKUP_PREPARATION_MARKER);
-        let mut marker_file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&marker_path)?;
-        serde_json::to_writer_pretty(
-            &mut marker_file,
-            &BackupPreparationMarker {
-                schema_version: 1,
-                backup_id: backup_id.clone(),
-                port_id: port_id.into(),
-                staging_name: staging_name.clone(),
-            },
-        )?;
-        marker_file.write_all(b"\n")?;
-        marker_file.sync_all()?;
-        drop(marker_file);
-        self.faults
-            .check(LifecycleFaultPoint::BackupStagingCreated)?;
-        let mut stats = BackupStats::default();
-        copy_backup_tree(&source, &temporary.path().join("data"), &source, &mut stats)?;
-        self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
-        if stats.file_count == 0 {
-            return Err(PortcoveError::not_found(format!(
-                "{port_id} has no persistent data to back up"
-            )));
-        }
+        let staging_path = temporary.path().to_path_buf();
+        let mut temporary = Some(temporary);
+        let result = (|| {
+            let staging_name = staging_path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| PortcoveError::state("private backup staging name is not Unicode"))?
+                .to_owned();
+            let backup_id = Uuid::new_v4().to_string();
+            let marker_path = staging_path.join(BACKUP_PREPARATION_MARKER);
+            let mut marker_file = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&marker_path)?;
+            serde_json::to_writer_pretty(
+                &mut marker_file,
+                &BackupPreparationMarker {
+                    schema_version: 1,
+                    backup_id: backup_id.clone(),
+                    port_id: port_id.into(),
+                    staging_name: staging_name.clone(),
+                },
+            )?;
+            marker_file.write_all(b"\n")?;
+            marker_file.sync_all()?;
+            drop(marker_file);
+            self.faults
+                .check(LifecycleFaultPoint::BackupStagingCreated)?;
+            let mut stats = BackupStats::default();
+            copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
+            self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
+            if stats.file_count == 0 {
+                return Err(PortcoveError::not_found(format!(
+                    "{port_id} has no persistent data to back up"
+                )));
+            }
 
-        let BackupStats {
-            file_count,
-            size,
-            hasher,
-        } = stats;
-        let now = Library::now();
-        let created_at = self
-            .list_backups(port_id)?
-            .backups
-            .first()
-            .map_or(now, |latest| now.max(latest.created_at.saturating_add(1)));
-        let manifest = BackupManifest {
-            id: backup_id,
-            port_id: port_id.into(),
-            staging_name: Some(staging_name),
-            created_at,
-            file_count,
-            size,
-            sha256: hex::encode(hasher.finalize()),
-        };
-        let final_path = parent.join(&manifest.id);
-        let manifest_path = temporary.path().join("backup.json");
-        let mut manifest_file = fs::File::create(&manifest_path)?;
-        serde_json::to_writer_pretty(&mut manifest_file, &manifest)?;
-        manifest_file.write_all(b"\n")?;
-        manifest_file.sync_all()?;
-        drop(manifest_file);
-        self.faults
-            .check(LifecycleFaultPoint::BackupManifestSynced)?;
-        fs::remove_file(marker_path)?;
-        let directory_sync = prepare_backup_publication(
-            self.library.root(),
-            &self.library.backups_dir(),
-            &parent,
-            temporary.path(),
-        )?;
-        let staging_path = temporary.keep();
-        self.faults.check(LifecycleFaultPoint::BackupStagingKept)?;
-        publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
-        self.faults.check(LifecycleFaultPoint::BackupPublished)?;
-        let record = backup_record(manifest, final_path);
-        self.qualify_legacy_backup(&record)?;
-        Ok(record)
+            let BackupStats {
+                file_count,
+                size,
+                hasher,
+            } = stats;
+            let now = Library::now();
+            let created_at = self
+                .list_backups(port_id)?
+                .backups
+                .first()
+                .map_or(now, |latest| now.max(latest.created_at.saturating_add(1)));
+            let manifest = BackupManifest {
+                id: backup_id,
+                port_id: port_id.into(),
+                staging_name: Some(staging_name),
+                created_at,
+                file_count,
+                size,
+                sha256: hex::encode(hasher.finalize()),
+            };
+            let final_path = parent.join(&manifest.id);
+            let manifest_path = staging_path.join("backup.json");
+            let mut manifest_file = fs::File::create(&manifest_path)?;
+            serde_json::to_writer_pretty(&mut manifest_file, &manifest)?;
+            manifest_file.write_all(b"\n")?;
+            manifest_file.sync_all()?;
+            drop(manifest_file);
+            self.faults
+                .check(LifecycleFaultPoint::BackupManifestSynced)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(&staging_path)?;
+            fs::remove_file(marker_path)?;
+            let directory_sync = prepare_backup_publication(
+                self.library.root(),
+                &self.library.backups_dir(),
+                &parent,
+                &staging_path,
+            )?;
+            let staging_path = temporary.take().expect("owned backup stage").keep();
+            self.faults.check(LifecycleFaultPoint::BackupStagingKept)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(&staging_path)?;
+            publish_backup_directory(&staging_path, &final_path, &parent, directory_sync)?;
+            self.faults.check(LifecycleFaultPoint::BackupPublished)?;
+            let record = backup_record(manifest, final_path);
+            self.qualify_legacy_backup(&record)?;
+            Ok(record)
+        })();
+        if result.is_err()
+            && crate::runtime_data_policy::refuse_sensitive_tree(&staging_path).is_err()
+        {
+            if let Some(temporary) = temporary.take() {
+                let _ = temporary.keep();
+            }
+        }
+        result
     }
 
     pub fn list_backups(&self, port_id: &str) -> Result<BackupInventory> {
@@ -985,6 +998,7 @@ impl PortcoveService {
         }
         for path in [&recovery, &user, &previous, &recovery.join("staged-data")] {
             refuse_symlink_ancestors(path)?;
+            crate::runtime_data_policy::refuse_sensitive_tree(path)?;
             match fs::symlink_metadata(path) {
                 Ok(metadata) if !metadata.is_dir() => {
                     return Err(PortcoveError::conflict(
@@ -1513,6 +1527,12 @@ fn copy_backup_tree(
     source_root: &Path,
     stats: &mut BackupStats,
 ) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_entry(source)?;
+    crate::runtime_data_policy::refuse_sensitive_entry(destination)?;
+    if source == source_root {
+        crate::runtime_data_policy::refuse_sensitive_tree(source)?;
+        crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
+    }
     let metadata = fs::symlink_metadata(source)?;
     if metadata.file_type().is_symlink() {
         return Err(PortcoveError::conflict(format!(
@@ -1534,8 +1554,12 @@ fn copy_backup_tree(
         stats.hasher.update(b"file\0");
         stats.hasher.update(relative.as_bytes());
         stats.hasher.update(b"\0");
-        let mut input = fs::File::open(source)?;
-        let mut output = fs::File::create(destination)?;
+        let mut input = crate::external_runtime::open_single_link_file(source)?;
+        refuse_symlink_ancestors(destination)?;
+        let parent = destination
+            .parent()
+            .ok_or_else(|| PortcoveError::state("backup target has no parent"))?;
+        let mut output = tempfile::NamedTempFile::new_in(parent)?;
         // Keep the existing bounded copy buffer off each recursive stack frame.
         // Empty deep directories must not consume 64 KiB per ancestor.
         let mut buffer = vec![0_u8; 64 * 1024];
@@ -1548,7 +1572,11 @@ fn copy_backup_tree(
             stats.hasher.update(&buffer[..read]);
             stats.size += read as u64;
         }
-        output.sync_all()?;
+        output.as_file().sync_all()?;
+        refuse_symlink_ancestors(destination)?;
+        output
+            .persist(destination)
+            .map_err(|error| PortcoveError::from(error.error))?;
         stats.file_count += 1;
         return Ok(());
     }

@@ -469,6 +469,11 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
           {gameUpdateHoldReason(plan)}
         </p>
       ) : null}
+      {plan.plan.preservation_notices?.map((notice) => (
+        <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
+          {notice}
+        </p>
+      ))}
     </div>
   );
 }

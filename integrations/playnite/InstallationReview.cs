@@ -101,8 +101,21 @@ namespace Portcove.ReferenceClient
                     runtimeDescription + "\n" + downloadDescription +
                     "\n" + destinationDescription + "\nSaved data: " + saves +
                     "\nOriginal inputs: " + (sources.Count == 0 ? "none required" : string.Join(", ", sources)) +
+                    PreservationNotices(plan) +
                     "\n\nOriginal files remain in place. Free space, source bytes and destination safety are checked at execution. Cancellation may retain private work for recovery."
             };
+        }
+
+        internal static string PreservationNotices(object plan)
+        {
+            object value;
+            if (!Json.TryField(plan, "preservation_notices", out value)) return "";
+            return string.Concat(Json.Array(value).Select(item =>
+            {
+                var text = item as string;
+                if (string.IsNullOrWhiteSpace(text)) throw new InvalidOperationException("Invalid preservation notice.");
+                return "\n" + text;
+            }));
         }
     }
 }

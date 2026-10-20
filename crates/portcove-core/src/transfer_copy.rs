@@ -1,5 +1,5 @@
 use std::{
-    fs::{self, File},
+    fs,
     io::{Read, Write},
     path::Path,
 };
@@ -10,6 +10,19 @@ use crate::{
     AdoptionCopyPlan, Library, LibraryMetadata, LibraryMovePlan, LibraryTreePlan, PortcoveError,
     Result,
 };
+
+/// Recheck names at an authority/publication boundary without rereading payloads.
+pub(crate) fn refuse_sensitive_content(
+    source: &Path,
+    destination: &Path,
+    content: &[LibraryTreePlan],
+) -> Result<()> {
+    for tree in content {
+        crate::runtime_data_policy::refuse_sensitive_tree(&source.join(&tree.relative_path))?;
+        crate::runtime_data_policy::refuse_sensitive_tree(&destination.join(&tree.relative_path))?;
+    }
+    Ok(())
+}
 
 pub(crate) fn copy_content(
     source_root: &Path,
@@ -32,20 +45,26 @@ pub(crate) fn copy_reviewed_tree(
     plan: &AdoptionCopyPlan,
     work: &Path,
 ) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_tree(source)?;
+    crate::runtime_data_policy::refuse_sensitive_tree(destination)?;
     ensure_directory(work)?;
     ensure_directory(destination)?;
     for relative in &plan.directories {
+        crate::runtime_data_policy::refuse_sensitive_entry(&source.join(relative))?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&destination.join(relative))?;
         ensure_directory(&destination.join(relative))?;
     }
     for file in &plan.files {
         let target = destination.join(&file.relative_path);
+        crate::runtime_data_policy::refuse_sensitive_entry(&source.join(&file.relative_path))?;
+        crate::runtime_data_policy::refuse_sensitive_entry(&target)?;
         if fs::symlink_metadata(&target).is_ok() {
             verify_file(&target, file.size, &file.sha256)?;
             continue;
         }
         let origin = source.join(&file.relative_path);
         regular_file(&origin)?;
-        let mut input = File::open(&origin)?;
+        let mut input = crate::external_runtime::open_single_link_file(&origin)?;
         let mut output = tempfile::NamedTempFile::new_in(work)?;
         let mut digest = Sha256::new();
         let mut size = 0_u64;
@@ -275,6 +294,7 @@ fn regular_file(path: &Path) -> Result<()> {
 }
 
 fn verify_file(path: &Path, expected_size: u64, expected_hash: &str) -> Result<()> {
+    crate::runtime_data_policy::refuse_sensitive_entry(path)?;
     regular_file(path)?;
     if fs::metadata(path)?.len() != expected_size
         || crate::service::sha256_file(path)? != expected_hash
