@@ -121,18 +121,40 @@ public static class InertNativePipeFixture {
       if (process != null) break;
     }
     if (process == null) throw new Exception("fixed helper not loaded");
-    var task = (Task<string>)process.GetMethod("Capture", BindingFlags.Static | BindingFlags.NonPublic).Invoke(null, new object[] { read });
+    var captureType = process.Assembly.GetType("Portcove.NativeQualification.NativePipeCapture");
+    var capture = Activator.CreateInstance(captureType, BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { read }, null);
+    var task = (Task<string>)captureType.GetProperty("Completion").GetValue(capture);
     using (var writer = new FileStream(new SafeFileHandle(write, true), FileAccess.Write)) {
       try { writer.Write(bytes, 0, bytes.Length); } catch (IOException) { }
     }
-    try { return task.GetAwaiter().GetResult(); } catch (Exception error) { return "REFUSED:" + error.GetType().Name; }
+    try { return task.GetAwaiter().GetResult(); } catch (Exception error) { return "REFUSED:" + error.GetType().Name + ":" + ((byte[])captureType.GetMethod("Snapshot").Invoke(capture, null)).Length; }
+  }
+  public static string InvalidWhileWriterOpen() {
+    IntPtr read, write;
+    if (!CreatePipe(out read, out write, IntPtr.Zero, 0)) throw new Exception("CreatePipe fixture failed");
+    Type captureType = null;
+    foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies()) {
+      captureType = assembly.GetType("Portcove.NativeQualification.NativePipeCapture");
+      if (captureType != null) break;
+    }
+    var capture = Activator.CreateInstance(captureType, BindingFlags.Instance | BindingFlags.NonPublic, null, new object[] { read }, null);
+    var task = (Task<string>)captureType.GetProperty("Completion").GetValue(capture);
+    using (var writer = new FileStream(new SafeFileHandle(write, true), FileAccess.Write)) {
+      writer.Write(new byte[] { 65, 255 }, 0, 2); writer.Flush();
+      // EOF has not occurred. An invalid byte must fail without waiting for it.
+      if (Task.WhenAny(task, Task.Delay(3000)).GetAwaiter().GetResult() != task) throw new Exception("capture waited for EOF");
+      if (!task.IsFaulted) throw new Exception("invalid stream accepted");
+      var bytes = (byte[])captureType.GetMethod("Snapshot").Invoke(capture, null);
+      return BitConverter.ToString(bytes);
+    }
   }
 }
 '@
 $small = [InertNativePipeFixture]::Capture([Text.Encoding]::UTF8.GetBytes('actual bounded pipe'))
 $invalid = [InertNativePipeFixture]::Capture([byte[]]@(255))
 $overflow = [InertNativePipeFixture]::Capture([byte[]]::new(4 * 1024 * 1024 + 1))
-[ordered]@{ small = $small; invalid = $invalid; overflow = $overflow; scope = 'same-owner anonymous pipe only' } | ConvertTo-Json -Compress
+$openInvalid = [InertNativePipeFixture]::InvalidWhileWriterOpen()
+[ordered]@{ small = $small; invalid = $invalid; overflow = $overflow; open_invalid = $openInvalid; scope = 'same-owner anonymous pipe only' } | ConvertTo-Json -Compress
 `;
     const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
       env: { ...process.env, PORTCOVE_TEST_NATIVE_HELPER: helper },
@@ -144,8 +166,9 @@ $overflow = [InertNativePipeFixture]::Capture([byte[]]::new(4 * 1024 * 1024 + 1)
     assert.equal(result.status, 0, result.stderr);
     assert.deepEqual(JSON.parse(result.stdout), {
       small: "actual bounded pipe",
-      invalid: "REFUSED:DecoderFallbackException",
-      overflow: "REFUSED:IOException",
+      invalid: "REFUSED:DecoderFallbackException:1",
+      overflow: "REFUSED:IOException:4194304",
+      open_invalid: "41-FF",
       scope: "same-owner anonymous pipe only",
     });
   },

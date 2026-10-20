@@ -48,6 +48,19 @@ of that route, not a claim that the unperformed cross-account test passed.
 [NSIS's command-line contract](https://nsis.sourceforge.io/Docs/Chapter3.html#installerusage)
 requires preserving the terminal unquoted install destination.
 
+The tightened pipe test also observes a refusal while the invalid-byte writer
+is still open, retaining the exact raw `41-FF` bytes. Overflow retains the first
+4 MiB. The process wait polls capture faults every 25 ms and performs one
+termination plus bounded teardown readback before reporting the failure; a
+failed termination stays latched. Raw snapshots remain available after decoding
+or size failure. These tests do not exercise cross-account termination.
+
+The current helper enforces a 64-active-process limit per launched root job.
+It does not enforce a JobObject memory, CPU-time or writable-storage limit.
+The final multi-root bridge must reconcile total process admission and the
+existing resource supervisor before claiming a whole-attempt limit. Ordinary
+outer deadlines and proposed filesystem boundaries are not observed enforcement.
+
 `scripts/fixtures/native-account-gui-probe.ps1` is prepared for the single inert
 post-setup test. It creates a basic private-desktop WinForms window and a bounded
 inert descendant, reports its account/profile/PIDs, and leaves all descendant

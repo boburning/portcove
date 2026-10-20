@@ -33,6 +33,40 @@ namespace Portcove.NativeQualification {
         public string ObservedAt;
     }
 
+    // Raw evidence survives decoding and size refusals. A snapshot is detached
+    // and bounded; it is failure evidence, never a successful textual report.
+    public sealed class NativePipeCapture {
+        const int Bound = 4 * 1024 * 1024;
+        readonly object sync = new object();
+        readonly MemoryStream retained = new MemoryStream();
+        public Task<string> Completion { get; private set; }
+        internal NativePipeCapture(IntPtr pipe) {
+            Completion = Task.Run(async () => {
+                using (var stream = new FileStream(new SafeFileHandle(pipe, true), FileAccess.Read, 4096, false)) {
+                    var decoder = new UTF8Encoding(false, true).GetDecoder();
+                    byte[] buffer = new byte[4096]; char[] characters = new char[4098];
+                    while (true) {
+                        int count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                        if (count == 0) {
+                            decoder.GetChars(buffer, 0, 0, characters, 0, true);
+                            return new UTF8Encoding(false, true).GetString(Snapshot());
+                        }
+                        int accepted;
+                        lock (sync) {
+                            accepted = Math.Min(count, Bound - checked((int)retained.Length));
+                            retained.Write(buffer, 0, accepted);
+                        }
+                        if (accepted != count) throw new IOException("Native output exceeded fixed four-MiB bound; no successful capture");
+                        // Reject invalid bytes while the writer is still alive;
+                        // retain them first so refusal evidence is not discarded.
+                        decoder.GetChars(buffer, 0, count, characters, 0, false);
+                    }
+                }
+            });
+        }
+        public byte[] Snapshot() { lock (sync) { return retained.ToArray(); } }
+    }
+
     public sealed class AccountProcess : IDisposable {
         IntPtr job, process, station, desktop;
         readonly uint pid;
@@ -40,7 +74,9 @@ namespace Portcove.NativeQualification {
         readonly string executable;
         public Task<string> Output { get; private set; }
         public Task<string> ErrorOutput { get; private set; }
-        bool stopAttempted;
+        public NativePipeCapture OutputCapture { get; private set; }
+        public NativePipeCapture ErrorCapture { get; private set; }
+        int stopAttempted;
         internal AccountProcess(IntPtr jobHandle, IntPtr processHandle, uint processId, IntPtr stationHandle, IntPtr desktopHandle, string executablePath, IntPtr outputRead, IntPtr errorRead) {
             job = jobHandle; process = processHandle; pid = processId;
             station = stationHandle; desktop = desktopHandle;
@@ -48,25 +84,11 @@ namespace Portcove.NativeQualification {
             long ignored1, ignored2, ignored3;
             if (!Native.GetProcessTimes(process, out created, out ignored1, out ignored2, out ignored3))
                 throw Native.Error("GetProcessTimes");
-            Output = Capture(outputRead); ErrorOutput = Capture(errorRead);
+            OutputCapture = new NativePipeCapture(outputRead); ErrorCapture = new NativePipeCapture(errorRead);
+            Output = OutputCapture.Completion; ErrorOutput = ErrorCapture.Completion;
         }
         static Task<string> Capture(IntPtr pipe) {
-            // Anonymous CreatePipe handles are synchronous. Start the entire
-            // read on a worker, rather than blocking before the suspended
-            // child can resume or its writer can produce the first byte.
-            return Task.Run(async () => {
-            using (var stream = new FileStream(new SafeFileHandle(pipe, true), FileAccess.Read, 4096, false))
-            using (var retained = new MemoryStream()) {
-                byte[] buffer = new byte[4096];
-                while (true) {
-                    int count = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
-                    if (count == 0) break;
-                    if (retained.Length + count > 4 * 1024 * 1024) throw new IOException("Native output exceeded fixed four-MiB bound; no successful capture");
-                    retained.Write(buffer, 0, count);
-                }
-                return new UTF8Encoding(false, true).GetString(retained.ToArray());
-            }
-            });
+            return new NativePipeCapture(pipe).Completion;
         }
         public uint Pid { get { return pid; } }
         public int Id { get { return checked((int)pid); } }
@@ -128,15 +150,29 @@ namespace Portcove.NativeQualification {
         }
         public bool WaitForExit(int milliseconds) {
             if (milliseconds < 0 || milliseconds > 600000) throw new ArgumentOutOfRangeException("milliseconds");
-            uint outcome = Native.WaitForSingleObject(process, (uint)milliseconds);
-            if (outcome == 0xffffffff) throw Native.Error("WaitForSingleObject");
-            return outcome == 0;
+            Stopwatch clock = Stopwatch.StartNew();
+            do {
+                RefuseFaultedCapture();
+                uint outcome = Native.WaitForSingleObject(process, (uint)Math.Min(25, Math.Max(0, milliseconds - clock.ElapsedMilliseconds)));
+                if (outcome == 0xffffffff) throw Native.Error("WaitForSingleObject");
+                if (outcome == 0) { RefuseFaultedCapture(); return true; }
+            } while (clock.ElapsedMilliseconds < milliseconds);
+            return false;
+        }
+        public void RefuseFaultedCapture() {
+            Task<string> fault = Output.IsFaulted ? Output : ErrorOutput.IsFaulted ? ErrorOutput : null;
+            if (fault == null) return;
+            // A failed stream must not leave a blocked writer alive until the
+            // ordinary native deadline. Ambiguous termination is read back,
+            // never retried; snapshots remain available even when readback fails.
+            if (Volatile.Read(ref stopAttempted) == 0) StopAndObserve(5000);
+            else ReadTeardown(5000);
+            throw new IOException("Native stream capture refused; retain both raw snapshots and teardown", fault.Exception);
         }
         // The job stays open until positive empty readback. Unknown teardown never permits credential release.
         public TeardownObservation StopAndObserve(int milliseconds) {
             if (milliseconds < 1 || milliseconds > 30000) throw new ArgumentOutOfRangeException("milliseconds");
-            if (stopAttempted) throw new InvalidOperationException("Termination attempt is one-shot; use readback for ambiguous outcomes");
-            stopAttempted = true;
+            if (Interlocked.CompareExchange(ref stopAttempted, 1, 0) != 0) throw new InvalidOperationException("Termination attempt is one-shot; use readback for ambiguous outcomes");
             if (!Native.TerminateJobObject(job, 125)) throw Native.Error("TerminateJobObject");
             return ReadTeardown(milliseconds);
         }
