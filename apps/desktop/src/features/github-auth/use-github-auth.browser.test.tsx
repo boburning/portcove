@@ -40,7 +40,7 @@ describe("GitHub authentication read owner", () => {
   let setError: ReturnType<typeof vi.fn<(error?: string) => void>>;
 
   function Fixture() {
-    state = useGithubAuth(perform, setError);
+    state = useGithubAuth(perform, setError, 7);
     return <span>{state.status?.login ?? "anonymous"}</span>;
   }
 
