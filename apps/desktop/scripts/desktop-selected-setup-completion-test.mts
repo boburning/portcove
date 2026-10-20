@@ -218,6 +218,12 @@ export async function selectedSetupCompletionScenario({
     const owned = required(fixture.sourceJourney);
     const reviewPort = required(owned.reviewPort);
     const port = fixture.port;
+    const setupOrigin = fixture.nativeConnectionJourney
+      ? "game-file-libraries-setup"
+      : "add-games-folders-setup";
+    const setupHeading = fixture.nativeConnectionJourney
+      ? "game-file-libraries-heading"
+      : "add-games-folders-heading";
     let generation: number;
     const { button, click } = reviewControls(browser);
     const coreEnvironment = {
@@ -478,10 +484,72 @@ export async function selectedSetupCompletionScenario({
         assert.equal(required(initial.coverage).can_resume, true);
         await screenshot("connected-folder-management");
       } else {
+        await click(By.xpath('//nav//button[contains(., "Library")]'));
+        await click(button("Add games"));
+        await browser.wait(
+          until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
+          5_000,
+        );
+        await click(button("Choose game files"));
+        const query = await browser.findElement(By.id("port-search"));
+        await query.sendKeys(port.name);
+        const options = await browser.findElements(
+          By.css(`#add-games-port option[value="${port.id}"]`),
+        );
+        assert.equal(options.length, 1);
+        await required(options[0]).click();
+        const originalWindow = await browser.manage().window().getRect();
+        const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+        const shortcut = (key: string) =>
+          browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+        try {
+          await browser.manage().window().setRect({ width: 960, height: 640 });
+          for (let step = 0; step < 7; step++) await shortcut("+");
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => localStorage.getItem("portcove.appearance.interface-size") === "400",
+              ),
+            10_000,
+          );
+          const enlarged = await executeBrowserScript(browser, () => ({
+            width: innerWidth,
+            height: innerHeight,
+            client: document.documentElement.clientWidth,
+            scroll: document.documentElement.scrollWidth,
+            query: document.querySelector<HTMLInputElement>("#port-search")?.value,
+            selected: document.querySelector<HTMLSelectElement>("#add-games-port")?.value,
+          }));
+          assert.ok(enlarged.width <= 240 && enlarged.scroll <= enlarged.client + 1);
+          assert.equal(enlarged.query, port.name);
+          assert.equal(enlarged.selected, port.id);
+          const receipt = path.join(output, "add-games-native-400.json");
+          await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
+          artifacts.push(receipt);
+        } finally {
+          await shortcut("0");
+          await browser.wait(
+            () =>
+              executeBrowserScript(
+                browser,
+                () => localStorage.getItem("portcove.appearance.interface-size") === "100",
+              ),
+            10_000,
+          );
+          await browser.manage().window().setRect(originalWindow);
+        }
         await click(By.xpath('//nav//button[contains(., "Settings")]'));
-        await selectGameFilesSettings(browser);
+        await click(
+          By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Library")]'),
+        );
+        assert.equal(
+          await browser.findElement(By.id("port-search")).getAttribute("value"),
+          port.name,
+        );
+        await click(button("Search game-file folders"));
       }
-      await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
+      await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await click(button("Refresh folders"));
       const initialSnapshot = required(await read("get_game_file_scan_snapshot"));
       assert.equal(required(initialSnapshot.coverage).batches, 1);
@@ -848,7 +916,7 @@ export async function selectedSetupCompletionScenario({
       await click(By.css('[aria-label="Back to previous workspace"]'));
       await browser.wait(until.elementLocated(continuation), 5_000);
       report.observations.return_focus = await browser.wait(
-        () => executeBrowserScript(browser, observeCompletionReturnFocus),
+        () => executeBrowserScript(browser, observeCompletionReturnFocus, setupOrigin),
         5_000,
         "Return must restore focus to the authoritative setup continuation",
       );
@@ -1085,7 +1153,7 @@ export async function selectedSetupCompletionScenario({
       await browser.wait(until.elementLocated(queue), 5_000);
       assert.match(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
       report.observations.bios_return_focus = await browser.wait(
-        () => executeBrowserScript(browser, observeCompletionReturnFocus),
+        () => executeBrowserScript(browser, observeCompletionReturnFocus, setupOrigin),
         5_000,
         "The BIOS-only journey must return focus to its current setup continuation",
       );

@@ -2850,3 +2850,26 @@ observation. Timer and visibility notifications refer to their own observation
 and cannot expire a replacement result. These browsing observations provide no
 setup or launch shortcut and do not establish native UI, game or whole-issue
 acceptance.
+
+### Contextual Add games workspace
+
+Library and its legitimate empty state open one in-flow Add games workspace. Its
+file route explicitly selects a game/port before the existing profile-scoped
+inspection: the current inspector is not a catalog-wide file recognizer. Saved
+folder scanning remains the bounded multi-game recognition route, preserving its
+sixteen-port ephemeral setup-review selection and current route checks. Find
+games, installation copy and supported external routes remain available.
+The visible stages connect choosing inputs, recognition/port choice, current
+route checks, consequence review, preparation and completion/Play. The existing
+details, source-import, installation and preparation contracts own each review;
+labels do not turn unknown compatibility or saved-data facts into guarantees.
+
+The workspace remains mounted, hidden when inactive, within the generation-keyed
+library workspace. Its drafts, scan observation and return origin survive normal
+navigation/details/back; library replacement invalidates outgoing continuations.
+Navigation does not cancel a Core worker. Existing cancellation settlement and
+valid recovery plans remain authoritative; there is no scheduler or durable queue.
+Add games and Settings reuse saved-folder composition with unique instance IDs,
+scoped focus queries and return origins. Hidden siblings cannot supply focus or
+another instance's heading. Scroll capture/restoration uses the shell's current
+scroll-owner helpers, including document flow at enlarged effective widths.

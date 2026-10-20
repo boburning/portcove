@@ -575,3 +575,14 @@ cancel, result and return sequence only for the recorded source, platform and
 inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
+
+### Add games composition
+
+Library's contextual Add games action and empty-state primary action open the
+same in-flow workspace. Keep source choice, current port identity and the next
+review action together. The initial stage list is orientation, not a claim that
+later checks passed. Files are checked against an explicitly selected port;
+folder search supplies multi-game recognition. Retain ambiguous/unsupported and
+unknown evidence in existing review treatments. Detail/setup completion uses the
+shared primary/recovery and focus contracts. Save drafts during normal navigation;
+opening another destination must not imply cancellation or task completion.
