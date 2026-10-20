@@ -9,13 +9,84 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.windows_runtime_path_policy.is_some()
         && (port.platforms != [Platform::WindowsX86_64]
             || port.adapter != AdapterKind::StagedSourcePortable
-            || !port.release.user_prepared.is_empty()
             || !port.setup_executable_hints.is_empty()
             || !port.release.managed_build.is_empty())
     {
         return Err(PortcoveError::usage(
-            "Windows runtime path policy requires a Windows-only managed staged-source route without a setup executable or managed build",
+            "Windows runtime path policy requires a Windows-only staged-source route without a setup executable or managed build",
         ));
+    }
+    if port.windows_runtime_path_policy.is_some()
+        && port.release.user_prepared.values().any(|runtime| {
+            runtime.source_argument_extension.is_none() || runtime.shared_preferences.is_some()
+        })
+    {
+        return Err(PortcoveError::usage(
+            "prepared Windows runtime paths require a fixed positional original-file argument without shared preferences",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn minimum_capability(port: &PortDefinition) -> u32 {
+    if port.release.user_prepared.is_empty() {
+        11
+    } else {
+        17
+    }
+}
+
+/// Prepared runtimes receive these paths directly, including any extended prefix.
+pub(crate) fn check_prepared_path(
+    port: &PortDefinition,
+    platform: Platform,
+    path: &Path,
+) -> Result<()> {
+    check(port, platform, path)?;
+    if platform == Platform::WindowsX86_64
+        && port.windows_runtime_path_policy.is_some()
+        && path.to_str().is_none_or(|text| text.len() >= 260)
+    {
+        return Err(path_error());
+    }
+    Ok(())
+}
+
+/// Check the actual coordinates used by a non-owning prepared launch. The first
+/// argument is the Core-selected original, never an unchecked caller argument.
+pub(crate) fn check_prepared_launch(
+    port: &PortDefinition,
+    platform: Platform,
+    executable: &Path,
+    working_directory: &Path,
+    arguments: &[String],
+) -> Result<()> {
+    if port.windows_runtime_path_policy.is_none() {
+        return Ok(());
+    }
+    check_executable(port, platform, executable)?;
+    check_prepared_path(port, platform, executable)?;
+    check_working_directory(port, platform, working_directory)?;
+    if platform == Platform::WindowsX86_64 {
+        check_prepared_path(
+            port,
+            platform,
+            &working_directory.join(".snesrecomp_write_probe"),
+        )?;
+    }
+    let source = arguments.first().ok_or_else(path_error)?;
+    check_prepared_path(port, platform, Path::new(source))
+}
+
+pub(crate) fn check_working_directory(
+    port: &PortDefinition,
+    platform: Platform,
+    directory: &Path,
+) -> Result<()> {
+    check(port, platform, directory)?;
+    if platform == Platform::WindowsX86_64 && port.windows_runtime_path_policy.is_some() {
+        require_narrow_windows_path(directory, "\\.snesrecomp_write_probe")
+            .map_err(|_| path_error())?;
     }
     Ok(())
 }
@@ -119,6 +190,53 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
+    fn prepared_checks_cover_selected_source_and_actual_working_directory() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("f-zero-snes-recomp").unwrap();
+        let executable = Path::new("C:\\Games\\runtime\\game.exe");
+        let directory = Path::new("C:\\Games\\runtime");
+        check_prepared_launch(
+            port,
+            Platform::WindowsX86_64,
+            executable,
+            directory,
+            &["C:\\Originals\\game.sfc".into()],
+        )
+        .unwrap();
+        for original in [
+            "C:\\Originals\\日本語.sfc".to_owned(),
+            "a".repeat(260),
+            format!("\\\\?\\{}", "a".repeat(259)),
+        ] {
+            assert!(
+                check_prepared_launch(
+                    port,
+                    Platform::WindowsX86_64,
+                    executable,
+                    directory,
+                    &[original]
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            check_prepared_launch(
+                port,
+                Platform::WindowsX86_64,
+                executable,
+                Path::new("C:\\日本語"),
+                &["C:\\game.sfc".into()]
+            )
+            .is_err()
+        );
+        assert!(
+            check_prepared_launch(port, Platform::WindowsX86_64, executable, directory, &[])
+                .is_err()
+        );
+    }
+
+    #[test]
     fn optional_policy_does_not_restrict_other_routes_or_platforms() {
         let catalog = crate::Catalog::embedded().unwrap();
         let mut port = catalog.port("f-zero-snes-recomp").unwrap().clone();
@@ -139,7 +257,7 @@ mod tests {
         );
         assert_eq!(
             refused.presentation.summary,
-            "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Original game files can stay where they are."
+            "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Review the original-file location too when the runtime uses it directly."
         );
         assert_eq!(
             refused.presentation.mutation_state,

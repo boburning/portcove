@@ -217,7 +217,7 @@ impl KnownFailureCause {
             ),
             Self::RuntimePathRequirement => (
                 "runtime_path_requirement",
-                "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Original game files can stay where they are.",
+                "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Review the original-file location too when the runtime uses it directly.",
             ),
             Self::UnsupportedStfs => (
                 "stfs_format_unsupported",

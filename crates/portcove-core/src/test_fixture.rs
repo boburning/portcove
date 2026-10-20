@@ -106,7 +106,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         } else if port.managed_initialization.is_some() {
             12
         } else if port.windows_runtime_path_policy.is_some() {
-            11
+            crate::runtime_path_policy::minimum_capability(port)
         } else if let Some(minimum) = port
             .release
             .user_prepared
