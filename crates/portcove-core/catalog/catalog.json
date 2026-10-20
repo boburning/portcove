@@ -867,10 +867,10 @@
         "id": "tfe-managed-windows-2026-10-20",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
-        "authority_ref": "1aef5cc53faa25d14a1952785b708137263e78a8",
+        "authority_ref": "eba686b4a7568b51da3789852f9ad54ac6df99d3",
         "reviewed_at": "2026-10-20",
-        "claim": "Exact managed Windows complete-data ZIP intake, reviewed official engine acquisition, engine-menu startup and ordinary closure, private cache recreation, manual preservation hold, backup/restore, reviewed removal preserving data/backups and same-version reinstall. No gameplay, save loading, version update/rollback or support promotion.",
-        "immutable_url": "https://github.com/boburning/portcove/blob/1aef5cc53faa25d14a1952785b708137263e78a8/docs/qualification/tfe-managed-windows-2026-10-20.md",
+        "claim": "Exact managed Windows complete-data ZIP intake, reviewed official engine acquisition, two supervised process starts and ordinary closes with one fully visible main menu, private cache recreation, manual preservation hold, backup/restore, reviewed removal preserving data/backups and same-version reinstall. No gameplay, save loading, version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/eba686b4a7568b51da3789852f9ad54ac6df99d3/docs/qualification/tfe-managed-windows-2026-10-20.md",
         "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-managed-windows-2026-10-20.md"
       }
     ],
@@ -10939,7 +10939,7 @@
         "outcome": "passed",
         "observed_at": 1792461955,
         "kind": "automated_lifecycle",
-        "method": "Two actual isolated Windows supervised engine-menu starts and ordinary closes; all 48 private copies checked, compatible local profile and synthetic persistence probes; deliberately corrupted private LFD recreated, actual removal hold and manual preservation verified; backup/restore, reviewed removal preserving canonical data/backups and same-version reinstall. No mission gameplay, save/load, version update/rollback, Portcove GUI or support promotion."
+        "method": "Two actual isolated Windows supervised process starts and ordinary closes; one fully visible main menu and an incomplete second startup capture; all 48 private copies checked, compatible local profile and synthetic persistence probes; deliberately corrupted private LFD recreated, actual removal hold and manual preservation verified; backup/restore, reviewed removal preserving canonical data/backups and same-version reinstall. No mission gameplay, save/load, version update/rollback, Portcove GUI or support promotion."
       }
     ]
   },
