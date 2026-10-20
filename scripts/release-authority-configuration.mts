@@ -1,0 +1,201 @@
+import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { isRecord } from "./runtime-values.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
+import {
+  admitProductionInputReader,
+  readProductionControllerWorkflowBytes,
+} from "./production-controller-admission.mts";
+
+const roles = [
+  "semantic",
+  "classification",
+  "native_qualification",
+  "protection_observer",
+  "coordinator_journal",
+  "dispatch",
+  "release_publication",
+] as const;
+const platforms = ["windows-x86_64", "linux-x86_64"] as const;
+function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
+  if (!isRecord(value) || Object.keys(value).sort().join(",") !== keys)
+    throw new Error("release authority configuration schema differs");
+}
+function hex(value: unknown, length: number): string {
+  if (typeof value !== "string" || !new RegExp(`^[a-f0-9]{${length}}$`, "u").test(value))
+    throw new Error("release authority source identity absent");
+  return value;
+}
+function positive(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1)
+    throw new Error("release authority provider identity unavailable");
+  return value;
+}
+function text(value: unknown, maximum = 184): string {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    Buffer.byteLength(value) > maximum ||
+    Array.from(value).some(
+      (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    )
+  )
+    throw new Error("release authority fixed text unavailable");
+  return value;
+}
+function minimumVersion(value: unknown, minimum: string) {
+  const declared = text(value, 64);
+  if (!/^[0-9]{1,10}(?:\.[0-9]{1,10}){1,3}$/u.test(declared))
+    throw new Error("release authority engine minimum is invalid");
+  const parts = declared.split(".").map(BigInt),
+    floor = minimum.split(".").map(BigInt);
+  for (let index = 0; index < Math.max(parts.length, floor.length); index++) {
+    if ((parts[index] ?? 0n) < (floor[index] ?? 0n))
+      throw new Error("release authority engine floor weakened");
+    if ((parts[index] ?? 0n) > (floor[index] ?? 0n)) return;
+  }
+}
+
+/** Configuration integrity only. Setup records actual generated IDs and custody
+ * under the approved scope; parsing or a supplied digest never appoints them.
+ * Native dynamic Check/invocation/candidate fields are deliberately excluded. */
+export function inspectReleaseAuthorityConfiguration(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  exact(value, "apps,namespace,native,repository_id,schema_version");
+  if (
+    value.schema_version !== 1 ||
+    value.repository_id !== 1354613114 ||
+    Buffer.byteLength(JSON.stringify(value)) > 32 * 1024
+  )
+    throw new Error("release authority repository or byte bound differs");
+  const namespace = inspectCoordinatorRemoteNamespace({
+    schema_version: 1,
+    namespace: value.namespace,
+  });
+  exact(value.apps, [...roles].sort().join(","));
+  const appRecords = value.apps;
+  const apps = Object.fromEntries(
+    roles.map((role) => {
+      const app = appRecords[role];
+      exact(app, "app_id,installation_id");
+      return [
+        role,
+        { app_id: positive(app.app_id), installation_id: positive(app.installation_id) },
+      ];
+    }),
+  ) as Record<(typeof roles)[number], { app_id: number; installation_id: number }>;
+  if (
+    new Set([15368, ...roles.map((role) => apps[role].app_id)]).size !== roles.length + 1 ||
+    new Set(roles.map((role) => apps[role].installation_id)).size !== roles.length
+  )
+    throw new Error("release authority roles or generic Actions issuer are conflated");
+  exact(value.native, [...platforms].sort().join(","));
+  const nativeRecords = value.native;
+  const native = Object.fromEntries(
+    platforms.map((platform) => {
+      const expected = nativeRecords[platform];
+      exact(expected, "compatibility,host,producer");
+      exact(expected.producer, "harness,source_commit,source_tree");
+      exact(expected.producer.harness, "path,sha256");
+      if (
+        typeof expected.producer.harness.path !== "string" ||
+        !/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(expected.producer.harness.path) ||
+        !isRecord(expected.host) ||
+        !isRecord(expected.compatibility)
+      )
+        throw new Error("release authority native fixed expectations absent");
+      const host = expected.host;
+      exact(host, "account,engine,machine_id_sha256,minimum_platform,qualification_profile");
+      hex(host.machine_id_sha256, 64);
+      text(host.qualification_profile, 128);
+      if (
+        host.minimum_platform !==
+        (platform === "windows-x86_64" ? "windows-11-26h2-x64" : "ubuntu-24.04-x64")
+      )
+        throw new Error("release authority minimum platform differs from initial beta");
+      exact(host.account, "broker,kind,qualification");
+      const accountKind = platform === "windows-x86_64" ? "windows-sid" : "linux-uid";
+      const accountPattern =
+        accountKind === "windows-sid" ? /^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u : /^[1-9][0-9]{0,9}$/u;
+      if (
+        host.account.kind !== accountKind ||
+        host.account.broker === host.account.qualification ||
+        !accountPattern.test(text(host.account.broker)) ||
+        !accountPattern.test(text(host.account.qualification))
+      )
+        throw new Error("release authority native accounts are unconfigured or conflated");
+      exact(host.engine, "minimum_version,name");
+      if (host.engine.name !== (platform === "windows-x86_64" ? "WebView2" : "WebKitGTK"))
+        throw new Error("release authority native engine family differs");
+      minimumVersion(
+        host.engine.minimum_version,
+        platform === "windows-x86_64" ? "155.0.4283.62" : "2.52.6",
+      );
+      exact(
+        expected.compatibility,
+        "catalog_formats,cli_protocol,library,minimum_os_version,required_capabilities",
+      );
+      // The existing native inspector validates host/account, engine floor and
+      // compatibility against the actual acquired tuple before any collection.
+      return [
+        platform,
+        {
+          producer: {
+            source_commit: hex(expected.producer.source_commit, 40),
+            source_tree: hex(expected.producer.source_tree, 40),
+            harness: {
+              path: expected.producer.harness.path,
+              sha256: hex(expected.producer.harness.sha256, 64),
+            },
+          },
+          host: structuredClone(expected.host),
+          compatibility: structuredClone(expected.compatibility),
+        },
+      ];
+    }),
+  ) as Record<
+    (typeof platforms)[number],
+    {
+      producer: {
+        source_commit: string;
+        source_tree: string;
+        harness: { path: string; sha256: string };
+      };
+      host: Record<string, unknown>;
+      compatibility: Record<string, unknown>;
+    }
+  >;
+  return {
+    schema_version: 1 as const,
+    repository_id: 1354613114 as const,
+    namespace,
+    apps,
+    native,
+  };
+}
+export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuthorityConfiguration>;
+
+/** Fixed hosted caller only. Protected owner configuration is digest-bound to
+ * the ratified immutable controller policy. This source/configuration check is
+ * additional to the existing live OIDC/protections/control and capacity gates. */
+export async function requireControllerReleaseAuthorities(phase: unknown) {
+  const configuration = process.env.PORTCOVE_RELEASE_AUTHORITIES;
+  const policy = process.env.PORTCOVE_CONTROLLER_ADMISSION;
+  if (!configuration || Buffer.byteLength(configuration) > 32 * 1024)
+    throw new Error("protected release authority configuration unavailable");
+  const source = admitProductionInputReader(
+    policy,
+    process.env,
+    await readProductionControllerWorkflowBytes(),
+    phase,
+  );
+  if (
+    source.mode !== "bounded-application-release" ||
+    !source.authority_configuration_sha256 ||
+    !source.grant_sha256
+  )
+    throw new Error("admission-only source cannot appoint release authority");
+  const result = inspectReleaseAuthorityConfiguration(JSON.parse(configuration));
+  if (releaseCanonicalDigest(result) !== source.authority_configuration_sha256)
+    throw new Error("release authority configuration changed after ratification");
+  return structuredClone(result);
+}
