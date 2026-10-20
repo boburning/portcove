@@ -23,6 +23,14 @@ const protectionProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Observe release input protections",
 };
+const productionProtectionProfile = {
+  workflow: productionControllerWorkflow,
+  job: "Observe production release input protections",
+};
+const inputReaderProfile = {
+  workflow: productionControllerWorkflow,
+  job: "Authenticate release control inputs",
+};
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
 export interface AssemblerIdentityExpectation {
@@ -376,6 +384,20 @@ export function verifyProtectionObserverJobIdentity(
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(protectionProfile, token, expected, options);
+}
+export function verifyProductionProtectionObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(productionProtectionProfile, token, expected, options);
+}
+export function verifyReleaseInputReaderJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(inputReaderProfile, token, expected, options);
 }
 
 export async function requestAssemblerToken(

@@ -22,6 +22,7 @@ function admitController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
   workflowBytes: Uint8Array,
+  job = "admission",
 ) {
   if (!rawPolicy || Buffer.byteLength(rawPolicy) > 4096) refuse("missing or oversized policy");
   let policy: unknown;
@@ -74,7 +75,7 @@ function admitController(
     environment.GITHUB_TRIGGERING_ACTOR !== environment.GITHUB_ACTOR ||
     !/^[1-9][0-9]{0,15}$/u.test(environment.GITHUB_RUN_ID ?? "") ||
     environment.GITHUB_RUN_ATTEMPT !== "1" ||
-    environment.GITHUB_JOB !== "admission" ||
+    environment.GITHUB_JOB !== job ||
     environment.RUNNER_ENVIRONMENT !== "github-hosted"
   )
     refuse("principal, first attempt, job or runner identity");
@@ -108,6 +109,33 @@ export function admitProductionController(
 ) {
   return admitController(productionControllerWorkflow, rawPolicy, environment, workflowBytes);
 }
+/** Fixed read-only consumer of the same reviewed controller and needs graph. */
+export function admitProductionInputReader(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "independent_admission",
+  );
+}
+export function admitProductionProtectionObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "protection_observation",
+  );
+}
 export function admitReviewedInputsController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,
@@ -121,8 +149,7 @@ export function admitReviewedInputsController(
   );
 }
 
-async function main() {
-  if (process.argv.length !== 2) refuse("no candidate or policy path arguments are accepted");
+export async function readProductionControllerWorkflowBytes() {
   // A fixed trusted-checkout path, never a candidate-supplied file. Read from one
   // handle with a one-byte growth probe; no dependency install or candidate code.
   const filename = new URL(`../${productionControllerWorkflow}`, import.meta.url);
@@ -136,18 +163,23 @@ async function main() {
       if (read.bytesRead === 0) break;
       length += read.bytesRead;
     }
-    console.log(
-      JSON.stringify(
-        admitProductionController(
-          process.env.PORTCOVE_CONTROLLER_ADMISSION,
-          process.env,
-          bytes.subarray(0, length),
-        ),
-      ),
-    );
+    return bytes.subarray(0, length);
   } finally {
     await handle.close();
   }
+}
+
+async function main() {
+  if (process.argv.length !== 2) refuse("no candidate or policy path arguments are accepted");
+  console.log(
+    JSON.stringify(
+      admitProductionController(
+        process.env.PORTCOVE_CONTROLLER_ADMISSION,
+        process.env,
+        await readProductionControllerWorkflowBytes(),
+      ),
+    ),
+  );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

@@ -260,7 +260,7 @@ void test("held full workflow preserves privilege separation and refuses unavail
       template,
       new RegExp(`  ${job}:\\n(?:    #[^\\n]*\\n)*    if: \\$\\{\\{ false \\}\\}`),
     );
-  assert.match(template, /run: node scripts\/acquire-release-admission.mts/u);
+  assert.match(template, /node scripts\/acquire-release-admission.mts --handshake/u);
   assert.match(template, /name: Trusted package assembly/u);
   assert.match(template, /overwrite: false/u);
   assert.match(template, /if: \$\{\{ always\(\) \}\}/u);
