@@ -11,6 +11,7 @@ import os from "node:os";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripTypeScriptTypes } from "node:module";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
@@ -28,6 +29,36 @@ const executableNames = {
   "preparation-cli": "baseline-cli.exe",
   "preparation-tool": "baseline-tool.exe",
 };
+
+void test("native display identity dependency retains the exact helper consumed by preparation", async () => {
+  const preparation = new URL(
+    "../apps/desktop/scripts/desktop-preparation-test.mts",
+    import.meta.url,
+  );
+  const executed = stripTypeScriptTypes(await readFile(preparation, "utf8"), { mode: "strip" });
+  const identityImport = executed.match(
+    /import\s*\{\s*gameTitle,\s*gameIdentityLabel\s*\}\s*from\s*["']([^"']+)["']/u,
+  );
+  assert.ok(identityImport?.[1], "Preparation must use the shared display identity contract");
+  const dependency = new URL(identityImport[1], preparation);
+  const expected = "apps/desktop/src/port-identity.ts";
+  assert.equal(
+    fileURLToPath(dependency),
+    fileURLToPath(new URL(`../${expected}`, import.meta.url)),
+  );
+  assert.equal(nativeTransportReceiptSources.filter((source) => source === expected).length, 1);
+  // Preparation is statically imported even for smoke. Capture its actual pure
+  // identity dependency once for every platform/profile, without widening build
+  // features or treating captured source as proof that a journey executed.
+  for (const platform of ["win32", "linux", "darwin"] as const)
+    for (const profile of ["smoke", "presentation", "full"])
+      assert.equal(
+        planDesktopExecution(resolveDesktopSelection({ platform, profile }), {
+          platform,
+        }).receiptInputs.filter((input) => input.kind === "file" && input.path === expected).length,
+        1,
+      );
+});
 
 void test("native interface enlargement retains its exact assertion source without changing ordinary profiles", () => {
   const id = "native-interface-size";

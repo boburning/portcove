@@ -20,6 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
+import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -950,6 +951,26 @@ export async function preparationScenarios({
     );
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await search.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      Key.BACK_SPACE,
+    );
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
+          ),
+        ),
+        15_000,
+      ),
+    );
+    for (const favorite of await browser.findElements(
+      By.css('[data-favorites-filter][aria-pressed="true"]'),
+    ))
+      await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
@@ -1562,6 +1583,16 @@ export async function preparationScenarios({
     assert.equal(readyStatus.channel, "stable");
     assert.equal(readyStatus.active.channel, "stable");
     assert.ok(!readyStatus.last_update_check);
+    // This scenario continues the preliminary-source fixture above. Launchable
+    // bytes and successful preparation do not establish confirmed compatibility.
+    assert.notEqual(readyStatus.readiness?.source_assessment?.admission.mode, "exact_identity");
+    const artworkReply = await invoke("get_artwork", {
+      portId: port.id,
+      slot: "cover",
+      generation: (await read("desktop_bootstrap_status", "get_bootstrap_status")).generation,
+    });
+    assert.equal(artworkReply.ok, true);
+    const artwork = transportValue("artwork_state", artworkReply.value);
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
@@ -1579,18 +1610,29 @@ export async function preparationScenarios({
           await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
           theme,
         );
-        const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
+        const play = await browser.wait(until.elementLocated(button("Try launch")), 15_000);
         assert.equal(await play.isEnabled(), true);
         assert.equal(await play.getAttribute("data-variant"), "primary");
         await browser.wait(
           () =>
             executeBrowserScript(
               browser,
-              () =>
-                document.querySelector(".detail-cover.artwork-image > span")?.textContent === "OJ",
+              (expected) => {
+                const frame = document.querySelector<HTMLElement>(".detail-cover.artwork-image");
+                const image = frame?.querySelector("img");
+                if (image) return image.complete && image.naturalWidth > 0;
+                return (
+                  frame?.dataset.artworkSource === "generated_fallback" &&
+                  frame.querySelector(":scope > span")?.textContent ===
+                    expected.generated_fallback.initials &&
+                  (expected.availability !== "available" ||
+                    frame.textContent?.includes("Image unavailable"))
+                );
+              },
+              artwork,
             ),
           15_000,
-          "The owned port cover fallback did not settle before visual capture",
+          "The owned port cover image or identified fallback did not settle before visual capture",
         );
         for (const { width, height } of [
           { width: 960, height: 640 },
@@ -1632,10 +1674,9 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(screenshot);
-          assert.equal(hierarchy.title, port.name);
-          assert.match(required(hierarchy.state), /Ready to play/);
+          assert.equal(hierarchy.title, gameTitle(port));
+          assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "Status and actions",
             "Updates",
             "Requirements",
             "Installation and version",
@@ -1649,7 +1690,7 @@ export async function preparationScenarios({
               hierarchy.action.bottom <= hierarchy.viewport.height &&
               hierarchy.action.left >= 0 &&
               hierarchy.action.right <= hierarchy.viewport.width,
-            `Play must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
+            `Trial launch must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
           const facts = await executeBrowserScript(browser, () => {
             const strip = document.querySelector(".installation-facts");
@@ -1676,9 +1717,14 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(factsScreenshot);
-          await executeBrowserScript(browser, () =>
-            document.querySelector("main")?.scrollTo({ top: 0 }),
-          );
+          await executeBrowserScript(browser, () => {
+            const workspace = document.querySelector('main[data-focus-region="workspace"]');
+            const owner =
+              workspace && getComputedStyle(workspace).overflowY === "visible"
+                ? (document.scrollingElement ?? document.documentElement)
+                : workspace;
+            owner?.scrollTo({ top: 0 });
+          });
         }
       }
     } finally {
@@ -1689,6 +1735,7 @@ export async function preparationScenarios({
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const before = await status(port.id);
     assert.equal(required(before.readiness).launchable, true);
+    assert.notEqual(before.readiness?.source_assessment?.admission.mode, "exact_identity");
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -1700,16 +1747,28 @@ export async function preparationScenarios({
     try {
       await browser.manage().window().setRect({ width: 720, height: 560 });
       const query = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-      await query.sendKeys(port.name);
-      const ready = await browser.findElement(
-        By.xpath('//div[@aria-label="Library filters"]//button[normalize-space(.)="Ready"]'),
+      await query.sendKeys(
+        Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+        Key.BACK_SPACE,
+        port.name,
       );
-      await ready.click();
+      const ready = await browser.findElement(
+        By.xpath(
+          '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"Ready (")]',
+        ),
+      );
+      await browser.wait(
+        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        15_000,
+        "Library readiness counts did not settle",
+      );
+      const readyLabel = await ready.getText();
+      await clickVisible(browser, ready);
       const card = await browser.wait(
         until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
       );
-      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
+      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Try launch"]'));
       await executeBrowserScript(
         browser,
         (element) => element.scrollIntoView({ block: "center" }),
@@ -1718,7 +1777,11 @@ export async function preparationScenarios({
       const scrollBefore = await executeBrowserScript(browser, () => {
         const workspace = document.querySelector('main[data-focus-region="workspace"]');
         if (!workspace) throw new Error("Library workspace is missing");
-        return workspace.scrollTop;
+        const owner =
+          getComputedStyle(workspace).overflowY === "visible"
+            ? (document.scrollingElement ?? document.documentElement)
+            : workspace;
+        return owner.scrollTop;
       });
       assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
       await play.click();
@@ -1730,14 +1793,14 @@ export async function preparationScenarios({
         () =>
           executeBrowserScript(
             browser,
-            (portName, launches) => {
+            (identity, launches) => {
               const recent = document.querySelector<HTMLElement>(".continue-card");
               return (
-                recent?.getAttribute("aria-label") === `Continue ${portName}` &&
+                recent?.getAttribute("aria-label") === `Continue ${identity}` &&
                 Number(recent.dataset.successfulLaunches ?? 0) > launches
               );
             },
-            port.name,
+            gameIdentityLabel(port),
             before.successful_launches,
           ),
         15_000,
@@ -1754,22 +1817,27 @@ export async function preparationScenarios({
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();
           const workspaceBounds = workspace?.getBoundingClientRect();
+          const owner =
+            workspace && getComputedStyle(workspace).overflowY === "visible"
+              ? (document.scrollingElement ?? document.documentElement)
+              : workspace;
           return {
             query: search?.value,
             filter: ready?.textContent?.trim(),
-            scrollTop: workspace?.scrollTop,
+            scrollTop: owner?.scrollTop,
             playFocused: document.activeElement === element,
             playConnected: element.isConnected,
             cardVisible:
               bounds && workspaceBounds
-                ? bounds.bottom > workspaceBounds.top && bounds.top < workspaceBounds.bottom
+                ? bounds.bottom > Math.max(0, workspaceBounds.top) &&
+                  bounds.top < Math.min(innerHeight, workspaceBounds.bottom)
                 : false,
           };
         },
         play,
       );
       assert.equal(returned.query, port.name);
-      assert.equal(returned.filter, "Ready");
+      assert.equal(returned.filter, readyLabel);
       assert.equal(returned.playConnected, true);
       assert.equal(returned.playFocused, true);
       assert.equal(returned.cardVisible, true);

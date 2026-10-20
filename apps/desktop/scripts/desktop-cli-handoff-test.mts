@@ -16,11 +16,13 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { realpath, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, Key, until } from "selenium-webdriver";
 import {
   reviewControls,
   assertCompactReview,
   captureAccessibilityReport,
+  openCatalogPortAfterRefresh,
+  clickVisible,
 } from "./desktop-review-controls.mts";
 
 export async function cliHandoffScenario({
@@ -59,13 +61,26 @@ export async function cliHandoffScenario({
     const { click } = reviewControls(browser);
     const open = async (portId: string, view: "Library" | "Find games") => {
       const port = transportValue("port", command(["catalog", "show", portId]));
-      await browser.navigate().refresh();
-      await click(By.xpath(`//nav//button[contains(., "${view}")]`));
-      const card =
-        view === "Library"
-          ? `//article[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]//button[@data-detail-origin]`
-          : `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`;
-      await click(By.xpath(card));
+      if (view === "Find games") await openCatalogPortAfterRefresh(browser, port);
+      else {
+        await browser.navigate().refresh();
+        await click(By.xpath('//nav//button[contains(., "Library")]'));
+        const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+        await search.sendKeys(
+          Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+          Key.BACK_SPACE,
+        );
+        await click(
+          By.xpath(
+            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
+          ),
+        );
+        for (const favorite of await browser.findElements(
+          By.css('[data-favorites-filter][aria-pressed="true"]'),
+        ))
+          await clickVisible(browser, favorite);
+        await click(By.css(`[data-detail-game-id="${port.id}"]`));
+      }
       const technical = By.css(".detail-body > .advanced-settings > .advanced-summary");
       const technicalControl = await browser.wait(until.elementLocated(technical), 10_000);
       const technicalText = await executeBrowserScript(
@@ -85,10 +100,9 @@ export async function cliHandoffScenario({
         ),
       ),
       [
-        "Status and actions",
+        "Updates",
         "Requirements",
         "Installation and version",
-        "Updates",
         "Saves and storage",
         "Compatibility and testing",
         "Project and release",

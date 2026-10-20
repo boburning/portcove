@@ -81,7 +81,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     await mkdir(config, { recursive: true });
     await open(port, false);
     const { button, click } = reviewControls(browser);
-    await click(By.css("summary.advanced-summary"));
+    await click(By.css(".detail-body > details.advanced-settings > summary.advanced-summary"));
     await click(button("Steam shortcut"));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);

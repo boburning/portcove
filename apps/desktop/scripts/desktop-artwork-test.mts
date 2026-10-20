@@ -140,12 +140,20 @@ export async function artworkScenario({
           );
           await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
         }
+        // Keep the reload above paired with observations.begin(); a second
+        // reload here would discard its request observers.
         await click(By.xpath('//nav//button[contains(., "Find games")]'));
+        const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+        await search.sendKeys(
+          Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+          Key.BACK_SPACE,
+        );
         await click(
           By.xpath(
-            `//button[contains(@class,"port-card") and starts-with(@aria-label,"${port.name}.")]`,
+            '//div[@aria-label="Release channel filters"]//button[normalize-space(.)="All"]',
           ),
         );
+        await click(By.css(`[data-detail-origin="catalog:card:${port.id}"]`));
         const summary = await browser.findElement(
           By.xpath('//summary[normalize-space(.)="Change artwork"]'),
         );
