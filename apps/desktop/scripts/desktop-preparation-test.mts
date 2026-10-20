@@ -2484,11 +2484,14 @@ export async function preparationScenarios({
             ),
           );
         await browser.wait(until.elementIsEnabled(verify), 5000);
+        const otherActiveBefore = required((await status(other.port.id)).active).id;
+        const previousActivityIds = new Set((await activities()).map((item) => item.id));
         await clickVisible(browser, verify);
         const verified = await browser.wait(
           async () =>
             (await activities()).find(
               (item) =>
+                !previousActivityIds.has(item.id) &&
                 item.operation === "verify_install" &&
                 item.target_id === other.port.id &&
                 item.status === "succeeded",
@@ -2496,7 +2499,7 @@ export async function preparationScenarios({
           15_000,
         );
         observations.overlap.unrelated_verification = required(verified);
-        assert.equal(required((await status(other.port.id)).active).id, other.install.id);
+        assert.equal(required((await status(other.port.id)).active).id, otherActiveBefore);
         assert.equal(
           (await activities()).find((item) => item.id === required(activity).id)?.status,
           "running",
