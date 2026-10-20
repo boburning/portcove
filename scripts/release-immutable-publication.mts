@@ -27,7 +27,7 @@ import {
 import { parseReleaseChecksumManifest } from "./reconcile-release-assets.mts";
 import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.mts";
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
-import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { requireActualReleaseAdmissionContext } from "./acquire-release-admission.mts";
 import {
@@ -682,10 +682,16 @@ export function readImmutableReleaseState(
   }
   const found = all.filter((r) => r.tag_name === `v${wanted.version}`);
   if (found.length > 1) throw new Error("reserved tag has multiple release identities");
-  const tag = api.request(
-    "GET",
-    `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`,
-  );
+  let tag: ReturnType<GitHubRestReader["request"]>;
+  try {
+    tag = api.request("GET", `${base}/git/ref/tags/${encodeURIComponent(`v${wanted.version}`)}`);
+  } catch (error) {
+    // The real gh runner throws on HTTP errors. Only the exact tag GET's
+    // collected 404 is absence; authentication/refusal/timeout remains unknown.
+    // Complete authenticated Release inventory above is still mandatory.
+    if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+    tag = { status: 404, body: null, headers: new Map() };
+  }
   let tagCommit: string | null = null;
   if (tag.status !== 404) {
     if (
