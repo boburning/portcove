@@ -107,10 +107,10 @@ internal static class ContractTests
         Json.Object(Json.Field(withNotices, "plan"))["preservation_notices"] = new object[] { 123 };
         Reject(() => InstallationReview.Read(withNotices, "shape-a", library), "malformed preservation notice refuses review");
         var shared = fresh();
-        Json.Object(Json.Field(shared, "plan"))["shared_preferences"] = new {
+        Json.Object(Json.Field(shared, "plan"))["shared_preferences"] = Json.Parse(Json.Print(new {
             binding = new { contract = "regaiden041-windows", account_sid_sha256 = new string('c',64), path = @"C:\Users\Fixture\AppData\Roaming\gbrecompiled\runtime\runtime_prefs.ini" },
             local_fallback_path = @"H:\Isolated library\versions\shape-a\runtime_prefs.ini", shared_present = false, local_fallback_present = false
-        };
+        }));
         var sharedReview = InstallationReview.Read(shared, "shape-a", library);
         Reject(() => sharedReview.InstallationArguments(), "managed shared scope cannot inherit generic installation consent");
         Check(!sharedReview.ConfirmSharedScope(message => false), "managed shared scope cancellation remains canceled");
