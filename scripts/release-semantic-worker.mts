@@ -237,11 +237,14 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     })
   )
     throw new Error("installed semantic worker custody missing or changed; do not reset counters");
-  if (
-    git(checkout, ["rev-parse", "HEAD"]) !== config.worker_revision ||
-    git(checkout, ["status", "--porcelain", "--untracked-files=no"]) !== ""
-  )
-    throw new Error("fixed semantic worker checkout differs from reviewed setup");
+  const requireFixedCheckout = () => {
+    if (
+      git(checkout, ["rev-parse", "HEAD"]) !== config.worker_revision ||
+      git(checkout, ["status", "--porcelain", "--untracked-files=no"]) !== ""
+    )
+      throw new Error("fixed semantic worker checkout differs from reviewed setup");
+  };
+  requireFixedCheckout();
   const namespace = { schema_version: 1, namespace: config.namespace };
   const directory = config.output_parent;
   // A separately provisioned source reader is not the producer, writer or
@@ -427,6 +430,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     await record.sync();
   };
   const guard = async () => {
+    requireFixedCheckout();
     const currentConfiguration = await readConfiguration();
     if (capacityDigest(currentConfiguration) !== capacityDigest(config))
       throw new Error("semantic worker setup changed");
