@@ -323,8 +323,8 @@ describe("desktop components", () => {
           actions={actions}
         />,
       );
-      const check = html.indexOf("Check for updates");
-      const review = html.indexOf("Review game update");
+      const check = html.indexOf("Check for updates</button>");
+      const review = html.indexOf("Review game update</button>");
       expect(check).toBeGreaterThan(-1);
       expect(review).toBeGreaterThan(-1);
       expect(check < review).toBe(state !== "available");
@@ -2585,7 +2585,7 @@ describe("desktop components", () => {
     expect(installed).toMatch(/<button[^>]*data-variant="primary"[^>]*>[^]*?Play<\/button>/u);
     expect(installed).toMatch(/<button[^>]*data-variant="ghost"[^>]*>[^]*?Back<\/button>/u);
     expect(installed).toMatch(
-      /<button[^>]*data-variant="outline"[^>]*>[^]*?Check for updates<\/button>/u,
+      /<button[^>]*data-variant="primary"[^>]*>[^]*?Check for updates<\/button>/u,
     );
     expect(installed).toMatch(
       /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
