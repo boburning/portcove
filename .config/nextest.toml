@@ -7,6 +7,17 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Shipwright's complete Windows save lifecycles reached the 30s harness cap.
+# The activation fixture was ready at 14.77s and its second retained installation
+# at 21.10s, before activation/rollback assertions; restore includes fresh consent
+# after authoritative collection. Keep both workers, all steps, zero retries and
+# product deadlines; only these exact fixtures receive finite 60s headroom.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^service::shipwright_persistence_tests::shipwright_activation_and_rollback_collect_before_replacing_working_save$/) | test(/^service::shipwright_persistence_tests::shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Credential-publication fixtures reached the 30s Windows harness cutoff; import
 # setup alone took about 20s, and move covers both publication boundaries.
 # Retain complete fixtures/assertions, two workers, zero retries and finite 60s.

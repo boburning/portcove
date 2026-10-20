@@ -138,9 +138,12 @@ fn shipwright_backup_assessment_observes_then_backup_collects_runtime_save() {
 
 #[test]
 fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup() {
+    let started = std::time::Instant::now();
     let (_temporary, service, active, _) = fixture();
+    eprintln!("Shipwright restore fixture ready: {:?}", started.elapsed());
     game_write(&active, b"wanted save");
     let wanted = service.create_backup(PORT).unwrap();
+    eprintln!("Shipwright wanted backup created: {:?}", started.elapsed());
     assert_eq!(b"wanted save".len(), b"newest save".len());
     game_write(&active, b"newest save");
     let preview = service
@@ -161,6 +164,10 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
         .unwrap_err();
     assert_eq!(refused.code, crate::ErrorCode::Conflict);
     assert!(refused.message.contains("state changed"));
+    eprintln!(
+        "Shipwright stale restore review refused: {:?}",
+        started.elapsed()
+    );
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
         b"newest save"
@@ -188,6 +195,10 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
     let restored = service
         .restore_backup(PORT, &wanted.id, &approval.token)
         .unwrap();
+    eprintln!(
+        "Shipwright freshly reviewed restore complete: {:?}",
+        started.elapsed()
+    );
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
         b"wanted save"
