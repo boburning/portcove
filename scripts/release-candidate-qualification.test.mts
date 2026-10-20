@@ -125,3 +125,30 @@ void test("fixed qualification refuses ancestor Cargo aliases before invoking an
   );
   await assert.rejects(access(f.canary));
 });
+
+void test("a missing local promisor blob refuses without contacting its configured local transport", async (t) => {
+  const f = await fixture(t);
+  const remote = path.join(f.root, "remote.git");
+  f.git("clone", "--bare", f.source, remote);
+  const marker = path.join(f.root, "lazy-fetch-invoked");
+  const upload = path.join(f.root, "upload-canary.sh");
+  await writeFile(
+    upload,
+    `#!/bin/sh\nprintf invoked > '${marker.replaceAll("\\", "/")}'\nexec git-upload-pack "$@"\n`,
+  );
+  f.git("config", "remote.origin.url", remote);
+  f.git("config", "remote.origin.promisor", "true");
+  f.git("config", "remote.origin.partialclonefilter", "blob:none");
+  f.git("config", "remote.origin.uploadpack", `sh '${upload.replaceAll("\\", "/")}'`);
+  f.git("config", "extensions.partialClone", "origin");
+  const blob = f.git("rev-parse", "HEAD:build.rs");
+  await rm(path.join(f.source, ".git", "objects", blob.slice(0, 2), blob.slice(2)));
+  await assert.rejects(
+    materializeReleaseQualificationSource(f.source, f.scratch, f.commit, f.tree),
+    /raw Git operation refused|source has non-blob/,
+  );
+  await assert.rejects(access(marker));
+  await assert.rejects(
+    access(path.join(f.source, ".git", "objects", blob.slice(0, 2), blob.slice(2))),
+  );
+});

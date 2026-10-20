@@ -255,3 +255,43 @@ void test("settlement binds the actual recovered capacity intent, checkpoint and
     ),
   );
 });
+
+void test("mismatched create tags and invalid publication IDs refuse before any provider call", async () => {
+  const f = fixture();
+  const create = proposeImmutableReleaseTransition(f.identity, null, []);
+  assert.ok(create.decision === "effect" && create.effect.kind === "create-draft");
+  const publish = proposeImmutableReleaseTransition(f.identity, f.release, f.assets);
+  assert.ok(publish.decision === "effect" && publish.effect.kind === "publish-draft");
+  let calls = 0;
+  const fetcher = (async () => {
+    calls++;
+    throw new Error("must not fetch");
+  }) as typeof fetch;
+  await assert.rejects(
+    performImmutableReleaseEffect(
+      {
+        ...create.effect,
+        body: { ...create.effect.body, tag_name: "v0.1.0-beta.2", name: "v0.1.0-beta.2" },
+      },
+      null,
+      "inert",
+      fetcher,
+    ),
+  );
+  for (const id of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, NaN]) {
+    await assert.rejects(
+      performImmutableReleaseEffect(
+        {
+          ...publish.effect,
+          release_id: id,
+          endpoint: `repos/boburning/portcove/releases/${id}`,
+          destination: `github-release:boburning/portcove:${publish.effect.tag}:publish:${id}:${publish.effect.asset_set_sha256}`,
+        },
+        null,
+        "inert",
+        fetcher,
+      ),
+    );
+  }
+  assert.equal(calls, 0);
+});

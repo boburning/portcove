@@ -713,6 +713,7 @@ export async function performImmutableReleaseEffect(
     (Object.keys(effect.body).sort().join(",") !==
       "draft,make_latest,name,prerelease,tag_name,target_commitish" ||
       !/^[a-f0-9]{40}$/u.test(effect.body.target_commitish) ||
+      effect.body.tag_name !== effect.tag ||
       effect.body.tag_name !==
         `v${classifyApplicationVersion(effect.body.tag_name.slice(1)).version}` ||
       effect.body.name !== effect.body.tag_name ||
@@ -723,7 +724,9 @@ export async function performImmutableReleaseEffect(
     throw new Error("draft creation body differs from fixed release semantics");
   if (
     effect.kind === "publish-draft" &&
-    (Object.keys(effect.body).sort().join(",") !== "draft,make_latest" ||
+    (!Number.isSafeInteger(effect.release_id) ||
+      effect.release_id < 1 ||
+      Object.keys(effect.body).sort().join(",") !== "draft,make_latest" ||
       effect.body.make_latest !== "false")
   )
     throw new Error(
@@ -880,6 +883,8 @@ export async function advanceImmutableReleasePublication(
           )
         : null;
     let started = false;
+    const invocationCheckpoint = state.checkpoint;
+    let knownSettlementCheckpoint: string | null = null;
     try {
       let evidenceSha256: string | null = null;
       let remoteIdentity: string | null = null;
@@ -961,6 +966,7 @@ export async function advanceImmutableReleasePublication(
         !/^[a-f0-9]{40}$/u.test(settlement.checkpoint)
       )
         throw new Error("executor did not return the exact confirmed settlement receipt");
+      knownSettlementCheckpoint = settlement.checkpoint;
       const nextDescriptor = JSON.stringify({
         ...inspectAggregateDescriptor(state.descriptor),
         checkpoint: settlement.checkpoint,
@@ -995,7 +1001,8 @@ export async function advanceImmutableReleasePublication(
         "release effect ambiguous or refused; use existing recovery before any later effect",
         {
           directory: session.directory,
-          checkpoint: session.checkpoint,
+          before_checkpoint: invocationCheckpoint,
+          known_settled_checkpoint: knownSettlementCheckpoint,
           effect,
           outcome: started ? "ambiguous" : "refused-before-effect",
           automatic_retry: false,
