@@ -95,6 +95,74 @@ void test("Windows final custody gate retains failed current exit without fixtur
   }
 });
 
+void test("Windows admission refusal preserves former exit proof until a replacement spawn is attempted", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const first = source.indexOf("async function startDriver(");
+  const last = source.indexOf("async function captureSelectedDriverLaunch(", first);
+  assert.ok(first >= 0 && last > first);
+  for (const admissionRefuses of [true, false]) {
+    const session = new OwnedNativeSession();
+    session.beginLaunch();
+    session.driver = { pid: 2, path: "C:\\fixture\\driver.exe", started_filetime: "200" };
+    session.inventory = "former.json";
+    session.cleanup = {
+      stopped: { method: "observed-child-exit", exit_code: 0 },
+      exited: { observed_processes: 4, exited_at: "2026-10-20T00:00:00Z", wait_ms: 1 },
+      snapshot: "former.json",
+    };
+    const former = session.requireQuiescence();
+    const calls: string[] = [];
+    const refused = new Error("admission refused");
+    const spawnFailure = new Error("replacement spawn failed");
+    const begin = session.beginLaunch.bind(session);
+    session.beginLaunch = () => {
+      calls.push("begin");
+      begin();
+    };
+    const start = callable(
+      runInNewContext(`${source.slice(first, last)}; startDriver`, {
+        assert,
+        linuxPackagedInspector: false,
+        linuxSelectedSession: false,
+        admission: {
+          verify: async () => {
+            calls.push("verify");
+          },
+          assertReady: () => {
+            calls.push("admission");
+            if (admissionRefuses) throw refused;
+          },
+        },
+        custody: undefined,
+        ownedSession: session,
+        port: 4444,
+        nativeDriverPath: "/native-driver",
+        driverPath: "/driver",
+        process: { platform: "win32" },
+        driverEnvironment: () => ({}),
+        spawn: () => {
+          calls.push("spawn");
+          throw spawnFailure;
+        },
+      }),
+    );
+    await assert.rejects(
+      async () => start(),
+      (error: unknown) => error === (admissionRefuses ? refused : spawnFailure),
+    );
+    if (admissionRefuses) {
+      assert.deepEqual(calls, ["verify", "admission"]);
+      assert.equal(session.requireQuiescence(), former);
+    } else {
+      assert.deepEqual(calls, ["verify", "admission", "begin", "spawn"]);
+      assert.throws(() => session.requireQuiescence(), /Current owned launch identity/);
+    }
+  }
+});
+
 void test("Windows retained custody keeps its hold even when failure evidence cannot be published", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),

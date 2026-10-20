@@ -2013,7 +2013,6 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       await import("../../../scripts/desktop-linux-media.mts");
     await verifyApplicationMediaInputs(inputs, admission);
   } else await admission.verify(custody?.inputs ?? []);
-  ownedSession.beginLaunch();
   const launchStarted = Date.now();
   const arguments_ = [
     "--port",
@@ -2024,6 +2023,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     nativeDriverPath,
   ];
   if (linuxSelectedSession) {
+    ownedSession.beginLaunch();
     assert.equal(linuxLaunch, undefined, "The previous Linux launch must finish publication");
     linuxCleanup = undefined;
     linuxStop = undefined;
@@ -2048,6 +2048,7 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     driver = linuxLaunch.child;
   } else {
     admission.assertReady();
+    ownedSession.beginLaunch();
     driver = spawn(driverPath, arguments_, {
       windowsHide: true,
       detached: process.platform !== "win32",
