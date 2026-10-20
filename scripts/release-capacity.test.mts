@@ -13,15 +13,41 @@ import {
   verifyRetainedCapacityOperation,
   inspectCapacityExecutorIdentity,
 } from "./release-capacity.mts";
-import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
   inspectMetadataRenewalDescriptor,
   metadataInstant,
   assertMetadataRenewalBinding,
   validatePublishedMetadataTransition,
+  inspectMetadataBootstrapDescriptor,
+  assertMetadataBootstrapBinding,
+  assertMetadataBootstrapPublication,
 } from "./release-metadata-contract.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
+void test("initial metadata descriptor is explicit empty first generation and cannot impersonate renewal or published state", () => {
+  const f = metadataBootstrapFixture();
+  assertMetadataBootstrapBinding(f.descriptor, null, f.descriptor.generated_at);
+  assert.throws(
+    () => assertMetadataBootstrapBinding(f.descriptor, f.published, f.descriptor.generated_at),
+    /permanently closed/,
+  );
+  for (const mutation of [
+    { initial_records_sha256: "1".repeat(64) },
+    { versions: { ...f.descriptor.versions, preview: "2" } },
+    { prior_repository_sha256: "1".repeat(64) },
+    { expires: { ...f.descriptor.expires, timestamp: "2099-01-01T00:00:00Z" } },
+  ])
+    assert.throws(() => inspectMetadataBootstrapDescriptor({ ...f.descriptor, ...mutation }));
+  const { operation_id, publication, ...facts } = f.published;
+  void operation_id;
+  void publication;
+  assertMetadataBootstrapPublication(f.descriptor, facts);
+  assert.throws(() =>
+    assertMetadataBootstrapPublication(f.descriptor, { ...facts, records_sha256: "d".repeat(64) }),
+  );
+  assert.throws(() => inspectMetadataRenewalDescriptor(f.descriptor));
+});
 void test("Rust and Node share exact descriptor and public component canonical hashes", async () => {
   const fixture: unknown = JSON.parse(
     await readFile(new URL("./fixtures/release-metadata-canonical.json", import.meta.url), "utf8"),

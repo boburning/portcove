@@ -300,7 +300,19 @@ const selectionContractTests = [
 
 const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
+  ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-worker.test.mts"],
+  ]),
+  [
+    "scripts/release-classification-request.mts",
+    ["scripts/release-classification-request.test.mts"],
+  ],
+  ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
+  ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
+  ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
+  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
   ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
   [
@@ -318,7 +330,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-semantic-disposition-reader.test.mts",
     ],
   ],
-  ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   [
     "scripts/release-coordinator-journal-api.mts",
     ["scripts/release-coordinator-journal-api.test.mts"],
@@ -529,7 +540,50 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/upstream-observer.mts", ["scripts/discovery-checkpoint.test.mts"]],
   ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
-  ["scripts/test-windows-installer.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/test-windows-installer.ps1",
+    ["scripts/repository-skills.test.mts", "scripts/native-qualification-account-adapter.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account.cs.txt",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-account-bridge.ps1",
+    [
+      "scripts/native-qualification-account.test.mts",
+      "scripts/native-qualification-account-adapter.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-client.ps1",
+    [
+      "scripts/native-qualification-account.test.mts",
+      "scripts/native-qualification-account-client.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-client.mts",
+    [
+      "scripts/native-qualification-account-client.test.mts",
+      "scripts/desktop-native-account-session.test.mts",
+    ],
+  ],
+  [
+    "scripts/native-qualification-account-adapter.psm1",
+    ["scripts/native-qualification-account-adapter.test.mts"],
+  ],
+  [
+    "scripts/fixtures/native-account-gui-probe.ps1",
+    ["scripts/native-qualification-account.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-native-account-session.mts",
+    [
+      "scripts/desktop-native-account-session.test.mts",
+      "scripts/native-helper-dependencies.test.mts",
+    ],
+  ],
   ["scripts/windows-qualification-session.ps1", ["scripts/repository-skills.test.mts"]],
   [
     "crates/portcove-core/catalog/catalog-current-authoring.json",

@@ -4,6 +4,8 @@ use portcove_release_tools::tuf_repository::{
     isolated::{OnlineRole, RoleReport, assemble_tuf_repository, sign_tuf_role},
 };
 
+#[path = "isolated/bootstrap.rs"]
+mod bootstrap;
 #[path = "isolated/renewal.rs"]
 mod renewal;
 

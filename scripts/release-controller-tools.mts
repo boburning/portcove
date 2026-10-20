@@ -13,9 +13,11 @@ export const controllerToolEntries = Object.freeze([
   "release-payload-preparation",
   "release-signing-controller",
   "release-role-key-channel",
+  "release-coordinator-driver",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   ".github/workflows/application-update-production.yml",
+  ".github/workflows/release.yml",
   "release/package-policy.json",
 ] as const);
 export const controllerToolPaths = Object.freeze(

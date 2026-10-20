@@ -1,6 +1,7 @@
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { requestAssemblerToken } from "./assembler-job-identity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { performance } from "node:perf_hooks";
 
 const endpoint = "repos/boburning/portcove/pages/deployments";
 const publicUrl = "https://boburning.github.io/portcove/";
@@ -63,11 +64,26 @@ function identity(value: unknown): PagesDeploymentIdentity {
 export function createPagesProviderTransport(
   directory: string,
   injected: { api?: Api; token?: () => Promise<string> } = {},
+  deadline?: number,
 ) {
-  const runner = createGitHubRunner({ cwd: directory, timeoutMs: 30_000, maxBuffer: 128 * 1024 });
+  const remaining = () => {
+    if (deadline !== undefined && !Number.isFinite(deadline))
+      throw new Error("Pages phase deadline exhausted; retain pending intent");
+    const timeoutMs =
+      deadline === undefined ? 30000 : Math.floor(Math.min(30000, deadline - performance.now()));
+    if (!Number.isFinite(timeoutMs) || timeoutMs < 1)
+      throw new Error("Pages phase deadline exhausted; retain pending intent");
+    return timeoutMs;
+  };
+  remaining();
   const api =
     injected.api ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({ cwd: directory, timeoutMs: remaining(), maxBuffer: 128 * 1024 })(
+        [...args, "--hostname", "github.com"],
+        input,
+      ),
+    );
   const scope = injected.api || injected.token ? "injected-provider" : "github.com";
   let attempted = false;
   return {
@@ -86,14 +102,28 @@ export function createPagesProviderTransport(
       // Claim the one-shot boundary before the first await. Two callers must
       // not both acquire a credential and enter the same pending effect.
       attempted = true;
+      remaining();
       // Acquire a distinct Pages-audience token only in the actual fixed job.
       // It is never returned, retained in receipts, or included in diagnostics.
-      const token = await (injected.token ?? (() => requestAssemblerToken(audience)))();
+      const token = await (
+        injected.token ??
+        (() =>
+          requestAssemblerToken(audience, process.env, (input, init) =>
+            fetch(input, {
+              ...init,
+              signal: AbortSignal.any([
+                ...(init?.signal ? [init.signal] : []),
+                AbortSignal.timeout(remaining()),
+              ]),
+            }),
+          ))
+      )();
       if (typeof token !== "string" || token.length < 1 || token.length > 16384)
         throw new Error("Pages OIDC credential is unavailable");
       // Credential acquisition can outlast the caller's fresh controls. Its
       // fixed guard runs after that await, immediately before the sole POST.
       await beforePost?.();
+      remaining();
       let response: ReturnType<Api["request"]>;
       try {
         response = api.request("POST", endpoint, {
@@ -107,6 +137,7 @@ export function createPagesProviderTransport(
           "Pages POST outcome ambiguous; preserve pending intent and require readback",
         );
       }
+      remaining();
       const body = response.body;
       if (
         response.status !== 200 ||
@@ -134,6 +165,7 @@ export function createPagesProviderTransport(
     /** One observation, no cancellation, re-POST or unbounded polling. Even
      * succeed must be followed by independent complete expected-byte readback. */
     observe(raw: PagesDeploymentIdentity) {
+      remaining();
       const expected = identity(structuredClone(raw));
       let response: ReturnType<Api["request"]>;
       try {
@@ -141,6 +173,7 @@ export function createPagesProviderTransport(
       } catch {
         throw new Error("Pages deployment readback unavailable; retain original pending intent");
       }
+      remaining();
       const body = response.body;
       if (
         response.status !== 200 ||

@@ -35,6 +35,15 @@ import type { PreparedReleasePublication } from "./release-immutable-publication
 import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+function remaining(deadline: number | undefined, maximum: number) {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new Error("site deployment phase deadline exhausted; preserve actual effects");
+  const value =
+    deadline === undefined ? maximum : Math.floor(Math.min(maximum, deadline - performance.now()));
+  if (value < 1)
+    throw new Error("site deployment phase deadline exhausted; preserve actual effects");
+  return value;
+}
 const block = 512;
 function octal(header: Buffer, start: number, length: number, value: number) {
   const text = value.toString(8).padStart(length - 1, "0");
@@ -104,6 +113,7 @@ interface DeploymentSession {
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
+  deadline?: number;
   generation: Composed["generation"];
   publication: Composed["publication"];
   previous_generation: Composed["generation"] | null;
@@ -181,6 +191,7 @@ export async function verifyUploadedSiteArchive(
 ) {
   const prepared = sessions.get(session);
   if (!prepared) throw new Error("actual prepared site session unavailable");
+  remaining(prepared.deadline, 15000);
   const expected = structuredClone(rawExpected);
   if (
     Object.keys(expected).sort().join(",") !==
@@ -191,17 +202,20 @@ export async function verifyUploadedSiteArchive(
     !/^[a-f0-9]{40}$/u.test(expected.controller_revision)
   )
     throw new Error("site artifact provider identity unavailable");
-  const runner = createGitHubRunner({
-    cwd: prepared.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 128 * 1024,
-  });
   const api =
     options.api ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: prepared.directory,
+        timeoutMs: remaining(prepared.deadline, 15000),
+        maxBuffer: 128 * 1024,
+      })([...args, "--hostname", "github.com"], input),
+    );
   const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`;
   const identity = () => {
+    remaining(prepared.deadline, 15000);
     const response = api.request("GET", endpoint);
+    remaining(prepared.deadline, 15000);
     if (response.status !== 200) throw new Error("site artifact provider readback unavailable");
     const value = response.body;
     if (
@@ -239,9 +253,10 @@ export async function verifyUploadedSiteArchive(
     const bytes = (options.download ?? readGitHubArtifactArchive)(`${endpoint}/zip`, {
       cwd: prepared.directory,
       maxBytes: before.bytes,
-      timeoutMs: 120_000,
+      timeoutMs: remaining(prepared.deadline, 120000),
     });
     await writeFile(path.join(attempt, "uploaded.zip"), bytes, { flag: "wx", mode: 0o600 });
+    remaining(prepared.deadline, 15000);
     if (bytes.length !== before.bytes || hash(bytes) !== before.sha256)
       throw new Error("site artifact provider archive bytes differ");
     inspectSiteArtifactArchive(bytes, {
@@ -302,6 +317,7 @@ export async function prepareSiteDeployment(
     composed.output,
     composed.generation.generation,
     request.trusted_root_sha256,
+    request.deadline,
   );
   const archive = serializeSiteTar(files);
   const directory = await mkdtemp(path.join(request.output_parent, "site-deployment-"));
@@ -339,8 +355,11 @@ export async function prepareSiteDeployment(
           request.previous_site,
           request.expected_previous_generation!,
           request.trusted_root_sha256,
+          request.deadline,
         );
+  remaining(request.deadline, 15000);
   sessions.set(session, {
+    ...(request.deadline === undefined ? {} : { deadline: request.deadline }),
     ...retained,
     publication: structuredClone(composed.publication),
     previous_generation: prior ? structuredClone(prior.generation) : null,
@@ -353,7 +372,7 @@ export async function prepareSiteDeployment(
 export async function readBackSiteDeployment(session: DeploymentSession) {
   const prepared = sessions.get(session);
   if (!prepared) throw new Error("imported deployment sessions cannot establish public completion");
-  return readPublicApplicationSite(prepared.generation);
+  return readPublicApplicationSite(prepared.generation, prepared.deadline);
 }
 
 /** Heavy acquisition precedes the fresh observer handshake. This receipt is
@@ -362,7 +381,7 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
   const prepared = sessions.get(session);
   if (!prepared?.previous_generation)
     throw new Error("actual prepared prior site session required");
-  const readback = await readPublicApplicationSite(prepared.previous_generation);
+  const readback = await readPublicApplicationSite(prepared.previous_generation, prepared.deadline);
   prepared.prior_public_readback = {
     generation: readback.generation,
     evidence_sha256: readback.evidence_sha256,
@@ -395,6 +414,7 @@ export async function publishPreparedSiteDeployment(
   const prepared = sessions.get(session);
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
     throw new Error("actual authenticated composition and provider upload session required");
+  remaining(prepared.deadline, 15000);
   requireAuthenticatedReleaseControlSource(controls, "site-publication");
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
@@ -436,23 +456,24 @@ export async function publishPreparedSiteDeployment(
     if (input.metadata_renewal !== undefined) return null;
     if (!releaseSession)
       throw new Error("actual immutable Release preparation required before feed publication");
-    return verifyPreparedImmutableRelease(releaseSession, candidate);
+    return verifyPreparedImmutableRelease(releaseSession, candidate, prepared.deadline);
   };
   readRelease();
-  const runner = createGitHubRunner({
-    cwd: prepared.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
   const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
+    createGitHubRunner({
+      cwd: prepared.directory,
+      timeoutMs: remaining(prepared.deadline, 15000),
+      maxBuffer: 2 * 1024 * 1024,
+    })([...args, "--hostname", "github.com"], body),
   );
   const readBoundary = async () => {
+    remaining(prepared.deadline, 15000);
     requireAuthenticatedReleaseControlSource(controls, "site-publication");
     const facts =
       input.metadata_renewal === undefined
         ? controls.read(api, frozen)
         : controls.readMaintenance(api);
+    remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
       facts.resource_policy_matches_controller !== true ||
@@ -461,7 +482,7 @@ export async function publishPreparedSiteDeployment(
       throw new Error("fresh actual publication controls hold the site attempt");
     return structuredClone(facts.capacity_source.capacity.boundary);
   };
-  const provider = createPagesProviderTransport(prepared.directory);
+  const provider = createPagesProviderTransport(prepared.directory, {}, prepared.deadline);
   if (provider.evidence_scope !== "github.com")
     throw new Error("actual Pages provider transport required");
   const result = await executeOwnedCapacityEffect(
@@ -474,7 +495,7 @@ export async function publishPreparedSiteDeployment(
     async (pending) => {
       // A complete independent prior readback and freshly guarded controls occur
       // before the sole POST. No provider CAS guarantee is inferred from them.
-      await readPublicApplicationSiteMarker(prepared.previous_generation!);
+      await readPublicApplicationSiteMarker(prepared.previous_generation!, prepared.deadline);
       await readBoundary();
       const immutableRelease = readRelease();
       const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
@@ -500,7 +521,7 @@ export async function publishPreparedSiteDeployment(
           },
         );
         await write("acknowledgement.json", accepted);
-        const deadline = performance.now() + 150_000;
+        const deadline = Math.min(performance.now() + 150_000, prepared.deadline ?? Infinity);
         let status: ReturnType<typeof provider.observe> | null = null;
         for (let count = 0; count < 30; count++) {
           if (performance.now() >= deadline)
@@ -517,7 +538,7 @@ export async function publishPreparedSiteDeployment(
           if (status.status === "succeed") break;
           if (isTerminalPagesFailure(status.status))
             throw new Error("Pages provider stopped the affected attempt; retain all effects");
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, remaining(deadline, 5000)));
         }
         if (status?.status !== "succeed")
           throw new Error("Pages acknowledgement has no completed result; retain pending intent");
@@ -556,6 +577,7 @@ export async function publishPreparedSiteDeployment(
     input.remote_configuration,
     { api },
   );
+  remaining(prepared.deadline, 15000);
   const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);
   const controller = settled.input.controller;
   const capacity =
@@ -590,6 +612,7 @@ export async function publishPreparedSiteDeployment(
     },
     { remote: { configuration: input.remote_configuration, api } },
   );
+  remaining(prepared.deadline, 15000);
   if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)
     throw new Error("published metadata handoff remains unresolved; do not deploy again");
   return {
@@ -610,6 +633,7 @@ export async function recoverPublishedSiteHandoff(
   const prepared = sessions.get(session);
   if (!prepared?.publication)
     throw new Error("actual authenticated public component required for site handoff recovery");
+  remaining(prepared.deadline, 15000);
   return recoverOwnedPublishedMetadata(executor, raw, async (operation) => {
     const effects = operation.completed_effects;
     const effect: unknown = Array.isArray(effects) ? effects[0] : null;

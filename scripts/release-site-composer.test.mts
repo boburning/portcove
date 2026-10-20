@@ -4,6 +4,7 @@ import { cp, link, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
 import {
   inspectTufPublicationFacts,
@@ -13,6 +14,31 @@ import {
   composeSiteFiles,
   assembleAuthenticatedApplicationSite,
 } from "./release-site-composer.mts";
+
+void test("expired or invalid composition deadline refuses before filesystem and verifier work", async (t) => {
+  const f = await fixture(t);
+  for (const deadline of [performance.now() - 1, Number.NaN, Infinity]) {
+    await assert.rejects(composeSiteFiles({ ...f.request, deadline }), /phase deadline/);
+    await assert.rejects(
+      assembleAuthenticatedApplicationSite({
+        input_root: path.join(f.root, "absent"),
+        context: path.join(f.root, "absent", "context.json"),
+        signed_roles: path.join(f.root, "absent", "roles"),
+        trusted_root_sha256: "a".repeat(64),
+        verifier: path.join(f.root, "absent-tool"),
+        verifier_sha256: "b".repeat(64),
+        previous_site: null,
+        expected_previous_generation: null,
+        output_parent: f.output,
+        deadline,
+      }),
+      /phase deadline/,
+    );
+  }
+  assert.deepEqual(await readdir(f.output), []);
+  const bounded = await composeSiteFiles({ ...f.request, deadline: performance.now() + 10000 });
+  assert.equal(bounded.changed, true);
+});
 
 void test("publication fact parsing retains exact u64 versions and rejects incomplete or authority-bearing reports", () => {
   const roles = ["targets", "releases", "preview", "stable", "snapshot", "timestamp"];
@@ -62,6 +88,7 @@ void test(
       previous_site: null,
       expected_previous_generation: null,
       output_parent: f.output,
+      deadline: performance.now() + 60000,
     });
     assert.ok(composed.publication);
     const renewal: unknown = JSON.parse(await readFile(path.join(input, "renewal.json"), "utf8"));
