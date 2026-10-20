@@ -15,6 +15,10 @@ mod plan;
 #[path = "cvlod_build/sources.rs"]
 mod sources;
 
+#[cfg(windows)]
+#[path = "cvlod_build/cleanup.rs"]
+pub(crate) mod cleanup;
+
 #[cfg(test)]
 #[path = "cvlod_build/tests.rs"]
 mod tests;

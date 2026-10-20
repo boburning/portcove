@@ -439,6 +439,12 @@ pub(crate) fn discard_private_install_with_faults(
     }
     if staging_exists {
         faults.check(LifecycleFaultPoint::InstallPrivateCleanup)?;
+        #[cfg(windows)]
+        if operation.port_id == "cvlod-recomp"
+            && operation.preparation_process_quiesced == Some(true)
+        {
+            crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(expected)?;
+        }
         std::fs::remove_dir_all(expected)?;
     }
     faults.check(LifecycleFaultPoint::InstallPrivateCleanupJournalRemoval)?;
@@ -449,6 +455,139 @@ pub(crate) fn discard_private_install_with_faults(
 mod managed_builder_tests {
     use super::*;
     use std::fs;
+
+    #[cfg(windows)]
+    fn cvlod_junction_fixture(staging: &std::path::Path, target: &std::path::Path) {
+        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        fs::create_dir_all(&cache).unwrap();
+        fs::create_dir_all(target).unwrap();
+        fs::write(target.join("sentinel"), b"preserve target").unwrap();
+        let link = cache.join("Content.IE5");
+        let output = crate::ChildProcessPolicy::native_command(
+            crate::ChildProcessClass::HostTool,
+            std::path::Path::new("cmd.exe"),
+        )
+        .unwrap()
+        .args(["/d", "/c", "mklink", "/J"])
+        .arg(&link)
+        .arg(target)
+        .output()
+        .unwrap();
+        assert!(output.status.success(), "junction fixture: {output:?}");
+        let output = crate::ChildProcessPolicy::native_command(
+            crate::ChildProcessClass::HostTool,
+            std::path::Path::new("icacls.exe"),
+        )
+        .unwrap()
+        .arg(&link)
+        .args(["/L", "/deny", "*S-1-1-0:(RD)"])
+        .output()
+        .unwrap();
+        assert!(
+            output.status.success(),
+            "owned deny-list fixture: {output:?}"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cvlod_private_cleanup_unlinks_exact_denied_junction_without_touching_target() {
+        let temporary = tempfile::tempdir().unwrap();
+        let staging = temporary.path().join("private");
+        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        let target = cache.join("IE");
+        cvlod_junction_fixture(&staging, &target);
+        crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(&staging).unwrap();
+        assert!(fs::symlink_metadata(cache.join("Content.IE5")).is_err());
+        assert_eq!(
+            fs::read(target.join("sentinel")).unwrap(),
+            b"preserve target"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cvlod_private_cleanup_retains_foreign_target_and_redirected_ancestor() {
+        for redirected_ancestor in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let staging = temporary.path().join("private");
+            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let foreign = temporary.path().join("foreign");
+            cvlod_junction_fixture(&staging, &foreign);
+            if redirected_ancestor {
+                // Move the owned cache, then redirect its expected ancestor to it.
+                fs::rename(&cache, temporary.path().join("redirected-cache")).unwrap();
+                let output = crate::ChildProcessPolicy::native_command(
+                    crate::ChildProcessClass::HostTool,
+                    std::path::Path::new("cmd.exe"),
+                )
+                .unwrap()
+                .args(["/d", "/c", "mklink", "/J"])
+                .arg(&cache)
+                .arg(temporary.path().join("redirected-cache"))
+                .output()
+                .unwrap();
+                assert!(output.status.success(), "ancestor junction: {output:?}");
+            }
+            assert!(
+                crate::cartridge_build::cvlod::cleanup::unlink_private_wininet_junction(&staging)
+                    .is_err()
+            );
+            assert_eq!(
+                fs::read(foreign.join("sentinel")).unwrap(),
+                b"preserve target"
+            );
+            // Unlink only fixture-owned junction entries before TempDir cleanup.
+            if redirected_ancestor {
+                fs::remove_dir(&cache).unwrap();
+                fs::remove_dir(temporary.path().join("redirected-cache/Content.IE5")).unwrap();
+            } else {
+                fs::remove_dir(cache.join("Content.IE5")).unwrap();
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cvlod_private_cleanup_requires_exact_owner_and_durable_quiescence() {
+        for (port, quiesced) in [
+            ("cvlod-recomp", Some(false)),
+            ("cvlod-recomp", None),
+            ("sample", Some(true)),
+            ("cvlod-recomp", Some(true)),
+        ] {
+            let (_temporary, service, _operation, mut journal) = fixture(
+                ActivityOperation::Install,
+                LifecyclePhase::CleanupPending,
+                quiesced,
+            );
+            journal.port_id = port.into();
+            let store = OperationStore::new(service.library().clone());
+            store.put(&mut journal).unwrap();
+            let staging = journal.paths.staging.as_ref().unwrap();
+            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            cvlod_junction_fixture(staging, &cache.join("IE"));
+            let result = discard_private_install(service.library(), &journal);
+            if port == "cvlod-recomp" && quiesced == Some(true) {
+                result.unwrap();
+                assert!(!staging.exists());
+                assert!(store.get(&journal.id).unwrap().is_none());
+            } else {
+                assert!(
+                    result.is_err(),
+                    "unproven/non-CV cleanup used the exception"
+                );
+                assert!(
+                    fs::symlink_metadata(cache.join("Content.IE5"))
+                        .unwrap()
+                        .file_type()
+                        .is_symlink()
+                );
+                assert!(store.get(&journal.id).unwrap().is_some());
+                fs::remove_dir(cache.join("Content.IE5")).unwrap();
+            }
+        }
+    }
 
     fn fixture(
         activity_kind: ActivityOperation,

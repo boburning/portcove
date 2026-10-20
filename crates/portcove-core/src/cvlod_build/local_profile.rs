@@ -94,7 +94,7 @@ fn manifest() -> Result<Profile> {
                 .ok_or_else(|| PortcoveError::verification("local toolchain size overflow"))?;
         }
     }
-    if count != 5620 || bytes != 908_357_067 {
+    if count != 5621 || bytes != 908_859_619 {
         return Err(PortcoveError::verification(
             "CVLoD local toolchain closure differs",
         ));

@@ -227,6 +227,15 @@ platform = 'x86_64-apple-darwin'
 filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_install_published_revocation_preserves_owned_payload$/)'
 slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
 
+# Retained CVLoD Windows runs hit the 30s harness cutoff during private fixture
+# setup/copy; the unchanged two-case diagnostic completed in 7.3s and 12.2s.
+# Give only these cases finite 60s headroom. Keep both workers, zero retries,
+# blocking-worker assertions, cleanup and all inner/product deadlines unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & (test(/^cartridge_build::cvlod::pipeline::llvm_copy_tests::cvlod_llvm_preparation_copies_large_exact_members_without_runtime_output_limits$/) | test(/^install::cvlod_download_tests::cvlod_blob_cancel_and_ambiguous_drain_retains_private_state$/))'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+
 # These CLI contracts compare free-space snapshots across child processes.
 # Preserve their existing mutual exclusion across nextest's process boundary.
 [test-groups]

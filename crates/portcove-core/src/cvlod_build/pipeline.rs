@@ -1116,6 +1116,7 @@ impl Executor<'_, '_> {
                 cmake_path(&self.local.join("sdk-tools/mt.exe"))?
             ),
             "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL".into(),
+            "-DCMAKE_TRY_COMPILE_CONFIGURATION=Release".into(),
             "-DCMAKE_FIND_USE_PACKAGE_REGISTRY=OFF".into(),
             "-DCMAKE_FIND_USE_SYSTEM_PACKAGE_REGISTRY=OFF".into(),
             "-DCMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH=OFF".into(),

@@ -28123,6 +28123,11 @@
       "id": "sdk-tools",
       "files": [
         {
+          "path": "MidlrtMd.dll",
+          "size": 502552,
+          "sha256": "762c7a7e6822bb2e5b68440d5c7c16ff971a3301be84a18ff9f31c72e8908e4a"
+        },
+        {
           "path": "mt.exe",
           "size": 1847888,
           "sha256": "a86c27bb35ccf3c27c206406e26262216fadba3de0eed7173447bcbfe03ff74c"
