@@ -138,6 +138,14 @@ function inspectPrior(files: Files, expected: string, rootHash: string) {
   return { ...wanted, generation: expected };
 }
 
+/** Bounded filesystem readback only. A matching marker is not authentication;
+ * expected identities must come from the protected caller's real composition. */
+export async function readComposedSite(directory: string, expected: string, rootHash: string) {
+  const files = await tree(directory);
+  const generation = inspectPrior(files, expected, rootHash);
+  return { files, generation };
+}
+
 /** Filesystem composition only. Inputs here are NOT authenticated by a
  * self-consistent marker. The protected caller supplies the independently
  * authenticated previous generation and separately verified application tree.
