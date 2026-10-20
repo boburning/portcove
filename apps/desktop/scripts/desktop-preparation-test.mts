@@ -570,7 +570,7 @@ async function assertReviewedUpdateOutcomes({
   command: FixtureCommand;
 }) {
   const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
-  const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+  const dialog = By.css("[data-game-update-review]");
   interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
     availability?: string;
     reason?: string;
@@ -1793,28 +1793,32 @@ export async function preparationScenarios({
     const updateControl = await browser.findElement(
       By.css('section[aria-label="Review game update"]'),
     );
-    await clickVisible(
-      browser,
-      await updateControl.findElement(By.css('[data-slot="select-trigger"]')),
+    assert.equal(
+      (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
+      0,
     );
-    await clickVisible(
-      browser,
-      await browser.findElement(
-        By.xpath('//*[@role="option" and normalize-space(.)="Keep update for later"]'),
-      ),
-    );
-    assert.ok((await updateControl.getText()).includes("Keep update for later"));
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
     const trigger = await browser.findElement(button("Review game update"));
     await clickVisible(browser, trigger);
-    const dialog = By.css('[aria-labelledby="game-update-review-title"]');
+    const dialog = By.css("[data-game-update-review]");
     const review = await browser.wait(until.elementLocated(dialog), 15_000);
     await browser.wait(
       async () => (await review.getText()).includes("Confirm the release"),
       5_000,
       "Game update review did not show its release confirmation",
     );
+    // A disposition is offered only after the current release has been reviewed.
+    const initialReviewText = await review.getText();
+    const keepForLater = await review.findElements(button("Review download for later"));
+    if (keepForLater.length) {
+      assert.ok(initialReviewText.includes("Confirm the release"));
+      await clickVisible(browser, keepForLater[0]!);
+      await browser.wait(
+        async () => (await review.getText()).includes("Your current version stays unchanged"),
+        5_000,
+      );
+    }
     const reviewText = await review.getText();
     const bootstrap = await read("desktop_bootstrap_status", "get_bootstrap_status");
     const candidate = await read("game_update_plan", "plan_game_update", {
@@ -1835,7 +1839,7 @@ export async function preparationScenarios({
         reviewText.includes("already active") ||
         reviewText.includes("unverified local copy"),
     );
-    await assertCompactReview(browser, '[aria-labelledby="game-update-review-title"]');
+    await assertCompactReview(browser, "[data-game-update-review]");
     const accessibility = path.join(output, "game-update-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
     const screenshot = path.join(output, "native-game-update-review.png");
