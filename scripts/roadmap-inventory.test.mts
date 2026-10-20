@@ -11,6 +11,7 @@ import {
   invalidateRoadmapInventory,
 } from "./roadmap-inventory.mts";
 import type { RoadmapIssueItem } from "./roadmap.mts";
+import type { InventoryCache } from "./roadmap-inventory.mts";
 import { GitHubApiClient } from "./github-api.mts";
 import { GitHubApiError } from "./github-api.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -143,12 +144,13 @@ void test("cold inventory hydrates once, joins by opaque identity, and keeps arc
   got.issues[0]!.body = "tampered";
   assert.throws(() => requireRoadmapInventory(got, config.repository), /collector-validated/);
 });
-async function temporarySession(t: test.TestContext) {
+async function temporarySession(t: test.TestContext, cache?: InventoryCache) {
   const work = fileURLToPath(new URL("../work/", import.meta.url));
   await mkdir(work, { recursive: true });
   const state = await mkdtemp(path.join(work, "discovery-fixture-"));
   const run = path.join(state, "runs", "fixture");
   await mkdir(run, { recursive: true });
+  if (cache) writeFileSync(path.join(state, "inventory.json"), JSON.stringify(cache));
   t.after(async () => {
     assert.ok(path.resolve(state).startsWith(path.resolve(work) + path.sep));
     await rm(state, { recursive: true, force: true });
@@ -320,6 +322,95 @@ void test("delivered candidates make quiet repeats write nothing and review cann
       }),
     /Separate review/,
   );
+});
+void test("charged final recollection fits the scheduled budget and refuses genuine exhaustion", async (t) => {
+  for (const priorRequests of [142, 166])
+    await t.test(String(priorRequests), async (t) => {
+      const f = fixture(891);
+      const previous = collectRoadmapInventory(f.client);
+      const { session } = await temporarySession(t, {
+        ...previous,
+        baseline_completed_at: new Date().toISOString(),
+      });
+      assert.equal(session.budget.usage.profile, "ordinary");
+      session.inventory = previous;
+      session.inventoryCache = { ...previous, baseline_completed_at: new Date().toISOString() };
+      session.inventoryStarted = true;
+      session.budget.delivery = true;
+      session.budget.charge("GET", "prior collection and delivery", priorRequests, 3500000, "200");
+      session.client.completeProjectContext = () => {
+        session.budget.admit(2, 2);
+        session.budget.charge("POST", "fixture project details and fields", 2, 2, "200");
+        return f.client.completeProjectContext();
+      };
+      session.client.itemList = RoadmapClient.prototype.itemList;
+      let traversals = 0;
+      session.client.graphql = (query, vars) => {
+        session.budget.admit(1, 1);
+        let response: ReturnType<typeof f.client.graphql>;
+        if (query.includes("items(first:")) {
+          if (vars?.after === null) traversals++;
+          const offset = vars?.after === null ? 0 : Number(vars?.after);
+          const nodes = f.project.slice(offset, offset + 100).map((item) => ({
+            ...item,
+            content: { ...item.content, __typename: "Issue" },
+            fieldValues: {
+              totalCount: 0,
+              nodes: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          }));
+          response = {
+            node: {
+              items: {
+                totalCount: traversals === 1 && offset === 100 ? 892 : 891,
+                nodes,
+                pageInfo: {
+                  hasNextPage: offset + 100 < f.project.length,
+                  endCursor: String(offset + 100),
+                },
+              },
+            },
+          };
+        } else response = f.client.graphql(query, vars);
+        session.budget.charge(
+          "POST",
+          "fixture graphql",
+          1,
+          Buffer.byteLength(JSON.stringify(response)),
+          "200",
+        );
+        return response;
+      };
+      if (priorRequests === 166) {
+        const retained = readFileSync(path.join(session.stateDir, "inventory.json"), "utf8");
+        assert.throws(() => session.refresh(), /budget cannot admit/);
+        assert.equal(
+          traversals,
+          1,
+          "insufficient capacity must refuse before replacement requests",
+        );
+        assert.equal(readFileSync(path.join(session.stateDir, "inventory.json"), "utf8"), retained);
+        assert.equal(session.inventory, previous);
+        assert.match(JSON.stringify(session.journal.notes), /"status":"failed"/);
+        return;
+      }
+      session.refresh();
+      assert.equal(traversals, 2);
+      assert.equal(session.inventoryRecollections, 1);
+      assert.equal(
+        requireRoadmapInventory(session.inventory, config.repository, session.client),
+        session.inventory,
+      );
+      assert.equal(session.inventory.items.length + session.inventory.archivedItems.length, 891);
+      assert.equal(session.budget.usage.requests, 183);
+      assert.equal(
+        session.budget.usage.requests,
+        session.budget.usage.attempts.reduce((sum, a) => sum + a.requests, 0),
+      );
+      assert.match(JSON.stringify(session.journal.notes), /"status":"complete"/);
+      assert.match(JSON.stringify(session.journal.notes), /"requests_after":158/);
+    });
 });
 void test("one complete recollection replaces Project count drift without joining abandoned pages", async (t) => {
   const { session } = await temporarySession(t);

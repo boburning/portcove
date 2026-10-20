@@ -243,6 +243,13 @@ duplicate identities and other integrity failures do not trigger recollection.
 This allowance is distinct from issue-revision reconciliation and does not
 restart the process or retry a failed HTTP request. Retained created issue and
 comment identities remain the recovery targets after any failure.
+The delivery reserve includes one replacement inventory. Recollection admission
+estimates that single inventory traversal, rather than reserving a new delivery
+batch, doctor and another recollection. Each actual response still consumes the
+original request/byte/time allowance; insufficient capacity or further churn
+stops without accepting the abandoned view. Charged large-inventory fixtures
+cover both completion within the remaining allowance and refusal before a
+replacement that cannot fit.
 `canonical-baseline.json`, `project-items.json`, `checkpoint.json`,
 `active-run.json` and `runs/<run-id>/` retain identities, evidence and recovery.
 They are collection caches, never independent planning or support authority.
