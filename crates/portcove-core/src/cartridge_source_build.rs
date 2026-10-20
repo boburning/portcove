@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 pub(super) enum SourceRecipe {
     AdvanceWarsUsaRev1,
     EarthBoundUsa,
+    GundamWingJapan,
 }
 
 #[cfg(test)]
@@ -63,12 +64,21 @@ pub(in crate::cartridge_build) mod tests {
                 "rom.cfg",
                 "saves",
             ],
+            SourceRecipe::GundamWingJapan => vec![
+                "config.ini",
+                "config.local.ini",
+                "keybinds.ini",
+                "rom.cfg",
+                "saves",
+            ],
         }
         .into_iter()
         .map(String::from)
         .collect();
         port.runtime_mutable_paths = if recipe == SourceRecipe::EarthBoundUsa {
             vec!["last_run_report.json".into(), "tier2_coverage.json".into()]
+        } else if recipe == SourceRecipe::GundamWingJapan {
+            vec![".snesrecomp_write_probe".into()]
         } else {
             vec![]
         };
@@ -88,7 +98,7 @@ pub(in crate::cartridge_build) mod tests {
         };
         profile.id = facts.source_profile.into();
         profile.accepted_extensions = vec![
-            if recipe == SourceRecipe::EarthBoundUsa {
+            if recipe != SourceRecipe::AdvanceWarsUsaRev1 {
                 "sfc"
             } else {
                 "gba"
@@ -109,14 +119,22 @@ pub(in crate::cartridge_build) mod tests {
         for recipe in [
             SourceRecipe::AdvanceWarsUsaRev1,
             SourceRecipe::EarthBoundUsa,
+            SourceRecipe::GundamWingJapan,
         ] {
             let (port, profile) = fixture(recipe);
             super::super::validate_port(&port, &profile).unwrap();
-            assert_eq!(recipe.recipe().minimum_template_version(), 9);
+            assert_eq!(
+                recipe.recipe().minimum_template_version(),
+                if recipe == SourceRecipe::GundamWingJapan {
+                    14
+                } else {
+                    9
+                }
+            );
             assert!(recipe.recipe().fixed_launch_arguments_only());
             assert_eq!(
                 recipe.recipe().original_filename(),
-                if recipe == SourceRecipe::EarthBoundUsa {
+                if recipe != SourceRecipe::AdvanceWarsUsaRev1 {
                     "game.sfc"
                 } else {
                     "game.gba"
@@ -179,6 +197,32 @@ pub(in crate::cartridge_build) mod tests {
     }
 
     #[test]
+    fn delivered_four_input_storage_identities_remain_unchanged() {
+        // Frozen from f805cb5 before adding another source recipe.
+        // Advance Wars uses an inert source digest; this is no original admission.
+        for (recipe, original, expected) in [
+            (
+                SourceRecipe::AdvanceWarsUsaRev1,
+                "1111111111111111111111111111111111111111111111111111111111111111",
+                "d6b490ae9b3051ce9a23458435d28cf3daf2168809beed2ae14e8643a121795b",
+            ),
+            (
+                SourceRecipe::EarthBoundUsa,
+                "a8fe2226728002786d68c27ddddf0b90a894db52e4dfe268fdf72a68cae5f02e",
+                "8f610f3778a5fcb3b5b0ea33196b64876ab1144aef7fa34aada7089b72b5fc64",
+            ),
+        ] {
+            assert_eq!(
+                recipe
+                    .storage_identity(&recipe.primary_asset().sha256, original)
+                    .unwrap(),
+                expected
+            );
+            assert_eq!(recipe.archives().len(), 4);
+        }
+    }
+
+    #[test]
     fn source_storage_binds_observed_sha256_even_for_sha1_original_contract() {
         let recipe = SourceRecipe::AdvanceWarsUsaRev1;
         let primary = recipe.primary_asset().sha256;
@@ -204,6 +248,7 @@ pub(in crate::cartridge_build) mod tests {
         for recipe in [
             SourceRecipe::AdvanceWarsUsaRev1,
             SourceRecipe::EarthBoundUsa,
+            SourceRecipe::GundamWingJapan,
         ] {
             let facts = recipe.facts();
             let mut record = SourceRecord {
@@ -346,6 +391,7 @@ impl SourceRecipe {
         match self {
             Self::AdvanceWarsUsaRev1 => crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1,
             Self::EarthBoundUsa => crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1,
+            Self::GundamWingJapan => crate::CartridgeBuildRecipe::GundamWingSnesSourceV1,
         }
     }
 
@@ -393,6 +439,17 @@ impl SourceRecipe {
                     "saves",
                 ],
                 &["last_run_report.json", "tier2_coverage.json"],
+            ),
+            Self::GundamWingJapan => (
+                "sfc",
+                &[
+                    "config.ini",
+                    "config.local.ini",
+                    "keybinds.ini",
+                    "rom.cfg",
+                    "saves",
+                ],
+                &[".snesrecomp_write_probe"],
             ),
         };
         let patterns = if self == Self::EarthBoundUsa {
@@ -510,7 +567,7 @@ impl SourceRecipe {
             self.generate(&inputs, work, &preparation.source, &session, quiesced)?;
         let generated_root = project.join(match self {
             Self::AdvanceWarsUsaRev1 => "gen",
-            Self::EarthBoundUsa => "src/gen",
+            Self::EarthBoundUsa | Self::GundamWingJapan => "src/gen",
         });
         let generated_files = inventory(&generated_root, &checkpoint)?;
         let generated_c_count = generated_files
@@ -528,6 +585,11 @@ impl SourceRecipe {
             // post-mortem; pinned game: five handwritten C inputs. Generated
             // sources are inventoried independently of the Ninja graph.
             Self::EarthBoundUsa => 49 + generated_c_count,
+            // Independently counted in the authenticated offline CMake graph:
+            // 66 runner/Cx4 inputs + config + seven game files + optional
+            // presentation stubs + two real shared presentation helpers +
+            // the real state-digest implementation (no transport).
+            Self::GundamWingJapan => 78 + generated_c_count,
         };
         let project_inputs = inventory(&project, &checkpoint)?;
         let build = work.join("build");
@@ -617,6 +679,10 @@ impl SourceRecipe {
                 ("README.md", "Game-README.md"),
                 ("refs/eb-disasm.pin", "eb-disasm.pin"),
             ],
+            Self::GundamWingJapan => &[
+                ("LICENSE", "Game-LICENSE.txt"),
+                ("README.md", "Game-README.md"),
+            ],
         };
         for (from, to) in game_notices {
             copy_verified(
@@ -637,6 +703,14 @@ impl SourceRecipe {
                     "snesrecomp-THIRD_PARTY_ATTRIBUTION.md",
                 ),
             ],
+            Self::GundamWingJapan => &[
+                ("LICENSE", "snesrecomp-LICENSE.txt"),
+                ("README.md", "snesrecomp-README.md"),
+                (
+                    "THIRD_PARTY_ATTRIBUTION.md",
+                    "snesrecomp-THIRD_PARTY_ATTRIBUTION.md",
+                ),
+            ],
         };
         for (from, to) in engine_notices {
             copy_verified(
@@ -650,6 +724,13 @@ impl SourceRecipe {
             &package.join("licenses/SDL2-LICENSE.txt"),
             &checkpoint,
         )?;
+        if self == Self::GundamWingJapan {
+            copy_verified(
+                &inputs.roots[5].join("LICENSE"),
+                &package.join("licenses/recomp-ui-LICENSE.txt"),
+                &checkpoint,
+            )?;
+        }
         copy_verified(
             &inputs.roots[3].join("LICENSE.TXT"),
             &package.join("licenses/LLVM-LICENSE.txt"),
@@ -838,6 +919,41 @@ endif()
                 )?;
                 serde_json::json!({"analysis_backend":"python","emit_arguments":emit,"header_arguments":sync})
             }
+            Self::GundamWingJapan => {
+                let analyzer = super::gundam::analyzer(inputs)?;
+                let observed = session.run(
+                    &super::gundam::analyzer_arguments(&analyzer)?,
+                    "bin/llvm-readobj.exe",
+                    "install.cartridge.source.analyzer.imports",
+                    quiesced,
+                )?;
+                let imports = super::gundam::analyzer_imports(&observed)?;
+                let arguments = Self::python_arguments(
+                    &project.join("snesrecomp/tools/regen_project.py"),
+                    vec![
+                        "--project-root".into(),
+                        super::cmake_path(&project)?,
+                        "--rom".into(),
+                        super::cmake_path(&original)?,
+                        "--no-tests".into(),
+                    ],
+                )?;
+                inputs.verify(source, &checkpoint)?;
+                session.run_configured(
+                    &arguments,
+                    "python/python.exe",
+                    "install.cartridge.source.generate",
+                    quiesced,
+                    |command| {
+                        // An explicit authenticated path fails if missing;
+                        // upstream cannot fall back to Cargo or network builds.
+                        command.env("SNESRECOMP_NATIVE_ANALYZER", &analyzer);
+                        Ok(())
+                    },
+                )?;
+                super::gundam::analyzer(inputs)?;
+                serde_json::json!({"analysis_backend":"native","analyzer_sha256":super::gundam::ANALYZER_SHA256,"analyzer_imports":imports,"arguments":arguments,"project_recipe":"cfg_roots=true; no prepare/postprocess hooks"})
+            }
         };
         inputs.verify(source, &checkpoint)?;
         let after = super::inventory(&project, &checkpoint)?;
@@ -845,14 +961,14 @@ endif()
         // derived SNES header. Authenticated input trees stay unchanged.
         let generated = match self {
             Self::AdvanceWarsUsaRev1 => "gen/",
-            Self::EarthBoundUsa => "src/gen/",
+            Self::EarthBoundUsa | Self::GundamWingJapan => "src/gen/",
         };
         let retained = |files: &[super::FileIdentity]| {
             files
                 .iter()
                 .filter(|file| {
                     !file.path.starts_with(generated)
-                        && !(self == Self::EarthBoundUsa && file.path == "recomp/funcs.h")
+                        && !(self != Self::AdvanceWarsUsaRev1 && file.path == "recomp/funcs.h")
                 })
                 .cloned()
                 .collect::<Vec<_>>()
@@ -950,7 +1066,7 @@ endif()
                 checkpoint,
             )?;
         }
-        if self == Self::EarthBoundUsa {
+        if self != Self::AdvanceWarsUsaRev1 {
             for file in &inputs.identities[1] {
                 super::copy_verified(
                     &inputs.roots[1].join(&file.path),
@@ -958,6 +1074,9 @@ endif()
                     checkpoint,
                 )?;
             }
+        }
+        if self == Self::GundamWingJapan {
+            super::gundam::project(inputs, &project, checkpoint)?;
         }
         Ok(project)
     }
@@ -1013,12 +1132,30 @@ endif()
                 game: EARTHBOUND,
                 engine: SNESRECOMP,
             },
+            Self::GundamWingJapan => SourceFacts {
+                port_id: "gundam-wing-endless-duel-recomp",
+                source_profile: "gundam-wing-endless-duel-snes-japan",
+                project_url: "https://github.com/TechnicallyComputers/GundamWingEndlessDuelSNESRecomp",
+                target: "GundamWingEndlessDuelSNESRecomp",
+                version: "source-c7aaaa152192",
+                original_filename: "game.sfc",
+                original_size: Some(2_097_152),
+                original_identity: OriginalIdentity::Sha256(
+                    "dd94308d822636c6ddf73c5e2644c84f2eb8fb4d9201150fc5f37d44d6f423f1",
+                ),
+                game: super::gundam::GAME,
+                engine: super::gundam::ENGINE,
+            },
         }
     }
 
-    pub(super) fn archives(self) -> [BuildArchive; 4] {
+    pub(super) fn archives(self) -> Vec<BuildArchive> {
         let facts = self.facts();
-        [facts.game, facts.engine, SDL2, TOOLCHAIN]
+        let mut archives = vec![facts.game, facts.engine, SDL2, TOOLCHAIN];
+        if self == Self::GundamWingJapan {
+            archives.extend([super::gundam::ANALYZER, super::gundam::UI]);
+        }
+        archives
     }
 
     pub(super) fn storage_identity(
