@@ -1609,6 +1609,20 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+`acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
+whole-opportunity control and pre-sign native evidence while the exact candidate
+is still qualifying. Its private same-process proof is exclusively for the
+separate qualifying-to-building journal CAS; it creates no aggregate, payload or
+publication admission. Ordinary acquisition still requires building/publishing,
+and caller flags or imported successful reports cannot select the earlier gate.
+The complete workflow's existing `independent_admission` job requires the signed
+`production-release-admission` environment identity before that phase writer may
+release its journal credential. Consolidated setup must restrict this environment
+to the exact protected controller tag, disable administrator bypass and require
+no recurring human reviewers. This is preparation, with no environment settings
+or credentials activated. Schema-1 admission-only remains a separate read-only
+tag-bound identity and cannot mint this proof.
+
 `prepareReleaseSigningContext` connects the actual same-process pre-sign native,
 SPDX, payload signature and public build-input receipts to a Tough-authenticated
 prior repository. It reconstructs the selected Windows/Linux Preview records
