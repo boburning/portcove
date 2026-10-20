@@ -166,7 +166,7 @@ function presentAssessment(
 }
 
 /** Presentation only: an allowed snapshot never supplies execution authority. */
-export function portActionPresentation(
+function corePortActionPresentation(
   status: PortStatus | undefined,
   action: PresentedAction,
 ): ActionPresentation {
@@ -181,6 +181,17 @@ export function portActionPresentation(
   return action === "rollback"
     ? presentRollbackAssessment(assessment)
     : presentAssessment(assessment, action, status);
+}
+
+export function portActionPresentation(
+  status: PortStatus | undefined,
+  action: PresentedAction,
+  localConflict?: string,
+): ActionPresentation {
+  const assessment = corePortActionPresentation(status, action);
+  return assessment.blocked || !localConflict
+    ? assessment
+    : { blocked: true, reason: localConflict };
 }
 
 type SetupRoute = "install" | "register_external";

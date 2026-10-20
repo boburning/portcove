@@ -47,6 +47,10 @@ import { Menu } from "@base-ui/react/menu";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { SteamBatchEntryDialog } from "./SteamEntry";
 import {
+  presentPortAction,
+  useOperationPresentation,
+} from "../features/operations/operation-presentation";
+import {
   evaluateCatalogQuery,
   type CatalogQuery,
   type CatalogQueryContext,
@@ -667,10 +671,11 @@ function ContinueCard({
   details: (portId: string, originKey?: string) => void;
 }) {
   const { port, status } = recent;
+  const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const launchable =
     status.readiness?.launchable === true &&
     status.readiness.blockers.length === 0 &&
-    !portActionPresentation(status, "launch").blocked;
+    !action.readiness.blocked;
   const trial = hasUnconfirmedLaunchInput(status, port);
   return (
     <section
@@ -717,6 +722,8 @@ function ContinueCard({
           variant="primary"
           size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
+          disabled={launchable && Boolean(action.busy)}
+          title={action.assessment.reason}
           onClick={() =>
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
           }
@@ -1104,10 +1111,11 @@ function PortCardStatus({
   hasFavorite: boolean;
   detailOrigin: string;
 }) {
+  const action = presentPortAction(useOperationPresentation(), port.id, status, "launch");
   const canLaunch = Boolean(
     status?.readiness?.launchable === true &&
     status.readiness.blockers.length === 0 &&
-    !portActionPresentation(status, "launch").blocked &&
+    !action.readiness.blocked &&
     onLaunch,
   );
   const overflowOrigin = `library:card-more:${port.id}`;
@@ -1140,7 +1148,14 @@ function PortCardStatus({
             </Button>
           )}
           {canLaunch && (
-            <Button data-focusable variant="primary" size="sm" onClick={() => onLaunch?.(port.id)}>
+            <Button
+              data-focusable
+              variant="primary"
+              size="sm"
+              disabled={Boolean(action.busy)}
+              title={action.assessment.reason}
+              onClick={() => onLaunch?.(port.id)}
+            >
               {status?.readiness?.pending_setup
                 ? "Start setup"
                 : hasUnconfirmedLaunchInput(status, port)

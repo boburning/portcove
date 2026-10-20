@@ -57,7 +57,7 @@ export async function cliHandoffScenario({
     assert.equal(stale.ok, false);
     assert.equal(object(stale.error).code, "conflict");
     const { click } = reviewControls(browser);
-    const open = async (portId: string, view: "Library" | "Port catalog") => {
+    const open = async (portId: string, view: "Library" | "Find games") => {
       const port = transportValue("port", command(["catalog", "show", portId]));
       await browser.navigate().refresh();
       await click(By.xpath(`//nav//button[contains(., "${view}")]`));
@@ -124,7 +124,7 @@ export async function cliHandoffScenario({
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await open("opengoal-jak2", "Port catalog");
+    await open("opengoal-jak2", "Find games");
     await browser.wait(
       until.elementLocated(By.css('[aria-label="Copy command template"]')),
       10_000,

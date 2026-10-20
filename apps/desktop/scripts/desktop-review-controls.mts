@@ -16,7 +16,7 @@ export async function openCatalogPortAfterRefresh(
   const { click } = reviewControls(browser);
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+  await click(By.xpath('//nav//button[contains(., "Find games")]'));
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(
     Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),

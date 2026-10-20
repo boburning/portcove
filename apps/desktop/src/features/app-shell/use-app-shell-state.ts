@@ -56,6 +56,7 @@ export function useAppShellState(
   const [catalogSort, setCatalogSort] = useState<CatalogSort>(initial?.catalogSort ?? "catalog");
   const [selectedId, setSelectedId] = useState<string>();
   const [reviewedActivityId, setReviewedActivityId] = useState<string>();
+  const [activitySection, setActivitySection] = useState<"tasks" | "updates">("tasks");
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>(initialSettingsCategory);
   const [sourcePath, setSourcePath] = useState("");
@@ -124,6 +125,8 @@ export function useAppShellState(
     setSelectedId,
     reviewedActivityId,
     setReviewedActivityId,
+    activitySection,
+    setActivitySection,
     settingsCategory,
     setSettingsCategory,
     sourcePath,

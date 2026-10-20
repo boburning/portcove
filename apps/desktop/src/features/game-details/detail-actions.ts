@@ -1,8 +1,10 @@
 import { defaultReleaseChannel } from "../../view-model";
+import { gameIdentityLabel } from "../../port-identity";
 import { desktopApi } from "../../api";
 import type { DetailActions } from "../../components/DetailPanel";
 import type { PortDefinition, PortStatus } from "../../types";
 import type { Perform } from "../operations/use-operation-state";
+import { targetInvocationContext } from "../operations/invocation-state";
 
 export interface DetailActionContext {
   port: PortDefinition;
@@ -22,7 +24,7 @@ export function detailActions({
   status,
   sourcePath,
   biosPath,
-  perform,
+  perform: execute,
   close,
   reviewInstall = () => undefined,
   backupsChanged = () => Promise.resolve(),
@@ -32,6 +34,15 @@ export function detailActions({
   if (!Number.isSafeInteger(libraryGeneration) || libraryGeneration < 0) {
     throw new Error("Game details require an explicit library generation");
   }
+  const perform: Perform = (name, task, options) =>
+    execute(name, task, {
+      ...options,
+      context: targetInvocationContext(
+        name,
+        { kind: "port", id: port.id, label: gameIdentityLabel(port) },
+        libraryGeneration,
+      ),
+    });
   return {
     activate: () =>
       status?.staged

@@ -181,8 +181,17 @@ async function openUpdateTheme(browser: WebDriver, theme: string) {
     theme,
   );
   await browser
-    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
+    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
     .click();
+  await selectActivitySection(browser, "Updates");
+}
+
+async function selectActivitySection(browser: WebDriver, label: "Updates" | "Tasks & history") {
+  const button = await browser.findElement(
+    By.xpath(`//nav[@aria-label="Activity sections"]//button[normalize-space(.)="${label}"]`),
+  );
+  await clickVisible(browser, button);
+  await browser.wait(async () => (await button.getAttribute("aria-pressed")) === "true", 5000);
 }
 
 async function assertIndividualUpdateFailure({
@@ -1636,7 +1645,6 @@ export async function preparationScenarios({
             assert.ok(
               required(comparison.blocks[0]).right <= required(comparison.blocks[1]).left + 1,
             );
-          await assertActivityLabelSeparation(browser, width);
           const comparisonScreenshot = path.join(
             output,
             `native-game-update-comparison-${theme}-${width}x${height}.png`,
@@ -1646,6 +1654,18 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(comparisonScreenshot);
+          await selectActivitySection(browser, "Tasks & history");
+          await assertActivityLabelSeparation(browser, width);
+          const historyScreenshot = path.join(
+            output,
+            `native-task-history-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(historyScreenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(historyScreenshot);
+          await selectActivitySection(browser, "Updates");
         }
       }
       await assertIndividualUpdateFailure({ browser, port, command, output, artifacts });
@@ -2038,7 +2058,7 @@ export async function preparationScenarios({
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         async () =>
@@ -2305,7 +2325,7 @@ export async function preparationScenarios({
       }
       await browser.findElement(By.css(".detail-back")).click();
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       const cancelledRow = await browser.wait(
         until.elementLocated(
@@ -2335,7 +2355,7 @@ export async function preparationScenarios({
         15_000,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2352,7 +2372,7 @@ export async function preparationScenarios({
         required(recorded).failure,
       );
       await browser
-        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Updates & activity"]]'))
+        .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
@@ -2607,7 +2627,7 @@ export async function preparationScenarios({
   });
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const openCatalogPort = async (id: string) => {
       const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
@@ -2728,7 +2748,7 @@ export async function preparationScenarios({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const restarted = await openCatalogPort("re-blue");
     assert.ok((await restarted.getText()).includes("Rolling"));
     await executeBrowserScript(

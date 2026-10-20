@@ -261,6 +261,7 @@ it("plays the current version independently and reviews a saved update without o
   };
   await root.rerender(
     <UpdateCenter
+      section="updates"
       generation={9}
       ports={[port]}
       statuses={new Map([[port.id, status]])}
@@ -310,6 +311,7 @@ it("shows only the newest game review when two row requests complete out of orde
   );
   await root.rerender(
     <UpdateCenter
+      section="updates"
       generation={9}
       ports={ports}
       statuses={statuses}
@@ -608,7 +610,7 @@ it.each(["use_staged", "reuse_retained"] as const)(
 const refreshOperation = vi.fn(async () => undefined);
 let actualOperation: ReturnType<typeof useOperationState>;
 function ActualOperationFixture({ generation = 9 }: { generation?: number }) {
-  actualOperation = useOperationState({ refresh: refreshOperation });
+  actualOperation = useOperationState({ refresh: refreshOperation, libraryGeneration: generation });
   return (
     <GameUpdateControl
       key={generation}

@@ -125,7 +125,7 @@ export async function installScenarios({
     );
   };
   const openFixture = async (port: FixturePort, installed = false) => {
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.findElement(By.id("port-search"));
     await search.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),

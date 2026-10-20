@@ -29,8 +29,8 @@ describe("command surface player-facing copy", () => {
       description: "Browse native game ports",
     });
     expect(available.find(({ id }) => id === "updates")).toMatchObject({
-      label: "Go to Updates",
-      description: "Review updates and recent activity",
+      label: "Open Activity",
+      description: "Review tasks, history and recovery",
     });
     expect(available.find(({ id }) => id === "settings")).toMatchObject({
       description: "Manage game files, GitHub, storage, and appearance",

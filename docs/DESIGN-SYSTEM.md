@@ -1,5 +1,11 @@
 # Portcove frontend design system
 
+## Activity and contextual task feedback
+
+Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
+
+Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement.
+
 Portcove should feel like development software from an alternate 1997 console studio, rebuilt with current desktop UX and accessibility standards. Nostalgia never outranks clarity. The working interface stays compact, neutral, and technical; personality appears through tactile geometry, restrained color, direct copy, and quick interaction feedback.
 
 The React/Vite/Tauri desktop is migrating incrementally under [#917](https://github.com/boburning/portcove/issues/917). Its checked-in foundation uses official shadcn/ui component source with Base UI, Tailwind, semantic CSS variables, and a Portcove theme; several journeys already consume that foundation while legacy controls and rules remain on unmigrated surfaces. This is a decided architecture and an active migration, not another framework comparison or a claim that the complete redesign or its platform qualification has shipped.

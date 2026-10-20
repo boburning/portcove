@@ -1,5 +1,7 @@
 # Portcove theme and CSS ownership
 
+Activity sections reuse shared button variants and their persistent pressed cue. Contextual task records reuse existing info, neutral, warning and failure roles; temporary exclusion does not recolor or reinterpret Core readiness. Foreground progress and exact-ID Activity progress share one component and bounded numeric presentation. No separate Activity palette or progress implementation is introduced.
+
 Portcove keeps its graphite dark and warm controller-gray light identity, with
 red, blue, green and yellow families carrying explicit meaning. Illustration
 remains owned by [BRAND-ASSETS](BRAND-ASSETS.md); this CSS cutover does not change

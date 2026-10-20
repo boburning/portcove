@@ -2615,7 +2615,7 @@ try {
     assert.ok(status.ok);
     assert.equal(status.value.filter((item) => item.active).length, 0);
     const firstCatalog = await browser.wait(
-      until.elementLocated(By.xpath('//h1[normalize-space(.)="Port catalog"]')),
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Find games"]')),
       15_000,
     );
     assert.equal(await firstCatalog.isDisplayed(), true);
@@ -2653,7 +2653,7 @@ try {
         typeof entryState.right === "number",
     );
     assert.ok(typeof viewport.height === "number" && typeof viewport.width === "number");
-    assert.equal(entryState.title, "Port catalog");
+    assert.equal(entryState.title, "Find games");
     assert.ok(entryState.top >= 0 && entryState.bottom <= viewport.height);
     assert.ok(entryState.left >= 0 && entryState.right <= viewport.width);
     const entryArtifact = path.join(output, "first-use-port-catalog-state.json");
@@ -2858,7 +2858,7 @@ try {
     assert.equal(path.resolve(required(original.library_root)), library);
     const alternate = path.join(output, "browsing-alternate-library");
     await mkdir(alternate);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     let search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const catalog = await invoke("get_catalog");
     assert.ok(catalog.ok);
@@ -3080,7 +3080,7 @@ try {
       );
     };
     await switchTo(alternate, "library-picker-select-alternate", original.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
     const alternateBeta = await browser.findElement(
@@ -3092,7 +3092,7 @@ try {
     assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const restoredSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await restoredSearch.getAttribute("value"), "zelda");
     const restoredBeta = await browser.findElement(
@@ -3154,7 +3154,7 @@ try {
       );
       assert.deepEqual(
         labels.map((label) => label.text),
-        ["Library", "Port catalog", "Updates & activity", "Settings"],
+        ["Library", "Find games", "Activity", "Settings"],
       );
       assert.ok(labels.every((label) => label.widthFits && label.heightFits && label.buttonFits));
     };
@@ -3281,7 +3281,7 @@ try {
     await selectSettingsCategory("updates");
     const gameUpdatesLink = await browser.findElement(
       By.xpath(
-        '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open Updates & activity"]',
+        '//*[@data-settings-group="updates"]//button[normalize-space(.)="Open game updates in Activity"]',
       ),
     );
     await executeBrowserScript(
@@ -3292,7 +3292,15 @@ try {
     await captureKeyboardTarget("settings-game-update-destination-link", gameUpdatesLink);
     await gameUpdatesLink.click();
     await browser.wait(until.elementLocated(By.css(".update-center")), 15_000);
-    assert.equal(await browser.findElement(By.css("main h1")).getText(), "Updates & activity");
+    assert.equal(await browser.findElement(By.css("main h1")).getText(), "Activity");
+    assert.equal(
+      await browser.findElement(By.css('[aria-label="Game updates"]')).isDisplayed(),
+      true,
+    );
+    assert.equal(
+      await browser.findElement(By.css('[aria-label="Tasks and history"]')).isDisplayed(),
+      false,
+    );
     assert.equal(
       await executeBrowserScript(browser, () => {
         const stat = [...document.querySelectorAll(".update-stat")].find(
@@ -3333,7 +3341,7 @@ try {
       "Application update settings did not receive focus",
     );
 
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     const selectedFilter = await browser.findElement(By.css('.filter-row [aria-pressed="true"]'));
     assert.equal(await selectedFilter.getAttribute("data-slot"), "button");
@@ -3612,7 +3620,7 @@ try {
           }
         }
         await browser.manage().window().setRect({ width: 960, height: 640 });
-        await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+        await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
         await browser.wait(
           async () => (await browser.findElements(By.css(".port-card"))).length > 2,
           15_000,

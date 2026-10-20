@@ -103,6 +103,7 @@ describe("port update read owner", () => {
     state = useUpdateCenter(operations.perform, statuses);
     return (
       <UpdateCenter
+        section="updates"
         generation={1}
         ports={statuses.map((item) => ({ ...portDefinition(), id: item.port_id }))}
         statuses={new Map(statuses.map((item) => [item.port_id, item]))}
@@ -181,6 +182,7 @@ describe("port update read owner", () => {
       state = useUpdateCenter(refreshingPerform, statuses);
       return (
         <UpdateCenter
+          section="updates"
           generation={1}
           ports={ports}
           statuses={new Map(statuses.map((item) => [item.port_id, item]))}
@@ -489,7 +491,7 @@ describe("port update read owner", () => {
       .mockResolvedValueOnce([outcome(current)])
       .mockReturnValueOnce(older.promise)
       .mockReturnValueOnce(newer.promise);
-    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => root.render(<Fixture statuses={[current]} />));
     await act(async () => state.checkAll());
     let oldRun!: Promise<void>;
     let newRun!: Promise<void>;
@@ -499,7 +501,7 @@ describe("port update read owner", () => {
     });
     await act(async () => {
       newer.reject(failure);
-      await newRun;
+      await expect(newRun).rejects.toEqual(failure);
     });
     await act(async () => {
       older.resolve([]);
@@ -507,7 +509,6 @@ describe("port update read owner", () => {
     });
     expect(state.batchRead).toMatchObject({ status: "failed", hasResults: true });
     expect(state.outcomes).toEqual([outcome(current)]);
-    expect(operations.error).toBe(failure);
   });
 
   it("does not let an older whole-batch rejection overwrite a newer successful empty result", async () => {
@@ -517,7 +518,7 @@ describe("port update read owner", () => {
     vi.spyOn(desktopApi, "checkInstalled")
       .mockReturnValueOnce(older.promise)
       .mockReturnValueOnce(newer.promise);
-    await act(async () => root.render(<OperatingCenter statuses={[current]} />));
+    await act(async () => root.render(<Fixture statuses={[current]} />));
     let oldRun!: Promise<void>;
     let newRun!: Promise<void>;
     await act(async () => {
@@ -534,8 +535,6 @@ describe("port update read owner", () => {
     });
     expect(state.batchRead).toMatchObject({ status: "current", hasResults: true });
     expect(state.outcomes).toEqual([]);
-    expect(operations.error).toBeUndefined();
-    expect(host.textContent).not.toContain("Update check did not finish");
   });
 
   it("rejects a retained check callback across changed installation identities, return selections and disposal", async () => {

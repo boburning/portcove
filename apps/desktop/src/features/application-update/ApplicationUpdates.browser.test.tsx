@@ -13,6 +13,25 @@ import type {
 import { ApplicationUpdateSettings } from "./ApplicationUpdates";
 import { useApplicationUpdateChoice } from "./use-application-update";
 import { focusApplicationUpdateRoute } from "./focus-application-update-route";
+import { useOperationState } from "../operations/use-operation-state";
+import { targetInvocationContext } from "../operations/invocation-state";
+
+vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
+let sharedOperations!: ReturnType<typeof useOperationState>;
+const refreshShared = async () => {};
+function OperatingSettingsFixture() {
+  const preferencesState = useApplicationUpdateChoice();
+  sharedOperations = useOperationState({ refresh: refreshShared, libraryGeneration: 9 });
+  return (
+    <ApplicationUpdateSettings
+      currentVersion="0.1.0-alpha.2"
+      generation={9}
+      preferencesState={preferencesState}
+      perform={sharedOperations.perform}
+      disabled={Boolean(sharedOperations.busy)}
+    />
+  );
+}
 
 const missingChoice: ApplicationUpdatePreferences = {
   schema_version: 1,
@@ -716,6 +735,51 @@ describe("ApplicationUpdateSettings", () => {
     await act(async () => rejectCheck({ code: "cancelled", message: "Update check cancelled" }));
     expect(host.querySelector('[role="alert"]')?.textContent).toBe("Update check cancelled");
     expect(button("Check for updates")).toBeDefined();
+  });
+
+  it("keeps application maintenance exclusive until settlement while cancellation stays available", async () => {
+    vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue(savedChoice);
+    let finish!: (value: ApplicationUpdateManualCheckResult) => void;
+    vi.spyOn(desktopApi, "checkApplicationUpdate").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const cancel = vi.spyOn(desktopApi, "cancelApplicationUpdateCheck").mockResolvedValue(true);
+    const gameTask = vi.fn().mockResolvedValue("checked");
+    await root.rerender(<OperatingSettingsFixture />);
+    await click("Check for updates");
+    expect([...sharedOperations.pendingOperations.values()][0]?.context.exclusionScope).toBe(
+      "application",
+    );
+    await act(async () => {
+      await sharedOperations.perform("Check game", gameTask, {
+        context: targetInvocationContext(
+          "Check game",
+          { kind: "port", id: "A", label: "Game A" },
+          9,
+        ),
+      });
+    });
+    expect(gameTask).not.toHaveBeenCalled();
+    await click("Cancel check");
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(sharedOperations.pendingOperations.size).toBe(1);
+    await act(async () =>
+      finish(manualCheck({ kind: "no-candidate", candidate: null, reasons: [], staged: false })),
+    );
+    expect(sharedOperations.pendingOperations.size).toBe(0);
+    await act(async () => {
+      await sharedOperations.perform("Check game", gameTask, {
+        context: targetInvocationContext(
+          "Check game",
+          { kind: "port", id: "A", label: "Game A" },
+          9,
+        ),
+      });
+    });
+    expect(gameTask).toHaveBeenCalledOnce();
   });
 
   it("repairs corrupt preferences only through the explicit reset action", async () => {

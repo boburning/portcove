@@ -588,6 +588,7 @@ describe("individual update failure interaction", () => {
     const healthy = { ...port, id: "healthy", name: "Healthy Port" };
     return (
       <UpdateCenter
+        section="updates"
         generation={1}
         ports={[port, healthy]}
         statuses={

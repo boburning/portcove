@@ -429,7 +429,7 @@ export async function qualificationHistoryScenario({
     let technicalSummary: Locator;
     const button = (label: string) => By.xpath(`//button[normalize-space(.)="${label}"]`);
     async function openDetails() {
-      await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+      await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
       const card = await browser.wait(
         until.elementLocated(
           By.css(`button[data-detail-origin="catalog:card:${fixture.port_id}"]`),

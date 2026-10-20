@@ -1,5 +1,9 @@
 # Desktop orchestration remains ephemeral over Core authority
 
+`useOperationState` owns invocation records containing action, target, originating library generation, exclusion scope and separately retained task/readback outcomes. Explicit target actions exclude the same target; unspecified legacy work remains conservatively library-wide. Application maintenance remains exclusive across library replacement until actual settlement. Outgoing library continuations cannot refresh, focus or publish into a replacement workspace. Dropping presentation never cancels Core work.
+
+The shared action-presentation selector combines existing Core assessments with known local conflicts without rewriting observed readiness. Live progress joins durable Activity only by exact operation ID; sequence/parent handling and exact-ID retirement retain their existing owner. Early failures with no owned Activity identity offer a general Activity link. No invocation record is persisted as a parallel queue or operation database.
+
 Desktop workflows, invocation context, browsing preferences and task presentation remain ephemeral presentation over Core-owned facts and outcomes. Add games reuses current recognition, planning and review; Activity reconciles exact existing operation/activity identities. Tauri retains native consent and application-update trust.
 
 A second durable queue or job database would create competing recovery and lifecycle authority. We enrich the existing presentation owner rather than add one. Unknown correlation stays unknown; matching a name or timestamp does not create an operation identity. Core locks and execution-time revalidation remain final even when the interface presents an action as available.

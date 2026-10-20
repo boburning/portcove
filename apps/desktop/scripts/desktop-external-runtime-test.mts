@@ -143,7 +143,7 @@ export async function externalRuntimePickerObservation({
   Key,
   until,
 }: PickerContext) {
-  await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, fixture.port.name);
   const card = By.xpath(

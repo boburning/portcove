@@ -1273,7 +1273,7 @@ describe("desktop components", () => {
       ),
     );
     expect(html).toMatch(/<button[^>]*data-variant="ghost"[^>]*aria-label="Dismiss error"/u);
-    expect(html).toContain("Port catalog");
+    expect(html).toContain("Find games");
     expect(html).toMatch(/<span[^>]*>Updates &amp; activity<\/span>/u);
     expect(html).toContain('aria-label="2 in library"');
     expect(html).toContain("Problem");
@@ -1350,7 +1350,7 @@ describe("desktop components", () => {
     expect(library).toContain('<h1 tabindex="-1">Your library</h1>');
     expect(emptyCatalog).toContain("Browse 0 native game ports.");
     expect(onePort).toContain("Browse 1 native game port.");
-    expect(catalog).toContain('<h1 tabindex="-1">Port catalog</h1>');
+    expect(catalog).toContain('<h1 tabindex="-1">Find games</h1>');
     expect(catalog).toContain("Browse 61 native game ports.");
     expect(catalog).toContain('id="port-search"');
     expect(updates).toContain('<h1 tabindex="-1">Updates &amp; activity</h1>');

@@ -467,7 +467,7 @@ async function missingCacheNegativeControl({
     },
     offlineEnvironment,
   );
-  await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+  await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
   const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
   await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
   const selector = `[data-detail-origin="catalog:card:${port.id}"]`;
@@ -534,7 +534,7 @@ async function inspectCoverPass({
   for (const id of ids) {
     const port = ports.find((port) => port.id === id);
     assert.ok(port?.presentation?.artwork, `Missing maintained mapping: ${id}`);
-    await browser.findElement(By.xpath('//nav//button[contains(., "Port catalog")]')).click();
+    await browser.findElement(By.xpath('//nav//button[contains(., "Find games")]')).click();
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
     await search.sendKeys(Key.CONTROL, "a", Key.NULL, port.name);
     const started = performance.now();

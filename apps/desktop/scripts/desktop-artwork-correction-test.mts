@@ -192,7 +192,7 @@ export async function artworkCorrectionScenario({
       await close();
     };
     const render = async (source: string) => {
-      await click(By.xpath('//nav//button[contains(., "Port catalog")]'));
+      await click(By.xpath('//nav//button[contains(., "Find games")]'));
       const search = await browser.wait(until.elementLocated(By.id("port-search")), 10000);
       await search.sendKeys(Key.CONTROL, "a", Key.NULL, originalName);
       const selector = `[data-detail-origin="catalog:card:${portId}"] .card-art`;
