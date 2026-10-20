@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { parseDocument } from "yaml";
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   bundleControllerEntries,
   controllerBootstrapEnvironment,
+  materializeControllerCompilerSource,
 } from "./release-controller-tool-build.mts";
 import {
   controllerToolAssets,
@@ -17,8 +18,13 @@ import {
   controllerToolPaths,
   controllerToolPredicateType,
   inspectControllerToolArchive,
+  controllerCompilerSourceAsset,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  compilerProducerPaths,
+  inspectReleaseCompilerSourceClosure,
+} from "./release-compiler-source-closure.mts";
 import {
   receiveControllerTools,
   verifiedControllerToolPaths,
@@ -218,9 +224,75 @@ void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wr
   );
 });
 
-function fixture() {
+void test("bootstrap generates complete compiler source bytes from the exact clean Git source and never overwrites", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-compiler-asset-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    tools = path.join(root, "tools");
+  await mkdir(path.join(source, "scripts"), { recursive: true });
+  await mkdir(tools);
+  await writeFile(path.join(source, "scripts", "compiler.mts"), "inert source\n");
+  const git = (args: string[]) =>
+    execFileSync("git", ["-C", source, ...args], { encoding: "utf8", timeout: 10000 }).trim();
+  git(["init", "--quiet"]);
+  git(["add", "."]);
+  git([
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "user.email=fixture@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "-c",
+    "core.hooksPath=",
+    "commit",
+    "--quiet",
+    "-m",
+    "fixture",
+  ]);
+  const expected = { commit: git(["rev-parse", "HEAD"]), tree: git(["rev-parse", "HEAD^{tree}"]) };
+  const identity = await materializeControllerCompilerSource(source, tools, expected);
+  const bytes = await readFile(path.join(tools, controllerCompilerSourceAsset));
+  assert.equal(identity.bytes, bytes.length);
+  assert.equal(identity.sha256, hash(bytes));
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse(bytes.toString("utf8")) as unknown,
+  );
+  assert.equal(closure.source_commit, expected.commit);
+  assert.equal(closure.source_tree, expected.tree);
+  assert.equal(closure.paths.length, compilerProducerPaths.length);
+  assert.equal(
+    closure.paths.find((item) => item.path === "scripts")?.entry?.sha,
+    git(["rev-parse", "HEAD:scripts"]),
+  );
+  assert.equal(closure.paths.find((item) => item.path === ".cargo")?.entry, null);
+  await assert.rejects(materializeControllerCompilerSource(source, tools, expected), /EEXIST/u);
+  assert.ok(bytes.equals(await readFile(path.join(tools, controllerCompilerSourceAsset))));
+  await writeFile(path.join(source, "scripts", "compiler.mts"), "changed source\n");
+  const refused = path.join(root, "refused");
+  await mkdir(refused);
+  await assert.rejects(
+    materializeControllerCompilerSource(source, refused, expected),
+    /changed|dirty/u,
+  );
+  assert.deepEqual(await readdir(refused), []);
+});
+
+function fixture(closureChange: Record<string, unknown> = {}) {
   const bytes = new Map(
     controllerToolPaths.map((name) => [name, Buffer.from(`inert tool fixture ${name}`)]),
+  );
+  bytes.set(
+    controllerCompilerSourceAsset,
+    Buffer.from(
+      JSON.stringify({
+        schema_version: 1,
+        source_commit: "a".repeat(40),
+        source_tree: "b".repeat(40),
+        paths: compilerProducerPaths.map((filename) => ({ path: filename, entry: null })),
+        ...closureChange,
+      }),
+    ),
   );
   const manifest = {
     schema_version: 2,
@@ -392,6 +464,17 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
   assert.throws(() =>
     inspectControllerToolArchive(f.archive, { ...f.manifest, source_tree: "f".repeat(40) }),
   );
+  for (const patch of [
+    { source_commit: "c".repeat(40) },
+    { source_tree: "d".repeat(40) },
+    { paths: [] },
+  ]) {
+    const wrong = fixture(patch);
+    assert.throws(
+      () => inspectControllerToolArchive(wrong.archive, wrong.manifest),
+      /compiler source/u,
+    );
+  }
 });
 void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-receiver-"));
@@ -427,6 +510,7 @@ void test("the receiver dependency closure loads without npm packages before any
   const files = [
     "release-controller-tool-admission",
     "release-controller-tools",
+    "release-compiler-source-closure",
     "github-controller-attestation",
     "assembler-job-identity",
     "production-controller-admission",

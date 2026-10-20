@@ -11,6 +11,7 @@ import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { loadPackagePolicy } from "./release-package-policy.mts";
 import type { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 
 const repository = "boburning/portcove";
 const workflow = ".github/workflows/release.yml";
@@ -18,6 +19,51 @@ export const releaseSpdxPredicateType = "https://spdx.dev/Document/v2.3";
 const sha256 = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
 type Spawn = NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+const verifiedSbomDocuments = new WeakMap<
+  object,
+  {
+    snapshot: string;
+    directory: string;
+    retained: { filename: string; bytes: number; sha256: string }[];
+    document: {
+      filename: string;
+      path: string;
+      bytes: number;
+      sha256: string;
+      source_commit: string;
+      source_tree: string;
+      run_id: string;
+      run_attempt: number;
+      subjects: readonly { filename: string; sha256: string }[];
+    };
+  }
+>();
+
+/** Actual same-process signed SPDX document custody. A serialized summary or
+ * successful fixture cannot appoint publication bytes. Recheck all retained
+ * document/verification bytes immediately before the protected use. Package
+ * subjects remain the exact signed digest matrix; this getter exposes no
+ * retained package for use as a publication asset. */
+export async function requireVerifiedReleaseSbomDocument(receipt: object) {
+  const retained = verifiedSbomDocuments.get(receipt);
+  if (!retained || sha256(Buffer.from(JSON.stringify(receipt))) !== retained.snapshot)
+    throw new Error("actual same-process signed SPDX receipt required");
+  for (const file of retained.retained) {
+    const bytes = await readBoundedPublicBuildInputFile(
+      retained.directory,
+      file.filename,
+      file.bytes,
+    );
+    if (bytes.length !== file.bytes || sha256(bytes) !== file.sha256)
+      throw new Error("retained signed SPDX evidence changed before use");
+  }
+  return Object.freeze({
+    ...retained.document,
+    subjects: Object.freeze(
+      retained.document.subjects.map((subject) => Object.freeze({ ...subject })),
+    ),
+  });
+}
 
 /** Validate the actual SPDX graph, not merely a nonempty packages property.
  * This is document integrity, not vulnerability clearance or compiler evidence. */
@@ -372,5 +418,33 @@ export async function collectReleaseSbomEvidence(
     `${JSON.stringify({ receipt, verification: raw }, null, 2)}\n`,
     { flag: "wx", mode: 0o600 },
   );
+  if (receipt.evidence_scope === "github.com") {
+    const retainedFiles = [
+      ["Portcove-SBOM.spdx.json", retained.get("Portcove-SBOM.spdx.json")!] as const,
+      ["verification.json", Buffer.from(`${JSON.stringify(raw)}\n`)] as const,
+      ["artifact.json", Buffer.from(`${JSON.stringify(artifact)}\n`)] as const,
+      [
+        "verified-spdx.json",
+        Buffer.from(`${JSON.stringify({ receipt, verification: raw }, null, 2)}\n`),
+      ] as const,
+    ].map(([filename, bytes]) => ({ filename, bytes: bytes.length, sha256: sha256(bytes) }));
+    const documentBytes = retained.get("Portcove-SBOM.spdx.json")!;
+    verifiedSbomDocuments.set(receipt, {
+      snapshot: sha256(Buffer.from(JSON.stringify(receipt))),
+      directory,
+      retained: retainedFiles,
+      document: {
+        filename: "Portcove-SBOM.spdx.json",
+        path: path.join(directory, "Portcove-SBOM.spdx.json"),
+        bytes: documentBytes.length,
+        sha256: sha256(documentBytes),
+        source_commit: accepted.source_commit,
+        source_tree: accepted.source_tree,
+        run_id: accepted.run_id,
+        run_attempt: accepted.run_attempt,
+        subjects: packages.map(({ filename, sha256 }) => ({ filename, sha256 })),
+      },
+    });
+  }
   return receipt;
 }

@@ -1,4 +1,9 @@
 import {
+  createReleasePublicationReader,
+  peelReleaseReference,
+  releasePublicationRefsQuery as refsQuery,
+} from "./release-publication-inventory.mts";
+import {
   assessBoundedCapacity,
   capacityDigest,
   slice4CapacityResourceDigest,
@@ -9,13 +14,17 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import {
-  recoverRemoteCoordinator,
-  inspectRemoteCommitObject,
-} from "./release-coordinator-recovery.mts";
-import { inspectPreparationCommitBytes } from "./release-coordinator-state.mts";
+import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
-import { collectReleaseSbomEvidence } from "./release-acceptance-evidence.mts";
+import {
+  collectReleaseSbomEvidence,
+  requireVerifiedReleaseSbomDocument,
+} from "./release-acceptance-evidence.mts";
+import { compareVerifiedReleaseCompilerSource } from "./release-compiler-source-admission.mts";
+import {
+  collectReleaseCompilerEvidence,
+  requireVerifiedReleaseCompilerEvidence,
+} from "./release-compiler-evidence.mts";
 import {
   requiredCheckContexts,
   requiredContextsFromConfigs,
@@ -63,14 +72,6 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
-const refsQuery = `query AdmissionRefs($cursor:String) {
- repository(owner:"boburning",name:"portcove") { id databaseId nameWithOwner
-  refs(refPrefix:"refs/tags/",first:100,after:$cursor,orderBy:{field:ALPHABETICAL,direction:ASC}) {
-   totalCount pageInfo { hasNextPage endCursor }
-   nodes { id name prefix target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid ... on Tag { target { __typename oid } } } } } } } }
-  }
- }
-}`;
 type Api = Pick<GitHubApiClient, "request" | "graphql">;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
 export interface PreparedReleaseAdmissionFacts {
@@ -83,6 +84,11 @@ export interface PreparedReleaseAdmissionFacts {
   evidence: ReturnType<typeof collectReleaseRunEvidence>;
   contexts: unknown;
   allocations: unknown;
+  compiler_evidence?: unknown;
+}
+export interface ReleaseCompilerAdmissionPrerequisite {
+  controller_tools: object;
+  controller_source: { source_commit: string; source_tree: string };
 }
 export interface ActualReleaseAdmissionContext {
   stage: "payload-signing" | "release-publication";
@@ -91,12 +97,14 @@ export interface ActualReleaseAdmissionContext {
   admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
   checkpoint: string;
   native_qualifications: readonly object[];
+  sbom_receipt: object;
   pending_obligations: readonly string[];
 }
 const actualAdmissionContexts = new WeakMap<
   object,
   { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
 >();
+const acquiredSbomReceipts = new WeakMap<object, object>();
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -172,17 +180,6 @@ function configuration(raw: unknown) {
         : ("full" as const),
   };
 }
-function peel(ref: Record<string, unknown>) {
-  let target = record(ref.target);
-  for (let depth = 0; depth < 4; depth++) {
-    oid(target.oid);
-    if (target.__typename === "Commit") return target.oid;
-    if (target.__typename !== "Tag") break;
-    target = record(target.target);
-  }
-  throw new Error("published tag does not resolve to one bounded commit");
-}
-
 /** Executable remote-read-only gate. Acquires facts; never allocates, writes a
  * ref, executes candidate code or equates provider identity with acceptance.
  * Unconfigured independent control/producer authorities remain explicit holds.
@@ -198,6 +195,7 @@ export async function acquireReleaseAdmission(
     capacity?: { ratification: unknown; readBoundary: () => Promise<unknown> };
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
+    compiler?: ReleaseCompilerAdmissionPrerequisite;
     // Called once after all large immutable archives have been privately
     // validated. The same process retains its facts; no serialized facts import.
     establishControls?: (
@@ -317,125 +315,9 @@ export async function acquireReleaseAdmission(
         return response;
       },
     };
-    const get = (endpoint: string) =>
-      api.request("GET", endpoint ? `${base}/${endpoint}` : base).body;
-    const page = (endpoint: string, key?: string) => {
-      let count = 0;
-      return GitHubApiClient.prototype.paginateRest
-        .call({ request: api.request }, `${base}/${endpoint}`, {
-          select: (body: unknown) => {
-            const rows = key ? record(body)[key] : body;
-            if (!Array.isArray(rows) || rows.length > 100 || (count += rows.length) > 1600)
-              throw new Error("admission collection exceeds record bound");
-            return rows as unknown[];
-          },
-          identity: (item: unknown) => {
-            const id = record(item).id;
-            integer(id);
-            return id;
-          },
-          ...(key
-            ? {
-                totalCount: (body: unknown) => {
-                  const n = record(body).total_count;
-                  if (typeof n !== "number" || !Number.isSafeInteger(n) || n < 0 || n > 1600)
-                    throw new Error("admission collection exceeds bound");
-                  return n;
-                },
-              }
-            : {}),
-          label: "release admission inventory",
-        })
-        .map(record);
-    };
     phase = "repository-and-reservation";
-    const repo = record(get(""));
-    if (repo.id !== 1354613114 || repo.full_name !== repository || typeof repo.node_id !== "string")
-      throw new Error("admission repository identity differs");
-    const tags = () => {
-      const result: Record<string, unknown>[] = [];
-      const ids = new Set<string>();
-      const names = new Set<string>();
-      const cursors = new Set<string>();
-      let cursor: string | null = null;
-      let total: number | null = null;
-      for (let index = 0; index < 16; index++) {
-        const data = record(api.graphql(refsQuery, { cursor }).data);
-        const r = record(data.repository);
-        if (r.id !== repo.node_id || r.databaseId !== 1354613114 || r.nameWithOwner !== repository)
-          throw new Error("admission ref repository identity differs");
-        const connection = record(r.refs);
-        const info = record(connection.pageInfo);
-        if (
-          typeof connection.totalCount !== "number" ||
-          !Number.isSafeInteger(connection.totalCount) ||
-          connection.totalCount < 0 ||
-          connection.totalCount > 1600 ||
-          !Array.isArray(connection.nodes) ||
-          connection.nodes.length > 100 ||
-          typeof info.hasNextPage !== "boolean"
-        )
-          throw new Error("admission ref connection is incomplete or oversized");
-        total ??= connection.totalCount;
-        if (total !== connection.totalCount) throw new Error("admission ref count changed");
-        for (const raw of connection.nodes) {
-          const ref = record(raw);
-          if (
-            typeof ref.id !== "string" ||
-            !ref.id ||
-            ref.id.length > 512 ||
-            typeof ref.name !== "string" ||
-            ref.name.length > 256 ||
-            ref.prefix !== "refs/tags/" ||
-            ids.has(ref.id) ||
-            names.has(ref.name)
-          )
-            throw new Error("admission refs duplicate identities or names");
-          ids.add(ref.id);
-          names.add(ref.name);
-          result.push(structuredClone(ref));
-        }
-        if (result.length > total) throw new Error("admission refs exceed total");
-        if (!info.hasNextPage) {
-          if (result.length !== total) throw new Error("admission refs omit records");
-          return result.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-        }
-        if (
-          typeof info.endCursor !== "string" ||
-          !info.endCursor ||
-          info.endCursor.length > 1024 ||
-          cursors.has(info.endCursor) ||
-          connection.nodes.length === 0
-        )
-          throw new Error("admission ref cursor did not advance");
-        cursors.add(info.endCursor);
-        cursor = info.endCursor;
-      }
-      throw new Error("admission refs exceed page bound");
-    };
-    const releases = () =>
-      page("releases?per_page=100")
-        .map((r) => {
-          integer(r.id);
-          if (
-            typeof r.tag_name !== "string" ||
-            r.tag_name.length > 128 ||
-            typeof r.draft !== "boolean" ||
-            typeof r.prerelease !== "boolean" ||
-            (r.published_at !== null && typeof r.published_at !== "string") ||
-            typeof r.updated_at !== "string"
-          )
-            throw new Error("publication record is incomplete");
-          return {
-            id: r.id,
-            tag_name: r.tag_name,
-            draft: r.draft,
-            prerelease: r.prerelease,
-            published_at: r.published_at,
-            updated_at: r.updated_at,
-          };
-        })
-        .sort((a, b) => a.id - b.id);
+    const publicationReader = createReleasePublicationReader(api);
+    const { tags, releases } = publicationReader;
     const recover = () =>
       (options.recover ?? recoverRemoteCoordinator)(
         root,
@@ -460,68 +342,11 @@ export async function acquireReleaseAdmission(
       throw new Error("admission frozen run differs from prepared source");
     const initialTags = tags();
     const initialReleases = releases();
-    const commits = new Map<string, ReturnType<typeof inspectRemoteCommitObject>>();
-    const commit = (id: string) => {
-      let value = commits.get(id);
-      if (!value) {
-        value = inspectRemoteCommitObject(get(`git/commits/${id}`), id);
-        commits.set(id, value);
-      }
-      return value;
-    };
-    const versionPrefix = `${config.namespace}-prepared/`;
-    const sourcePrefix = `${config.namespace}-prepared-source/`;
-    const versions = initialTags.filter((r) => String(r.name).startsWith(versionPrefix));
-    const sources = initialTags.filter((r) => String(r.name).startsWith(sourcePrefix));
-    if ([...versions, ...sources].some((ref) => record(ref.target).__typename !== "Commit"))
-      throw new Error("preparation receipts must point directly to raw commits");
-    if (versions.length !== sources.length)
-      throw new Error("reservation namespace has incomplete receipt pairs");
-    const allocations = [];
-    let activePreparationIntent: string | null = null;
-    const seenSources = new Set<string>();
-    for (const ref of versions) {
-      const tag = String(ref.name).slice(versionPrefix.length);
-      if (!tag.startsWith("v")) throw new Error("reservation version prefix differs");
-      const allocated = classifyApplicationVersion(tag.slice(1)).version;
-      const prepared = peel(ref);
-      const object = commit(prepared);
-      const matches = sources.filter((r) => peel(r) === prepared);
-      if (matches.length !== 1) throw new Error("reservation source pair is missing or ambiguous");
-      const source = String(matches[0]!.name).slice(sourcePrefix.length);
-      oid(source);
-      if (seenSources.has(source)) throw new Error("reservation source allocated more than once");
-      seenSources.add(source);
-      const original = commit(source);
-      const text = Buffer.from(object.object.bytes).toString("utf8");
-      const intent = text.match(/\nPortcove-Preparation-SHA256: ([a-f0-9]{64})\n/u)?.[1];
-      if (!intent) throw new Error("reservation prepared intent is missing");
-      const payload = inspectPreparationCommitBytes(
-        Buffer.from(original.object.bytes).toString("utf8"),
-        text,
-        {
-          source_commit: source,
-          source_tree: original.tree,
-          prepared_commit: prepared,
-          prepared_tree: object.tree,
-          version: allocated,
-          intent_sha256: intent,
-        },
-      );
-      const declared = record(JSON.parse(payload));
-      const proposal = record(declared.proposal);
-      if (proposal.source_commit !== source || proposal.version !== allocated)
-        throw new Error("reservation intent does not match its complete receipt pair");
-      if (allocated === version) activePreparationIntent = payload;
-      allocations.push({
-        version: allocated,
-        source_commit: source,
-        source_tree: original.tree,
-        prepared_commit: prepared,
-        prepared_tree: object.tree,
-        intent_sha256: intent,
-      });
-    }
+    const { allocations, intents } = publicationReader.readAllocations(
+      initialTags,
+      config.namespace,
+    );
+    const activePreparationIntent = intents.get(version) ?? null;
     const active = allocations.find((a) => a.version === version);
     if (
       !active ||
@@ -612,7 +437,7 @@ export async function acquireReleaseAdmission(
         holds.add("published-tag-identity-unavailable");
         continue;
       }
-      const publishedCommit = peel(ref);
+      const publishedCommit = peelReleaseReference(ref);
       const allocation = allocations.find(
         (a) => a.prepared_commit === publishedCommit && a.version === published,
       );
@@ -729,6 +554,7 @@ export async function acquireReleaseAdmission(
     phase = "archive-acquisition";
     const files = [];
     const declarations = [];
+    const cliPackages = new Map<string, Buffer>();
     for (const archive of archives) {
       if (performance.now() - started > 15 * 60 * 1000)
         throw new Error("admission archive acquisition deadline exhausted");
@@ -746,6 +572,13 @@ export async function acquireReleaseAdmission(
           run_attempt: evidenceRequest.attempt,
           source_commit: active.prepared_commit,
         },
+        options.compiler
+          ? {
+              retainCliPackage: async (identity, bytes) => {
+                cliPackages.set(identity.filename, bytes);
+              },
+            }
+          : {},
       );
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
@@ -779,6 +612,39 @@ export async function acquireReleaseAdmission(
       files,
     };
     await inspectTrustedAssemblyInput(assembly);
+    phase = "actual-compiler-source-and-output-acquisition";
+    let compilerEvidence: Awaited<ReturnType<typeof collectReleaseCompilerEvidence>> | null = null;
+    if (options.compiler && publicBuildInputs) {
+      if (options.api || options.recover || options.download || options.now)
+        throw new Error("actual compiler acceptance cannot use injected admission sources");
+      const sourceBinding = await compareVerifiedReleaseCompilerSource(
+        options.compiler.controller_tools,
+        {
+          source_commit: active.source_commit,
+          source_tree: active.source_tree,
+          prepared_commit: active.prepared_commit,
+          prepared_tree: active.prepared_tree,
+          version,
+        },
+        options.compiler.controller_source,
+      );
+      compilerEvidence = await collectReleaseCompilerEvidence(
+        root,
+        assembly,
+        evidence,
+        publicBuildInputs,
+        cliPackages,
+        sourceBinding,
+        { preparedNamespace: config.namespace },
+      );
+      if (
+        compilerEvidence.state === "verified-compiler-output-bindings" &&
+        compilerEvidence.evidence_scope === "github.com"
+      ) {
+        await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
+      }
+    }
+    cliPackages.clear();
     phase = "signed-SBOM-document-acquisition";
     const sbomEvidence = await collectReleaseSbomEvidence(root, assembly, evidence, {
       download: options.download,
@@ -787,6 +653,9 @@ export async function acquireReleaseAdmission(
         512 * 1024 * 1024,
         2 * 1024 * 1024 * 1024 -
           archives.reduce((sum, item) => sum + item.bytes, 0) -
+          (compilerEvidence?.state === "verified-compiler-output-bindings"
+            ? compilerEvidence.archive_bytes
+            : 0) -
           (publicBinding?.artifacts.reduce((sum, item) => sum + item.bytes, 0) ?? 0),
       ),
     });
@@ -805,6 +674,7 @@ export async function acquireReleaseAdmission(
         evidence,
         contexts,
         allocations,
+        compiler_evidence: compilerEvidence,
       };
       controls = await options.establishControls(
         hash(JSON.stringify(facts)),
@@ -905,7 +775,13 @@ export async function acquireReleaseAdmission(
       );
     else if (controlsAfter.pause.publication_paused)
       holds.add("publication-paused-by-owner-source");
-    holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
+    if (
+      !compilerEvidence ||
+      compilerEvidence.state !== "verified-compiler-output-bindings" ||
+      compilerEvidence.evidence_scope !== "github.com"
+    )
+      holds.add("candidate-workflow-execution-and-producer-acceptance-unproven");
+    else await requireVerifiedReleaseCompilerEvidence(compilerEvidence);
     // The existing attester authenticates the exact SPDX document and package
     // subjects. It cannot substitute for the compiler or a native journey.
     if (
@@ -943,7 +819,7 @@ export async function acquireReleaseAdmission(
             },
           })
         : null;
-    return {
+    const result = {
       schema_version: 1,
       decision: "hold",
       descriptor: null,
@@ -962,6 +838,7 @@ export async function acquireReleaseAdmission(
       public_build_inputs: publicBuildInputs,
       declared_producers: declarations,
       sbom_evidence: sbomEvidence,
+      compiler_evidence: compilerEvidence,
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
       api_requests: requests,
@@ -976,6 +853,11 @@ export async function acquireReleaseAdmission(
           : "github.com",
       authority: "none",
     };
+    if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
+      await requireVerifiedReleaseSbomDocument(sbomEvidence);
+      acquiredSbomReceipts.set(result, sbomEvidence);
+    }
+    return result;
   } catch {
     const evidence = {
       schema_version: 1,
@@ -1013,6 +895,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     factsSha256: string,
   ) => Promise<string>,
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
+  compiler?: ReleaseCompilerAdmissionPrerequisite,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
@@ -1023,6 +906,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     controls: AuthenticatedReleaseControlSource | null;
   } = { facts: null, controls: null };
   const admission = await acquireReleaseAdmission(root, configuration, {
+    ...(compiler ? { compiler } : {}),
     controlPhase: phase,
     establishControls: async (factsSha256, facts) => {
       retained.facts = facts;
@@ -1065,6 +949,9 @@ export async function acquireReleaseAdmissionWithControlHandshake(
         "positive continuation requires actual same-process facts/control/reservation binding",
       );
     requireAuthenticatedReleaseControlSource(controls, phase);
+    const sbomReceipt = acquiredSbomReceipts.get(admission);
+    if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
+    await requireVerifiedReleaseSbomDocument(sbomReceipt);
     if (phase !== "release-publication")
       throw new Error("full admission context cannot appoint another execution stage");
     const context = Object.freeze({
@@ -1074,6 +961,7 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       admission: freezePreparedFacts(structuredClone(admission)),
       checkpoint: admission.checkpoint,
       native_qualifications: Object.freeze([] as object[]),
+      sbom_receipt: sbomReceipt,
       pending_obligations: Object.freeze(["post-publication-full-public-V0-to-V1-acceptance"]),
     });
     actualAdmissionContexts.set(context, { context, phase });

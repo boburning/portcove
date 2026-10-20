@@ -7,6 +7,7 @@ import { createRequire, isBuiltin } from "node:module";
 import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
+import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
@@ -15,6 +16,7 @@ import {
   controllerToolPaths,
   readControllerToolFile,
   inspectControllerToolManifest,
+  controllerCompilerSourceAsset,
 } from "./release-controller-tools.mts";
 /** Installed package API is the repository-pinned Vite+ Pack, not a downloaded
  * replacement. Resolve the canonical path to avoid Windows junction long paths. */
@@ -114,6 +116,25 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
       ],
     });
   }
+}
+
+/** Generated under the unprivileged bootstrap guard, never by a role job. */
+export async function materializeControllerCompilerSource(
+  sourceRoot: string,
+  tools: string,
+  expected: { commit: string; tree: string },
+) {
+  const closure = await prepareReleaseCompilerSourceClosure(sourceRoot, {
+    source_commit: expected.commit,
+    source_tree: expected.tree,
+  });
+  const bytes = Buffer.from(JSON.stringify(closure));
+  if (bytes.length > 65536) throw new Error("generated compiler source closure exceeds bound");
+  await writeFile(path.join(tools, controllerCompilerSourceAsset), bytes, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return { bytes: bytes.length, sha256: hash(bytes) };
 }
 
 export function controllerBootstrapEnvironment(home: string, target: string) {
@@ -229,6 +250,8 @@ export async function buildControllerTools(
         { flag: "wx", mode: 0o600 },
       );
     }
+    phase = "fixed-compiler-source-closure";
+    await materializeControllerCompilerSource(sourceRoot, tools, expected);
     guard();
     const files = [];
     for (const name of controllerToolPaths) {

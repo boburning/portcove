@@ -132,6 +132,7 @@ export async function verifiedControllerToolPaths(receipt: object) {
     rust: path.join(retained.tools, "bin/portcove-release-tools"),
     tauriAddon: path.join(retained.tools, "bin/tauri-addon.node"),
     publicAssets: path.join(retained.tools, "release"),
+    compiler_source_closure: path.join(retained.tools, "compiler-source-closure.json"),
     entries: Object.freeze(
       Object.fromEntries(
         controllerToolEntries.map((name) => [

@@ -64,6 +64,41 @@ void test("provider-byte discovery derives fixed matrix facts while retaining no
   assert.equal(found.declared_producer.run_id, "12345");
   assert.equal(found.archive_sha256, expected.sha256);
 });
+void test("compiler handoff retains only actual CLI package bytes after the complete archive checksum/producer checks", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const retained: string[] = [];
+  const options = {
+    retainCliPackage: async (
+      file: { filename: string; bytes: number; sha256: string },
+      bytes: Buffer,
+    ) => {
+      assert.equal(file.bytes, bytes.length);
+      assert.equal(file.sha256, hash(bytes));
+      assert.ok(file.filename.startsWith("portcove-cli-"));
+      retained.push(file.filename);
+    },
+  };
+  const archive = createAuditZip(f.entries);
+  await discoverReleaseArtifactFiles(archive, identity(archive), f.platform, f.request, options);
+  assert.equal(retained.length, 1);
+  const changed = createAuditZip(
+    f.entries.map(
+      ([name, bytes]) =>
+        [
+          name,
+          name.startsWith("SHA256SUMS-")
+            ? Buffer.from(bytes.toString().replace(/^[a-f0-9]{64}/u, "0".repeat(64)))
+            : bytes,
+        ] as const,
+    ),
+  );
+  retained.length = 0;
+  await assert.rejects(
+    discoverReleaseArtifactFiles(changed, identity(changed), f.platform, f.request, options),
+    /checksum inventory differs/,
+  );
+  assert.equal(retained.length, 0);
+});
 
 void test("current attempt identity refuses older declared producer bytes in discovery and provider staging", async (t) => {
   const f = await fixture(t);
