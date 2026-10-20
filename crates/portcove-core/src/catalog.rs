@@ -2185,13 +2185,13 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 22);
+        assert_eq!(qualification.len(), 24);
         assert_eq!(
             qualification
                 .iter()
                 .filter(|record| record.scope.port_id == "f-zero-snes-recomp")
                 .count(),
-            2
+            4
         );
         assert_eq!(
             qualification
