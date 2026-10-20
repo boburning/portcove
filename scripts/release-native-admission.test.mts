@@ -26,7 +26,14 @@ void test("fixed authority supplies native issuer and host while locators cannot
       "coordinator_journal",
       "dispatch",
       "release_publication",
-    ].map((role, index) => [role, { app_id: 100 + index, installation_id: 200 + index }]),
+    ].map((role, index) => [
+      role,
+      {
+        app_id: 100 + index,
+        installation_id: 200 + index,
+        ...(role === "dispatch" ? { actor_id: "123456" } : {}),
+      },
+    ]),
   );
   const native = Object.fromEntries(
     ["windows-x86_64", "linux-x86_64"].map((platform) => {

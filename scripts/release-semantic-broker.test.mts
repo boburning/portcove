@@ -5,12 +5,22 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import {
+  authenticateCapturedSemanticIssuer,
+  prepareSemanticAppJwt,
+  inspectSemanticInstallationToken,
+} from "./release-semantic-issuer.mts";
+import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
+import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
+import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import {
   prepareFrozenSemanticInputs,
+  prepareFrozenSemanticProposalInputs,
+  requireFrozenSemanticProposalInputs,
   requireFrozenSemanticInputs,
   readSemanticPublicationBaseline,
 } from "./release-semantic-inputs.mts";
@@ -21,20 +31,211 @@ import {
   requireLinuxSemanticSettlement,
   readQualifiedSemanticExecutable,
   semanticSupervisorEnvironment,
+  requireDirectSemanticProposalCapture,
+  requireDirectSemanticRefusalCapture,
+  prepareCapturedSemanticDisposition,
+  requireDirectSemanticDispositionCapture,
 } from "./release-semantic-runtime.mts";
+import { createReleaseReviewRequest } from "./release-review-request.mts";
+import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
-import { readbackSemanticCheck, publishSemanticCapture } from "./release-semantic-broker.mts";
+import {
+  readbackSemanticCheck,
+  readbackSemanticDispositionCheck,
+  publishSemanticCapture,
+  publishSemanticDispositionCapture,
+} from "./release-semantic-broker.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import {
   createSemanticBundleReader,
   createSemanticReaderRpc,
   materializeSemanticReaderIndex,
+  materializeSemanticProposalReaderIndex,
 } from "./release-semantic-reader.mts";
 import {
   inspectSemanticReaderIndex,
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
+
+void test("issuer transport pins App/token routes and the exact captured Check body without ambient credentials", async () => {
+  const body = {
+    name: "Portcove independent release semantic review",
+    head_sha: "a".repeat(40),
+    output: { summary: "inert only" },
+  };
+  const request = {
+    configuration: {
+      app_id: 123,
+      installation_id: 456,
+      head: "a".repeat(40),
+      check_body_sha256: capacityDigest(body),
+    },
+    kind: "installation",
+    token: "inert-not-a-credential",
+    method: "POST",
+    endpoint: "repos/boburning/portcove/check-runs",
+    body,
+  };
+  assert.equal(inspectSemanticIssuerRequest(request).endpoint, request.endpoint);
+  for (const change of [
+    { endpoint: "https://elsewhere.invalid/check-runs" },
+    { endpoint: "repos/other/portcove/check-runs" },
+    { body: { ...body, head_sha: "b".repeat(40) } },
+    { token: "inert\r\nheader" },
+    { kind: "app" },
+    { method: "DELETE" },
+  ])
+    assert.throws(() => inspectSemanticIssuerRequest({ ...request, ...change }));
+  assert.doesNotThrow(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint: `repos/boburning/portcove/commits/${"a".repeat(40)}/check-suites?app_id=123&per_page=100&page=1`,
+    }),
+  );
+  assert.doesNotThrow(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint:
+        "repos/boburning/portcove/check-suites/11/check-runs?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=10",
+    }),
+  );
+  for (const endpoint of [
+    `repos/boburning/portcove/commits/${"a".repeat(40)}/check-suites?app_id=456&per_page=100&page=1`,
+    "repos/boburning/portcove/check-suites/11/check-runs?check_name=other&filter=all&per_page=100&page=1",
+    "repos/boburning/portcove/check-suites/11/check-runs?check_name=Portcove%20independent%20release%20semantic%20review&filter=all&per_page=100&page=11",
+  ])
+    assert.throws(() =>
+      inspectSemanticIssuerRequest({ ...request, method: "GET", body: null, endpoint }),
+    );
+  assert.throws(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint: `repos/boburning/portcove/commits/${"b".repeat(40)}/check-runs?filter=all&per_page=100&page=1`,
+    }),
+  );
+  const tokenRequest = {
+    ...request,
+    kind: "app",
+    endpoint: "app/installations/456/access_tokens",
+    body: { repository_ids: [1354613114], permissions: { checks: "write", metadata: "read" } },
+  };
+  assert.doesNotThrow(() => inspectSemanticIssuerRequest(tokenRequest));
+  assert.throws(() =>
+    inspectSemanticIssuerRequest({
+      ...tokenRequest,
+      body: { repository_ids: [1354613114], permissions: { checks: "write", contents: "write" } },
+    }),
+  );
+  await assert.rejects(authenticateCapturedSemanticIssuer({} as never, {} as never), /imported/);
+  await assert.rejects(
+    prepareCapturedSemanticDisposition({ kind: "classification-proposal", capture: {} }),
+    /imported/,
+  );
+  await assert.rejects(
+    prepareCapturedSemanticDisposition({
+      kind: "complete-opportunity",
+      error: new Error("refused"),
+      request: {},
+    }),
+    /imported/,
+  );
+  await assert.rejects(
+    requireDirectSemanticDispositionCapture({ wire: "valid-looking imported data" }),
+    /imported/,
+  );
+  let credentialCalls = 0;
+  await assert.rejects(
+    publishSemanticDispositionCapture(
+      {},
+      { app_id: 123, installation_id: 456, writer_app_id: 789 },
+      {
+        async requireProvisioningGrant() {
+          credentialCalls++;
+        },
+        async authenticateIssuer() {
+          credentialCalls++;
+          throw new Error("must not run");
+        },
+      },
+    ),
+    /imported/,
+  );
+  assert.equal(credentialCalls, 0);
+  const worker = fileURLToPath(new URL("./release-semantic-issuer-http.mts", import.meta.url));
+  assert.throws(
+    () =>
+      execFileSync(process.execPath, [worker], {
+        input: JSON.stringify({ ...request, endpoint: "never-network" }),
+        encoding: "utf8",
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      }),
+    (error: unknown) => {
+      assert.ok(isRecord(error));
+      assert.ok(String(error.stderr).includes("semantic credential HTTP transport failed"));
+      assert.equal(String(error.stderr).includes(request.token), false);
+      assert.equal(String(error.stdout).includes(request.token), false);
+      return true;
+    },
+  );
+});
+
+void test("App JWT uses the selected public key, RS256 and a bounded clock window", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  const digest = createHash("sha256")
+    .update(publicKey.export({ type: "spki", format: "der" }))
+    .digest("hex");
+  const jwt = prepareSemanticAppJwt(Buffer.from(pem), 123, digest, 1800000000);
+  const [header, payload, signature] = jwt.split(".");
+  assert.deepEqual(JSON.parse(Buffer.from(header!, "base64url").toString()), {
+    alg: "RS256",
+    typ: "JWT",
+  });
+  assert.deepEqual(JSON.parse(Buffer.from(payload!, "base64url").toString()), {
+    iat: 1799999940,
+    exp: 1800000300,
+    iss: "123",
+  });
+  assert.equal(
+    verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      publicKey,
+      Buffer.from(signature!, "base64url"),
+    ),
+    true,
+  );
+  assert.throws(
+    () => prepareSemanticAppJwt(Buffer.from(pem), 123, "0".repeat(64), 1800000000),
+    /identity changed/,
+  );
+  const now = Date.parse("2026-10-20T00:00:00Z");
+  const response = {
+    token: "inert-token-only",
+    permissions: { checks: "write", metadata: "read" },
+    expires_at: "2026-10-20T01:00:00Z",
+  };
+  assert.equal(inspectSemanticInstallationToken(201, response, now), response.token);
+  for (const expires_at of [
+    "invalid",
+    "2026-02-30T00:00:00Z",
+    "2026-10-20T00:00:00Z",
+    "2026-10-20T01:06:00Z",
+    "2026-10-20T01:00:00.000Z",
+  ])
+    assert.throws(
+      () => inspectSemanticInstallationToken(201, { ...response, expires_at }, now),
+      /boundary unavailable/,
+    );
+});
 
 void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {
   const inherited = '{"receipt":"inert existing reservation"}';
@@ -350,10 +551,80 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     compatibility: "fixture only",
   });
   const frozen = requireFrozenSemanticInputs(bundle);
+  const request = createReleaseReviewRequest({
+    before_checkpoint: "a".repeat(40),
+    requested_at: "2026-01-02T00:00:00.000Z",
+    base_commit: opportunity.base_commit,
+    base_version: opportunity.classification.base_version,
+    source_commit: opportunity.source_commit,
+    source_tree: opportunity.source_tree,
+    change_set_sha256: opportunity.change_set_sha256,
+  });
+  const proposedInputs = prepareFrozenSemanticProposalInputs(api, root, request);
+  assert.equal(
+    requireFrozenSemanticProposalInputs(proposedInputs).manifest.opportunity.request_id,
+    request.request_id,
+  );
+  assert.throws(
+    () => requireFrozenSemanticInputs(proposedInputs as unknown as typeof bundle),
+    /imported/,
+  );
+  assert.throws(
+    () => requireFrozenSemanticProposalInputs(bundle as unknown as typeof proposedInputs),
+    /imported/,
+  );
+  const proposalIndex = materializeSemanticProposalReaderIndex(proposedInputs);
+  assert.equal(
+    inspectSemanticReaderIndex(proposalIndex.bytes, proposalIndex.sha256).bundle_sha256,
+    proposedInputs.bundle_sha256,
+  );
+  const proposalResult = {
+    schema_version: 1,
+    outcome: "proposed",
+    request_id: request.request_id,
+    bundle_sha256: proposedInputs.bundle_sha256,
+    coverage: { accumulated_changes: true, classification: true, compatibility: true },
+    proposal: {
+      change: "prerelease",
+      compatibility: "compatible",
+      migration_notes: null,
+      prerelease_identifier: null,
+      meaningful: true,
+      documentation_only: false,
+      urgency: false,
+    },
+    report: "Inert serialization fixture only, no actual semantic judgment.",
+  };
+  const proposal = inspectSemanticProposalResult(proposalResult, proposedInputs);
+  assert.equal(proposal.opportunity?.source_commit, request.source_commit);
+  assert.equal(proposal.opportunity?.classification.base_version, request.base_version);
+  for (const change of [
+    { outcome: "accepted" },
+    { request_id: "b".repeat(64) },
+    { bundle_sha256: "b".repeat(64) },
+    { coverage: { ...proposalResult.coverage, compatibility: false } },
+    { proposal: { ...proposalResult.proposal, source_commit: "b".repeat(40) } },
+    { outcome: "refused" },
+  ])
+    assert.throws(() =>
+      inspectSemanticProposalResult({ ...proposalResult, ...change }, proposedInputs),
+    );
+  assert.equal(
+    inspectSemanticProposalResult(
+      { ...proposalResult, outcome: "refused", proposal: null },
+      proposedInputs,
+    ).opportunity,
+    null,
+  );
+  await assert.rejects(requireDirectSemanticProposalCapture(proposal), /imported/);
+  await assert.rejects(requireDirectSemanticRefusalCapture(new Error("refused")), /imported/);
   const index = materializeSemanticReaderIndex(bundle);
   assert.equal(inspectSemanticReaderIndex(index.bytes, index.sha256).files.length, 3);
   assert.throws(
-    () => requireFrozenSemanticInputs(inspectSemanticReaderIndex(index.bytes, index.sha256)),
+    () =>
+      requireFrozenSemanticInputs(
+        inspectSemanticReaderIndex(index.bytes, index.sha256) as unknown as typeof bundle,
+      ),
     /imported/,
   );
   assert.throws(() => inspectSemanticReaderIndex(index.bytes, "0".repeat(64)), /differs/);
@@ -608,6 +879,46 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
   ];
   assert.equal(
     inspectSemanticRuntimeEvents(events(result, meaningful), bundle).report,
+    result.report,
+  );
+  const published = blob("fn main() { prior_published_version(); }\n");
+  const preparedManifest = {
+    ...manifest,
+    snapshots: {
+      ...manifest.snapshots,
+      published: [{ path: "app.rs", oid: published.oid, mode: "100644" }],
+    },
+  };
+  const preparedBundle = {
+    ...bundle,
+    manifest: preparedManifest,
+    bundle_sha256: capacityDigest(preparedManifest),
+    files: [...bundle.files, published.file],
+  } as unknown as typeof bundle;
+  const preparedResult = { ...result, bundle_sha256: preparedBundle.bundle_sha256 };
+  const preparedMetadata = readEvents(
+    "manifest",
+    "manifest.json",
+    Buffer.from(JSON.stringify(preparedManifest)),
+  );
+  const sourceReads = meaningful.slice(metadata.length);
+  assert.throws(
+    () =>
+      inspectSemanticRuntimeEvents(
+        events(preparedResult, [...preparedMetadata, ...sourceReads]),
+        preparedBundle,
+      ),
+    /lacks relevant/,
+  );
+  assert.equal(
+    inspectSemanticRuntimeEvents(
+      events(preparedResult, [
+        ...preparedMetadata,
+        ...sourceReads,
+        ...readEvents("published", "app.rs", published.file.bytes),
+      ]),
+      preparedBundle,
+    ).report,
     result.report,
   );
   const textReader = createSemanticSnapshotReader(bundle);
@@ -903,6 +1214,7 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
     ...body,
     id: 7,
     app: { id: 101 },
+    check_suite: { id: 11 },
     output: { ...body.output, annotations_count: 0 },
   };
   const expected = {
@@ -918,6 +1230,18 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
       if (route === "repos/boburning/portcove")
         value = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixture-repository" };
       else if (route.includes("/commits/"))
+        value = {
+          total_count: 1,
+          check_suites: [
+            {
+              id: 11,
+              head_sha: body.head_sha,
+              app: { id: 101 },
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+            },
+          ],
+        };
+      else if (route.includes("/check-suites/"))
         value = {
           total_count: fault === "missing" ? 0 : fault === "duplicate" ? 2 : 1,
           check_runs:
@@ -961,4 +1285,68 @@ void test("GET-only ambiguous recovery binds detailed issuer/report and refuses 
     () => readbackSemanticCheck(api, config, { ...opportunity, urgency: true }, expected),
     /exact opportunity/,
   );
+});
+
+void test("negative POST recovery is GET-only with complete suite coverage and exact original wire", () => {
+  const prepared = prepareNegativeSemanticDispositionCheck(negativeSemanticDispositionFixture());
+  const body = prepared.proposed_request.body;
+  const check = {
+    ...body,
+    id: 99,
+    app: { id: 123 },
+    check_suite: { id: 11 },
+    output: { ...body.output, annotations_count: 0, text: "" },
+  };
+  let mode = "valid";
+  const api = {
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      let value: unknown = check;
+      if (endpoint === "repos/boburning/portcove")
+        value = { id: 1354613114, full_name: "boburning/portcove", node_id: "fixed-repo" };
+      else if (endpoint.includes("/commits/"))
+        value = {
+          total_count: 1,
+          check_suites: [
+            {
+              id: 11,
+              app: { id: 123 },
+              head_sha: body.head_sha,
+              repository: { id: 1354613114, full_name: "boburning/portcove" },
+            },
+          ],
+        };
+      else if (endpoint.includes("/check-suites/"))
+        value = {
+          total_count: mode === "missing" ? 0 : mode === "duplicate" ? 2 : 1,
+          check_runs:
+            mode === "missing"
+              ? []
+              : mode === "duplicate"
+                ? [check, { ...check, id: 100 }]
+                : [check],
+        };
+      else if (mode === "issuer") value = { ...check, app: { id: 456 } };
+      else if (mode === "drift")
+        value = { ...check, output: { ...check.output, summary: body.output.summary + " " } };
+      return { status: 200, headers: new Map<string, string>(), body: value };
+    },
+    graphql() {
+      throw new Error("no GraphQL");
+    },
+  };
+  const expected = {
+    head: body.head_sha,
+    external_id: body.external_id,
+    summary: body.output.summary,
+  };
+  const issuer = { app_id: 123, installation_id: 789, writer_app_id: 456 };
+  assert.equal(
+    readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected).check_run_id,
+    99,
+  );
+  for (mode of ["missing", "duplicate", "issuer", "drift"])
+    assert.throws(() =>
+      readbackSemanticDispositionCheck(api, issuer, prepared.wire.request, expected),
+    );
 });

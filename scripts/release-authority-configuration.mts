@@ -4,6 +4,8 @@ import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.
 import {
   admitProductionInputReader,
   readProductionControllerWorkflowBytes,
+  admitReviewedInputsWriter,
+  readReviewedInputsWorkflowBytes,
 } from "./production-controller-admission.mts";
 
 const roles = [
@@ -76,13 +78,31 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
   const apps = Object.fromEntries(
     roles.map((role) => {
       const app = appRecords[role];
-      exact(app, "app_id,installation_id");
+      exact(
+        app,
+        role === "dispatch" ? "actor_id,app_id,installation_id" : "app_id,installation_id",
+      );
+      if (
+        role === "dispatch" &&
+        (typeof app.actor_id !== "string" ||
+          !/^[1-9][0-9]{0,15}$/u.test(app.actor_id) ||
+          ["43177418", "41898282"].includes(app.actor_id))
+      )
+        throw new Error(
+          "release dispatch actor must be the independently observed dedicated App bot",
+        );
       return [
         role,
-        { app_id: positive(app.app_id), installation_id: positive(app.installation_id) },
+        {
+          app_id: positive(app.app_id),
+          installation_id: positive(app.installation_id),
+          ...(role === "dispatch" ? { actor_id: String(app.actor_id) } : {}),
+        },
       ];
     }),
-  ) as Record<(typeof roles)[number], { app_id: number; installation_id: number }>;
+  ) as Record<(typeof roles)[number], { app_id: number; installation_id: number }> & {
+    dispatch: { app_id: number; installation_id: number; actor_id: string };
+  };
   if (
     new Set([15368, ...roles.map((role) => apps[role].app_id)]).size !== roles.length + 1 ||
     new Set(roles.map((role) => apps[role].installation_id)).size !== roles.length
@@ -188,6 +208,28 @@ export async function requireControllerReleaseAuthorities(phase: unknown) {
     await readProductionControllerWorkflowBytes(),
     phase,
   );
+  return inspectBoundControllerAuthorities(configuration, source);
+}
+
+/** Fixed classification writer only. Its separate workflow must be admitted
+ * against its own byte digest; production workflow admission cannot substitute.
+ * Actual writer OIDC and isolated protection evidence remain mandatory. */
+export async function requireReviewedInputsReleaseAuthorities() {
+  const configuration = process.env.PORTCOVE_RELEASE_AUTHORITIES;
+  if (!configuration || Buffer.byteLength(configuration) > 32 * 1024)
+    throw new Error("protected release authority configuration unavailable");
+  const source = admitReviewedInputsWriter(
+    process.env.PORTCOVE_CONTROLLER_ADMISSION,
+    process.env,
+    await readReviewedInputsWorkflowBytes(),
+  );
+  return inspectBoundControllerAuthorities(configuration, source);
+}
+
+function inspectBoundControllerAuthorities(
+  configuration: string,
+  source: ReturnType<typeof admitProductionInputReader>,
+) {
   if (
     source.mode !== "bounded-application-release" ||
     !source.authority_configuration_sha256 ||
@@ -197,5 +239,9 @@ export async function requireControllerReleaseAuthorities(phase: unknown) {
   const result = inspectReleaseAuthorityConfiguration(JSON.parse(configuration));
   if (releaseCanonicalDigest(result) !== source.authority_configuration_sha256)
     throw new Error("release authority configuration changed after ratification");
+  if (result.apps.dispatch.actor_id !== source.actor_id)
+    throw new Error(
+      "configured automatic dispatch actor differs from ratified controller principal",
+    );
   return structuredClone(result);
 }

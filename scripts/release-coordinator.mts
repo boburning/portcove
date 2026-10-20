@@ -4,6 +4,10 @@ import {
   inspectMetadataRenewalDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  inspectReleaseReviewRequest,
+  inspectReleaseReviewDisposition,
+} from "./release-review-request.mts";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -252,9 +256,14 @@ function validatePublication(publication: unknown, now: number) {
       "reserved_versions",
       "last_routine_preview_at",
     ],
-    [],
+    ["last_routine_preview_bound"],
     "publication inventory",
   );
+  if (
+    Object.hasOwn(publication, "last_routine_preview_bound") &&
+    publication.last_routine_preview_bound !== "all-published-previews"
+  )
+    throw new Error("unsupported Preview cadence upper-bound scope");
   if (publication.complete !== true) throw new Error("publication inventory is incomplete");
   const observed = instant(publication.observed_at, "publication observation");
   if (observed > now) throw new Error("publication observation is in the future");
@@ -448,7 +457,7 @@ export function planReleaseOpportunity(input: unknown) {
   exactKeys(
     input,
     ["schema_version", "now", "controller", "opportunity", "publication", "active_candidate"],
-    ["published_metadata", "metadata_renewal"],
+    ["published_metadata", "metadata_renewal", "review_request", "review_disposition"],
     "release coordinator input",
   );
   if (input.schema_version !== 1 && input.schema_version !== 2)
@@ -459,7 +468,10 @@ export function planReleaseOpportunity(input: unknown) {
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
   const hasMetadata =
-    Object.hasOwn(input, "published_metadata") || Object.hasOwn(input, "metadata_renewal");
+    Object.hasOwn(input, "published_metadata") ||
+    Object.hasOwn(input, "metadata_renewal") ||
+    Object.hasOwn(input, "review_request") ||
+    Object.hasOwn(input, "review_disposition");
   if (
     hasMetadata &&
     (input.schema_version !== 2 ||
@@ -469,11 +481,19 @@ export function planReleaseOpportunity(input: unknown) {
   )
     throw new Error("metadata journal fields require bounded capacity schema2");
   const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
+  const reviewRequest = inspectReleaseReviewRequest(input.review_request);
+  const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const metadataRenewal =
     input.metadata_renewal === undefined || input.metadata_renewal === null
       ? null
       : inspectMetadataRenewalDescriptor(input.metadata_renewal);
   const authority = {
+    ...(Object.hasOwn(input, "review_disposition")
+      ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
+      : {}),
+    ...(Object.hasOwn(input, "review_request")
+      ? { review_request_sha256: capacityDigest(reviewRequest) }
+      : {}),
     ...(Object.hasOwn(input, "published_metadata")
       ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
       : {}),
