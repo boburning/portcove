@@ -94,26 +94,29 @@ it("keeps measured progress stationary and reserves the sweep for unknown progre
   ).toBe("pc-progress");
 });
 
-it("wraps notice actions without stealing the body column", async () => {
-  await render(
-    <div style={{ width: 320 }}>
-      <Notice intent="info">
-        <span data-slot="notice-icon">!</span>
-        <div data-slot="notice-body">A useful update description with enough room to read.</div>
-        <div data-slot="notice-actions">
-          <Button>Review options</Button>
-          <Button>Dismiss</Button>
-        </div>
-      </Notice>
-    </div>,
-  );
-  const notice = document.querySelector<HTMLElement>('[data-slot="notice"]')!;
-  const body = notice.querySelector<HTMLElement>('[data-slot="notice-body"]')!;
-  const actions = notice.querySelector<HTMLElement>('[data-slot="notice-actions"]')!;
-  expect(body.clientWidth).toBeGreaterThan(220);
-  expect(actions.getBoundingClientRect().top).toBeGreaterThan(body.getBoundingClientRect().top);
-  expect(notice.scrollWidth).toBeLessThanOrEqual(notice.clientWidth);
-});
+it.each([320, 196])(
+  "wraps notice actions within %spx without stealing the body column",
+  async (width) => {
+    await render(
+      <div style={{ width }}>
+        <Notice intent="info">
+          <span data-slot="notice-icon">!</span>
+          <div data-slot="notice-body">A useful update description with enough room to read.</div>
+          <div data-slot="notice-actions">
+            <Button>Review options</Button>
+            <Button>Dismiss</Button>
+          </div>
+        </Notice>
+      </div>,
+    );
+    const notice = document.querySelector<HTMLElement>('[data-slot="notice"]')!;
+    const body = notice.querySelector<HTMLElement>('[data-slot="notice-body"]')!;
+    const actions = notice.querySelector<HTMLElement>('[data-slot="notice-actions"]')!;
+    expect(body.clientWidth).toBeGreaterThan(width - 100);
+    expect(actions.getBoundingClientRect().top).toBeGreaterThan(body.getBoundingClientRect().top);
+    expect(notice.scrollWidth).toBeLessThanOrEqual(notice.clientWidth);
+  },
+);
 
 afterEach(async () => {
   await cleanup();

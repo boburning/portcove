@@ -588,6 +588,17 @@ inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
 
+### Library recovery composition
+
+Storage capacity, recovery and startup library selection are separate Settings
+rows. Recovery has a disclosed three-step manual-copy guide, then independently
+labeled Restore and Move actions. Preserve exact LTR-isolated paths and six
+current export content categories. Export success acknowledges metadata only;
+manual copy remains unverified until corresponding restore observations succeed.
+Use existing reviewed backup/import controls and native restore consent. Do not
+introduce a progress bar, checkbox, success badge or automatic-copy implication
+for work the application did not perform.
+
 ### Add games composition
 
 Library's contextual Add games action and empty-state primary action open the
@@ -602,3 +613,5 @@ opening another destination must not imply cancellation or task completion.
 ### Library identity and artwork feedback
 
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
+
+Restore review inventories the supplied content and destination; an existing empty folder can be planned. Review does not verify a complete recovery copy. Execution verifies recorded installed payloads before publication; manual copying and unrecorded external content remain independently unverified.

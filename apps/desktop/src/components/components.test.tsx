@@ -1604,7 +1604,9 @@ describe("desktop components", () => {
     expect(html).toContain('aria-label="Available capacity on the library volume"');
     expect(html).toContain("width:50%");
     expect(html).toContain("Installed application files are kept separate from saves and settings");
-    expect(html).toContain("Export saved file locations and installed-version settings");
+    expect(html).toContain(
+      "Metadata records installed versions, saved file locations and settings",
+    );
     expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Export metadata<\/button>/u);
     expect(html).not.toContain("recovery-safe");
   });
@@ -1923,7 +1925,7 @@ describe("desktop components", () => {
     );
     const groups = [
       ["appearance", "library-storage", 2],
-      ["library-storage", "game-files", 2],
+      ["library-storage", "game-files", 3],
       ["game-files", "updates", 3],
       ["updates", "integrations", 2],
       ["integrations", "advanced", 1],

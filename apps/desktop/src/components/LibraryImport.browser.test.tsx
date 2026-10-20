@@ -3,6 +3,7 @@ import { reloadWorkspace } from "../reload-workspace";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { LibraryImportPlan } from "../types";
@@ -77,6 +78,9 @@ it("invalidates a reviewed backup after editing and exposes recoverable import e
     "You need a library metadata file and a separate copy of the original library folder.",
   );
   expect(document.body.textContent).toContain("Restore into a new or empty library.");
+  expect(document.body.textContent).toContain(
+    "A review alone does not verify a complete recovery copy.",
+  );
   expect(document.body.textContent).toContain("Library metadata file");
   expect(document.body.textContent).toContain("Copy of the original library folder");
   expect(document.body.textContent).toContain(plan.destination_root);
@@ -147,6 +151,105 @@ it("explains retained originals and space before reviewing a library move", asyn
   );
   expect(document.body.textContent).toContain("Original game files stay at their saved locations");
 });
+
+it.each([240, 320])(
+  "keeps a restore with a long destination within a %spx dialog",
+  async (width) => {
+    const original = { width: innerWidth, height: innerHeight };
+    await page.viewport(width, 160);
+    try {
+      const destination = String.raw`\\?\E:\Codex-Worktrees\ui-ux-enlargement-2224\Portcove-Development\outputs\desktop-verify\2026-10-20T11-08-50-133Z-BYK1VJ\native\restored-library`;
+      vi.mocked(desktopApi.planLibraryImport).mockResolvedValue({
+        ...plan,
+        destination_root: destination,
+      });
+      await root.rerender(<LibraryImportButton disabled={false} libraryRoot={destination} />);
+      await click("Restore from a library copy");
+      await click("Choose file");
+      await click("Choose folder");
+      await click("Review restore");
+      const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+      const bounds = dialog.getBoundingClientRect();
+      const offenders = [...dialog.querySelectorAll<HTMLElement>("*")]
+        .filter((element) => element.getBoundingClientRect().right > bounds.right + 1)
+        .map((element) => ({
+          tag: element.tagName,
+          className: element.className,
+          text: element.textContent?.slice(0, 100),
+        }));
+      expect(dialog.scrollWidth, JSON.stringify(offenders)).toBeLessThanOrEqual(
+        dialog.clientWidth + 1,
+      );
+      expect(button("Restore this library").disabled).toBe(false);
+    } finally {
+      await page.viewport(original.width, original.height);
+    }
+  },
+);
+
+it.each([240, 320])(
+  "keeps expanded transfer inventory within a %spx recovery dialog",
+  async (width) => {
+    const original = { width: innerWidth, height: innerHeight };
+    await page.viewport(width, 160);
+    try {
+      vi.spyOn(desktopApi, "planLibraryMove").mockResolvedValue({
+        ...plan,
+        source_root: "D:/Owned library",
+        source_will_be_retained: true,
+        content: [
+          {
+            kind: "user_data",
+            relative_path: "user",
+            copy: {
+              total_bytes: 39,
+              skipped_entries: [],
+              directories: ["owned-port/empty-folder"],
+              files: [
+                {
+                  relative_path: `owned-port/${"long-path-".repeat(12)}.save`,
+                  size: 39,
+                  sha256: "a".repeat(64),
+                },
+              ],
+            },
+          },
+        ],
+      });
+      await root.rerender(<LibraryMoveButton disabled={false} />);
+      await click("Move library");
+      const input = document.querySelector<HTMLInputElement>("#library-destination")!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          "E:/New",
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await click("Review move");
+      await act(async () => {
+        for (const details of document.querySelectorAll("[role=dialog] details")) {
+          (details as HTMLDetailsElement).open = true;
+          details.dispatchEvent(new Event("toggle"));
+        }
+      });
+      const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+      const bounds = dialog.getBoundingClientRect();
+      const offenders = [...dialog.querySelectorAll<HTMLElement>("*")]
+        .filter((element) => element.getBoundingClientRect().right > bounds.right + 1)
+        .map((element) => ({
+          tag: element.tagName,
+          className: element.className,
+          text: element.textContent?.slice(0, 100),
+        }));
+      expect(dialog.scrollWidth, JSON.stringify(offenders)).toBeLessThanOrEqual(
+        dialog.clientWidth + 1,
+      );
+    } finally {
+      await page.viewport(original.width, original.height);
+    }
+  },
+);
 
 it.each(["move", "import"] as const)(
   "refreshes the workspace after closing a failed %s without repeating the transfer",

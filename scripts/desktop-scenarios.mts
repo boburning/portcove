@@ -838,8 +838,15 @@ export function desktopHarnessDeadlineMs(
 ) {
   // Five checkpoints, positive host/driver joins and fresh starts; harness only.
   if (selection.selected_scenarios.includes("native-host-publication-recovery")) return 720_000;
+  // Includes source verification of the owned256MiB intervention fixture,
+  // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
-  const ordinary = executed > 8 ? 10 * 60_000 : 3 * 60_000;
+  const ordinary = Math.max(
+    executed > 8 ? 10 * 60_000 : 3 * 60_000,
+    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
+      ? 300_000
+      : 0,
+  );
   const cacheConditions = selection.selected_scenarios.includes(
     "native-default-cover-cache-conditions",
   );

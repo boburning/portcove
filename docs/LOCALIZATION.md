@@ -76,6 +76,11 @@ Unit and contract tests cover exact and fallback resolution, malformed and empty
 
 A current Windows or Linux native pass is evidence only for its recorded revision, artifact, OS, architecture, and embedded webview. It is not historical-minimum, packaged-build, Steam Deck, macOS, or publication qualification. Missing initial-beta Windows/Linux stack or minimum evidence remains owned by [#993](https://github.com/boburning/portcove/issues/993). Full macOS qualification belongs to #45/#226 during beta before 1.0; Deck proof remains with #51/#217. Keep practical macOS build health and portable architecture without making absent Mac/device observations a beta gate. Development and merge of this non-publishing foundation do not authorize publication to an unqualified platform.
 
+Guided library recovery strings distinguish metadata export, manually copied
+content, verified restore and authority-changing Move. Content-root filenames are
+literal code; surrounding explanations and entry labels are localizable. Unicode
+paths retain their exact bytes with LTR isolation. No supported language is added.
+
 Add games displays game and port identity independently of stable IDs. File-check
 copy distinguishes a selected-port check from folder recognition; do not translate
 an unknown or preliminary match into compatibility. Step labels describe phases,

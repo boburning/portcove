@@ -3,6 +3,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
+import { PortBrowser } from "../components/PortBrowser";
 import { desktopApi } from "../api";
 import { artworkState } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -35,6 +36,36 @@ async function mount(theme: string) {
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }
+
+it.each([
+  ["dark", true],
+  ["light", true],
+  ["dark", false],
+  ["light", false],
+] as const)("fits the %s Library loading=%s state at 240px", async (theme, loading) => {
+  await page.viewport(240, 160);
+  document.documentElement.dataset.theme = theme;
+  await render(
+    <main style={{ padding: 16 }}>
+      <PortBrowser
+        view="library"
+        ports={[]}
+        statuses={new Map()}
+        overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+        filter="all"
+        setFilter={() => {}}
+        onSelect={() => {}}
+        onBrowseCatalog={() => {}}
+        loading={loading}
+      />
+    </main>,
+  );
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+    document.documentElement.clientWidth + 1,
+  );
+  const state = document.querySelector<HTMLElement>(loading ? ".loading-state" : ".empty-state")!;
+  expect(state.scrollWidth).toBeLessThanOrEqual(state.clientWidth + 1);
+});
 
 it("retains a session-only layout through the real details unmount and return", async () => {
   localStorage.clear();

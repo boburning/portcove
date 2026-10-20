@@ -23,7 +23,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 // Copy the harness-owned library, preserve its originals, and observe the new desktop generation.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { access, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { access, cp, mkdir, readFile, realpath, rename, writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
@@ -87,6 +87,60 @@ export async function libraryHandoffScenario({
     );
     const sources = transportValues("source", ownedCommand(["source", "list"]));
     const { click, button } = reviewControls(browser);
+    const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
+    const sizeShortcut = (key: string) =>
+      browser.actions().keyDown(modifier).sendKeys(key).keyUp(modifier).perform();
+    const measureSize = () =>
+      executeBrowserScript(browser, () => ({
+        width: innerWidth,
+        height: innerHeight,
+        contentWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        preference: localStorage.getItem("portcove.appearance.interface-size"),
+        overflowElements:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+            ? [...document.querySelectorAll<HTMLElement>("body *")]
+                .filter((element) => {
+                  const bounds = element.getBoundingClientRect();
+                  return (
+                    bounds.width > 0 && bounds.right > document.documentElement.clientWidth + 1
+                  );
+                })
+                .slice(0, 12)
+                .map((element) => ({
+                  tag: element.tagName,
+                  className: element.className,
+                  text: element.textContent?.slice(0, 120),
+                  width: element.getBoundingClientRect().width,
+                  minWidth: getComputedStyle(element).minWidth,
+                }))
+            : [],
+      }));
+    const sizeObservations: (Awaited<ReturnType<typeof measureSize>> & { size: number })[] = [];
+    let baselineWidth: number | undefined;
+    const settledSize = async (size: number) => {
+      await browser.wait(
+        async () => {
+          const observed = await measureSize();
+          return (
+            observed.preference === String(size) &&
+            (baselineWidth === undefined ||
+              Math.abs(observed.width - (baselineWidth * 100) / size) <= 2)
+          );
+        },
+        10_000,
+        `Recovery interface size ${size}% did not settle`,
+      );
+      const observed = await measureSize();
+      baselineWidth ??= observed.width;
+      if (size >= 300)
+        assert.ok(observed.width <= (960 * 100) / size + 1, JSON.stringify(observed));
+      assert.ok(observed.scrollWidth <= observed.contentWidth + 1, JSON.stringify(observed));
+      sizeObservations.push({ size, ...observed });
+    };
+    await browser.manage().window().setRect({ width: 960, height: 640 });
+    await sizeShortcut("0");
+    await settledSize(100);
     const assertEscapeRestoresFocus = async (trigger: Locator, dialog: Locator, name: string) => {
       await browser.actions().sendKeys(Key.ESCAPE).perform();
       await browser.wait(
@@ -109,6 +163,36 @@ export async function libraryHandoffScenario({
     };
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Library and storage"));
+    await click(By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'));
+    const guide = await browser.findElement(By.css(".library-recovery")).getText();
+    assert.ok(guide.includes("A manual copy is unverified"));
+    assert.ok(guide.includes("retroachievements.credentials"));
+    for (const root of ["versions", "user", "source-inbox", "backups", "toolchains", "artwork"])
+      assert.ok(guide.includes(root));
+    const guideImage = path.join(output, "native-library-recovery-guide.png");
+    await writeFile(guideImage, await browser.takeScreenshot(), { encoding: "base64", flag: "wx" });
+    artifacts.push(guideImage);
+    for (let step = 0; step < 6; step++) await sizeShortcut("+");
+    await settledSize(300);
+    await sizeShortcut("+");
+    await settledSize(400);
+    const guideSummary = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'),
+    );
+    await executeBrowserScript(
+      browser,
+      (element) => element.scrollIntoView({ block: "start" }),
+      guideSummary,
+    );
+    const enlargedGuideImage = path.join(output, "native-library-recovery-guide-400.png");
+    await writeFile(enlargedGuideImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(enlargedGuideImage);
+    // Keep actual WebView enlargement through Move, checked Restore and the
+    // interrupted-Move recovery actions, including native final consent.
     const moveTrigger = button("Move library");
     const moveDialog = By.css('[aria-labelledby="move-library-title"]');
     await click(moveTrigger);
@@ -156,7 +240,16 @@ export async function libraryHandoffScenario({
     await click(button("Move to this folder"));
     const after = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > before.generation ? observed : false;
+      const expected = await realpath(destination).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > before.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(after);
     assert.equal(await realpath(required(after.library_root)), await realpath(destination));
@@ -225,8 +318,32 @@ export async function libraryHandoffScenario({
     await mkdir(restoreRoot);
     const restoreSelection = object(await invoke("set_default_library", { path: restoreRoot }));
     assert.equal(restoreSelection.ok, true, JSON.stringify(restoreSelection));
+    // The owned source has no open game, and switching releases its desktop
+    // handles. Simulate the documented manual content copy without inventing
+    // a production copy API or copying an open database.
+    const contentCopy = path.join(output, "manual-recovery-content");
+    await mkdir(contentCopy);
+    for (const root of ["versions", "user", "source-inbox", "backups", "toolchains", "artwork"]) {
+      const sourceRoot = path.join(destination, root);
+      const exists = await access(sourceRoot).then(
+        () => true,
+        () => false,
+      );
+      if (exists)
+        await cp(sourceRoot, path.join(contentCopy, root), {
+          recursive: true,
+          force: false,
+          errorOnExist: true,
+        });
+    }
+    const originalSource = path.join(output, "opengoal-jak1.iso");
+    const offlineOriginal = path.join(output, "disconnected-original.iso");
+    const originalSourceIdentity = await fileIdentity(originalSource);
+    await rename(originalSource, offlineOriginal);
+    assert.equal((await fileIdentity(offlineOriginal)).sha256, originalSourceIdentity.sha256);
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Library and storage"));
     const restoreTrigger = button("Restore from a library copy");
     const restoreDialog = By.css('[aria-labelledby="import-library-title"]');
     await click(restoreTrigger);
@@ -234,7 +351,25 @@ export async function libraryHandoffScenario({
     await assertEscapeRestoresFocus(restoreTrigger, restoreDialog, "library restore");
     await click(restoreTrigger);
     await browser.findElement(By.id("import-metadata")).sendKeys(metadata);
-    await browser.findElement(By.id("import-content")).sendKeys(destination);
+    const missingContent = path.join(output, "missing-recovery-content");
+    await browser.findElement(By.id("import-content")).sendKeys(missingContent);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(By.css('[role="dialog"] [role="alert"]')), 15_000);
+    assert.equal((await browser.findElements(button("Restore this library"))).length, 0);
+    // An existing empty root is reviewable; review is not payload verification.
+    // Core's separate missing-payload execution refusal is retained in the
+    // qualification receipt. Do not execute an incomplete copy in this UI root.
+    await mkdir(missingContent);
+    await click(button("Review restore"));
+    await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
+    const emptyContentImage = path.join(output, "native-empty-content-review.png");
+    await writeFile(emptyContentImage, await browser.takeScreenshot(), {
+      encoding: "base64",
+      flag: "wx",
+    });
+    artifacts.push(emptyContentImage);
+    await browser.findElement(By.id("import-content")).clear();
+    await browser.findElement(By.id("import-content")).sendKeys(contentCopy);
     await click(button("Review restore"));
     await browser.wait(until.elementLocated(button("Restore this library")), 15_000);
     const restoreActionStyles = await assertPrimaryReviewAction(
@@ -245,7 +380,7 @@ export async function libraryHandoffScenario({
     const restoreReview = await browser
       .findElement(By.css('[aria-label="Library restore plan"]'))
       .getText();
-    assert.ok(restoreReview.includes(destination) && restoreReview.includes(restoreRoot));
+    assert.ok(restoreReview.includes(contentCopy) && restoreReview.includes(restoreRoot));
     assert.ok(restoreReview.includes("Saved game-file locations"));
     await assertCompactReview(browser, '[role="dialog"]');
     const restoreAccessibility = path.join(output, "library-restore-accessibility.json");
@@ -266,6 +401,7 @@ export async function libraryHandoffScenario({
     );
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
     await confirmNative(
       "Confirm library restore",
       "Restore library",
@@ -274,7 +410,16 @@ export async function libraryHandoffScenario({
     );
     const afterRestore = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > beforeRestore.generation ? observed : false;
+      const expected = await realpath(restoreRoot).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > beforeRestore.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(afterRestore);
     assert.equal(await realpath(required(afterRestore.library_root)), await realpath(restoreRoot));
@@ -284,6 +429,34 @@ export async function libraryHandoffScenario({
     );
     assert.deepEqual(await fileIdentity(metadata), exportedMetadata);
     assert.deepEqual(await fileIdentity(exportedSave.path), exportedSave);
+
+    const restoredSave = await fileIdentity(
+      path.join(restoreRoot, path.relative(destination, exportedSave.path)),
+    );
+    assert.equal(restoredSave.sha256, exportedSave.sha256);
+    const backupSource = required(preserved[2]);
+    const restoredBackup = await fileIdentity(
+      path.join(restoreRoot, path.relative(paths.library_root, backupSource.path)),
+    );
+    assert.equal(restoredBackup.sha256, backupSource.sha256);
+    assert.ok(
+      transportValue(
+        "backup_inventory",
+        command(["backup", "list", portId], restoreRoot),
+      ).backups.some((item) => item.id === backup.id),
+    );
+    // Restore retained the disconnected original reference, rather than
+    // silently adopting the copied managed content as another original.
+    assert.deepEqual(transportValues("source", success(await invoke("get_sources"))), sources);
+    assert.equal(
+      await access(originalSource).then(
+        () => true,
+        () => false,
+      ),
+      false,
+    );
+    assert.equal((await fileIdentity(offlineOriginal)).sha256, originalSourceIdentity.sha256);
+    await rename(offlineOriginal, originalSource);
 
     // After review, wait for core's pending authority marker before changing an
     // owned save. This deterministically exercises the actual pre-activation
@@ -300,14 +473,27 @@ export async function libraryHandoffScenario({
     );
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(button("Library and storage"));
     await click(button("Move library"));
     await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
     await click(button("Review move"));
     await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
     const beforeRecovery = await bootstrap();
-    await click(button("Move to this folder"));
-    await waitForFile(path.join(restoreRoot, ".portcove-authority.json"));
-    await writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`);
+    // Arm the witness before the click: a fast copy may publish before WebDriver's
+    // click response returns. Drain both branches before cleanup on any failure.
+    // Debug verification of the owned256MiB tree can exceed15s before the
+    // pending marker exists. This is a finite harness wait, not a Core deadline.
+    const changeDuringCopy = waitForFile(
+      path.join(restoreRoot, ".portcove-authority.json"),
+      60_000,
+    ).then(async () =>
+      writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`),
+    );
+    const intervention = await Promise.allSettled([
+      changeDuringCopy,
+      click(button("Move to this folder")),
+    ]);
+    for (const result of intervention) if (result.status === "rejected") throw result.reason;
     await browser.wait(until.elementLocated(button("Keep using original library")), 15_000);
     assert.ok(
       (
@@ -326,7 +512,16 @@ export async function libraryHandoffScenario({
     await click(button("Keep using original library"));
     const afterRecovery = await browser.wait(async () => {
       const observed = await bootstrap();
-      return observed.ready && observed.generation > beforeRecovery.generation ? observed : false;
+      const expected = await realpath(restoreRoot).catch(() => undefined);
+      const actual = observed.library_root
+        ? await realpath(observed.library_root).catch(() => undefined)
+        : undefined;
+      return observed.ready &&
+        observed.generation > beforeRecovery.generation &&
+        expected !== undefined &&
+        actual === expected
+        ? observed
+        : false;
     }, 15_000);
     assert.ok(afterRecovery);
     assert.equal(await realpath(required(afterRecovery.library_root)), await realpath(restoreRoot));
@@ -344,6 +539,13 @@ export async function libraryHandoffScenario({
           preserved_originals: preserved,
           copied,
           restore: {
+            restored_save: restoredSave,
+            restored_backup_snapshot: restoredBackup,
+            manually_copied_content: contentCopy,
+            missing_content_root_refused_during_review: true,
+            existing_empty_root_review_is_not_payload_verification: true,
+            disconnected_original_reference_retained: true,
+            original_source_identity: originalSourceIdentity,
             before: beforeRestore,
             after: afterRestore,
             trusted_native_confirmation: true,
@@ -372,6 +574,12 @@ export async function libraryHandoffScenario({
       { flag: "wx" },
     );
     artifacts.push(result);
+    await settledSize(400);
+    await sizeShortcut("0");
+    await settledSize(100);
+    const sizesFile = path.join(output, "native-library-recovery-interface-size.json");
+    await writeFile(sizesFile, JSON.stringify(sizeObservations, null, 2) + "\n", { flag: "wx" });
+    artifacts.push(sizesFile);
   });
 }
 
