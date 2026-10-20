@@ -8,6 +8,7 @@ import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
+import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 
 const repository = "repos/boburning/portcove";
 const oid = (value: unknown): value is string =>
@@ -106,6 +107,7 @@ export function readSemanticPublicationBaseline(
   api: GitHubRestReader,
   root: string,
   expectedVersion: string,
+  namespaceConfiguration?: { schema_version: 1; namespace: string },
 ) {
   const started = performance.now();
   let requests = 0;
@@ -231,6 +233,22 @@ export function readSemanticPublicationBaseline(
     after.published_at !== selected.published_at
   )
     throw new Error("publication baseline changed during readback");
+  const publishedSource =
+    namespaceConfiguration === undefined
+      ? null
+      : inspectPublishedApplicationSource(api, namespaceConfiguration, {
+          id: selected.id,
+          version: expectedVersion,
+          prepared_commit: commit,
+          prepared_tree: tree,
+        });
+  if (
+    publishedSource === null &&
+    git(root, ["cat-file", "commit", commit]).includes(Buffer.from("Portcove-Preparation-SHA256:"))
+  )
+    throw new Error(
+      "prepared publication requires the independently configured coordinator namespace",
+    );
   return {
     repository_id: 1354613114,
     release_id: selected.id,
@@ -239,6 +257,8 @@ export function readSemanticPublicationBaseline(
     tag_object: before.object.sha,
     commit,
     tree,
+    source_baseline: publishedSource?.source_baseline ?? { commit, tree },
+    published_source: publishedSource,
     qualification: "provider publication/tag identity readback; semantic review still required",
   };
 }
@@ -253,6 +273,7 @@ export function prepareFrozenSemanticInputs(
   root: string,
   rawOpportunity: unknown,
   evidence: { classification: unknown; compatibility: unknown },
+  namespaceConfiguration?: { schema_version: 1; namespace: string },
 ) {
   const opportunity = validateOpportunity(structuredClone(rawOpportunity));
   const bundle = freezeSemanticSnapshots(
@@ -261,6 +282,7 @@ export function prepareFrozenSemanticInputs(
     opportunity,
     parseVersionClassification(opportunity.classification).base_version,
     evidence,
+    namespaceConfiguration,
   );
   prepared.set(bundle, bundle.bundle_sha256);
   return bundle;
@@ -273,13 +295,21 @@ export function prepareFrozenSemanticProposalInputs(
   api: GitHubRestReader,
   root: string,
   rawRequest: unknown,
+  namespaceConfiguration?: { schema_version: 1; namespace: string },
 ) {
   const request = inspectReleaseReviewRequest(structuredClone(rawRequest));
   if (!request) throw new Error("exact frozen semantic review request required");
-  const bundle = freezeSemanticSnapshots(api, root, request, request.base_version, {
-    classification: "not yet proposed; no classification or acceptance authority",
-    compatibility: "must be assessed from the complete inert source and existing contracts",
-  });
+  const bundle = freezeSemanticSnapshots(
+    api,
+    root,
+    request,
+    request.base_version,
+    {
+      classification: "not yet proposed; no classification or acceptance authority",
+      compatibility: "must be assessed from the complete inert source and existing contracts",
+    },
+    namespaceConfiguration,
+  );
   proposalPrepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }
@@ -297,9 +327,10 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
   opportunity: T,
   baseVersion: string,
   evidence: { classification: unknown; compatibility: unknown },
+  namespaceConfiguration?: { schema_version: 1; namespace: string },
 ) {
-  const baseline = readSemanticPublicationBaseline(api, root, baseVersion);
-  if (baseline.commit !== opportunity.base_commit)
+  const baseline = readSemanticPublicationBaseline(api, root, baseVersion, namespaceConfiguration);
+  if (baseline.source_baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
   const source = readSemanticSourceChanges(api, root, opportunity);
   if (source.change_set_sha256 !== opportunity.change_set_sha256)
@@ -326,7 +357,17 @@ function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
       return { mode: match[1]!, oid: match[2]!, path: match[3]! };
     });
   };
-  const snapshots = { baseline: snapshot(source.base_tree), source: snapshot(source.source_tree) };
+  const snapshots: {
+    baseline: ReturnType<typeof snapshot>;
+    source: ReturnType<typeof snapshot>;
+    published?: ReturnType<typeof snapshot>;
+  } = {
+    baseline: snapshot(source.base_tree),
+    source: snapshot(source.source_tree),
+    ...(baseline.published_source?.kind === "verified-prepared-publication"
+      ? { published: snapshot(baseline.tree) }
+      : {}),
+  };
   const objects = [
     ...new Set(
       Object.values(snapshots)

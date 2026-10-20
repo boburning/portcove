@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import { readSemanticPublicationBaseline } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 
 async function fixture(t: test.TestContext, extraCodeChange = false) {
@@ -195,6 +196,7 @@ async function fixture(t: test.TestContext, extraCodeChange = false) {
     prepared_tree: prepared.prepared_tree,
   };
   return {
+    root,
     api,
     publication,
     source,
@@ -224,6 +226,35 @@ void test("actual paired preparation and exact four-file transform preserve dist
   assert.equal(result.authority, "none");
   assert.match(result.proof_sha256, /^[a-f0-9]{64}$/u);
   assert.ok(f.calls.some((entry) => entry.includes("/compare/")));
+  const semanticApi = {
+    request(method: string, endpoint: string) {
+      if (endpoint === "repos/boburning/portcove")
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: { id: 1354613114, full_name: "boburning/portcove" },
+        };
+      if (endpoint === "repos/boburning/portcove/releases?per_page=100")
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body: [f.api.request("GET", "repos/boburning/portcove/releases/42").body],
+        };
+      return f.api.request(method, endpoint);
+    },
+  };
+  assert.throws(
+    () => readSemanticPublicationBaseline(semanticApi, f.root, f.publication.version),
+    /requires the independently configured/,
+  );
+  const baseline = readSemanticPublicationBaseline(semanticApi, f.root, f.publication.version, {
+    schema_version: 1,
+    namespace: f.namespace,
+  });
+  assert.equal(baseline.commit, f.prepared.prepared_commit);
+  assert.equal(baseline.tree, f.prepared.prepared_tree);
+  assert.deepEqual(baseline.source_baseline, { commit: f.source, tree: f.sourceTree });
+  assert.equal(baseline.published_source?.kind, "verified-prepared-publication");
 });
 void test("missing/wrong paired receipt, truncated tree, changed blob and tag drift cannot manufacture a source baseline", async (t) => {
   const f = await fixture(t);

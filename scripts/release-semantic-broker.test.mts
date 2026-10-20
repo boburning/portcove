@@ -5,7 +5,12 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, verify } from "node:crypto";
+import {
+  authenticateCapturedSemanticIssuer,
+  prepareSemanticAppJwt,
+} from "./release-semantic-issuer.mts";
+import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -25,11 +30,17 @@ import {
   semanticSupervisorEnvironment,
   requireDirectSemanticProposalCapture,
   requireDirectSemanticRefusalCapture,
+  prepareCapturedSemanticDisposition,
+  requireDirectSemanticDispositionCapture,
 } from "./release-semantic-runtime.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
-import { readbackSemanticCheck, publishSemanticCapture } from "./release-semantic-broker.mts";
+import {
+  readbackSemanticCheck,
+  publishSemanticCapture,
+  publishSemanticDispositionCapture,
+} from "./release-semantic-broker.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import {
   createSemanticBundleReader,
@@ -42,6 +53,150 @@ import {
   createSemanticSnapshotReader,
 } from "./release-semantic-reader-core.mts";
 import { isRecord } from "./runtime-values.mts";
+
+void test("issuer transport pins App/token routes and the exact captured Check body without ambient credentials", async () => {
+  const body = {
+    name: "Portcove independent release semantic review",
+    head_sha: "a".repeat(40),
+    output: { summary: "inert only" },
+  };
+  const request = {
+    configuration: {
+      app_id: 123,
+      installation_id: 456,
+      head: "a".repeat(40),
+      check_body_sha256: capacityDigest(body),
+    },
+    kind: "installation",
+    token: "inert-not-a-credential",
+    method: "POST",
+    endpoint: "repos/boburning/portcove/check-runs",
+    body,
+  };
+  assert.equal(inspectSemanticIssuerRequest(request).endpoint, request.endpoint);
+  for (const change of [
+    { endpoint: "https://elsewhere.invalid/check-runs" },
+    { endpoint: "repos/other/portcove/check-runs" },
+    { body: { ...body, head_sha: "b".repeat(40) } },
+    { token: "inert\r\nheader" },
+    { kind: "app" },
+    { method: "DELETE" },
+  ])
+    assert.throws(() => inspectSemanticIssuerRequest({ ...request, ...change }));
+  assert.doesNotThrow(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint: `repos/boburning/portcove/commits/${"a".repeat(40)}/check-runs?filter=all&per_page=100&page=16`,
+    }),
+  );
+  assert.throws(() =>
+    inspectSemanticIssuerRequest({
+      ...request,
+      method: "GET",
+      body: null,
+      endpoint: `repos/boburning/portcove/commits/${"b".repeat(40)}/check-runs?filter=all&per_page=100&page=1`,
+    }),
+  );
+  const tokenRequest = {
+    ...request,
+    kind: "app",
+    endpoint: "app/installations/456/access_tokens",
+    body: { repository_ids: [1354613114], permissions: { checks: "write", metadata: "read" } },
+  };
+  assert.doesNotThrow(() => inspectSemanticIssuerRequest(tokenRequest));
+  assert.throws(() =>
+    inspectSemanticIssuerRequest({
+      ...tokenRequest,
+      body: { repository_ids: [1354613114], permissions: { checks: "write", contents: "write" } },
+    }),
+  );
+  await assert.rejects(authenticateCapturedSemanticIssuer({} as never, {} as never), /imported/);
+  await assert.rejects(
+    prepareCapturedSemanticDisposition({ kind: "classification-proposal", capture: {} }),
+    /imported/,
+  );
+  await assert.rejects(
+    prepareCapturedSemanticDisposition({
+      kind: "complete-opportunity",
+      error: new Error("refused"),
+      request: {},
+    }),
+    /imported/,
+  );
+  await assert.rejects(
+    requireDirectSemanticDispositionCapture({ wire: "valid-looking imported data" }),
+    /imported/,
+  );
+  let credentialCalls = 0;
+  await assert.rejects(
+    publishSemanticDispositionCapture(
+      {},
+      { app_id: 123, installation_id: 456, writer_app_id: 789 },
+      {
+        async requireProvisioningGrant() {
+          credentialCalls++;
+        },
+        async authenticateIssuer() {
+          credentialCalls++;
+          throw new Error("must not run");
+        },
+      },
+    ),
+    /imported/,
+  );
+  assert.equal(credentialCalls, 0);
+  const worker = fileURLToPath(new URL("./release-semantic-issuer-http.mts", import.meta.url));
+  assert.throws(
+    () =>
+      execFileSync(process.execPath, [worker], {
+        input: JSON.stringify({ ...request, endpoint: "never-network" }),
+        encoding: "utf8",
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      }),
+    (error: unknown) => {
+      assert.ok(isRecord(error));
+      assert.ok(String(error.stderr).includes("semantic credential HTTP transport failed"));
+      assert.equal(String(error.stderr).includes(request.token), false);
+      assert.equal(String(error.stdout).includes(request.token), false);
+      return true;
+    },
+  );
+});
+
+void test("App JWT uses the selected public key, RS256 and a bounded clock window", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const pem = privateKey.export({ type: "pkcs8", format: "pem" });
+  const digest = createHash("sha256")
+    .update(publicKey.export({ type: "spki", format: "der" }))
+    .digest("hex");
+  const jwt = prepareSemanticAppJwt(Buffer.from(pem), 123, digest, 1800000000);
+  const [header, payload, signature] = jwt.split(".");
+  assert.deepEqual(JSON.parse(Buffer.from(header!, "base64url").toString()), {
+    alg: "RS256",
+    typ: "JWT",
+  });
+  assert.deepEqual(JSON.parse(Buffer.from(payload!, "base64url").toString()), {
+    iat: 1799999940,
+    exp: 1800000300,
+    iss: "123",
+  });
+  assert.equal(
+    verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      publicKey,
+      Buffer.from(signature!, "base64url"),
+    ),
+    true,
+  );
+  assert.throws(
+    () => prepareSemanticAppJwt(Buffer.from(pem), 123, "0".repeat(64), 1800000000),
+    /identity changed/,
+  );
+});
 
 void test("fixed Linux parent preserves verifiable resource receipts without ambient credentials", () => {
   const inherited = '{"receipt":"inert existing reservation"}';
@@ -685,6 +840,46 @@ void test("only explicit complete-opportunity acceptance passes event integrity;
   ];
   assert.equal(
     inspectSemanticRuntimeEvents(events(result, meaningful), bundle).report,
+    result.report,
+  );
+  const published = blob("fn main() { prior_published_version(); }\n");
+  const preparedManifest = {
+    ...manifest,
+    snapshots: {
+      ...manifest.snapshots,
+      published: [{ path: "app.rs", oid: published.oid, mode: "100644" }],
+    },
+  };
+  const preparedBundle = {
+    ...bundle,
+    manifest: preparedManifest,
+    bundle_sha256: capacityDigest(preparedManifest),
+    files: [...bundle.files, published.file],
+  } as unknown as typeof bundle;
+  const preparedResult = { ...result, bundle_sha256: preparedBundle.bundle_sha256 };
+  const preparedMetadata = readEvents(
+    "manifest",
+    "manifest.json",
+    Buffer.from(JSON.stringify(preparedManifest)),
+  );
+  const sourceReads = meaningful.slice(metadata.length);
+  assert.throws(
+    () =>
+      inspectSemanticRuntimeEvents(
+        events(preparedResult, [...preparedMetadata, ...sourceReads]),
+        preparedBundle,
+      ),
+    /lacks relevant/,
+  );
+  assert.equal(
+    inspectSemanticRuntimeEvents(
+      events(preparedResult, [
+        ...preparedMetadata,
+        ...sourceReads,
+        ...readEvents("published", "app.rs", published.file.bytes),
+      ]),
+      preparedBundle,
+    ).report,
     result.report,
   );
   const textReader = createSemanticSnapshotReader(bundle);

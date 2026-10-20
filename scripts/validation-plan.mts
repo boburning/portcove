@@ -274,6 +274,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-semantic-review.mts",
   "scripts/release-semantic-inputs.mts",
   "scripts/release-semantic-proposal.mts",
+  "scripts/release-semantic-issuer.mts",
+  "scripts/release-semantic-issuer-http.mts",
   "scripts/release-semantic-runtime.mts",
   "scripts/release-semantic-reader.mts",
   "scripts/release-semantic-reader-core.mts",

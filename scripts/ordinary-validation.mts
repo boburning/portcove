@@ -352,12 +352,20 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-semantic-broker.test.mts",
     ],
   ]),
-  ...["inputs", "proposal", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
-    (name): [string, string[]] => [
-      `scripts/release-semantic-${name}.mts`,
-      ["scripts/release-semantic-broker.test.mts"],
-    ],
-  ),
+  ...[
+    "inputs",
+    "proposal",
+    "issuer",
+    "issuer-http",
+    "runtime",
+    "reader",
+    "reader-core",
+    "reader-server",
+    "broker",
+  ].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-broker.test.mts"],
+  ]),
   [".github/workflows/native-design-compatibility.yml", ["scripts/workflow-provenance.test.mts"]],
   [
     "scripts/validation-evidence.mts",
