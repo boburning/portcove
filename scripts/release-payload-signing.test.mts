@@ -11,6 +11,7 @@ import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import {
   assertSignedPayloadVersion,
+  payloadSigningEnvironment,
   inspectPayloadSigningRequest,
   signReleasePayload,
 } from "./release-payload-signing.mts";
@@ -18,6 +19,37 @@ import type { PayloadSigningRequest } from "./release-payload-signing.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+void test("signer environments use owned home/profile/temp and exclude ambient credentials/configuration", () => {
+  const scratch = path.resolve(os.tmpdir(), "owned-signer-work");
+  const env = payloadSigningEnvironment(scratch);
+  for (const key of [
+    "HOME",
+    "USERPROFILE",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "XDG_CONFIG_HOME",
+    "XDG_CACHE_HOME",
+    "XDG_DATA_HOME",
+    "XDG_STATE_HOME",
+    "XDG_RUNTIME_DIR",
+  ])
+    assert.ok(env[key]?.startsWith(`${scratch}${path.sep}`), key);
+  for (const key of [
+    "GH_TOKEN",
+    "GITHUB_TOKEN",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "TAURI_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+    "HTTP_PROXY",
+    "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+  ])
+    assert.equal(env[key], undefined, key);
+});
 function request(): PayloadSigningRequest {
   return {
     schema_version: 1,
@@ -48,14 +80,16 @@ void test("signing request snapshots exact independent identities and refuses ma
     { public_key_sha256: "" },
     { platform_label: "macos-x86_64" },
     { producer: { run_id: "123", run_attempt: 1, job_id: null, artifact_id: "789" } },
+    { unrecognized_secret: "must-not-be-retained" },
+    { producer: { ...request().producer, unrecognized_secret: "must-not-be-retained" } },
   ])
     assert.throws(() => inspectPayloadSigningRequest({ ...request(), ...change }));
 });
 void test("signed version parser refuses missing/wrong version and wrong filename", () => {
   const encode = (comment: string) =>
-    Buffer.from(`untrusted comment: test\nAAA\ntrusted comment: ${comment}\nBBB\n`).toString(
-      "base64",
-    );
+    Buffer.from(
+      `untrusted comment: signature from tauri secret key\n${Buffer.alloc(74).toString("base64")}\ntrusted comment: ${comment}\n${Buffer.alloc(64).toString("base64")}\n`,
+    ).toString("base64");
   assertSignedPayloadVersion(
     encode("timestamp:123\tfile:test.exe\tversion:1.0.0"),
     "test.exe",
@@ -211,7 +245,25 @@ void test(
       signReleasePayload({ ...options, output: path.join(root, "wrong-private-key") }),
       /Rust payload verification refused/,
     );
-    assert.deepEqual(await readdir(path.join(root, "wrong-private-key")), []);
+    assert.deepEqual((await readdir(path.join(root, "wrong-private-key"))).sort(), [
+      "partial-signature.sig",
+      "payload-signing-failure.json",
+    ]);
+    const failureText = await readFile(
+      path.join(root, "wrong-private-key", "payload-signing-failure.json"),
+      "utf8",
+    );
+    const failure = JSON.parse(failureText) as {
+      phase: string;
+      partial_signature: { retained: boolean; sha256: string };
+    };
+    assert.equal(failure.phase, "verify-payload-signature");
+    assert.equal(failure.partial_signature.retained, true);
+    assert.equal(
+      failure.partial_signature.sha256,
+      sha(await readFile(path.join(root, "wrong-private-key", "partial-signature.sig"))),
+    );
+    assert.equal(failureText.includes(process.env.TAURI_SIGNING_PRIVATE_KEY), false);
     await rm(otherPrivate);
     // Consumer verification starts only after disposable private-store teardown.
     delete process.env.TAURI_SIGNING_PRIVATE_KEY;
@@ -219,6 +271,13 @@ void test(
     await rm(privatePath);
     assert.equal(process.env.TAURI_SIGNING_PRIVATE_KEY, undefined);
     await assert.rejects(readFile(privatePath));
+    await assert.rejects(
+      signReleasePayload({ ...options, output: path.join(root, "missing-key") }),
+      /private key is required/,
+    );
+    assert.deepEqual(await readdir(path.join(root, "missing-key")), [
+      "payload-signing-failure.json",
+    ]);
     await run(
       verifier,
       ["verify", payloadPath, signaturePath, publicKey, admitted.sha256, String(admitted.bytes)],

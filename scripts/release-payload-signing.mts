@@ -47,6 +47,8 @@ export interface SignPayloadOptions {
 export function inspectPayloadSigningRequest(value: unknown): PayloadSigningRequest {
   if (
     !isRecord(value) ||
+    Object.keys(value).sort().join(",") !==
+      "bytes,filename,platform_label,producer,public_key_sha256,qualification_inventory_sha256,repository,schema_version,sha256,source_commit,version" ||
     value.schema_version !== 1 ||
     value.repository !== "boburning/portcove" ||
     typeof value.version !== "string" ||
@@ -62,6 +64,7 @@ export function inspectPayloadSigningRequest(value: unknown): PayloadSigningRequ
     Number(value.bytes) < 1 ||
     Number(value.bytes) > 2 * 1024 ** 3 ||
     !isRecord(value.producer) ||
+    Object.keys(value.producer).sort().join(",") !== "artifact_id,job_id,run_attempt,run_id" ||
     !["run_id", "job_id", "artifact_id"].every((key) => {
       const producer = value.producer;
       return (
@@ -129,11 +132,23 @@ async function copyBounded(source: string, destination: string, max: number, tru
   }
 }
 
-function cleanEnvironment(): NodeJS.ProcessEnv {
+export function payloadSigningEnvironment(scratch: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const key of ["SystemRoot", "WINDIR", "TEMP", "TMP", "HOME", "USERPROFILE"]) {
+  for (const key of ["SystemRoot", "WINDIR"]) {
     if (process.env[key]) env[key] = process.env[key];
   }
+  for (const key of ["HOME", "USERPROFILE"]) env[key] = path.join(scratch, "home");
+  for (const key of ["TEMP", "TMP", "TMPDIR"]) env[key] = path.join(scratch, "temp");
+  env.APPDATA = path.join(scratch, "home", "AppData", "Roaming");
+  env.LOCALAPPDATA = path.join(scratch, "home", "AppData", "Local");
+  for (const [key, name] of Object.entries({
+    XDG_CONFIG_HOME: "config",
+    XDG_CACHE_HOME: "cache",
+    XDG_DATA_HOME: "data",
+    XDG_STATE_HOME: "state",
+    XDG_RUNTIME_DIR: "runtime",
+  }))
+    env[key] = path.join(scratch, name);
   return env;
 }
 
@@ -145,6 +160,11 @@ export function assertSignedPayloadVersion(signature: string, filename: string, 
   const lines = decoded.toString("utf8").trimEnd().split("\n");
   if (
     lines.length !== 4 ||
+    lines[0] !== "untrusted comment: signature from tauri secret key" ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(lines[1] ?? "") ||
+    Buffer.from(lines[1] ?? "", "base64").length !== 74 ||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(lines[3] ?? "") ||
+    Buffer.from(lines[3] ?? "", "base64").length !== 64 ||
     !/^trusted comment: timestamp:[0-9]+\tfile:/.test(lines[2] ?? "") ||
     lines[2] !==
       `trusted comment: ${lines[2]?.slice("trusted comment: ".length).split("\t")[0]}\tfile:${filename}\tversion:${version}`
@@ -158,6 +178,16 @@ export async function signReleasePayload(options: SignPayloadOptions) {
   const tools = structuredClone(options.tools);
   if (Object.keys(tools).sort().join(",") !== "node,tauriAddon,verifier")
     throw new Error("only fixed signing tools are allowed");
+  for (const tool of Object.values(tools))
+    if (
+      !isRecord(tool) ||
+      Object.keys(tool).sort().join(",") !== "path,sha256" ||
+      typeof tool.path !== "string" ||
+      typeof tool.sha256 !== "string" ||
+      !digest.test(tool.sha256) ||
+      !path.isAbsolute(tool.path)
+    )
+      throw new Error("invalid exact trusted signing tool identity");
   const root = path.resolve(options.projectRoot);
   const policy = await loadPackagePolicy(root);
   const identity = updaterIdentity(policy, request.platform_label, request.version);
@@ -179,7 +209,17 @@ export async function signReleasePayload(options: SignPayloadOptions) {
   await mkdir(output, { mode: 0o700 });
   const scratch = path.join(output, "private-work");
   await mkdir(scratch, { mode: 0o700 });
+  let phase = "initialize-private-environment";
+  const observed: Record<string, unknown> = {};
   try {
+    for (const directory of new Set(
+      Object.values(payloadSigningEnvironment(scratch)).filter(
+        (value): value is string =>
+          typeof value === "string" && value.startsWith(`${scratch}${path.sep}`),
+      ),
+    ))
+      await mkdir(directory, { recursive: true, mode: 0o700 });
+    phase = "acquire-pinned-tools";
     const toolPaths: Record<string, string> = {};
     for (const [name, tool] of Object.entries(tools)) {
       if (!digest.test(tool.sha256) || !path.isAbsolute(tool.path))
@@ -196,12 +236,16 @@ export async function signReleasePayload(options: SignPayloadOptions) {
       toolPaths[name] = target;
     }
     const localPayload = path.join(scratch, request.filename);
+    phase = "acquire-admitted-payload";
     const actual = await copyBounded(payload, localPayload, request.bytes);
+    observed.payload = actual;
     if (actual.bytes !== request.bytes || actual.sha256 !== request.sha256)
       throw new Error("admitted payload identity mismatch");
     const keyPath = path.join(scratch, "public.key");
+    phase = "acquire-public-key";
     await copyBounded(publicKey, keyPath, 16 * 1024);
     const key = (await readFile(keyPath, "utf8")).trim();
+    observed.public_key_sha256 = sha(Buffer.from(key, "base64"));
     if (
       !/^[A-Za-z0-9+/]+={0,2}$/.test(key) ||
       sha(Buffer.from(key, "base64")) !== request.public_key_sha256
@@ -214,7 +258,7 @@ export async function signReleasePayload(options: SignPayloadOptions) {
       { flag: "wx", mode: 0o600 },
     );
     const invoke = async (args: string[], secret = false) => {
-      const env = cleanEnvironment();
+      const env = payloadSigningEnvironment(scratch);
       if (secret) {
         const privateKey = process.env.TAURI_SIGNING_PRIVATE_KEY;
         if (!privateKey || privateKey.length > 32 * 1024)
@@ -235,20 +279,29 @@ export async function signReleasePayload(options: SignPayloadOptions) {
         throw new Error("fixed Tauri signer refused; no secret subprocess output retained");
       }
     };
+    phase = "verify-signer-version";
     if ((await invoke(["--version"])).stdout.trim() !== "tauri-cli 2.12.2")
       throw new Error("Tauri signer version mismatch");
+    phase = "sign-payload";
     await invoke(["signer", "sign", "--app-version", request.version, localPayload], true);
     const signaturePath = `${localPayload}.sig`;
     // Bound the metadata before reading it; signature output remains private until verification.
     const checkedSignature = path.join(scratch, "checked.sig");
+    phase = "acquire-detached-signature";
     await copyBounded(signaturePath, checkedSignature, 16 * 1024);
     const signature = (await readFile(checkedSignature, "utf8")).trim();
     let result: unknown;
+    phase = "verify-payload-signature";
     try {
       const verified = await run(
         toolPaths.verifier!,
         ["verify", localPayload, checkedSignature, keyPath, request.sha256, String(request.bytes)],
-        { cwd: scratch, env: cleanEnvironment(), timeout: 120_000, maxBuffer: 64 * 1024 },
+        {
+          cwd: scratch,
+          env: payloadSigningEnvironment(scratch),
+          timeout: 120_000,
+          maxBuffer: 64 * 1024,
+        },
       );
       result = JSON.parse(verified.stdout);
     } catch {
@@ -263,8 +316,10 @@ export async function signReleasePayload(options: SignPayloadOptions) {
       result.public_key_sha256 !== request.public_key_sha256
     )
       throw new Error("Rust verifier returned a different identity");
+    phase = "verify-signed-version";
     assertSignedPayloadVersion(signature, request.filename, request.version);
     // Publish only detached signature, never package/tool/key bytes.
+    phase = "publish-detached-signature";
     await writeFile(path.join(output, `${request.filename}.sig`), signature, {
       flag: "wx",
       mode: 0o600,
@@ -282,6 +337,37 @@ export async function signReleasePayload(options: SignPayloadOptions) {
       tools,
       authority: "none" as const,
     };
+  } catch (error) {
+    let partial: { bytes: number; sha256: string; retained: boolean } | null = null;
+    // No HOME/cache, raw diagnostic, private key or package/tool duplicate is
+    // retained. A complete structurally recognizable Tauri signature is public
+    // even when independent cryptographic verification failed.
+    const partialPath = path.join(output, "partial-signature.sig");
+    try {
+      const capturePath = path.join(scratch, "failure-signature.capture");
+      const identity = await copyBounded(
+        path.join(scratch, `${request.filename}.sig`),
+        capturePath,
+        16 * 1024,
+      );
+      partial = { ...identity, retained: false };
+      const bytes = await readFile(capturePath);
+      assertSignedPayloadVersion(bytes.toString("utf8").trim(), request.filename, request.version);
+      await writeFile(partialPath, bytes, { flag: "wx", mode: 0o600 });
+      partial.retained = true;
+    } catch {
+      await rm(partialPath, { force: true });
+    }
+    try {
+      await writeFile(
+        path.join(output, "payload-signing-failure.json"),
+        `${JSON.stringify({ schema_version: 1, status: "refused", phase, request, observed, tools: Object.fromEntries(Object.entries(tools).map(([name, tool]) => [name, { sha256: tool.sha256 }])), partial_signature: partial, partial_signature_note: "Only bounded structurally recognized public signatures are retained; missing or incomplete/unsafe content is not asserted absent", authority: "none" }, null, 2)}\n`,
+        { flag: "wx", mode: 0o600 },
+      );
+    } catch {
+      /* An I/O failure cannot make signing succeed; caller retains output location. */
+    }
+    throw error;
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }

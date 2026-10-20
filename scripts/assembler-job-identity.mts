@@ -11,6 +11,10 @@ const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
 };
+const payloadSignerProfile = {
+  workflow: productionControllerWorkflow,
+  job: "Sign admitted updater payloads",
+};
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",
@@ -351,6 +355,13 @@ export function verifyAssemblerJobIdentity(
   options: IdentityOptions = {},
 ) {
   return verifyJobIdentity(assemblerProfile, token, expected, options);
+}
+export function verifyPayloadSignerJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(payloadSignerProfile, token, expected, options);
 }
 export function verifyClassificationWriterJobIdentity(
   token: string,

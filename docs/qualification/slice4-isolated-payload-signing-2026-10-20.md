@@ -26,6 +26,9 @@ checks package/key/tool identities, and verifies the actual CLI version. A fixed
 launcher loads only the copied native addon, avoiding npm resolution, lifecycle
 scripts, candidate configuration/hooks and inherited Node options. All child
 environments discard ambient GitHub/cloud/proxy and legacy signing variables.
+HOME, USERPROFILE, AppData, XDG and temporary-directory variables point to fresh
+owned scratch directories, so default user configuration/cache searches do not
+reach the host profile. Only SystemRoot/WINDIR retain host OS locations.
 Only the signer child receives `TAURI_SIGNING_PRIVATE_KEY` and its password; the
 independent Rust verifier receives neither. No TUF key is consumed.
 
@@ -42,7 +45,13 @@ Success exposes only `<package>.sig` and the CLI's public
 `payload-signing-receipt.json`. The receipt associates expected producer and
 qualification identities with signature identity; it is not a signed producer
 attestation or qualification grant. Private work is removed on success/failure;
-failures do not emit secret subprocess diagnostics. Existing output refuses.
+failures do not emit secret subprocess diagnostics. Refusals retain a bounded
+public failure receipt with phase, expected request, observed package/key
+identities and tool digests. A structurally recognized partial public Tauri
+signature is retained separately; unsafe/incomplete bytes have only their
+bounded identity retained when acquired. Missing or unsafe content is not
+described as absent. Private work, including all home/cache/temp contents, is
+removed; no private credential state is retained. Existing output refuses.
 The package and tools are never uploaded from this role. Successful integration
 must upload the signature/receipt as a separate immutable attempt-specific
 artifact with overwrite disabled and seven-day retention, independently bind
@@ -61,6 +70,13 @@ fixture paths use `PORTCOVE_TEST_TAURI_ADDON` and
 `PORTCOVE_TEST_PAYLOAD_VERIFIER`; they are not production tool authority.
 
 ## Held integration boundary
+
+The existing OIDC verifier now has a fixed `Sign admitted updater payloads`
+profile under the existing production-controller workflow. Its signed check-run
+claim must resolve to the exact numeric active job, rather than another job with
+a matching name. This is job identity only: it does not establish protection
+enforcement, package production or signing permission. No OIDC request or signing
+workflow is activated by adding the profile.
 
 No runnable secret job is added. The future existing protected controller job
 must remain held until its exact grant/configuration and independently admitted
