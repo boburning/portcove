@@ -2521,7 +2521,7 @@ void test(
     input.active_candidate.phase = "failed";
     input.active_candidate.failure_kind = "authority";
     const failed = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
-    assert.equal(failed.plan.action, "pause");
+    assert.equal(failed.plan.action, "pause-exception");
     await publishCoordinatorCheckpoint(f.bare, failed.checkpoint, f.config, { api: f.api });
     const seeded = await recordPublishedMetadata(f.bare, failed.checkpoint, published, f.options);
     let effects = 0;
@@ -2544,7 +2544,18 @@ void test(
     assert.deepEqual(saved.input.review_request, input.review_request);
     assert.deepEqual(saved.input.review_disposition, input.review_disposition);
     assert.equal(saved.plan.action, "pause");
+    assert.match(saved.plan.reason, /pending, refused or ambiguous operation/u);
     assert.equal(operation.operation.outcome, "pending");
+    const settled = await recordCapacityReadback(
+      f.bare,
+      operation.checkpoint,
+      "effect-completed",
+      "b".repeat(64),
+      f.options,
+    );
+    const resolved = await recoverReleaseOpportunity(f.bare, settled.checkpoint);
+    assert.deepEqual(resolved.input.active_candidate, input.active_candidate);
+    assert.equal(resolved.plan.action, "pause-exception");
   },
 );
 void test(
