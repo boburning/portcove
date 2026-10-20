@@ -202,13 +202,13 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
     /secrets\.|CONTROL_APP_TOKEN|permission-administration|observer-token/,
   );
   assert.match(JSON.stringify(admission), /--handshake/);
-  assert.match(JSON.stringify(admission), /trusted-release-control-ready-/);
+  assert.match(JSON.stringify(admission), /trusted-release-control-admission-ready-/);
   assert.doesNotMatch(JSON.stringify(admission), /needs.protection_observation/);
   assert.ok(
     JSON.stringify(observer).indexOf("release-control-ready.mts") <
       JSON.stringify(observer).indexOf("create-github-app-token"),
   );
-  assert.match(JSON.stringify(observer), /trusted-release-control-observation-/);
+  assert.match(JSON.stringify(observer), /trusted-release-control-admission-observation-/);
   assert.match(JSON.stringify(observer), /observe-production/);
   const live = await readFile(
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
@@ -218,4 +218,67 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
     live,
     /permission-administration|release-reviewed-inputs.mts observe-production/,
   );
+});
+
+void test("payload reader and observer are fresh distinct fixed jobs and cannot reuse admission source", async () => {
+  const control = releaseControlInputsFixture(
+    capacityDocumentFixture(),
+    opportunity,
+    config,
+    false,
+  );
+  persistReviewedClassification(control.api, config, opportunity, 303, () => {});
+  const runtime = liveControlRuntimeFixture(protectionFixture(control.head()), config, "payload");
+  const source = await runtime.create();
+  requireAuthenticatedReleaseControlSource(source, "payload");
+  assert.throws(() => requireAuthenticatedReleaseControlSource(source));
+  const facts = source.read(control.api, opportunity);
+  assert.equal(facts.phase, "payload");
+  assert.equal(facts.reader.job_id, 501);
+  assert.equal(facts.reader.scope, "oidc-job-identity-only");
+  await assert.rejects(
+    authenticateReleaseControlSource(runtime.environment, runtime.workflow, {
+      ...runtime.options,
+      phase: "admission",
+    }),
+  );
+  runtime.advance(60001);
+  assert.throws(() => source.read(control.api, opportunity), /fresh/);
+});
+
+void test("site maintenance reads only current pause/capacity under the same fresh isolated source proof", async () => {
+  // Deliberately no persisted semantic classification or opportunity acceptance.
+  const control = releaseControlInputsFixture(capacityDocumentFixture(), opportunity, config, true);
+  const runtime = liveControlRuntimeFixture(
+    protectionFixture(control.head()),
+    config,
+    "site-publication",
+  );
+  const source = await runtime.create();
+  requireAuthenticatedReleaseControlSource(source, "site-publication");
+  control.faults.value = "issuer";
+  const api = {
+    ...control.api,
+    request(method: string, endpoint: string, body?: unknown) {
+      assert.doesNotMatch(endpoint, /portcove-release-inputs|check-runs/);
+      return control.api.request(method, endpoint, body);
+    },
+  };
+  const first = source.readMaintenance(api);
+  assert.equal(first.purpose, "metadata-renewal");
+  assert.equal(first.phase, "site-publication");
+  assert.equal(first.pause.publication_paused, true);
+  assert.equal(first.capacity_source.report.eligibility, "eligible");
+  assert.equal(first.authority, "none");
+  assert.equal(first.facts_sha256, source.readMaintenance(api).facts_sha256);
+  assert.equal(control.mutations(), 0);
+  control.conflicting();
+  assert.throws(() => source.readMaintenance(api), /ref differ/);
+  runtime.advance(60001);
+  assert.throws(() => source.readMaintenance(api), /fresh/);
+  for (const phase of ["admission", "payload", "release-publication"] as const) {
+    const wrong = liveControlRuntimeFixture(protectionFixture(control.head()), config, phase);
+    const wrongSource = await wrong.create();
+    assert.throws(() => wrongSource.readMaintenance(control.api), /site-publication phase/);
+  }
 });

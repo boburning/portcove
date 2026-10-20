@@ -433,8 +433,18 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
   const late = await acquireReleaseAdmission(f.root, f.config, {
     ...f.options,
     api,
-    establishControls: async (factsSha256) => {
+    establishControls: async (factsSha256, facts) => {
       ready++;
+      assert.ok(Object.isFrozen(facts));
+      assert.ok(Object.isFrozen(facts.archives));
+      assert.ok(Object.isFrozen(facts.assembly));
+      assert.throws(() => {
+        (facts as { checkpoint: string }).checkpoint = "attacker";
+      });
+      assert.throws(() => {
+        (facts.archives as unknown[]).push({});
+      });
+      assert.equal(facts.checkpoint, "c".repeat(40));
       assert.match(factsSha256, /^[a-f0-9]{64}$/u);
       assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
       return runtime.create();

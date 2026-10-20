@@ -15,29 +15,35 @@ import {
   protectionFixture,
 } from "./fixtures/release-live-control-fixture.mts";
 import { authenticateReleaseControlSource } from "./release-live-control-admission.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import type { ReleaseControlPhase } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
-async function fixture(t: test.TestContext, role: "ready" | "observation" = "ready") {
+async function fixture(
+  t: test.TestContext,
+  role: "ready" | "observation" = "ready",
+  phase: ReleaseControlPhase = "admission",
+) {
   const root = await mkdtemp(path.join(os.tmpdir(), "control-handshake-"));
   t.after(() => rm(root, { recursive: true, force: true }));
-  const runtime = liveControlRuntimeFixture(protectionFixture("b".repeat(40)));
+  const runtime = liveControlRuntimeFixture(protectionFixture("b".repeat(40)), undefined, phase);
   const body =
     role === "observation"
       ? structuredClone(runtime.handoff)
       : {
           schema_version: 1,
+          phase,
           producer: { ...runtime.handoff.producer, job_id: 601, check_run_id: "889" },
           facts_sha256: "f".repeat(64),
         };
   const input = {
+    phase,
     controller_revision: body.producer.controller_revision,
     controller_ref: body.producer.controller_ref,
     run_id: body.producer.run_id,
     run_attempt: body.producer.run_attempt,
   };
-  let zip: Buffer = createAuditZip([
-    [role === "ready" ? "ready.json" : "observation.json", JSON.stringify(body)],
-  ]);
+  let zip: Buffer = createAuditZip([[`${role}-${phase}.json`, JSON.stringify(body)]]);
   const artifact = {
     id: 900,
     name: controlHandshakeArtifactName(role, input),
@@ -55,7 +61,8 @@ async function fixture(t: test.TestContext, role: "ready" | "observation" = "rea
     ...runtime.observerJob,
     id: body.producer.job_id,
     check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${body.producer.check_run_id}`,
-    name: role === "ready" ? "Authenticate release control inputs" : runtime.observerJob.name,
+    name:
+      role === "ready" ? releaseControlPhaseProfile(phase).reader_name : runtime.observerJob.name,
     status: "in_progress",
     conclusion: null,
     run_attempt: 1,
@@ -275,4 +282,34 @@ void test("default artifact REST path explicitly pins github.com despite ambient
   });
   assert.ok(requests >= 4);
   assert.equal(proof.evidence_scope, "injected-provider");
+});
+
+void test("fixed phase names bind fresh payload readiness and observation; admission proof cannot cross phases", async (t) => {
+  const ready = await fixture(t, "ready", "payload");
+  assert.equal(ready.artifact.name, "trusted-release-control-payload-ready-9988-1");
+  const readyProof = await ready.collect();
+  requireObservedControlArtifact(readyProof, "ready", "payload");
+  assert.throws(() => requireObservedControlArtifact(readyProof, "ready"));
+  const observation = await fixture(t, "observation", "payload");
+  const proof = await observation.collect();
+  requireObservedControlArtifact(proof, "observation", "payload");
+  const source = await authenticateReleaseControlSource(
+    observation.runtime.environment,
+    observation.runtime.workflow,
+    { ...observation.runtime.options, observedArtifact: proof },
+  );
+  assert.equal(source.phase, "payload");
+  await assert.rejects(
+    authenticateReleaseControlSource(
+      observation.runtime.environment,
+      observation.runtime.workflow,
+      { ...observation.runtime.options, phase: "admission", observedArtifact: proof },
+    ),
+  );
+  assert.throws(() =>
+    controlHandshakeArtifactName("ready", { ...ready.input, phase: "other" as "payload" }),
+  );
+  assert.throws(() => {
+    (releaseControlPhaseProfile("payload") as { reader_job: string }).reader_job = "attacker";
+  });
 });

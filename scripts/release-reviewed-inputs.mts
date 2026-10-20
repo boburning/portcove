@@ -15,6 +15,10 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
 import { appendFile } from "node:fs/promises";
 import {
+  inspectReleaseControlPhase,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
+import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
   prepareProductionProtectionHandoff,
@@ -24,7 +28,16 @@ async function main() {
   const mode = process.argv[2];
   if (
     process.argv.length !== 3 ||
-    !["admission", "observe", "observe-production", "persist", "read"].includes(mode ?? "")
+    ![
+      "admission",
+      "observe",
+      "observe-production",
+      "observe-production-payload",
+      "observe-production-site-publication",
+      "observe-production-release-publication",
+      "persist",
+      "read",
+    ].includes(mode ?? "")
   )
     throw new Error("fixed reviewed-input operation required");
   if (mode === "admission") {
@@ -56,7 +69,14 @@ async function main() {
     );
     return;
   }
-  const observing = mode === "observe" || mode === "observe-production";
+  const productionObservation = mode?.startsWith("observe-production") === true;
+  const phase = inspectReleaseControlPhase(
+    productionObservation && mode !== "observe-production"
+      ? mode.slice("observe-production-".length)
+      : "admission",
+  );
+  const phaseProfile = releaseControlPhaseProfile(phase);
+  const observing = mode === "observe" || productionObservation;
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
@@ -113,9 +133,7 @@ async function main() {
       const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
-        audience: observing
-          ? "portcove-release-protection-v1"
-          : "portcove-release-classification-v1",
+        audience: observing ? phaseProfile.observer_audience : "portcove-release-classification-v1",
         subject: `repo:boburning/portcove:environment:${observing ? "production-release-protection-observer" : "production-release-classification"}`,
         controller_revision: policy.revision,
         controller_ref: policy.execution_ref,
@@ -124,13 +142,12 @@ async function main() {
         run_attempt: 1,
       });
       const token = await requestAssemblerToken(expected.audience);
-      const verify =
-        mode === "observe-production"
-          ? verifyProductionProtectionObserverJobIdentity
-          : mode === "observe"
-            ? verifyProtectionObserverJobIdentity
-            : verifyClassificationWriterJobIdentity;
-      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } });
+      const verify = productionObservation
+        ? verifyProductionProtectionObserverJobIdentity
+        : mode === "observe"
+          ? verifyProtectionObserverJobIdentity
+          : verifyClassificationWriterJobIdentity;
+      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } }, phase);
       if (observing) observerIdentity = identity;
       await receipt.writeFile(
         JSON.stringify({
@@ -144,26 +161,28 @@ async function main() {
     let result: unknown;
     if (observing) {
       result = observeReleaseInputProtections(api);
-      if (mode === "observe-production")
-        result = prepareProductionProtectionHandoff(observerIdentity, result);
+      if (productionObservation)
+        result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
       const encoded = JSON.stringify(result);
       if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
         throw new Error("trusted observer output channel unavailable or oversized");
       await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
-      if (mode === "observe-production") {
+      if (productionObservation) {
         // The fixed source waits for readiness before releasing the App token.
         // Preserve its exact artifact association beside the actual report.
         const ready = JSON.parse(
           await readFile(
-            path.join(temp, "release-control-ready", "control-ready-readback.json"),
+            path.join(temp, `release-control-ready-${phase}`, "control-ready-readback.json"),
             "utf8",
           ),
         ) as unknown;
         if (
           !isRecord(ready) ||
           ready.role !== "ready" ||
+          ready.phase !== phase ||
           !isRecord(ready.body) ||
           !isRecord(ready.body.producer) ||
+          ready.body.phase !== phase ||
           !isRecord(result) ||
           !isRecord(result.producer) ||
           ready.body.producer.run_id !== result.producer.run_id ||
@@ -171,7 +190,10 @@ async function main() {
           ready.body.producer.controller_revision !== result.producer.controller_revision
         )
           throw new Error("matching fixed reader readiness unavailable");
-        await writeFile(path.join(temp, "observation.json"), encoded, { flag: "wx", mode: 0o600 });
+        await writeFile(path.join(temp, `observation-${phase}.json`), encoded, {
+          flag: "wx",
+          mode: 0o600,
+        });
       }
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =

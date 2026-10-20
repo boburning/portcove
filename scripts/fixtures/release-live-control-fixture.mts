@@ -6,6 +6,8 @@ import { capacityDigest } from "../release-capacity.mts";
 import { productionControllerWorkflow } from "../production-controller-admission.mts";
 import { authenticateReleaseControlSource } from "../release-live-control-admission.mts";
 import { isRecord } from "../runtime-values.mts";
+import { releaseControlPhaseProfile } from "../release-control-phases.mts";
+import type { ReleaseControlPhase } from "../release-control-phases.mts";
 import { capacityFixture } from "./release-capacity-fixture.mts";
 
 export function capacityDocumentFixture() {
@@ -74,7 +76,12 @@ export function protectionFixture(commit: string, observedAt = new Date().toISOS
 
 /** Real disposable JWT signature verification over injected provider responses.
  * This is fixture evidence, never a GitHub credential or production observation. */
-export function liveControlRuntimeFixture(observation: unknown, producerConfig: unknown = config) {
+export function liveControlRuntimeFixture(
+  observation: unknown,
+  producerConfig: unknown = config,
+  phase: ReleaseControlPhase = "admission",
+) {
+  const profile = releaseControlPhaseProfile(phase);
   const workflow = Buffer.from("inert fixed same-workflow source fixture\n");
   const policy = {
     schema_version: 1,
@@ -86,12 +93,13 @@ export function liveControlRuntimeFixture(observation: unknown, producerConfig: 
   };
   const subject = `repo:boburning/portcove:ref:${expected.controller_ref}`;
   const identity = assemblerIdentityFixture(
-    { run_attempt: "1", aud: "portcove-release-input-reader-v1", sub: subject },
+    { run_attempt: "1", aud: profile.reader_audience, sub: subject },
     {},
-    { workflow: productionControllerWorkflow, job: "Authenticate release control inputs" },
+    { workflow: productionControllerWorkflow, job: profile.reader_name },
   );
   const handoff = {
     schema_version: 1,
+    phase,
     producer: {
       workflow: productionControllerWorkflow,
       controller_revision: policy.revision,
@@ -121,7 +129,7 @@ export function liveControlRuntimeFixture(observation: unknown, producerConfig: 
     GITHUB_TRIGGERING_ACTOR: "fixture",
     GITHUB_RUN_ID: expected.run_id,
     GITHUB_RUN_ATTEMPT: "1",
-    GITHUB_JOB: "independent_admission",
+    GITHUB_JOB: profile.reader_job,
     RUNNER_ENVIRONMENT: "github-hosted",
     PORTCOVE_CONTROLLER_REVISION: policy.revision,
     PORTCOVE_CONTROLLER_REF: policy.execution_ref,
@@ -134,13 +142,14 @@ export function liveControlRuntimeFixture(observation: unknown, producerConfig: 
     run_id: 9988,
     run_attempt: 1,
     head_sha: policy.revision,
-    name: "Observe production release input protections",
+    name: profile.observer_name,
     status: "completed",
     conclusion: "success",
     check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/888",
   };
   let clock = Date.now();
   const options = {
+    phase,
     identity: {
       readKeys: identity.readKeys,
       transport: {
@@ -163,7 +172,7 @@ export function liveControlRuntimeFixture(observation: unknown, producerConfig: 
       },
     },
     requestToken: async (audience: string) => {
-      assert.equal(audience, "portcove-release-input-reader-v1");
+      assert.equal(audience, profile.reader_audience);
       return identity.token;
     },
     observerApi: {

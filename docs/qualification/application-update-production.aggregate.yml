@@ -93,8 +93,8 @@ jobs:
       - name: Publish fresh tiny report while observer job is still active
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: trusted-release-control-observation-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/observation.json
+          name: trusted-release-control-admission-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/observation-admission.json
           if-no-files-found: error
           overwrite: false
           retention-days: 7
@@ -106,7 +106,7 @@ jobs:
           name: trusted-release-protection-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/release-reviewed-inputs-observe-production.jsonl
-            ${{ runner.temp }}/release-control-ready/*
+            ${{ runner.temp }}/release-control-ready-admission/*
           if-no-files-found: warn
           overwrite: false
           retention-days: 7
@@ -153,13 +153,13 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          test ! -e "$RUNNER_TEMP/ready.json"
+          test ! -e "$RUNNER_TEMP/ready-admission.json"
           test ! -e "$RUNNER_TEMP/release-admission-process-ended.json"
           node scripts/acquire-release-admission.mts --handshake > "$RUNNER_TEMP/release-admission-process.log" 2>&1 &
           reader_pid=$!
           printf '%s\n' "$reader_pid" > "$RUNNER_TEMP/release-admission-process.pid"
           for ((i=0; i<900; i++)); do
-            if [[ -f "$RUNNER_TEMP/ready.json" ]]; then exit 0; fi
+            if [[ -f "$RUNNER_TEMP/ready-admission.json" ]]; then exit 0; fi
             if [[ -f "$RUNNER_TEMP/release-admission-process-ended.json" ]] || ! kill -0 "$reader_pid" 2>/dev/null; then exit 2; fi
             sleep 1
           done
@@ -167,8 +167,8 @@ jobs:
       - name: Publish tiny readiness without exporting private acquisition facts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
-          name: trusted-release-control-ready-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/ready.json
+          name: trusted-release-control-admission-ready-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ready-admission.json
           if-no-files-found: error
           overwrite: false
           retention-days: 7
@@ -202,7 +202,7 @@ jobs:
             ${{ runner.temp }}/control-observation-readback.json
             ${{ runner.temp }}/control-observation-refusal.json
             ${{ runner.temp }}/control-observation.zip
-            ${{ runner.temp }}/ready.json
+            ${{ runner.temp }}/ready-admission.json
           if-no-files-found: warn
           overwrite: false
           retention-days: 7

@@ -3,6 +3,7 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 
 const issuer = "https://token.actions.githubusercontent.com";
 const repository = "boburning/portcove";
@@ -11,10 +12,6 @@ const assemblerProfile = {
   workflow: productionControllerWorkflow,
   job: "Trusted package assembly",
 };
-const payloadSignerProfile = {
-  workflow: productionControllerWorkflow,
-  job: "Sign admitted updater payloads",
-};
 const classificationProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Persist independently reviewed classification",
@@ -22,14 +19,6 @@ const classificationProfile = {
 const protectionProfile = {
   workflow: ".github/workflows/release-reviewed-inputs.yml",
   job: "Observe release input protections",
-};
-const productionProtectionProfile = {
-  workflow: productionControllerWorkflow,
-  job: "Observe production release input protections",
-};
-const inputReaderProfile = {
-  workflow: productionControllerWorkflow,
-  job: "Authenticate release control inputs",
 };
 type Spawn = NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]>;
 
@@ -369,7 +358,7 @@ export function verifyPayloadSignerJobIdentity(
   expected: unknown,
   options: IdentityOptions = {},
 ) {
-  return verifyJobIdentity(payloadSignerProfile, token, expected, options);
+  return verifyReleaseControlReaderJobIdentity("payload", token, expected, options);
 }
 export function verifyClassificationWriterJobIdentity(
   token: string,
@@ -389,15 +378,36 @@ export function verifyProductionProtectionObserverJobIdentity(
   token: string,
   expected: unknown,
   options: IdentityOptions = {},
+  phase: unknown = "admission",
 ) {
-  return verifyJobIdentity(productionProtectionProfile, token, expected, options);
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: profile.observer_name },
+    token,
+    expected,
+    options,
+  );
 }
 export function verifyReleaseInputReaderJobIdentity(
   token: string,
   expected: unknown,
   options: IdentityOptions = {},
 ) {
-  return verifyJobIdentity(inputReaderProfile, token, expected, options);
+  return verifyReleaseControlReaderJobIdentity("admission", token, expected, options);
+}
+export function verifyReleaseControlReaderJobIdentity(
+  phase: unknown,
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  const profile = releaseControlPhaseProfile(phase);
+  return verifyJobIdentity(
+    { workflow: productionControllerWorkflow, job: profile.reader_name },
+    token,
+    expected,
+    options,
+  );
 }
 
 export async function requestAssemblerToken(
