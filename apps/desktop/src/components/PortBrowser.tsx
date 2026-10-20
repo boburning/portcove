@@ -637,10 +637,10 @@ function BrowserResults({
 function LoadingState() {
   return (
     <section
-      className="loading-state flex min-h-[18.75rem] items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-10 text-start text-pc-muted-foreground"
+      className="loading-state flex min-h-[18.75rem] flex-col items-center justify-center gap-4 rounded-pc-lg border border-dashed border-[var(--color-border-strong)] bg-[var(--color-bg-subtle)] p-4 text-start text-pc-muted-foreground min-[48rem]:flex-row min-[48rem]:p-10"
       aria-live="polite"
     >
-      <div className="grid w-48 shrink-0 justify-items-center gap-1">
+      <div className="grid w-48 max-w-full shrink-0 justify-items-center gap-1">
         <BrandWordmark className="block h-18 w-48 max-w-[100%] bg-[var(--color-brand-stage)] object-contain" />
         <span className="loading-mark relative grid size-12 place-items-center rounded-pc-lg border border-pc-border bg-pc-surface text-[var(--color-interactive-text)] shadow-[var(--shadow-control)]">
           <BrandMotif className="absolute -bottom-1.5" />
@@ -651,7 +651,7 @@ function LoadingState() {
           />
         </span>
       </div>
-      <div>
+      <div className="max-w-full min-w-0 [overflow-wrap:anywhere]">
         <strong className="block text-pc-foreground">Loading your port library</strong>
         <p className="m-0 max-w-[32rem] leading-[var(--leading-relaxed)]">
           Loading the catalog, added game files, and ports in your library.
