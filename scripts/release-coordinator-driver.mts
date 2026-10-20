@@ -1,6 +1,7 @@
 import { mkdtemp, lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { performance } from "node:perf_hooks";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -76,11 +77,12 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const project = fileURLToPath(new URL("..", import.meta.url));
 function coordinatorDeadline() {
+  const monotonicStart = performance.now();
   const deadline = Date.now() + 170000;
   return {
     deadline,
     check() {
-      if (Date.now() >= deadline)
+      if (Date.now() >= deadline || performance.now() - monotonicStart >= 170000)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
     },
   };
