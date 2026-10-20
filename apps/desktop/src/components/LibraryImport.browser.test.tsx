@@ -3,6 +3,7 @@ import { reloadWorkspace } from "../reload-workspace";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { LibraryImportPlan } from "../types";
@@ -150,6 +151,70 @@ it("explains retained originals and space before reviewing a library move", asyn
   );
   expect(document.body.textContent).toContain("Original game files stay at their saved locations");
 });
+
+it.each([240, 320])(
+  "keeps expanded transfer inventory within a %spx recovery dialog",
+  async (width) => {
+    const original = { width: innerWidth, height: innerHeight };
+    await page.viewport(width, 160);
+    try {
+      vi.spyOn(desktopApi, "planLibraryMove").mockResolvedValue({
+        ...plan,
+        source_root: "D:/Owned library",
+        source_will_be_retained: true,
+        content: [
+          {
+            kind: "user_data",
+            relative_path: "user",
+            copy: {
+              total_bytes: 39,
+              skipped_entries: [],
+              directories: ["owned-port/empty-folder"],
+              files: [
+                {
+                  relative_path: `owned-port/${"long-path-".repeat(12)}.save`,
+                  size: 39,
+                  sha256: "a".repeat(64),
+                },
+              ],
+            },
+          },
+        ],
+      });
+      await root.rerender(<LibraryMoveButton disabled={false} />);
+      await click("Move library");
+      const input = document.querySelector<HTMLInputElement>("#library-destination")!;
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          "E:/New",
+        );
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await click("Review move");
+      await act(async () => {
+        for (const details of document.querySelectorAll("[role=dialog] details")) {
+          (details as HTMLDetailsElement).open = true;
+          details.dispatchEvent(new Event("toggle"));
+        }
+      });
+      const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+      const bounds = dialog.getBoundingClientRect();
+      const offenders = [...dialog.querySelectorAll<HTMLElement>("*")]
+        .filter((element) => element.getBoundingClientRect().right > bounds.right + 1)
+        .map((element) => ({
+          tag: element.tagName,
+          className: element.className,
+          text: element.textContent?.slice(0, 100),
+        }));
+      expect(dialog.scrollWidth, JSON.stringify(offenders)).toBeLessThanOrEqual(
+        dialog.clientWidth + 1,
+      );
+    } finally {
+      await page.viewport(original.width, original.height);
+    }
+  },
+);
 
 it.each(["move", "import"] as const)(
   "refreshes the workspace after closing a failed %s without repeating the transfer",
