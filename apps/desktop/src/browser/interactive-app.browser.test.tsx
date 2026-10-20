@@ -73,6 +73,14 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await userEvent.click(
     page.getByRole("button", { name: "View details for Harbor Adventure", exact: true }),
   );
+  await expect
+    .element(page.getByRole("button", { name: "Prepare game data first", exact: true }))
+    .not.toBeInTheDocument();
+  const next = page.getByRole("region", { name: "Game actions", exact: true });
+  await expect
+    .element(next.getByRole("button", { name: "Review game preparation", exact: true }))
+    .toBeEnabled();
+  expect(next.element().textContent).toContain("Harbor Adventure");
   await userEvent.click(page.getByRole("button", { name: "Review game preparation", exact: true }));
   await expect
     .element(page.getByText("Selected game files: fixture/owned.iso", { exact: true }))
@@ -104,6 +112,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
+  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
 });
 
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
@@ -111,6 +120,15 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
   await expect
     .element(page.getByRole("button", { name: "Resume move", exact: true }))
     .toBeVisible();
+  expect(
+    page.getByRole("button", { name: "Resume move", exact: true }).element().getBoundingClientRect()
+      .top,
+  ).toBeLessThan(
+    page
+      .getByRole("button", { name: "Retry startup", exact: true })
+      .element()
+      .getBoundingClientRect().top,
+  );
   await expect
     .element(page.getByRole("button", { name: "Keep using original library", exact: true }))
     .toBeVisible();

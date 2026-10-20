@@ -80,6 +80,7 @@ import { selectedSetupCompletionScenario } from "./desktop-selected-setup-comple
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
+import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -1112,7 +1113,11 @@ async function captureScenarioScreenshot(name: string, required = false) {
   }
 }
 
-async function captureKeyboardTarget(name: string, element: WebElement) {
+async function captureKeyboardTarget(
+  name: string,
+  element: WebElement,
+  scenarioId = "keyboard-layout",
+) {
   const session = driverBrowser();
   assert.match(name, /^[a-z0-9-]+$/u);
   const label = `native-${name}`;
@@ -1155,7 +1160,7 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
       browser: session,
       output,
       name,
-      scenario: "keyboard-layout",
+      scenario: scenarioId,
       target,
       observeTarget: async () => {
         const state = await executeBrowserScript(
@@ -1176,7 +1181,7 @@ async function captureKeyboardTarget(name: string, element: WebElement) {
         const body = `${JSON.stringify({
           format_version: 1,
           outcome: "failed",
-          scenario: "keyboard-layout",
+          scenario: scenarioId,
           target,
           label,
           message: errorMessage(error),
@@ -4148,6 +4153,16 @@ try {
   await controllerScenario({ browser: required(browser), scenario, output, artifacts });
   if (!linuxPackagedInspector) {
     await accessibleNavigationScenario({ browser: driverBrowser(), scenario, output, artifacts });
+    await interfaceSizeScenario({
+      browser: driverBrowser,
+      scenario,
+      output,
+      artifacts,
+      restart: restartApplication,
+      setTheme: selectSettingsTheme,
+      capture: captureScenarioScreenshot,
+      captureTarget: (name, target) => captureKeyboardTarget(name, target, "native-interface-size"),
+    });
     await workspaceRefreshScenario({
       browser: driverBrowser(),
       invoke,

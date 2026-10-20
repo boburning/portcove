@@ -217,6 +217,15 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("keyboard-layout", "Keyboard focus and compact layout remain usable."),
   scenario(
+    "native-interface-size",
+    "Production WebView enlargement, narrow layout, modal reset and profile restoration.",
+    {
+      source: "desktop-interface-size-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-application-update-preferences",
     "Application update setup consent, focus and corrupt-state recovery remain isolated and explicit.",
   ),
@@ -677,6 +686,11 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  if (
+    uniqueRequested.includes("native-interface-size") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("native-interface-size requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-linux-interrupted-preparation") &&
     (uniqueRequested.length !== 1 || platform !== "linux")
