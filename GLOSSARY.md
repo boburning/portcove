@@ -44,3 +44,26 @@ classifications require the existing context and freshness checks. Retained
 history contains only accepted time, scope and original expiry information and
 cannot provide classifications, counts or matching-build evidence.
 _Avoid_: File availability guarantee
+
+## Player collection and storage
+
+**Game**: The original title a player recognizes. More than one port can implement the same game.
+_Avoid_: Port project
+
+**Port**: An independently identified native implementation or variant of a game.
+_Avoid_: Original game
+
+**Library entry**: One port's installed, external or retained unfinished-setup context in the selected library. Separate ports for one game remain separate entries.
+_Avoid_: Unique game
+
+**Game-file location**: A remembered reference to original files used by one or more ports. Remembering the location does not itself copy or transfer ownership of those files.
+_Avoid_: Game saves
+
+**Saved folder**: A remembered folder selected for discovering game files. Saving it does not establish continuous monitoring or current verification.
+_Avoid_: Watched folder
+
+**Game saves**: Game progress and related player data, separate from original game files.
+_Avoid_: Game-file location
+
+**Library folder**: The chosen location containing Portcove's managed library content and records.
+_Avoid_: Original-games folder

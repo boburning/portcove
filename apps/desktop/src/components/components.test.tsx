@@ -2831,7 +2831,7 @@ describe("desktop components", () => {
       />,
     );
     expect(selected).toContain("scph1001.bin");
-    expect(selected).toContain("Available to install");
+    expect(selected).toContain("Files selected · not checked");
     expect(selected).not.toContain("Required BIOS file needed");
     expect(selected).toContain(
       "Selected BIOS file has not been checked. Choose Check required BIOS to check and save this location.",

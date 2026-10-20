@@ -154,7 +154,13 @@ function ApplicationUpdateNoticeBanner({
   if (!candidate) return null;
   const channel = candidate.channel === "preview" ? "Preview" : "Stable";
   return (
-    <Notice intent="success" className="" role="status" aria-live="polite" aria-atomic="true">
+    <Notice
+      intent={notice.result.staged ? "info" : "warning"}
+      className=""
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       <span
         data-slot="notice-icon"
         className="error-icon grid h-[2rem] w-[2rem] place-items-center"

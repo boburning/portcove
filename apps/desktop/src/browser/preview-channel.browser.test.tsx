@@ -91,7 +91,7 @@ it.each(["light", "dark"])(
     expect(change).toHaveBeenCalledExactlyOnceWith("rolling");
     await expect.poll(() => refresh.mock.calls.length).toBe(1);
     await expect
-      .element(page.getByRole("status"))
+      .element(page.getByRole("status").filter({ hasText: "Rolling selected." }))
       .toHaveTextContent("Rolling selected. Release information refreshed.");
   },
 );
