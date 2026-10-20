@@ -1392,8 +1392,10 @@ for (const lost of [false, true])
       );
       let activeIdentity = signed;
       let publisherTerminal = false;
-      const coordinatorSubject =
-        controllerOidcSubject(identityExpected.controller_ref, "production-release-coordinator");
+      const coordinatorSubject = controllerOidcSubject(
+        identityExpected.controller_ref,
+        "production-release-coordinator",
+      );
       const coordinatorIdentity = () =>
         assemblerIdentityFixture(
           {
