@@ -104,8 +104,18 @@ pub(crate) fn inspect(
 ) -> Result<Option<SharedPreferencesReview>> {
     validate(spec)?;
     spec.shared_preferences
-        .map(|contract| resolve(contract, runtime_root))
+        .map(|contract| resolve(contract, runtime_root, true))
         .transpose()
+}
+
+/// Read-only preview for a future managed destination. Missing owned saves are
+/// permitted here; the accepted installer creates them later in private staging.
+pub(crate) fn inspect_managed_regaiden(runtime_root: &Path) -> Result<SharedPreferencesReview> {
+    resolve(
+        PreparedSharedPreferencesContract::Regaiden041Windows,
+        runtime_root,
+        false,
+    )
 }
 
 /// The selected artifact converts SDL UTF-8 paths into narrow Windows paths.
@@ -212,6 +222,7 @@ pub(crate) fn check_binding(
 fn resolve(
     _contract: PreparedSharedPreferencesContract,
     _runtime_root: &Path,
+    _require_saves: bool,
 ) -> Result<SharedPreferencesReview> {
     Err(PortcoveError::unsupported(
         "this shared preference contract requires Windows",
@@ -222,6 +233,7 @@ fn resolve(
 fn resolve(
     contract: PreparedSharedPreferencesContract,
     runtime_root: &Path,
+    require_saves: bool,
 ) -> Result<SharedPreferencesReview> {
     if contract == PreparedSharedPreferencesContract::Smb1r11Windows {
         return smb1r::resolve();
@@ -276,7 +288,7 @@ fn resolve(
     let local_fallback_present = check_path(&local_fallback_path, false)?;
     check_path(&runtime_root.join("config.ini"), false)?;
     check_path(&runtime_root.join("imgui.ini"), false)?;
-    if !check_path(&runtime_root.join("saves"), true)? {
+    if !check_path(&runtime_root.join("saves"), true)? && require_saves {
         return Err(PortcoveError::verification(
             "this runtime requires an existing safe saves directory",
         ));

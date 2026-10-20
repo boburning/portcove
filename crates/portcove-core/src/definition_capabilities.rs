@@ -86,6 +86,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 15,
         });
+        supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 16,
+        });
         supported
     }
 }
@@ -300,7 +304,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 16, 16)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 17, 17)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -344,6 +348,31 @@ mod tests {
             DefinitionCapabilityOutcome::UnsupportedVersion
         );
         assert_eq!(old.checks[0].installed_version, Some(8));
+    }
+
+    #[test]
+    fn managed_preferences_require_v16_beyond_credential_only_v15() {
+        let credential_only: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::StagedSourcePortable || entry.contract_version <= 15
+            })
+            .collect();
+        assert!(
+            check_with_inventory(&request("staged-source-portable", 15, 15), &credential_only)
+                .unwrap()
+                .compatible
+        );
+        let refused =
+            check_with_inventory(&request("staged-source-portable", 16, 16), &credential_only)
+                .unwrap();
+        assert!(!refused.compatible);
+        assert_eq!(refused.checks[0].installed_version, Some(15));
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 16, 16))
+                .unwrap()
+                .compatible
+        );
     }
 
     #[test]

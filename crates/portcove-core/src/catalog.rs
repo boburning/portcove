@@ -1064,6 +1064,14 @@ impl Catalog {
                                 || crate::preparation::managed(port)
                                 || port.runtime_data_policy.is_some())
                     }
+                    RuntimeSourceMaterialization::RegaidenGbc => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && port.managed_shared_preferences
+                                == Some(
+                                    crate::PreparedSharedPreferencesContract::Regaiden041Windows,
+                                )
+                    }
                     RuntimeSourceMaterialization::Copy => {
                         (port.adapter == AdapterKind::StagedSourcePortable && source_is_persistent)
                             || (port.adapter == AdapterKind::GeneratedCache
@@ -1170,6 +1178,7 @@ impl Catalog {
                         materialization,
                         RuntimeSourceMaterialization::N64BigEndian
                             | RuntimeSourceMaterialization::Copy
+                            | RuntimeSourceMaterialization::RegaidenGbc
                             | RuntimeSourceMaterialization::GamecubeIso
                             | RuntimeSourceMaterialization::Ps2Iso
                     ) && port
@@ -1628,6 +1637,41 @@ mod tests {
             crate::QualificationEvidenceState::Missing
         );
         let port = catalog.port("wave-race-64-racewave46").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+    }
+    #[test]
+    fn managed_regaiden_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| row.scope.check_version.as_deref() == Some("regaiden-managed-windows-v1"))
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let mut other_artifact = rows[0].scope.clone();
+        other_artifact.artifact_sha256 = Some("0".repeat(64));
+        assert_eq!(
+            source
+                .assess_qualification(&other_artifact)
+                .automated_lifecycle,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("resident-evil-gaiden-recomp").unwrap();
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
     }
@@ -2540,7 +2584,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 41);
+        assert_eq!(qualification.len(), 43);
         assert_eq!(
             qualification
                 .iter()
@@ -2821,8 +2865,13 @@ mod tests {
             .iter()
             .filter(|port| port.release.provider == ReleaseSource::UserPrepared)
             .collect::<Vec<_>>();
-        assert_eq!(prepared.len(), 3);
+        assert_eq!(prepared.len(), 2);
         assert!(!prepared.iter().any(|port| port.id == "f-zero-snes-recomp"));
+        assert!(
+            !prepared
+                .iter()
+                .any(|port| port.id == "resident-evil-gaiden-recomp")
+        );
         assert!(
             !prepared
                 .iter()

@@ -40,6 +40,7 @@ mod favorite_commands;
 mod game_updates;
 mod library_selection;
 mod library_transfer;
+mod managed_install_review;
 mod output_location;
 mod preparation;
 mod removal;
@@ -1240,6 +1241,23 @@ async fn install_port(
 ) -> DesktopResult<InstallRecord> {
     let state = state.inner().clone();
     blocking_async_service_at_generation(state, generation, move |service| async move {
+        if service.catalog().port(&input.port_id)?.managed_shared_preferences.is_some() {
+            if input.stage {
+                return Err(PortcoveError::unsupported("Install ReGaiden normally to review its Windows shared preferences. First-install staging is unavailable for this consent-bearing route.").into());
+            }
+            let reviewed = service.plan_game_install(&input.port_id).await?;
+            let profile = service.catalog().port(&input.port_id)?.source_profile.as_deref().ok_or_else(|| PortcoveError::verification("original game source profile is missing"))?;
+            let original = service.library().source(profile)?;
+            managed_install_review::require_matching_input(&input, reviewed.plan.channel, original.as_ref().map(|record| record.path.as_path()))?;
+            let scope = reviewed.plan.shared_preferences.as_ref().ok_or_else(|| PortcoveError::verification("shared preferences review is missing"))?;
+            let destination = scope.local_fallback_path.parent().ok_or_else(|| PortcoveError::verification("shared preferences installation location is missing"))?;
+            let message = format!("Install {} {}\nLocation: {}\nOriginal game file: {}\n\n{}", service.catalog().port(&input.port_id)?.name, reviewed.plan.release.version, destination.display(), original.as_ref().map(|record| record.path.display().to_string()).unwrap_or_else(|| "Not registered".into()), scope.write_scope_disclosure());
+            if !confirm_destructive(&app, "Allow ReGaiden's shared preferences?", message, "Accept scope and install").await {
+                return Err(PortcoveError::usage("shared preferences review was canceled").into());
+            }
+            let authorization = service.authorize_game_install_with_shared_preferences_ack(&input.port_id, &reviewed.plan_sha256, Some(&reviewed.plan_sha256)).await?;
+            return service.apply_game_install(&input.port_id, &authorization.token, |event| emit_operation(&app, event)).await.map_err(Into::into);
+        }
         service
             .install(
                 &input.port_id,

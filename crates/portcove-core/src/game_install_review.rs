@@ -1,5 +1,5 @@
 //! First-install consent over the existing installer and authorization boundary.
-use super::{InstallOverrides, OperationReporter};
+use super::{InstallOverrides, OperationReporter, ReleaseIntent};
 use crate::{
     ActivityOperation, ActivityTargetKind, DestructiveAuthorization, GameInstallPlan,
     InstallRecord, OperationEvent, OperationResult, PortcoveError, PortcoveService, Result,
@@ -57,6 +57,16 @@ impl PortcoveService {
         port_id: &str,
         expected_plan: &str,
     ) -> Result<DestructiveAuthorization> {
+        self.authorize_game_install_with_shared_preferences_ack(port_id, expected_plan, None)
+            .await
+    }
+
+    pub async fn authorize_game_install_with_shared_preferences_ack(
+        &self,
+        port_id: &str,
+        expected_plan: &str,
+        acknowledged: Option<&str>,
+    ) -> Result<DestructiveAuthorization> {
         let reviewed = self.plan_game_install(port_id).await?;
         if reviewed.plan_sha256 != expected_plan {
             return Err(PortcoveError::conflict(
@@ -69,6 +79,11 @@ impl PortcoveService {
             ));
         }
         Self::require_registered_install_inputs(&reviewed)?;
+        crate::external_runtime::shared_preferences::require_scoped_ack(
+            reviewed.plan.shared_preferences.is_some(),
+            expected_plan,
+            acknowledged,
+        )?;
         self.library
             .issue_authorization("game-install", port_id, expected_plan)
     }
@@ -111,7 +126,14 @@ impl PortcoveService {
                     output_directory: None,
                 },
                 reviewed.plan.release,
-                true,
+                ReleaseIntent {
+                    activate: true,
+                    shared_preferences: reviewed
+                        .plan
+                        .shared_preferences
+                        .as_ref()
+                        .map(crate::managed_shared_preferences::Acceptance::after_review),
+                },
                 &mut reporter,
             )
             .await

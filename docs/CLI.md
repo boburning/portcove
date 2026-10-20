@@ -1,5 +1,15 @@
 # Portcove CLI
 
+API77 adds the closed managed ReGaiden shared-preferences review. Register the
+supported original, run `installation plan resident-evil-gaiden-recomp`, then pass
+its exact `--expected-plan` and `--acknowledge-shared-preferences` to
+`installation run`. Ordinary `--yes` does not acknowledge this scope. See
+[ownership and changed-account recovery](reference/managed-regaiden.md). Existing
+prepared registrations retain their non-owning contract. Local saves/settings
+remain managed; the resolved account-wide preferences file is never owned or
+included in backup/restore. The reference client accepts public API77 and requires
+explicit confirmation before transmitting acknowledgment; unknown API78 is refused.
+
 For managed Dark Forces on Windows, register the complete reviewed installed-data
 folder or ZIP with
 `portcove source add dark-forces-pc-complete-installed-data PATH`, then use the ordinary
