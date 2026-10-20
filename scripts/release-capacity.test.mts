@@ -425,3 +425,87 @@ void test("original and recovery executor identities are independently bound wit
   );
   assert.throws(() => inspectCapacityExecutorIdentity({ ...executor, check_run_id: 789 }));
 });
+void test("single-effect receipt survives partial recovery and cannot be repeated with a new retry", () => {
+  const original = operationFixture();
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...keys
+  } = original;
+  const firstIdentity = { ...keys, receipt_limit: 1 };
+  const first = {
+    ...original,
+    ...firstIdentity,
+    id: capacityDigest(firstIdentity),
+    outcome: "recovered",
+    recovery: {
+      checkpoint: "d".repeat(40),
+      evidence_sha256: "e".repeat(64),
+      resolution: "partial-effects-retained",
+    },
+  };
+  inspectCapacityOperation(first);
+  const active = { ...original.candidate, transient_retries: 1 };
+  const nextIdentity = {
+    ...firstIdentity,
+    candidate: active,
+    before_checkpoint: "f".repeat(40),
+    sequence: 2,
+  };
+  const after = {
+    ...nextIdentity,
+    id: capacityDigest(nextIdentity),
+    outcome: "pending",
+    completed_effects: [],
+    failure_evidence: null,
+    recovery: null,
+  };
+  const capacity = {
+    ...capacityFixture(),
+    schema_version: 2,
+    operation: first,
+    prior_operations: [] as unknown[],
+  };
+  const before = {
+    schema_version: 2,
+    active_candidate: active,
+    controller: { capacity_attempt: capacity },
+  };
+  const next = { ...before, controller: { capacity_attempt: { ...capacity, operation: after } } };
+  next.controller.capacity_attempt.prior_operations = expectedCompactCapacityOperations(
+    before,
+    next,
+    "f".repeat(40),
+  );
+  assert.equal(
+    inspectCompactCapacityOperations(next.controller.capacity_attempt.prior_operations)[0]
+      ?.completed,
+    true,
+  );
+  assert.throws(
+    () => validateCapacityTransition(before, next, "f".repeat(40)),
+    /completed logical effect cannot repeat/,
+  );
+  assert.throws(
+    () =>
+      inspectCapacityOperation({
+        ...first,
+        recovery: { ...first.recovery, resolution: "effect-not-applied" },
+      }),
+    /contradicts/,
+  );
+  // Old multi-effect partial recovery stays a partial lifecycle; there is no
+  // blanket reinterpretation of historical operations lacking receipt_limit1.
+  const legacy = { ...original, outcome: "recovered", recovery: first.recovery };
+  const legacyBefore = {
+    ...before,
+    controller: { capacity_attempt: { ...capacity, operation: legacy } },
+  };
+  assert.equal(
+    expectedCompactCapacityOperations(legacyBefore, next, "f".repeat(40))[0]?.completed,
+    false,
+  );
+});

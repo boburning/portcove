@@ -516,6 +516,7 @@ function appendOperation(
   const proof = { checkpoint, id: operation.id, operation_sha256: capacityDigest(operation) };
   const completed =
     operation.outcome === "succeeded" ||
+    (operation.receipt_limit === 1 && operation.completed_effects.length === 1) ||
     (isRecord(operation.recovery) && operation.recovery.resolution === "effect-completed");
   const previous = groups.find((group) => groupKey(group) === key);
   if (previous) {
