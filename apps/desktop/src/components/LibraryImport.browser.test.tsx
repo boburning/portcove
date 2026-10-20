@@ -153,6 +153,41 @@ it("explains retained originals and space before reviewing a library move", asyn
 });
 
 it.each([240, 320])(
+  "keeps a restore with a long destination within a %spx dialog",
+  async (width) => {
+    const original = { width: innerWidth, height: innerHeight };
+    await page.viewport(width, 160);
+    try {
+      const destination = String.raw`\\?\E:\Codex-Worktrees\ui-ux-enlargement-2224\Portcove-Development\outputs\desktop-verify\2026-10-20T11-08-50-133Z-BYK1VJ\native\restored-library`;
+      vi.mocked(desktopApi.planLibraryImport).mockResolvedValue({
+        ...plan,
+        destination_root: destination,
+      });
+      await root.rerender(<LibraryImportButton disabled={false} libraryRoot={destination} />);
+      await click("Restore from a library copy");
+      await click("Choose file");
+      await click("Choose folder");
+      await click("Review restore");
+      const dialog = document.querySelector<HTMLElement>("[role=dialog]")!;
+      const bounds = dialog.getBoundingClientRect();
+      const offenders = [...dialog.querySelectorAll<HTMLElement>("*")]
+        .filter((element) => element.getBoundingClientRect().right > bounds.right + 1)
+        .map((element) => ({
+          tag: element.tagName,
+          className: element.className,
+          text: element.textContent?.slice(0, 100),
+        }));
+      expect(dialog.scrollWidth, JSON.stringify(offenders)).toBeLessThanOrEqual(
+        dialog.clientWidth + 1,
+      );
+      expect(button("Restore this library").disabled).toBe(false);
+    } finally {
+      await page.viewport(original.width, original.height);
+    }
+  },
+);
+
+it.each([240, 320])(
   "keeps expanded transfer inventory within a %spx recovery dialog",
   async (width) => {
     const original = { width: innerWidth, height: innerHeight };

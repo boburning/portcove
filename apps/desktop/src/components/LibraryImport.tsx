@@ -99,8 +99,11 @@ function LibraryImportDialog({ libraryRoot, close }: { libraryRoot: string; clos
           <strong>Use an export you trust.</strong> Review its source, destination, required space,
           installed versions, saved file locations, and copied files before restoring it.
         </p>
-        <p>
-          Destination: <code>{libraryRoot}</code>
+        <p className="min-w-0 [overflow-wrap:anywhere]">
+          Destination:{" "}
+          <bdi dir="ltr">
+            <code>{libraryRoot}</code>
+          </bdi>
         </p>
         <NavigationHints />
         <label htmlFor="import-metadata">Library metadata file</label>
