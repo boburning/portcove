@@ -2754,9 +2754,10 @@ The official Shipwright 9.3.1 portable Windows x64 artifact
 directory. Core's installation persistence contract interprets only that exact
 version/artifact route as synchronized persistence; other Libultraship versions,
 ports and platforms keep their existing behavior. An explicit dynamic user-data
-environment remains authoritative. Current catalog `Save` admission uses the
-existing checked additive-mutability rules, without rewriting retained contracts
-or manifests. Backup assessment reads the same contract without collecting data;
+environment remains authoritative. A runtime-only `Save` interpretation uses the
+existing checked additive-mutability rules. Frozen current/retained catalog
+contracts and manifests remain unchanged, including during checked import.
+Backup assessment reads the same contract without collecting data;
 backup creation, launch preparation, activation, rollback and removal collect
 launched working data before replacing or removing it. An existing non-directory
 `Save` root on either side holds the operation without overwriting it. Ordinary

@@ -11392,8 +11392,7 @@
         "imgui.ini",
         "shipofharkinian.json",
         "oot.o2r",
-        "oot-mq.o2r",
-        "Save"
+        "oot-mq.o2r"
       ],
       "presentation": {
         "original_game_title": "The Legend of Zelda: Ocarina of Time",

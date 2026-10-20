@@ -53,7 +53,8 @@ fn fixture() -> (
     let library = Library::open(temporary.path().join("library")).unwrap();
     let mut old_port = Catalog::embedded().unwrap().port(PORT).unwrap().clone();
     // A source-less, inert clone exercises persistence/preflight, not source
-    // qualification or gameplay. Retained/current facts differ only by Save.
+    // qualification or gameplay. Catalog facts stay unchanged; the exact
+    // installed artifact receives a checked runtime-only Save interpretation.
     old_port.source_profile = None;
     old_port.presentation = None;
     old_port.persistent_paths.retain(|path| path != "Save");
@@ -65,14 +66,7 @@ fn fixture() -> (
         .retained_catalog(&active)
         .unwrap()
         .unwrap();
-    let mut current = retained.authoritative_document();
-    current
-        .ports
-        .iter_mut()
-        .find(|port| port.id == PORT)
-        .unwrap()
-        .persistent_paths
-        .push("Save".into());
+    let current = retained.authoritative_document();
     let mut service = PortcoveService::new(library).unwrap();
     service.replace_catalog_for_test(
         Catalog::from_json(&serde_json::to_string(&current).unwrap()).unwrap(),
@@ -84,6 +78,53 @@ fn game_write(install: &InstallRecord, contents: &[u8]) {
     fs::create_dir_all(install.path.join("Save")).unwrap();
     fs::write(install.path.join("Save/file1.sav"), contents).unwrap();
     fs::write(install.path.join(LAUNCH_MARKER), b"1").unwrap();
+}
+
+#[test]
+fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_authority() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("original")).unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let port = catalog.port(PORT).unwrap();
+    assert!(!port.persistent_paths.iter().any(|path| path == "Save"));
+    let qualification =
+        InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64).unwrap();
+    let active = register(&library, &qualification, "original", true);
+    game_write(&active, b"game-owned save in retained runtime");
+    let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let metadata = temporary.path().join("metadata.json");
+    service.write_library_metadata(&metadata).unwrap();
+    let destination = temporary.path().join("restored");
+    let plan =
+        PortcoveService::plan_library_import(&metadata, library.root(), &destination).unwrap();
+    assert!(!destination.exists(), "planning must leave D absent");
+    PortcoveService::import_library(&metadata, library.root(), &destination, &plan.plan_sha256)
+        .unwrap();
+    let restored = PortcoveService::new(Library::open(&destination).unwrap()).unwrap();
+    let installed = restored.status(PORT).unwrap().active.unwrap();
+    assert_eq!(
+        fs::read(installed.path.join(".portcove-manifest.json")).unwrap(),
+        manifest
+    );
+    assert!(!restored.library.user_dir(PORT).join("Save").exists());
+    assert_eq!(
+        fs::read(installed.path.join("Save/file1.sav")).unwrap(),
+        b"game-owned save in retained runtime"
+    );
+    let backup = restored.create_backup(PORT).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
+        b"game-owned save in retained runtime"
+    );
+    assert_eq!(
+        fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
+        manifest
+    );
+    assert_eq!(
+        fs::read(active.path.join("Save/file1.sav")).unwrap(),
+        b"game-owned save in retained runtime"
+    );
 }
 
 #[test]

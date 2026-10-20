@@ -5022,14 +5022,24 @@ impl PortcoveService {
             .clone())
     }
 
-    /// Admit only additive exact mutable paths from the current catalog for an
-    /// older install. Its retained definition still owns source and launch
-    /// behavior, and its manifest still owns every recorded immutable byte.
+    /// Admit only checked additive mutable paths from current catalog facts or
+    /// a closed runtime compatibility interpretation. Retained source/launch
+    /// authority and every recorded immutable byte remain unchanged.
     fn installed_mutability_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
         let retained = self.installed_port(install)?;
         let Ok(current) = self.catalog.port(&install.port_id) else {
             return Ok(retained);
         };
+        let platform = Platform::current()?;
+        let mut current = current.clone();
+        // Keep the frozen catalog contract portable. Only this exact admitted
+        // artifact receives the extra runtime path, through the same immutable
+        // overlap check as catalog additions below; never rewrite its manifest.
+        if shipwright_windows_cwd_persistence(&retained, install, platform)
+            && !current.persistent_paths.iter().any(|path| path == "Save")
+        {
+            current.persistent_paths.push("Save".into());
+        }
         let mut retained_baseline = retained.clone();
         let mut current_baseline = current.clone();
         retained_baseline.persistent_paths.clear();
