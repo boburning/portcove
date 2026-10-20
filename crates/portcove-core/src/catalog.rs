@@ -1565,6 +1565,81 @@ mod tests {
             SourceKind::File
         );
     }
+
+    #[test]
+    fn managed_tfe_lifecycle_evidence_does_not_claim_hands_on_gameplay() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "the-force-engine-dark-forces".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac".into(),
+            ),
+            upstream_ref: Some("1.22.420".into()),
+            contract_id: Some("the-force-engine-dark-forces-managed-data".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dark-forces-pc-complete-installed-data".into(),
+                    variant_id: "owned-pc-installed-data".into(),
+                    representation_id: "relative-data-files".into(),
+                },
+            },
+            check_version: Some("tfe-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        assert!(
+            catalog
+                .port("the-force-engine-dark-forces")
+                .unwrap()
+                .manually_validated_platforms
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn managed_racewave_evidence_keeps_startup_separate_from_hands_on_support() {
+        let catalog = Catalog::embedded().unwrap();
+        let source = catalog.source_catalog().unwrap();
+        let rows: Vec<_> = source
+            .qualification
+            .iter()
+            .filter(|row| {
+                row.scope.check_version.as_deref() == Some("racewave46-managed-windows-v1")
+            })
+            .collect();
+        assert_eq!(rows.len(), 2);
+        let assessment = source.assess_qualification(&rows[0].scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+        let port = catalog.port("wave-race-64-racewave46").unwrap();
+        assert!(port.automated_tested_platforms.is_empty());
+        assert!(port.manually_validated_platforms.is_empty());
+    }
     use sha2::{Digest, Sha256};
 
     #[test]
@@ -2474,7 +2549,14 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 37);
+        assert_eq!(qualification.len(), 41);
+        assert_eq!(
+            qualification
+                .iter()
+                .filter(|record| record.scope.port_id == "the-force-engine-dark-forces")
+                .count(),
+            2
+        );
         assert_eq!(
             qualification
                 .iter()

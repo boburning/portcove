@@ -7,14 +7,19 @@ use std::{
 };
 
 const CREDENTIAL: &str = "retroachievements.credentials";
+pub(crate) fn known_artifact(sha256: &str) -> bool {
+    sha256.eq_ignore_ascii_case("f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028")
+}
 pub(crate) const NOTICE: &str = "Saves and settings are preserved. RetroAchievements sign-in stays with each installed version and is excluded from backups. Sign in again after installing another version.";
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     if port.runtime_data_policy.is_none() {
         if port.release.provider == crate::ReleaseSource::DirectManifest
-            && port.release.direct.values().any(|release| {
-                release.sha256 == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-            })
+            && port
+                .release
+                .direct
+                .values()
+                .any(|release| known_artifact(&release.sha256))
         {
             return Err(PortcoveError::usage(
                 "managed RaceWave46 requires its version-local credential policy",
@@ -92,9 +97,7 @@ pub(crate) fn require_artifact(
     platform: Option<crate::Platform>,
 ) -> Result<()> {
     validate(port)?;
-    if port.runtime_data_policy.is_some()
-        || artifact.sha256 == "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
-    {
+    if port.runtime_data_policy.is_some() || known_artifact(&artifact.sha256) {
         if port.runtime_data_policy.is_none()
             || platform != Some(crate::Platform::WindowsX86_64)
             || version != "v1.0.0"
@@ -555,6 +558,46 @@ mod tests {
     }
 
     #[test]
+    fn uppercase_known_digest_cannot_drop_the_credential_policy() {
+        let mut definition = port();
+        definition.runtime_data_policy = None;
+        definition
+            .release
+            .direct
+            .get_mut(&crate::Platform::WindowsX86_64)
+            .unwrap()
+            .sha256
+            .make_ascii_uppercase();
+        assert!(
+            validate(&definition)
+                .unwrap_err()
+                .message
+                .contains("requires its version-local credential policy")
+        );
+        let historical = crate::Catalog::from_json(include_str!(
+            "../tests/fixtures/racewave46-100-prepared-historical.json"
+        ))
+        .unwrap();
+        let no_policy = historical.port(&definition.id).unwrap();
+        assert!(
+            require_artifact(
+                no_policy,
+                "v1.0.0",
+                &crate::ArtifactIdentity {
+                    asset_name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
+                    size: 35_768_574,
+                    sha256: "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                        .to_uppercase(),
+                },
+                Some(crate::Platform::WindowsX86_64)
+            )
+            .unwrap_err()
+            .message
+            .contains("actual reviewed")
+        );
+    }
+
+    #[test]
     fn installed_policy_requires_actual_artifact_version_platform_and_no_adoption() {
         let port = port();
         let artifact = crate::ArtifactIdentity {
@@ -625,6 +668,98 @@ mod tests {
         assert_eq!(
             fs::read(external.join("WaveRace64Recompiled.exe")).unwrap(),
             b"arbitrary executable"
+        );
+    }
+
+    #[test]
+    fn legacy_manifest_cannot_inherit_current_credential_omission_policy() {
+        use sha2::{Digest, Sha256};
+        let temp = tempfile::tempdir().unwrap();
+        let library = crate::Library::open(temp.path().join("library")).unwrap();
+        let historical = crate::Catalog::from_json(include_str!(
+            "../tests/fixtures/racewave46-100-prepared-historical.json"
+        ))
+        .unwrap();
+        let id = "wave-race-64-racewave46";
+        let root = library.versions_dir().join(id).join("legacy");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join("WaveRace64Recompiled.exe"),
+            b"synthetic legacy executable",
+        )
+        .unwrap();
+        let artifact = crate::ArtifactIdentity {
+            asset_name: "local-adoption".into(),
+            sha256: "a".repeat(64),
+            size: 4,
+        };
+        let qualification = crate::InstallQualification::from_catalog(
+            &historical,
+            id,
+            crate::Platform::WindowsX86_64,
+        )
+        .unwrap();
+        let (_, selected_executable, runtime) = crate::Installer::new(library.clone())
+            .unwrap()
+            .create_manifest(
+                "legacy-racewave",
+                id,
+                "legacy",
+                &artifact,
+                &qualification,
+                &root,
+            )
+            .unwrap();
+        let path = root.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        manifest["schema_version"] = serde_json::json!(5);
+        manifest
+            .as_object_mut()
+            .unwrap()
+            .remove("retained_contract");
+        let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let install = crate::InstallRecord {
+            id: "legacy-racewave".into(),
+            port_id: id.into(),
+            version: "legacy".into(),
+            path: root.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact,
+            manifest_sha256: hex::encode(Sha256::digest(&bytes)),
+            selected_executable,
+            runtime,
+        };
+        assert!(
+            crate::Installer::new(library.clone())
+                .unwrap()
+                .retained_catalog(&install)
+                .unwrap()
+                .is_none()
+        );
+        library.register_install(&install, true).unwrap();
+        fs::create_dir(root.join(".runtime")).unwrap();
+        fs::write(root.join(".runtime").join(CREDENTIAL), b"synthetic").unwrap();
+        let service = crate::PortcoveService::new(library.clone()).unwrap();
+        assert!(
+            service
+                .installed_catalog(&install)
+                .unwrap_err()
+                .message
+                .contains("legacy installation")
+        );
+        assert!(service.collect_user_data(id).is_err());
+        assert!(root.join(".runtime").join(CREDENTIAL).exists());
+        assert!(
+            !library
+                .user_dir(id)
+                .join(".runtime")
+                .join(CREDENTIAL)
+                .exists()
         );
     }
 

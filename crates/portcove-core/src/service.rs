@@ -4998,10 +4998,10 @@ impl PortcoveService {
         match Installer::new(self.library.clone())?.retained_catalog(install)? {
             Some(catalog) => Ok(catalog),
             None => {
-                let current = self.catalog.port(&install.port_id)?;
-                if current.runtime_data_policy.is_some()
-                    || current.managed_shared_preferences.is_some()
-                {
+                if self.catalog.port(&install.port_id).is_ok_and(|current| {
+                    current.runtime_data_policy.is_some()
+                        || current.managed_shared_preferences.is_some()
+                }) {
                     return Err(PortcoveError::verification(
                         "legacy installation cannot inherit today's credential or shared-preferences policy; retain its original route or review a fresh managed installation",
                     ));

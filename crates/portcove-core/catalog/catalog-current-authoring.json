@@ -862,6 +862,26 @@
         "claim": "Pinned verifier identifies the original using a normalized SHA256 of Base64 text after removing the 16-byte NES header. Independent bounded qualification matched this unchanged 40976-byte World original (whole-file SHA256 0b3d9e1f01ed1668205bab34d6c82b0e281456e137352e4f36a9b2cfa3b66dea, SHA1 33d23c2f2cfa4c9efec87f7bc1321ce3ce6c89bd) to normalized protocol digest c9b34443c0414f3b91ef496d8cfee9fdd72405d673985afa11fb56732c96152b. This route deliberately accepts that exact whole-file subset; it does not mislabel the upstream normalized digest as a ROM hash.",
         "immutable_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/f379a3257ef1cf89cf4bf911f40c9262447da2c6/Scripts/UI/RomVerifier.gd",
         "live_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/main/Scripts/UI/RomVerifier.gd"
+      },
+      {
+        "id": "tfe-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "eba686b4a7568b51da3789852f9ad54ac6df99d3",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows complete-data ZIP intake, reviewed official engine acquisition, two supervised process starts and ordinary closes with one fully visible main menu, private cache recreation, manual preservation hold, backup/restore, reviewed removal preserving data/backups and same-version reinstall. No gameplay, save loading, version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/eba686b4a7568b51da3789852f9ad54ac6df99d3/docs/qualification/tfe-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/tfe-managed-windows-2026-10-20.md"
+      },
+      {
+        "id": "racewave46-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "2bcc4459133ab6f06ab277f0432da9d1f593d0a7",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows original intake, reviewed unchanged official package acquisition, supervised startup/ordinary close and administrative preservation. Startup screenshot shows logo over water, not menu arrival. Synthetic version-local sign-in excluded from canonical data/backups, preserved through restore and deleted on removal. No gameplay, save/load, new-version update/rollback or support promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/2bcc4459133ab6f06ab277f0432da9d1f593d0a7/docs/qualification/racewave46-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/racewave46-managed-windows-2026-10-20.md"
       }
     ],
     "identities": [
@@ -10876,6 +10896,114 @@
         "kind": "automated_lifecycle",
         "outcome": "passed",
         "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461737,
+        "kind": "structural_check",
+        "method": "Actual isolated API75 CLI rejects invalid ZIP and a changed reviewed original, admits all 48 exact members from the owned complete ZIP with Unicode filename, installs the exact official engine and verifies its immutable manifest. Protected originals remain unchanged; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-force-engine-dark-forces",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "30ee44b296f18273842c50c2db5d5e5dccb2bba278d4909881273737f90c4eac",
+          "upstream_ref": "1.22.420",
+          "contract_id": "the-force-engine-dark-forces-managed-data",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dark-forces-pc-complete-installed-data",
+              "variant_id": "owned-pc-installed-data",
+              "representation_id": "relative-data-files"
+            }
+          },
+          "check_version": "tfe-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "a436d498fcf284faacc56ed08812e04e3640b14d",
+        "evidence_ids": [
+          "tfe-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792461955,
+        "kind": "automated_lifecycle",
+        "method": "Two actual isolated Windows supervised process starts and ordinary closes; one fully visible main menu and an incomplete second startup capture; all 48 private copies checked, compatible local profile and synthetic persistence probes; deliberately corrupted private LFD recreated, actual removal hold and manual preservation verified; backup/restore, reviewed removal preserving canonical data/backups and same-version reinstall. No mission gameplay, save/load, version update/rollback, Portcove GUI or support promotion."
+      },
+      {
+        "scope": {
+          "port_id": "wave-race-64-racewave46",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+          "upstream_ref": "v1.0.0",
+          "contract_id": "wave-race-64-racewave46-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "wave-race-64",
+              "variant_id": "usa-rev-a",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "racewave46-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "71ec71f89d3fbb23914e8185a03b102b1af80886",
+        "evidence_ids": [
+          "racewave46-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792466685,
+        "kind": "structural_check",
+        "method": "Actual isolated API76 CLI refuses invalid and changed reviewed originals, registers exact owner-provided USA RevA original with Unicode filename, installs unchanged exact official Windows package and verifies immutable inventory. Protected original unchanged; no gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "wave-race-64-racewave46",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028",
+          "upstream_ref": "v1.0.0",
+          "contract_id": "wave-race-64-racewave46-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "wave-race-64",
+              "variant_id": "usa-rev-a",
+              "representation_id": "canonical-rom"
+            }
+          },
+          "check_version": "racewave46-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "71ec71f89d3fbb23914e8185a03b102b1af80886",
+        "evidence_ids": [
+          "racewave46-managed-windows-2026-10-20"
+        ],
+        "outcome": "passed",
+        "observed_at": 1792467404,
+        "kind": "automated_lifecycle",
+        "method": "Actual supervised Windows startup/ordinary close with durable exit0 and exact private original; screenshot shows logo/water startup, not menu arrival. Synthetic ordinary persistence probe backup/restore/removal/reinstall passes. Synthetic credential filenames stay version-local, are excluded from canonical data/backups, retained during restore and removed with version; no credential payload inspection. No real sign-in, gameplay, save/load, new-version update/rollback, GUI or support promotion."
       }
     ]
   },

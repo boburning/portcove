@@ -546,7 +546,7 @@ internal static class ContractTests
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
                 && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null),
-                "compiled current-schema technical notes and absent optional links reach dedicated client controls");
+                "compiled remaining prepared routes retain their technical notes without inventing a preparation link");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
