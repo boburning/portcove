@@ -6,8 +6,13 @@ import {
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { isRecord } from "./runtime-values.mts";
+import { validateCandidateStageTransition } from "./release-candidate-progress-contract.mts";
 import { validateReleaseReviewRequestTransition } from "./release-review-request.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 
@@ -65,12 +70,13 @@ function gitRepository(repository: string) {
   const read = (args: readonly string[], input?: string | Uint8Array, preserveBytes = false) => {
     const bytes = execFileSync("git", [...base, ...args], {
       input,
-      timeout: 30_000,
+      timeout: coordinatorCommandTimeout(),
       maxBuffer: maximumBytes * 2,
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env,
     });
+    checkCoordinatorDeadline();
     const text = bytes.toString("utf8");
     if (!Buffer.from(text, "utf8").equals(bytes))
       throw new Error("coordinator Git output is not UTF-8");
@@ -81,7 +87,7 @@ function gitRepository(repository: string) {
       const child = spawn("git", [...base, "update-ref", "--no-deref", "--stdin"], {
         env,
         windowsHide: true,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(),
         stdio: ["pipe", "pipe", "pipe"],
       });
       let output = "";
@@ -128,6 +134,7 @@ function gitRepository(repository: string) {
                 "symbolic coordinator/preparation refs are refused under the transaction locks",
               );
           }
+          checkCoordinatorDeadline();
           child.stdin.end("commit\n");
         } catch (error) {
           failure = error;
@@ -138,7 +145,14 @@ function gitRepository(repository: string) {
         if (failure) reject(failure);
         else if (code !== 0 || !output.includes("commit: ok\n"))
           reject(new Error(`Git coordinator transaction refused: ${diagnostic.slice(0, 2048)}`));
-        else resolve();
+        else {
+          try {
+            checkCoordinatorDeadline();
+            resolve();
+          } catch (error) {
+            reject(error);
+          }
+        }
       });
       child.stdin.write(`start\n${commands.join("\n")}\nprepare\n`);
     });
@@ -255,6 +269,7 @@ function transition(
   validateReleaseReviewRequestTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
+  validateCandidateStageTransition(old, candidate, checkpoint);
   const controller = next.controller;
   if ((old || candidate) && canonical(controller) !== canonical(previous.input.controller)) {
     // Pause/capacity may change, but execution policy identity cannot drift.

@@ -1,4 +1,8 @@
 import { execFileSync } from "node:child_process";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { preparationSourcePaths } from "../apps/desktop/scripts/prepare-release-version.mts";
@@ -64,11 +68,12 @@ export function hydrateReleasePreparationSource(
         input,
         encoding: "utf8",
         windowsHide: true,
-        timeout: 30000,
+        timeout: coordinatorCommandTimeout(30000),
         maxBuffer: maximumTotalBytes,
         env: { ...environment, GIT_NO_LAZY_FETCH: "1", GIT_NO_REPLACE_OBJECTS: "1" },
       },
     );
+    checkCoordinatorDeadline();
     check();
     return result.trim();
   };

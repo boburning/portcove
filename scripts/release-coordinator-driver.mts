@@ -2,7 +2,11 @@ import { mkdtemp, lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
-import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
+import {
+  capacityDigest,
+  inspectCapacityOperation,
+  assessBoundedCapacity,
+} from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
@@ -58,7 +62,10 @@ import {
 } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { materializePublishedApplicationComponent } from "./release-site-readback.mts";
-import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
+import {
+  inspectPublishedMetadata,
+  inspectMetadataRenewalDescriptor,
+} from "./release-metadata-contract.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
   inspectPreparedMetadataRenewal,
@@ -73,26 +80,51 @@ import { createReleaseReviewDispositionReceipt } from "./release-semantic-dispos
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const project = fileURLToPath(new URL("..", import.meta.url));
 function coordinatorDeadline() {
   const monotonicStart = performance.now();
+  const monotonicDeadline = monotonicStart + 170000;
   const deadline = Date.now() + 170000;
   return {
     deadline,
+    monotonicDeadline,
+    remaining(maximum = 170000) {
+      const left = Math.floor(
+        Math.min(deadline - Date.now(), monotonicDeadline - performance.now(), maximum),
+      );
+      if (left < 1) throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
+      return left;
+    },
     check() {
       if (Date.now() >= deadline || performance.now() - monotonicStart >= 170000)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
     },
   };
 }
+function coordinatorApi(
+  directory: string,
+  budget: ReturnType<typeof coordinatorDeadline>,
+  maxBuffer: number,
+) {
+  return new GitHubApiClient((args, input) => {
+    const result = createGitHubRunner({
+      cwd: directory,
+      maxBuffer,
+      timeoutMs: budget.remaining(15000),
+    })([...args, "--hostname", "github.com"], input);
+    budget.check();
+    return result;
+  });
+}
 function guardedCoordinatorJournal(
   directory: string,
   budget: ReturnType<typeof coordinatorDeadline>,
   beforeMutation: () => void,
 ) {
-  const journal = createCoordinatorJournalApi(directory);
+  const journal = createCoordinatorJournalApi(directory, budget.monotonicDeadline);
   return {
     request: (...args: Parameters<typeof journal.request>) => {
       budget.check();
@@ -117,11 +149,21 @@ export function deriveCoordinatorPublication(
   releases: ReturnType<Reader["releases"]>,
   allocations: ReturnType<Reader["readAllocations"]>["allocations"],
   now: string,
+  active?: unknown,
 ) {
   if (!Number.isFinite(Date.parse(now)) || new Date(now).toISOString() !== now)
     throw new Error("canonical coordinator publication clock required");
   const versions = new Set<string>();
   const sources = new Set<string>();
+  if (active != null) {
+    if (!isRecord(active)) throw new Error("active reservation identity invalid");
+    const matches = allocations.filter((entry) => entry.version === active.version);
+    if (
+      matches.length !== 1 ||
+      Object.entries(matches[0]!).some(([key, value]) => active[key] !== value)
+    )
+      throw new Error("active reservation differs from complete immutable allocation receipts");
+  }
   let latest: number | null = null;
   for (const release of releases) {
     if (release.draft) continue;
@@ -151,7 +193,7 @@ export function deriveCoordinatorPublication(
     published_versions: [...versions].sort(),
     published_sources: [...sources].sort(),
     reserved_versions: allocations
-      .filter((a) => !versions.has(a.version))
+      .filter((a) => !versions.has(a.version) || (isRecord(active) && a.version === active.version))
       .map((a) => a.version)
       .sort(),
     last_routine_preview_at: latest === null ? null : new Date(latest).toISOString(),
@@ -238,7 +280,10 @@ export async function coordinateTrustedRelease(
   privateParent: string,
   raw: { remote_configuration: unknown; opportunity: unknown; dispatch_actor_id: string },
 ) {
-  return coordinateTrustedReleaseAt(privateParent, raw);
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    coordinateTrustedReleaseAt(privateParent, raw, undefined, budget),
+  );
 }
 
 type RecoveredCoordinatorRound = {
@@ -257,6 +302,7 @@ async function coordinateTrustedReleaseAt(
   privateParent: string,
   raw: Parameters<typeof coordinateTrustedRelease>[1],
   round?: RecoveredCoordinatorRound,
+  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
 ) {
   const selected = structuredClone(raw);
   if (
@@ -275,22 +321,15 @@ async function coordinateTrustedReleaseAt(
   if (!round) await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
   const directory =
     round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-attempt-")));
-  const budget = round?.budget ?? coordinatorDeadline();
+  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
-    const runner = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: 15000,
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    const api = new GitHubApiClient((args, body) =>
-      runner([...args, "--hostname", "github.com"], body),
-    );
+    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
     let recovered =
       round?.recovered ??
       (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-        transport: { cwd: directory },
+        transport: { cwd: directory, deadline: budget.monotonicDeadline },
       }));
     checkpoint = recovered.checkpoint;
     const repository = recovered.repository;
@@ -317,6 +356,7 @@ async function coordinateTrustedReleaseAt(
       round?.admission?.reader ??
       (await authenticateControlReaderJob(process.env, workflow, {
         phase: "coordinator",
+        deadline: budget.monotonicDeadline,
       }));
     let currentExecutor: Awaited<ReturnType<typeof authenticateCapacityExecutor>> | null = null;
     const getExecutor = async () => {
@@ -335,6 +375,7 @@ async function coordinateTrustedReleaseAt(
           run_attempt: reader.admitted.run_attempt,
         },
         directory,
+        budget.monotonicDeadline,
       );
       return currentExecutor;
     };
@@ -372,6 +413,7 @@ async function coordinateTrustedReleaseAt(
       releases,
       allocations,
       new Date().toISOString(),
+      recovered.input.active_candidate,
     );
     const factsSha = capacityDigest({ opportunity, publication, checkpoint });
     const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -397,12 +439,13 @@ async function coordinateTrustedReleaseAt(
             run_id: String(reader.admitted.run_id),
             run_attempt: reader.admitted.run_attempt,
           },
-          { deadline: budget.deadline },
+          { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
         );
     const controls =
       round?.admission?.controls ??
       (await authenticateReleaseControlSource(process.env, workflow, {
         phase: "coordinator",
+        deadline: budget.monotonicDeadline,
         ...(artifact ? { observedArtifact: artifact } : {}),
       }));
     const initial = controls.read(api, opportunity);
@@ -456,8 +499,19 @@ async function coordinateTrustedReleaseAt(
             /^github-actions:boburning\/portcove:run:([1-9][0-9]*):attempt:1$/u,
           );
           const observed = known
-            ? await readPreparedReleaseCandidate(candidate, Number(known[1]), token)
-            : await discoverPreparedReleaseCandidate(candidate, token);
+            ? await readPreparedReleaseCandidate(
+                candidate,
+                Number(known[1]),
+                token,
+                fetch,
+                budget.monotonicDeadline,
+              )
+            : await discoverPreparedReleaseCandidate(
+                candidate,
+                token,
+                fetch,
+                budget.monotonicDeadline,
+              );
           if (
             receipt &&
             (receipt.remote_identity !== observed.remote_identity ||
@@ -487,7 +541,7 @@ async function coordinateTrustedReleaseAt(
       const current = await readRemoteCoordinatorSnapshot(
         directory,
         selected.remote_configuration,
-        { transport: { cwd: directory } },
+        { transport: { cwd: directory, deadline: budget.monotonicDeadline } },
       );
       if (current.checkpoint !== expectedCheckpoint)
         throw new Error("remote checkpoint changed during coordinator admission");
@@ -687,6 +741,8 @@ async function coordinateTrustedReleaseAt(
         },
         Number(retainedRun[1]),
         readToken,
+        fetch,
+        budget.monotonicDeadline,
       );
       if (dispatch.value.evidence_sha256 !== known.evidence_sha256)
         throw new Error("actual retained dispatch receipt changed");
@@ -728,6 +784,8 @@ async function coordinateTrustedReleaseAt(
               await assertInventory(pending.checkpoint);
               await readBoundary();
             },
+            fetch,
+            budget.monotonicDeadline,
           );
           return dispatch.value;
         },
@@ -793,6 +851,18 @@ export async function prepareTrustedCoordinatorRenewal(
     };
   },
 ) {
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    prepareTrustedCoordinatorRenewalAt(privateParent, raw, undefined, budget),
+  );
+}
+
+async function prepareTrustedCoordinatorRenewalAt(
+  privateParent: string,
+  raw: Parameters<typeof prepareTrustedCoordinatorRenewal>[1],
+  round?: RecoveredCoordinatorRound,
+  inheritedBudget?: ReturnType<typeof coordinatorDeadline>,
+) {
   const selected = structuredClone(raw);
   if (
     Object.keys(selected).sort().join(",") !== "remote_configuration,tools" ||
@@ -802,17 +872,20 @@ export async function prepareTrustedCoordinatorRenewal(
     throw new Error("fixed coordinator renewal invocation fields differ");
   inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(project, privateParent, "metadata coordinator private parent");
-  const directory = await mkdtemp(path.join(privateParent, "coordinator-renewal-"));
-  const budget = coordinatorDeadline();
+  const directory =
+    round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-renewal-")));
+  const budget = round?.budget ?? inheritedBudget ?? coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
-    const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
-    });
+    const recovered =
+      round?.recovered ??
+      (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
+        transport: { cwd: directory, deadline: budget.monotonicDeadline },
+      }));
     checkpoint = recovered.checkpoint;
-    if (recovered.input.active_candidate !== null)
-      return { decision: "held-active-candidate", directory, checkpoint, authority: "none" };
+    if (coordinatorHasUnresolvedEffect(recovered.input))
+      return { decision: "held-unresolved-effect", directory, checkpoint, authority: "none" };
     const published = inspectPublishedMetadata(recovered.input.published_metadata);
     if (!published)
       throw new Error(
@@ -828,12 +901,17 @@ export async function prepareTrustedCoordinatorRenewal(
       directory,
       selected.tools.artifact,
       selected.tools.bundle,
+      { deadline: budget.monotonicDeadline },
     );
     const tools = await verifiedControllerToolPaths(receipt);
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
     });
+    const authorities = await requireControllerReleaseAuthorities("coordinator");
+    if (authorities.namespace !== inspectCoordinatorRemoteNamespace(selected.remote_configuration))
+      throw new Error("metadata coordinator authority namespace differs");
     if (
       tools.identity.controller_revision !== reader.admitted.revision ||
       tools.identity.controller_ref !== reader.admitted.execution_ref ||
@@ -848,6 +926,7 @@ export async function prepareTrustedCoordinatorRenewal(
         repository_sha256: published.repository_sha256,
       },
       directory,
+      budget.monotonicDeadline,
     );
     const existing = recovered.input.metadata_renewal;
     const generatedAt =
@@ -866,16 +945,10 @@ export async function prepareTrustedCoordinatorRenewal(
       prior_repository_sha256: published.repository_sha256,
       generated_at: generatedAt,
       output_parent: directory,
+      deadline: budget.monotonicDeadline,
     });
     const prepared = await inspectPreparedMetadataRenewal(preparation);
-    const runner = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: 15000,
-      maxBuffer: 2 * 1024 * 1024,
-    });
-    const api = new GitHubApiClient((args, body) =>
-      runner([...args, "--hostname", "github.com"], body),
-    );
+    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
     const inventory = createReleasePublicationReader(api);
     const tags = inventory.tags();
     const releases = inventory.releases();
@@ -888,6 +961,7 @@ export async function prepareTrustedCoordinatorRenewal(
       releases,
       allocations,
       new Date().toISOString(),
+      recovered.input.active_candidate,
     );
     const inventorySha = capacityDigest({ tags, releases });
     const ready = prepareControlReadiness(
@@ -910,10 +984,11 @@ export async function prepareTrustedCoordinatorRenewal(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline },
+      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
     });
     const initial = controls.readMaintenance(api);
@@ -926,14 +1001,14 @@ export async function prepareTrustedCoordinatorRenewal(
     )
       throw new Error("bounded coordinator maintenance state unavailable");
     const oldCapacity = recovered.input.controller.capacity_attempt;
+    const frozenController = recovered.input.controller;
     const input = structuredClone(recovered.input);
     input.schema_version = 2;
     input.now = new Date().toISOString();
     input.publication = { ...publication, observed_at: input.now };
     input.metadata_renewal = prepared.descriptor;
     input.controller = {
-      workflow: ".github/workflows/application-update-production.yml",
-      revision: reader.admitted.revision,
+      ...frozenController,
       publication_paused: initial.pause.publication_paused,
       capacity_attempt: {
         ...initial.capacity_source.capacity,
@@ -943,12 +1018,16 @@ export async function prepareTrustedCoordinatorRenewal(
       },
     };
     const plan = planReleaseOpportunity(input);
-    if (plan.action === "pause")
+    if (
+      !isRecord(input.controller) ||
+      input.controller.publication_paused ||
+      assessBoundedCapacity(input.controller.capacity_attempt).eligibility !== "eligible"
+    )
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
     await verifiedControllerToolPaths(receipt);
     await inspectPreparedMetadataRenewal(preparation);
     const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
+      transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     const fresh = controls.readMaintenance(api);
     if (
@@ -1001,15 +1080,59 @@ export async function prepareTrustedCoordinatorRenewal(
   }
 }
 
+/** Scheduling only; the actual fixed tool must authenticate the public feed
+ * before a descriptor can enter the journal. A retained unfinished descriptor
+ * takes precedence over choosing another controller clock. */
+export function selectCoordinatorMetadataRenewal(input: Record<string, unknown>, now: string) {
+  const time = Date.parse(now);
+  if (!Number.isFinite(time)) throw new Error("metadata scheduling clock unavailable");
+  const published = inspectPublishedMetadata(input.published_metadata);
+  if (!published) return "unconfigured" as const;
+  const retained =
+    input.metadata_renewal == null
+      ? null
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  if (retained?.prior_repository_sha256 === published.repository_sha256) return "resume" as const;
+  return Date.parse(published.expires.timestamp) <= time + 24 * 60 * 60 * 1000
+    ? ("due" as const)
+    : ("not-due" as const);
+}
+
+function coordinatorHasUnresolvedEffect(input: Record<string, unknown>) {
+  const capacity =
+    isRecord(input.controller) && isRecord(input.controller.capacity_attempt)
+      ? input.controller.capacity_attempt
+      : null;
+  const operation = inspectCapacityOperation(capacity?.operation ?? null);
+  return operation !== null && !["succeeded", "recovered"].includes(operation.outcome);
+}
+
 /** Freeze one neutral work request in the existing journal. While a candidate
  * or request is outstanding the current provider main head merely coalesces;
  * no second queue, semantic assertion or speculative version is created. */
 export async function requestTrustedSemanticReview(
   privateParent: string,
-  raw: { remote_configuration: unknown },
+  raw: {
+    remote_configuration: unknown;
+    tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
+  },
+) {
+  const budget = coordinatorDeadline();
+  return withCoordinatorDeadline(budget.monotonicDeadline, () =>
+    requestTrustedSemanticReviewAt(privateParent, raw, budget),
+  );
+}
+async function requestTrustedSemanticReviewAt(
+  privateParent: string,
+  raw: Parameters<typeof requestTrustedSemanticReview>[1],
+  budget: ReturnType<typeof coordinatorDeadline>,
 ) {
   const selected = structuredClone(raw);
-  if (Object.keys(selected).join(",") !== "remote_configuration")
+  if (
+    !["remote_configuration", "remote_configuration,tools"].includes(
+      Object.keys(selected).sort().join(","),
+    )
+  )
     throw new Error("neutral review request invocation fields differ");
   const namespace = inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(
@@ -1018,14 +1141,37 @@ export async function requestTrustedSemanticReview(
     "review request coordinator private parent",
   );
   const directory = await mkdtemp(path.join(privateParent, "coordinator-review-"));
-  const budget = coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
     const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
+      transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     checkpoint = recovered.checkpoint;
+    const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
+    if (["due", "resume"].includes(renewal)) {
+      if (coordinatorHasUnresolvedEffect(recovered.input))
+        return {
+          decision: "held-unresolved-effect",
+          directory,
+          checkpoint,
+          renewal,
+          authority: "none",
+        };
+      if (!selected.tools)
+        return {
+          decision: "held-renewal-tools",
+          directory,
+          checkpoint,
+          renewal,
+          authority: "none",
+        };
+      return prepareTrustedCoordinatorRenewalAt(
+        directory,
+        { remote_configuration: selected.remote_configuration, tools: selected.tools },
+        { directory, budget, recovered },
+      );
+    }
     const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
     if (outstanding)
       return continueTrustedSemanticReview(
@@ -1049,14 +1195,7 @@ export async function requestTrustedSemanticReview(
         { directory, budget, recovered },
       );
     }
-    const runner = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: 15000,
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    const api = new GitHubApiClient((args, body) =>
-      runner([...args, "--hostname", "github.com"], body),
-    );
+    const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
     const mainHead = () => {
       const response = api.request("GET", "repos/boburning/portcove/git/ref/heads/main");
       const value = response.body;
@@ -1105,8 +1244,15 @@ export async function requestTrustedSemanticReview(
       prepared_tree: publishedCommit.body.tree.sha,
     });
     const base = sourceProof.source_baseline.commit;
-    if (source === base)
-      return { decision: "unchanged-published-source", directory, checkpoint, authority: "none" };
+    if (source === base) {
+      return {
+        decision: "unchanged-published-source",
+        directory,
+        checkpoint,
+        renewal,
+        authority: "none",
+      };
+    }
     const sourceResponse = api.request("GET", `repos/boburning/portcove/git/commits/${source}`);
     if (sourceResponse.status !== 200) throw new Error("current main raw Git identity unavailable");
     const sourceObject = inspectRemoteCommitObject(sourceResponse.body, source);
@@ -1128,6 +1274,7 @@ export async function requestTrustedSemanticReview(
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
     });
     await writeFile(
       path.join(directory, "ready-coordinator.json"),
@@ -1145,10 +1292,11 @@ export async function requestTrustedSemanticReview(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline },
+      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
     });
     const observed = controls.readMaintenance(api);
@@ -1189,7 +1337,7 @@ export async function requestTrustedSemanticReview(
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
     const fresh = controls.readMaintenance(api);
     const remote = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
+      transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     if (
       mainHead() !== source ||
@@ -1254,17 +1402,11 @@ async function continueTrustedSemanticReview(
   try {
     const request = inspectReleaseReviewRequest(recovered.input.review_request);
     if (!request) throw new Error("no outstanding exact semantic request to retire");
-    const runner = createGitHubRunner({
-      cwd: directory,
-      timeoutMs: 15000,
-      maxBuffer: 2 * 1024 * 1024,
-    });
-    const api = new GitHubApiClient((args, body) =>
-      runner([...args, "--hostname", "github.com"], body),
-    );
+    const api = coordinatorApi(directory, budget, 2 * 1024 * 1024);
     const workflow = await readProductionControllerWorkflowBytes();
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
     });
     await writeFile(
       path.join(directory, "ready-coordinator.json"),
@@ -1282,10 +1424,11 @@ async function continueTrustedSemanticReview(
         run_id: String(reader.admitted.run_id),
         run_attempt: reader.admitted.run_attempt,
       },
-      { deadline: budget.deadline },
+      { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
     );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
+      deadline: budget.monotonicDeadline,
       observedArtifact: artifact,
     });
     const reviewed = controls.readRequest(api, request);
@@ -1340,7 +1483,7 @@ async function continueTrustedSemanticReview(
     };
     const fresh = controls.readDisposition(api, request);
     const current = await readRemoteCoordinatorSnapshot(directory, remoteConfiguration, {
-      transport: { cwd: directory },
+      transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     budget.check();
     if (fresh.facts_sha256 !== observed.facts_sha256 || current.checkpoint !== checkpoint)
@@ -1393,9 +1536,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     throw new Error("fixed metadata coordinator selection fields differ");
   console.log(
     JSON.stringify(
-      Object.keys(selection).join(",") === "remote_configuration"
+      ["remote_configuration", "remote_configuration,tools"].includes(
+        Object.keys(selection).sort().join(","),
+      )
         ? await requestTrustedSemanticReview(path.resolve(directory), {
             remote_configuration: selection.remote_configuration,
+            ...(selection.tools === undefined
+              ? {}
+              : {
+                  tools: selection.tools as Parameters<
+                    typeof prepareTrustedCoordinatorRenewal
+                  >[1]["tools"],
+                }),
           })
         : selection.opportunity === null
           ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {

@@ -1620,6 +1620,39 @@ is still qualifying. Its private same-process proof is exclusively for the
 separate qualifying-to-building journal CAS; it creates no aggregate, payload or
 publication admission. Ordinary acquisition still requires building/publishing,
 and caller flags or imported successful reports cannot select the earlier gate.
+`advanceActualCandidateToBuilding` consumes that same-process proof, rechecks the
+actual retained native/SPDX/public inputs and fresh controls, then advances the
+exact qualifying reservation through the existing local/remote checkpoint CAS.
+It uses the dedicated journal credential only after protected admission. An
+ambiguous remote handoff retains its local checkpoint and requires recovery;
+the helper never retries a mutation. Aggregation and payload admission still
+perform their own checks after the durable building checkpoint.
+The publishing writer separately requires the genuine post-sign
+`release-publication` context and its native journey/SPDX/public-input custody.
+`requireActualCandidatePhaseAdvance` rechecks the original private context,
+controls and exact local/remote checkpoint before exposing a same-process
+handoff. A prepared publication may bind that exact original context to the
+returned phase checkpoint; an imported receipt or caller-updated hash cannot
+rebind it. This handoff does not establish a published Release, a public TUF
+generation or candidate completion.
+The promoting writer separately consumes the actual owned immutable-Release
+completion receipt, retains the exact settled publish operation and Release
+identity in its projection, and rechecks post-sign custody and current controls
+before the same journal CAS. Public Release presence or an imported completion
+object cannot select this route. The active reservation remains intact for the
+later independently authenticated TUF/site publication and completion proof.
+
+Optional candidate `stage_evidence` retains at most three phase histories with
+six attempts each, matching the initial attempt plus two transient retries and
+three substantive repairs. Each attempt binds the preceding checkpoint, exact
+release run and consumed recovery counters to a public projection of immutable
+Check/artifact/operation locators and hashes. Prior entries cannot be changed,
+removed or backfilled; only the corresponding forward phase transition may
+append one entry. The existing 64KiB whole-checkpoint bound applies before any
+ref mutation. These projections support recollection after a crash; stored
+hashes or locators never authenticate a later action. Missing or expired actual
+proof remains held. Legacy candidates without this optional field retain their
+historical encoding and behavior.
 The complete workflow's existing `independent_admission` job requires the signed
 `production-release-admission` environment identity before that phase writer may
 release its journal credential. Consolidated setup must restrict this environment

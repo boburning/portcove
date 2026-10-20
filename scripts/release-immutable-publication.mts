@@ -44,6 +44,7 @@ import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidenc
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
@@ -645,6 +646,58 @@ export async function prepareImmutableReleasePublication(
 export type PreparedReleasePublication = Awaited<
   ReturnType<typeof prepareImmutableReleasePublication>
 >;
+
+/** The actual phase writer is the only way to move an already prepared session
+ * from its original admitted building checkpoint to publishing. An updated hash
+ * or copied phase receipt cannot rebind this session or its admission lineage. */
+export async function rebindPreparedImmutableReleaseAfterPhase(
+  session: PreparedReleasePublication,
+  phaseReceipt: object,
+  deadline?: number,
+) {
+  const work = async () => {
+    publicationRemaining(deadline);
+    const state = prepared.get(session);
+    if (!state || active.has(session))
+      throw new Error("actual idle immutable preparation required");
+    const { requireActualCandidatePhaseAdvance } = await import("./release-candidate-progress.mts");
+    const phase = await requireActualCandidatePhaseAdvance(phaseReceipt, "publishing");
+    const context = requireActualReleaseAdmissionContext(
+      phase.original_context,
+      "release-publication",
+    );
+    const descriptor = inspectAggregateDescriptor(state.descriptor);
+    const priorContext = publicationAdmissions.get(session);
+    if (
+      (priorContext && priorContext !== phase.original_context) ||
+      state.checkpoint !== phase.previous_checkpoint ||
+      context.checkpoint !== phase.previous_checkpoint ||
+      state.session.identity.source_commit !== phase.candidate.prepared_commit ||
+      state.session.identity.version !== phase.candidate.version ||
+      capacityDigest(descriptor.assembly) !== capacityDigest(context.facts.assembly) ||
+      capacityDigest(descriptor.archives) !== capacityDigest(context.facts.archives) ||
+      phase.repository !== context.coordinator_repository
+    )
+      throw new Error("phase handoff differs from original immutable preparation/admission");
+    const nextDescriptor = JSON.stringify({ ...descriptor, checkpoint: phase.checkpoint });
+    const current = await recoverReleaseOpportunity(phase.repository, phase.checkpoint);
+    await requireReservedAggregate(nextDescriptor, current);
+    if (capacityDigest(current.input.active_candidate) !== capacityDigest(phase.candidate))
+      throw new Error("phase handoff candidate changed before immutable session binding");
+    await requireActualCandidatePhaseAdvance(phaseReceipt, "publishing");
+    publicationRemaining(deadline);
+    state.descriptor = nextDescriptor;
+    state.checkpoint = phase.checkpoint;
+    publicationAdmissions.set(session, phase.original_context);
+    return Object.freeze({
+      checkpoint: phase.checkpoint,
+      previous_checkpoint: phase.previous_checkpoint,
+      scope: "same-process publishing phase handoff only",
+      authority: "none",
+    });
+  };
+  return deadline === undefined ? work() : withCoordinatorDeadline(deadline, work);
+}
 
 /** Read-only feed prerequisite. Obtain the expected complete asset inventory from
  * the actual private preparation, not a caller's release receipt. This performs
