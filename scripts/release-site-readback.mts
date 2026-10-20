@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
-import { isSafeSitePath } from "./release-site-composer.mts";
+import { isSafeSitePath, readComposedSite } from "./release-site-composer.mts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
@@ -15,6 +15,147 @@ const maximumFileBytes = 64 * 1024 * 1024;
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+
+type PublishedPins = {
+  site_generation_sha256: string;
+  root_sha256: string;
+  repository_sha256: string;
+};
+const completeSiteCustody = new WeakMap<
+  object,
+  {
+    directory: string;
+    rootPath: string;
+    markerSha256: string;
+    pins: PublishedPins;
+  }
+>();
+
+/** Retrieve only bytes acquired in this process from the fixed public origin.
+ * This custody does not authenticate TUF, appoint a root or grant deployment.
+ * Every use rechecks the complete tree, including the untouched catalog. */
+export async function requirePublishedCompleteSite(receipt: unknown) {
+  const retained =
+    typeof receipt === "object" && receipt !== null ? completeSiteCustody.get(receipt) : undefined;
+  if (!retained) throw new Error("actual complete public site custody required");
+  const { files, generation } = await readComposedSite(
+    retained.directory,
+    retained.pins.site_generation_sha256,
+    retained.pins.root_sha256,
+  );
+  const application = generation.files
+    .filter((file) => file.path.startsWith("application/"))
+    .map((file) => ({ ...file, path: file.path.slice(12) }));
+  if (
+    hash(files.get("publication.json") ?? Buffer.alloc(0)) !== retained.markerSha256 ||
+    capacityDigest(application) !== retained.pins.repository_sha256 ||
+    hash(
+      files.get(path.relative(retained.directory, retained.rootPath).replaceAll("\\", "/")) ??
+        Buffer.alloc(0),
+    ) !== retained.pins.root_sha256
+  )
+    throw new Error("retained public application bytes changed");
+  return {
+    directory: retained.directory,
+    application: path.join(retained.directory, "application"),
+    root_path: retained.rootPath,
+    generation,
+    pins: structuredClone(retained.pins),
+  };
+}
+
+/** Recover the whole journal-pinned site for fresh signing/composition workers.
+ * The application still requires the pinned Tough verifier before signing.
+ * Catalog bytes are preserved as opaque, independently owned content. */
+export async function materializePublishedCompleteSite(raw: PublishedPins, privateParent: string) {
+  const expected = structuredClone(raw);
+  if (
+    !isRecord(expected) ||
+    Object.keys(expected).sort().join(",") !==
+      "repository_sha256,root_sha256,site_generation_sha256" ||
+    !Object.values(expected).every(digest)
+  )
+    throw new Error("independent complete site identities required");
+  if (!path.isAbsolute(privateParent)) throw new Error("private site parent required");
+  const parent = await lstat(privateParent);
+  if (
+    !parent.isDirectory() ||
+    parent.isSymbolicLink() ||
+    (await realpath(privateParent)) !== path.resolve(privateParent)
+  )
+    throw new Error("private site parent is linked or unavailable");
+  const retained = await mkdtemp(path.join(privateParent, "published-site-"));
+  const directory = path.join(retained, "site");
+  await mkdir(directory, { mode: 0o700 });
+  try {
+    const read = publicReader(performance.now() + 120_000);
+    const first = await read("publication.json", 4 * 1024 * 1024);
+    const observed = marker(JSON.parse(first.toString("utf8")), expected.site_generation_sha256);
+    if (observed.application_root_sha256 !== expected.root_sha256)
+      throw new Error("complete site root differs from independently pinned root");
+    const application = observed.files
+      .filter((file) => file.path.startsWith("application/"))
+      .map((file) => ({ ...file, path: file.path.slice(12) }));
+    const roots = application.filter(
+      (file) =>
+        /^metadata\/[1-9][0-9]*\.root\.json$/u.test(file.path) &&
+        file.sha256 === expected.root_sha256,
+    );
+    if (roots.length !== 1 || capacityDigest(application) !== expected.repository_sha256)
+      throw new Error("complete site's application inventory differs from journal");
+    const directories = new Set<string>();
+    for (const file of observed.files) {
+      const segments = file.path.split("/");
+      for (let count = 1; count < segments.length; count++)
+        directories.add(segments.slice(0, count).join("/"));
+    }
+    // Match the existing composer's entry/byte limits, including its marker.
+    if (
+      observed.files.length + 1 > maximumFiles ||
+      observed.files.length + directories.size + 1 > maximumFiles + 128 ||
+      observed.files.some((file) => directories.has(file.path)) ||
+      observed.files.reduce((total, file) => total + file.bytes, first.length) > maximumBytes
+    )
+      throw new Error("complete site exceeds composer bounds or aliases a directory");
+    for (const file of observed.files) {
+      const bytes = await read(file.path, file.bytes);
+      if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
+        throw new Error(`complete public site bytes differ: ${file.path}`);
+      const filename = path.join(directory, file.path);
+      await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
+      await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
+    }
+    const last = await read("publication.json", 4 * 1024 * 1024);
+    if (!first.equals(last))
+      throw new Error("public generation changed during complete acquisition");
+    await writeFile(path.join(directory, "publication.json"), first, { flag: "wx", mode: 0o600 });
+    const receipt = {
+      schema_version: 1,
+      ...expected,
+      marker_sha256: hash(first),
+      authority: "none",
+      scope: "complete journal-pinned public bytes; TUF verification still required",
+    };
+    await writeFile(path.join(retained, "readback.json"), JSON.stringify(receipt), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    completeSiteCustody.set(receipt, {
+      directory,
+      pins: expected,
+      rootPath: path.join(directory, "application", roots[0]!.path),
+      markerSha256: hash(first),
+    });
+    return { receipt, ...(await requirePublishedCompleteSite(receipt)) };
+  } catch (error) {
+    await writeFile(
+      path.join(retained, "refusal.json"),
+      JSON.stringify({ ...expected, completed: false, authority: "none", automatic_retry: false }),
+      { flag: "wx", mode: 0o600 },
+    );
+    throw new Error(`complete site materialization refused; retain ${retained}`, { cause: error });
+  }
+}
 
 /** One-time setup preimage, not routine admission or publication authority.
  * A marker 404 alone cannot prove absence: require the actual owner with full
