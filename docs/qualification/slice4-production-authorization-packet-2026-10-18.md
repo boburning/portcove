@@ -28,6 +28,15 @@ remain unaccepted. Genuine broker capture, ratified custody and the stage-specif
 record/context joins are still required. No native execution or production
 authority is established by this preparation.
 
+The October 20 [native account and harness preparation](slice4-native-account-preparation-2026-10-20.md)
+connects the fixed owner-side broker, separate non-admin account job boundary and
+installer-to-ordinary-desktop launch adapters. Protected controller staging,
+exact tool identities, actual qualification-account HKU and one-shot retained
+teardown are required. Inert tests are not cross-account GUI qualification.
+Account/ACL/custody setup, genuine stage serialization and the public signed
+update/rollback/journal route remain pending; no native Check or production
+execution is authorized by this component.
+
 The October 20 [actual initial-site preimage](slice4-534-initial-site-preimage-2026-10-20.md)
 records an owner-visible unconfigured project site and absent parent user-site
 repository, bracketed around fixed public-route 404 observations. This is
