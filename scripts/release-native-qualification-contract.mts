@@ -1,6 +1,18 @@
 import { isRecord } from "./runtime-values.mts";
 
 export type NativeQualificationStage = "payload-signing" | "release-publication";
+export const nativePrepublicationProfile = "signed-package-compatibility-v1" as const;
+export const nativePrepublicationScenarios = Object.freeze([
+  "install-over-prior",
+  "candidate-launch",
+  "retained-state",
+  "package-rollback",
+] as const);
+export const nativePrepublicationPending = Object.freeze([
+  "ordinary-public-discovery-and-download",
+  "ordinary-updater-journal-and-recovery",
+  "ordinary-public-manifest-journey",
+] as const);
 export const nativeQualificationScenarios = Object.freeze({
   "payload-signing": Object.freeze([
     "exact-package-bytes",
@@ -114,16 +126,30 @@ function candidateIdentity(raw: unknown) {
  * actual consumer separately authenticates its independently configured issuer
  * and exact expected capture before minting a private runtime receipt. */
 export function inspectNativeReleaseQualification(raw: unknown) {
+  const temporal = isRecord(raw) && raw.schema_version === 2;
   exact(
     raw,
-    "candidate,compatibility,host,journey,platform_label,producer,runtime,scenarios,schema_version,stage",
+    temporal
+      ? "candidate,compatibility,host,journey,native_prepublication_profile,pending_obligations,platform_label,producer,runtime,scenarios,schema_version,stage"
+      : "candidate,compatibility,host,journey,platform_label,producer,runtime,scenarios,schema_version,stage",
   );
   if (
-    raw.schema_version !== 1 ||
+    (raw.schema_version !== 1 && raw.schema_version !== 2) ||
     (raw.stage !== "payload-signing" && raw.stage !== "release-publication") ||
     (raw.platform_label !== "windows-x86_64" && raw.platform_label !== "linux-x86_64")
   )
     throw new Error("native qualification stage/platform is unsupported");
+  if (
+    temporal &&
+    (raw.stage !== "release-publication" ||
+      raw.native_prepublication_profile !== nativePrepublicationProfile ||
+      !Array.isArray(raw.pending_obligations) ||
+      raw.pending_obligations.length !== nativePrepublicationPending.length ||
+      raw.pending_obligations.some(
+        (value: unknown, index: number) => value !== nativePrepublicationPending[index],
+      ))
+  )
+    throw new Error("native prepublication profile/pending public proof differs");
   const stage: NativeQualificationStage = raw.stage;
   const platform: "windows-x86_64" | "linux-x86_64" = raw.platform_label;
   const candidate = candidateIdentity(raw.candidate);
@@ -247,14 +273,14 @@ export function inspectNativeReleaseQualification(raw: unknown) {
       lock_protocol: text(raw.compatibility.library.lock_protocol, 128),
     },
   };
-  if (
-    !Array.isArray(raw.scenarios) ||
-    raw.scenarios.length !== nativeQualificationScenarios[stage].length
-  )
+  const requiredScenarios = temporal
+    ? nativePrepublicationScenarios
+    : nativeQualificationScenarios[stage];
+  if (!Array.isArray(raw.scenarios) || raw.scenarios.length !== requiredScenarios.length)
     throw new Error("native stage scenario coverage is incomplete");
   const scenarios = raw.scenarios.map((value: unknown, index) => {
     exact(value, "capture_sha256,completed_at,name,outcome,started_at");
-    if (value.name !== nativeQualificationScenarios[stage][index] || value.outcome !== "passed")
+    if (value.name !== requiredScenarios[index] || value.outcome !== "passed")
       throw new Error("native stage scenario is missing, failed or reordered");
     const scenarioStart = instant(value.started_at),
       scenarioEnd = instant(value.completed_at);
@@ -273,7 +299,13 @@ export function inspectNativeReleaseQualification(raw: unknown) {
     };
   });
   return {
-    schema_version: 1 as const,
+    schema_version: raw.schema_version,
+    ...(temporal
+      ? {
+          native_prepublication_profile: nativePrepublicationProfile,
+          pending_obligations: [...nativePrepublicationPending],
+        }
+      : {}),
     stage,
     platform_label: platform,
     candidate,

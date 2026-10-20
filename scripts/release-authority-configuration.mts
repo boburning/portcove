@@ -1,6 +1,7 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
+import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
   readProductionControllerWorkflowBytes,
@@ -99,16 +100,29 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    isRecord(value) && Object.hasOwn(value, "publication")
-      ? "apps,namespace,native,publication,repository_id,schema_version"
-      : "apps,namespace,native,repository_id,schema_version",
+    [
+      "apps",
+      "namespace",
+      "native",
+      "repository_id",
+      "schema_version",
+      ...(isRecord(value) && Object.hasOwn(value, "publication") ? ["publication"] : []),
+      ...(isRecord(value) && value.schema_version === 2 ? ["native_prepublication_profile"] : []),
+    ]
+      .sort()
+      .join(","),
   );
   if (
-    value.schema_version !== 1 ||
+    (value.schema_version !== 1 && value.schema_version !== 2) ||
     value.repository_id !== 1354613114 ||
     Buffer.byteLength(JSON.stringify(value)) > 32 * 1024
   )
     throw new Error("release authority repository or byte bound differs");
+  if (
+    value.schema_version === 2 &&
+    value.native_prepublication_profile !== nativePrepublicationProfile
+  )
+    throw new Error("ratified native prepublication profile differs");
   const namespace = inspectCoordinatorRemoteNamespace({
     schema_version: 1,
     namespace: value.namespace,
@@ -225,7 +239,10 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
     }
   >;
   return {
-    schema_version: 1 as const,
+    schema_version: value.schema_version,
+    ...(value.schema_version === 2
+      ? { native_prepublication_profile: nativePrepublicationProfile }
+      : {}),
     repository_id: 1354613114 as const,
     namespace,
     apps,
@@ -261,6 +278,26 @@ export async function requireControllerPublicationAuthorities(phase: unknown) {
       "complete signing workflow requires ratified public Root, Targets, payload registry and setup pins",
     );
   return { ...authorities, publication: authorities.publication };
+}
+
+/** The fixed prepublication reader may select the temporal contract only from
+ * the existing protected configuration and controller/grant digest. Parsed
+ * report/candidate fields cannot select it, and schema1 has no default opt-in. */
+export async function requireControllerNativePrepublicationAuthorities() {
+  return inspectNativePrepublicationAuthorities(
+    await requireControllerReleaseAuthorities("release-publication"),
+  );
+}
+/** Configuration projection only. The hosted factory above additionally binds
+ * its digest to the actual protected controller source and ratified grant. */
+export function inspectNativePrepublicationAuthorities(raw: unknown) {
+  const authorities = inspectReleaseAuthorityConfiguration(raw);
+  if (
+    authorities.schema_version !== 2 ||
+    authorities.native_prepublication_profile !== nativePrepublicationProfile
+  )
+    throw new Error("ratified signed package compatibility profile required");
+  return authorities;
 }
 
 /** Fixed classification writer only. Its separate workflow must be admitted
