@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import { isRecord } from "./runtime-values.mts";
+import { validateCandidateStageTransition } from "./release-candidate-progress-contract.mts";
 import { validateReleaseReviewRequestTransition } from "./release-review-request.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 
@@ -255,6 +256,7 @@ function transition(
   validateReleaseReviewRequestTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
+  validateCandidateStageTransition(old, candidate, checkpoint);
   const controller = next.controller;
   if ((old || candidate) && canonical(controller) !== canonical(previous.input.controller)) {
     // Pause/capacity may change, but execution policy identity cannot drift.
