@@ -6,7 +6,47 @@ import {
   acquireActualNativeCandidate,
   requireActualNativeCandidate,
   inspectNativeSourceCommand,
+  nativeInvocationIdentity,
 } from "./release-native-candidate.mts";
+import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
+import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
+
+void test("native duplicate identity binds the actual tuple and existing bounded recovery counters", () => {
+  const report = nativeQualificationFixture();
+  const prepare = (nonce: string) =>
+    prepareNativeStageRequest(
+      {
+        schema_version: 1,
+        stage: report.stage,
+        platform_label: report.platform_label,
+        candidate: report.candidate,
+        journey: report.journey,
+        invocation_id: nonce,
+        setup_descriptor_sha256: "f".repeat(64),
+      },
+      nativeAuthorityConfigurationFixture(),
+    );
+  const counters = { transient_retries: 0, substantive_repairs: 0 };
+  const first = nativeInvocationIdentity(prepare("0".repeat(64)), counters);
+  assert.equal(
+    first.invocation_id,
+    nativeInvocationIdentity(prepare("e".repeat(64)), counters).invocation_id,
+  );
+  assert.equal(first.authority, "none");
+  assert.notEqual(
+    first.invocation_id,
+    nativeInvocationIdentity(prepare("0".repeat(64)), { ...counters, transient_retries: 1 })
+      .invocation_id,
+  );
+  for (const changed of [
+    { ...counters, transient_retries: 3 },
+    { ...counters, substantive_repairs: 4 },
+    { ...counters, transient_retries: -1 },
+    { ...counters, accepted: true },
+  ])
+    assert.throws(() => nativeInvocationIdentity(prepare("0".repeat(64)), changed));
+});
 
 void test("selection reconstructs exact package identities without native or admission authority", async (t) => {
   const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");

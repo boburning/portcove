@@ -1,7 +1,7 @@
 /** Actual local-parent candidate selection. Provider acquisition deliberately
  * retains the admission collector's injected-provider scope: this module owns
  * its fixed transport and package custody, never an admission/native result. */
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -23,6 +23,35 @@ import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 type Parent = Awaited<ReturnType<typeof requireActualNativeParent>>;
 type Identity = { platform_label: string; filename: string; bytes: number; sha256: string };
+
+/** Duplicate identity only; these are the existing coordinator recovery
+ * counters, not a local permission to advance or retry them. */
+export function nativeInvocationIdentity(
+  prepared: ReturnType<typeof prepareNativeStageRequest>,
+  rawCounters: unknown,
+) {
+  if (
+    !isRecord(rawCounters) ||
+    Object.keys(rawCounters).sort().join(",") !== "substantive_repairs,transient_retries"
+  )
+    throw new Error("native invocation requires exact coordinator recovery counters");
+  const counters: Record<string, number> = {};
+  for (const [name, maximum] of [
+    ["transient_retries", 2],
+    ["substantive_repairs", 3],
+  ] as const) {
+    const value = rawCounters[name];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > maximum)
+      throw new Error("native invocation exceeds existing coordinator recovery limits");
+    counters[name] = value;
+  }
+  const { invocation_id: _discard, ...request } = prepared.request;
+  return Object.freeze({
+    invocation_id: digest({ kind: "native-qualification-invocation-v1", request, counters }),
+    counters: Object.freeze(counters),
+    authority: "none" as const,
+  });
+}
 
 /** Integrity reconstruction only. Exact bytes do not establish native success. */
 export async function inspectSelectedNativeCandidate(
@@ -249,6 +278,7 @@ const selections = new WeakMap<
     packageBytes: number;
     facts: Readonly<PreparedReleaseAdmissionFacts>;
     request: ReturnType<typeof prepareNativeStageRequest>;
+    recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
     recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
   }
@@ -321,14 +351,33 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
   if (current.checkpoint !== value.facts.checkpoint)
     throw new Error("native reservation changed after immutable acquisition");
   await source.recheck();
-  const request = prepareNativeStageRequest(
+  if (!isRecord(current.input) || !isRecord(current.input.active_candidate))
+    throw new Error("native invocation lacks the actual active recovery counters");
+  const recovery = {
+    transient_retries: current.input.active_candidate.transient_retries,
+    substantive_repairs: current.input.active_candidate.substantive_repairs,
+  };
+  const prepared = prepareNativeStageRequest(
     {
       schema_version: 1,
       stage: "payload-signing",
       platform_label: parent.descriptor.platform_label,
       candidate: value.identity.candidate,
       journey: null,
-      invocation_id: randomBytes(32).toString("hex"),
+      invocation_id: "0".repeat(64),
+      setup_descriptor_sha256: parent.descriptor_sha256,
+    },
+    parent.authority_configuration,
+  );
+  const invocation = nativeInvocationIdentity(prepared, recovery);
+  const request = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: prepared.request.stage,
+      platform_label: prepared.request.platform_label,
+      candidate: prepared.request.candidate,
+      journey: prepared.request.journey,
+      invocation_id: invocation.invocation_id,
       setup_descriptor_sha256: parent.descriptor_sha256,
     },
     parent.authority_configuration,
@@ -354,6 +403,7 @@ export async function acquireActualNativeCandidate(parentReceipt: object) {
     packageBytes: value.identity.candidate.package.bytes,
     facts: value.facts,
     request,
+    recovery: invocation.counters,
     recover: source.recover,
     recheckSource: source.recheck,
   });
@@ -384,6 +434,7 @@ export async function requireActualNativeCandidate(receipt: object) {
     package_path: value.packagePath,
     directory: value.directory,
     checkpoint: value.facts.checkpoint,
+    recovery: value.recovery,
     authority: "none" as const,
     scope: "actual source/package selection only; native execution pending" as const,
   };
