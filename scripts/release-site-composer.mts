@@ -7,6 +7,7 @@ import path from "node:path";
 import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -62,7 +63,7 @@ async function boundedFile(file: string, maximum: number, qualifiedTool = false)
     await handle.close();
   }
 }
-const safePath = (name: string) =>
+export const isSafeSitePath = (name: string) =>
   name === ".nojekyll" ||
   (name.length <= 512 &&
     name.split("/").length <= 16 &&
@@ -84,7 +85,8 @@ async function tree(root: string): Promise<Files> {
     for (const entry of await readdir(path.join(root, relative), { withFileTypes: true })) {
       if (++entries > maximumFiles + 128) throw new Error("site input entry bound exceeded");
       const name = relative ? `${relative}/${entry.name}` : entry.name;
-      if (!safePath(name)) throw new Error("site input path differs from fixed publication layout");
+      if (!isSafeSitePath(name))
+        throw new Error("site input path differs from fixed publication layout");
       await assertOwnedUnlinkedPath(root, path.join(root, name), "site input");
       if (entry.isDirectory()) await walk(name, depth + 1);
       else {
@@ -135,6 +137,14 @@ function inspectPrior(files: Files, expected: string, rootHash: string) {
   )
     throw new Error("prior site bytes differ from independently expected generation");
   return { ...wanted, generation: expected };
+}
+
+/** Bounded filesystem readback only. A matching marker is not authentication;
+ * expected identities must come from the protected caller's real composition. */
+export async function readComposedSite(directory: string, expected: string, rootHash: string) {
+  const files = await tree(directory);
+  const generation = inspectPrior(files, expected, rootHash);
+  return { files, generation };
 }
 
 /** Filesystem composition only. Inputs here are NOT authenticated by a
@@ -323,7 +333,7 @@ export async function assembleAuthenticatedApplicationSite(request: {
   try {
     result = await run(executable, ["assemble-tuf", assembly], {
       cwd: work,
-      timeout: 120000,
+      timeout: 300000,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       env: {
@@ -336,6 +346,23 @@ export async function assembleAuthenticatedApplicationSite(request: {
       },
     });
   } catch (error) {
+    // Keep bounded process facts as well as streams. A silent timeout, signal or
+    // spawn refusal must not be reported as an observed TUF validation failure.
+    await writeFile(
+      path.join(work, "verifier.failure.json"),
+      JSON.stringify({
+        stage: "keyless-TUF-process",
+        timeout_ms: 300000,
+        code:
+          isRecord(error) && (typeof error.code === "string" || typeof error.code === "number")
+            ? error.code
+            : null,
+        signal: isRecord(error) && typeof error.signal === "string" ? error.signal : null,
+        killed: isRecord(error) && typeof error.killed === "boolean" ? error.killed : null,
+        authority: "none",
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
     for (const name of ["stdout", "stderr"] as const)
       if (isRecord(error) && typeof error[name] === "string")
         await writeFile(
@@ -360,11 +387,36 @@ export async function assembleAuthenticatedApplicationSite(request: {
     sha(await boundedFile(executable, 128 * 1024 * 1024)) !== request.verifier_sha256
   )
     throw new Error(`public TUF verification inputs changed; retain ${work}`);
-  return composeSiteFiles({
+  const report: unknown = JSON.parse(result.stdout);
+  const publication =
+    isRecord(report) && Object.hasOwn(report, "publication")
+      ? inspectTufPublicationFacts(report.publication)
+      : null;
+  if (publication) {
+    const publicFiles = await tree(assembled);
+    publicFiles.delete("repository-manifest.json");
+    const bytes = (name: string) => {
+      const value = publicFiles.get(name);
+      if (!value) throw new Error("actual assembled publication file missing");
+      return value;
+    };
+    if (
+      publication.root_sha256 !== request.trusted_root_sha256 ||
+      publication.repository_sha256 !== capacityDigest(identities(publicFiles)) ||
+      publication.timestamp_sha256 !== sha(bytes("metadata/timestamp.json")) ||
+      publication.snapshot_sha256 !==
+        sha(bytes(`metadata/${publication.versions.snapshot}.snapshot.json`)) ||
+      publication.offline_targets_sha256 !==
+        sha(bytes(`metadata/${publication.versions.targets}.targets.json`))
+    )
+      throw new Error("actual authenticated publication facts differ from assembled public bytes");
+  }
+  const site = await composeSiteFiles({
     previous: request.previous_site,
     expected_previous_generation: request.expected_previous_generation,
     application: assembled,
     application_root_sha256: request.trusted_root_sha256,
     output_parent: request.output_parent,
   });
+  return { ...site, publication };
 }
