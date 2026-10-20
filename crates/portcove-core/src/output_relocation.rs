@@ -131,6 +131,9 @@ impl PortcoveService {
             })?;
             let destination_path = destination_root.join(name);
             let retained_catalog = self.installed_catalog(&install)?;
+            crate::managed_shared_preferences::refuse_scope_transfer(
+                retained_catalog.port(&install.port_id)?,
+            )?;
             if let Err(error) = crate::runtime_path_policy::check_executable(
                 retained_catalog.port(&install.port_id)?,
                 crate::Platform::current()?,

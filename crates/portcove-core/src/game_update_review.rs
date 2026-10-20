@@ -1,5 +1,5 @@
 //! Exact review for explicit game updates; saved policy never chooses the action.
-use super::{InstallOverrides, OperationReporter};
+use super::{InstallOverrides, OperationReporter, ReleaseIntent};
 use crate::{
     ActivityOperation, ActivityTargetKind, DestructiveAuthorization, GameUpdatePlan, InstallRecord,
     OperationEvent, OperationResult, PortcoveError, PortcoveService, Result,
@@ -77,6 +77,13 @@ impl PortcoveService {
             sources,
             activate,
         ))?);
+        if let Some(shared) = &plan.shared_preferences {
+            return Ok(crate::signed_catalog::digest(&serde_json::to_vec(&(
+                "Portcove managed shared preference review v1",
+                digest,
+                shared,
+            ))?));
+        }
         Ok(digest)
     }
 
@@ -85,6 +92,22 @@ impl PortcoveService {
         port_id: &str,
         activate: bool,
         expected_plan: &str,
+    ) -> Result<DestructiveAuthorization> {
+        self.authorize_game_update_with_shared_preferences_ack(
+            port_id,
+            activate,
+            expected_plan,
+            None,
+        )
+        .await
+    }
+
+    pub async fn authorize_game_update_with_shared_preferences_ack(
+        &self,
+        port_id: &str,
+        activate: bool,
+        expected_plan: &str,
+        acknowledged: Option<&str>,
     ) -> Result<DestructiveAuthorization> {
         let reviewed = self.plan_game_update(port_id, activate).await?;
         if reviewed.plan_sha256 != expected_plan {
@@ -97,6 +120,11 @@ impl PortcoveService {
                 "an unverified retained copy blocks the update; verify or repair it first",
             ));
         }
+        crate::external_runtime::shared_preferences::require_scoped_ack(
+            reviewed.plan.shared_preferences.is_some(),
+            expected_plan,
+            acknowledged,
+        )?;
         self.library
             .issue_authorization("game-update", port_id, expected_plan)
     }
@@ -140,7 +168,14 @@ impl PortcoveService {
                     output_directory: None,
                 },
                 reviewed.plan.release,
-                activate,
+                ReleaseIntent {
+                    activate,
+                    shared_preferences: reviewed
+                        .plan
+                        .shared_preferences
+                        .as_ref()
+                        .map(crate::managed_shared_preferences::Acceptance::after_review),
+                },
                 &mut reporter,
             )
             .await

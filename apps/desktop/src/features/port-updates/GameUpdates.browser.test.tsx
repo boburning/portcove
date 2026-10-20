@@ -98,6 +98,8 @@ async function pressEscape() {
   });
 }
 
+// The retained cold-browser trace completed the UI save but spent >15s in browser
+// attachment/transport. Keep every assertion and a finite budget; no test retries.
 it("edits locally until Save and never reviews or runs an update when saving", async () => {
   const save = vi.fn().mockResolvedValue({ ...portStatus(), update_policy: "automatic" });
   const review = vi.spyOn(desktopApi, "planGameUpdate");
@@ -111,7 +113,7 @@ it("edits locally until Save and never reviews or runs an update when saving", a
   expect(review).not.toHaveBeenCalled();
   expect(apply).not.toHaveBeenCalled();
   expect(container.textContent).toContain("No update was run");
-});
+}, 45_000);
 
 it("does not report a settings save as successful after failure", async () => {
   const save = vi.fn().mockRejectedValue(new Error("Library changed"));
@@ -174,6 +176,44 @@ it("shows per-version sign-in limits in update review before confirmation", asyn
   );
   await click("Review game update");
   expect(dialog()?.textContent).toContain(notice);
+  expect(apply).not.toHaveBeenCalled();
+});
+
+it("shows shared and local preference paths before an update without accepting them", async () => {
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({
+    ...plan,
+    plan: {
+      ...plan.plan,
+      shared_preferences: {
+        binding: {
+          contract: "regaiden041-windows",
+          account_sid_sha256: "a".repeat(64),
+          path: "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+        },
+        local_fallback_path: "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+        shared_present: false,
+        local_fallback_present: false,
+      },
+    },
+  });
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain(
+    "C:/Users/player/AppData/Roaming/gbrecompiled/runtime/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain(
+    "E:/Portcove/versions/regaiden/artifact/runtime_prefs.ini",
+  );
+  expect(dialog()?.textContent).toContain("requires acceptance");
   expect(apply).not.toHaveBeenCalled();
 });
 
