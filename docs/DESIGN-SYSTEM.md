@@ -1,5 +1,30 @@
 # Portcove frontend design system
 
+## Library covers and compact rows
+
+Library defaults to covers; Compact rows presents the same entries and action
+selector. Columns derive from usable space: ordinary frames are 176–220 CSS
+pixels wide, with 112px artwork in short windows. Fixed 2:3 frames contain the
+whole image with neutral padding. Full game titles and port/variant labels grow
+below the frame without changing its height. Cover actions align within rows.
+Compact rows use 48×72px thumbnails and become an in-flow identity → state →
+actions sequence below 48rem.
+
+One details button owns artwork/title/port identity. Favorite, Play/review,
+update review and menus are siblings, never nested controls. Routine Stable and
+maintenance facts stay out of ordinary entries. Play remains beside a secondary
+downloaded-update review link. Steam bulk selection belongs to Integrations.
+Counts are library entries, including separate ports for one game. Details put
+current update decisions after identity/readiness/actions; Future update
+preferences are disclosed and saving them does not execute an update.
+
+Geist remains bundled. Initial body/secondary roles are 15/13px, page headings
+28px, compact controls 36px and ordinary controls 40px. Dimensions are
+content-driven minima, not clipping limits. Enlargement/text spacing may grow
+controls. Both themes share semantic roles. This supersedes earlier Library
+card-density assumptions; Find games retains its discovery composition and
+dated audit/reference evidence remains retained.
+
 ## Activity and contextual task feedback
 
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
@@ -551,3 +576,7 @@ cancel, result and return sequence only for the recorded source, platform and
 inputs. It does not establish Play, gameplay, other platforms or human/device
 observations. Keep changing journey gaps and their canonical owners in #206 and
 the owning issues rather than maintaining a second backlog here.
+
+### Library identity and artwork feedback
+
+The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.

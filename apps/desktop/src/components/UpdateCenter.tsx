@@ -546,10 +546,11 @@ function UpdateCheckControl({
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const labelId = useId();
   return (
-    <div className="update-buttons flex items-center gap-2">
+    <div className="update-buttons flex min-w-0 flex-wrap items-center gap-2">
       <Button
         data-focusable
         variant="outline"
+        className="max-w-full min-w-0 text-start whitespace-normal [&_span]:min-w-0 [&_span]:wrap-anywhere"
         disabled={Boolean(busy) || status === "pending" || !hasInstalled}
         focusableWhenDisabled={status === "pending" || busy === "check installed"}
         aria-busy={status === "pending" || busy === "check installed"}
@@ -999,7 +1000,7 @@ function UpdateStat({
   warning?: boolean;
 }) {
   return (
-    <div className="update-stat grid min-w-[82px] grid-cols-[auto_1fr] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3">
+    <div className="update-stat grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 rounded-pc-lg border border-pc-border bg-pc-surface px-3.5 py-3 wrap-anywhere">
       <div
         className={`row-span-2 ${warning ? "text-pc-danger-foreground" : accent ? "text-pc-interactive-foreground" : "text-pc-muted-foreground"}`}
       >

@@ -1,5 +1,12 @@
 # Desktop localization
 
+Library distinguishes game title, port project/variant and library entry count.
+Separate ports for one game remain separate entries. Search labels identify
+Library or Find games. Covers/Compact rows preserve full identity; expanding
+strings wrap without changing artwork proportions. Current update decisions stay
+distinct from Future update preferences. These English labels add no supported
+locale; engineering pseudo-locales remain tests.
+
 Navigation copy is Library / Find games / Activity / Settings. Activity sections are Tasks & history and Updates. These display labels do not rename serialized route IDs. Contextual task messages must retain complete action and target identity; an operation ID is not translated or inferred from a display name. English remains the supported product language; engineering locales do not become release commitments through this presentation change. Preserve the existing bounded namespace-migration scope below.
 
 Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.

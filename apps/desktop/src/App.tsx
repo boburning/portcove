@@ -110,6 +110,7 @@ import {
 } from "./view-model";
 import { gameIdentityLabel } from "./port-identity";
 import { OperationPresentationProvider } from "./features/operations/operation-presentation";
+import { useCollectionLayout } from "./features/browsing/use-collection-layout";
 import { InvocationOwnerProvider } from "./features/operations/invocation-owner";
 
 export const missingBootstrapError = {
@@ -370,6 +371,7 @@ function Workspace({
   consumeLibrarySelectionReturn: () => void;
 }) {
   const data = usePortcoveData(bootstrap.generation);
+  const collection = useCollectionLayout(bootstrap.library_root);
   const favorites = useFavorites(bootstrap.generation);
   const [setupSource, setSetupSource] = useSetupSource(data.sources);
   const operations = useOperationState({
@@ -654,6 +656,7 @@ function Workspace({
       />
     ) : (
       <CurrentView
+        collection={collection}
         favorites={favorites}
         data={data}
         ui={{ ...ui, setView: setPrimaryView }}
@@ -984,6 +987,7 @@ function selectedPort(
 }
 
 function CurrentView({
+  collection,
   favorites,
   data,
   ui,
@@ -1003,6 +1007,7 @@ function CurrentView({
   setupSource,
   setSetupSource,
 }: {
+  collection: ReturnType<typeof useCollectionLayout>;
   favorites: ReturnType<typeof useFavorites>;
   data: DataState;
   ui: UiState;
@@ -1176,6 +1181,9 @@ function CurrentView({
   if (!data.catalog && data.refreshFailure) return null;
   return (
     <PortBrowser
+      collectionLayout={collection.value}
+      setCollectionLayout={collection.set}
+      collectionLayoutFailure={collection.failure}
       favorites={favorites}
       view={ui.view}
       ports={model.visible}

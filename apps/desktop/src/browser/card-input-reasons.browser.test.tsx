@@ -174,7 +174,10 @@ it.each([
         .not.toBeInTheDocument();
       const details =
         view === "library"
-          ? page.getByRole("button", { name: `View details for ${name}`, exact: true })
+          ? page.getByRole("button", {
+              name: `View details for ${name} Port: ${name}`,
+              exact: true,
+            })
           : card;
       await expect.element(details).toBeEnabled();
       await expect.element(details).toHaveAccessibleDescription(new RegExp(reason));
@@ -203,7 +206,13 @@ it.each([
       if (view === "library") await userEvent.click(play);
       await expect
         .element(card)
-        .toMatchTextContent(name === "Staged ready" ? "Update downloaded" : "Ready to play");
+        .toMatchTextContent(
+          name === "Staged ready"
+            ? view === "library"
+              ? "Review downloaded update"
+              : "Update downloaded"
+            : "Ready to play",
+        );
     }
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();
