@@ -180,6 +180,36 @@ impl<'a> IndexedCatalogFixture<'a> {
 }
 
 #[test]
+fn indexed_policy_fixtures_keep_delivered_reader_floors() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for (id, version) in [
+        ("resident-evil-gaiden-recomp", 15),
+        ("wave-race-64-racewave46", 14),
+        ("render96ex", 13),
+    ] {
+        let bundle = IndexedCatalogFixture::new(&catalog, id).at_revision(7);
+        let entry: serde_json::Value = serde_json::from_slice(&bundle.contents[0].1).unwrap();
+        assert_eq!(
+            entry["required_capabilities"][0]["minimum_version"], version,
+            "{id}"
+        );
+        assert_eq!(
+            entry["required_capabilities"][0]["maximum_version"], version,
+            "{id}"
+        );
+        let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
+        index
+            .inspect_catalog_projection(
+                "official",
+                id,
+                &bundle.contents[0].1,
+                &bundle.contents[1].1,
+            )
+            .unwrap();
+    }
+}
+
+#[test]
 fn indexed_fixture_revisions_preserve_full_catalog_projection() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port_id = &catalog.ports()[0].id;
