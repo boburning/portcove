@@ -51,6 +51,46 @@ import {
   assemblerIdentityFixture as fixture,
 } from "./fixtures/assembler-identity-fixture.mts";
 
+void test("complete admission binds its protected environment while original read-only reader remains tag bound", async () => {
+  const profile = releaseControlPhaseProfile("admission");
+  assert.equal(profile.reader_environment, "production-release-admission");
+  const wanted = {
+    ...expected,
+    audience: profile.reader_audience,
+    subject: controllerOidcSubject(expected.controller_ref, profile.reader_environment),
+  };
+  const claims = {
+    aud: wanted.audience,
+    sub: wanted.subject,
+    environment: profile.reader_environment,
+  };
+  const location = { workflow: productionControllerWorkflow, job: profile.reader_name };
+  const good = fixture(claims, {}, location);
+  assert.equal(
+    (await verifyReleaseControlReaderJobIdentity("admission", good.token, wanted, good)).job_id,
+    501,
+  );
+  for (const override of [
+    { environment: undefined },
+    { environment: "production-payload-signing" },
+    { sub: controllerOidcSubject(expected.controller_ref) },
+  ]) {
+    const bad = fixture({ ...claims, ...override }, {}, location);
+    await assert.rejects(
+      verifyReleaseControlReaderJobIdentity("admission", bad.token, wanted, bad),
+    );
+    assert.equal(bad.counts().requests, 0);
+  }
+  const legacyExpected = { ...expected, audience: profile.reader_audience };
+  const legacy = fixture({ aud: legacyExpected.audience }, {}, location);
+  assert.equal(
+    (await verifyReleaseInputReaderJobIdentity(legacy.token, legacyExpected, legacy)).job_id,
+    501,
+  );
+  const cross = fixture(claims, {}, location);
+  await assert.rejects(verifyReleaseInputReaderJobIdentity(cross.token, wanted, cross));
+});
+
 void test("fixed role phase deadline caps each provider boundary and refuses expiry without another request", async (t) => {
   const f = fixture();
   await assert.rejects(

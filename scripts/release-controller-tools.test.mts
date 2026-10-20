@@ -113,6 +113,14 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   );
   assert.equal(ready.status, 2);
   assert.match(ready.stderr, /fixed reader readiness refused/);
+  const context = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(context.status, 2);
+  assert.match(context.stderr, /fixed payload\/context controller refused/);
+  assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
@@ -131,6 +139,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-control-ready",
     "release-reviewed-inputs",
     "release-payload-preparation",
+    "release-signing-controller",
     "release-role-key-channel",
     "release-coordinator-driver",
   ]);

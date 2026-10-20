@@ -9,6 +9,7 @@ import {
   requestAssemblerToken,
   controllerOidcSubject,
   verifyReleaseControlReaderJobIdentity,
+  verifyReleaseInputReaderJobIdentity,
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
@@ -87,9 +88,13 @@ export async function authenticateControlReaderJob(
     workflowBytes,
     phase,
   );
+  const readOnlyAdmission = phase === "admission" && admitted.mode === "admission-only";
   const expected = {
     audience: profile.reader_audience,
-    subject: controllerOidcSubject(admitted.execution_ref, profile.reader_environment),
+    subject: controllerOidcSubject(
+      admitted.execution_ref,
+      readOnlyAdmission ? undefined : profile.reader_environment,
+    ),
     controller_revision: admitted.revision,
     controller_ref: admitted.execution_ref,
     actor_id: admitted.actor_id,
@@ -102,7 +107,7 @@ export async function authenticateControlReaderJob(
     fetch,
     options.deadline,
   );
-  const identity = await verifyReleaseControlReaderJobIdentity(phase, token, expected, {
+  const identityOptions = {
     ...options.identity,
     transport: {
       ...(options.identity?.transport ?? { cwd: process.cwd() }),
@@ -112,7 +117,10 @@ export async function authenticateControlReaderJob(
             deadline: Math.min(options.deadline, options.identity?.transport?.deadline ?? Infinity),
           }),
     },
-  });
+  };
+  const identity = readOnlyAdmission
+    ? await verifyReleaseInputReaderJobIdentity(token, expected, identityOptions)
+    : await verifyReleaseControlReaderJobIdentity(phase, token, expected, identityOptions);
   return { admitted, identity };
 }
 

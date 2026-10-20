@@ -57,12 +57,52 @@ function minimumVersion(value: unknown, minimum: string) {
   }
 }
 
+/** Public data locations under the existing ratified configuration digest.
+ * Neither parsing these pins nor downloading their bytes grants signing. */
+export function inspectPublicationAuthorities(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  exact(value, "initial_site_preimage_sha256,public_source,setup_plan_sha256");
+  exact(value.public_source, "commit,offline_targets,payload_key_registry,root");
+  const source = value.public_source;
+  const files = Object.fromEntries(
+    (["root", "offline_targets", "payload_key_registry"] as const).map((name) => {
+      const file = source[name];
+      exact(file, "bytes,path,sha256");
+      if (
+        typeof file.path !== "string" ||
+        file.path.length > 256 ||
+        !file.path.endsWith(".json") ||
+        file.path.split("/").length > 8 ||
+        !file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
+        positive(file.bytes) > 1024 * 1024
+      )
+        throw new Error("publication public data path or byte bound differs");
+      return [name, { path: file.path, bytes: Number(file.bytes), sha256: hex(file.sha256, 64) }];
+    }),
+  ) as Record<
+    "root" | "offline_targets" | "payload_key_registry",
+    { path: string; bytes: number; sha256: string }
+  >;
+  if (new Set(Object.values(files).map((file) => file.path)).size !== 3)
+    throw new Error("publication public data paths are conflated");
+  return {
+    public_source: { commit: hex(source.commit, 40), ...files },
+    setup_plan_sha256: hex(value.setup_plan_sha256, 64),
+    initial_site_preimage_sha256: hex(value.initial_site_preimage_sha256, 64),
+  };
+}
+
 /** Configuration integrity only. Setup records actual generated IDs and custody
  * under the approved scope; parsing or a supplied digest never appoints them.
  * Native dynamic Check/invocation/candidate fields are deliberately excluded. */
 export function inspectReleaseAuthorityConfiguration(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  exact(value, "apps,namespace,native,repository_id,schema_version");
+  exact(
+    value,
+    isRecord(value) && Object.hasOwn(value, "publication")
+      ? "apps,namespace,native,publication,repository_id,schema_version"
+      : "apps,namespace,native,repository_id,schema_version",
+  );
   if (
     value.schema_version !== 1 ||
     value.repository_id !== 1354613114 ||
@@ -190,6 +230,9 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
     namespace,
     apps,
     native,
+    ...(value.publication === undefined
+      ? {}
+      : { publication: inspectPublicationAuthorities(value.publication) }),
   };
 }
 export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuthorityConfiguration>;
@@ -209,6 +252,15 @@ export async function requireControllerReleaseAuthorities(phase: unknown) {
     phase,
   );
   return inspectBoundControllerAuthorities(configuration, source);
+}
+
+export async function requireControllerPublicationAuthorities(phase: unknown) {
+  const authorities = await requireControllerReleaseAuthorities(phase);
+  if (!authorities.publication)
+    throw new Error(
+      "complete signing workflow requires ratified public Root, Targets, payload registry and setup pins",
+    );
+  return { ...authorities, publication: authorities.publication };
 }
 
 /** Fixed classification writer only. Its separate workflow must be admitted

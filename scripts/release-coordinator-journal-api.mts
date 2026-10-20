@@ -12,6 +12,8 @@ export function createCoordinatorJournalApi(
   directory: string,
   deadline?: number,
 ): CoordinatorRemoteApi {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new Error("journal role phase deadline must be finite");
   const remaining = () => {
     const timeout =
       deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));

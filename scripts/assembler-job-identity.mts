@@ -12,6 +12,7 @@ const repositoryId = 1354613114;
 export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
 export type ControllerOidcEnvironment =
   | "github-pages"
+  | "production-release-admission"
   | "production-payload-signing"
   | "production-release-coordinator"
   | "production-release-publication"
@@ -29,6 +30,7 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     environment !== undefined &&
     ![
       "github-pages",
+      "production-release-admission",
       "production-payload-signing",
       "production-release-coordinator",
       "production-release-publication",
@@ -543,7 +545,17 @@ export function verifyReleaseInputReaderJobIdentity(
   expected: unknown,
   options: IdentityOptions = {},
 ) {
-  return verifyReleaseControlReaderJobIdentity("admission", token, expected, options);
+  // Original schema-1 read-only admission route. Complete-workflow admission
+  // uses the environment-bound phase verifier below before any journal access.
+  return verifyJobIdentity(
+    {
+      workflow: productionControllerWorkflow,
+      job: releaseControlPhaseProfile("admission").reader_name,
+    },
+    token,
+    expected,
+    options,
+  );
 }
 export function verifyReleaseControlReaderJobIdentity(
   phase: unknown,
