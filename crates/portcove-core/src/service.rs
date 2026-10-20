@@ -7742,7 +7742,7 @@ mod tests {
     }
 
     #[cfg(windows)]
-    fn create_adoption_test_junction(target: &Path, link: &Path) {
+    pub(super) fn create_adoption_test_junction(target: &Path, link: &Path) {
         let target = target.to_str().unwrap();
         let link = link.to_str().unwrap();
         for path in [target, link] {

@@ -154,6 +154,37 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
             &preview.preview_sha256,
         )
         .unwrap();
+    // Collection discovers the newer working save after the first review.
+    // Preserve the refusal: fresh consequences require fresh authorization.
+    let refused = service
+        .restore_backup(PORT, &wanted.id, &approval.token)
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    assert!(refused.message.contains("state changed"));
+    assert_eq!(
+        fs::read(active.path.join("Save/file1.sav")).unwrap(),
+        b"newest save"
+    );
+    assert_eq!(
+        fs::read(wanted.path.join("data/Save/file1.sav")).unwrap(),
+        b"wanted save"
+    );
+    assert_eq!(
+        fs::read(service.library.user_dir(PORT).join("Save/file1.sav")).unwrap(),
+        b"newest save"
+    );
+    let preview = service
+        .preview_backup_action(PORT, &wanted.id, BackupAction::Restore)
+        .unwrap();
+    assert!(preview.safety_backup_will_be_created);
+    let approval = service
+        .authorize_backup_action(
+            PORT,
+            &wanted.id,
+            BackupAction::Restore,
+            &preview.preview_sha256,
+        )
+        .unwrap();
     let restored = service
         .restore_backup(PORT, &wanted.id, &approval.token)
         .unwrap();
@@ -180,18 +211,32 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
 
 #[test]
 fn shipwright_activation_and_rollback_collect_before_replacing_working_save() {
+    let started = std::time::Instant::now();
     let (_temporary, service, active, qualification) = fixture();
+    eprintln!(
+        "Shipwright activation fixture ready: {:?}",
+        started.elapsed()
+    );
     let staged = register(&service.library, &qualification, "staged", false);
+    eprintln!(
+        "Shipwright staged fixture registered: {:?}",
+        started.elapsed()
+    );
     game_write(&active, b"active progress");
     service
         .activate_staged_reviewed(PORT, Some(&active.id), &staged.id)
         .unwrap();
+    eprintln!(
+        "Shipwright reviewed activation complete: {:?}",
+        started.elapsed()
+    );
     assert_eq!(
         fs::read(staged.path.join("Save/file1.sav")).unwrap(),
         b"active progress"
     );
     game_write(&staged, b"staged progress");
     service.rollback(PORT).unwrap();
+    eprintln!("Shipwright rollback complete: {:?}", started.elapsed());
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
         b"staged progress"
@@ -361,8 +406,14 @@ fn shipwright_new_save_path_cannot_override_an_immutable_manifest_entry() {
     );
     game_write(&immutable, b"changed packaged witness");
     assert!(!service.verify(PORT).unwrap().valid);
-    assert!(service.prepare_launch(PORT, None).is_err());
+    // Ordinary launch verifies its critical executable set; the full check
+    // above still reports this noncritical immutable witness as changed.
+    service.prepare_launch(PORT, None).unwrap();
     assert!(!service.library.user_dir(PORT).join("Save").exists());
+    assert_eq!(
+        fs::read(immutable.path.join("Save/file1.sav")).unwrap(),
+        b"changed packaged witness"
+    );
 }
 
 #[test]
@@ -387,7 +438,10 @@ fn shipwright_unrelated_catalog_drift_does_not_admit_new_save_path() {
             .persistent_paths
             .contains(&"Save".into())
     );
-    assert!(service.prepare_launch(PORT, None).is_err());
+    // Retained launch authority remains usable; the changed current catalog
+    // must not expand its persistent paths or launch arguments.
+    let spec = service.prepare_launch(PORT, None).unwrap();
+    assert!(!spec.arguments.contains(&"--unreviewed".into()));
     assert!(!service.library.user_dir(PORT).join("Save").exists());
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
@@ -422,8 +476,7 @@ fn shipwright_save_root_shape_conflict_holds_without_overwriting_either_side() {
     );
 }
 
-#[test]
-fn shipwright_save_root_symlinks_hold_without_following_or_writing_external_data() {
+fn assert_save_root_links_refused(create_link: fn(&Path, &Path)) {
     for canonical_link in [false, true] {
         let (temporary, service, active, _) = fixture();
         let outside = temporary.path().join("outside-save");
@@ -436,7 +489,7 @@ fn shipwright_save_root_symlinks_hold_without_following_or_writing_external_data
             (active.path.join("Save"), canonical)
         };
         fs::create_dir_all(link.parent().unwrap()).unwrap();
-        super::tests::create_adoption_test_symlink(&outside, &link, true);
+        create_link(&outside, &link);
         fs::create_dir_all(&ordinary).unwrap();
         fs::write(ordinary.join("file1.sav"), b"owned progress").unwrap();
         fs::write(active.path.join(LAUNCH_MARKER), b"1").unwrap();
@@ -465,4 +518,16 @@ fn shipwright_save_root_symlinks_hold_without_following_or_writing_external_data
             b"owned progress"
         );
     }
+}
+
+#[test]
+fn shipwright_save_root_symlinks_hold_without_following_or_writing_external_data() {
+    assert_save_root_links_refused(|target, link| {
+        super::tests::create_adoption_test_symlink(target, link, true);
+    });
+}
+
+#[test]
+fn shipwright_save_root_junctions_hold_without_following_or_writing_external_data() {
+    assert_save_root_links_refused(super::tests::create_adoption_test_junction);
 }
