@@ -19,7 +19,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
-import { By, Key, until } from "selenium-webdriver";
+import { By, until } from "selenium-webdriver";
 import { installedPreservationWitness } from "./desktop-scenario-state.mts";
 import {
   reviewControls,
@@ -81,10 +81,14 @@ export async function sourceRemovalScenario({
     }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
+    await click(
+      By.xpath('//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Game files"]'),
+    );
     const row = By.css(`.source-health-row[data-source-profile="${source.profile_id}"]`);
-    const dialog = By.css('[aria-labelledby="source-removal-title"]');
+    const impactSelector = '[aria-label="Saved-location removal impact"]';
+    const dialog = By.css(impactSelector);
     const trigger = By.xpath(
-      `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Remove saved location"]`,
+      `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Review saved location removal"]`,
     );
     await browser.wait(until.elementLocated(row), 15_000);
     const rowLayout = await executeBrowserScript(
@@ -113,14 +117,19 @@ export async function sourceRemovalScenario({
     );
     const openReview = async () => {
       await click(trigger);
-      await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
+      await browser.wait(until.elementLocated(button("Remove saved location…")), 15_000);
     };
     await openReview();
-    await browser.actions().sendKeys(Key.ESCAPE).perform();
+    assert.equal(
+      (await browser.findElements(By.css('[role="dialog"]'))).length,
+      0,
+      "inline impact must not create renderer approval",
+    );
+    await click(button("Keep location"));
     await browser.wait(
       async () => (await browser.findElements(dialog)).length === 0,
       5_000,
-      "source removal Dialog did not close after Escape",
+      "source removal inline impact did not close after Keep location",
     );
     await browser.wait(
       async () => {
@@ -132,19 +141,19 @@ export async function sourceRemovalScenario({
         );
       },
       5_000,
-      "source removal trigger did not regain focus after Escape",
+      "source removal trigger did not regain focus after Keep location",
     );
     await openReview();
     const destructiveStyles = await assertDestructiveReviewAction(
       browser,
-      await browser.findElement(button("Continue to removal confirmation")),
+      await browser.findElement(button("Remove saved location…")),
       await browser.findElement(button("Keep location")),
     );
     let text = await browser.findElement(dialog).getText();
     assert.ok(
       text.includes(source.path) &&
         text.includes(port.name) &&
-        text.includes("will not move or delete files at") &&
+        text.includes("does not move or delete files at") &&
         text.includes("If interrupted, reopen Settings"),
     );
     await click(button("Keep location"));
@@ -153,7 +162,7 @@ export async function sourceRemovalScenario({
       source,
     );
     await openReview();
-    await click(button("Continue to removal confirmation"));
+    await click(button("Remove saved location…"));
     await confirmNative(
       "Remove saved location?",
       "__observe__",
@@ -173,7 +182,7 @@ export async function sourceRemovalScenario({
     });
     command(["source", "add", source.profile_id, replacement]);
     preserved.push(await fileIdentity(replacement));
-    await click(button("Continue to removal confirmation"));
+    await click(button("Remove saved location…"));
     await browser.wait(until.elementLocated(button("Check saved location again")), 15_000);
     const bootstrap = await invoke("get_bootstrap_status");
     assert(isRecord(bootstrap) && bootstrap.ok === true);
@@ -195,7 +204,7 @@ export async function sourceRemovalScenario({
     assert(isRecord(stale.error));
     assert.equal(stale.error.code, "conflict");
     await click(button("Check saved location again"));
-    await browser.wait(until.elementLocated(button("Continue to removal confirmation")), 15_000);
+    await browser.wait(until.elementLocated(button("Remove saved location…")), 15_000);
     text = await browser.findElement(dialog).getText();
     assert.ok(text.includes(replacement));
     await executeBrowserScript(
@@ -211,14 +220,14 @@ export async function sourceRemovalScenario({
       flag: "wx",
     });
     artifacts.push(screenshot);
-    await assertCompactReview(browser, '[aria-labelledby="source-removal-title"]');
+    await assertCompactReview(browser, impactSelector);
     const compact = path.join(output, "native-source-removal-compact.png");
     await writeFile(compact, await browser.takeScreenshot(), {
       encoding: "base64",
       flag: "wx",
     });
     artifacts.push(compact);
-    await click(button("Continue to removal confirmation"));
+    await click(button("Remove saved location…"));
     await confirmNative(
       "Remove saved location?",
       "Remove saved location",
@@ -251,7 +260,7 @@ export async function sourceRemovalScenario({
           dismissal_and_native_cancel_preserved_reference: true,
           changed_registration_rejected: true,
           stale_generation_rejected: true,
-          escape_dismissal_and_focus_restoration: true,
+          inline_keep_and_focus_restoration: true,
           destructive_action_styles: destructiveStyles,
           evidence:
             "native owned-file reference removal; no game compatibility or human-comprehension claim",
