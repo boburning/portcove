@@ -74,7 +74,7 @@
       grid-column: 1 / -1;
     }
     .update-stats {
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 6rem), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
     }
     .update-row {
       grid-template-columns: 2.625rem minmax(0, 1fr);
