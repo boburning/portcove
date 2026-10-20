@@ -145,7 +145,10 @@ for (const theme of ["dark", "light"]) {
     await expect.poll(() => document.querySelectorAll(".update-row").length).toBeGreaterThan(0);
     for (const width of [320, 240]) {
       await page.viewport(width, 800);
-      expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      const overflowing = [...document.querySelectorAll<HTMLElement>("main *")]
+        .filter((element) => element.getBoundingClientRect().right > innerWidth + 1)
+        .map((element) => `${element.tagName}.${element.className}: ${element.textContent}`);
+      expect(document.documentElement.scrollWidth, overflowing.join("\n")).toBeLessThanOrEqual(
         document.documentElement.clientWidth + 1,
       );
     }

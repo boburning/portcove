@@ -203,7 +203,13 @@ it.each([
       if (view === "library") await userEvent.click(play);
       await expect
         .element(card)
-        .toMatchTextContent(name === "Staged ready" ? "Update downloaded" : "Ready to play");
+        .toMatchTextContent(
+          name === "Staged ready"
+            ? view === "library"
+              ? "Review downloaded update"
+              : "Update downloaded"
+            : "Ready to play",
+        );
     }
     expect(launch).toHaveBeenCalledTimes(view === "library" ? 2 : 0);
     expect(invoke).not.toHaveBeenCalled();

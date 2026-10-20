@@ -546,10 +546,11 @@ function UpdateCheckControl({
   const pendingCheck = useRef<typeof checkAll | undefined>(undefined);
   const labelId = useId();
   return (
-    <div className="update-buttons flex items-center gap-2">
+    <div className="update-buttons flex min-w-0 flex-wrap items-center gap-2">
       <Button
         data-focusable
         variant="outline"
+        className="max-w-full min-w-0 text-start whitespace-normal [&_span]:min-w-0 [&_span]:wrap-anywhere"
         disabled={Boolean(busy) || status === "pending" || !hasInstalled}
         focusableWhenDisabled={status === "pending" || busy === "check installed"}
         aria-busy={status === "pending" || busy === "check installed"}

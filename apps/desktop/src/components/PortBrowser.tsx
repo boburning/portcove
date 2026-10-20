@@ -1002,6 +1002,7 @@ function LibraryEntry({
         dropTarget && "outline-3 outline-offset-2 outline-pc-ring outline-solid",
       )}
       aria-label={`${gameIdentityLabel(port)}. ${state.label}.`}
+      aria-describedby={input ? setupDescriptionId : undefined}
       data-source-drop-port-id={dropEligible ? port.id : undefined}
       data-source-drop-profile-id={dropEligible ? port.source_profile : undefined}
     >
