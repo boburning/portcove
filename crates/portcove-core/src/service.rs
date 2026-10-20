@@ -3961,6 +3961,9 @@ impl PortcoveService {
         root: &Path,
         executable: &Path,
     ) -> Result<()> {
+        if port.windows_runtime_path_policy.is_none() {
+            return Ok(());
+        }
         crate::runtime_path_policy::check_executable(port, platform, executable)?;
         crate::runtime_path_policy::check_prepared_path(port, platform, executable)?;
         let directory = if port.runtime_subdirectory.is_some() {
@@ -10801,6 +10804,18 @@ fn main() {
             Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath);
         let accepted_catalog =
             Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        service.replace_catalog_for_test(accepted_catalog.clone());
+        let mut missing_directory = document.clone();
+        missing_directory.ports[0].runtime_subdirectory = Some("missing".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&missing_directory).unwrap()).unwrap(),
+        );
+        let missing = service
+            .preview_external_runtime(&previous.port_id, &previous.path)
+            .unwrap_err();
+        assert_eq!(missing.code, crate::ErrorCode::Launch);
+        assert!(missing.message.contains("runtime subdirectory missing"));
+        assert!(!service.library.user_dir(&previous.port_id).exists());
         service.replace_catalog_for_test(accepted_catalog.clone());
         let lossy = temporary.path().join("runtime-ゲーム");
         fs::create_dir(&lossy).unwrap();

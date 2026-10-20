@@ -154,3 +154,34 @@ a failed projection assertion for the older managed version11 error wording;
 the repaired error reports the actual floor11 or17, and A2 passed the affected
 checks. These inert tests and generated-contract checks do not replace the
 separately bound actual operation observations or final-head hosted CI.
+
+## Hosted failure repairs
+
+Hosted run `39412944222/attempt1` at source
+`23883c5b6f29c3d5ae529080b75d7afa9d902bc0` retained three Windows
+failures. All27 jobs reached terminal state; the Windows fast-Rust leaf and its
+Rust aggregate failed, while the other four required contexts passed.
+
+The prepared-route fixture still expected two routes and DKC2 lacked its authored
+preparation guide. The count is now three, and the guide states the exact
+artwork-free runtime preparation, short basic-Latin paths, owned original and
+player-managed maintenance boundaries. The new path helper also resolved the
+working directory for unconstrained routes. It now returns early only when no
+Windows path policy is declared; constrained DKC2 still checks executable,
+working-directory and source paths. A missing-directory preview refusal remains
+covered, and actual launch still refuses before private-data creation.
+
+The Windows publisher-policy fixture exhausted its five-second copy-observation
+wait at10.2409642s; the first actual64KiB copy arrived at10.2926989s. Its Windows
+PolicyLoss wait alone is now15s, matching the existing artifact-withdrawal wait.
+The real incomplete-copy barrier, intervention, unfinished-worker checks,
+refusal, preservation, cleanup, worker drain and30s outer limit remain intact.
+This calibrates the fixture observation budget rather than a product deadline.
+
+Two separate non-writing reviews cleared these repairs. Local repair validation
+passed the three exact failed tests, the constrained-path service test, embedded
+catalog test, Rust formatting and catalog generation/check. Logs and the receipt
+remain in `dkc2-ci-repair-validation-a1`; the failed hosted run is preserved.
+These repairs require a fresh committed producer and exact-head hosted CI. The
+historical actual DKC2 observations retain their original producer identities;
+the policy-none guard does not change DKC2's declared runtime policy.

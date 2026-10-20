@@ -21236,6 +21236,26 @@
           "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
           "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
           "match_kind": "underlying-game"
+        },
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the exact runtime",
+              "instruction": "Extract the complete official v0.0.2 Windows x64 ZIP into a writable folder outside your Portcove library. Omit assets/img/boxart.tga and leave every other file unchanged."
+            },
+            {
+              "title": "Choose compatible folders",
+              "instruction": "Use short paths with basic Latin characters for both the runtime folder and your original game file."
+            },
+            {
+              "title": "Connect your original",
+              "instruction": "Choose and check your own stock headerless USA .sfc original in Portcove, then choose the prepared runtime folder below for review."
+            }
+          ],
+          "warnings": [
+            "Portcove selects the GDI compatibility renderer and bypasses the artwork launcher. You manage updates, settings, diagnostics and saves in this external folder; removal unregisters only.",
+            "Known upstream alpha rendering and level-dispatch limitations remain. Startup checks do not establish completed gameplay or populated save/load."
+          ]
         }
       },
       "persistent_paths": [],
