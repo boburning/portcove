@@ -46,8 +46,10 @@ the installation. Synthetic screenshot-folder probes reached canonical managed
 user data. They are preservation probes, not playable saves.
 
 The first screenshot visibly shows **THE FORCE ENGINE**, its main menu and
-version **1.22.420**. The second run also shows the engine menu after cache
-recreation. These are engine-menu startup observations; no Dark Forces mission,
+version **1.22.420**. The second capture after cache recreation is an incomplete,
+mostly black startup frame with version text and menu fragments. Both receipts
+establish supervised process starts and ordinary closes; only the first capture
+establishes a fully visible main menu. No Dark Forces mission,
 gameplay, save/load, controller input or physical-device acceptance was exercised.
 
 Before the second run, only the private `GameData/LFD/AGENTMNU.LFD` copy was
