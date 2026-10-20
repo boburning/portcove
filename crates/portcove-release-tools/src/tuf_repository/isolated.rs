@@ -10,6 +10,7 @@ use std::io::Write;
 use tough::editor::signed::SignedRole;
 use tough::schema::{DelegatedTargets, KeyHolder, Metafile, Snapshot, Targets};
 
+mod bootstrap;
 pub mod renewal;
 pub use renewal::prepare_tuf_renewal;
 
@@ -68,7 +69,10 @@ struct ContextConfig {
     offline_targets: String,
     payload_key_registry: String,
     reconstructed_records: String,
-    previous_repository: String,
+    #[serde(default)]
+    previous_repository: Option<String>,
+    #[serde(default)]
+    initial_bootstrap: Option<String>,
     versions: RoleVersions,
     expires: RoleExpirations,
 }
@@ -656,7 +660,21 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
     let top_path = resolve(base, &config.offline_targets, "offline targets")?;
     let registry_path = resolve(base, &config.payload_key_registry, "payload registry")?;
     let records_path = resolve(base, &config.reconstructed_records, "reconstructed records")?;
-    let previous_path = resolve(base, &config.previous_repository, "previous repository")?;
+    let (previous_path, bootstrap_path) = match (
+        &config.previous_repository,
+        &config.initial_bootstrap,
+    ) {
+        (Some(previous), None) => (Some(resolve(base, previous, "previous repository")?), None),
+        (None, Some(initial)) => (
+            None,
+            Some(resolve(base, initial, "initial bootstrap descriptor")?),
+        ),
+        _ => {
+            return invalid(
+                "exactly one authenticated previous repository or explicit initial bootstrap is required",
+            );
+        }
+    };
     let root_bytes = read_regular_bounded(&root_path, MAX_MANIFEST_BYTES, "trusted root")?;
     let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
     root.signed.verify_role(&root)?;
@@ -702,7 +720,18 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
     let registry = read_regular_bounded(&registry_path, MAX_REGISTRY_BYTES, "payload registry")?;
     validate_payload_registry(&registry)?;
     online::load_offline_targets(&top_path, &root, &ids, &versions, &expires, &registry)?;
-    let records = load_records(&records_path, true)?;
+    let record_manifest: ReconstructionManifest = parse_file(
+        &records_path.join("reconstruction-manifest.json"),
+        "reconstruction manifest",
+    )?;
+    let records = if bootstrap_path.is_some() || record_manifest.records.is_empty() {
+        // A routine empty map still passes verify_prior below: authenticated
+        // historical releases cannot disappear merely by declaring no records.
+        bootstrap::validate_empty_records(&records_path)?;
+        Vec::new()
+    } else {
+        load_records(&records_path, true)?
+    };
     if records
         .iter()
         .any(|(_, role, _)| matches!(role, DelegatedRole::Stable))
@@ -731,10 +760,15 @@ async fn load_context(path: &Path) -> Result<Context, TufRepositoryError> {
             top_path,
             registry_path,
             records_path,
-            previous_path.clone(),
         ],
     };
-    context.prior_files = verify_prior(&context, &previous_path).await?;
+    if let Some(previous) = previous_path {
+        context.inputs.push(previous.clone());
+        context.prior_files = verify_prior(&context, &previous).await?;
+    } else if let Some(initial) = bootstrap_path {
+        bootstrap::verify_initial_context(&context, generated, &initial)?;
+        context.inputs.push(initial);
+    }
     Ok(context)
 }
 

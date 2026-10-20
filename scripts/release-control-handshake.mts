@@ -142,6 +142,8 @@ export async function waitForControlArtifact(
     download?: typeof readGitHubArtifactArchive;
     now?: () => number;
     sleep?: (milliseconds: number) => Promise<void>;
+    /** Caller may only tighten the existing finite wait, never extend it. */
+    deadline?: number;
   } = {},
 ) {
   const input = attempt(raw);
@@ -158,10 +160,17 @@ export async function waitForControlArtifact(
     new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const now = options.now ?? Date.now;
   const start = now();
+  if (
+    options.deadline !== undefined &&
+    (!Number.isSafeInteger(options.deadline) ||
+      options.deadline <= start ||
+      options.deadline > start + 240000)
+  )
+    throw new Error("control handshake deadline must tighten the existing finite wait");
   let requests = 0;
   // Waiting precedes observation. The separate 60-second protection freshness
   // guard still applies after the actual report arrives.
-  const limit = 240000;
+  const limit = options.deadline === undefined ? 240000 : options.deadline - start;
   const get = (endpoint: string) => {
     if (++requests > 256 || now() - start >= limit)
       throw new Error("control handshake request or deadline bound exhausted");
@@ -394,7 +403,9 @@ export async function waitForControlArtifact(
         );
         return proof;
       }
-      await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(3000);
+      await (options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms))))(
+        Math.min(3000, Math.max(1, limit - (now() - start))),
+      );
     }
     throw new Error("control handshake poll count exhausted");
   } catch {

@@ -19,6 +19,7 @@ import {
   readPublicationPause,
   readRatifiedCapacityConfiguration,
   readReviewedClassification,
+  readReviewedClassificationForRequest,
 } from "./release-control-inputs.mts";
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -39,6 +40,11 @@ import {
   isMaintenanceReleaseControlPhase,
 } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  discoverIndependentSemanticDisposition,
+  readIndependentSemanticCheckInventory,
+  inspectSemanticRequestCheckMatches,
+} from "./release-semantic-disposition-reader.mts";
 const establishedSources = new WeakSet<object>();
 export function requireAuthenticatedReleaseControlSource(
   value: unknown,
@@ -303,6 +309,66 @@ export async function authenticateReleaseControlSource(
           admitted.workflow_sha256 === slice4CapacityResources.aggregate_workflow_sha256,
         facts_sha256: capacityDigest(facts),
         authority: "none",
+      };
+    },
+    readDisposition(api: CoordinatorRemoteApi, request: unknown) {
+      if (phase !== "coordinator")
+        throw new Error("semantic retirement requires the fixed coordinator controls");
+      const maintenance = source.readMaintenance(api);
+      const disposition = discoverIndependentSemanticDisposition(api, config, request);
+      guard();
+      if (producerReadback() !== producerIdentity)
+        throw new Error("observer job changed during semantic disposition readback");
+      return {
+        ...maintenance,
+        disposition,
+        facts_sha256: capacityDigest({
+          control_facts_sha256: maintenance.facts_sha256,
+          disposition,
+        }),
+      };
+    },
+    readRequest(api: CoordinatorRemoteApi, request: unknown) {
+      if (phase !== "coordinator")
+        throw new Error("request classification requires fixed coordinator controls");
+      const maintenance = source.readMaintenance(api);
+      const classification = readReviewedClassificationForRequest(api, config, request);
+      requireObservedRefs([["portcove-release-inputs", classification.commit]]);
+      if (classification.status === "reviewed") {
+        const checks = readIndependentSemanticCheckInventory(
+          api,
+          config,
+          classification.opportunity.source_commit,
+        );
+        const matches = inspectSemanticRequestCheckMatches(checks.records, request);
+        if (
+          matches.accepted.length !== 1 ||
+          matches.negative.length !== 0 ||
+          matches.accepted[0]!.check_run_id !== classification.review_check_id
+        )
+          throw new Error(
+            "persisted request classification conflicts with complete independent Check inventory",
+          );
+        checks.assertUnchanged();
+      }
+      guard();
+      if (producerReadback() !== producerIdentity)
+        throw new Error("observer changed during request classification read");
+      return {
+        ...maintenance,
+        classification,
+        facts_sha256: capacityDigest({
+          control_facts_sha256: maintenance.facts_sha256,
+          classification:
+            classification.status === "reviewed"
+              ? {
+                  status: classification.status,
+                  commit: classification.commit,
+                  opportunity: classification.opportunity,
+                  review_check_id: classification.review_check_id,
+                }
+              : classification,
+        }),
       };
     },
     read(api: CoordinatorRemoteApi, opportunity: unknown) {

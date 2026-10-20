@@ -45,6 +45,7 @@ async function fixture(t: test.TestContext, mode = "valid") {
     "apps/desktop/package.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
     "apps/desktop/src-tauri/tauri.conf.json": '{\n  "version": "0.1.0-alpha.2"\n}\n',
     "runtime/unrelated.exe": "opaque application executable bytes never fetched or executed\n",
+    ".github/workflows/release.yml": "name: fixed trusted release\n",
   })) {
     await mkdir(path.dirname(path.join(source, filename)), { recursive: true });
     await writeFile(path.join(source, filename), contents);
@@ -211,6 +212,20 @@ void test("a second off-main publication transforms the actual frozen source ver
   );
 });
 
+void test("preparation binds candidate workflow tree identity to fixed trusted bytes without fetching it", async (t) => {
+  const f = await fixture(t);
+  const expected = Buffer.from("name: fixed trusted release\n");
+  hydrateReleasePreparationSource(f.sparse, f.expected, f.api, {
+    trustedReleaseWorkflow: expected,
+  });
+  assert.throws(
+    () =>
+      hydrateReleasePreparationSource(f.sparse, f.expected, f.api, {
+        trustedReleaseWorkflow: Buffer.from("name: candidate changed workflow\n"),
+      }),
+    /workflow differs/,
+  );
+});
 void test(
   "fresh sparse source custody prepares byte-identical objects without unrelated blobs or Git history",
   { timeout: 60000 },
