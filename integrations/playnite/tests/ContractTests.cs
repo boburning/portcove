@@ -527,8 +527,8 @@ internal static class ContractTests
                 "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
-                && prepared.Count(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) != null) == 1,
-                "compiled current-schema technical notes and the optional preparation link reach dedicated client controls");
+                && prepared.All(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) == null),
+                "compiled remaining prepared routes retain their technical notes without inventing a preparation link");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
