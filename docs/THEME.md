@@ -159,3 +159,8 @@ Library recovery uses existing semantic text, surface, action, disclosure, statu
 and error roles in both themes. Step headings and explicit manual-copy wording
 carry state without relying on color. The guide flows at enlarged effective widths;
 paths wrap and retain isolated LTR direction. No separate recovery palette exists.
+
+Add games uses shared semantic action, selected, focus, status and error roles in
+both themes. In-flow stages and wrapping controls remain readable at effective
+240px widths. Native HTML port selection retains OS/forced-color behavior; it
+adds no independent palette, panel surface or durable selection authority.

@@ -531,7 +531,9 @@ consequences beside the enabled review action. A managed setup does not lead wit
 a disabled Play placeholder. Requirement fields remain in their dedicated group;
 missing-file recovery stays ahead of preparation when inputs are unavailable.
 After confirmed preparation, the current detail owner returns focus to enabled
-Play or its next-step heading. Library-generation/owner replacement and deliberate
+confirmed Play or its next-step heading. Unconfirmed compatibility keeps Try launch
+available but returns completion focus to the heading; Start setup is not a confirmed
+Play target either. Library-generation/owner replacement and deliberate
 focus elsewhere suppress that deferred handoff.
 
 Startup recovery places a specific interrupted Move or restore before generic
@@ -587,6 +589,17 @@ manual copy remains unverified until corresponding restore observations succeed.
 Use existing reviewed backup/import controls and native restore consent. Do not
 introduce a progress bar, checkbox, success badge or automatic-copy implication
 for work the application did not perform.
+
+### Add games composition
+
+Library's contextual Add games action and empty-state primary action open the
+same in-flow workspace. Keep source choice, current port identity and the next
+review action together. The initial stage list is orientation, not a claim that
+later checks passed. Files are checked against an explicitly selected port;
+folder search supplies multi-game recognition. Retain ambiguous/unsupported and
+unknown evidence in existing review treatments. Detail/setup completion uses the
+shared primary/recovery and focus contracts. Save drafts during normal navigation;
+opening another destination must not imply cancellation or task completion.
 
 ### Library identity and artwork feedback
 

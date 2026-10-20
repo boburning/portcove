@@ -75,3 +75,9 @@ Guided library recovery strings distinguish metadata export, manually copied
 content, verified restore and authority-changing Move. Content-root filenames are
 literal code; surrounding explanations and entry labels are localizable. Unicode
 paths retain their exact bytes with LTR isolation. No supported language is added.
+
+Add games displays game and port identity independently of stable IDs. File-check
+copy distinguishes a selected-port check from folder recognition; do not translate
+an unknown or preliminary match into compatibility. Step labels describe phases,
+not automatically completed milestones. Keep cancellation-request versus terminal
+cancellation wording distinct. No supported language is added.

@@ -16,6 +16,7 @@ export function GameFileSetupReviews({
   current,
   busy,
   onOpenPort,
+  focusFallback,
 }: {
   ports: PortDefinition[];
   statuses: ReadonlyMap<string, PortStatus>;
@@ -25,6 +26,7 @@ export function GameFileSetupReviews({
   current: boolean;
   busy: boolean;
   onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  focusFallback?: (() => HTMLElement | null) | undefined;
 }) {
   const { selected, toggle, clear, requestReview } = useSetupReviewSelection();
   const section = useRef<HTMLElement>(null);
@@ -34,9 +36,10 @@ export function GameFileSetupReviews({
     restoreFocus.current = false;
     (
       section.current?.querySelector<HTMLElement>("input:not(:disabled), button:not(:disabled)") ??
+      focusFallback?.() ??
       document.getElementById("game-file-libraries-heading")
     )?.focus();
-  }, [selected]);
+  }, [selected, focusFallback]);
   const matchesRegistration = (candidate: Pick<SourceRecord, "profile_id" | "path" | "sha256">) =>
     registeredSources.some(
       (source) =>
