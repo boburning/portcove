@@ -7,7 +7,10 @@ import { StatusLayer } from "./Chrome";
 import { useOperationState } from "../features/operations/use-operation-state";
 import { useDetailWorkspaceNavigation } from "../features/app-shell/use-detail-workspace-navigation";
 
-vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn().mockResolvedValue(() => {}) }));
+vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
 const port = portDefinition();
 const status = { ...portStatus(), port_id: port.id };
 const refresh = vi.fn().mockResolvedValue(undefined);
