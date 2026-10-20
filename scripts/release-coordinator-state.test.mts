@@ -2507,6 +2507,47 @@ for (const outcome of ["pending", "capacity-refused", "succeeded"]) {
   );
 }
 void test(
+  "metadata renewal remains available during a failed candidate without consuming its recovery counters",
+  { timeout: 120000 },
+  async (t) => {
+    const f = await remoteCapacityFixture(t);
+    const { descriptor, published } = metadataFixture();
+    const input = structuredClone(
+      (await recoverReleaseOpportunity(f.bare, f.migrated.checkpoint)).input,
+    );
+    assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+    assert.ok(isRecord(input.active_candidate));
+    input.controller.capacity_attempt.schema_version = 2;
+    input.active_candidate.phase = "failed";
+    input.active_candidate.failure_kind = "authority";
+    const failed = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    assert.equal(failed.plan.action, "pause");
+    await publishCoordinatorCheckpoint(f.bare, failed.checkpoint, f.config, { api: f.api });
+    const seeded = await recordPublishedMetadata(f.bare, failed.checkpoint, published, f.options);
+    let effects = 0;
+    const operation = await runBoundedMetadataRenewalOperation(
+      f.bare,
+      seeded.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:timestamp" },
+      async () => f.capacity.boundary,
+      async (record, pending) => {
+        effects++;
+        assert.equal(f.refs.get(f.stateRef), pending.checkpoint);
+        await record("qualification:timestamp-during-native-hold", "a".repeat(64));
+      },
+      { ...f.options, maximumReceipts: 1 },
+    );
+    assert.equal(effects, 1);
+    const saved = await recoverReleaseOpportunity(f.bare, operation.checkpoint);
+    assert.deepEqual(saved.input.active_candidate, input.active_candidate);
+    assert.deepEqual(saved.input.review_request, input.review_request);
+    assert.deepEqual(saved.input.review_disposition, input.review_disposition);
+    assert.equal(saved.plan.action, "pause");
+    assert.equal(operation.operation.outcome, "pending");
+  },
+);
+void test(
   "metadata renewal uses durable remote journal without allocating or changing an active candidate",
   { timeout: 120000 },
   async (t) => {

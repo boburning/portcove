@@ -2,7 +2,11 @@ import { mkdtemp, lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
-import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
+import {
+  capacityDigest,
+  inspectCapacityOperation,
+  assessBoundedCapacity,
+} from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import {
@@ -58,7 +62,10 @@ import {
 } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { materializePublishedApplicationComponent } from "./release-site-readback.mts";
-import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
+import {
+  inspectPublishedMetadata,
+  inspectMetadataRenewalDescriptor,
+} from "./release-metadata-contract.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
   inspectPreparedMetadataRenewal,
@@ -117,11 +124,21 @@ export function deriveCoordinatorPublication(
   releases: ReturnType<Reader["releases"]>,
   allocations: ReturnType<Reader["readAllocations"]>["allocations"],
   now: string,
+  active?: unknown,
 ) {
   if (!Number.isFinite(Date.parse(now)) || new Date(now).toISOString() !== now)
     throw new Error("canonical coordinator publication clock required");
   const versions = new Set<string>();
   const sources = new Set<string>();
+  if (active != null) {
+    if (!isRecord(active)) throw new Error("active reservation identity invalid");
+    const matches = allocations.filter((entry) => entry.version === active.version);
+    if (
+      matches.length !== 1 ||
+      Object.entries(matches[0]!).some(([key, value]) => active[key] !== value)
+    )
+      throw new Error("active reservation differs from complete immutable allocation receipts");
+  }
   let latest: number | null = null;
   for (const release of releases) {
     if (release.draft) continue;
@@ -151,7 +168,7 @@ export function deriveCoordinatorPublication(
     published_versions: [...versions].sort(),
     published_sources: [...sources].sort(),
     reserved_versions: allocations
-      .filter((a) => !versions.has(a.version))
+      .filter((a) => !versions.has(a.version) || (isRecord(active) && a.version === active.version))
       .map((a) => a.version)
       .sort(),
     last_routine_preview_at: latest === null ? null : new Date(latest).toISOString(),
@@ -372,6 +389,7 @@ async function coordinateTrustedReleaseAt(
       releases,
       allocations,
       new Date().toISOString(),
+      recovered.input.active_candidate,
     );
     const factsSha = capacityDigest({ opportunity, publication, checkpoint });
     const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
@@ -500,6 +518,7 @@ async function coordinateTrustedReleaseAt(
     )
       throw new Error("bounded coordinator capacity state unavailable");
     const oldCapacity = recovered.input.controller.capacity_attempt;
+    const frozenController = recovered.input.controller;
     if (!isRecord(oldCapacity) || oldCapacity.schema_version !== 2)
       throw new Error("actual coordinator requires existing capacity schema2 seed");
     const input = structuredClone(recovered.input);
@@ -509,8 +528,7 @@ async function coordinateTrustedReleaseAt(
     if (inspectReleaseReviewRequest(input.review_request)) input.review_request = null;
     input.publication = { ...publication, observed_at: input.now };
     input.controller = {
-      workflow: ".github/workflows/application-update-production.yml",
-      revision: reader.admitted.revision,
+      ...frozenController,
       publication_paused: initial.pause.publication_paused,
       capacity_attempt: {
         ...structuredClone(initial.capacity_source.capacity),
@@ -793,6 +811,14 @@ export async function prepareTrustedCoordinatorRenewal(
     };
   },
 ) {
+  return prepareTrustedCoordinatorRenewalAt(privateParent, raw);
+}
+
+async function prepareTrustedCoordinatorRenewalAt(
+  privateParent: string,
+  raw: Parameters<typeof prepareTrustedCoordinatorRenewal>[1],
+  round?: RecoveredCoordinatorRound,
+) {
   const selected = structuredClone(raw);
   if (
     Object.keys(selected).sort().join(",") !== "remote_configuration,tools" ||
@@ -802,17 +828,20 @@ export async function prepareTrustedCoordinatorRenewal(
     throw new Error("fixed coordinator renewal invocation fields differ");
   inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(project, privateParent, "metadata coordinator private parent");
-  const directory = await mkdtemp(path.join(privateParent, "coordinator-renewal-"));
-  const budget = coordinatorDeadline();
+  const directory =
+    round?.directory ?? (await mkdtemp(path.join(privateParent, "coordinator-renewal-")));
+  const budget = round?.budget ?? coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
-    const recovered = await recoverRemoteCoordinator(directory, selected.remote_configuration, {
-      transport: { cwd: directory },
-    });
+    const recovered =
+      round?.recovered ??
+      (await recoverRemoteCoordinator(directory, selected.remote_configuration, {
+        transport: { cwd: directory },
+      }));
     checkpoint = recovered.checkpoint;
-    if (recovered.input.active_candidate !== null)
-      return { decision: "held-active-candidate", directory, checkpoint, authority: "none" };
+    if (coordinatorHasUnresolvedEffect(recovered.input))
+      return { decision: "held-unresolved-effect", directory, checkpoint, authority: "none" };
     const published = inspectPublishedMetadata(recovered.input.published_metadata);
     if (!published)
       throw new Error(
@@ -834,6 +863,9 @@ export async function prepareTrustedCoordinatorRenewal(
     const reader = await authenticateControlReaderJob(process.env, workflow, {
       phase: "coordinator",
     });
+    const authorities = await requireControllerReleaseAuthorities("coordinator");
+    if (authorities.namespace !== inspectCoordinatorRemoteNamespace(selected.remote_configuration))
+      throw new Error("metadata coordinator authority namespace differs");
     if (
       tools.identity.controller_revision !== reader.admitted.revision ||
       tools.identity.controller_ref !== reader.admitted.execution_ref ||
@@ -888,6 +920,7 @@ export async function prepareTrustedCoordinatorRenewal(
       releases,
       allocations,
       new Date().toISOString(),
+      recovered.input.active_candidate,
     );
     const inventorySha = capacityDigest({ tags, releases });
     const ready = prepareControlReadiness(
@@ -943,7 +976,11 @@ export async function prepareTrustedCoordinatorRenewal(
       },
     };
     const plan = planReleaseOpportunity(input);
-    if (plan.action === "pause")
+    if (
+      !isRecord(input.controller) ||
+      input.controller.publication_paused ||
+      assessBoundedCapacity(input.controller.capacity_attempt).eligibility !== "eligible"
+    )
       return { decision: "held", directory, checkpoint, plan, authority: "none" };
     await verifiedControllerToolPaths(receipt);
     await inspectPreparedMetadataRenewal(preparation);
@@ -1001,15 +1038,49 @@ export async function prepareTrustedCoordinatorRenewal(
   }
 }
 
+/** Scheduling only; the actual fixed tool must authenticate the public feed
+ * before a descriptor can enter the journal. A retained unfinished descriptor
+ * takes precedence over choosing another controller clock. */
+export function selectCoordinatorMetadataRenewal(input: Record<string, unknown>, now: string) {
+  const time = Date.parse(now);
+  if (!Number.isFinite(time)) throw new Error("metadata scheduling clock unavailable");
+  const published = inspectPublishedMetadata(input.published_metadata);
+  if (!published) return "unconfigured" as const;
+  const retained =
+    input.metadata_renewal == null
+      ? null
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  if (retained?.prior_repository_sha256 === published.repository_sha256) return "resume" as const;
+  return Date.parse(published.expires.timestamp) <= time + 24 * 60 * 60 * 1000
+    ? ("due" as const)
+    : ("not-due" as const);
+}
+
+function coordinatorHasUnresolvedEffect(input: Record<string, unknown>) {
+  const capacity =
+    isRecord(input.controller) && isRecord(input.controller.capacity_attempt)
+      ? input.controller.capacity_attempt
+      : null;
+  const operation = inspectCapacityOperation(capacity?.operation ?? null);
+  return operation !== null && !["succeeded", "recovered"].includes(operation.outcome);
+}
+
 /** Freeze one neutral work request in the existing journal. While a candidate
  * or request is outstanding the current provider main head merely coalesces;
  * no second queue, semantic assertion or speculative version is created. */
 export async function requestTrustedSemanticReview(
   privateParent: string,
-  raw: { remote_configuration: unknown },
+  raw: {
+    remote_configuration: unknown;
+    tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
+  },
 ) {
   const selected = structuredClone(raw);
-  if (Object.keys(selected).join(",") !== "remote_configuration")
+  if (
+    !["remote_configuration", "remote_configuration,tools"].includes(
+      Object.keys(selected).sort().join(","),
+    )
+  )
     throw new Error("neutral review request invocation fields differ");
   const namespace = inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(
@@ -1026,6 +1097,30 @@ export async function requestTrustedSemanticReview(
       transport: { cwd: directory },
     });
     checkpoint = recovered.checkpoint;
+    const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
+    if (["due", "resume"].includes(renewal)) {
+      if (coordinatorHasUnresolvedEffect(recovered.input))
+        return {
+          decision: "held-unresolved-effect",
+          directory,
+          checkpoint,
+          renewal,
+          authority: "none",
+        };
+      if (!selected.tools)
+        return {
+          decision: "held-renewal-tools",
+          directory,
+          checkpoint,
+          renewal,
+          authority: "none",
+        };
+      return prepareTrustedCoordinatorRenewalAt(
+        directory,
+        { remote_configuration: selected.remote_configuration, tools: selected.tools },
+        { directory, budget, recovered },
+      );
+    }
     const outstanding = inspectReleaseReviewRequest(recovered.input.review_request);
     if (outstanding)
       return continueTrustedSemanticReview(
@@ -1105,8 +1200,15 @@ export async function requestTrustedSemanticReview(
       prepared_tree: publishedCommit.body.tree.sha,
     });
     const base = sourceProof.source_baseline.commit;
-    if (source === base)
-      return { decision: "unchanged-published-source", directory, checkpoint, authority: "none" };
+    if (source === base) {
+      return {
+        decision: "unchanged-published-source",
+        directory,
+        checkpoint,
+        renewal,
+        authority: "none",
+      };
+    }
     const sourceResponse = api.request("GET", `repos/boburning/portcove/git/commits/${source}`);
     if (sourceResponse.status !== 200) throw new Error("current main raw Git identity unavailable");
     const sourceObject = inspectRemoteCommitObject(sourceResponse.body, source);
@@ -1393,9 +1495,18 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     throw new Error("fixed metadata coordinator selection fields differ");
   console.log(
     JSON.stringify(
-      Object.keys(selection).join(",") === "remote_configuration"
+      ["remote_configuration", "remote_configuration,tools"].includes(
+        Object.keys(selection).sort().join(","),
+      )
         ? await requestTrustedSemanticReview(path.resolve(directory), {
             remote_configuration: selection.remote_configuration,
+            ...(selection.tools === undefined
+              ? {}
+              : {
+                  tools: selection.tools as Parameters<
+                    typeof prepareTrustedCoordinatorRenewal
+                  >[1]["tools"],
+                }),
           })
         : selection.opportunity === null
           ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {
