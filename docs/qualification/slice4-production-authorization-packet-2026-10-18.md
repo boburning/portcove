@@ -18,6 +18,14 @@ and zero-deployment recovery of a lost published-state handoff. Local real Git
 and Rust evidence retains its exact scope. Final runnable orchestration, custody,
 resource ratification, observed protections and protected execution remain pending.
 
+The October 20 [authenticated metadata-renewal connection](slice4-534-metadata-renewal-2026-10-20.md)
+adds actual public-feed Tough authentication, unchanged-target renewal, verified
+assembler publication facts and metadata-only operations in the existing remote
+journal. Disposable-key Rust, actual adapter and real-Git tests pass. It does not
+seed production state, grant keys/execution or establish live provider capacity;
+the changed held controller still needs coherent resource qualification and
+protected/publication observations. #534 acceptance remains open.
+
 The October 20 [fixed controller tool bootstrap](slice4-controller-tool-bootstrap-2026-10-20.md)
 prepares bounded, attested fixed-source tool custody before role-key access and
 adds a separate ordinary credential-free Linux build fixture. Its initial three

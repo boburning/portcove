@@ -1,3 +1,37 @@
+function Wait-OwnedNativeProcess(
+    $Record,
+    $Watch,
+    [scriptblock]$ReadProcess = { param($processId) try { [Diagnostics.Process]::GetProcessById($processId) } catch [ArgumentException] { $null } },
+    [scriptblock]$ReadCim = { param($processId) Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction Stop }
+) {
+    $process = & $ReadProcess ([int]$Record.pid)
+    if (-not $process) { return }
+    $identityMatched = $false
+    try {
+        $started = try { $process.StartTime } catch { $null }
+        if ($null -eq $started) {
+            # Protected processes can expose neither .NET start time nor image.
+            # CIM may prove a reused PID, but cannot grant authority over it.
+            $current = @(& $ReadCim ([int]$Record.pid))
+            if ($current.Count -ne 1 -or $current[0].ProcessId -ne $Record.pid -or
+                $current[0].CreationDate -isnot [DateTime]) { throw 'Captured process identity is unavailable.' }
+            $difference = [Math]::Abs($current[0].CreationDate.ToFileTimeUtc() - [long]$Record.started_filetime)
+            # CIM and .NET can have different timestamp precision. A close value
+            # is ambiguous, never evidence that the captured process exited.
+            if ($difference -gt [TimeSpan]::TicksPerMillisecond) { return }
+            throw 'Captured process identity is unavailable for the same or uncertain incarnation.'
+        }
+        # A reused PID proves the captured process already exited. Never act on it.
+        if ($started.ToFileTimeUtc() -ne $Record.started_filetime) { return }
+        $identityMatched = $true
+        if (-not [string]::Equals($process.MainModule.FileName, $Record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured process path changed.' }
+        $remaining = [Math]::Max(0, 5000 - [int]$Watch.ElapsedMilliseconds)
+        if (-not $process.WaitForExit($remaining)) { throw "Captured native process $($Record.pid) did not exit within the shared five-second bound." }
+    } catch [InvalidOperationException] {
+        if (-not $identityMatched -or -not [object]::Equals($process.HasExited, $true)) { throw }
+    } finally { $process.Dispose() }
+}
+
 function Get-OwnedDriverProcessTree([int]$DriverProcessId) {
     $processes = @(Get-CimInstance Win32_Process)
     $byId = @{}
