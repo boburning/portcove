@@ -11,6 +11,12 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [isolated online TUF roles](slice4-534-isolated-tuf-roles-2026-10-20.md)
+add one-key role invocations, actual keyless Tough assembly and authenticated
+immutable history. The repaired signed-history regression passes with disposable
+keys; production custody, hosted roles and metadata-only coordinator integration
+remain pending.
+
 The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
 connects actual aggregate verification and existing reservation association to
 strict diagnostic requests for the two beta updater payloads. Actual disposable
