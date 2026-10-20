@@ -287,6 +287,7 @@ export async function recoverOwnedCapacityEffect(
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<{
     resolution: "effect-completed" | "effect-not-applied" | "partial-effects-retained";
     evidence_sha256: string;
+    completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
 ) {
   const value = sessions.get(session);
@@ -358,13 +359,23 @@ export async function recoverOwnedCapacityEffect(
         throw new Error("original exact executor is not observed terminal; recovery remains held");
     };
     terminal();
-    const resolution = await readback(structuredClone(operation));
+    const resolution = structuredClone(await readback(structuredClone(operation)));
     if (
-      Object.keys(resolution).sort().join(",") !== "evidence_sha256,resolution" ||
+      !["evidence_sha256,resolution", "completed_effect,evidence_sha256,resolution"].includes(
+        Object.keys(resolution).sort().join(","),
+      ) ||
       !["effect-completed", "effect-not-applied", "partial-effects-retained"].includes(
         resolution.resolution,
       ) ||
-      !/^[a-f0-9]{64}$/u.test(resolution.evidence_sha256)
+      !/^[a-f0-9]{64}$/u.test(resolution.evidence_sha256) ||
+      (resolution.completed_effect !== undefined &&
+        (resolution.resolution !== "effect-completed" ||
+          !isRecord(resolution.completed_effect) ||
+          Object.keys(resolution.completed_effect).sort().join(",") !==
+            "evidence_sha256,remote_identity" ||
+          typeof resolution.completed_effect.remote_identity !== "string" ||
+          !resolution.completed_effect.remote_identity ||
+          !/^[a-f0-9]{64}$/u.test(resolution.completed_effect.evidence_sha256)))
     )
       throw new Error("actual recovery readback is incomplete");
     await refreshCapacityExecutor(session);
@@ -377,7 +388,11 @@ export async function recoverOwnedCapacityEffect(
       input.checkpoint,
       resolution.resolution,
       resolution.evidence_sha256,
-      { remote, executorIdentity },
+      {
+        remote,
+        executorIdentity,
+        ...(resolution.completed_effect ? { completedEffect: resolution.completed_effect } : {}),
+      },
     );
     if (!("durable_checkpoint" in settled) || settled.durable_checkpoint !== settled.checkpoint)
       throw new Error("recovery remote settlement unresolved");
