@@ -13,7 +13,14 @@ function exact(raw: unknown, names: string): asserts raw is Record<string, unkno
     throw new Error("native capture exact schema differs");
 }
 function text(raw: unknown, bound = 256) {
-  if (typeof raw !== "string" || !raw || raw.length > bound || Array.from(raw).some(character=>character.charCodeAt(0)<32 || character.charCodeAt(0)===127))
+  if (
+    typeof raw !== "string" ||
+    !raw ||
+    raw.length > bound ||
+    Array.from(raw).some(
+      (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    )
+  )
     throw new Error("native capture text differs");
   return raw;
 }
@@ -106,7 +113,7 @@ export function prepareNativeStageRequest(raw: unknown, rawAuthorities: unknown)
     platform_label: raw.platform_label,
     invocation_id: sha(raw.invocation_id),
     setup_descriptor_sha256: sha(raw.setup_descriptor_sha256),
-    authority_configuration_sha256: digest(authorities),
+    authority_configuration_digest: digest(authorities),
     candidate,
     journey,
     expected: structuredClone(fixed),
@@ -191,6 +198,7 @@ export function serializeNativeStageCapture(
       key = `${pid}:${created.value}`;
     if (rootIdentities.has(key)) throw new Error("native retained root identity repeats");
     rootIdentities.add(key);
+    const rootStarted = during(value.started_at);
     let teardown = null;
     if (value.teardown !== null) {
       exact(
@@ -217,13 +225,15 @@ export function serializeNativeStageCapture(
         exit_code: exit,
         observed_at: during(value.teardown.observed_at),
       };
+      if (teardown.observed_at < rootStarted)
+        throw new Error("native root teardown precedes launch");
     }
     return {
       id,
       role: value.role,
       image: { pid, path: imagePath, sha256: sha(value.image.sha256) },
       creation: created,
-      started_at: during(value.started_at),
+      started_at: rootStarted,
       stdout: stream(value.stdout, id, "stdout"),
       stderr: stream(value.stderr, id, "stderr"),
       teardown,
@@ -235,7 +245,10 @@ export function serializeNativeStageCapture(
     const empty = bool(raw.group.empty),
       remaining = pids(raw.group.remaining_pids);
     if (empty && remaining.length) throw new Error("native shared group contradicts inventory");
-    group = { empty, remaining_pids: remaining, observed_at: during(raw.group.observed_at) };
+    const observed = during(raw.group.observed_at);
+    group = { empty, remaining_pids: remaining, observed_at: observed };
+    if (roots.some((root) => root.started_at > observed))
+      throw new Error("native shared group observation precedes a retained launch");
   }
   exact(raw.harness, "exit_code,path,sha256,stderr,stdout");
   if (
