@@ -407,9 +407,13 @@ export async function libraryHandoffScenario({
     const beforeRecovery = await bootstrap();
     // Arm the witness before the click: a fast copy may publish before WebDriver's
     // click response returns. Drain both branches before cleanup on any failure.
-    const changeDuringCopy = waitForFile(path.join(restoreRoot, ".portcove-authority.json")).then(
-      async () =>
-        writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`),
+    // Debug verification of the owned256MiB tree can exceed15s before the
+    // pending marker exists. This is a finite harness wait, not a Core deadline.
+    const changeDuringCopy = waitForFile(
+      path.join(restoreRoot, ".portcove-authority.json"),
+      60_000,
+    ).then(async () =>
+      writeFile(recoverySave, `${await readFile(recoverySave, "utf8")}\nchanged after review`),
     );
     const intervention = await Promise.allSettled([
       changeDuringCopy,
