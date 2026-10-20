@@ -5,8 +5,22 @@ import {
   inspectPreparedReceiptInventoryAdvance,
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
+  requireActualCoordinatorMetadataPreparation,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+
+void test("serialized renewal output cannot reconstruct the coordinator's private continuation", async () => {
+  await assert.rejects(
+    requireActualCoordinatorMetadataPreparation({
+      decision: "metadata-prepared",
+      checkpoint: "a".repeat(40),
+      descriptor: metadataFixture().descriptor,
+      context: "/imported/context.json",
+      prepared_root: "/imported",
+    }),
+    /actual same-process coordinator metadata preparation/,
+  );
+});
 
 void test("default metadata scheduling preserves an unfinished descriptor and renews within the timestamp safety window", () => {
   const fixture = metadataFixture(Date.parse("2026-10-20T00:00:00Z"));

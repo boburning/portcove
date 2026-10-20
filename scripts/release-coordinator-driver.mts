@@ -61,7 +61,11 @@ import {
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
-import { materializePublishedApplicationComponent } from "./release-site-readback.mts";
+import {
+  materializePublishedCompleteSite,
+  requirePublishedCompleteSite,
+  readPublicApplicationSiteMarker,
+} from "./release-site-readback.mts";
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
@@ -83,6 +87,23 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
+const metadataPreparations = new WeakMap<
+  object,
+  {
+    preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataRenewal>>;
+    tools: Awaited<ReturnType<typeof receiveControllerTools>>;
+    complete_site: Awaited<ReturnType<typeof materializePublishedCompleteSite>>;
+    controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>;
+    reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>;
+    repository: string;
+    namespace: string;
+    checkpoint: string;
+    deadline: number;
+    seed: NonNullable<ReturnType<typeof inspectPublishedMetadata>>;
+    descriptor_sha256: string;
+    control_facts_sha256: string;
+  }
+>();
 const project = fileURLToPath(new URL("..", import.meta.url));
 function coordinatorDeadline() {
   const monotonicStart = performance.now();
@@ -919,7 +940,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       tools.identity.run_attempt !== reader.admitted.run_attempt
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
-    const component = await materializePublishedApplicationComponent(
+    const siteReceipt = await materializePublishedCompleteSite(
       {
         site_generation_sha256: published.publication.site_generation_sha256,
         root_sha256: published.root_sha256,
@@ -928,6 +949,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       directory,
       budget.monotonicDeadline,
     );
+    const component = await requirePublishedCompleteSite(siteReceipt);
     const existing = recovered.input.metadata_renewal;
     const generatedAt =
       isRecord(existing) &&
@@ -941,7 +963,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       verifier_sha256: createHash("sha256").update(verifierBytes).digest("hex"),
       trusted_root: component.root_path,
       trusted_root_sha256: published.root_sha256,
-      previous_repository: component.directory,
+      previous_repository: component.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: generatedAt,
       output_parent: directory,
@@ -1053,7 +1075,7 @@ async function prepareTrustedCoordinatorRenewalAt(
         }),
       },
     );
-    return {
+    const result = Object.freeze({
       decision: "metadata-prepared",
       directory,
       checkpoint,
@@ -1064,7 +1086,22 @@ async function prepareTrustedCoordinatorRenewalAt(
       authority: "none",
       evidence_scope: "actual-tool-and-public-feed",
       automatic_retry: false,
-    };
+    });
+    metadataPreparations.set(result, {
+      preparation,
+      tools: receipt,
+      complete_site: siteReceipt,
+      controls,
+      reader,
+      repository: recovered.repository,
+      namespace: authorities.namespace,
+      checkpoint,
+      deadline: budget.monotonicDeadline,
+      seed: structuredClone(published),
+      descriptor_sha256: capacityDigest(prepared.descriptor),
+      control_facts_sha256: initial.facts_sha256,
+    });
+    return result;
   } catch (error) {
     throw new CoordinatorRemoteError(
       "coordinator metadata preparation stopped; retain exact state",
@@ -1078,6 +1115,72 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     );
   }
+}
+
+/** Same-process continuation for the fixed coordinator context producer. Public
+ * JSON output and a copied descriptor cannot reconstruct any of these brands.
+ * The original role deadline continues across the context/upload handoff. */
+export async function requireActualCoordinatorMetadataPreparation(result: object) {
+  const retained = metadataPreparations.get(result);
+  if (!retained) throw new Error("actual same-process coordinator metadata preparation required");
+  return withCoordinatorDeadline(retained.deadline, async () => {
+    await verifiedControllerToolPaths(retained.tools);
+    const prepared = await inspectPreparedMetadataRenewal(retained.preparation);
+    const site = await requirePublishedCompleteSite(retained.complete_site);
+    if (
+      capacityDigest(prepared.descriptor) !== retained.descriptor_sha256 ||
+      site.pins.site_generation_sha256 !== retained.seed.publication.site_generation_sha256 ||
+      site.pins.root_sha256 !== retained.seed.root_sha256 ||
+      site.pins.repository_sha256 !== retained.seed.repository_sha256
+    )
+      throw new Error("coordinator metadata public inputs changed");
+    const current = await recoverReleaseOpportunity(retained.repository, retained.checkpoint);
+    if (
+      capacityDigest(current.input.published_metadata) !== capacityDigest(retained.seed) ||
+      capacityDigest(current.input.metadata_renewal) !== retained.descriptor_sha256 ||
+      coordinatorHasUnresolvedEffect(current.input)
+    )
+      throw new Error("coordinator metadata seed or checkpoint changed");
+    const remaining = () =>
+      Math.max(1, Math.floor(Math.min(15000, retained.deadline - performance.now())));
+    const api = new GitHubApiClient((args, input) => {
+      if (performance.now() >= retained.deadline)
+        throw new Error("coordinator metadata phase deadline exhausted");
+      const response = createGitHubRunner({
+        cwd: retained.repository,
+        maxBuffer: 256 * 1024,
+        timeoutMs: remaining(),
+      })([...args, "--hostname", "github.com"], input);
+      if (performance.now() >= retained.deadline)
+        throw new Error("coordinator metadata phase deadline exhausted");
+      return response;
+    });
+    const fresh = retained.controls.readMaintenance(api);
+    if (fresh.pause.publication_paused || fresh.facts_sha256 !== retained.control_facts_sha256)
+      throw new Error("coordinator maintenance controls changed before continuation");
+    await readPublicApplicationSiteMarker(site.generation, retained.deadline);
+    const remote = await readRemoteCoordinatorSnapshot(
+      retained.repository,
+      { schema_version: 1, namespace: retained.namespace },
+      { transport: { cwd: retained.repository, deadline: retained.deadline } },
+    );
+    if (remote.checkpoint !== retained.checkpoint)
+      throw new Error("remote coordinator metadata checkpoint changed");
+    if (retained.controls.readMaintenance(api).facts_sha256 !== retained.control_facts_sha256)
+      throw new Error("coordinator maintenance controls changed after readback");
+    return Object.freeze({
+      mode: "renewal" as const,
+      preparation: retained.preparation,
+      tools: retained.tools,
+      complete_site: retained.complete_site,
+      controls: retained.controls,
+      reader: retained.reader,
+      repository: retained.repository,
+      namespace: retained.namespace,
+      checkpoint: retained.checkpoint,
+      deadline: retained.deadline,
+    });
+  });
 }
 
 /** Scheduling only; the actual fixed tool must authenticate the public feed

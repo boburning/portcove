@@ -1614,6 +1614,16 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+The automatic coordinator retains its actual renewal session, controller-tool
+receipt, full public-site custody and current maintenance-reader controls in a
+same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
+those original receipts, the unchanged published seed and descriptor, exact
+local/remote checkpoint, public generation marker and fresh controls before a
+fixed context producer may consume them. Its mode is explicitly `renewal`; an
+initial empty feed requires the separate bootstrap route. The original 170-second
+role deadline continues through this handoff. Serialized CLI output cannot
+recreate the private session or reset that budget.
+
 `acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
 whole-opportunity control and pre-sign native evidence while the exact candidate
 is still qualifying. Its private same-process proof is exclusively for the
