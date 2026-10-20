@@ -1875,20 +1875,14 @@ function observeNativeSession<Mode extends NativeSessionMode>(
   return readNativeSessionObservation(mode, JSON.parse(result.stdout));
 }
 
+let driverStartupSequence = 0;
 function captureBackupFocusDriverLaunch(launchStarted: number) {
   const child = required(driver);
-  const suffix =
-    hostInterruptionSession ||
-    hostPublicationSession ||
-    ordinaryCloseSession ||
-    savedLibraryRecoverySession ||
-    selection.selected_scenarios.includes("native-real-prepared-runtime") ||
-    selection.selected_scenarios.includes("native-selected-setup-completion")
-      ? `-${child.pid}`
-      : "";
+  // Every launch retains a new immutable proof, including full-profile restarts
+  // and a later launch that happens to reuse an earlier PID.
+  const suffix = `-${++driverStartupSequence}-${child.pid}`;
   const snapshot = path.join(output, `${cleanupName}-driver-startup${suffix}.json`);
   const captured = observeNativeSession("SnapshotDriver", snapshot);
-  artifacts.push(snapshot);
   assert.equal(captured.driver.pid, child.pid);
   assert.equal(
     path.resolve(captured.driver.path).toLowerCase(),
@@ -1900,6 +1894,7 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
     "Driver creation must belong to this launch",
   );
   ownedSession.driver = captured.driver;
+  artifacts.push(snapshot);
 }
 
 async function driverReady() {
@@ -2012,16 +2007,34 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     });
   if (linuxSelectedSession) await required(linuxLaunch).ready();
   if (linuxPackagedInspector) return;
-  await captureSelectedDriverLaunch(launchStarted);
-  if (historySession)
-    historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
-  for (let attempt = 0; attempt < 40; attempt++) {
-    if (spawnError) throw spawnError;
-    if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    if (await driverReady()) return;
+  try {
+    await captureSelectedDriverLaunch(launchStarted);
+    if (historySession)
+      historyInventory = await captureHistoryDriver(required(driver.pid), driverPath);
+    for (let attempt = 0; attempt < 40; attempt++) {
+      if (spawnError) throw spawnError;
+      if (driver.exitCode !== null) throw new Error(`tauri-driver exited: ${driver.exitCode}`);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      if (await driverReady()) return;
+    }
+    throw new Error("tauri-driver did not become ready within ten seconds");
+  } catch (error) {
+    // A later startup observation must not strand the newly captured driver.
+    // Without positive launch identity, retain the failure and refuse PID-only cleanup.
+    if (identityBoundSession && ownedSession.driver && driver?.pid) {
+      try {
+        await stopDriver();
+      } catch (cleanupError) {
+        checks.push({
+          scenario: "native-driver-launch-cleanup",
+          outcome: "failed",
+          message: errorMessage(cleanupError),
+        });
+        process.exitCode = 1;
+      }
+    }
+    throw error;
   }
-  throw new Error("tauri-driver did not become ready within ten seconds");
 }
 
 async function captureSelectedDriverLaunch(launchStarted: number) {
@@ -3165,6 +3178,9 @@ try {
   }
   await scenario("keyboard-layout", async () => {
     const browser = driverBrowser();
+    const futureFolderSummary = By.xpath(
+      '//details[contains(@class,"future-setup-disclosure")]/summary[normalize-space(.)="Folder for a future install"]',
+    );
     const verifySidebarLabels = async () => {
       const labels = await executeBrowserScript(browser, () =>
         [...document.querySelectorAll(".sidebar nav .nav-item")].map((button) => {
@@ -3515,7 +3531,6 @@ try {
         `Requirement visibility after scroll: ${JSON.stringify(hierarchy)}`,
       );
       assert.deepEqual(hierarchy.futureChoices, [
-        { title: "Release and update choices for later", open: false },
         { title: "Folder for a future install", open: false },
       ]);
       assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
@@ -3526,25 +3541,26 @@ try {
     await browser.manage().window().setRect({ width: 960, height: 640 });
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-action-hierarchy");
-    const updateChoices = await browser.findElement(By.css(".future-setup-disclosure > summary"));
-    await updateChoices.click();
+    const outputChoices = await browser.findElement(futureFolderSummary);
+    const outputDisclosure = await outputChoices.findElement(By.xpath(".."));
+    await outputChoices.click();
     assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      await executeBrowserScript(
+        browser,
+        (element) => element.hasAttribute("open"),
+        outputDisclosure,
       ),
       true,
     );
-    await updateChoices.sendKeys(Key.ENTER);
+    await outputChoices.sendKeys(Key.ENTER);
     assert.equal(
-      await executeBrowserScript(browser, () =>
-        document.querySelector(".future-setup-disclosure")?.hasAttribute("open"),
+      await executeBrowserScript(
+        browser,
+        (element) => element.hasAttribute("open"),
+        outputDisclosure,
       ),
       false,
     );
-    const outputChoices = (
-      await browser.findElements(By.css(".future-setup-disclosure > summary"))
-    )[1];
-    assert.ok(outputChoices);
     await outputChoices.click();
     const outputDraft = await browser.wait(
       until.elementLocated(By.css('[id^="output-location-path-"]')),
@@ -3560,10 +3576,10 @@ try {
     await sourceDraft.sendKeys("C:\\Portcove-fixture\\candidate.z64");
     await browser.wait(
       async () =>
-        (await executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".future-setup-disclosure")].every(
-            (choice) => !choice.classList.contains("is-deferred"),
-          ),
+        (await executeBrowserScript(
+          browser,
+          (element) => !element.classList.contains("is-deferred") && element.hasAttribute("open"),
+          outputDisclosure,
         )) === true,
       5_000,
       "future setup choices did not expand after selecting game files",
@@ -3572,10 +3588,10 @@ try {
     await sourceDraft.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE);
     await browser.wait(
       async () =>
-        (await executeBrowserScript(browser, () =>
-          [...document.querySelectorAll(".future-setup-disclosure")].every((choice) =>
-            choice.classList.contains("is-deferred"),
-          ),
+        (await executeBrowserScript(
+          browser,
+          (element) => element.classList.contains("is-deferred") && !element.hasAttribute("open"),
+          outputDisclosure,
         )) === true,
       5_000,
       "future setup choices did not defer after removing the selected path",
@@ -3726,10 +3742,7 @@ try {
             `game-details-missing-source-${theme}-${size.width}`,
             true,
           );
-          const folderChoices = (
-            await browser.findElements(By.css(".future-setup-disclosure > summary"))
-          )[1];
-          assert.ok(folderChoices);
+          const folderChoices = await browser.findElement(futureFolderSummary);
           await folderChoices.click();
           await captureOutputDestinationReview(`game-details-${theme}-${size.width}`);
           await folderChoices.click();
