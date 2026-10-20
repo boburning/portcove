@@ -1636,6 +1636,19 @@ execution and post-sign qualification remain separate requirements. This
 preparation neither publishes nor turns pre-sign qualification into publication
 admission, and it cannot accept imported context or qualification JSON.
 
+The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
+the current journal at the settled payload checkpoint and derives the complete
+public-site pins from its published seed. It acquires the whole site, invokes
+the authenticated Rust Tough verifier, checks the exact prior publication and
+ratified public Root/offline Targets/payload-registry bytes, then prepares new
+records and brackets the journal again. It shares the payload role's remaining
+deadline through provider, site and verifier reads. Missing prior publication
+refuses; it cannot manufacture bootstrap from an empty directory. The optional
+`publication` projection in the existing authority configuration binds these
+three immutable public JSON sources and the initial setup/preimage digests under
+the same ratified configuration/grant; the complete signing caller requires it.
+This source preparation neither fetches private keys nor changes settings.
+
 The context artifact preparation additionally requires actual complete public-site
 custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
 manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact

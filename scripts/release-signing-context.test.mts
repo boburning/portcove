@@ -10,8 +10,60 @@ import {
   releaseSigningContextBytes,
   prepareReleaseSigningContext,
   requireReleaseSigningContext,
+  prepareControllerReleaseSigningContext,
 } from "./release-signing-context.mts";
 import type { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
+import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import { performance } from "node:perf_hooks";
+
+void test("fixed current-baseline preparation refuses imported payload before configuration or output and honors finite deadline", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "release-context-controller-refusal-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(
+    prepareControllerReleaseSigningContext({}, root, performance.now() + 1000),
+    /actual same-process payload/,
+  );
+  await assert.rejects(
+    prepareControllerReleaseSigningContext({}, root, performance.now() - 1),
+    /deadline/,
+  );
+  assert.deepEqual(await readdir(root), []);
+});
+void test("current journal snapshot caps real default transport to remaining context phase before each request", async () => {
+  const configuration = { schema_version: 1, namespace: "portcove-fixture" };
+  let calls = 0;
+  const transport = {
+    cwd: process.cwd(),
+    spawn: (
+      _command: string,
+      _args: readonly string[],
+      settings?: import("node:child_process").SpawnSyncOptionsWithStringEncoding,
+    ) => {
+      calls++;
+      assert.ok(
+        typeof settings?.timeout === "number" && settings.timeout > 0 && settings.timeout <= 1000,
+      );
+      return {
+        status: 0,
+        stdout: "HTTP/2.0 503 Unavailable\r\nContent-Type: application/json\r\n\r\n{}",
+        stderr: "",
+      };
+    },
+  };
+  await assert.rejects(
+    readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
+      transport: { ...transport, deadline: performance.now() - 1 },
+    }),
+    /deadline/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    readRemoteCoordinatorSnapshot(process.cwd(), configuration, {
+      transport: { ...transport, deadline: performance.now() + 1000 },
+    }),
+  );
+  assert.equal(calls, 1);
+});
 
 void test("release record merge preserves exact historical bytes and rejects re-issued or unsafe targets", () => {
   const name = "releases/1.0.0/windows-x86_64/nsis.json",

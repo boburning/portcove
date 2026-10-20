@@ -3,8 +3,12 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { requirePreparedPayloadSignatures } from "./release-payload-preparation.mts";
-import { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
+import {
+  inspectPreparedMetadataRenewal,
+  prepareAuthenticatedMetadataRenewal,
+} from "./release-metadata-renewal.mts";
 import type { PreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { readVerifiedReleasePublicBuildInputFiles } from "./release-public-build-provenance.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -15,7 +19,16 @@ import { updaterIdentity } from "./updater-artifact-inventory.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
-import { requirePublishedCompleteSite } from "./release-site-readback.mts";
+import {
+  requirePublishedCompleteSite,
+  materializePublishedCompleteSite,
+} from "./release-site-readback.mts";
+import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import {
+  inspectPublishedMetadata,
+  assertMetadataRenewalBinding,
+} from "./release-metadata-contract.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 type Files = Map<string, Buffer>;
@@ -162,6 +175,105 @@ type BoundContext = {
   };
 };
 const contexts = new WeakMap<object, BoundContext>();
+
+/** Connected fixed payload caller: the current durable published seed supplies
+ * site pins, complete-site custody supplies the actual prior tree, and the
+ * authenticated Rust tool supplies Tough facts before any new record factory.
+ * No caller path, imported descriptor or historical timestamp selects a prior. */
+export async function prepareControllerReleaseSigningContext(
+  payloadReceipt: object,
+  outputParent: string,
+  deadline: number,
+) {
+  const withinBudget = () => {
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
+      throw new Error("release context phase deadline exhausted");
+  };
+  withinBudget();
+  const payload = await requirePreparedPayloadSignatures(payloadReceipt);
+  const authorities = await requireControllerPublicationAuthorities("payload");
+  if (
+    !isRecord(payload.context.facts.configuration) ||
+    payload.context.facts.configuration.namespace !== authorities.namespace
+  )
+    throw new Error("release context namespace differs from actual admission");
+  const snapshot = () =>
+    readRemoteCoordinatorSnapshot(
+      outputParent,
+      { schema_version: 1, namespace: authorities.namespace },
+      { transport: { cwd: outputParent, deadline } },
+    );
+  const before = await snapshot();
+  if (before.checkpoint !== payload.settlement.checkpoint)
+    throw new Error("release context requires current settled payload checkpoint");
+  const published = inspectPublishedMetadata(before.input.published_metadata);
+  if (!published)
+    throw new Error("release context requires actual published metadata; bootstrap is separate");
+  if (typeof published.repository_sha256 !== "string")
+    throw new Error("published repository identity absent");
+  const publicPins = authorities.publication.public_source;
+  if (
+    published.root_sha256 !== publicPins.root.sha256 ||
+    published.offline_targets_sha256 !== publicPins.offline_targets.sha256
+  )
+    throw new Error("published seed differs from ratified public Root/Targets");
+  withinBudget();
+  const site = await materializePublishedCompleteSite(
+    {
+      site_generation_sha256: published.publication.site_generation_sha256,
+      root_sha256: published.root_sha256,
+      repository_sha256: published.repository_sha256,
+    },
+    outputParent,
+    deadline,
+  );
+  const currentSite = await requirePublishedCompleteSite(site.receipt);
+  const generatedAt = new Date()
+    .toISOString()
+    .replace(/\.000Z$/u, "Z")
+    .replace(/(\.\d*?[1-9])0+Z$/u, "$1Z");
+  const prior = await prepareAuthenticatedMetadataRenewal({
+    verifier: payload.tools.rust,
+    verifier_sha256: hash(await readControllerToolFile(payload.tools.rust)),
+    trusted_root: currentSite.root_path,
+    trusted_root_sha256: published.root_sha256,
+    previous_repository: currentSite.application,
+    prior_repository_sha256: published.repository_sha256,
+    generated_at: generatedAt,
+    output_parent: outputParent,
+    deadline,
+  });
+  const actualPrior = await inspectPreparedMetadataRenewal(prior);
+  assertMetadataRenewalBinding(actualPrior.descriptor, published, generatedAt);
+  for (const [name, pin] of [
+    ["trusted-root.json", publicPins.root],
+    ["offline-targets.json", publicPins.offline_targets],
+    ["payload.json", publicPins.payload_key_registry],
+  ] as const) {
+    const bytes = await readControllerToolFile(
+      path.join(actualPrior.prepared_root, name),
+      1024 * 1024,
+    );
+    if (bytes.length !== pin.bytes || hash(bytes) !== pin.sha256)
+      throw new Error("authenticated prior public signing data differs from setup");
+  }
+  withinBudget();
+  const context = await prepareReleaseSigningContext(
+    payloadReceipt,
+    prior,
+    outputParent,
+    site.receipt,
+  );
+  const after = await snapshot();
+  if (
+    before.checkpoint !== after.checkpoint ||
+    digest(before.input.published_metadata) !== digest(after.input.published_metadata)
+  )
+    throw new Error("published baseline changed during release context preparation");
+  await requirePreparedPayloadSignatures(payloadReceipt);
+  withinBudget();
+  return context;
+}
 
 export async function prepareReleaseSigningContext(
   payloadReceipt: object,

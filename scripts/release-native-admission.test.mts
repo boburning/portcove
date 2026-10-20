@@ -8,6 +8,42 @@ import {
   collectNativeReleaseQualificationPair,
   deriveNativeQualificationExpectations,
 } from "./release-native-admission.mts";
+import { inspectPublicationAuthorities } from "./release-authority-configuration.mts";
+
+void test("publication configuration pins only distinct immutable public data and setup identities", () => {
+  const file = (path: string) => ({ path, bytes: 123, sha256: "a".repeat(64) });
+  const value = {
+    public_source: {
+      commit: "b".repeat(40),
+      root: file("release-public/root.json"),
+      offline_targets: file("release-public/offline-targets.json"),
+      payload_key_registry: file("release-public/payload.json"),
+    },
+    setup_plan_sha256: "c".repeat(64),
+    initial_site_preimage_sha256: "d".repeat(64),
+  };
+  assert.deepEqual(inspectPublicationAuthorities(value), value);
+  for (const changed of [
+    { ...value, credential: "not-allowed" },
+    { ...value, setup_plan_sha256: null },
+    { ...value, public_source: { ...value.public_source, commit: "main" } },
+    ...[
+      "../root.json",
+      "release-public/../../root.json",
+      "https://example.invalid/root.json",
+      "root.mjs",
+    ].map((path) => ({ ...value, public_source: { ...value.public_source, root: file(path) } })),
+    {
+      ...value,
+      public_source: { ...value.public_source, root: { ...file("root.json"), bytes: 1048577 } },
+    },
+    {
+      ...value,
+      public_source: { ...value.public_source, offline_targets: value.public_source.root },
+    },
+  ])
+    assert.throws(() => inspectPublicationAuthorities(changed));
+});
 
 void test("actual native collection rejects incomplete or imported expectations before provider collection", async () => {
   for (const raw of [null, [], [{}], [{}, {}]])
