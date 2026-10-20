@@ -68,9 +68,20 @@ import {
   inspectReleaseReviewRequest,
 } from "./release-review-request.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
+import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const project = fileURLToPath(new URL("..", import.meta.url));
+function coordinatorDeadline() {
+  const deadline = Date.now() + 170000;
+  return {
+    deadline,
+    check() {
+      if (Date.now() >= deadline)
+        throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
+    },
+  };
+}
 
 /** Provider inventory facts only. Every Release is available in Preview; using
  * their latest publication as an explicitly typed upper bound can delay a
@@ -120,6 +131,36 @@ export function deriveCoordinatorPublication(
     last_routine_preview_at: latest === null ? null : new Date(latest).toISOString(),
     last_routine_preview_bound: "all-published-previews",
   };
+}
+
+/** The existing semantic baseline is the uniquely latest actual publication;
+ * it must also be the highest published version before reserving a successor.
+ * An out-of-order historical publication remains an explicit hold. */
+export function selectCoordinatorPublicationBaseline(
+  releases: ReturnType<Reader["releases"]>,
+  publishedVersions: readonly string[],
+) {
+  const highest = [...publishedVersions].sort(compareApplicationVersionPrecedence).at(-1);
+  const rows = releases.filter((release) => !release.draft);
+  if (!highest || rows.length === 0)
+    throw new Error("actual published application baseline absent; explicit setup required");
+  let latest: (typeof rows)[number] | null = null;
+  let latestTime = -Infinity;
+  for (const release of rows) {
+    const time = release.published_at === null ? NaN : Date.parse(release.published_at);
+    if (!Number.isFinite(time)) throw new Error("published baseline time unavailable");
+    if (time > latestTime) {
+      latest = release;
+      latestTime = time;
+    }
+  }
+  if (
+    rows.filter((release) => Date.parse(release.published_at ?? "") === latestTime).length !== 1 ||
+    !latest ||
+    latest.tag_name !== `v${highest}`
+  )
+    throw new Error("highest application version differs from unique latest published baseline");
+  return { release: latest, version: highest };
 }
 
 export function inspectPreparedReceiptInventoryAdvance(
@@ -187,6 +228,7 @@ export async function coordinateTrustedRelease(
     );
   await assertOwnedUnlinkedPath(project, privateParent, "coordinator private parent");
   const directory = await mkdtemp(path.join(privateParent, "coordinator-attempt-"));
+  const budget = coordinatorDeadline();
   let phase = "remote-recovery";
   let checkpoint: string | null = null;
   try {
@@ -287,13 +329,18 @@ export async function coordinateTrustedRelease(
       mode: 0o600,
     });
     phase = "actual-coordinator-control-observation";
-    const artifact = await waitForControlArtifact(directory, "observation", {
-      phase: "coordinator",
-      controller_revision: reader.admitted.revision,
-      controller_ref: reader.admitted.execution_ref,
-      run_id: String(reader.admitted.run_id),
-      run_attempt: reader.admitted.run_attempt,
-    });
+    const artifact = await waitForControlArtifact(
+      directory,
+      "observation",
+      {
+        phase: "coordinator",
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        run_id: String(reader.admitted.run_id),
+        run_attempt: reader.admitted.run_attempt,
+      },
+      { deadline: budget.deadline },
+    );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       observedArtifact: artifact,
@@ -371,6 +418,7 @@ export async function coordinateTrustedRelease(
       recovered = { ...recovered, ...(await recoverReleaseOpportunity(repository, checkpoint)) };
     }
     const assertInventory = async (expectedCheckpoint = checkpoint) => {
+      budget.check();
       if (
         capacityDigest({ tags: inventory.tags(), releases: inventory.releases() }) !==
         expectedInventory
@@ -427,6 +475,7 @@ export async function coordinateTrustedRelease(
       };
     const journal = createCoordinatorJournalApi(directory);
     const readBoundary = async () => {
+      budget.check();
       const fresh = controls.read(api, opportunity);
       const frozen =
         activeOpportunity.source_commit === opportunity.source_commit
@@ -480,8 +529,19 @@ export async function coordinateTrustedRelease(
         release_run: null,
         frozen_opportunity: opportunity,
       };
-      if (!isRecord(input.publication)) throw new Error("complete publication disappeared");
-      input.publication.reserved_versions = [prepared.version];
+      if (
+        !isRecord(input.publication) ||
+        !Array.isArray(input.publication.reserved_versions) ||
+        input.publication.reserved_versions.some((version: unknown) => typeof version !== "string")
+      )
+        throw new Error("complete publication disappeared");
+      const reserved = input.publication.reserved_versions.map((version: unknown) => {
+        if (typeof version !== "string") throw new Error("complete reservation identity absent");
+        return version;
+      });
+      input.publication.reserved_versions = [...new Set([...reserved, prepared.version])].sort(
+        (left, right) => (left < right ? -1 : left > right ? 1 : 0),
+      );
       await readBoundary();
       await assertInventory();
       const allocated = await checkpointReleaseOpportunity(repository, checkpoint, input);
@@ -672,6 +732,7 @@ export async function prepareTrustedCoordinatorRenewal(
   inspectCoordinatorRemoteNamespace(selected.remote_configuration);
   await assertOwnedUnlinkedPath(project, privateParent, "metadata coordinator private parent");
   const directory = await mkdtemp(path.join(privateParent, "coordinator-renewal-"));
+  const budget = coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
@@ -768,13 +829,18 @@ export async function prepareTrustedCoordinatorRenewal(
       mode: 0o600,
     });
     phase = "actual-maintenance-controls";
-    const artifact = await waitForControlArtifact(directory, "observation", {
-      phase: "coordinator",
-      controller_revision: reader.admitted.revision,
-      controller_ref: reader.admitted.execution_ref,
-      run_id: String(reader.admitted.run_id),
-      run_attempt: reader.admitted.run_attempt,
-    });
+    const artifact = await waitForControlArtifact(
+      directory,
+      "observation",
+      {
+        phase: "coordinator",
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        run_id: String(reader.admitted.run_id),
+        run_attempt: reader.admitted.run_attempt,
+      },
+      { deadline: budget.deadline },
+    );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       observedArtifact: artifact,
@@ -823,6 +889,7 @@ export async function prepareTrustedCoordinatorRenewal(
     )
       throw new Error("maintenance inputs or remote checkpoint changed before durable preparation");
     phase = "durable-maintenance-descriptor";
+    budget.check();
     const saved = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
     checkpoint = saved.checkpoint;
     await publishCoordinatorCheckpoint(
@@ -875,6 +942,7 @@ export async function requestTrustedSemanticReview(
     "review request coordinator private parent",
   );
   const directory = await mkdtemp(path.join(privateParent, "coordinator-review-"));
+  const budget = coordinatorDeadline();
   let checkpoint: string | null = null;
   let phase = "remote-recovery";
   try {
@@ -923,15 +991,31 @@ export async function requestTrustedSemanticReview(
     const { allocations } = inventory.readAllocations(tags, namespace);
     const now = new Date().toISOString();
     const publication = deriveCoordinatorPublication(tags, releases, allocations, now);
-    const versions = [...publication.published_versions].sort(compareApplicationVersionPrecedence);
-    const baseVersion = versions.at(-1);
-    if (!baseVersion)
-      throw new Error("actual published application baseline absent; explicit setup required");
+    const { release: baselineRelease, version: baseVersion } = selectCoordinatorPublicationBaseline(
+      releases,
+      publication.published_versions,
+    );
     const baseline = tags.find((ref) => ref.name === `v${baseVersion}`);
     if (!baseline) throw new Error("published baseline tag absent");
     const baselinePrepared = peelReleaseReference(baseline);
-    const allocation = allocations.find((a) => a.version === baseVersion);
-    const base = allocation?.source_commit ?? baselinePrepared;
+    const publishedCommit = api.request(
+      "GET",
+      `repos/boburning/portcove/git/commits/${baselinePrepared}`,
+    );
+    if (
+      publishedCommit.status !== 200 ||
+      !isRecord(publishedCommit.body) ||
+      !isRecord(publishedCommit.body.tree) ||
+      typeof publishedCommit.body.tree.sha !== "string"
+    )
+      throw new Error("published baseline tree unavailable");
+    const sourceProof = inspectPublishedApplicationSource(api, selected.remote_configuration, {
+      id: baselineRelease.id,
+      version: baseVersion,
+      prepared_commit: baselinePrepared,
+      prepared_tree: publishedCommit.body.tree.sha,
+    });
+    const base = sourceProof.source_baseline.commit;
     if (source === base)
       return { decision: "unchanged-published-source", directory, checkpoint, authority: "none" };
     const sourceResponse = api.request("GET", `repos/boburning/portcove/git/commits/${source}`);
@@ -962,13 +1046,18 @@ export async function requestTrustedSemanticReview(
       { flag: "wx", mode: 0o600 },
     );
     phase = "actual-neutral-request-controls";
-    const artifact = await waitForControlArtifact(directory, "observation", {
-      phase: "coordinator",
-      controller_revision: reader.admitted.revision,
-      controller_ref: reader.admitted.execution_ref,
-      run_id: String(reader.admitted.run_id),
-      run_attempt: reader.admitted.run_attempt,
-    });
+    const artifact = await waitForControlArtifact(
+      directory,
+      "observation",
+      {
+        phase: "coordinator",
+        controller_revision: reader.admitted.revision,
+        controller_ref: reader.admitted.execution_ref,
+        run_id: String(reader.admitted.run_id),
+        run_attempt: reader.admitted.run_attempt,
+      },
+      { deadline: budget.deadline },
+    );
     const controls = await authenticateReleaseControlSource(process.env, workflow, {
       phase: "coordinator",
       observedArtifact: artifact,
@@ -1017,6 +1106,7 @@ export async function requestTrustedSemanticReview(
     )
       throw new Error("neutral request provider/control snapshot changed before durable intent");
     phase = "durable-neutral-review-request";
+    budget.check();
     const result = await checkpointReleaseOpportunity(recovered.repository, checkpoint, input);
     checkpoint = result.checkpoint;
     await publishCoordinatorCheckpoint(

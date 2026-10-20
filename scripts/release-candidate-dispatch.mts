@@ -135,6 +135,7 @@ async function observePreparedReleaseCandidate(
       attempted = true;
       const acknowledgment = await request("POST", `${workflowEndpoint}/dispatches`, {
         ref: ref.slice("refs/tags/".length),
+        inputs: { release_profile: "initial-beta-win-linux" },
       });
       positive(acknowledgment.workflow_run_id);
       runId = acknowledgment.workflow_run_id;
@@ -242,6 +243,7 @@ async function observePreparedReleaseCandidate(
       repository_id: repositoryId,
       workflow_id: workflow.id,
       workflow: ".github/workflows/release.yml",
+      release_profile: "initial-beta-win-linux",
       ref,
       prepared_commit: input.prepared_commit,
       actor_id: input.dispatch_actor_id,

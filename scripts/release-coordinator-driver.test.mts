@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   deriveCoordinatorPublication,
   inspectPreparedReceiptInventoryAdvance,
+  selectCoordinatorPublicationBaseline,
 } from "./release-coordinator-driver.mts";
 
 const ref = (name: string, oid: string, id = name) => ({
@@ -18,6 +19,32 @@ const release = (version: string, time: string, prerelease = true, id = 1) => ({
   updated_at: time,
   draft: false,
   prerelease,
+});
+void test("neutral request uses the uniquely latest publication only when it is also the highest version", () => {
+  const old = release("0.1.0-alpha.2", "2026-10-18T00:00:00Z");
+  const current = release("0.1.0-alpha.3", "2026-10-19T00:00:00Z", true, 2);
+  const versions = ["0.1.0-alpha.2", "0.1.0-alpha.3"];
+  assert.deepEqual(selectCoordinatorPublicationBaseline([current, old], versions), {
+    release: current,
+    version: "0.1.0-alpha.3",
+  });
+  assert.throws(() => selectCoordinatorPublicationBaseline([], []), /baseline absent/);
+  assert.throws(
+    () =>
+      selectCoordinatorPublicationBaseline(
+        [old, { ...current, published_at: old.published_at }],
+        versions,
+      ),
+    /unique latest/,
+  );
+  assert.throws(
+    () =>
+      selectCoordinatorPublicationBaseline(
+        [{ ...old, published_at: "2026-10-20T00:00:00Z" }, current],
+        versions,
+      ),
+    /unique latest/,
+  );
 });
 void test("complete publication facts map prepared and historical direct tags without inferring urgency", () => {
   const releases = [

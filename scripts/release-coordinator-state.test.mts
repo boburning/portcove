@@ -49,6 +49,8 @@ import {
 } from "./fixtures/assembler-identity-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import { requestTrustedSemanticReview } from "./release-coordinator-driver.mts";
+import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
@@ -274,6 +276,71 @@ async function recoveryFixture(t: test.TestContext, signed = false) {
   };
   return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
 }
+
+for (const changed of [false, true])
+  void test(
+    `trusted coordinator ${changed ? "refuses changed remote recovery before reading main" : "recovers the existing active candidate before coalescing current main"}`,
+    { timeout: 60000 },
+    async (t) => {
+      // Real Git recovery through the production default transport, with the gh
+      // subprocess provider simulated. No OIDC, credential or protected POST.
+      const f = await recoveryFixture(t);
+      if (changed) f.faults.value = "changed";
+      const projectRoot = fileURLToPath(new URL("..", import.meta.url));
+      const parent = await mkdtemp(path.join(projectRoot, "work", "coordinator-fixture-"));
+      t.after(() => rm(parent, { recursive: true, force: true }));
+      const initialRefs = structuredClone(f.refs);
+      const original = childProcess.spawnSync;
+      let mainReads = 0;
+      const mock = t.mock.method(
+        childProcess,
+        "spawnSync",
+        (command: string, args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+          if (command !== "gh") return original(command, args, options);
+          if (args.includes("repos/boburning/portcove/git/ref/heads/main")) {
+            mainReads++;
+            assert.ok(f.reads() >= 16, "complete recovery must precede live source selection");
+            assert.equal(args[args.indexOf("--method") + 1], "GET");
+            return {
+              status: 0,
+              stdout: `HTTP/2.0 200 Fixture\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({ ref: "refs/heads/main", object: { type: "commit", sha: f.input.opportunity.source_commit } })}`,
+              stderr: "",
+            };
+          }
+          return f.transport.spawn(command, args, options);
+        },
+      );
+      syncBuiltinESMExports();
+      t.after(() => {
+        mock.mock.restore();
+        syncBuiltinESMExports();
+      });
+      const run = requestTrustedSemanticReview(parent, {
+        remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
+      });
+      if (changed) {
+        await assert.rejects(run, (error: unknown) => {
+          assert.ok(error instanceof CoordinatorRemoteError);
+          assert.ok(isRecord(error.evidence));
+          assert.equal(error.evidence.phase, "remote-recovery");
+          return true;
+        });
+        assert.equal(mainReads, 0);
+      } else {
+        const result = await run;
+        assert.equal(result.decision, "coalesced-active");
+        assert.equal(result.checkpoint, f.saved.checkpoint);
+        assert.equal(mainReads, 1);
+      }
+      assert.deepEqual(f.refs, initialRefs);
+      assert.equal(
+        mock.mock.calls.filter(
+          (call) => call.arguments[0] === "gh" && call.arguments[1]?.includes("POST"),
+        ).length,
+        0,
+      );
+    },
+  );
 
 void test("bounded API recovery restores exact checkpoint and receipts without application files or history", async (t) => {
   for (const signed of [false, true]) {

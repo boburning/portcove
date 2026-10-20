@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   dispatchPreparedReleaseCandidate,
   readPreparedReleaseCandidate,
+  discoverPreparedReleaseCandidate,
 } from "./release-candidate-dispatch.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -67,7 +68,10 @@ void test("one immutable prepared tag dispatch binds documented acknowledgment a
   assert.equal(result.remote_identity, "github-actions:boburning/portcove:run:42:attempt:1");
   assert.equal(result.evidence.ref, "refs/tags/portcove-fixture-prepared/v0.19.0-preview.1");
   assert.equal(fixture.calls.filter((call) => call.method === "POST").length, 1);
-  assert.deepEqual(fixture.calls[1]?.body, { ref: "portcove-fixture-prepared/v0.19.0-preview.1" });
+  assert.deepEqual(fixture.calls[1]?.body, {
+    ref: "portcove-fixture-prepared/v0.19.0-preview.1",
+    inputs: { release_profile: "initial-beta-win-linux" },
+  });
 });
 void test("dispatch never retries lost acknowledgment, unsupported status or mismatched actual run", async () => {
   for (const mode of ["lost", "legacy", "attempt", "source", "actor"]) {
@@ -127,4 +131,73 @@ void test("exact retained run continuation repeats only GET and reproduces origi
     continuation.calls.map((call) => call.method),
     ["GET", "GET"],
   );
+});
+
+function recoveryProvider(mode: string) {
+  const fallback = provider();
+  const calls: string[] = [];
+  let firstReads = 0;
+  const row = (index: number) => ({
+    id: index === 0 ? 42 : 1000 + index,
+    workflow_id: 999,
+    path: ".github/workflows/release.yml",
+    event: "workflow_dispatch",
+    run_attempt: 1,
+    head_sha: input.prepared_commit,
+    head_branch:
+      index === 0 || mode === "ambiguous"
+        ? "portcove-fixture-prepared/v0.19.0-preview.1"
+        : "other-prepared-tag",
+    repository: { id: 1354613114, full_name: "boburning/portcove" },
+    actor: { id: index === 0 || mode === "ambiguous" ? 1234 : 5678 },
+  });
+  const transport: typeof fetch = async (raw, init) => {
+    assert.equal(init?.method ?? "GET", "GET");
+    const url = typeof raw === "string" ? raw : raw instanceof URL ? raw.href : raw.url;
+    calls.push(url);
+    if (!url.includes("/release.yml/runs?")) return fallback.transport(raw, init);
+    const parsed = new URL(url);
+    assert.equal(parsed.searchParams.get("head_sha"), input.prepared_commit);
+    assert.equal(parsed.searchParams.get("event"), "workflow_dispatch");
+    const page = Number(parsed.searchParams.get("page"));
+    if (page === 1) firstReads++;
+    const total = mode === "empty" ? 0 : mode === "ceiling" ? 1000 : mode === "ambiguous" ? 2 : 101;
+    const rows = Array.from(
+      { length: Math.max(0, Math.min(100, total - (page - 1) * 100)) },
+      (_, offset) => row((page - 1) * 100 + offset),
+    );
+    if (mode === "duplicate" && page === 2) rows[0] = row(0);
+    if (mode === "omitted" && page === 2) rows.pop();
+    if (mode === "drift" && page === 1 && firstReads > 1)
+      rows[0] = { ...row(0), actor: { id: 9999 } };
+    return Response.json({ total_count: total, workflow_runs: rows });
+  };
+  return { transport, calls, firstReads: () => firstReads };
+}
+void test("lost dispatch response discovers one exact run across 101 records and brackets the first page without POST", async () => {
+  const f = recoveryProvider("valid");
+  const observed = await discoverPreparedReleaseCandidate(input, "secret", f.transport);
+  assert.equal(observed.evidence.run_id, 42);
+  assert.equal(f.firstReads(), 2);
+  assert.ok(f.calls.some((url) => url.endsWith("&page=2")));
+  const direct = provider();
+  assert.equal(
+    observed.evidence_sha256,
+    (await readPreparedReleaseCandidate(input, 42, "secret", direct.transport)).evidence_sha256,
+  );
+});
+void test("absent, ambiguous, duplicate, omitted, drifted and ceiling dispatch inventories stay unknown with zero POST", async () => {
+  for (const mode of ["empty", "ambiguous", "duplicate", "omitted", "drift", "ceiling"]) {
+    const f = recoveryProvider(mode);
+    await assert.rejects(
+      discoverPreparedReleaseCandidate(input, "secret", f.transport),
+      (error: unknown) => {
+        assert.ok(error instanceof CoordinatorRemoteError);
+        assert.ok(isRecord(error.evidence));
+        assert.equal(error.evidence.mutation_attempted, false);
+        return true;
+      },
+    );
+    assert.ok(f.calls.length <= 5);
+  }
 });
