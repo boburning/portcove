@@ -101,7 +101,12 @@ export function readIndependentSemanticDisposition(
       external_id: value.external_id,
       output: value.output,
     };
-    return { wire, wire_sha256, observation_sha256: capacityDigest(observed) };
+    return {
+      wire,
+      wire_sha256,
+      summary_sha256: capacityDigest(value.output.summary),
+      observation_sha256: capacityDigest(observed),
+    };
   };
   const firstRepository = repository();
   const first = observe();
