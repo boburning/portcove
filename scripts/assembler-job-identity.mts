@@ -12,8 +12,16 @@ const repositoryId = 1354613114;
 export const controllerOidcSubjectPrefix = "repo:boburning@43177418/portcove@1354613114";
 export type ControllerOidcEnvironment =
   | "github-pages"
+  | "production-payload-signing"
+  | "production-release-coordinator"
+  | "production-release-publication"
   | "production-release-classification"
-  | "production-release-protection-observer";
+  | "production-release-protection-observer"
+  | "production-tuf-releases"
+  | "production-tuf-preview"
+  | "production-tuf-stable"
+  | "production-tuf-snapshot"
+  | "production-tuf-timestamp";
 export function controllerOidcSubject(ref: string, environment?: ControllerOidcEnvironment) {
   if (!/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(ref))
     throw new Error("controller OIDC subject requires the fixed protected tag family");
@@ -21,8 +29,16 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
     environment !== undefined &&
     ![
       "github-pages",
+      "production-payload-signing",
+      "production-release-coordinator",
+      "production-release-publication",
       "production-release-classification",
       "production-release-protection-observer",
+      "production-tuf-releases",
+      "production-tuf-preview",
+      "production-tuf-stable",
+      "production-tuf-snapshot",
+      "production-tuf-timestamp",
     ].includes(environment)
   )
     throw new Error("controller OIDC environment is unsupported");
@@ -381,10 +397,15 @@ async function verifyJobIdentity(
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
 const capacityExecutorProfiles = Object.freeze({
-  coordinator: { workflow: productionControllerWorkflow, job: "Coordinate application release" },
+  coordinator: {
+    workflow: productionControllerWorkflow,
+    job: "Coordinate application release",
+    environment: "production-release-coordinator" as const,
+  },
   "release-publication": {
     workflow: productionControllerWorkflow,
     job: "Publish immutable application release",
+    environment: "production-release-publication" as const,
   },
   "site-publication": {
     workflow: productionControllerWorkflow,

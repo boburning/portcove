@@ -82,11 +82,36 @@ async function main() {
     assert.equal(nodeResult.error, undefined);
     assert.equal(nodeResult.status, 0);
     assert.equal(nodeResult.stdout.trim(), "v24.22.0");
+    phase = "actual-tauri-addon-help";
+    const addon = path.join(built.tools, "bin/tauri-addon.node");
+    const tauri = (args: string[]) =>
+      invoke(node, [
+        "-e",
+        'require(process.argv[1]).run(JSON.parse(process.argv[2]),"tauri",e=>{if(e)process.exitCode=1})',
+        addon,
+        JSON.stringify(args),
+      ]);
+    const version = tauri(["--version"]);
+    assert.equal(version.error, undefined);
+    assert.equal(version.status, 0);
+    assert.equal(version.stdout.trim(), "tauri-cli 2.12.2");
+    const signHelp = tauri(["signer", "sign", "--help"]);
+    assert.equal(signHelp.error, undefined);
+    assert.equal(signHelp.status, 0);
+    assert.match(signHelp.stdout, /--app-version/u);
+    const buildHelp = tauri(["build", "--help"]);
+    assert.equal(buildHelp.error, undefined);
+    assert.equal(buildHelp.status, 0);
+    assert.match(buildHelp.stdout, /--no-sign/u);
     phase = "actual-bundle-refusal-smoke";
     for (const name of controllerToolEntries) {
       const result = invoke(node, [path.join(built.tools, "scripts", `${name}.bundle.mjs`)]);
       assert.equal(result.error, undefined);
-      assert.equal(result.status, name === "release-control-ready" ? 2 : 1, name);
+      assert.equal(
+        result.status,
+        ["release-control-ready", "release-payload-preparation"].includes(name) ? 2 : 1,
+        name,
+      );
       assert.ok(result.stderr.trim(), name);
       assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
     }
@@ -105,6 +130,7 @@ async function main() {
       source: expected,
       evidence_scope: "ordinary-hosted-fixture",
       rust_smoke: "usage-refusal-only",
+      tauri_smoke: "version-and-supported-sign-build-flags-only",
       node_bundles: controllerToolEntries,
       production_tool_acceptance: "not-established",
       authority: "none",
