@@ -424,6 +424,8 @@ void test("semantic helper-only changes retain their actual broker consumer loca
 void test("fixed controller bootstrap and shared attestation verifier retain protected release ownership", () => {
   for (const file of [
     "scripts/release-controller-tool-build.mts",
+    "scripts/qualify-controller-tool-build.mts",
+    ".github/workflows/controller-tool-build-fixture.yml",
     "scripts/release-controller-tools.mts",
     "scripts/release-controller-tool-admission.mts",
     "scripts/release-controller-tool-bootstrap.mts",

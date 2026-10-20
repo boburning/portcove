@@ -51,3 +51,14 @@ permission to use a role key or publish. Injected verification tests remain mark
 boundary. Actual local bundle smoke tests run the bundled CLIs in a directory
 without `node_modules`; they do not qualify a protected bootstrap execution or a
 fresh Rust build. No such execution or build is claimed by this preparation.
+
+The separate ordinary `Controller tool build fixture` workflow now runs on
+relevant pull requests and main changes with only `contents: read`. It binds the
+actual checked-out fixture commit/tree, invokes the same fresh Cargo-home/target
+build, rechecks every tool byte, and smokes the copied Node runtime, all three
+bundled CLI refusal paths without runtime dependencies, and the actual Rust
+binary's usage refusal. It retains only bounded public manifest/result JSON for
+seven days. It has no OIDC, attestation, App, role-key, environment or production
+tool-artifact route. The fifteen-minute ordinary job is separate from the held
+controller's resource allocation. Adding this workflow is not a claim that its
+hosted build has passed; that requires exact-head provider execution evidence.

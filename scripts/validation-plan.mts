@@ -283,6 +283,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-public-build-provenance.mts",
   "scripts/release-control-handshake.mts",
   "scripts/release-controller-tool-build.mts",
+  "scripts/qualify-controller-tool-build.mts",
+  ".github/workflows/controller-tool-build-fixture.yml",
   "scripts/release-controller-tool-bootstrap.mts",
   "scripts/release-controller-tools.mts",
   "scripts/release-controller-tool-admission.mts",

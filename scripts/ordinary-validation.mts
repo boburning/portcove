@@ -550,6 +550,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 ]);
 
 const workflowTests = new Map([
+  ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
   ["application-update-production.yml", ["scripts/production-controller-admission.test.mts"]],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],

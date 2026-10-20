@@ -129,6 +129,68 @@ void test("bootstrap environment excludes ambient credentials, wrappers, npm hoo
   ])
     assert.equal(Object.hasOwn(env, key), false);
 });
+void test("actual pinned AST rewrite preserves Unicode before imported module URLs", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-unicode-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const source = path.join(root, "source"),
+    output = path.join(root, "output");
+  await mkdir(path.join(source, "scripts"), { recursive: true });
+  await writeFile(
+    path.join(source, "scripts/imported.mts"),
+    'const label = "😀é"; export const location = import.meta.url; export {label};\n',
+  );
+  for (const name of controllerToolEntries)
+    await writeFile(
+      path.join(source, "scripts", `${name}.mts`),
+      'import {location,label} from "./imported.mts"; console.log(JSON.stringify({location,label,entry:import.meta.url}));\n',
+    );
+  await bundleControllerEntries(source, output);
+  for (const name of controllerToolEntries) {
+    const bundle = path.join(output, "scripts", `${name}.bundle.mjs`);
+    const result = spawnSync(process.execPath, [bundle], {
+      cwd: output,
+      encoding: "utf8",
+      timeout: 5000,
+      maxBuffer: 4096,
+      env: { SystemRoot: process.env.SystemRoot },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const value: unknown = JSON.parse(result.stdout);
+    assert.ok(isRecord(value));
+    assert.equal(value.label, "😀é");
+    assert.equal(fileURLToPath(String(value.location)), path.join(output, "scripts/imported.mts"));
+    assert.equal(fileURLToPath(String(value.entry)), bundle);
+  }
+});
+void test("ordinary Linux tool build fixture uses actual source and fresh public build without production credentials", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/controller-tool-build-fixture.yml", import.meta.url),
+    "utf8",
+  );
+  const document = parseDocument(text, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const parsed: unknown = document.toJS();
+  assert.ok(isRecord(parsed));
+  assert.deepEqual(parsed.permissions, { contents: "read" });
+  assert.equal(document.getIn(["jobs", "fixture", "runs-on"]), "ubuntu-22.04");
+  assert.equal(document.getIn(["jobs", "fixture", "timeout-minutes"]), 15);
+  assert.match(text, /FIXTURE_SOURCE_SHA: \$\{\{ github.sha \}\}/u);
+  assert.match(text, /qualify-controller-tool-build\.mts/u);
+  assert.match(text, /--frozen-lockfile --ignore-scripts --ignore-pnpmfile/u);
+  assert.match(text, /retention-days: 7/u);
+  assert.match(text, /overwrite: false/u);
+  assert.doesNotMatch(
+    text,
+    /id-token|attestations:|secrets\.|environment:|actions\/cache|trusted-controller-tools-/u,
+  );
+  const source = await readFile(
+    new URL("./qualify-controller-tool-build.mts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /await buildControllerTools\(source, buildWork, expected\)/u);
+  assert.match(source, /actual-rust-refusal-smoke/u);
+  assert.match(source, /production_tool_acceptance: "not-established"/u);
+});
 void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
   const make = (patch: Record<string, unknown> = {}) =>
     assemblerIdentityFixture(
