@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { lstat, realpath } from "node:fs/promises";
+import { lstat, realpath, readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
@@ -262,4 +262,171 @@ export async function requirePinnedLocalNativeSetup(receipt: object) {
       await read();
     },
   };
+}
+
+export function renderLinuxNativeWorkerUnit(
+  node: string,
+  controller: string,
+  descriptor: string,
+  descriptorSha256: string,
+) {
+  const paths = [node, controller, descriptor].map((value) => canonical(value, false));
+  if (!paths.every((value) => /^\/[A-Za-z0-9_./-]+$/u.test(value)))
+    throw new Error("literal Linux native unit paths required");
+  digest(descriptorSha256);
+  return `[Unit]\nDescription=Portcove bounded native qualification parent\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${controller}\nExecStart=${node} ${controller}/scripts/release-native-worker.mts ${descriptor} ${descriptorSha256}\nUMask=0077\nTimeoutStartSec=2100\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\n`;
+}
+
+const linuxSchedulers = new WeakMap<object, { setup: object; identity: string }>();
+async function readLinuxNativeScheduler(setupReceipt: object) {
+  const setup = await requirePinnedLocalNativeSetup(setupReceipt);
+  const uid = process.getuid?.();
+  if (
+    process.platform !== "linux" ||
+    !uid ||
+    setup.descriptor.platform_label !== "linux-x86_64" ||
+    process.env.GITHUB_ACTIONS === "true" ||
+    process.execArgv.length !== 0 ||
+    ["NODE_OPTIONS", "NODE_PATH", "LD_PRELOAD", "LD_LIBRARY_PATH"].some((name) => process.env[name])
+  )
+    throw new Error("fixed ordinary native Linux worker required");
+  const host = setup.authority_configuration.native["linux-x86_64"].host;
+  if (!isRecord(host.account) || host.account.broker !== String(uid))
+    throw new Error("native worker UID differs from configured broker");
+  const scheduler = setup.installation_record.scheduler;
+  exact(scheduler, "node,systemctl_sha256,unit_sha256");
+  exact(scheduler.node, "path,sha256");
+  const node = canonical(scheduler.node.path, false);
+  const nodeSha = digest(scheduler.node.sha256);
+  const systemctlSha = digest(scheduler.systemctl_sha256);
+  const unitSha = digest(scheduler.unit_sha256);
+  const script = path.join(setup.controller_root, "scripts/release-native-worker.mts");
+  if (
+    process.execPath !== node ||
+    JSON.stringify(process.argv) !==
+      JSON.stringify([node, script, setup.configuration_path, setup.descriptor_sha256])
+  )
+    throw new Error("native worker actual command differs from installed action");
+  const identity = async () => {
+    const stat = await readFile("/proc/self/stat", "utf8");
+    const end = stat.lastIndexOf(") ");
+    const started = stat.slice(end + 2).split(" ")[19];
+    if (end < 1 || !started || !/^[1-9][0-9]*$/u.test(started))
+      throw new Error("actual native worker process creation unavailable");
+    const cgroup = await readFile("/proc/self/cgroup", "utf8");
+    const match = /^0::(\/[^\n]+)\n$/u.exec(cgroup);
+    if (!match || !match[1]!.endsWith("/portcove-native-worker.service"))
+      throw new Error("native worker is outside the fixed user unit cgroup");
+    return { pid: process.pid, uid, started, cgroup: match[1]! };
+  };
+  const before = await identity();
+  const read = async () => {
+    const binary = "/usr/bin/systemctl";
+    const info = await lstat(binary);
+    if (
+      !info.isFile() ||
+      info.isSymbolicLink() ||
+      info.uid !== 0 ||
+      (info.mode & 0o6022) !== 0 ||
+      sha(await readBoundedPublicBuildInputFile("/usr/bin", "systemctl", 16 * 1024 * 1024)) !==
+        systemctlSha
+    )
+      throw new Error("fixed systemctl executable custody differs");
+    const raw = execFileSync(
+      binary,
+      [
+        "--user",
+        "show",
+        "portcove-native-worker.service",
+        "--property=LoadState,ActiveState,MainPID,ControlGroup,FragmentPath,DropInPaths",
+      ],
+      {
+        encoding: "utf8",
+        timeout: 10000,
+        maxBuffer: 8192,
+        env: {
+          PATH: "/usr/bin:/bin",
+          LANG: "C.UTF-8",
+          HOME: process.env.HOME,
+          XDG_RUNTIME_DIR: `/run/user/${uid}`,
+        },
+      },
+    );
+    const values: Record<string, string> = {};
+    for (const line of raw.trim().split("\n")) {
+      const match =
+        /^(LoadState|ActiveState|MainPID|ControlGroup|FragmentPath|DropInPaths)=(.*)$/u.exec(line);
+      if (!match || Object.hasOwn(values, match[1]!))
+        throw new Error("ambiguous actual native unit properties");
+      values[match[1]!] = match[2]!;
+    }
+    if (
+      values.LoadState !== "loaded" ||
+      !["activating", "active"].includes(values.ActiveState ?? "") ||
+      values.MainPID !== String(process.pid) ||
+      values.ControlGroup !== before.cgroup ||
+      values.DropInPaths !== "" ||
+      !values.FragmentPath
+    )
+      throw new Error("native unit does not own this exact process");
+    await linuxOwnerPath(values.FragmentPath);
+    const unit = await readBoundedPublicBuildInputFile(
+      path.dirname(values.FragmentPath),
+      path.basename(values.FragmentPath),
+      16384,
+    );
+    if (
+      sha(unit) !== unitSha ||
+      unit.toString("utf8") !==
+        renderLinuxNativeWorkerUnit(
+          node,
+          setup.controller_root,
+          setup.configuration_path,
+          setup.descriptor_sha256,
+        ) ||
+      sha(
+        await readBoundedPublicBuildInputFile(
+          path.dirname(node),
+          path.basename(node),
+          256 * 1024 * 1024,
+        ),
+      ) !== nodeSha
+    )
+      throw new Error("actual native unit/action/runtime differs from installed fixed bytes");
+    return values;
+  };
+  const first = await read();
+  await setup.recheck();
+  const last = await read();
+  if (
+    capacityDigest(first) !== capacityDigest(last) ||
+    capacityDigest(before) !== capacityDigest(await identity())
+  )
+    throw new Error("native scheduler changed during observation");
+  return {
+    process: before,
+    unit_sha256: unitSha,
+    node_sha256: nodeSha,
+    systemctl_sha256: systemctlSha,
+    descriptor_sha256: setup.descriptor_sha256,
+    setup_grant_sha256: setup.descriptor.setup_grant_sha256,
+    authority: "none",
+    scope:
+      "actual fixed Linux scheduler/process and pinned setup custody; native result still required",
+  };
+}
+
+export async function observeActualLinuxNativeScheduler(setupReceipt: object) {
+  const actual = await readLinuxNativeScheduler(setupReceipt);
+  const receipt = Object.freeze({ kind: "actual-linux-native-scheduler", authority: "none" });
+  linuxSchedulers.set(receipt, { setup: setupReceipt, identity: capacityDigest(actual) });
+  return receipt;
+}
+export async function requireActualLinuxNativeScheduler(receipt: object) {
+  const actual = linuxSchedulers.get(receipt);
+  if (!actual) throw new Error("actual Linux native scheduler observation required");
+  const value = await readLinuxNativeScheduler(actual.setup);
+  if (capacityDigest(value) !== actual.identity)
+    throw new Error("native scheduler observation changed");
+  return value;
 }
