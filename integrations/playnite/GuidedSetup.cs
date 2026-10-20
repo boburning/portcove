@@ -161,7 +161,7 @@ namespace Portcove.ReferenceClient
         {
             "missing_source", "unreadable_source", "changed_source", "incompatible_source", "missing_bios",
             "unreadable_bios", "changed_bios", "incompatible_bios", "missing_runtime", "preparation_required",
-            "invalid_installation"
+            "invalid_installation", "shared_preferences_review_required", "shared_preferences_unavailable"
         };
 
         internal GuidedStepKind Kind { get; private set; }
@@ -194,6 +194,12 @@ namespace Portcove.ReferenceClient
             var actions = PortActions.Read(status);
             var launch = actions.FirstOrDefault(value => value.Action == "launch");
             var installed = StatusInstallation.Current(status) != null;
+            if (installed && blockers.Contains("shared_preferences_unavailable"))
+                return Step(GuidedStepKind.ReviewProblem, "Check shared preferences",
+                    "Portcove cannot safely inspect shared preferences. Leave the file unchanged, close other game copies, check that your Windows profile is available, then refresh. Reinstalling does not fix an unsafe or unreadable shared location.");
+            if (installed && blockers.Contains("shared_preferences_review_required"))
+                return Step(GuidedStepKind.ReviewProblem, "Review shared preferences",
+                    "Windows account or shared preferences location changed. Remove the managed installation while keeping saves and settings, then review a fresh installation. Leave the account-wide preferences file in place.");
             var install = actions.FirstOrDefault(value => value.Action == "install");
             if (!installed && install != null && install.Availability == "held")
                 return Step(GuidedStepKind.ReviewProblem, "Review installation hold",

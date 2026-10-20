@@ -424,9 +424,10 @@ namespace Portcove.ReferenceClient
                 var review = InstallationReview.Read(plan, port, cli.LibraryRoot);
                 if (MessageBox.Show(window, review.Description, "Review installation", MessageBoxButton.OKCancel,
                     MessageBoxImage.Question) != MessageBoxResult.OK) return;
+                if (!review.ConfirmSharedScope(message => MessageBox.Show(window, message,
+                    "Allow shared preferences?", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)) return;
                 CurrentStatus = null;
-                await cli.Manage("installation.run", new[] { "installation", "run", port,
-                    "--expected-plan", review.Fingerprint, "--yes" }, OnProgress);
+                await cli.Manage("installation.run", review.InstallationArguments(), OnProgress);
                 await Refresh();
                 return;
             }

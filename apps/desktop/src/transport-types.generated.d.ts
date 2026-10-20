@@ -116,6 +116,8 @@ export type PortActionReason =
   | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
+  | "shared_preferences_review_required"
+  | "shared_preferences_unavailable"
   | "invalid_installation"
   | "definition_ineligible"
   | "missing_data"
@@ -219,6 +221,8 @@ export type LaunchBlocker =
   | "incompatible_bios"
   | "missing_runtime"
   | "preparation_required"
+  | "shared_preferences_review_required"
+  | "shared_preferences_unavailable"
   | "invalid_installation";
 export type UpdatePolicy = "notify" | "stage" | "automatic";
 export type ArtworkImageFormat = "png" | "jpeg";
@@ -314,7 +318,8 @@ export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
  */
 export type RuntimeDataPolicy = "racewave46-v1.0.0-windows";
 export type RuntimeSourceMaterialization =
-  "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
+  | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
+  | "regaiden-gbc";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -1290,6 +1295,7 @@ export interface PortDefinition {
   };
   launch_from_install_root: boolean;
   managed_initialization?: ManagedInitialization | null;
+  managed_shared_preferences?: PreparedSharedPreferencesContract | null;
   manually_validated_platforms: Platform[];
   /**
    * Seed D3D12 only for a fresh Windows N64 portable runtime; never replace settings.
@@ -2079,6 +2085,7 @@ export interface InstallPlan {
   port_id: string;
   preservation_notices?: string[];
   release: ResolvedRelease;
+  shared_preferences?: ManagedSharedPreferencesReview | null;
   source_requirements: InstallSourceRequirement[];
   storage: StorageSummary;
   /**
@@ -2086,6 +2093,15 @@ export interface InstallPlan {
    */
   temporary_space?: InstallSpaceRequirement | null;
   [k: string]: unknown;
+}
+/**
+ * Managed local fallback and non-owned account-wide preferences have distinct ownership.
+ */
+export interface ManagedSharedPreferencesReview {
+  binding: AcceptedSharedPreferencesBinding;
+  local_fallback_path: string;
+  local_fallback_present: boolean;
+  shared_present: boolean;
 }
 export interface InstallSourceRequirement {
   label: string;

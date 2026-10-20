@@ -246,6 +246,9 @@ enum InstallationCommand {
         /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
         #[arg(long)]
         expected_plan: String,
+        /// Accept the exact shared-preferences scope shown by this plan. --yes alone is insufficient.
+        #[arg(long)]
+        acknowledge_shared_preferences: bool,
         /// Confirm this reviewed install without a prompt; the plan check still applies.
         #[arg(long)]
         yes: bool,
@@ -259,6 +262,8 @@ enum InstallationCommand {
         port_id: String,
         #[arg(long)]
         expected_plan: String,
+        #[arg(long)]
+        acknowledge_shared_preferences: bool,
         #[arg(long)]
         yes: bool,
     },
@@ -1393,6 +1398,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 InstallationCommand::Run {
                     port_id,
                     expected_plan,
+                    acknowledge_shared_preferences,
                     yes,
                 },
         } => {
@@ -1402,7 +1408,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_install(&port_id, &expected_plan)
+                .authorize_game_install_with_shared_preferences_ack(
+                    &port_id,
+                    &expected_plan,
+                    acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                )
                 .await?;
             let mut progress = progress_renderer(mode);
             let installed = service
@@ -1428,6 +1438,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 InstallationCommand::QualificationUpdateRun {
                     port_id,
                     expected_plan,
+                    acknowledge_shared_preferences,
                     yes,
                 },
         } => {
@@ -1437,7 +1448,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 cli.non_interactive,
             )?;
             let authorization = service
-                .authorize_game_update(&port_id, true, &expected_plan)
+                .authorize_game_update_with_shared_preferences_ack(
+                    &port_id,
+                    true,
+                    &expected_plan,
+                    acknowledge_shared_preferences.then_some(expected_plan.as_str()),
+                )
                 .await?;
             let mut progress = progress_renderer(mode);
             let installed = service

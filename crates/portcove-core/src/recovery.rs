@@ -228,6 +228,11 @@ fn require_install_publication_authority(
         return Ok(());
     }
     let installer = Installer::new(service.library.clone())?;
+    let destination = operation
+        .install
+        .as_ref()
+        .ok_or_else(|| PortcoveError::state("publication has no final installation"))?;
+    installer.require_shared_preferences_for(install, &destination.path)?;
     installer.require_curated_operation(
         install,
         if operation.kind == LifecycleOperationKind::Install {
@@ -561,6 +566,7 @@ impl ActivationOperation {
             }
         };
         if phase == ActivationPhase::Preparing {
+            service.require_installed_shared_preferences(install)?;
             let status = service
                 .library
                 .status(&operation.port_id, install.channel)?;

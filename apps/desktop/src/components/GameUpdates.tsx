@@ -474,6 +474,15 @@ function GameUpdateReview({ plan }: { plan: GameUpdatePlan }) {
           {notice}
         </p>
       ))}
+      {plan.plan.shared_preferences && (
+        <p className="col-span-full text-[length:var(--text-sm)]">
+          This update requires acceptance of ReGaiden's shared Windows preferences at{" "}
+          <bdi dir="ltr">{plan.plan.shared_preferences.binding.path}</bdi>. The game may rewrite
+          that file and affect other copies. Portcove does not own or back up the shared file; the
+          local fallback at <bdi dir="ltr">{plan.plan.shared_preferences.local_fallback_path}</bdi>{" "}
+          remains managed installation data.
+        </p>
+      )}
     </div>
   );
 }
