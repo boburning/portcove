@@ -7,6 +7,8 @@ import {
   assertMetadataRenewalBinding,
   validatePublishedMetadataTransition,
   metadataInstant,
+  inspectMetadataBootstrapDescriptor,
+  assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 
 // Reviewed ceilings, not remaining storage, a reservation, or a billing quote.
@@ -117,10 +119,19 @@ interface MetadataOperationSubject {
   transient_retries: number;
   substantive_repairs: number;
 }
+interface MetadataBootstrapOperationSubject {
+  descriptor_sha256: string;
+  observed_at: string;
+  setup_plan_sha256: string;
+  initial_site_preimage_sha256: string;
+  transient_retries: number;
+  substantive_repairs: number;
+}
 export interface ParsedCapacityOperation {
   before_checkpoint: string;
   candidate?: CapacityCandidate;
   metadata_renewal?: MetadataOperationSubject;
+  metadata_bootstrap?: MetadataBootstrapOperationSubject;
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
@@ -140,12 +151,13 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const hasExecutor = isRecord(raw) && Object.hasOwn(raw, "executor_nonce");
   const hasIdentity = isRecord(raw) && Object.hasOwn(raw, "executor_identity");
   const metadata = isRecord(raw) && Object.hasOwn(raw, "metadata_renewal");
+  const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
   exact(
     raw,
     [
       "before_checkpoint",
-      metadata ? "metadata_renewal" : "candidate",
+      bootstrap ? "metadata_bootstrap" : metadata ? "metadata_renewal" : "candidate",
       "completed_effects",
       "destination",
       ...(hasExecutor ? ["executor_nonce"] : []),
@@ -180,7 +192,17 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   sha(raw.policy_sha256);
   sha(raw.ratification_sha256);
   text(raw.destination);
-  if (metadata) {
+  if (bootstrap) {
+    exact(
+      raw.metadata_bootstrap,
+      "descriptor_sha256,initial_site_preimage_sha256,observed_at,setup_plan_sha256,substantive_repairs,transient_retries",
+    );
+    sha(raw.metadata_bootstrap.descriptor_sha256);
+    sha(raw.metadata_bootstrap.setup_plan_sha256);
+    sha(raw.metadata_bootstrap.initial_site_preimage_sha256);
+    metadataInstant(raw.metadata_bootstrap.observed_at);
+    inspectRecoveryCounters(raw.metadata_bootstrap);
+  } else if (metadata) {
     exact(
       raw.metadata_renewal,
       "descriptor_sha256,observed_at,prior_repository_sha256,substantive_repairs,transient_retries",
@@ -252,8 +274,32 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     if (raw.recovery.resolution === "effect-not-applied" && completed.length !== 0)
       throw new Error("effect-not-applied contradicts retained completed effects");
   } else if (raw.recovery !== null) throw new Error("unresolved operation cannot assert recovery");
-  const subject: { candidate?: CapacityCandidate; metadata_renewal?: MetadataOperationSubject } =
-    metadata
+  const subject: {
+    candidate?: CapacityCandidate;
+    metadata_renewal?: MetadataOperationSubject;
+    metadata_bootstrap?: MetadataBootstrapOperationSubject;
+  } = bootstrap
+    ? {
+        metadata_bootstrap: {
+          descriptor_sha256: String(
+            (raw.metadata_bootstrap as Record<string, unknown>).descriptor_sha256,
+          ),
+          setup_plan_sha256: String(
+            (raw.metadata_bootstrap as Record<string, unknown>).setup_plan_sha256,
+          ),
+          initial_site_preimage_sha256: String(
+            (raw.metadata_bootstrap as Record<string, unknown>).initial_site_preimage_sha256,
+          ),
+          observed_at: String((raw.metadata_bootstrap as Record<string, unknown>).observed_at),
+          transient_retries: Number(
+            (raw.metadata_bootstrap as Record<string, unknown>).transient_retries,
+          ),
+          substantive_repairs: Number(
+            (raw.metadata_bootstrap as Record<string, unknown>).substantive_repairs,
+          ),
+        },
+      }
+    : metadata
       ? {
           metadata_renewal: {
             descriptor_sha256: String(
@@ -319,7 +365,8 @@ export function assessBoundedCapacity(raw: unknown) {
   if (
     raw.schema_version === 1 &&
     isRecord(raw.operation) &&
-    Object.hasOwn(raw.operation, "metadata_renewal")
+    (Object.hasOwn(raw.operation, "metadata_renewal") ||
+      Object.hasOwn(raw.operation, "metadata_bootstrap"))
   )
     throw new Error("metadata operations require bounded capacity schema2");
   if (
@@ -414,7 +461,7 @@ export function inspectPriorCapacityOperations(raw: unknown) {
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 export interface CapacityOperationGroup {
   summary_schema_version: 1;
-  subject: { kind: "candidate" | "metadata-renewal"; identity: string };
+  subject: { kind: "candidate" | "metadata-renewal" | "metadata-bootstrap"; identity: string };
   kind: string;
   destination_sha256: string;
   transient_retries: number;
@@ -423,6 +470,11 @@ export interface CapacityOperationGroup {
   attempts: { checkpoint: string; id: string; operation_sha256: string }[];
 }
 export function capacityOperationSubject(operation: Operation) {
+  if (isRecord(operation.metadata_bootstrap))
+    return {
+      kind: "metadata-bootstrap" as const,
+      identity: String(operation.metadata_bootstrap.descriptor_sha256),
+    };
   if (isRecord(operation.metadata_renewal))
     return {
       kind: "metadata-renewal" as const,
@@ -432,9 +484,11 @@ export function capacityOperationSubject(operation: Operation) {
   return { kind: "candidate" as const, identity: String(operation.candidate.prepared_commit) };
 }
 export function capacityOperationCounters(operation: Operation) {
-  const source = isRecord(operation.metadata_renewal)
-    ? operation.metadata_renewal
-    : operation.candidate;
+  const source = isRecord(operation.metadata_bootstrap)
+    ? operation.metadata_bootstrap
+    : isRecord(operation.metadata_renewal)
+      ? operation.metadata_renewal
+      : operation.candidate;
   if (!isRecord(source)) throw new Error("capacity operation counters absent");
   return {
     transient_retries: Number(source.transient_retries),
@@ -457,7 +511,11 @@ export function inspectCompactCapacityOperations(raw: unknown): CapacityOperatio
       "attempts,completed,destination_sha256,kind,subject,substantive_repairs,summary_schema_version,transient_retries",
     );
     exact(entry.subject, "identity,kind");
-    if (entry.subject.kind !== "candidate" && entry.subject.kind !== "metadata-renewal")
+    if (
+      entry.subject.kind !== "candidate" &&
+      entry.subject.kind !== "metadata-renewal" &&
+      entry.subject.kind !== "metadata-bootstrap"
+    )
       throw new Error("compact capacity subject invalid");
     sha(entry.subject.identity, entry.subject.kind === "candidate" ? 40 : 64);
     sha(entry.destination_sha256);
@@ -570,7 +628,12 @@ export function expectedCompactCapacityOperations(
   return groups.filter((group) =>
     group.subject.kind === "candidate"
       ? group.subject.identity === active
-      : group.subject.identity === published?.repository_sha256,
+      : group.subject.kind === "metadata-bootstrap"
+        ? !published &&
+          next.metadata_bootstrap != null &&
+          group.subject.identity ===
+            capacityDigest(inspectMetadataBootstrapDescriptor(next.metadata_bootstrap))
+        : group.subject.identity === published?.repository_sha256,
   );
 }
 export function verifyRetainedCapacityOperation(
@@ -599,6 +662,27 @@ function validateCapacityV2(
   const before = priorCapacity ? inspectCapacityOperation(priorCapacity.operation) : null,
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
+  const previousBootstrap =
+    previous.metadata_bootstrap == null
+      ? null
+      : inspectMetadataBootstrapDescriptor(previous.metadata_bootstrap);
+  if (previous.opportunity !== null && next.opportunity === null)
+    throw new Error("initial metadata state cannot erase an existing semantic opportunity");
+  const nextBootstrap =
+    next.metadata_bootstrap == null
+      ? null
+      : inspectMetadataBootstrapDescriptor(next.metadata_bootstrap);
+  if (previousBootstrap && capacityDigest(previousBootstrap) !== capacityDigest(nextBootstrap))
+    throw new Error("initial bootstrap descriptor cannot disappear or be replaced");
+  if (
+    !previousBootstrap &&
+    nextBootstrap &&
+    (inspectPublishedMetadata(previous.published_metadata) ||
+      inspectPublishedMetadata(next.published_metadata) ||
+      (before && !["succeeded", "recovered"].includes(before.outcome)) ||
+      capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate))
+  )
+    throw new Error("initial bootstrap cannot start after publication or rewrite a reservation");
   if (
     capacityDigest(previous.published_metadata ?? null) !==
       capacityDigest(next.published_metadata ?? null) &&
@@ -622,13 +706,32 @@ function validateCapacityV2(
       throw new Error("unresolved capacity effects must preserve reservation");
     if (
       !["succeeded", "recovered"].includes(before.outcome) &&
-      capacityDigest(previous.metadata_renewal ?? null) !==
-        capacityDigest(next.metadata_renewal ?? null)
+      (capacityDigest(previous.metadata_renewal ?? null) !==
+        capacityDigest(next.metadata_renewal ?? null) ||
+        capacityDigest(previous.metadata_bootstrap ?? null) !==
+          capacityDigest(next.metadata_bootstrap ?? null))
     )
       throw new Error("unresolved metadata intent cannot change its frozen descriptor");
     return;
   }
-  if (isRecord(after.metadata_renewal)) {
+  if (isRecord(after.metadata_bootstrap)) {
+    const descriptor = inspectMetadataBootstrapDescriptor(next.metadata_bootstrap);
+    if (
+      after.metadata_bootstrap.descriptor_sha256 !== capacityDigest(descriptor) ||
+      after.metadata_bootstrap.setup_plan_sha256 !== descriptor.setup_plan_sha256 ||
+      after.metadata_bootstrap.initial_site_preimage_sha256 !==
+        descriptor.initial_site_preimage_sha256
+    )
+      throw new Error("initial bootstrap effect differs from frozen setup descriptor");
+    if (newIntent)
+      assertMetadataBootstrapBinding(
+        descriptor,
+        inspectPublishedMetadata(next.published_metadata),
+        after.metadata_bootstrap.observed_at,
+      );
+    if (capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate))
+      throw new Error("initial bootstrap effect cannot change active candidate");
+  } else if (isRecord(after.metadata_renewal)) {
     const descriptor = inspectMetadataRenewalDescriptor(next.metadata_renewal);
     if (
       after.metadata_renewal.descriptor_sha256 !== capacityDigest(descriptor) ||
@@ -697,7 +800,7 @@ function validateCapacityV2(
       counters.substantive_repairs <= substantive
     )
       throw new Error("same-effect retry requires fresh bounded recovery increment");
-    if (subject.kind === "metadata-renewal") {
+    if (subject.kind === "metadata-renewal" || subject.kind === "metadata-bootstrap") {
       const increase =
         counters.transient_retries - transient + counters.substantive_repairs - substantive;
       if (increase !== (repeated ? 1 : 0))
@@ -738,7 +841,9 @@ function validateCapacityV2(
   if (
     capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate) ||
     capacityDigest(previous.metadata_renewal ?? null) !==
-      capacityDigest(next.metadata_renewal ?? null)
+      capacityDigest(next.metadata_renewal ?? null) ||
+    capacityDigest(previous.metadata_bootstrap ?? null) !==
+      capacityDigest(next.metadata_bootstrap ?? null)
   )
     throw new Error("capacity outcome cannot rewrite reservation or metadata descriptor");
 }
@@ -754,7 +859,9 @@ export function validateCapacityTransition(
     Object.hasOwn(previous, "published_metadata") ||
     Object.hasOwn(next, "published_metadata") ||
     Object.hasOwn(previous, "metadata_renewal") ||
-    Object.hasOwn(next, "metadata_renewal")
+    Object.hasOwn(next, "metadata_renewal") ||
+    Object.hasOwn(previous, "metadata_bootstrap") ||
+    Object.hasOwn(next, "metadata_bootstrap")
   )
     return validateCapacityV2(previous, next, checkpoint);
   if (previous.schema_version === 2 && next.schema_version !== 2)

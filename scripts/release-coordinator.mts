@@ -2,6 +2,7 @@ import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
+  inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -366,14 +367,15 @@ type Authority = {
   controller_revision: string;
   publication_observed_at: string;
   publication_sha256: string;
-  opportunity_base_commit: string;
-  opportunity_commit: string;
-  opportunity_tree: string;
-  change_set_sha256: string;
-  reviewed_classification_sha256: string;
+  opportunity_base_commit?: string;
+  opportunity_commit?: string;
+  opportunity_tree?: string;
+  change_set_sha256?: string;
+  reviewed_classification_sha256?: string;
   capacity_attempt?: ReturnType<typeof assessBoundedCapacity>;
   published_metadata_sha256?: string;
   metadata_renewal_sha256?: string;
+  metadata_bootstrap_sha256?: string;
 };
 function activePlan(
   active: NonNullable<ReturnType<typeof validateActive>>,
@@ -457,19 +459,25 @@ export function planReleaseOpportunity(input: unknown) {
   exactKeys(
     input,
     ["schema_version", "now", "controller", "opportunity", "publication", "active_candidate"],
-    ["published_metadata", "metadata_renewal", "review_request", "review_disposition"],
+    [
+      "published_metadata",
+      "metadata_renewal",
+      "metadata_bootstrap",
+      "review_request",
+      "review_disposition",
+    ],
     "release coordinator input",
   );
   if (input.schema_version !== 1 && input.schema_version !== 2)
     throw new Error("unsupported release coordinator schema");
   const now = instant(input.now, "coordinator time");
   const controller = validateController(input.controller, input.schema_version);
-  const opportunity = validateOpportunity(input.opportunity);
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
   const hasMetadata =
     Object.hasOwn(input, "published_metadata") ||
     Object.hasOwn(input, "metadata_renewal") ||
+    Object.hasOwn(input, "metadata_bootstrap") ||
     Object.hasOwn(input, "review_request") ||
     Object.hasOwn(input, "review_disposition");
   if (
@@ -487,6 +495,48 @@ export function planReleaseOpportunity(input: unknown) {
     input.metadata_renewal === undefined || input.metadata_renewal === null
       ? null
       : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  const metadataBootstrap =
+    input.metadata_bootstrap == null
+      ? null
+      : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
+  if (input.opportunity === null) {
+    if (!metadataBootstrap || active || publication.reserved_versions.length !== 0)
+      throw new Error(
+        "null semantic opportunity requires explicit initial metadata state without a reservation",
+      );
+    const authority: Authority = {
+      controller_workflow: controller.workflow,
+      controller_revision: controller.revision,
+      publication_observed_at: publication.observed_at,
+      publication_sha256: capacityDigest(input.publication),
+      metadata_bootstrap_sha256: capacityDigest(metadataBootstrap),
+      ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      ...(Object.hasOwn(input, "published_metadata")
+        ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
+        : {}),
+      ...(Object.hasOwn(input, "metadata_renewal")
+        ? { metadata_renewal_sha256: capacityDigest(metadataRenewal) }
+        : {}),
+      ...(Object.hasOwn(input, "review_request")
+        ? { review_request_sha256: capacityDigest(reviewRequest) }
+        : {}),
+      ...(Object.hasOwn(input, "review_disposition")
+        ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
+        : {}),
+    };
+    return plan(
+      controller.publication_paused || controller.capacity?.eligibility !== "eligible"
+        ? "pause"
+        : "skip",
+      controller.publication_paused
+        ? "publication emergency pause is active"
+        : controller.capacity?.eligibility !== "eligible"
+          ? "bounded initial metadata state is held"
+          : "explicit initial metadata state has no semantic release opportunity",
+      authority,
+    );
+  }
+  const opportunity = validateOpportunity(input.opportunity);
   const authority = {
     ...(Object.hasOwn(input, "review_disposition")
       ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
@@ -499,6 +549,9 @@ export function planReleaseOpportunity(input: unknown) {
       : {}),
     ...(Object.hasOwn(input, "metadata_renewal")
       ? { metadata_renewal_sha256: capacityDigest(metadataRenewal) }
+      : {}),
+    ...(Object.hasOwn(input, "metadata_bootstrap")
+      ? { metadata_bootstrap_sha256: capacityDigest(metadataBootstrap) }
       : {}),
     ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
     controller_workflow: controller.workflow,

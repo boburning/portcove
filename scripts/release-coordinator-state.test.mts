@@ -1,12 +1,14 @@
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import { capacityDigest } from "./release-capacity.mts";
 import {
   runBoundedCapacityOperation,
   recordCapacityReadback,
   ProviderCapacityRefusal,
   runBoundedMetadataRenewalOperation,
   recordPublishedMetadata,
+  runBoundedMetadataBootstrapOperation,
 } from "./release-capacity-operation.mts";
-import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import { isDeepStrictEqual } from "node:util";
 import assert from "node:assert/strict";
 import { execFile, execFileSync } from "node:child_process";
@@ -54,6 +56,194 @@ import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+
+for (const lost of [false, true])
+  void test(
+    `initial metadata bootstrap ${lost ? "retains ambiguous intent through sparse recovery" : "settles exact empty publication without a candidate"}`,
+    { timeout: 60000 },
+    async (t) => {
+      const repositoryRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-initial-metadata-"));
+      t.after(() => rm(repositoryRoot, { recursive: true, force: true }));
+      const f = {
+        repository: repositoryRoot,
+        git: (...args: string[]) =>
+          execFileSync("git", ["-C", repositoryRoot, ...args], {
+            encoding: "utf8",
+            windowsHide: true,
+          }).trim(),
+      };
+      f.git("init", "--bare", "--quiet");
+      const capacity = { ...capacityFixture(), schema_version: 2 };
+      const { descriptor, published } = metadataBootstrapFixture();
+      const input = {
+        schema_version: 2,
+        now: new Date(descriptor.generated_at).toISOString(),
+        opportunity: null,
+        active_candidate: null,
+        metadata_bootstrap: descriptor,
+        published_metadata: null,
+        publication: {
+          complete: true,
+          observed_at: new Date(descriptor.generated_at).toISOString(),
+          published_versions: [],
+          published_sources: [],
+          reserved_versions: [],
+          last_routine_preview_at: null,
+        },
+        controller: {
+          workflow: ".github/workflows/release-coordinator.yml",
+          revision: "3".repeat(40),
+          publication_paused: false,
+          capacity_attempt: capacity,
+        },
+      };
+      const migrated = await checkpointReleaseOpportunity(f.repository, null, input);
+      assert.equal(migrated.plan.action, "skip");
+      assert.equal(Object.hasOwn(migrated.plan.authority, "opportunity_commit"), false);
+      let effects = 0;
+      const request = {
+        kind: "upload" as const,
+        destination: "qualification:initial-application-pages",
+      };
+      let checkpoint: string;
+      if (lost) {
+        await assert.rejects(
+          runBoundedMetadataBootstrapOperation(
+            f.repository,
+            migrated.checkpoint,
+            descriptor,
+            request,
+            async () => capacity.boundary,
+            async () => {
+              effects++;
+              throw new Error("fixture provider effect response lost");
+            },
+            { maximumReceipts: 1 },
+          ),
+          /recover and read back/,
+        );
+        checkpoint = f.git("rev-parse", coordinatorStateRef);
+      } else {
+        const result = await runBoundedMetadataBootstrapOperation(
+          f.repository,
+          migrated.checkpoint,
+          descriptor,
+          request,
+          async () => capacity.boundary,
+          async (record) => {
+            effects++;
+            await record("qualification:initial-public-site", "8".repeat(64));
+          },
+          { maximumReceipts: 1 },
+        );
+        checkpoint = result.checkpoint;
+      }
+      let repository = f.repository;
+      if (lost) {
+        const mirror = path.join(f.repository, "bootstrap-transport.git");
+        execFileSync("git", ["clone", "--mirror", "--quiet", f.repository, mirror], {
+          windowsHide: true,
+        });
+        const exported = await exportCoordinatorCheckpoint(mirror, checkpoint);
+        const sparse = path.join(f.repository, "bootstrap-sparse.git");
+        execFileSync("git", ["init", "--bare", "--quiet", sparse], { windowsHide: true });
+        const objects: { kind: "commit" | "tree" | "blob"; oid: string; bytes: Buffer }[] = [];
+        for (const ref of [exported.checkpoint, exported.previous]) {
+          assert.ok(ref);
+          for (const [kind, suffix] of [
+            ["commit", ""],
+            ["tree", "^{tree}"],
+            ["blob", ":state.json"],
+          ] as const) {
+            const oid = execFileSync("git", ["-C", mirror, "rev-parse", ref + suffix], {
+              encoding: "utf8",
+              windowsHide: true,
+            }).trim();
+            if (!objects.some((object) => object.oid === oid))
+              objects.push({
+                kind,
+                oid,
+                bytes: execFileSync("git", ["-C", mirror, "cat-file", kind, oid], {
+                  windowsHide: true,
+                }),
+              });
+          }
+        }
+        await importCoordinatorCheckpoint(sparse, checkpoint, objects);
+        assert.throws(() =>
+          execFileSync("git", ["-C", sparse, "cat-file", "-e", migrated.checkpoint], {
+            windowsHide: true,
+            stdio: "ignore",
+          }),
+        );
+        repository = sparse;
+        const resolved = await recordCapacityReadback(
+          repository,
+          checkpoint,
+          "effect-completed",
+          "9".repeat(64),
+          {
+            completedEffect: {
+              remote_identity: "qualification:initial-public-site",
+              evidence_sha256: "8".repeat(64),
+            },
+          },
+        );
+        checkpoint = resolved.checkpoint;
+      }
+      const recovered = await recoverReleaseOpportunity(repository, checkpoint);
+      assert.equal(recovered.input.active_candidate, null);
+      assert.deepEqual(recovered.input.metadata_bootstrap, descriptor);
+      assert.ok(
+        isRecord(recovered.input.controller) &&
+          isRecord(recovered.input.controller.capacity_attempt),
+      );
+      const operation = recovered.input.controller.capacity_attempt.operation;
+      assert.ok(isRecord(operation) && isRecord(operation.metadata_bootstrap));
+      assert.equal(operation.metadata_bootstrap.descriptor_sha256, capacityDigest(descriptor));
+      const initial = {
+        ...published,
+        operation_id: operation.id,
+        publication: {
+          remote_identity: "qualification:initial-public-site",
+          evidence_sha256: "8".repeat(64),
+          site_generation_sha256: "7".repeat(64),
+        },
+      };
+      await assert.rejects(
+        recordPublishedMetadata(repository, checkpoint, {
+          ...initial,
+          records_sha256: "6".repeat(64),
+        }),
+        /bootstrap descriptor/,
+      );
+      const final = await recordPublishedMetadata(repository, checkpoint, initial);
+      const finalState = await recoverReleaseOpportunity(repository, final.checkpoint);
+      assert.deepEqual(finalState.input.published_metadata, initial);
+      assert.equal(finalState.input.active_candidate, null);
+      await assert.rejects(
+        runBoundedMetadataBootstrapOperation(
+          repository,
+          final.checkpoint,
+          descriptor,
+          request,
+          async () => capacity.boundary,
+          async () => {
+            effects++;
+          },
+          { maximumReceipts: 1 },
+        ),
+        /permanently closed/,
+      );
+      const changed = structuredClone(finalState.input);
+      changed.metadata_bootstrap = { ...descriptor, setup_plan_sha256: "f".repeat(64) };
+      await assert.rejects(
+        checkpointReleaseOpportunity(repository, final.checkpoint, changed),
+        /cannot disappear or be replaced/,
+      );
+      assert.equal(effects, 1);
+    },
+  );
 
 void test("optional frozen opportunity binds allocation and cannot be changed, removed or retroactively supplied", async (t) => {
   const f = await fixture(t);
