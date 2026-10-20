@@ -17,9 +17,12 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import { recordPublishedMetadata } from "./release-capacity-operation.mts";
+import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
+  refreshCapacityExecutor,
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
@@ -98,6 +101,7 @@ interface DeploymentSession {
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
   generation: Composed["generation"];
+  publication: Composed["publication"];
   previous_generation: Composed["generation"] | null;
   prior_public_readback?: { generation: string; evidence_sha256: string };
   archive_sha256: string;
@@ -334,6 +338,7 @@ export async function prepareSiteDeployment(
         );
   sessions.set(session, {
     ...retained,
+    publication: structuredClone(composed.publication),
     previous_generation: prior ? structuredClone(prior.generation) : null,
   });
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
@@ -386,6 +391,8 @@ export async function publishPreparedSiteDeployment(
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
     throw new Error("actual authenticated composition and provider upload session required");
   requireAuthenticatedReleaseControlSource(controls, "site-publication");
+  if (controls.evidence_scope !== "github.com" || !prepared.publication)
+    throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
   const executorIdentity = capacityExecutorIdentity(executor);
   if (
@@ -436,7 +443,7 @@ export async function publishPreparedSiteDeployment(
   const provider = createPagesProviderTransport(prepared.directory);
   if (provider.evidence_scope !== "github.com")
     throw new Error("actual Pages provider transport required");
-  return executeOwnedCapacityEffect(
+  const result = await executeOwnedCapacityEffect(
     executor,
     {
       ...input,
@@ -510,4 +517,55 @@ export async function publishPreparedSiteDeployment(
       }
     },
   );
+  // Provider completion and journal settlement are already retained. A later
+  // state-handoff failure cannot authorize another deployment; the coordinator
+  // must recover this exact published generation through readback.
+  await refreshCapacityExecutor(executor);
+  await publishCoordinatorCheckpoint(
+    input.repository,
+    result.checkpoint,
+    input.remote_configuration,
+    { api },
+  );
+  const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);
+  const controller = settled.input.controller;
+  const capacity =
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt
+      : null;
+  const operation = capacity && isRecord(capacity.operation) ? capacity.operation : null;
+  const effects =
+    operation && Array.isArray(operation.completed_effects) ? operation.completed_effects : [];
+  const effect: unknown = effects[0];
+  if (
+    !operation ||
+    operation.id !== result.operation_id ||
+    operation.outcome !== "recovered" ||
+    effects.length !== 1 ||
+    !isRecord(effect) ||
+    effect.evidence_sha256 !== result.evidence_sha256 ||
+    typeof effect.remote_identity !== "string"
+  )
+    throw new Error("published site settlement identity differs; preserve original effects");
+  const advanced = await recordPublishedMetadata(
+    input.repository,
+    result.checkpoint,
+    {
+      ...prepared.publication,
+      operation_id: result.operation_id,
+      publication: {
+        remote_identity: effect.remote_identity,
+        evidence_sha256: result.evidence_sha256,
+        site_generation_sha256: prepared.generation.generation,
+      },
+    },
+    { remote: { configuration: input.remote_configuration, api } },
+  );
+  if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)
+    throw new Error("published metadata handoff remains unresolved; do not deploy again");
+  return {
+    ...result,
+    checkpoint: advanced.checkpoint,
+    site_generation_sha256: prepared.generation.generation,
+  };
 }

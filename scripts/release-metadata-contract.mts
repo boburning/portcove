@@ -105,6 +105,36 @@ export function inspectMetadataRenewalDescriptor(raw: unknown) {
     unchanged_records_sha256: raw.unchanged_records_sha256,
   };
 }
+/** Shape/binding only. The admitted caller must obtain these facts from the
+ * actual pinned keyless verifier, never an imported report or artifact label. */
+export function inspectTufPublicationFacts(raw: unknown) {
+  exact(
+    raw,
+    "expires,offline_targets_sha256,records_sha256,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,versions",
+  );
+  if (raw.schema_version !== 1) throw new Error("unsupported authenticated TUF publication facts");
+  for (const key of [
+    "offline_targets_sha256",
+    "records_sha256",
+    "repository_sha256",
+    "root_sha256",
+    "snapshot_sha256",
+    "timestamp_sha256",
+  ] as const)
+    sha(raw[key]);
+  return {
+    schema_version: 1 as const,
+    root_sha256: raw.root_sha256,
+    offline_targets_sha256: raw.offline_targets_sha256,
+    repository_sha256: raw.repository_sha256,
+    timestamp_sha256: raw.timestamp_sha256,
+    snapshot_sha256: raw.snapshot_sha256,
+    records_sha256: raw.records_sha256,
+    versions: versions(raw.versions),
+    expires: expires(raw.expires),
+  };
+}
+
 export function inspectPublishedMetadata(raw: unknown) {
   if (raw === null || raw === undefined) return null;
   exact(

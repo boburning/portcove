@@ -7,6 +7,7 @@ import path from "node:path";
 import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -386,11 +387,36 @@ export async function assembleAuthenticatedApplicationSite(request: {
     sha(await boundedFile(executable, 128 * 1024 * 1024)) !== request.verifier_sha256
   )
     throw new Error(`public TUF verification inputs changed; retain ${work}`);
-  return composeSiteFiles({
+  const report: unknown = JSON.parse(result.stdout);
+  const publication =
+    isRecord(report) && Object.hasOwn(report, "publication")
+      ? inspectTufPublicationFacts(report.publication)
+      : null;
+  if (publication) {
+    const publicFiles = await tree(assembled);
+    publicFiles.delete("repository-manifest.json");
+    const bytes = (name: string) => {
+      const value = publicFiles.get(name);
+      if (!value) throw new Error("actual assembled publication file missing");
+      return value;
+    };
+    if (
+      publication.root_sha256 !== request.trusted_root_sha256 ||
+      publication.repository_sha256 !== capacityDigest(identities(publicFiles)) ||
+      publication.timestamp_sha256 !== sha(bytes("metadata/timestamp.json")) ||
+      publication.snapshot_sha256 !==
+        sha(bytes(`metadata/${publication.versions.snapshot}.snapshot.json`)) ||
+      publication.offline_targets_sha256 !==
+        sha(bytes(`metadata/${publication.versions.targets}.targets.json`))
+    )
+      throw new Error("actual authenticated publication facts differ from assembled public bytes");
+  }
+  const site = await composeSiteFiles({
     previous: request.previous_site,
     expected_previous_generation: request.expected_previous_generation,
     application: assembled,
     application_root_sha256: request.trusted_root_sha256,
     output_parent: request.output_parent,
   });
+  return { ...site, publication };
 }
