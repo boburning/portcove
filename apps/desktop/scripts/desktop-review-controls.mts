@@ -166,6 +166,21 @@ async function assertSemanticReviewAction(
   variant: string,
   description: string,
 ) {
+  await waitForEntrance(browser, action);
+  await browser.wait(
+    () =>
+      executeBrowserScript(
+        browser,
+        (action, neutral) =>
+          ![...action.getAnimations(), ...neutral.getAnimations()].some(
+            (animation) => animation.playState === "running",
+          ),
+        action,
+        neutral,
+      ),
+    5_000,
+    "Review controls must finish their style transitions before visual measurement",
+  );
   const styles = await executeBrowserScript(
     browser,
     (action, neutral) => {
@@ -190,7 +205,7 @@ async function assertSemanticReviewAction(
   assert.notDeepEqual(
     styles.action,
     styles.neutral,
-    `${description} must remain visually distinct from its neutral dismissal`,
+    `${description} must remain visually distinct from its neutral dismissal: ${JSON.stringify(styles)}`,
   );
   return styles;
 }

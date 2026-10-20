@@ -114,7 +114,7 @@ export function Sidebar({
   }>;
   return (
     <aside
-      className="sidebar flex flex-col bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
+      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
       data-focus-region="sidebar"
     >
       <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
@@ -242,18 +242,18 @@ export function PageHeader({
         )}
       </div>
       <div
-        className="header-tools flex items-center justify-end gap-2 max-[75rem]:ms-auto"
+        className="header-tools flex max-w-full min-w-0 flex-wrap items-center justify-end gap-2 max-[75rem]:ms-auto"
         data-focus-group
       >
         {(view === "library" || view === "catalog") && (
           <label
-            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
+            className="search flex h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] w-[min(330px,_34vw)] max-w-full min-w-0 items-center gap-2 rounded-pc-md border border-[var(--color-control-border)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] text-[var(--color-text-muted)] shadow-[inset_0_1px_2px_var(--color-bg)] focus-within:[outline:3px_solid_var(--color-focus)] focus-within:[outline-offset:3px] max-[65rem]:w-[16rem]"
             htmlFor="port-search"
           >
             <Icon glyph={Search} />
             <span className="sr-only">Search ports</span>
             <input
-              className="h-full min-h-0 w-full border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
+              className="h-full min-h-0 w-full min-w-0 border-0 bg-[var(--color-transparent)] p-[12px_2px] py-0 text-[var(--color-text)]"
               id="port-search"
               style={{ outline: "none" }}
               data-focusable

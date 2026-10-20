@@ -926,6 +926,18 @@ or persistent declarations. This contract cannot claim files in roaming AppData
 or another external user-profile directory; such state needs an upstream
 redirect or a separately reviewed ownership capability.
 
+`windows_runtime_path_policy: "printable-ascii-max-path"` declares a verified
+upstream limitation for a Windows-only managed staged-source runtime. Core rejects
+known unsuitable output roots before acquisition, and checks the selected executable
+and its probe filename budget during readiness and again before preparation. The
+requirement is retained with the installation and survives an output-folder move;
+it grants no relocation or adoption permission. Source files may remain in their
+original Unicode locations when the adapter passes a checked relative runtime copy.
+This policy currently excludes external runtimes, setup executables and managed
+build recipes. Independent definition entries must require staged-source template
+version11. Absent policy retains the prior route contract; this is not a blanket
+ASCII restriction or a claim that every other runtime supports Unicode paths.
+
 Ghostship 3.0.0 writes its disposable extraction cache to `torch.hash.yml` and
 rotates `logs/Ghostship.log` through `logs/Ghostship.10.log`. The catalog declares
 those exact runtime outputs through the existing nonpersistent runtime-path
@@ -1048,6 +1060,14 @@ runtime bytes. This is exact byte copying, not interleaving or header conversion
 Registrations without structured member observations retain legacy selection
 until checked again. The bounded ZIP32 source-reader limits and unsupported
 container recovery are documented in the architecture contract.
+
+For an `archive-member` representation, `extensions` is matched against the
+decompressed original's extension, just like `member_extensions`; the reader
+recognizes the ZIP container separately. For example, an unchanged Genesis
+original stored as `.bin` or `.md` uses those extensions in both lists and
+`archive-member` digest scope. Putting `zip` in `extensions` does not admit a
+`.md` member. The outer ZIP hash is a container observation, never the expected
+original-byte identity.
 
 File-set representations match only when every declared member has exactly one
 top-level filename match and one conjunctive digest identity. Directory

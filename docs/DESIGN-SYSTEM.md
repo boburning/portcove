@@ -309,6 +309,16 @@ and details. Named collection-container queries expand text when its available
 width is below 60rem, including enlarged root text, without changing
 the artwork frame. Search matches the game, project, variant and stable port ID;
 name sorting uses the game title. Matching game titles never combine cards.
+
+At enlarged text sizes the full application shell must reflow as well as the
+cards. Header search and command controls may wrap onto separate rows; neither
+may force horizontal workspace scrolling. The sidebar scrolls independently so
+its lower actions remain reachable. Check the workspace's own overflow, not
+only document overflow, because the workspace is a separate scroll container.
+The maintained full-App browser fixture checks doubled root text at960×640 in
+both themes, including About settings and preparation-dialog action reachability.
+This is browser text-enlargement evidence, not an OS-scaling observation.
+
 Long titles retain their complete accessible name and detail destination, and
 expand at narrower viewports. Library titles open details. The footer keeps the
 current Play/trial action or Review game alongside Favorite and the bounded menu;

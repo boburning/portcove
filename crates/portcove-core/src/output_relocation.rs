@@ -130,6 +130,14 @@ impl PortcoveService {
                 PortcoveError::state("registered install path has no version directory name")
             })?;
             let destination_path = destination_root.join(name);
+            let retained_catalog = self.installed_catalog(&install)?;
+            if let Err(error) = crate::runtime_path_policy::check_executable(
+                retained_catalog.port(&install.port_id)?,
+                crate::Platform::current()?,
+                &destination_path.join(&install.selected_executable),
+            ) {
+                validation_errors.push(error.message);
+            }
             if destination_path == install.path {
                 continue;
             }

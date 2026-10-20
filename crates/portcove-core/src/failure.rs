@@ -111,6 +111,7 @@ pub(crate) enum KnownFailureCause {
     DestinationCapacity,
     ArchiveLimit,
     UnicodePath,
+    RuntimePathRequirement,
     UnsupportedStfs,
     DeviceLoginUnavailable,
     ProviderRequest {
@@ -189,6 +190,10 @@ impl KnownFailureCause {
             Self::UnicodePath => (
                 "path_not_representable",
                 "This path cannot be represented by Portcove's Unicode path contract. Select a path with a valid Unicode name; a lossy replacement cannot identify the original files safely.",
+            ),
+            Self::RuntimePathRequirement => (
+                "runtime_path_requirement",
+                "This game port needs a shorter installation folder using basic Latin characters. Choose a folder such as C:\\Games\\Portcove in setup options, then review the installation again. Original game files can stay where they are.",
             ),
             Self::UnsupportedStfs => (
                 "stfs_format_unsupported",

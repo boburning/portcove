@@ -117,11 +117,10 @@ async fn ordinary_cartridge_plan_includes_execution_inputs_and_temporary_capacit
 }
 
 pub(crate) fn fixture_port() -> (PortDefinition, SourceProfile) {
-    let mut port = crate::Catalog::embedded()
-        .unwrap()
-        .port("sonic-the-hedgehog-2-recomp")
-        .unwrap()
-        .clone();
+    let mut port: PortDefinition = serde_json::from_str(include_str!(
+        "../tests/fixtures/sonic2-083-prepared-port-historical.json"
+    ))
+    .unwrap();
     port.id = "yoshis-cookie-recomp".into();
     port.presentation = None;
     port.source_profile = Some("yoshis-cookie-nes-usa".into());

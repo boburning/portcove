@@ -70,6 +70,7 @@ mod qualification_checkpoint;
 mod recovery;
 mod release;
 mod runtime;
+mod runtime_path_policy;
 mod service;
 mod signed_catalog;
 mod source;
@@ -249,7 +250,8 @@ pub use types::*;
 // Public 71 adds descriptive game identity and authored manual setup guidance.
 // Public 72 adds retained-contract external folder relink and its activity operation.
 // Install plans also expose optional recipe acquisitions and temporary install capacity.
-pub const API_SCHEMA_VERSION: u32 = 73;
+// Public74 adds retained managed Windows runtime path policy; API73 retains shared-directory external contracts.
+pub const API_SCHEMA_VERSION: u32 = 74;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

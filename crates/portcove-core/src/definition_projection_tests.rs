@@ -80,7 +80,9 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     let reference = target(contract);
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if let Some(minimum) = typed
+    let version = if typed.windows_runtime_path_policy.is_some() {
+        11
+    } else if let Some(minimum) = typed
         .release
         .user_prepared
         .values()
@@ -174,6 +176,37 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
         &bytes,
         contract,
     )
+}
+
+#[test]
+fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
+    let document = projection();
+    let position = document["catalog"]["ports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|port| port["id"] == "f-zero-snes-recomp")
+        .unwrap();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let valid = entry(&document, &contract, position);
+    inspect(&valid, &contract).unwrap();
+    let mut stale = valid;
+    stale["required_capabilities"][0]["minimum_version"] = json!(10);
+    stale["required_capabilities"][0]["maximum_version"] = json!(10);
+    assert!(
+        inspect(&stale, &contract)
+            .unwrap_err()
+            .message
+            .contains("capability version 11")
+    );
+    stale["required_capabilities"][0]["minimum_version"] = json!(1);
+    stale["required_capabilities"][0]["maximum_version"] = json!(10);
+    assert!(
+        inspect(&stale, &contract)
+            .unwrap_err()
+            .message
+            .contains("capability version 11")
+    );
 }
 
 #[test]

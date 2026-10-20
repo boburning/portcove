@@ -215,7 +215,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -223,7 +223,24 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var privateSchema in new[] { 58, 59, 64, 73 })
+        foreach (var publicSchema in new[] { 72, 73, 74 })
+        {
+            var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
+            relink["schema_version"] = publicSchema;
+            relink["operation_event_schema_version"] = 3;
+            relink["commands"] = Json.Array(Json.Field(relink, "commands")).Cast<string>()
+                .Concat(new[] { "external", "external.review", "external.relink" }).ToArray();
+            ProtocolStream.Negotiate(relink, ConsumerCapability.Library);
+            Check(ProtocolStream.SupportsExternalRelink(relink), "reviewed relink remains available at schema " + publicSchema);
+            relink["commands"] = Json.Array(Json.Field(relink, "commands")).Where(command => !Equals(command, "external.relink")).ToArray();
+            Check(!ProtocolStream.SupportsExternalRelink(relink), "relink still requires explicit command capability at schema " + publicSchema);
+        }
+        var result73 = Json.Object(Json.Parse(Result("status", new object[0])));
+        result73["schema_version"] = 73;
+        var stream73 = new ProtocolStream("status");
+        stream73.Line(Json.Print(result73));
+        Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
+        foreach (var privateSchema in new[] { 58, 59, 64, 75 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -405,7 +422,10 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "shared vanilla runtime preserves existing launch authority");
         bad["schema_version"] = 74;
-        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond shared vanilla runtime rejected");
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "runtime path policy keeps launch decisions in Core");
+        bad["schema_version"] = 75;
+        Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
         bad = Json.Object(Json.Parse(Json.Print(Capabilities())));
@@ -501,24 +521,24 @@ internal static class ContractTests
                 var presentation = Json.Field(definition, "presentation");
                 return game.Name.StartsWith(Json.Text(presentation, "original_game_title"), StringComparison.Ordinal)
                     && game.GameId == Identity.Game("compiled-game-title-library", game.PortId);
-            }), "compiled schema71 catalog titles lead actual reader names without changing port identities");
+            }), "compiled current-schema catalog titles lead actual reader names without changing port identities");
             var prepared = catalog.Where(port => Json.Text(Json.Field(port, "release"), "provider") == "user-prepared").ToArray();
-            Check(prepared.Length == 11 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
-                "compiled schema71 authored setup steps are consumed by the actual client");
+            Check(prepared.Length == 5 && prepared.All(port => SetupInstructions.Summary(Json.Field(port, "presentation")).Contains("1. ")),
+                "compiled current-schema authored setup steps are consumed by the actual client");
             Check(prepared.All(port => SetupInstructions.TechnicalNotes(Json.Field(port, "presentation"))
                     == Json.Text(Json.Field(port, "presentation"), "manual_preparation"))
                 && prepared.Count(port => SetupInstructions.HelpUrl(Json.Field(port, "presentation")) != null) == 1,
-                "compiled schema71 technical notes and the optional preparation link reach dedicated client controls");
+                "compiled current-schema technical notes and the optional preparation link reach dedicated client controls");
             Check(real.ApiSchemaVersion == ProtocolStream.Schema && statuses.All(status =>
                 PortActions.Read(status).Count(value => value.Action == "rollback") == 1 &&
                 PortActions.Read(status).Count(value => value.Action == "update") == 1),
-                "compiled schema71 producer and actual reader consume one rollback and update assessment per catalog status");
+                "compiled current-schema producer and actual reader consume one rollback and update assessment per catalog status");
             var portId = Json.Text(statuses[0], "port_id");
             var inventory = await real.Read("backup.list", "backup", "list", portId);
             Check(PortActionDecision.Read(Json.Field(inventory, "create_assessment")).Action == "backup_create",
-                "compiled schema71 backup producer and actual strict reader consume creation assessment");
+                "compiled current-schema backup producer and actual strict reader consume creation assessment");
             Check(PortActionDecision.Read(Json.Field(inventory, "restore_assessment")).Action == "backup_restore",
-                "compiled schema71 backup producer and actual strict reader consume restore assessment");
+                "compiled current-schema backup producer and actual strict reader consume restore assessment");
             Check(await real.Read("launch.show", "launch", "show", Guid.NewGuid().ToString("D")) == null, "real standalone CLI absent launch readback");
         }
     }
@@ -734,12 +754,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 74 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 75 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -779,7 +799,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 74 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 75 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -1004,6 +1024,21 @@ internal static class ContractTests
         var registeredExternal = Json.Parse("{\"active\":null,\"external_runtime\":{\"path\":\"C:\\\\owned\\\\runtime\",\"version\":\"1\"},\"readiness\":{\"launchable\":false,\"pending_setup\":false,\"blockers\":[\"invalid_installation\"]},\"port_actions\":[{\"action\":\"launch\",\"availability\":\"held\",\"reason\":\"invalid_installation\"}]}");
         Check(GuidedSetup.Choose(registeredExternal, external, "", "").Detail.Contains("is registered"),
             "registered but held external runtime receives its actual review path");
+        var convertedCatalog = Json.Parse(Json.Print(new {
+            source_profile = (string)null, bios_source_profile = (string)null,
+            release = new { provider = "direct-manifest" },
+            presentation = new { manual_preparation = "Portcove downloads a new managed installation." }
+        }));
+        var retainedBrokenExternal = Json.Object(Json.Parse(Json.Print(registeredExternal)));
+        retainedBrokenExternal["port_actions"] = new object[0];
+        Check(GuidedSetup.Choose(retainedBrokenExternal, convertedCatalog, "", "").Label == "Review external runtime",
+            "a converted catalog does not redirect a retained external installation into managed setup");
+        Check(SetupInstructions.ForRuntime(retainedBrokenExternal, convertedCatalog) == null,
+            "current managed preparation copy is suppressed for a retained external installation");
+        var freshManaged = Json.Parse(Json.Print(new { external_runtime = (object)null }));
+        Check(SetupInstructions.Summary(SetupInstructions.ForRuntime(freshManaged, convertedCatalog))
+                == "Portcove downloads a new managed installation.",
+            "suppressing retained external guidance does not remove new managed guidance");
         var sharedNeedsSetup = Json.Object(Json.Parse(Json.Print(registeredExternal)));
         Json.Object(Json.Field(sharedNeedsSetup, "readiness"))["blockers"] = new[] { "preparation_required" };
         Json.Object(Json.Field(sharedNeedsSetup, "external_runtime"))["shared_preferences"] = Json.Parse(Json.Print(new { contract = "smb1r-1.1-stable-windows", path = @"H:\Account\SMB1R", account_sid_sha256 = new string('a', 64) }));

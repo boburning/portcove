@@ -1050,6 +1050,12 @@ impl PortcoveService {
                 port.name
             )));
         }
+        let output_location = self.output_location(port_id, output_directory)?;
+        crate::runtime_path_policy::check_output_root(
+            port,
+            platform,
+            &output_location.effective_output_directory,
+        )?;
         let release = self
             .resolve_release(port, selected_channel, platform)
             .await?
@@ -1069,7 +1075,6 @@ impl PortcoveService {
             .fold(primary_and_runtime_bytes, |total, asset| {
                 total.saturating_add(asset.size)
             });
-        let output_location = self.output_location(port_id, output_directory)?;
         let temporary_space = if action == InstallPlanAction::Download {
             let required_bytes = recipe.map_or(primary_and_runtime_bytes, |recipe| {
                 recipe.temporary_bytes(primary_and_runtime_bytes)
@@ -2516,6 +2521,12 @@ impl PortcoveService {
     where
         F: FnMut(OperationEvent),
     {
+        let output_location = self.output_location(&port.id, overrides.output_directory)?;
+        crate::runtime_path_policy::check_output_root(
+            port,
+            Platform::current()?,
+            &output_location.effective_output_directory,
+        )?;
         let release = resolution.release.clone();
         self.require_definition_operation(
             &self.catalog,
@@ -10804,7 +10815,11 @@ fn main() {
         let source_bytes = b"inert exact headerless source fixture";
         fs::write(&source, source_bytes).unwrap();
         let mut service = service_with_release(library.clone(), "v1");
-        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let mut document = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap()
+        .authoritative_document();
         // Preserve the real port/source contract, excluding unrelated catalog work
         // from this bounded inert preflight/removal control.
         document.ports.retain(|port| port.id == "dkc3-recomp");
@@ -11277,7 +11292,11 @@ fn main() {
                 .details["actual_tree_sha256"]
                 .clone();
         let mut service = service_with_release(library.clone(), "v1");
-        let mut document = service.catalog().authoritative_document();
+        let mut document = Catalog::from_json(include_str!(
+            "../tests/fixtures/dkc3-006-prepared-historical.json"
+        ))
+        .unwrap()
+        .authoritative_document();
         let source = temporary.path().join("original.gbc");
         let source_bytes = b"inert GBC source fixture";
         fs::write(&source, source_bytes).unwrap();

@@ -307,6 +307,10 @@ export type PreparedRuntimeSettingsContract = "tfe-dark-forces-v1.22.420";
 export type RuntimeSourceMaterialization =
   "n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory";
 export type SupportTier = "stable" | "beta" | "rolling";
+/**
+ * A declared upstream limitation, checked by Core rather than left to the game.
+ */
+export type WindowsRuntimePathPolicy = "printable-ascii-max-path";
 export type CatalogAdmissionMode = "enforced" | "informational";
 export type CatalogEvidenceRole =
   "upstream_support" | "byte_identity" | "preservation_crosswalk" | "portcove_qualification";
@@ -1308,6 +1312,7 @@ export interface PortDefinition {
   support_tier: SupportTier;
   upstream_status: "active" | "retired" | "superseded" | "abandoned";
   user_data_environment: string | null;
+  windows_runtime_path_policy?: WindowsRuntimePathPolicy | null;
   [k: string]: unknown;
 }
 export interface BundledRuntime {

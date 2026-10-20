@@ -108,6 +108,21 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
     ));
     assert_eq!(negotiated["data"]["compatible"], true);
     assert_eq!(negotiated["data"]["checks"][0]["installed_version"], 3);
+    std::fs::write(&requirements, serde_json::to_vec(&json!({
+        "capability_contract_schema": 1,
+        "required_capabilities": [{"template":"staged-source-portable", "minimum_version":10, "maximum_version":10}]
+    })).unwrap()).unwrap();
+    let current = json_stdout(&portcove(
+        temporary.path(),
+        &[
+            "--json",
+            "catalog",
+            "check-capabilities",
+            requirements.to_str().unwrap(),
+        ],
+    ));
+    assert_eq!(current["data"]["compatible"], true);
+    assert_eq!(current["data"]["checks"][0]["installed_version"], 10);
     let mut identities = std::collections::HashSet::new();
     for template in templates {
         assert!(identities.insert((
