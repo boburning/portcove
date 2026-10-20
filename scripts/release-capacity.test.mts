@@ -48,7 +48,7 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("resource estimate pins both held sources and preserves existing limits", async () => {
+void test("historical resource ratification preserves its limits and cannot silently cover the changed held controller", async () => {
   for (const [file, expected] of [
     [
       "docs/qualification/application-update-production.aggregate.yml",
@@ -58,9 +58,16 @@ void test("resource estimate pins both held sources and preserves existing limit
       "docs/qualification/release-reviewed-inputs.held.yml",
       slice4CapacityResources.input_workflow_sha256,
     ],
-  ]) {
+  ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
-    assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);
+    const current = createHash("sha256").update(bytes).digest("hex");
+    if (file.endsWith("application-update-production.aggregate.yml"))
+      assert.notEqual(
+        current,
+        expected,
+        "new observer source requires final coherent resource requalification",
+      );
+    else assert.equal(current, expected);
   }
   assert.deepEqual(slice4CapacityResources.aggregate_job_minutes, [5, 25, 30, 5, 20]);
   assert.deepEqual(slice4CapacityResources.input_job_minutes, [5, 5, 5]);

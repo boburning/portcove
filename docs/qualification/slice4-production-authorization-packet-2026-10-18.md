@@ -17,6 +17,12 @@ immutable history. The repaired signed-history regression passes with disposable
 keys; production custody, hosted roles and metadata-only coordinator integration
 remain pending.
 
+The October 20 [authenticated live controls and freshness handshake](slice4-534-live-controls-2026-10-20.md)
+connect actual controller/reader and isolated observer identities to existing
+classification, pause and capacity readers. Large acquisition precedes the
+unchanged 60-second freshness window. Later phases need their own fresh controls;
+actual hosted timing and final resource/digest reconciliation remain pending.
+
 The October 20 [isolated payload preparation/signing implementation](slice4-isolated-payload-signing-2026-10-20.md)
 connects actual aggregate verification and existing reservation association to
 strict diagnostic requests for the two beta updater payloads. Actual disposable

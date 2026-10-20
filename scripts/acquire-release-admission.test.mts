@@ -13,6 +13,19 @@ import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+import {
+  releaseControlInputsFixture,
+  config as reviewProducer,
+} from "./fixtures/release-control-inputs-fixture.mts";
+import {
+  capacityDocumentFixture,
+  liveControlRuntimeFixture,
+  protectionFixture,
+} from "./fixtures/release-live-control-fixture.mts";
+import {
+  persistReviewedClassification,
+  releaseControlRefQuery,
+} from "./release-control-inputs.mts";
 
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 function commit(tree: string, parents: string[], message: string) {
@@ -350,6 +363,100 @@ async function fixture(t: test.TestContext, profile: "full" | "initial-beta-win-
         : { schema_version: 2, namespace: "portcove-fixture", release_profile: profile },
   };
 }
+
+void test("actual admission authenticates frozen semantic producer, owner pause and spending source without clearing independent holds", async (t) => {
+  const f = await fixture(t);
+  const frozen = {
+    ...structuredClone(f.input.opportunity),
+    change_set_sha256: f.sourceFacts.expectedHash,
+    classification: {
+      ...f.input.opportunity.classification,
+      change_set_sha256: f.sourceFacts.expectedHash,
+      change_set_scope: "portcove-release-net-tree-delta-v1",
+    },
+  };
+  Object.assign(f.input.active_candidate, { frozen_opportunity: frozen });
+  const control = releaseControlInputsFixture(
+    capacityDocumentFixture(),
+    frozen,
+    reviewProducer,
+    false,
+    "R_fixture",
+  );
+  persistReviewedClassification(control.api, reviewProducer, frozen, 303, () => {});
+  const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
+  const controls = await runtime.create();
+  const baseApi = f.options.api;
+  assert.ok(baseApi);
+  const api = {
+    request: (method: string, endpoint: string) => {
+      const url = new URL(endpoint, "https://api.github.com/");
+      const canonical = url.pathname.slice(1);
+      if (!control.owns(canonical)) return baseApi.request(method, endpoint);
+      const response = control.api.request(method, canonical);
+      return { ...response, rateLimit: rateLimitFromResponse(response) };
+    },
+    graphql: (query: string, variables: Readonly<Record<string, unknown>> = {}) => {
+      if (query !== releaseControlRefQuery) return baseApi.graphql(query, variables);
+      const response = { status: 200, headers: new Map<string, string>(), body: {} };
+      return {
+        data: control.api.graphql(query, variables).data,
+        response,
+        rateLimit: rateLimitFromResponse(response),
+      };
+    },
+  };
+  const options = { ...f.options, api, controls };
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.equal(result.controls?.classification.review_check_id, 303);
+  assert.equal(
+    result.holds.includes("independent-classification-and-pause-sources-unconfigured"),
+    false,
+  );
+  assert.equal(result.holds.includes("admitted-spending-boundary-source-unconfigured"), false);
+  assert.equal(result.holds.includes("publication-paused-by-owner-source"), false);
+  assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
+  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(
+    result.holds.includes(
+      "current-controller-workflow-differs-from-ratified-capacity-resource-policy",
+    ),
+  );
+  assert.equal(result.capacity.eligibility, "ineligible");
+  assert.equal(result.capacity.availability, "unknown");
+  assert.equal(result.capacity.headroom, "unknown");
+  assert.equal(result.capacity.reservation, "none");
+  const downloaded = f.calls.filter((call) => call.startsWith("ZIP ")).length;
+  let ready = 0;
+  const late = await acquireReleaseAdmission(f.root, f.config, {
+    ...f.options,
+    api,
+    establishControls: async (factsSha256) => {
+      ready++;
+      assert.match(factsSha256, /^[a-f0-9]{64}$/u);
+      assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+      return runtime.create();
+    },
+  });
+  assert.equal(ready, 1);
+  assert.equal(late.controls?.classification.review_check_id, 303);
+  assert.equal(late.decision, "hold");
+  assert.equal(late.descriptor, null);
+  assert.equal(f.calls.filter((call) => call.startsWith("ZIP ")).length, downloaded + 4);
+  await assert.rejects(
+    acquireReleaseAdmission(f.root, f.config, {
+      ...f.options,
+      api,
+      establishControls: async () => ({ ...controls }),
+    }),
+    /private-facts-ready/u,
+  );
+  control.faults.value = "issuer";
+  await assert.rejects(acquireReleaseAdmission(f.root, f.config, options), CoordinatorRemoteError);
+  assert.equal(control.mutations(), 1);
+});
 
 void test("read-only acquisition constructs the full internally observed matrix and feeds only a conservative held plan", async (t) => {
   const f = await fixture(t);

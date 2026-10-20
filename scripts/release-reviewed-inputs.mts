@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { open } from "node:fs/promises";
+import { open, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -9,6 +9,7 @@ import {
   inspectAssemblerIdentityExpectation,
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
+  verifyProductionProtectionObserverJobIdentity,
 } from "./assembler-job-identity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -16,13 +17,14 @@ import { appendFile } from "node:fs/promises";
 import {
   observeReleaseInputProtections,
   requireReleaseInputWriterPolicy,
+  prepareProductionProtectionHandoff,
 } from "./release-input-protections.mts";
 
 async function main() {
   const mode = process.argv[2];
   if (
     process.argv.length !== 3 ||
-    !["admission", "observe", "persist", "read"].includes(mode ?? "")
+    !["admission", "observe", "observe-production", "persist", "read"].includes(mode ?? "")
   )
     throw new Error("fixed reviewed-input operation required");
   if (mode === "admission") {
@@ -54,6 +56,7 @@ async function main() {
     );
     return;
   }
+  const observing = mode === "observe" || mode === "observe-production";
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
@@ -66,8 +69,8 @@ async function main() {
         "\n",
     );
     const appToken =
-      mode === "observe" || mode === "persist" ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
-    if ((mode === "observe" || mode === "persist") && (!appToken || appToken.length > 16384))
+      observing || mode === "persist" ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
+    if ((observing || mode === "persist") && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
     const runner = createGitHubRunner({
       cwd: process.cwd(),
@@ -101,7 +104,8 @@ async function main() {
       graphql: (query: string, variables: Readonly<Record<string, unknown>>) =>
         appApi.graphql(query, variables),
     };
-    if (mode === "observe" || mode === "persist") {
+    let observerIdentity: unknown = null;
+    if (observing || mode === "persist") {
       // Config is separately ratified environment data, never an input file or
       // dispatch-provided expected identity. No self-expectation from JWT claims.
       if (process.env.GITHUB_RUN_ATTEMPT !== "1")
@@ -109,11 +113,10 @@ async function main() {
       const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
-        audience:
-          mode === "observe"
-            ? "portcove-release-protection-v1"
-            : "portcove-release-classification-v1",
-        subject: `repo:boburning/portcove:environment:${mode === "observe" ? "production-release-protection-observer" : "production-release-classification"}`,
+        audience: observing
+          ? "portcove-release-protection-v1"
+          : "portcove-release-classification-v1",
+        subject: `repo:boburning/portcove:environment:${observing ? "production-release-protection-observer" : "production-release-classification"}`,
         controller_revision: policy.revision,
         controller_ref: policy.execution_ref,
         actor_id: policy.actor_id,
@@ -122,10 +125,13 @@ async function main() {
       });
       const token = await requestAssemblerToken(expected.audience);
       const verify =
-        mode === "observe"
-          ? verifyProtectionObserverJobIdentity
-          : verifyClassificationWriterJobIdentity;
+        mode === "observe-production"
+          ? verifyProductionProtectionObserverJobIdentity
+          : mode === "observe"
+            ? verifyProtectionObserverJobIdentity
+            : verifyClassificationWriterJobIdentity;
       const identity = await verify(token, expected, { transport: { cwd: process.cwd() } });
+      if (observing) observerIdentity = identity;
       await receipt.writeFile(
         JSON.stringify({
           schema_version: 1,
@@ -136,12 +142,37 @@ async function main() {
       );
     }
     let result: unknown;
-    if (mode === "observe") {
+    if (observing) {
       result = observeReleaseInputProtections(api);
+      if (mode === "observe-production")
+        result = prepareProductionProtectionHandoff(observerIdentity, result);
       const encoded = JSON.stringify(result);
       if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
         throw new Error("trusted observer output channel unavailable or oversized");
       await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
+      if (mode === "observe-production") {
+        // The fixed source waits for readiness before releasing the App token.
+        // Preserve its exact artifact association beside the actual report.
+        const ready = JSON.parse(
+          await readFile(
+            path.join(temp, "release-control-ready", "control-ready-readback.json"),
+            "utf8",
+          ),
+        ) as unknown;
+        if (
+          !isRecord(ready) ||
+          ready.role !== "ready" ||
+          !isRecord(ready.body) ||
+          !isRecord(ready.body.producer) ||
+          !isRecord(result) ||
+          !isRecord(result.producer) ||
+          ready.body.producer.run_id !== result.producer.run_id ||
+          ready.body.producer.run_attempt !== result.producer.run_attempt ||
+          ready.body.producer.controller_revision !== result.producer.controller_revision
+        )
+          throw new Error("matching fixed reader readiness unavailable");
+        await writeFile(path.join(temp, "observation.json"), encoded, { flag: "wx", mode: 0o600 });
+      }
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
