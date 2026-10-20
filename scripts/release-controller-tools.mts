@@ -4,6 +4,8 @@ import { open } from "node:fs/promises";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
+export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
   "release-control-ready",
@@ -20,6 +22,7 @@ export const controllerToolPaths = Object.freeze(
     "bin/node",
     "bin/portcove-release-tools",
     "bin/tauri-addon.node",
+    controllerCompilerSourceAsset,
     ...controllerToolEntries.map((name) => `scripts/${name}.bundle.mjs`),
     ...controllerToolAssets,
   ].sort(),
@@ -150,5 +153,15 @@ export function inspectControllerToolArchive(
       throw new Error("controller tool bytes differ from signed manifest");
     files.set(file.path, bytes);
   }
+  const closureBytes = files.get(controllerCompilerSourceAsset)!;
+  if (closureBytes.length > 65536) throw new Error("compiler source asset exceeds bound");
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse(closureBytes.toString("utf8")) as unknown,
+  );
+  if (
+    closure.source_commit !== manifest.source_commit ||
+    closure.source_tree !== manifest.source_tree
+  )
+    throw new Error("compiler source asset differs from authenticated tool source");
   return { manifest, manifest_sha256: hash(manifestBytes), files };
 }
