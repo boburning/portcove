@@ -88,8 +88,22 @@ export async function interfaceSizeScenario(context: Context) {
         await shortcut("0");
         await settled(100);
         await context.setTheme(theme);
-        for (const size of sizes.slice(1)) await select(size);
+        for (const size of sizes.slice(1)) {
+          await select(size);
+          if (size === 300) await context.capture(`interface-size-${theme}-300-320css`, true);
+        }
         const enlarged = await settled(400);
+        const lines = await executeBrowserScript(context.browser(), () => {
+          const picker = [...document.querySelectorAll('[role="combobox"]')].find((element) =>
+            element.textContent?.includes("Interface size"),
+          )!;
+          const value = picker.querySelector('[data-slot="select-value"]')!;
+          const text = document.createTreeWalker(value, NodeFilter.SHOW_TEXT).nextNode()!;
+          const range = document.createRange();
+          range.selectNodeContents(text);
+          return { text: value.textContent, lines: range.getClientRects().length };
+        });
+        assert.deepEqual(lines, { text: "400%", lines: 1 });
         assert.ok(enlarged.width <= 240 && enlarged.height <= 160, JSON.stringify(enlarged));
         await context.capture(`interface-size-${theme}-400-minimum-window`, true);
         await shortcut("k");

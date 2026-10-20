@@ -96,7 +96,10 @@ export function InterfaceSizeSettings() {
 function InterfaceSizeControl({ owner }: { owner: InterfaceSizeController }) {
   const state = useSyncExternalStore(owner.subscribe, owner.getSnapshot, owner.getSnapshot);
   return (
-    <SettingsRow data-focus-group>
+    <SettingsRow
+      data-focus-group
+      className="[&_[data-slot=select-trigger]]:flex-wrap [&_[data-slot=select-trigger]>span:first-child]:basis-full [&_[data-slot=select-value]]:justify-start [&_[data-slot=select-value]]:whitespace-nowrap"
+    >
       <h2>Interface size</h2>
       <p>Enlarge text, artwork and controls together. Your library and game files are unchanged.</p>
       <div className="flex flex-wrap items-end gap-2">

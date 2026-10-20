@@ -14,6 +14,32 @@ afterEach(async () => {
 });
 
 for (const theme of ["dark", "light"]) {
+  it(`keeps the complete ${theme} percentage on one line at 240px`, async () => {
+    document.documentElement.dataset.theme = theme;
+    await page.viewport(240, 160);
+    const owner = new InterfaceSizeController(
+      async () => {},
+      () => ({
+        getItem: () => "400",
+        setItem: () => {},
+      }),
+    );
+    await render(
+      <InterfaceSizeProvider controller={owner}>
+        <InterfaceSizeSettings />
+      </InterfaceSizeProvider>,
+    );
+    const picker = page.getByRole("combobox", { name: "Interface size 400%", exact: true });
+    await expect.element(picker).toBeEnabled();
+    const value = picker.element().querySelector('[data-slot="select-value"]')!;
+    const text = document.createTreeWalker(value, NodeFilter.SHOW_TEXT).nextNode()!;
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    expect(range.getClientRects()).toHaveLength(1);
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(
+      document.documentElement.clientWidth + 1,
+    );
+  });
   it(`keeps ${theme} task progress readable at 240px`, async () => {
     document.documentElement.dataset.theme = theme;
     await page.viewport(240, 160);
