@@ -199,16 +199,6 @@ if ($Mode -eq 'StopDriver' -or $Mode -eq 'StopApplication') {
 }
 $watch = [Diagnostics.Stopwatch]::StartNew()
 foreach ($record in $snapshot.processes) {
-    $process = try { [Diagnostics.Process]::GetProcessById([int]$record.pid) } catch [ArgumentException] { $null }
-    if (-not $process) { continue }
-    try {
-        # A reused PID proves the captured process already exited. Never act on it.
-        if ($process.StartTime.ToFileTimeUtc() -ne $record.started_filetime) { continue }
-        if (-not [string]::Equals($process.MainModule.FileName, $record.path, [StringComparison]::OrdinalIgnoreCase)) { throw 'Captured process path changed.' }
-        $remaining = [Math]::Max(0, 5000 - [int]$watch.ElapsedMilliseconds)
-        if (-not $process.WaitForExit($remaining)) { throw "Captured native process $($record.pid) did not exit within the shared five-second bound." }
-    } catch [InvalidOperationException] {
-        if (-not $process.HasExited) { throw }
-    } finally { $process.Dispose() }
+    Wait-OwnedNativeProcess $record $watch
 }
 [pscustomobject]@{ exited_at = [DateTime]::UtcNow.ToString('o'); observed_processes = @($snapshot.processes).Count; wait_ms = $watch.ElapsedMilliseconds } | ConvertTo-Json -Compress
