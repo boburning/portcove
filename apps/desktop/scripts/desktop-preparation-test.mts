@@ -839,7 +839,10 @@ export function assertPreparedLibrarySummary(
     assert.deepEqual(required(item.readiness).blockers, []);
     assert.ok(!item.staged, `${item.port_id} must have no downloaded update`);
   }
-  assert.equal(text.replace(/\s+/gu, " ").trim(), `${installed.length} in library All can launch`);
+  assert.equal(
+    text.replace(/\s+/gu, " ").trim(),
+    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
+  );
 }
 
 export async function preparationScenarios({

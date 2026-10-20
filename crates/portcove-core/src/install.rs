@@ -43,6 +43,7 @@ struct AssetAcquisition<'a> {
 #[derive(Debug, Clone)]
 pub struct InstallQualification {
     strict_staged_source: bool,
+    runtime_data_policy: Option<crate::RuntimeDataPolicy>,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
     native_build_preparation: Option<crate::cartridge_build::CartridgeBuildPreparation>,
     acquisition: Option<crate::ScopedResolvedRelease>,
@@ -154,6 +155,7 @@ impl InstallQualification {
         }
         Ok(Self {
             strict_staged_source: port.adapter == AdapterKind::StagedSourcePortable,
+            runtime_data_policy: port.runtime_data_policy,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             native_build_preparation: None,
             acquisition: None,
@@ -640,10 +642,39 @@ impl Installer {
         &self,
         request: &InstallRequest,
     ) -> Result<Option<crate::DefinitionAcquisitionScope>> {
+        if request.qualification.runtime_data_policy.is_some()
+            && request.qualification.retained_contract.is_none()
+        {
+            return Err(PortcoveError::verification(
+                "version-local credential policy requires its retained catalog before acquisition",
+            ));
+        }
         let catalog = match &request.qualification.retained_contract {
             Some(contract) => contract.catalog(&request.port_id)?,
             None => self.library.load_catalog()?.0,
         };
+        if request.qualification.runtime_data_policy.is_some()
+            || crate::runtime_data_policy::known_artifact(&request.release.asset.sha256)
+        {
+            if request.qualification.retained_contract.is_none()
+                || request.qualification.runtime_data_policy
+                    != catalog.port(&request.port_id)?.runtime_data_policy
+            {
+                return Err(PortcoveError::verification(
+                    "credential-safe acquisition requires the matching retained qualification",
+                ));
+            }
+            crate::runtime_data_policy::require_artifact(
+                catalog.port(&request.port_id)?,
+                &request.release.version,
+                &ArtifactIdentity {
+                    asset_name: request.release.asset.name.clone(),
+                    sha256: request.release.asset.sha256.clone(),
+                    size: request.release.asset.size,
+                },
+                Some(request.qualification.platform),
+            )?;
+        }
         let current = crate::definition_repository::publisher_policy::acquisition_scope(
             &self.library,
             &catalog,
@@ -1811,7 +1842,18 @@ fn write_manifest(
             "manifest and retained port identity differ",
         ));
     }
-    retained_contract.catalog(port_id)?;
+    let catalog = retained_contract.catalog(port_id)?;
+    if qualification.runtime_data_policy != catalog.port(port_id)?.runtime_data_policy {
+        return Err(PortcoveError::verification(
+            "credential policy differs from the retained qualification",
+        ));
+    }
+    crate::runtime_data_policy::require_artifact(
+        catalog.port(port_id)?,
+        version,
+        artifact,
+        Some(qualification.platform),
+    )?;
     validate_artifact(artifact)?;
     let selected = resolve_declared_executable(root, qualification)?;
     let selected_relative = manifest_relative(root, &selected)?;
@@ -2168,6 +2210,12 @@ fn verified_manifest_with_budget(
     validate_runtime_manifest(&manifest)?;
     if let Some(contract) = &manifest.retained_contract {
         let catalog = contract.catalog(&install.port_id)?;
+        crate::runtime_data_policy::require_artifact(
+            catalog.port(&install.port_id)?,
+            &install.version,
+            &install.artifact,
+            manifest.platform,
+        )?;
         if contract.preparation_mode() == Some(crate::PreparationMode::Ghostship200Legacy) {
             if manifest.platform != Some(Platform::WindowsX86_64) {
                 return Err(PortcoveError::verification(
@@ -2743,6 +2791,59 @@ mod tests {
     use sha2::{Digest, Sha256};
 
     use super::*;
+
+    #[tokio::test]
+    async fn uppercase_racewave_without_policy_refuses_before_contact_or_staging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        server.set_nonblocking(true).unwrap();
+        let output = library.versions_dir().join("sample");
+        let installer = Installer::with_network_bounds(
+            library.clone(),
+            Duration::from_millis(200),
+            Duration::from_millis(200),
+        )
+        .unwrap();
+        let request = InstallRequest {
+            port_id: "sample".into(),
+            output_root: output.clone(),
+            activate: false,
+            managed: None,
+            qualification: InstallQualification::test("game.exe"),
+            release: ResolvedRelease {
+                version: "v1.0.0".into(),
+                channel: crate::ReleaseChannel::Stable,
+                published_at: None,
+                asset: crate::ReleaseAsset {
+                    name: "RaceWave46-Windows-x64-v1.0.0.zip".into(),
+                    size: 35_768_574,
+                    sha256: "f77f3cc10f2dc3db56992480b6906b48bfa1fd1ef614818d039ae86293135028"
+                        .to_uppercase(),
+                    url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
+                },
+            },
+        };
+        let failure = installer
+            .install(
+                request,
+                &OperationCoordinator::new("uppercase-credential-fence", None),
+                |_| {},
+            )
+            .await
+            .unwrap_err();
+        assert!(
+            failure.message.contains("actual reviewed RaceWave46"),
+            "{failure}"
+        );
+        assert_eq!(
+            server.accept().unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        assert!(!output.exists());
+        assert!(library.all_installs().unwrap().is_empty());
+        assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+    }
 
     #[tokio::test]
     async fn managed_worker_completion_storage_error_keeps_both_proofs_false() {

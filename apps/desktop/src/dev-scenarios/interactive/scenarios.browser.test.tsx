@@ -246,7 +246,11 @@ it.each([
       const box = frame.getBoundingClientRect();
       expect(box.height / box.width).toBeCloseTo(1.5, 1);
     }
-    expect(grid.getBoundingClientRect().width).toBeLessThanOrEqual(1064);
+    // Columns derive from usable space; the former five-column reference was
+    // not a fixed collection width. Cover size remains bounded independently.
+    const cover = frames[0]!.getBoundingClientRect();
+    expect(cover.width).toBeLessThanOrEqual(height <= 704 ? 112 : 220);
+    expect(grid.getBoundingClientRect().right).toBeLessThanOrEqual(width);
     expect(grid.scrollWidth).toBeLessThanOrEqual(grid.clientWidth);
   },
 );

@@ -2,6 +2,32 @@ use super::*;
 use crate::test_fixture::phase as test_phase;
 use crate::{ArtifactIdentity, ArtworkSlot, BackupAction, Catalog, InstallRecord, ReleaseChannel};
 
+#[test]
+fn late_credentials_hold_import_before_the_open_gate() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = temporary.path().join("source");
+    let export = temporary.path().join("export.json");
+    let destination = temporary.path().join("destination");
+    fixture(&source, &export);
+    let plan = test_phase("credential import: plan", || {
+        PortcoveService::plan_library_import(&export, &source, &destination).unwrap()
+    });
+    let credential = destination.join("user/starship/retroachievements.credentials");
+    let error = test_phase("credential import: publication attempt", || {
+        start_import(&export, &source, &destination, &plan.plan_sha256, &|at| {
+            if at == TransferPhase::Verified {
+                fs::create_dir_all(credential.parent().unwrap())?;
+                fs::write(&credential, b"synthetic-no-account")?;
+            }
+            Ok(())
+        })
+    })
+    .unwrap_err();
+    assert!(error.details.contains_key("host_local_credential_path"));
+    assert!(credential.exists());
+    assert!(Library::open(&destination).is_err());
+}
+
 // This graph exercises generic retained-definition import, not a real title's
 // catalog admission. Keep production-catalog transition fixtures separate.
 fn successor_catalog() -> (Catalog, String) {
