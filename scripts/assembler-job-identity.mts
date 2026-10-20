@@ -395,7 +395,11 @@ async function verifyJobIdentity(
 // by supplying a trusted-looking name or workflow path.
 type IdentityOptions = NonNullable<Parameters<typeof verifyJobIdentity>[3]>;
 const capacityExecutorProfiles = Object.freeze({
-  coordinator: { workflow: productionControllerWorkflow, job: "Coordinate application release" },
+  coordinator: {
+    workflow: productionControllerWorkflow,
+    job: "Coordinate application release",
+    environment: "production-release-coordinator" as const,
+  },
   "release-publication": {
     workflow: productionControllerWorkflow,
     job: "Publish immutable application release",

@@ -29,13 +29,16 @@ void test("capacity executor roles require their exact signed job, not another t
     ["release-publication", "Publish immutable application release"],
     ["site-publication", "Publish authenticated application site"],
   ] as const) {
-    const subject = controllerOidcSubject(
-      expected.controller_ref,
-      role === "site-publication" ? "github-pages" : undefined,
-    );
+    const environment =
+      role === "site-publication"
+        ? "github-pages"
+        : role === "coordinator"
+          ? "production-release-coordinator"
+          : undefined;
+    const subject = controllerOidcSubject(expected.controller_ref, environment);
     const binding = { ...expected, subject };
     const f = fixture(
-      { sub: subject, ...(role === "site-publication" ? { environment: "github-pages" } : {}) },
+      { sub: subject, ...(environment ? { environment } : {}) },
       {},
       { workflow: productionControllerWorkflow, job: name },
     );
@@ -45,6 +48,16 @@ void test("capacity executor roles require their exact signed job, not another t
     assert.equal(actual.evidence_scope, "injected-provider");
     const wrong = fixture();
     await assert.rejects(verifyCapacityExecutorJobIdentity(role, wrong.token, binding, wrong));
+    if (environment) {
+      const unprotected = fixture(
+        { sub: expected.subject },
+        {},
+        { workflow: productionControllerWorkflow, job: name },
+      );
+      await assert.rejects(
+        verifyCapacityExecutorJobIdentity(role, unprotected.token, binding, unprotected),
+      );
+    }
     f.faults.value = "name-only";
     await assert.rejects(verifyCapacityExecutorJobIdentity(role, f.token, binding, f));
   }
