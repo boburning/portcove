@@ -76,7 +76,7 @@ function replaceOnce(
   return updated;
 }
 
-function workspacePackages(readSource: (filename: string) => string, cargo: string) {
+function workspaceMemberPaths(cargo: string) {
   // Support the repository's explicit member list, rejecting globs, traversal
   // and other TOML forms instead of guessing the version authority.
   const list = cargo.match(/^members\s*=\s*(\[[\s\S]*?\])/m)?.[1];
@@ -84,9 +84,27 @@ function workspacePackages(readSource: (filename: string) => string, cargo: stri
   if (!Array.isArray(members) || !members.length)
     throw new Error("explicit workspace members are required");
   const values: unknown[] = members;
-  const names = values.map((member) => {
+  return values.map((member) => {
     if (typeof member !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member))
       throw new Error("unsupported workspace member path");
+    return member;
+  });
+}
+
+/** Exact inert source paths needed for preparation; no candidate execution or
+ * arbitrary checkout is required. Contents/modes remain checked by preparation. */
+export function preparationSourcePaths(cargo: string) {
+  return [
+    "Cargo.toml",
+    "Cargo.lock",
+    "apps/desktop/package.json",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    ...workspaceMemberPaths(cargo).map((member) => `${member}/Cargo.toml`),
+  ];
+}
+
+function workspacePackages(readSource: (filename: string) => string, cargo: string) {
+  const names = workspaceMemberPaths(cargo).map((member) => {
     const manifest = readSource(`${member}/Cargo.toml`);
     const table = manifest.match(/^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
     const name = table?.match(/^name\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m)?.[1];
@@ -218,7 +236,7 @@ export function exportPreparedReleaseVersion(
   )
     throw new Error("prepared export tree identity differs");
   const date = git(["show", "-s", "--format=%cI", candidate.source_commit]).trim();
-  const offset = date.slice(-6).replace(":", "");
+  const offset = date.endsWith("Z") ? "+0000" : date.slice(-6).replace(":", "");
   if (!/^[+-][0-9]{4}$/u.test(offset) || !Number.isSafeInteger(Date.parse(date) / 1000))
     throw new Error("preparation date cannot be represented exactly");
   const actor = `Portcove version preparation <version-preparation@portcove.invalid> ${Date.parse(date) / 1000} ${offset}`;
@@ -333,7 +351,10 @@ async function preparedTree(repository: string, proposal: Proposal) {
       const blob = git(["hash-object", "-w", "--stdin"], contents).trim();
       git(["update-index", "--add", "--cacheinfo", `100644,${blob},${filename}`]);
     }
-    return git(["write-tree"]).trim();
+    // Unchanged source entries are opaque Git identities. A fresh coordinating
+    // repository needs verified trees and the version authorities, not every
+    // application blob. The exact four changed blobs are all present above.
+    return git(["write-tree", "--missing-ok"]).trim();
   } finally {
     // Only the unique temporary index created above is owned by this operation.
     await rm(temporary, { recursive: true, force: true });
