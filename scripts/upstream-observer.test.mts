@@ -3517,3 +3517,41 @@ void test("source archive conditional reads participate in zero-I/O forecast ove
   assert.equal(report.observations.length, 319);
   assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
 });
+
+void test("reviewed release URL tags remain exact when catalog version labels omit their v prefix", async () => {
+  const policy = structuredClone(reviewedAccounting),
+    pin = requiredFixture(policy.pins[0]);
+  const port = structuredClone(
+    requiredFixture(currentHealthCatalog.ports.find((p) => p.id === pin.port_id)),
+  );
+  const direct = objectFixture(objectFixture(objectFixture(port.release).direct)[pin.platform]);
+  assert.ok(pin.tag.startsWith("v"));
+  direct.version = pin.tag.slice(1);
+  const { summary: _summary, ...contract } = port;
+  pin.port_contract_sha256 = observationHash(contract);
+  const report = await collectRepositoryHealthWithPolicy(
+    { ports: [port] },
+    {
+      reviewedAccounting: policy,
+      fetch: accountingFetch([]),
+    },
+  );
+  assert.equal(report.outcome, "complete");
+  assert.equal(report.request_plan.conditional_pin_requests, 3);
+  assert.equal(
+    report.observations.find((r) => r.repository === pin.url)?.pin_assessment?.status,
+    "provider-reported-pin-present",
+  );
+  direct.version = "different-catalog-contract";
+  const changed = await collectRepositoryHealthWithPolicy(
+    { ports: [port] },
+    {
+      reviewedAccounting: policy,
+      fetch: accountingFetch([]),
+    },
+  );
+  assert.equal(changed.outcome, "incomplete");
+  assert.equal(changed.request_plan.conditional_pin_requests, 0);
+  pin.tag = "different-provider-tag";
+  assert.throws(() => validateHealthAccountingPolicy(policy));
+});

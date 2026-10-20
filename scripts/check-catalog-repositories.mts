@@ -838,6 +838,8 @@ export async function collectRepositoryHealth(
     rule.port_id === id &&
     rule.port_contract_sha256 ===
       portContract(requiredValue(catalog.ports.find((port) => port.id === id)));
+  // Policy binds tag to the exact release URL; the whole-port hash separately
+  // binds catalog version labels, which may legitimately omit a provider v prefix.
   const pinRules = (record: LocationRecord) => {
     if (record.provider !== "direct-manifest") return [];
     const rules = requiredValue(record.artifact_identities).map((identity) =>
@@ -847,8 +849,7 @@ export async function collectRepositoryHealth(
           rule.platform === identity.platform &&
           rule.url === record.repository &&
           rule.size === identity.size &&
-          rule.sha256 === identity.sha256 &&
-          rule.tag === identity.version,
+          rule.sha256 === identity.sha256,
       ),
     );
     return rules.every((rule) => rule !== undefined) ? rules : [];

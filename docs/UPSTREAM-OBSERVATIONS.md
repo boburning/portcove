@@ -210,6 +210,9 @@ validate the reviewed repository, release and asset IDs, complete uncapped asset
 collections, exact uploaded asset URL/name/size/provider digest and retained asset
 facts. They reuse the configured observer's strict metadata normalization through
 a narrow helper; unrelated release enumeration and redirects remain prohibited.
+The reviewed tag is derived from the exact download URL, independently of the
+catalog version label (which may omit a provider `v` prefix). The whole-port
+contract hash still binds that label. Release tag and metadata checks remain exact.
 Missing or changed facts, API redirects, partial/capped/ambiguous collections,
 rate limits and access failures remain unknown and unaccounted.
 
