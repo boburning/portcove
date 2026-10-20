@@ -1,3 +1,7 @@
+import {
+  addRequiredSource,
+  replaceRegisteredSource,
+} from "./features/source-health/source-actions";
 import desktopPackage from "../package.json";
 import { AddGames } from "./components/AddGames";
 import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
@@ -18,7 +22,8 @@ import { useSourceHealth } from "./features/source-health/use-source-health";
 import { useSourceIntakeState } from "./features/source-intake/use-source-intake-state";
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
-import { useOperationState, type Perform } from "./features/operations/use-operation-state";
+import { useOperationState } from "./features/operations/use-operation-state";
+import { targetInvocationContext } from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
   useInstallPlanning,
@@ -96,7 +101,6 @@ import type {
   BootstrapStatus,
   HostToolStatus,
   PortDefinition,
-  SourceProfile,
   SourceRecord,
 } from "./types";
 import {
@@ -384,7 +388,7 @@ function Workspace({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
   });
-  const github = useGithubAuth(operations.perform, operations.setError);
+  const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const {
     ui,
@@ -456,6 +460,14 @@ function Workspace({
     model.port?.id,
     model.status?.channel ?? model.port?.channels[0],
     operations.perform,
+    model.port
+      ? targetInvocationContext(
+          "Review installation",
+          { kind: "port", id: model.port.id, label: gameIdentityLabel(model.port) },
+          bootstrap.generation,
+          "library",
+        )
+      : undefined,
   );
   const setupReviews = useSetupReviewSelection();
   const { pendingReview, takeReview } = setupReviews;
@@ -1221,6 +1233,7 @@ function CurrentView({
             sourcePickerPurpose(source.profile_id, data.catalog?.ports ?? []),
             operations.perform,
             operations.setError,
+            bootstrap.generation,
           );
         }}
         sourceNeeds={model.sourceNeeds}
@@ -1235,6 +1248,7 @@ function CurrentView({
             sourcePickerPurpose(profile.id, data.catalog?.ports ?? []),
             operations.perform,
             operations.setError,
+            bootstrap.generation,
           );
         }}
       />
@@ -1476,6 +1490,7 @@ function AdoptionOverlay({
     libraryGeneration,
     operations.perform,
     finish,
+    ports,
   );
   const setPath = (path: string) => {
     planning.invalidate();
@@ -1516,46 +1531,6 @@ async function applyPathChoice(
   try {
     const path = await choice;
     if (path) setPath(path);
-  } catch (value) {
-    setError(errorText(value));
-  }
-}
-
-async function replaceRegisteredSource(
-  profile: SourceProfile | undefined,
-  source: SourceRecord,
-  purpose: SourcePickerPurpose,
-  perform: Perform,
-  setError: (error?: string) => void,
-) {
-  if (!profile) {
-    setError("The selected file’s requirements are missing from the current catalog.");
-    return;
-  }
-  try {
-    const path = await pickSourcePath(profile, source.path, purpose);
-    if (path)
-      await perform("update game-file location", async () => {
-        const plan = await desktopApi.planSourceRelink(profile.id, path);
-        return desktopApi.relinkSource(profile.id, path, plan.preview_sha256);
-      });
-  } catch (value) {
-    setError(errorText(value));
-  }
-}
-
-async function addRequiredSource(
-  profile: SourceProfile,
-  archive: boolean,
-  purpose: SourcePickerPurpose,
-  perform: Perform,
-  setError: (error?: string) => void,
-) {
-  try {
-    const path = await (archive
-      ? pickSourceArchivePath("", purpose)
-      : pickSourcePath(profile, "", purpose));
-    if (path) await perform("add game files", () => desktopApi.addSource(profile.id, path));
   } catch (value) {
     setError(errorText(value));
   }

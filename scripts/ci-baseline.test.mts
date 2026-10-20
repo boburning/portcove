@@ -225,6 +225,23 @@ void test("release run evidence contracts are selected for implementation and te
     assert.ok(baselineContractTests(plan).includes("scripts/release-run-evidence.test.mts"));
   }
 });
+void test("payload signer and held caller changes preserve release security and both connected contracts", () => {
+  for (const file of [
+    "scripts/release-payload-signing.mts",
+    "scripts/release-payload-preparation.mts",
+    "docs/qualification/application-update-production.payload-signing.yml",
+    "docs/qualification/application-update-production.aggregate.yml",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    const tests = baselineContractTests(plan);
+    assert.ok(tests.includes("scripts/release-payload-signing.test.mts"), file);
+    assert.ok(tests.includes("scripts/release-payload-preparation.test.mts"), file);
+    const local = classifyChanges([{ status: "M", path: file }]);
+    assert.ok(local.nodeTests.has("scripts/release-payload-signing.test.mts"), file);
+    assert.ok(local.nodeTests.has("scripts/release-payload-preparation.test.mts"), file);
+  }
+});
 void test("shared and unknown frontend inputs use full units; sources use the related graph", () => {
   const related = baselineFrontendPlan(make(["apps/desktop/src/App.tsx"]));
   assert.ok(

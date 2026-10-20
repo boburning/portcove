@@ -42,6 +42,7 @@ export function targetInvocationContext(
   action: string,
   target: InvocationContext["target"],
   libraryGeneration: number,
+  exclusionScope: InvocationContext["exclusionScope"] = "target",
 ): InvocationContext {
-  return { action, target, libraryGeneration, exclusionScope: "target" };
+  return { action, target, libraryGeneration, exclusionScope };
 }

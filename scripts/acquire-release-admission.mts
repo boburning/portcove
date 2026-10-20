@@ -30,6 +30,12 @@ import {
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import {
+  inspectPublicBuildConfiguration,
+  selectPublicBuildInputBinding,
+  verifyReleasePublicBuildInputs,
+  requireStablePublicBuildInputEvidence,
+} from "./release-public-build-provenance.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import {
   classifyApplicationVersion,
@@ -75,7 +81,11 @@ function configuration(raw: unknown) {
       (value.schema_version === 1 &&
         Object.keys(value).sort().join(",") === "namespace,schema_version") ||
       (value.schema_version === 2 &&
-        Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version")
+        Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version") ||
+      (value.schema_version === 3 &&
+        value.release_profile === "initial-beta-win-linux" &&
+        Object.keys(value).sort().join(",") ===
+          "namespace,public_build_inputs,release_profile,schema_version")
     ) ||
     typeof value.namespace !== "string" ||
     !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(value.namespace) ||
@@ -85,8 +95,14 @@ function configuration(raw: unknown) {
   return {
     schema_version: value.schema_version,
     namespace: value.namespace,
+    public_build_inputs:
+      value.schema_version === 3
+        ? inspectPublicBuildConfiguration(value.public_build_inputs)
+        : null,
     release_profile:
-      value.schema_version === 2 ? inspectReleaseProfile(value.release_profile) : ("full" as const),
+      value.schema_version === 2 || value.schema_version === 3
+        ? inspectReleaseProfile(value.release_profile)
+        : ("full" as const),
   };
 }
 function peel(ref: Record<string, unknown>) {
@@ -592,7 +608,7 @@ export async function acquireReleaseAdmission(
       config.release_profile,
     );
     const labels = releaseLabels(policy);
-    const archives = [];
+    const archives: { platform: string; artifact_id: number; bytes: number; sha256: string }[] = [];
     for (const platform of labels) {
       const matches = evidence.artifacts.filter(
         (a) =>
@@ -646,8 +662,26 @@ export async function acquireReleaseAdmission(
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
     }
+    phase = "public-build-input-acquisition";
+    const publicBinding = config.public_build_inputs
+      ? selectPublicBuildInputBinding(config.public_build_inputs, evidence)
+      : null;
+    const publicBuildInputs = publicBinding
+      ? await verifyReleasePublicBuildInputs(root, publicBinding, evidence, {
+          download: options.download,
+        })
+      : null;
+    if (config.release_profile === "initial-beta-win-linux" && !publicBinding)
+      holds.add("ratified-public-build-inputs-unavailable");
+    if (
+      publicBinding?.artifacts.some((item) =>
+        archives.some((archive) => archive.artifact_id === item.artifact_id),
+      )
+    )
+      throw new Error("public build inputs cannot reuse package artifact identities");
     const assembly = {
-      schema_version: 2,
+      schema_version: publicBinding ? 3 : 2,
+      ...(publicBinding ? { public_build_inputs: publicBinding } : {}),
       release_profile: config.release_profile,
       source_commit: active.prepared_commit,
       source_tree: active.prepared_tree,
@@ -659,6 +693,8 @@ export async function acquireReleaseAdmission(
     await inspectTrustedAssemblyInput(assembly);
     phase = "freshness-bracket";
     const afterEvidence = collectReleaseRunEvidence(evidenceRequest, { api });
+    if (publicBinding)
+      requireStablePublicBuildInputEvidence(publicBinding, evidence, afterEvidence);
     if (
       !isDeepStrictEqual(evidence.run, afterEvidence.run) ||
       !isDeepStrictEqual(evidence.jobs, afterEvidence.jobs) ||
@@ -763,6 +799,7 @@ export async function acquireReleaseAdmission(
       evidence,
       assembly,
       archives,
+      public_build_inputs: publicBuildInputs,
       declared_producers: declarations,
       diagnostic_plan: diagnosticPlan,
       diagnostic_plan_scope: "conservative paused schema check only; no acquired control authority",
