@@ -1857,6 +1857,48 @@ mod tests {
     }
 
     #[test]
+    fn managed_dkc3_lifecycle_does_not_erase_its_known_startup_failure() {
+        let catalog = Catalog::embedded().unwrap();
+        let scope = crate::SourceEvidenceScope {
+            port_id: "dkc3-recomp".into(),
+            platform: Platform::WindowsX86_64,
+            artifact_sha256: Some(
+                "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11".into(),
+            ),
+            upstream_ref: Some("v0.0.6".into()),
+            contract_id: Some("dkc3-recomp-game-source".into()),
+            variant: crate::SourceVariantScope::Exact {
+                identity: crate::SourceIdentity {
+                    game_id: "dkc3-na-en-fr".into(),
+                    variant_id: "north-america-en-fr".into(),
+                    representation_id: "headerless-sfc".into(),
+                },
+            },
+            check_version: Some("snes-genesis-managed-windows-v1".into()),
+        };
+        let assessment = catalog
+            .source_catalog()
+            .unwrap()
+            .assess_qualification(&scope);
+        assert_eq!(
+            assessment.structural_check,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.automated_lifecycle,
+            crate::QualificationEvidenceState::Passed
+        );
+        assert_eq!(
+            assessment.known_failure,
+            crate::QualificationEvidenceState::Failed
+        );
+        assert_eq!(
+            assessment.hands_on,
+            crate::QualificationEvidenceState::Missing
+        );
+    }
+
+    #[test]
     fn f_zero_snes_recomp_pins_a_scoped_managed_windows_route_without_gameplay_claims() {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("f-zero-snes-recomp").unwrap();
@@ -2298,7 +2340,7 @@ mod tests {
             serde_json::to_value(expected_ports).unwrap()
         );
         let qualification = &migrated.source_catalog().unwrap().qualification;
-        assert_eq!(qualification.len(), 24);
+        assert_eq!(qualification.len(), 37);
         assert_eq!(
             qualification
                 .iter()
@@ -2311,7 +2353,7 @@ mod tests {
                 .iter()
                 .filter(|record| record.scope.port_id == "dkc3-recomp")
                 .count(),
-            2
+            5
         );
         assert_eq!(
             qualification

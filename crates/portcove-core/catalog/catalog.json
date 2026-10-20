@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "snes-genesis-managed-windows-2026-10-20",
+        "role": "portcove_qualification",
+        "authority": "boburning/portcove",
+        "authority_ref": "020a88efcd3c7a1e1169abf684924af58e7f21d2",
+        "reviewed_at": "2026-10-20",
+        "claim": "Exact managed Windows acquisition, original-file validation/materialization, process startup/ordinary close and administrative preservation for six fixed packages. DKC3 startup failure remains confirmed; no gameplay, in-game save/load, new-version update/rollback or Supported promotion.",
+        "immutable_url": "https://github.com/boburning/portcove/blob/020a88efcd3c7a1e1169abf684924af58e7f21d2/docs/qualification/snes-genesis-managed-windows-2026-10-20.md",
+        "live_url": "https://github.com/boburning/portcove/blob/main/docs/qualification/snes-genesis-managed-windows-2026-10-20.md"
+      },
+      {
         "id": "f-zero-managed-windows-path-policy-2026-10-19",
         "role": "portcove_qualification",
         "authority": "boburning/portcove",
@@ -10184,6 +10194,357 @@
         "kind": "known_failure",
         "outcome": "failed",
         "method": "Actual v0.0.6 Windows stderr reported an interpreter cap and unresolved-abandon at guest site $808CAD frame 58; pinned source confirms stack balancing skips handler side effects. Known guest semantic gap retained independently of passed Portcove operations; no dispatch authorization, cap change or gameplay-correctness claim"
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455650,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456302,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "dkc3-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b4965c2cb6d13ce972bc72796e15840d1c1c50e9cb28c748ff213ae145f75e11",
+          "upstream_ref": "v0.0.6",
+          "contract_id": "dkc3-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "dkc3-na-en-fr",
+              "variant_id": "north-america-en-fr",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456250,
+        "kind": "known_failure",
+        "outcome": "failed",
+        "method": "Actual managed v0.0.6 Windows startup reproduced interpreter cap and unresolved-abandon at guest site $808CAD, frame58, with handler side effects skipped. Partial intro and clean process close do not resolve the game-logic failure; gameplay and visual correctness remain unqualified."
+      },
+      {
+        "scope": {
+          "port_id": "super-mario-world-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+          "upstream_ref": "v0.12.0",
+          "contract_id": "super-mario-world-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "super-mario-world-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455661,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "super-mario-world-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+          "upstream_ref": "v0.12.0",
+          "contract_id": "super-mario-world-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "super-mario-world-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456368,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+          "upstream_ref": "v0.6.1",
+          "contract_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "a-link-to-the-past-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455674,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+          "upstream_ref": "v0.6.1",
+          "contract_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "a-link-to-the-past-snes-usa",
+              "variant_id": "usa-stock",
+              "representation_id": "headerless-sfc"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456433,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+          "upstream_ref": "v0.6.0",
+          "contract_id": "sonic-the-hedgehog-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-genesis-jue-rev00",
+              "variant_id": "jue-rev00",
+              "representation_id": "raw-big-endian-bin"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792455683,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "78fc4b14de5f232d345ad54bbf2561ece68e4353eb9f3161d4846d829285be40",
+          "upstream_ref": "v0.6.0",
+          "contract_id": "sonic-the-hedgehog-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-genesis-jue-rev00",
+              "variant_id": "jue-rev00",
+              "representation_id": "raw-big-endian-bin"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "420b933047d7ff8a46b70ac7a4417c6025b8b56b",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456490,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-2-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+          "upstream_ref": "v0.8.3",
+          "contract_id": "sonic-the-hedgehog-2-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-2-genesis-world-reva",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456179,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-the-hedgehog-2-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+          "upstream_ref": "v0.8.3",
+          "contract_id": "sonic-the-hedgehog-2-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-the-hedgehog-2-genesis-world-reva",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456889,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. A separate post-reinstall launch recreated a poisoned ZIP-derived runtime copy with the real matching marker retained, preserving original ZIP and both prior synthetic probes. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-3-and-knuckles-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+          "upstream_ref": "v0.5.3",
+          "contract_id": "sonic-3-and-knuckles-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456194,
+        "kind": "structural_check",
+        "outcome": "passed",
+        "method": "Actual isolated Core/CLI incorrect-input refusal, Unicode original acceptance, unsuitable runtime-path refusal, changed-source review refusal, checked official package acquisition, bound installation, immutable verification and launch readiness; exact source/executable/artifact identities retained. No gameplay claim."
+      },
+      {
+        "scope": {
+          "port_id": "sonic-3-and-knuckles-recomp",
+          "platform": "windows-x86-64",
+          "artifact_sha256": "42ada10579a00d266aa08a833054ea5fea87b64eef67d268b054525fd0f6be99",
+          "upstream_ref": "v0.5.3",
+          "contract_id": "sonic-3-and-knuckles-recomp-game-source",
+          "variant": {
+            "state": "exact",
+            "identity": {
+              "game_id": "sonic-3-and-knuckles-genesis-usa-lockon",
+              "variant_id": "exact-stock",
+              "representation_id": "raw-big-endian-zip"
+            }
+          },
+          "check_version": "snes-genesis-managed-windows-v1"
+        },
+        "portcove_version": "0.1.0-alpha.2",
+        "portcove_commit": "fe39995d15def52edb57f12daa794ed660be1967",
+        "evidence_ids": [
+          "snes-genesis-managed-windows-2026-10-20"
+        ],
+        "observed_at": 1792456624,
+        "kind": "automated_lifecycle",
+        "outcome": "passed",
+        "method": "Actual owned managed process startup, checked materialized original, synthetic active-runtime persistence probe, ordinary close, terminal exit and immutable verification; backup/restore, reviewed removal preserving data/backups, and reviewed same-version reinstall. Probe preservation is administrative, not in-game save/load; no gameplay, new-version update/rollback, Portcove GUI or other-platform claim."
       }
     ]
   },
