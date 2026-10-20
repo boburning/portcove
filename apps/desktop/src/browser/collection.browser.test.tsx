@@ -1,8 +1,10 @@
+import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
+import { artworkState } from "../test-fixtures";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { collectionLayoutKey } from "../features/browsing/use-collection-layout";
@@ -82,6 +84,19 @@ for (const theme of ["dark", "light"]) {
       "Complete Edition",
     );
     expect(document.querySelector("button button, button a, a button")).toBeNull();
+    const labels = await axe.run(document.querySelector('[aria-label="Library entries"]')!, {
+      runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+    });
+    expect(
+      labels.violations,
+      JSON.stringify(
+        [...document.querySelectorAll(".collection-identity")].map((node) => ({
+          name: node.getAttribute("aria-label"),
+          text: node.textContent,
+          visible: (node as HTMLElement).innerText,
+        })),
+      ),
+    ).toEqual([]);
     // Speech input must be able to use the full visible identity and action label.
     for (const entry of entries) {
       const identity = entry.querySelector<HTMLButtonElement>(".collection-identity")!;
@@ -177,3 +192,22 @@ for (const theme of ["dark", "light"]) {
     }
   });
 }
+
+it("keeps failed artwork feedback outside the details action name", async () => {
+  vi.spyOn(desktopApi, "artwork").mockImplementation(async (id, slot) => ({
+    ...artworkState(id, slot),
+    availability: "unavailable",
+  }));
+  await page.viewport(1280, 800);
+  await mount("dark");
+  await expect
+    .poll(() => document.querySelector(".collection-state")?.textContent)
+    .toContain("Image unavailable");
+  const identity = document.querySelector<HTMLButtonElement>(".collection-identity")!;
+  expect(identity.textContent).not.toContain("Image unavailable");
+  expect(identity.querySelector(".collection-art svg")).not.toBeNull();
+  const labels = await axe.run(document.querySelector('[aria-label="Library entries"]')!, {
+    runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
+  });
+  expect(labels.violations).toEqual([]);
+});
