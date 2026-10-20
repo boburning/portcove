@@ -347,3 +347,16 @@ the fixed Task/account route has not run. Whole-stage report construction,
 native Check handoff, the signed-context/post-sign selector and the Linux
 separate-account backend remain engineering work. The current worker reports
 HOLD after driver capture and cannot publish native acceptance or a Release.
+
+Compatibility preparation now distinguishes maintained source declarations
+from installed runtime observations. The parent-owned source reader can retain
+the exact candidate commit's Core constants, database schema, embedded catalog
+and maintained Windows context recipe, checking bounded Contents bytes against
+their Git blob identities. A repeated read preserves matching original bytes
+and refuses changed retained input. The current source declares API 77, library
+read 1–37/write 37, embedded catalog format 2 and `library-lock-v1`. An actual
+source fixture exercises this recipe and malformed, duplicate, unsupported and
+changed declarations. This is data-only preparation: those declarations alone
+establish neither native execution nor compatibility acceptance. The installed
+Core IPC, actual state/host observations and private producer join remain
+independently required.
