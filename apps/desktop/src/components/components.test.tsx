@@ -3025,8 +3025,8 @@ describe("desktop components", () => {
     expect(emptyLibrary).toContain("/brand/mascot/portcove-mascot-v2-front.png");
     expect(emptyLibrary).toContain('aria-hidden="true"');
     expect(emptyLibrary).toContain("Your library is empty");
-    expect(emptyLibrary).toContain("use an existing installation");
-    expect(emptyLibrary).toContain("Browse port catalog");
+    expect(emptyLibrary).toContain("using your original files");
+    expect(emptyLibrary).toContain("Add games");
     expect(emptyLibrary).not.toContain('aria-label="Library readiness"');
     expect(emptyLibrary).not.toContain('aria-label="Library filters"');
     expect(emptyLibrary).toContain("copy a supported installation");

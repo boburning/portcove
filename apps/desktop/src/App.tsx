@@ -1,5 +1,6 @@
 import desktopPackage from "../package.json";
 import { AddGames } from "./components/AddGames";
+import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
@@ -527,19 +528,19 @@ function Workspace({
     window.requestAnimationFrame(() => focusDiscTool());
   };
   const openAddGames = () => {
-    addGamesReturn.current = workspace.current?.scrollTop ?? 0;
+    addGamesReturn.current = workspaceScrollTop(workspace.current);
     setAddGamesStarted(true);
     setAddGamesOpen(true);
     setPrimaryView("library");
     requestAnimationFrame(() => {
-      workspace.current?.scrollTo({ top: 0 });
+      scrollWorkspaceTo(workspace.current, 0);
       workspace.current?.querySelector<HTMLElement>("h1")?.focus();
     });
   };
   const closeAddGames = () => {
     setAddGamesOpen(false);
     requestAnimationFrame(() => {
-      workspace.current?.scrollTo({ top: addGamesReturn.current });
+      scrollWorkspaceTo(workspace.current, addGamesReturn.current);
       workspace.current
         ?.querySelector<HTMLElement>("[data-add-games-trigger]")
         ?.focus({ preventScroll: true });
