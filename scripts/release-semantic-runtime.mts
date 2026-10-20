@@ -4,19 +4,46 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
-import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts";
-import { requireFrozenSemanticInputs } from "./release-semantic-inputs.mts";
+import type {
+  prepareFrozenSemanticInputs,
+  prepareFrozenSemanticProposalInputs,
+  FrozenSemanticSnapshot,
+} from "./release-semantic-inputs.mts";
+import {
+  requireFrozenSemanticInputs,
+  requireFrozenSemanticProposalInputs,
+} from "./release-semantic-inputs.mts";
+import {
+  inspectSemanticProposalResult,
+  semanticProposalInstructions,
+  semanticProposalResultSchema,
+} from "./release-semantic-proposal.mts";
 import { createSemanticSnapshotReader } from "./release-semantic-reader-core.mts";
 import {
   isSemanticReaderCall,
   semanticReaderServer,
   materializeSemanticReaderIndex,
+  materializeSemanticProposalReaderIndex,
 } from "./release-semantic-reader.mts";
 
 type Bundle = ReturnType<typeof prepareFrozenSemanticInputs>;
+type ProposalBundle = ReturnType<typeof prepareFrozenSemanticProposalInputs>;
 const captured = new WeakMap<object, string>();
+const capturedProposals = new WeakMap<object, string>();
+const capturedRefusals = new WeakMap<
+  object,
+  Readonly<{
+    root: string;
+    invocation: SemanticInvocation;
+    isolation: unknown;
+    opportunity: Bundle["manifest"]["opportunity"];
+    review: ReturnType<typeof inspectSemanticRuntimeEvents>;
+    bundle_sha256: string;
+  }>
+>();
 const sha = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const semanticResultSchema = {
   type: "object",
@@ -160,7 +187,7 @@ function inspectRuntimeEnvelope(bytes: Buffer) {
  */
 function requireRelevantObservations(
   completions: ReturnType<typeof inspectRuntimeEnvelope>["readerCompletions"],
-  bundle: Bundle,
+  bundle: FrozenSemanticSnapshot,
 ) {
   if (capacityDigest(bundle.manifest) !== bundle.bundle_sha256)
     throw new Error("accepted review frozen manifest identity differs");
@@ -286,6 +313,16 @@ export function inspectSemanticRuntimeEvents(bytes: Buffer, bundle: Bundle) {
   return { session, result: structuredClone(result), report: result.report };
 }
 
+/** Parser only. Direct proposal provenance is established by the fixed Linux
+ * parent below, and never by imported JSON or these successful assertions. */
+export function inspectSemanticProposalEvents(bytes: Buffer, bundle: ProposalBundle) {
+  const { session, finalMessage, readerCompletions } = inspectRuntimeEnvelope(bytes);
+  const raw: unknown = JSON.parse(finalMessage);
+  const result = inspectSemanticProposalResult(raw, bundle);
+  if (result.outcome === "proposed") requireRelevantObservations(readerCompletions, bundle);
+  return { session, ...result };
+}
+
 /** Inert fixture assertion only. This result can never become a producer capture. */
 export function inspectSemanticFixtureEvents(bytes: Buffer) {
   const { session, finalMessage, readerCompletions } = inspectRuntimeEnvelope(bytes);
@@ -381,10 +418,26 @@ async function finishDirectCapture(
   const put = (name: string, value: unknown) =>
     writeFile(path.join(root, "capture", name), JSON.stringify(value), { flag: "wx", mode: 0o600 });
   await put("review-result.json", accepted);
-  if (accepted.result.outcome !== "accepted")
-    throw new Error(
+  if (accepted.result.outcome !== "accepted") {
+    const refusal = new Error(
       `runtime retained ${String(accepted.result.outcome)}; no accepted handoff; retain ${root}`,
     );
+    // Only this path has observed an actual structured runtime result after
+    // positive namespace/process/network settlement. Earlier failures and
+    // imported errors cannot create an authenticated negative disposition.
+    capturedRefusals.set(
+      refusal,
+      structuredClone({
+        root,
+        invocation,
+        isolation,
+        opportunity: bundle.manifest.opportunity,
+        review: accepted,
+        bundle_sha256: bundle.bundle_sha256,
+      }),
+    );
+    throw refusal;
+  }
   const completed_at = new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
   const handoff = prepareSemanticReviewHandoff(bundle.manifest.opportunity, {
     accepted_opportunity: bundle.manifest.opportunity,
@@ -409,6 +462,67 @@ async function finishDirectCapture(
   return result;
 }
 
+async function finishProposalCapture(
+  bundle: ProposalBundle,
+  root: string,
+  invocation: SemanticInvocation,
+  isolation: unknown,
+) {
+  const events = await readBoundedPublicBuildInputFile(
+    root,
+    "capture/stdout.jsonl",
+    16 * 1024 * 1024,
+  );
+  const review = inspectSemanticProposalEvents(events, bundle);
+  const result = {
+    authority: "none" as const,
+    root,
+    invocation,
+    isolation,
+    request: bundle.manifest.opportunity,
+    bundle_sha256: bundle.bundle_sha256,
+    review,
+    events_sha256: sha(events),
+  };
+  await writeFile(path.join(root, "capture/proposal-result.json"), JSON.stringify(result), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  capturedProposals.set(result, capacityDigest(result));
+  return result;
+}
+
+/** Only the fixed parent may supply proposal provenance. This is never an
+ * accepted review capture and cannot release the producer credential. */
+export async function requireDirectSemanticProposalCapture(value: unknown) {
+  if (!isRecord(value) || capturedProposals.get(value) !== capacityDigest(value))
+    throw new Error("imported or changed proposal cannot establish runtime provenance");
+  const bytes = await readBoundedPublicBuildInputFile(
+    String(value.root),
+    "capture/proposal-result.json",
+    256 * 1024,
+  );
+  if (capacityDigest(JSON.parse(bytes.toString("utf8"))) !== capturedProposals.get(value))
+    throw new Error("retained semantic proposal changed");
+  return structuredClone(value);
+}
+
+/** A structured negative result is useful only after the same positive teardown
+ * required for acceptance. Authentication/startup/parser failures do not qualify. */
+export async function requireDirectSemanticRefusalCapture(error: unknown) {
+  const value =
+    typeof error === "object" && error !== null ? capturedRefusals.get(error) : undefined;
+  if (!value) throw new Error("imported failure cannot establish a semantic disposition");
+  const bytes = await readBoundedPublicBuildInputFile(
+    value.root,
+    "capture/review-result.json",
+    128 * 1024,
+  );
+  if (capacityDigest(JSON.parse(bytes.toString("utf8"))) !== capacityDigest(value.review))
+    throw new Error("retained semantic disposition changed");
+  return structuredClone(value);
+}
+
 /** Only this direct parent path creates a publishable capture. No transcript/file
  * import, credential discovery, shell command interpolation, POST or retry. */
 export async function runSemanticRuntime(
@@ -416,7 +530,7 @@ export async function runSemanticRuntime(
   rawConfiguration: SemanticRuntimeConfiguration,
 ) {
   if (rawConfiguration.backend === "linux-rootless")
-    return runLinuxSemanticRuntime(rawBundle, rawConfiguration);
+    return runLinuxSemanticTask({ kind: "review", bundle: rawBundle }, rawConfiguration);
   const bundle = requireFrozenSemanticInputs(rawBundle);
   const index = materializeSemanticReaderIndex(rawBundle);
   const configuration = { ...rawConfiguration };
@@ -603,8 +717,48 @@ export function semanticSupervisorEnvironment(
   return environment;
 }
 
-async function runLinuxSemanticRuntime(rawBundle: Bundle, raw: LinuxSemanticRuntimeConfiguration) {
-  const bundle = requireFrozenSemanticInputs(rawBundle);
+export async function runSemanticProposalRuntime(
+  rawBundle: ProposalBundle,
+  configuration: LinuxSemanticRuntimeConfiguration,
+) {
+  return runLinuxSemanticTask({ kind: "proposal", bundle: rawBundle }, configuration);
+}
+
+type LinuxTask = { kind: "review"; bundle: Bundle } | { kind: "proposal"; bundle: ProposalBundle };
+async function runLinuxSemanticTask(
+  task: { kind: "review"; bundle: Bundle },
+  raw: LinuxSemanticRuntimeConfiguration,
+): Promise<Awaited<ReturnType<typeof finishDirectCapture>>>;
+async function runLinuxSemanticTask(
+  task: { kind: "proposal"; bundle: ProposalBundle },
+  raw: LinuxSemanticRuntimeConfiguration,
+): Promise<Awaited<ReturnType<typeof finishProposalCapture>>>;
+async function runLinuxSemanticTask(task: LinuxTask, raw: LinuxSemanticRuntimeConfiguration) {
+  const operation =
+    task.kind === "review"
+      ? (() => {
+          const snapshot = requireFrozenSemanticInputs(task.bundle);
+          return {
+            bundle: snapshot,
+            index: materializeSemanticReaderIndex(task.bundle),
+            instructions: semanticReviewInstructions(snapshot),
+            schema: semanticResultSchema,
+            finish: (root: string, invocation: SemanticInvocation, isolation: unknown) =>
+              finishDirectCapture(snapshot, root, invocation, isolation),
+          };
+        })()
+      : (() => {
+          const snapshot = requireFrozenSemanticProposalInputs(task.bundle);
+          return {
+            bundle: snapshot,
+            index: materializeSemanticProposalReaderIndex(task.bundle),
+            instructions: semanticProposalInstructions(snapshot),
+            schema: semanticProposalResultSchema,
+            finish: (root: string, invocation: SemanticInvocation, isolation: unknown) =>
+              finishProposalCapture(snapshot, root, invocation, isolation),
+          };
+        })();
+  const bundle = operation.bundle;
   const configuration = { ...raw, tools_sha256: { ...raw.tools_sha256 } };
   const tools = {
     python: "/usr/bin/python3",
@@ -652,7 +806,7 @@ async function runLinuxSemanticRuntime(rawBundle: Bundle, raw: LinuxSemanticRunt
         throw new Error(`qualified runtime changed: ${file}`);
   };
   await verifyTrusted();
-  const index = materializeSemanticReaderIndex(rawBundle);
+  const index = operation.index;
   const modules = await Promise.all(
     [
       "release-semantic-reader-server.mts",
@@ -687,8 +841,8 @@ async function runLinuxSemanticRuntime(rawBundle: Bundle, raw: LinuxSemanticRunt
   await put(".portcove-semantic-review-owned", invocation.id);
   await put("capture/invocation.json", JSON.stringify(invocation));
   await put("inputs/manifest.json", JSON.stringify(bundle.manifest));
-  await put("inputs/instructions.txt", semanticReviewInstructions(bundle));
-  await put("inputs/result-schema.json", JSON.stringify(semanticResultSchema));
+  await put("inputs/instructions.txt", operation.instructions);
+  await put("inputs/result-schema.json", JSON.stringify(operation.schema));
   await put("inputs/reader-index.json", index.bytes);
   await put(
     "inputs/reader-launch.json",
@@ -749,7 +903,7 @@ async function runLinuxSemanticRuntime(rawBundle: Bundle, raw: LinuxSemanticRunt
   for (const [name, digest] of identities)
     if (sha(await readFile(path.join(root, name))) !== digest)
       throw new Error(`frozen runtime input changed: ${name}; retain ${root}`);
-  return finishDirectCapture(bundle, root, invocation, isolation);
+  return operation.finish(root, invocation, isolation);
 }
 
 export function requireDirectSemanticCapture(

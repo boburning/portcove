@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { prepareFrozenSemanticInputs } from "./release-semantic-inputs.mts";
+import type { FrozenSemanticSnapshot } from "./release-semantic-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 
 export const semanticReaderServer = "portcove_frozen_bundle";
@@ -81,13 +81,13 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     manifest: index.manifest,
     bundle_sha256: index.bundle_sha256,
     files,
-  } as ReturnType<typeof prepareFrozenSemanticInputs>;
+  } as FrozenSemanticSnapshot;
 }
 
 /** No filesystem, shell, regex, network, write, or caller-selected root. Each
  * interface owns a copied, validated bundle and finite lifetime work budgets.
  * This is a reader, never a semantic acceptance or producer provenance source. */
-export function createSemanticSnapshotReader(raw: ReturnType<typeof prepareFrozenSemanticInputs>) {
+export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
   const bundle = {
     manifest: structuredClone(raw.manifest),
     files: raw.files.map((file) => ({ ...file, bytes: Buffer.from(file.bytes) })),
@@ -308,7 +308,7 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
 
 /** Fixed MCP dispatch for a parent-owned transport. Bootstrap/list/call only;
  * unsupported protocol methods cannot gain a filesystem or execution route. */
-export function createSemanticSnapshotRpc(raw: ReturnType<typeof prepareFrozenSemanticInputs>) {
+export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
   const read = createSemanticSnapshotReader(raw);
   let initialized = false,
     messages = 0,

@@ -7,6 +7,7 @@ import { GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
+import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 
 const repository = "repos/boburning/portcove";
 const oid = (value: unknown): value is string =>
@@ -254,11 +255,50 @@ export function prepareFrozenSemanticInputs(
   evidence: { classification: unknown; compatibility: unknown },
 ) {
   const opportunity = validateOpportunity(structuredClone(rawOpportunity));
-  const baseline = readSemanticPublicationBaseline(
+  const bundle = freezeSemanticSnapshots(
     api,
     root,
+    opportunity,
     parseVersionClassification(opportunity.classification).base_version,
+    evidence,
   );
+  prepared.set(bundle, bundle.bundle_sha256);
+  return bundle;
+}
+
+/** Neutral proposal input for the same selected independent runtime. The
+ * request supplies exact source/baseline identities only. It cannot claim a
+ * classification, compatibility, acceptance or a publishable review capture. */
+export function prepareFrozenSemanticProposalInputs(
+  api: GitHubRestReader,
+  root: string,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(structuredClone(rawRequest));
+  if (!request) throw new Error("exact frozen semantic review request required");
+  const bundle = freezeSemanticSnapshots(api, root, request, request.base_version, {
+    classification: "not yet proposed; no classification or acceptance authority",
+    compatibility: "must be assessed from the complete inert source and existing contracts",
+  });
+  proposalPrepared.set(bundle, bundle.bundle_sha256);
+  return bundle;
+}
+
+type SemanticSourceIdentity = {
+  base_commit: string;
+  source_commit: string;
+  source_tree: string;
+  change_set_sha256: string;
+};
+
+function freezeSemanticSnapshots<T extends SemanticSourceIdentity>(
+  api: GitHubRestReader,
+  root: string,
+  opportunity: T,
+  baseVersion: string,
+  evidence: { classification: unknown; compatibility: unknown },
+) {
+  const baseline = readSemanticPublicationBaseline(api, root, baseVersion);
   if (baseline.commit !== opportunity.base_commit)
     throw new Error("opportunity omits accumulated publication delta");
   const source = readSemanticSourceChanges(api, root, opportunity);
@@ -351,18 +391,34 @@ export function prepareFrozenSemanticInputs(
   if (Buffer.byteLength(JSON.stringify(manifest)) > 16 * 1024 * 1024)
     throw new Error("review manifest exceeds bound");
   const bundle = { authority: "none", manifest, bundle_sha256: capacityDigest(manifest), files };
-  prepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }
 
 const prepared = new WeakMap<object, string>();
+const proposalPrepared = new WeakMap<object, string>();
+export type FrozenSemanticSnapshot = ReturnType<
+  typeof freezeSemanticSnapshots<SemanticSourceIdentity>
+>;
 /** Only builder-produced inputs may enter direct capture. Copy before any await;
  * callers cannot mutate the expected evidence during a review. */
 export function requireFrozenSemanticInputs(
   bundle: ReturnType<typeof prepareFrozenSemanticInputs>,
 ) {
+  return requireFrozenSnapshot(bundle, prepared);
+}
+
+export function requireFrozenSemanticProposalInputs(
+  bundle: ReturnType<typeof prepareFrozenSemanticProposalInputs>,
+) {
+  return requireFrozenSnapshot(bundle, proposalPrepared);
+}
+
+function requireFrozenSnapshot<T extends FrozenSemanticSnapshot>(
+  bundle: T,
+  originals: WeakMap<object, string>,
+) {
   if (
-    prepared.get(bundle) !== bundle.bundle_sha256 ||
+    originals.get(bundle) !== bundle.bundle_sha256 ||
     capacityDigest(bundle.manifest) !== bundle.bundle_sha256
   )
     throw new Error("imported or changed review bundle");
@@ -391,7 +447,7 @@ export function requireFrozenSemanticInputs(
     if (!seen.has(`objects/${entry.oid}.data`)) throw new Error("review snapshot object missing");
   return {
     authority: bundle.authority,
-    manifest: structuredClone(bundle.manifest),
+    manifest: structuredClone(bundle.manifest) as T["manifest"],
     bundle_sha256: bundle.bundle_sha256,
     files,
   };

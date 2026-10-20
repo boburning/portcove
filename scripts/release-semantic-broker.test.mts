@@ -11,6 +11,8 @@ import { collectReleaseSourceChanges } from "./release-source-changes.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import {
   prepareFrozenSemanticInputs,
+  prepareFrozenSemanticProposalInputs,
+  requireFrozenSemanticProposalInputs,
   requireFrozenSemanticInputs,
   readSemanticPublicationBaseline,
 } from "./release-semantic-inputs.mts";
@@ -21,7 +23,11 @@ import {
   requireLinuxSemanticSettlement,
   readQualifiedSemanticExecutable,
   semanticSupervisorEnvironment,
+  requireDirectSemanticProposalCapture,
+  requireDirectSemanticRefusalCapture,
 } from "./release-semantic-runtime.mts";
+import { createReleaseReviewRequest } from "./release-review-request.mts";
+import { inspectSemanticProposalResult } from "./release-semantic-proposal.mts";
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import { readbackSemanticCheck, publishSemanticCapture } from "./release-semantic-broker.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -29,6 +35,7 @@ import {
   createSemanticBundleReader,
   createSemanticReaderRpc,
   materializeSemanticReaderIndex,
+  materializeSemanticProposalReaderIndex,
 } from "./release-semantic-reader.mts";
 import {
   inspectSemanticReaderIndex,
@@ -350,10 +357,80 @@ void test("frozen source collection binds actual Git blobs, publication and comp
     compatibility: "fixture only",
   });
   const frozen = requireFrozenSemanticInputs(bundle);
+  const request = createReleaseReviewRequest({
+    before_checkpoint: "a".repeat(40),
+    requested_at: "2026-01-02T00:00:00.000Z",
+    base_commit: opportunity.base_commit,
+    base_version: opportunity.classification.base_version,
+    source_commit: opportunity.source_commit,
+    source_tree: opportunity.source_tree,
+    change_set_sha256: opportunity.change_set_sha256,
+  });
+  const proposedInputs = prepareFrozenSemanticProposalInputs(api, root, request);
+  assert.equal(
+    requireFrozenSemanticProposalInputs(proposedInputs).manifest.opportunity.request_id,
+    request.request_id,
+  );
+  assert.throws(
+    () => requireFrozenSemanticInputs(proposedInputs as unknown as typeof bundle),
+    /imported/,
+  );
+  assert.throws(
+    () => requireFrozenSemanticProposalInputs(bundle as unknown as typeof proposedInputs),
+    /imported/,
+  );
+  const proposalIndex = materializeSemanticProposalReaderIndex(proposedInputs);
+  assert.equal(
+    inspectSemanticReaderIndex(proposalIndex.bytes, proposalIndex.sha256).bundle_sha256,
+    proposedInputs.bundle_sha256,
+  );
+  const proposalResult = {
+    schema_version: 1,
+    outcome: "proposed",
+    request_id: request.request_id,
+    bundle_sha256: proposedInputs.bundle_sha256,
+    coverage: { accumulated_changes: true, classification: true, compatibility: true },
+    proposal: {
+      change: "prerelease",
+      compatibility: "compatible",
+      migration_notes: null,
+      prerelease_identifier: null,
+      meaningful: true,
+      documentation_only: false,
+      urgency: false,
+    },
+    report: "Inert serialization fixture only, no actual semantic judgment.",
+  };
+  const proposal = inspectSemanticProposalResult(proposalResult, proposedInputs);
+  assert.equal(proposal.opportunity?.source_commit, request.source_commit);
+  assert.equal(proposal.opportunity?.classification.base_version, request.base_version);
+  for (const change of [
+    { outcome: "accepted" },
+    { request_id: "b".repeat(64) },
+    { bundle_sha256: "b".repeat(64) },
+    { coverage: { ...proposalResult.coverage, compatibility: false } },
+    { proposal: { ...proposalResult.proposal, source_commit: "b".repeat(40) } },
+    { outcome: "refused" },
+  ])
+    assert.throws(() =>
+      inspectSemanticProposalResult({ ...proposalResult, ...change }, proposedInputs),
+    );
+  assert.equal(
+    inspectSemanticProposalResult(
+      { ...proposalResult, outcome: "refused", proposal: null },
+      proposedInputs,
+    ).opportunity,
+    null,
+  );
+  await assert.rejects(requireDirectSemanticProposalCapture(proposal), /imported/);
+  await assert.rejects(requireDirectSemanticRefusalCapture(new Error("refused")), /imported/);
   const index = materializeSemanticReaderIndex(bundle);
   assert.equal(inspectSemanticReaderIndex(index.bytes, index.sha256).files.length, 3);
   assert.throws(
-    () => requireFrozenSemanticInputs(inspectSemanticReaderIndex(index.bytes, index.sha256)),
+    () =>
+      requireFrozenSemanticInputs(
+        inspectSemanticReaderIndex(index.bytes, index.sha256) as unknown as typeof bundle,
+      ),
     /imported/,
   );
   assert.throws(() => inspectSemanticReaderIndex(index.bytes, "0".repeat(64)), /differs/);
