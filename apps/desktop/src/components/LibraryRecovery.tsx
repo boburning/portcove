@@ -120,6 +120,27 @@ export function LibraryRecovery({
         )}
         {error && <p role="alert">Metadata export did not finish: {error}</p>}
         <h3>3. Close Portcove and copy the content</h3>
+        <aside
+          aria-label="Host-local sign-in files"
+          className="my-3 rounded-pc-md border border-pc-border p-3"
+        >
+          <strong>Review version-local sign-in files before copying.</strong>
+          <p>
+            Some installed versions keep protected RetroAchievements sign-in files inside their
+            version folder. Do not put <code>retroachievements.credentials</code> or its numeric
+            temporary files in a recovery copy. Checked restore and Move refuse these files; they do
+            not silently filter an entire library copy.
+          </p>
+          <p>
+            Open the affected version, sign out and close it. Temporary files may remain. If a
+            refusal names a remaining file, privately preserve it on this host outside all Portcove
+            installation, save, backup, staging and recovery folders before manually removing it
+            from the listed transfer tree. Keep your original data intact. Do not upload these files
+            or include their contents in diagnostics. Review again after any change and prepare a
+            fresh matching export and content copy. Sign in again in the destination; copying these
+            files does not transfer sign-in authority.
+          </p>
+        </aside>
         <p>
           After the export, close Portcove and all other clients and keep games closed. In your file
           manager, copy the following folders that exist under this library into one recovery

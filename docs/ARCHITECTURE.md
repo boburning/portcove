@@ -2872,3 +2872,12 @@ The UI reports metadata export only, never a verified backup or a manual checkbo
 as verification. Existing content-bound import checks publication into a new/empty
 destination; Move separately switches authority and retains its original tree.
 Profile/workspace presentation state cannot change these Core guarantees.
+
+The manual-copy guide must also disclose host-local version credentials before
+copy instructions. The [managed RaceWave46 recovery contract](reference/managed-racewave46.md#manual-transfer-recovery)
+owns exact refusal handling: sign out and close the affected version; temporary
+credential leaves may remain. Privately preserve a specifically refused leaf on
+this host outside all Portcove trees before manual removal from its listed transfer
+tree, then obtain fresh review/export/copy. Never upload it or silently filter it
+into an alleged verified backup. Checked whole-library transfer refuses reserved
+credential leaves rather than granting portable sign-in authority.
