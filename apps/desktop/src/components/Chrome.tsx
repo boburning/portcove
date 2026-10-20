@@ -261,7 +261,7 @@ export function PageHeader({
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search ports"
             />
-            <Shortcut className="ms-auto">/</Shortcut>
+            <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
           </label>
         )}
         <Button
