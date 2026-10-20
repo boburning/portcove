@@ -81,11 +81,14 @@ function inspectExpected(raw: unknown) {
   if (action.arguments.includes("%"))
     throw new Error("native scheduler action expands ambient variables");
   exact(raw.powershell, "path,sha256");
-  exact(raw.protected_paths, "authorities,boundary,capture,controller,descriptor,installation");
+  exact(
+    raw.protected_paths,
+    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader",
+  );
   const protectedPaths = Object.fromEntries(
     Object.entries(raw.protected_paths).map(([key, value]) => [key, winPath(value)]),
   );
-  if (new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !== 6)
+  if (new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !== 8)
     throw new Error("native scheduler custody paths overlap");
   return {
     task_path: taskPath,
@@ -110,15 +113,19 @@ export function inspectNativeSchedulerObservation(
   exact(raw, "chain,current_sid,custody,elevated,observed_at,reader,schema_version,task");
   if (raw.schema_version !== 1 || raw.current_sid !== expected.broker_sid || raw.elevated !== false)
     throw new Error("native scheduler reader identity/elevation differs");
-  exact(raw.custody, "authorities,boundary,capture,controller,descriptor,installation");
+  exact(
+    raw.custody,
+    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader",
+  );
   for (const [key, pathname] of Object.entries(expected.protected_paths)) {
     const observed = raw.custody[key];
-    exact(observed, "directory,owner_sid,path,protected");
+    exact(observed, "directory,owner_sid,path,private,protected");
     const directory = key === "capture" || key === "controller";
     if (
       observed.path !== pathname ||
       observed.owner_sid !== expected.broker_sid ||
       observed.directory !== directory ||
+      observed.private !== (key === "native_issuer" || key === "source_reader") ||
       typeof observed.protected !== "boolean" ||
       (directory && !observed.protected)
     )

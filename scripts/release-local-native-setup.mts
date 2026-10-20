@@ -79,6 +79,31 @@ export function inspectLocalNativeSetup(raw: unknown) {
   };
 }
 
+/** Initial installation data only. Tokens and keys are never configuration
+ * values, incoming requests or candidate inputs. Native issuer IDs come from
+ * the independently pinned global role configuration. */
+export function inspectLocalNativeTransport(
+  raw: unknown,
+  platform: "windows-x86_64" | "linux-x86_64",
+) {
+  exact(raw, "native_issuer,schema_version,source_read_token");
+  if (raw.schema_version !== 1) throw new Error("native transport schema differs");
+  exact(raw.native_issuer, "private_key,public_key_sha256");
+  const windows = platform === "windows-x86_64";
+  const source = canonical(raw.source_read_token, windows),
+    key = canonical(raw.native_issuer.private_key, windows);
+  if ((windows ? source.toLowerCase() : source) === (windows ? key.toLowerCase() : key))
+    throw new Error("native source reader and issuer custody are conflated");
+  return {
+    schema_version: 1 as const,
+    source_read_token: source,
+    native_issuer: {
+      private_key: key,
+      public_key_sha256: digest(raw.native_issuer.public_key_sha256),
+    },
+  };
+}
+
 async function linuxOwnerPath(filename: string, directory = false) {
   const uid = process.getuid?.();
   if (!uid || process.platform !== "linux" || process.env.GITHUB_ACTIONS === "true")
@@ -130,7 +155,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
   const installation: unknown = JSON.parse(installationBytes.toString("utf8"));
   exact(
     installation,
-    "controller_revision,descriptor_sha256,kind,scheduler,schema_version,setup_grant_sha256",
+    "controller_revision,descriptor_sha256,kind,scheduler,schema_version,setup_grant_sha256,transport",
   );
   if (
     installation.schema_version !== 1 ||
@@ -143,6 +168,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     throw new Error("actual local installation does not bind this setup descriptor");
   if (process.platform !== (descriptor.platform_label === "windows-x86_64" ? "win32" : "linux"))
     throw new Error("local native setup platform differs");
+  const transport = inspectLocalNativeTransport(installation.transport, descriptor.platform_label);
   if (process.platform === "linux") {
     // Source hashes do not prevent a separate account from replacing a later
     // imported helper. The installed controller is private owner staging too.
@@ -153,6 +179,8 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     ])
       await linuxOwnerPath(file);
     await linuxOwnerPath(descriptor.capture_root, true);
+    await linuxOwnerPath(transport.source_read_token);
+    await linuxOwnerPath(transport.native_issuer.private_key);
   }
   const authority = inspectReleaseAuthorityConfiguration(
     JSON.parse(
@@ -172,6 +200,35 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
       )
     ).toString("utf8"),
   );
+  const credentials = [transport.source_read_token, transport.native_issuer.private_key];
+  const publicFiles = [
+    configurationPath,
+    installationPath,
+    descriptor.authority_configuration.path,
+    descriptor.native_boundary_configuration.path,
+  ];
+  const parser = process.platform === "win32" ? path.win32 : path.posix;
+  const normalize = (value: string) =>
+    process.platform === "win32" ? parser.resolve(value).toLowerCase() : parser.resolve(value);
+  const candidateRoots = [
+    checkout,
+    descriptor.capture_root,
+    ...(isRecord(boundary)
+      ? [boundary.work_root, boundary.profile_root].filter(
+          (value): value is string => typeof value === "string",
+        )
+      : []),
+  ];
+  for (const file of credentials) {
+    if (
+      publicFiles.some((value) => normalize(file) === normalize(value)) ||
+      candidateRoots.some((root) => {
+        const relative = parser.relative(normalize(root), normalize(file));
+        return relative === "" || (!relative.startsWith("..") && !parser.isAbsolute(relative));
+      })
+    )
+      throw new Error("native credentials overlap public input, candidate work or capture custody");
+  }
   if (authority.namespace !== descriptor.namespace)
     throw new Error("local native setup namespace differs from global configuration");
   const git = (args: string[]) =>
@@ -222,7 +279,9 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     installation_path: installationPath,
     installation_sha256: sha(installationBytes),
     installation_record: installation,
+    transport_configuration: transport,
     controller_root: checkout,
+    controller_tree: git(["rev-parse", "HEAD^{tree}"]),
     authority: "none",
     scope: "pinned setup byte custody; actual scheduler and parent boundary still required",
   };

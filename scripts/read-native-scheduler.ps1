@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 
-function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected) {
+function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected, [bool]$Private = $false) {
     $item = Get-Item -LiteralPath $Path -Force
     if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.PSIsContainer -ne $Directory) { throw 'Native custody path kind/reparse point differs' }
     $acl = Get-Acl -LiteralPath $Path
@@ -16,6 +16,8 @@ function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected) {
     if ($Protected -and -not $acl.AreAccessRulesProtected) { throw 'Native custody directory inheritance is not protected' }
     $write = [Security.AccessControl.FileSystemRights]'Write,Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
     foreach ($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
+        if ($Private -and $rule.AccessControlType -eq 'Allow' -and
+            $rule.IdentityReference.Value -notin @($owner,'S-1-5-18','S-1-5-32-544')) { throw 'Native credential custody permits a foreign reader' }
         if ($rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $write) -and
             $rule.IdentityReference.Value -notin @($owner,'S-1-5-18','S-1-5-32-544')) { throw 'Native custody path writable by another identity' }
     }
@@ -35,17 +37,17 @@ function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected) {
         if (-not $parent -or $parent -eq $ancestor) { break }
         $ancestor = $parent
     }
-    return [ordered]@{path=$Path; directory=$Directory; owner_sid=$owner; protected=$acl.AreAccessRulesProtected}
+    return [ordered]@{path=$Path; directory=$Directory; owner_sid=$owner; protected=$acl.AreAccessRulesProtected; private=$Private}
 }
 
 $pathsBytes = [Convert]::FromBase64String($ProtectedPathsBase64)
 if ($pathsBytes.Length -gt 8192) { throw 'Native custody path inventory exceeds bound' }
 $paths = [Text.UTF8Encoding]::new($false,$true).GetString($pathsBytes) | ConvertFrom-Json
-if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'authorities,boundary,capture,controller,descriptor,installation') { throw 'Native custody path inventory differs' }
+if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader') { throw 'Native custody path inventory differs' }
 $custody = [ordered]@{}
-foreach ($name in @('authorities','boundary','capture','controller','descriptor','installation')) {
+foreach ($name in @('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader')) {
     $isDirectory = $name -in @('capture','controller')
-    $custody[$name] = Assert-OwnerPath ([string]$paths.$name) $isDirectory $isDirectory
+    $custody[$name] = Assert-OwnerPath ([string]$paths.$name) $isDirectory $isDirectory ($name -in @('native_issuer','source_reader'))
 }
 Assert-OwnerPath $PSCommandPath $false $false | Out-Null
 if (-not [string]::Equals([IO.Path]::GetFullPath((Join-Path $paths.controller 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) { throw 'Native reader is outside protected controller staging' }

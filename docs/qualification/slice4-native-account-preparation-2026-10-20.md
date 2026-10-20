@@ -235,3 +235,22 @@ remain unobserved. The tests cover integrity/refusal paths only. Microsoft
 documents the [engine PID](https://learn.microsoft.com/en-us/windows/win32/taskschd/runningtask-enginepid)
 and [security-context scope of GetInstances](https://learn.microsoft.com/en-us/windows/win32/taskschd/registeredtask-getinstances);
 those capabilities do not establish that the proposed host setup exists.
+
+The parent join now combines private setup-byte custody with the actual default
+scheduler observer and checks the complete appointed producer source/tree and
+harness bytes. The initial adjacent installation record has a strict transport
+section naming separate source-read token and native issuer-key files; issuer
+App identities still come from the global authority configuration. Neither key
+nor token is configuration content or an incoming request value. Credential
+files must stay outside candidate work/profile, controller and capture storage.
+Windows observes their owner/ancestor ACLs without reading the issuer key;
+Linux checks owner-only file custody. The private parent getter rechecks actual
+setup and scheduler state before use. Its receipt is parent-boundary provenance,
+not a native qualification result or an execution grant.
+
+The disposable credential-ACL fixture initially also attempted a positive
+non-private path check in the host's ordinary temporary directory. The real
+ancestor guard refused it as foreign-replaceable. That outcome remains a
+refusal; the focused fixture now exercises only rejection of a foreign reader
+on its new disposable file, without claiming protected temporary-directory
+custody. The initial setup still has to establish the real protected roots.

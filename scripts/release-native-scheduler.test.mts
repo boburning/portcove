@@ -40,6 +40,8 @@ function fixture() {
     controller: "C:\\Portcove\\controller",
     descriptor: "C:\\Portcove\\descriptor.json",
     installation: "C:\\Portcove\\installation.json",
+    native_issuer: "C:\\Portcove\\credentials\\native.pem",
+    source_reader: "C:\\Portcove\\credentials\\read.token",
   };
   const expected = {
     task_path: "\\PortcoveNative",
@@ -120,6 +122,7 @@ function fixture() {
           owner_sid: broker,
           directory: key === "capture" || key === "controller",
           protected: true,
+          private: key === "native_issuer" || key === "source_reader",
         },
       ]),
     ),
@@ -206,6 +209,9 @@ void test("scheduler refuses wrong instance, elevated/foreign principal, replace
     (raw) => {
       raw.custody.boundary!.owner_sid = "S-1-5-18";
     },
+    (raw) => {
+      raw.custody.native_issuer!.private = false;
+    },
   ];
   for (const change of changes) {
     const raw = structuredClone(f.observed);
@@ -228,6 +234,8 @@ $ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_SCHED
 if($errors.Count){throw 'Fixed scheduler reader syntax differs'}
 $function=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Read-TaskState'},$true)
 . ([ScriptBlock]::Create($function.Extent.Text))
+$guard=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Assert-OwnerPath'},$true)
+. ([ScriptBlock]::Create($guard.Extent.Text))
 $owner=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $instance=[pscustomobject]@{InstanceGuid='{11111111-2222-3333-4444-555555555555}';EnginePID=100;State=4;CurrentAction='fixed-action'}
 $instance|Add-Member ScriptMethod Refresh {}
@@ -240,7 +248,19 @@ $task._sddl=('O:'+$owner+'G:BAD:(A;;FA;;;'+$owner+')(A;;FA;;;WD)')
 $refused=$false
 try{Read-TaskState $task|Out-Null}catch{if($_.Exception.Message -notmatch 'foreign identity'){throw};$refused=$true}
 if(-not $refused){throw 'Foreign task writer accepted'}
-[ordered]@{parsed_actual_raw_security_descriptor=$true;foreign_task_write_refused=$true;scope='inert COM projection; no task mutation or installed scheduler proof'}|ConvertTo-Json -Compress
+$temporary=[IO.Path]::GetTempFileName()
+try {
+  $sid=[Security.Principal.SecurityIdentifier]::new($owner)
+  $acl=[Security.AccessControl.FileSecurity]::new()
+  $acl.SetOwner($sid);$acl.SetAccessRuleProtection($true,$false)
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl','Allow'))
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new('S-1-1-0'),'Read','Allow'))
+  Set-Acl -LiteralPath $temporary -AclObject $acl
+  $privateRefused=$false
+  try{Assert-OwnerPath $temporary $false $false $true|Out-Null}catch{if($_.Exception.Message -notmatch 'foreign reader'){throw};$privateRefused=$true}
+  if(-not $privateRefused){throw 'Foreign credential reader accepted'}
+}finally{Remove-Item -LiteralPath $temporary -Force}
+[ordered]@{parsed_actual_raw_security_descriptor=$true;foreign_task_write_refused=$true;foreign_credential_read_refused=$true;scope='inert COM projection and disposable owned-file ACL; no task mutation or installed scheduler proof'}|ConvertTo-Json -Compress
 `;
     const result = spawnSync(
       "pwsh",
@@ -268,7 +288,9 @@ if(-not $refused){throw 'Foreign task writer accepted'}
     assert.deepEqual(observed, {
       parsed_actual_raw_security_descriptor: true,
       foreign_task_write_refused: true,
-      scope: "inert COM projection; no task mutation or installed scheduler proof",
+      foreign_credential_read_refused: true,
+      scope:
+        "inert COM projection and disposable owned-file ACL; no task mutation or installed scheduler proof",
     });
   },
 );
