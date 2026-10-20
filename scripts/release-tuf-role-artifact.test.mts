@@ -12,6 +12,7 @@ import {
   receiveTufRoleArtifact,
   requireReceivedTufRoleArtifact,
   tufRolePredicateType,
+  recheckTufRoleArtifactCustody,
 } from "./release-tuf-role-artifact.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { GitHubRestReader, createGitHubRunner } from "./github-api.mts";
@@ -209,7 +210,7 @@ void test("injected existing attestation + completed numeric role custody is dat
     result = await readAttestedTufRoleArtifact(
       root,
       f.expected,
-      performance.now() + 10000,
+      performance.now() + 350000,
       f.options,
     );
   assert.equal(result.evidence_scope, "injected-provider");
@@ -286,6 +287,10 @@ void test("TUF receiver refuses unknown fields and expired phase before director
     readAttestedTufRoleArtifact(root, f.expected, performance.now() - 1, f.options),
     /deadline/u,
   );
+  await assert.rejects(
+    readAttestedTufRoleArtifact(root, f.expected, performance.now() + 601000, f.options),
+    /deadline/u,
+  );
   assert.deepEqual(await readdir(root), []);
   assert.equal(f.calls.length, 0);
   assert.equal(f.downloads(), 0);
@@ -345,4 +350,15 @@ void test("default gh metadata/archive/verifier transports pin host and share on
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(timeouts.length, 15);
   assert.ok(timeouts.every((value, index) => index === 0 || value <= timeouts[index - 1]!));
+  const tight = performance.now() + 500;
+  const previousCalls = timeouts.length;
+  recheckTufRoleArtifactCustody(result, tight);
+  assert.ok(timeouts.length > previousCalls);
+  assert.ok(timeouts.slice(previousCalls).every((value) => value > 0 && value <= 500));
+  const second = timeouts.length;
+  recheckTufRoleArtifactCustody(result, performance.now() + 300000);
+  assert.ok(timeouts.slice(second).every((value) => value > 0 && value <= 500));
+  const last = timeouts.length;
+  assert.throws(() => recheckTufRoleArtifactCustody(result, performance.now() - 1), /deadline/u);
+  assert.equal(timeouts.length, last);
 });
