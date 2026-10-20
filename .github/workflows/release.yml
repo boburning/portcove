@@ -215,13 +215,30 @@ jobs:
         shell: pwsh
         env:
           RELEASE_TARGET: ${{ matrix.target }}
+          PORTCOVE_RELEASE_PLATFORM: ${{ matrix.label }}
+          PORTCOVE_RELEASE_INTERFACE: cli
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ needs.identity.outputs.public_configuration_revision }}
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ needs.identity.outputs.public_configuration_sha256 }}
         run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION)) {
+            & node scripts/release-compiler-capture.mts
+            exit $LASTEXITCODE
+          }
           $arguments = @("build", "--release", "-p", "portcove-cli")
           if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) {
             $arguments += @("--target", $env:RELEASE_TARGET)
           }
           & cargo @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain direct CLI compiler observation including failed or partial results
+        if: always() && needs.identity.outputs.release_profile == 'initial-beta-win-linux' && env.PORTCOVE_RELEASE_COMPILER_CLI_DIRECTORY != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-compiler-observation-cli-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.PORTCOVE_RELEASE_COMPILER_CLI_DIRECTORY }}/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
       - name: Package CLI
         shell: pwsh
         env:
@@ -240,16 +257,30 @@ jobs:
         working-directory: apps/desktop
         env:
           RELEASE_TARGET: ${{ matrix.target }}
+          PORTCOVE_RELEASE_PLATFORM: ${{ matrix.label }}
+          PORTCOVE_RELEASE_INTERFACE: desktop
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_REVISION: ${{ needs.identity.outputs.public_configuration_revision }}
+          PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ needs.identity.outputs.public_configuration_sha256 }}
         run: |
-          $arguments = @("tauri", "build", "--bundles", "${{ matrix.bundles }}")
           if (-not [string]::IsNullOrWhiteSpace($env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION)) {
-            $arguments += @("--no-sign", "--config", $env:PORTCOVE_RELEASE_PUBLIC_TAURI_CONFIGURATION)
+            & node ../../scripts/release-compiler-capture.mts
+            exit $LASTEXITCODE
           }
+          $arguments = @("tauri", "build", "--bundles", "${{ matrix.bundles }}")
           if (-not [string]::IsNullOrWhiteSpace($env:RELEASE_TARGET)) {
             $arguments += @("--target", $env:RELEASE_TARGET)
           }
           & pnpm @arguments
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain direct compiler observation including failed or partial results
+        if: always() && needs.identity.outputs.release_profile == 'initial-beta-win-linux' && env.PORTCOVE_RELEASE_COMPILER_DESKTOP_DIRECTORY != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-compiler-observation-desktop-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.PORTCOVE_RELEASE_COMPILER_DESKTOP_DIRECTORY }}/*.json
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: false
       - name: Stage checksummed release payload
         shell: pwsh
         env:
@@ -503,8 +534,8 @@ jobs:
         run: sha256sum --check --strict ../release-attestation/sbom-subject-checksums.txt
 
   attest:
-    if: github.event_name == 'push'
-    needs: assemble
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')
+    needs: [identity, assemble]
     runs-on: ubuntu-22.04
     permissions:
       artifact-metadata: write

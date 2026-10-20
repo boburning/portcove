@@ -296,8 +296,11 @@ void test("manual rehearsal verifies every finalized checksum without release wr
 });
 
 void test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
-  assert.equal(workflowData.jobs.attest?.if, "github.event_name == 'push'");
-  needs("attest", ["assemble"]);
+  assert.equal(
+    workflowData.jobs.attest?.if,
+    "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')",
+  );
+  needs("attest", ["identity", "assemble"]);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 2);
   assert.match(attestSection, /subject-path: release-assets-aggregate\/\*/);
   assert.match(attestSection, /name: release-attestation-metadata/);
