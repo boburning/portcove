@@ -97,6 +97,24 @@ export async function libraryHandoffScenario({
         contentWidth: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
         preference: localStorage.getItem("portcove.appearance.interface-size"),
+        overflowElements:
+          document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+            ? [...document.querySelectorAll<HTMLElement>("body *")]
+                .filter((element) => {
+                  const bounds = element.getBoundingClientRect();
+                  return (
+                    bounds.width > 0 && bounds.right > document.documentElement.clientWidth + 1
+                  );
+                })
+                .slice(0, 12)
+                .map((element) => ({
+                  tag: element.tagName,
+                  className: element.className,
+                  text: element.textContent?.slice(0, 120),
+                  width: element.getBoundingClientRect().width,
+                  minWidth: getComputedStyle(element).minWidth,
+                }))
+            : [],
       }));
     const sizeObservations: (Awaited<ReturnType<typeof measureSize>> & { size: number })[] = [];
     let baselineWidth: number | undefined;
