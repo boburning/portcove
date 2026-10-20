@@ -84,7 +84,7 @@ impl EngineTemplateCapability {
         });
         supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
-            contract_version: 15,
+            contract_version: 16,
         });
         supported
     }
@@ -300,7 +300,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(2));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 16, 16)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 17, 17)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -347,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn managed_preferences_require_v15_beyond_credential_only_v14() {
+    fn managed_preferences_require_v16_beyond_credential_only_v14() {
         let credential_only: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
             .filter(|entry| {
@@ -360,12 +360,34 @@ mod tests {
                 .compatible
         );
         let refused =
-            check_with_inventory(&request("staged-source-portable", 15, 15), &credential_only)
+            check_with_inventory(&request("staged-source-portable", 16, 16), &credential_only)
                 .unwrap();
         assert!(!refused.compatible);
         assert_eq!(refused.checks[0].installed_version, Some(14));
         assert!(
-            check_definition_capabilities(&request("staged-source-portable", 15, 15))
+            check_definition_capabilities(&request("staged-source-portable", 16, 16))
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
+    fn unassigned_v15_is_not_advertised_or_negotiated() {
+        assert!(
+            !EngineTemplateCapability::current()
+                .iter()
+                .any(|entry| entry.template == AdapterKind::StagedSourcePortable
+                    && entry.contract_version == 15)
+        );
+        let report =
+            check_definition_capabilities(&request("staged-source-portable", 15, 15)).unwrap();
+        assert!(!report.compatible);
+        assert_eq!(
+            report.checks[0].outcome,
+            DefinitionCapabilityOutcome::UnsupportedVersion
+        );
+        assert!(
+            check_definition_capabilities(&request("staged-source-portable", 16, 16))
                 .unwrap()
                 .compatible
         );

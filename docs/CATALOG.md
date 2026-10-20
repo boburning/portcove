@@ -3,7 +3,7 @@
 ## Managed ReGaiden shared preferences
 
 The exact v0.4.1 Windows package has a closed consent-bearing managed route.
-`managed_shared_preferences` requires staged-source capability15 and the
+`managed_shared_preferences` requires staged-source capability16 and the
 `regaiden-gbc` materialization that older engines cannot parse. Core retains
 explicit review of the Windows account and both shared/local preference paths
 in schema7 installation manifests. Local saves/settings are managed; the

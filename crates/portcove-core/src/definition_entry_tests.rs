@@ -148,13 +148,13 @@ fn initial_renderer_requires_an_entry_window_that_excludes_v1() {
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
-    entry["required_capabilities"][0]["maximum_version"] = json!(14);
-    entry["required_capabilities"][0]["minimum_version"] = json!(14);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
     entry["required_capabilities"][0]["maximum_version"] = json!(15);
-    assert!(inspect(&entry).unwrap_err().message.contains("version 15"));
     entry["required_capabilities"][0]["minimum_version"] = json!(15);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    entry["required_capabilities"][0]["maximum_version"] = json!(16);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 16"));
+    entry["required_capabilities"][0]["minimum_version"] = json!(16);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
@@ -168,7 +168,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
         let version = if port.managed_shared_preferences.is_some() {
-            15
+            16
         } else if port.runtime_data_policy.is_some() {
             14
         } else if port.managed_initialization.is_some() {

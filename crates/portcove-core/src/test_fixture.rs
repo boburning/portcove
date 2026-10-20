@@ -100,7 +100,7 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port;
         let port_id = &port.id;
         let capability_version = if port.managed_shared_preferences.is_some() {
-            15
+            16
         } else if port.runtime_data_policy.is_some() {
             14
         } else if port.managed_initialization.is_some() {
@@ -183,7 +183,7 @@ impl<'a> IndexedCatalogFixture<'a> {
 fn indexed_policy_fixtures_keep_delivered_reader_floors() {
     let catalog = crate::Catalog::embedded().unwrap();
     for (id, version) in [
-        ("resident-evil-gaiden-recomp", 15),
+        ("resident-evil-gaiden-recomp", 16),
         ("wave-race-64-racewave46", 14),
         ("render96ex", 13),
     ] {
