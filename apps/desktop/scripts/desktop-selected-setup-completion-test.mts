@@ -913,6 +913,7 @@ export async function selectedSetupCompletionScenario({
         5_000,
         "Preparation must restore natural focus to a visible enabled control in the selected detail workspace",
       );
+      assert.equal(required(report.observations.result_focus).text, "Try launch");
       await screenshot("selected-setup-prepared");
       await click(By.css('[aria-label="Back to previous workspace"]'));
       await browser.wait(until.elementLocated(continuation), 5_000);
