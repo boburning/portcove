@@ -86,7 +86,7 @@ export function assemblerIdentityFixture(
       assert.equal(command, "gh");
       assert.deepEqual(args.slice(-4), ["--method", "GET", "--hostname", "github.com"]);
       assert.equal(options.maxBuffer, 2 * 1024 * 1024);
-      assert.equal(options.timeout, 15_000);
+      assert.ok(options.timeout && options.timeout > 0 && options.timeout <= 15_000);
       assert.equal(options.input, undefined);
       requests++;
       const endpoint = args[2]!;

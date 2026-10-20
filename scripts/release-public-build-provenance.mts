@@ -35,6 +35,64 @@ const verifiedPublicInputs = new WeakMap<
     artifacts: { platform: string; bytes: number; sha256: string }[];
   }
 >();
+function decodePublicBuildInputArchive(archive: Buffer, structuralPassed?: () => void) {
+  const { entries } = inspectBoundedZip(archive, {
+    compressedBytes: maximumArchiveBytes,
+    expandedBytes: maximumExpandedBytes,
+    files: members.size,
+    nameBytes: 64,
+    allowedPaths: new Set(members.keys()),
+  });
+  if (
+    entries.length !== members.size ||
+    entries.some((entry) => entry.bytes < 1 || entry.bytes > members.get(entry.name)!)
+  )
+    throw new Error("public build archive member inventory or bound differs");
+  structuralPassed?.();
+  const decoded = new Map<string, Buffer>();
+  for (const entry of entries) {
+    const compressed = archive.subarray(entry.data, entry.dataEnd);
+    const bytes =
+      entry.method === 0
+        ? Buffer.from(compressed)
+        : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
+    if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
+      throw new Error("public build archive member bytes differ");
+    decoded.set(entry.name, bytes);
+  }
+  return decoded;
+}
+
+/** Reacquire actual public root/key/config bytes from the privately authenticated
+ * opaque archives, never trust mutable extracted files or a serialized recipe. */
+export async function readVerifiedReleasePublicBuildInputFiles(receipt: object) {
+  await requireVerifiedReleasePublicBuildInputs(receipt);
+  const retained = verifiedPublicInputs.get(receipt);
+  if (!retained) throw new Error("actual public input custody missing");
+  let common: Map<string, Buffer> | undefined;
+  for (const artifact of retained.artifacts) {
+    const archive = await readBoundedPublicBuildInputFile(
+      retained.directory,
+      `${artifact.platform}.zip`,
+      artifact.bytes,
+    );
+    if (archive.length !== artifact.bytes || digest(archive) !== artifact.sha256)
+      throw new Error("actual public input archive changed during readback");
+    const decoded = decodePublicBuildInputArchive(archive);
+    const selected = new Map(
+      ["root.json", "bundle.json", "updater-public.key", "packaging.json"].map((name) => [
+        name,
+        Buffer.from(decoded.get(name)!),
+      ]),
+    );
+    if (common && [...selected].some(([name, bytes]) => !bytes.equals(common!.get(name)!)))
+      throw new Error("actual public input roots/configuration differ across platforms");
+    common = selected;
+  }
+  if (!common || retained.artifacts.length !== labels.length)
+    throw new Error("actual complete public input matrix missing");
+  return common;
+}
 /** Later acceptance consumers must retain the actual default-provider result,
  * not import a serialized public recipe or a fixture's successful parser result. */
 export async function requireVerifiedReleasePublicBuildInputs(receipt: object) {
@@ -221,32 +279,11 @@ export async function verifyReleasePublicBuildInputs(
         mode: 0o600,
       });
       phase = "raw-zip-preflight";
-      const { entries } = inspectBoundedZip(archive, {
-        compressedBytes: maximumArchiveBytes,
-        expandedBytes: maximumExpandedBytes,
-        files: members.size,
-        nameBytes: 64,
-        allowedPaths: new Set(members.keys()),
-      });
-      if (
-        entries.length !== members.size ||
-        entries.some((entry) => entry.bytes < 1 || entry.bytes > members.get(entry.name)!)
-      )
-        throw new Error("public build archive member inventory or bound differs");
       // Every structural entry and represented size passed before any inflate or
       // extraction write. ZIP64, links, extra members and extensions are refused.
-      phase = "bounded-members";
-      const decoded = new Map<string, Buffer>();
-      for (const entry of entries) {
-        const compressed = archive.subarray(entry.data, entry.dataEnd);
-        const bytes =
-          entry.method === 0
-            ? Buffer.from(compressed)
-            : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
-        if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
-          throw new Error("public build archive member bytes differ");
-        decoded.set(entry.name, bytes);
-      }
+      const decoded = decodePublicBuildInputArchive(archive, () => {
+        phase = "bounded-members";
+      });
       const configurationRoot = path.join(directory, item.platform, "input");
       await mkdir(configurationRoot, { recursive: true });
       for (const name of ["root.json", "bundle.json", "updater-public.key", "packaging.json"])

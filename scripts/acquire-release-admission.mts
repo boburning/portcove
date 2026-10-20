@@ -45,6 +45,7 @@ import {
   selectPublicBuildInputBinding,
   verifyReleasePublicBuildInputs,
   requireStablePublicBuildInputEvidence,
+  requireVerifiedReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 import { planReleaseOpportunity } from "./release-coordinator.mts";
 import {
@@ -67,7 +68,14 @@ import { readProductionControllerWorkflowBytes } from "./production-controller-a
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
 import type { ReleaseControlPhase } from "./release-control-phases.mts";
-import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
+import {
+  requireNativeReleaseQualificationPair,
+  collectConfiguredNativeReleaseQualificationPair,
+} from "./release-native-admission.mts";
+import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
+import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
 import type { NativeQualificationStage } from "./release-native-qualification-contract.mts";
 import type { VerifiedNativeReleaseQualification } from "./release-native-acceptance.mts";
 
@@ -75,6 +83,41 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
+// A caller-supplied option/JSON field cannot activate qualifying acquisition.
+const qualifyingCollections = new WeakSet<object>();
+const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
+export interface ActualCandidateBuildingEligibility {
+  stage: "candidate-building";
+  repository: string;
+  checkpoint: string;
+  candidate: Readonly<Record<string, unknown>>;
+  facts: Readonly<PreparedReleaseAdmissionFacts>;
+  controls: AuthenticatedReleaseControlSource;
+  admission: Readonly<Awaited<ReturnType<typeof acquireReleaseAdmission>>>;
+  reader: Readonly<Awaited<ReturnType<typeof authenticateControlReaderJob>>>;
+  namespace: string;
+  controller_tools: object;
+  native_qualifications: readonly object[];
+  sbom_receipt: object;
+  public_build_inputs_receipt: object;
+  pending_obligations: readonly string[];
+}
+const actualBuildingEligibility = new WeakMap<object, ActualCandidateBuildingEligibility>();
+/** Data-only stage association. Candidate building consumes pre-sign native
+ * qualification, but is never itself payload-signing admission. */
+export function inspectAdmissionNativeStage(
+  phase: unknown,
+  admissionStage: unknown,
+): NativeQualificationStage {
+  if (
+    (phase === "admission" && admissionStage === "candidate-building") ||
+    (phase === "payload" && admissionStage === "payload-signing")
+  )
+    return "payload-signing";
+  if (phase === "release-publication" && admissionStage === "release-publication")
+    return "release-publication";
+  throw new Error("actual admission context cannot appoint another execution stage");
+}
 type Api = Pick<GitHubApiClient, "request" | "graphql">;
 type Recover = (...args: Parameters<typeof recoverRemoteCoordinator>) => Promise<unknown>;
 export interface PreparedReleaseAdmissionFacts {
@@ -107,6 +150,7 @@ export interface ActualReleaseAdmissionContext {
   native_qualifications: readonly object[];
   coordinator_repository: string;
   sbom_receipt: object;
+  public_build_inputs_receipt: object;
   pending_obligations: readonly string[];
 }
 const actualAdmissionContexts = new WeakMap<
@@ -116,6 +160,7 @@ const actualAdmissionContexts = new WeakMap<
 const acquiredSbomReceipts = new WeakMap<object, object>();
 const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
 const acquiredCoordinatorRepositories = new WeakMap<object, string>();
+const acquiredPublicInputReceipts = new WeakMap<object, object>();
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -225,6 +270,7 @@ export async function acquireReleaseAdmission(
     ) => Promise<AuthenticatedReleaseControlSource>;
   } = {},
 ) {
+  const qualifyingOnly = qualifyingCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
   // option after collection to obtain a production context.
@@ -240,6 +286,8 @@ export async function acquireReleaseAdmission(
       : {}),
   });
   const controlPhase = inspectReleaseControlPhase(options.controlPhase);
+  if (qualifyingOnly && controlPhase !== "admission")
+    throw new Error("qualifying collection requires its fixed independent reader phase");
   const nativeStage: NativeQualificationStage =
     controlPhase === "release-publication" ? "release-publication" : "payload-signing";
   let nativeReceipts: readonly object[] | null = null;
@@ -368,7 +416,11 @@ export async function acquireReleaseAdmission(
     checkpoint = before.checkpoint;
     const state = record(before.input);
     const candidate = record(state.active_candidate);
-    if (!["building", "publishing"].includes(String(candidate.phase)))
+    if (
+      qualifyingOnly
+        ? candidate.phase !== "qualifying"
+        : !["building", "publishing"].includes(String(candidate.phase))
+    )
       throw new Error("admission cannot revive an inactive or failed candidate");
     for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
       oid(candidate[key]);
@@ -910,11 +962,13 @@ export async function acquireReleaseAdmission(
       schema_version: 1,
       decision:
         holds.size === 0 && nativeReports && evidenceScope === "github.com"
-          ? nativeStage === "payload-signing"
-            ? "eligible-for-payload-signing"
-            : "admitted"
+          ? qualifyingOnly
+            ? "eligible-for-candidate-building"
+            : nativeStage === "payload-signing"
+              ? "eligible-for-payload-signing"
+              : "admitted"
           : "hold",
-      stage: nativeStage,
+      stage: qualifyingOnly ? "candidate-building" : nativeStage,
       descriptor: null,
       directory: root,
       checkpoint,
@@ -956,13 +1010,19 @@ export async function acquireReleaseAdmission(
     if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
       await requireVerifiedReleaseSbomDocument(sbomEvidence);
       acquiredSbomReceipts.set(result, sbomEvidence);
+      if (publicBuildInputs) {
+        await requireVerifiedReleasePublicBuildInputs(publicBuildInputs);
+        acquiredPublicInputReceipts.set(result, publicBuildInputs);
+      }
       if (nativeReceipts && nativeReports) acquiredNativeReceipts.set(result, nativeReceipts);
       if (
         typeof before.repository === "string" &&
         path.isAbsolute(before.repository) &&
         /^coordinator-recovery-[A-Za-z0-9]+$/u.test(path.relative(root, before.repository))
-      )
+      ) {
         acquiredCoordinatorRepositories.set(result, before.repository);
+        acquiredCandidates.set(result, freezePreparedFacts(structuredClone(candidate)));
+      }
     }
     return result;
   } catch {
@@ -993,7 +1053,7 @@ export async function acquireReleaseAdmission(
 /** The existing one-process handshake, shared with later fixed controller roles.
  * An optional trusted continuation finishes additional immutable byte work
  * before readiness; it receives only a detached frozen view, never authority. */
-export async function acquireReleaseAdmissionWithControlHandshake(
+async function performAdmissionHandshake(
   root: string,
   configuration: unknown,
   rawPhase: unknown = "admission",
@@ -1004,16 +1064,27 @@ export async function acquireReleaseAdmissionWithControlHandshake(
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  building?: { tools: object; namespace: string; receive: (proof: object) => Promise<void> },
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
   const workflow = await readProductionControllerWorkflowBytes();
   const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  if (building) {
+    const tools = await verifiedControllerToolPaths(building.tools);
+    if (
+      tools.identity.controller_revision !== reader.admitted.revision ||
+      tools.identity.controller_ref !== reader.admitted.execution_ref ||
+      tools.identity.run_id !== String(reader.admitted.run_id) ||
+      tools.identity.run_attempt !== reader.admitted.run_attempt
+    )
+      throw new Error("qualifying reader and actual controller tools differ");
+  }
   const retained: {
     facts: Readonly<PreparedReleaseAdmissionFacts> | null;
     controls: AuthenticatedReleaseControlSource | null;
   } = { facts: null, controls: null };
-  const admission = await acquireReleaseAdmission(root, configuration, {
+  const collection: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
     ...(compiler ? { compiler } : {}),
     ...(establishNative ? { establishNative } : {}),
     controlPhase: phase,
@@ -1040,13 +1111,21 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       });
       return retained.controls;
     },
-  });
+  };
+  if (building) {
+    if (phase !== "admission" || onAdmitted)
+      throw new Error("building eligibility is separate from payload/publication admission");
+    qualifyingCollections.add(collection);
+  }
+  const admission = await acquireReleaseAdmission(root, configuration, collection);
   // Native stage qualification is necessary but cannot clear unrelated holds.
   // Only this actual acquisition process can create the corresponding private
   // continuation; no JSON/injected descriptor appoints an execution stage.
   if (
-    onAdmitted &&
-    ["admitted", "eligible-for-payload-signing"].includes(admission.decision) &&
+    (onAdmitted || building) &&
+    ["admitted", "eligible-for-payload-signing", "eligible-for-candidate-building"].includes(
+      admission.decision,
+    ) &&
     admission.holds.length === 0
   ) {
     const { facts, controls } = retained;
@@ -1065,14 +1144,9 @@ export async function acquireReleaseAdmissionWithControlHandshake(
     const sbomReceipt = acquiredSbomReceipts.get(admission);
     if (!sbomReceipt) throw new Error("positive continuation requires actual signed SPDX custody");
     await requireVerifiedReleaseSbomDocument(sbomReceipt);
-    const stage =
-      phase === "payload"
-        ? "payload-signing"
-        : phase === "release-publication"
-          ? "release-publication"
-          : null;
-    if (!stage || stage !== admission.stage)
+    if (building ? phase !== "admission" : phase !== "payload" && phase !== "release-publication")
       throw new Error("actual admission context cannot appoint another execution stage");
+    const stage = inspectAdmissionNativeStage(phase, admission.stage);
     const nativeReceipts = acquiredNativeReceipts.get(admission);
     if (!nativeReceipts) throw new Error("positive continuation requires actual native custody");
     await requireNativeReleaseQualificationPair(
@@ -1086,6 +1160,43 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       throw new Error(
         "positive continuation requires actual privately recovered coordinator repository",
       );
+    const publicInputs = acquiredPublicInputReceipts.get(admission);
+    if (!publicInputs)
+      throw new Error("positive continuation requires actual public root/key custody");
+    await requireVerifiedReleasePublicBuildInputs(publicInputs);
+    if (building) {
+      if (phase !== "admission" || admission.decision !== "eligible-for-candidate-building")
+        throw new Error("actual qualifying eligibility target differs");
+      const candidate = acquiredCandidates.get(admission);
+      if (!candidate || candidate.phase !== "qualifying")
+        throw new Error("actual qualifying candidate custody missing");
+      const proof = Object.freeze({
+        kind: "actual-candidate-building-eligibility",
+        checkpoint: admission.checkpoint,
+        authority: "none",
+      });
+      actualBuildingEligibility.set(proof, {
+        stage: "candidate-building",
+        repository: coordinatorRepository,
+        checkpoint: admission.checkpoint,
+        candidate,
+        facts,
+        controls,
+        admission: freezePreparedFacts(structuredClone(admission)),
+        reader: freezePreparedFacts(structuredClone(reader)),
+        namespace: building.namespace,
+        controller_tools: building.tools,
+        native_qualifications: nativeReceipts,
+        sbom_receipt: sbomReceipt,
+        public_build_inputs_receipt: publicInputs,
+        pending_obligations: Object.freeze([
+          "actual-aggregate-and-payload-eligibility-still-required",
+          ...admission.pending_obligations,
+        ]),
+      });
+      await building.receive(proof);
+      return admission;
+    }
     const context = Object.freeze({
       stage,
       facts,
@@ -1095,12 +1206,127 @@ export async function acquireReleaseAdmissionWithControlHandshake(
       native_qualifications: nativeReceipts,
       coordinator_repository: coordinatorRepository,
       sbom_receipt: sbomReceipt,
+      public_build_inputs_receipt: publicInputs,
       pending_obligations: Object.freeze([...admission.pending_obligations]),
     });
     actualAdmissionContexts.set(context, { context, phase });
-    await onAdmitted(context);
+    await onAdmitted!(context);
   }
   return admission;
+}
+
+/** Existing payload/publication entry retains its exact phase restrictions. */
+export function acquireReleaseAdmissionWithControlHandshake(
+  root: string,
+  configuration: unknown,
+  rawPhase: unknown = "admission",
+  additionalFacts?: (
+    facts: Readonly<PreparedReleaseAdmissionFacts>,
+    factsSha256: string,
+  ) => Promise<string>,
+  onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
+  compiler?: ReleaseCompilerAdmissionPrerequisite,
+  establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+) {
+  return performAdmissionHandshake(
+    root,
+    configuration,
+    rawPhase,
+    additionalFacts,
+    onAdmitted,
+    compiler,
+    establishNative,
+  );
+}
+
+/** Read-only qualifying evidence under the fixed independent reader. It neither
+ * advances the candidate nor creates payload/publication admission. */
+export async function acquireActualCandidateBuildingEligibility(
+  root: string,
+  rawConfiguration: unknown,
+  controllerTools: object,
+  rawNativeLocators: unknown,
+) {
+  const capturedConfiguration: unknown = structuredClone(rawConfiguration),
+    nativeLocators: unknown = structuredClone(rawNativeLocators);
+  const tools = await verifiedControllerToolPaths(controllerTools);
+  const authorities = await requireControllerReleaseAuthorities("admission");
+  const configured = configuration(capturedConfiguration);
+  if (
+    configured.namespace !== authorities.namespace ||
+    configured.release_profile !== "initial-beta-win-linux"
+  )
+    throw new Error(
+      "qualifying source requires the actual ratified namespace and selected package profile",
+    );
+  const closure = inspectReleaseCompilerSourceClosure(
+    JSON.parse(
+      (await readControllerToolFile(tools.compiler_source_closure, 65536)).toString("utf8"),
+    ),
+  );
+  if (
+    closure.source_commit !== tools.identity.controller_revision ||
+    closure.source_tree !== tools.identity.source_tree
+  )
+    throw new Error("qualifying compiler closure differs from authenticated tools");
+  let proof: object | undefined;
+  const admission = await performAdmissionHandshake(
+    root,
+    capturedConfiguration,
+    "admission",
+    undefined,
+    undefined,
+    {
+      controller_tools: controllerTools,
+      controller_source: { source_commit: closure.source_commit, source_tree: closure.source_tree },
+    },
+    (facts) =>
+      collectConfiguredNativeReleaseQualificationPair(
+        root,
+        nativeLocators,
+        facts.assembly,
+        facts.archives,
+        "admission",
+      ),
+    {
+      tools: controllerTools,
+      namespace: authorities.namespace,
+      receive: async (actual) => {
+        proof = actual;
+      },
+    },
+  );
+  return (
+    proof ??
+    Object.freeze({
+      kind: "candidate-building-eligibility-unavailable",
+      decision: "hold",
+      admission,
+      authority: "none",
+    })
+  );
+}
+
+/** Exact private proof for the separate durable phase writer. A caller cannot
+ * import a successful report, change a hold or reinterpret payload admission. */
+export async function requireActualCandidateBuildingEligibility(receipt: object) {
+  const actual = actualBuildingEligibility.get(receipt);
+  if (!actual) throw new Error("actual same-process candidate building eligibility required");
+  requireAuthenticatedReleaseControlSource(actual.controls, "admission");
+  await verifiedControllerToolPaths(actual.controller_tools);
+  await requireNativeReleaseQualificationPair(
+    actual.native_qualifications,
+    actual.facts.assembly,
+    actual.facts.archives,
+    "payload-signing",
+  );
+  await requireVerifiedReleaseSbomDocument(actual.sbom_receipt);
+  await requireVerifiedReleasePublicBuildInputs(actual.public_build_inputs_receipt);
+  requireAuthenticatedReleaseControlSource(actual.controls, "admission");
+  return Object.freeze({
+    ...actual,
+    candidate: freezePreparedFacts(structuredClone(actual.candidate)),
+  });
 }
 
 async function main() {

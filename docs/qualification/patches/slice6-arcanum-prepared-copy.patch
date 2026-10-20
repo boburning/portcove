@@ -1,0 +1,2040 @@
+diff --git a/first_party/tig/CMakeLists.txt b/first_party/tig/CMakeLists.txt
+index 2904a90..e9f9a8e 100644
+--- a/first_party/tig/CMakeLists.txt
++++ b/first_party/tig/CMakeLists.txt
+@@ -88,6 +88,12 @@ if(WIN32)
+     )
+ endif()
+ 
++if(WIN32)
++    # Mandatory selected Windows prepared-copy treatment; no runtime opt-out.
++    list(APPEND HDRS "include/tig/prepared_copy.h" "include/tig/save_archive.h" "include/tig/save_extract.h")
++    list(APPEND SRCS "src/prepared_copy.c" "src/save_archive.c" "src/save_extract.c")
++endif()
++
+ add_library(tig STATIC
+     ${HDRS}
+     ${SRCS}
+diff --git a/first_party/tig/include/tig/prepared_copy.h b/first_party/tig/include/tig/prepared_copy.h
+new file mode 100644
+index 0000000..c26ced1
+--- /dev/null
++++ b/first_party/tig/include/tig/prepared_copy.h
+@@ -0,0 +1,28 @@
++#ifndef TIG_PREPARED_COPY_H_
++#define TIG_PREPARED_COPY_H_
++
++#ifdef _WIN32
++#include <stdbool.h>
++#include <stdio.h>
++
++#define TIG_PREPARED_COPY_PATH_CAPACITY 260
++
++// Selected Windows source treatment only. The explicitly separate complete
++// prepared copy is the writable unit; no original installation is mounted.
++// Initialize before config/debug/TIG; no runtime opt-out or arbitrary argv.
++bool tig_prepared_copy_init(int argc);
++bool tig_prepared_copy_path(const char* path, bool pattern,
++    char output[TIG_PREPARED_COPY_PATH_CAPACITY]);
++FILE* tig_prepared_copy_fopen(const char* path, const char* mode);
++
++// Non-recursive, no-overwrite mutations of this copy only. Existing leaves
++// are held without following reparses; regular files must have one link.
++bool tig_prepared_copy_mkdir(const char* path);
++bool tig_prepared_copy_remove(const char* path);
++bool tig_prepared_copy_rename(const char* source, const char* destination);
++
++// Incremental UTF-16 enumeration, no reparse traversal; 32 levels/65536 objects.
++bool tig_prepared_copy_clear_directory(const char* path, bool remove_root);
++
++#endif /* _WIN32 */
++#endif /* TIG_PREPARED_COPY_H_ */
+diff --git a/first_party/tig/include/tig/save_archive.h b/first_party/tig/include/tig/save_archive.h
+new file mode 100644
+index 0000000..38cc06c
+--- /dev/null
++++ b/first_party/tig/include/tig/save_archive.h
+@@ -0,0 +1,35 @@
++#ifndef TIG_SAVE_ARCHIVE_H_
++#define TIG_SAVE_ARCHIVE_H_
++
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++
++// The selected stock-module route retains TIG's 260-byte path and signed
++// 32-bit archive data format, with finite index-record and directory budgets.
++#define TIG_SAVE_ARCHIVE_PATH_CAPACITY 260
++#define TIG_SAVE_ARCHIVE_MAX_COMPONENT 255
++#define TIG_SAVE_ARCHIVE_MAX_RECORDS 65536
++#define TIG_SAVE_ARCHIVE_MAX_DEPTH 32
++#define TIG_SAVE_ARCHIVE_MAX_INDEX_BYTES (TIG_SAVE_ARCHIVE_MAX_RECORDS * (TIG_SAVE_ARCHIVE_MAX_COMPONENT + 12))
++
++typedef struct TigSaveArchiveEntry {
++    char path[TIG_SAVE_ARCHIVE_PATH_CAPACITY];
++    size_t data_offset;
++    uint32_t size;
++    bool directory;
++} TigSaveArchiveEntry;
++
++typedef struct TigSaveArchivePlan {
++    size_t count;
++    TigSaveArchiveEntry* entries;
++} TigSaveArchivePlan;
++
++// Parse an already bounded raw index snapshot. No filesystem writes or data
++// payload allocation occurs here. root_length is the fully resolved physical
++// destination length, not a relative path's length. NULL means refusal.
++TigSaveArchivePlan* tig_save_archive_plan(const unsigned char* index, size_t index_size,
++    size_t data_size, size_t root_length);
++void tig_save_archive_plan_destroy(TigSaveArchivePlan* plan);
++
++#endif /* TIG_SAVE_ARCHIVE_H_ */
+diff --git a/first_party/tig/include/tig/save_extract.h b/first_party/tig/include/tig/save_extract.h
+new file mode 100644
+index 0000000..b141580
+--- /dev/null
++++ b/first_party/tig/include/tig/save_extract.h
+@@ -0,0 +1,11 @@
++#ifndef TIG_SAVE_EXTRACT_H_
++#define TIG_SAVE_EXTRACT_H_
++#ifdef _WIN32
++#include <stdbool.h>
++// Selected stock-module Current cache only. Both source streams are held,
++// bounded and parsed before creating a private sibling. Existing Current data
++// remains intact until complete extraction; a failed commit rolls back or
++// retains its exact backup without overwriting a competing destination.
++bool tig_save_archive_extract(const char* index_path, const char* data_path, const char* destination);
++#endif
++#endif
+\ No newline at end of file
+diff --git a/first_party/tig/src/compat.c b/first_party/tig/src/compat.c
+index 6e22dcf..1bb798a 100644
+--- a/first_party/tig/src/compat.c
++++ b/first_party/tig/src/compat.c
+@@ -6,6 +6,19 @@
+ #include <dirent.h>
+ #endif
+ 
++#ifdef _WIN32
++// The legacy path builders return void. A bound failure must stop execution;
++// keeping a truncated or prior prefix could mutate a different valid path.
++static size_t compat_checked_length(const char* text, size_t capacity)
++{
++    if (text == NULL || capacity == 0) abort();
++    size_t length = 0;
++    while (length < capacity && text[length] != 0) length++;
++    if (length == capacity) abort();
++    return length;
++}
++#endif
++
+ void compat_windows_path_to_native(char* path)
+ {
+ #ifdef _WIN32
+@@ -79,11 +92,20 @@ void compat_resolve_path(char* path)
+ 
+ void compat_append_path(char* path, size_t size, const char* comp)
+ {
++#ifdef _WIN32
++    size_t path_len = compat_checked_length(path, size);
++    size_t comp_len = compat_checked_length(comp, size);
++#else
+     size_t path_len = strlen(path);
+     size_t comp_len = strlen(comp);
++#endif
+ 
+     if (path_len + comp_len + 1 >= size) {
++#ifdef _WIN32
++        abort();
++#else
+         return;
++#endif
+     }
+ 
+     if (path_len != 0) {
+@@ -101,14 +123,25 @@ void compat_join_path_ex(char* path, size_t size, ...)
+     size_t comp_len;
+     size_t path_len = 0;
+ 
++#ifdef _WIN32
++    if (path == NULL || size == 0) abort();
++#endif
+     path[0] = '\0';
+ 
+     va_start(args, size);
+ 
+     while ((comp = va_arg(args, const char*)) != NULL) {
++#ifdef _WIN32
++        comp_len = compat_checked_length(comp, size);
++#else
+         comp_len = strlen(comp);
++#endif
+         if (path_len + comp_len + 1 >= size) {
++#ifdef _WIN32
++            abort();
++#else
+             break;
++#endif
+         }
+ 
+         if (path_len != 0) {
+@@ -126,7 +159,11 @@ void compat_join_path_ex(char* path, size_t size, ...)
+ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, char* ext)
+ {
+ #ifdef _WIN32
+-    _splitpath(path, drive, dir, fname, ext);
++    (void)compat_checked_length(path, TIG_MAX_PATH);
++    if (_splitpath_s(path, drive, drive != NULL ? COMPAT_MAX_DRIVE : 0,
++            dir, dir != NULL ? COMPAT_MAX_DIR : 0,
++            fname, fname != NULL ? COMPAT_MAX_FNAME : 0,
++            ext, ext != NULL ? COMPAT_MAX_EXT : 0) != 0) abort();
+ #else
+     const char* drive_start = path;
+     if (path[0] == '/' && path[1] == '/') {
+@@ -195,7 +232,12 @@ void compat_splitpath(const char* path, char* drive, char* dir, char* fname, cha
+ void compat_makepath(char* path, const char* drive, const char* dir, const char* fname, const char* ext)
+ {
+ #ifdef _WIN32
+-    _makepath(path, drive, dir, fname, ext);
++    // All six maintained callers provide TIG_MAX_PATH output storage.
++    if (drive != NULL) (void)compat_checked_length(drive, COMPAT_MAX_DRIVE);
++    if (dir != NULL) (void)compat_checked_length(dir, COMPAT_MAX_DIR);
++    if (fname != NULL) (void)compat_checked_length(fname, COMPAT_MAX_FNAME);
++    if (ext != NULL) (void)compat_checked_length(ext, COMPAT_MAX_EXT);
++    if (_makepath_s(path, TIG_MAX_PATH, drive, dir, fname, ext) != 0) abort();
+ #else
+     path[0] = '\0';
+ 
+diff --git a/first_party/tig/src/file.c b/first_party/tig/src/file.c
+index 25de099..24a40e8 100644
+--- a/first_party/tig/src/file.c
++++ b/first_party/tig/src/file.c
+@@ -15,6 +15,90 @@
+ #include "tig/find_file.h"
+ #include "tig/memory.h"
+ 
++
++#ifdef _WIN32
++#include <windows.h>
++#include "tig/prepared_copy.h"
++#include "tig/save_extract.h"
++#endif
++
++static bool tig_file_path_copy(char dst[TIG_MAX_PATH], const char* src)
++{
++#ifdef _WIN32
++    if (src == NULL) return false;
++    size_t length = 0;
++    while (length < TIG_MAX_PATH && src[length] != 0) length++;
++    if (length == 0 || length == TIG_MAX_PATH) return false;
++    memcpy(dst, src, length + 1);
++#else
++    strcpy(dst, src);
++#endif
++    return true;
++}
++
++static bool tig_file_path_format(char* output, size_t capacity, const char* format, ...)
++{
++    va_list arguments;
++    va_start(arguments, format);
++    int count = vsnprintf(output, capacity, format, arguments);
++    va_end(arguments);
++    if (count < 0 || (size_t)count >= capacity) { output[0] = 0; return false; }
++    return true;
++}
++
++static FILE* tig_file_plain_open(const char* path, const char* mode)
++{
++#ifdef _WIN32
++    return tig_prepared_copy_fopen(path, mode);
++#else
++    return fopen(path, mode);
++#endif
++}
++
++static bool tig_file_plain_mkdir(const char* path)
++{
++#ifdef _WIN32
++    char resolved[TIG_MAX_PATH];
++    if (!tig_prepared_copy_path(path, false, resolved)) return false;
++    DWORD attributes = GetFileAttributesA(resolved);
++    if (attributes != INVALID_FILE_ATTRIBUTES) {
++        return (attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == FILE_ATTRIBUTE_DIRECTORY;
++    }
++    return tig_prepared_copy_mkdir(path);
++#else
++    return SDL_CreateDirectory(path);
++#endif
++}
++
++static bool tig_file_plain_remove(const char* path)
++{
++#ifdef _WIN32
++    return tig_prepared_copy_remove(path);
++#else
++    return SDL_RemovePath(path);
++#endif
++}
++
++static bool tig_file_plain_rename(const char* source, const char* destination)
++{
++#ifdef _WIN32
++    return tig_prepared_copy_rename(source, destination);
++#else
++    return SDL_RenamePath(source, destination);
++#endif
++}
++
++static bool tig_file_plain_info(const char* path, SDL_PathInfo* info)
++{
++#ifdef _WIN32
++    char resolved[TIG_MAX_PATH];
++    if (!tig_prepared_copy_path(path, false, resolved)) return false;
++    return SDL_GetPathInfo(resolved, info);
++#else
++    return SDL_GetPathInfo(path, info);
++#endif
++}
++
+ #define CACHE_DIR_NAME "TIGCache"
+ #define COPY_BUFFER_SIZE 0x8000
+ 
+@@ -94,6 +178,28 @@ static TigFileRepository* tig_file_repositories_head;
+ // 0x62B2B0
+ static TigFileIgnore* tig_file_ignore_head;
+ 
++#ifdef _WIN32
++// Stock saves belong to the first writable directory repository. Resolve all
++// coordinates together; never mix a slot from a lower repository or database
++// with a Current directory selected for writes in another repository.
++static bool tig_file_prepared_write_path(const char* path, char output[TIG_MAX_PATH])
++{
++    char logical[TIG_MAX_PATH], joined[TIG_MAX_PATH];
++    if (!tig_file_path_copy(logical, path)) return false;
++    if (logical[0] == '.' || logical[0] == '\\' || logical[0] == '/' || logical[1] == ':') {
++        return tig_prepared_copy_path(logical, false, output);
++    }
++    for (TigFileRepository* repo = tig_file_repositories_head; repo != NULL; repo = repo->next) {
++        if ((repo->type & TIG_FILE_REPOSITORY_DIRECTORY) != 0) {
++            int length = SDL_snprintf(joined, sizeof(joined), "%s\\%s", repo->path, logical);
++            return length >= 0 && length < (int)sizeof(joined)
++                && tig_prepared_copy_path(joined, false, output);
++        }
++    }
++    return false;
++}
++#endif
++
+ // 0x52DFE0
+ bool tig_file_mkdir_native(const char* path)
+ {
+@@ -120,7 +226,12 @@ bool tig_file_rmdir_native(const char* path)
+ 
+ // 0x52E040
+ bool tig_file_empty_directory_native(const char* path)
+-{
++{
++#ifdef _WIN32
++    char physical[TIG_MAX_PATH];
++    return tig_file_prepared_write_path(path, physical)
++        && tig_prepared_copy_clear_directory(physical, false);
++#else
+     bool success;
+     char pattern[TIG_MAX_PATH];
+     TigFileList list;
+@@ -157,6 +268,7 @@ bool tig_file_empty_directory_native(const char* path)
+ 
+     tig_file_list_destroy(&list);
+     return success;
++#endif
+ }
+ 
+ // 0x52E1B0
+@@ -198,18 +310,21 @@ bool tig_file_copy_directory(const char* dst, const char* src)
+     TigFileList list;
+     unsigned int index;
+ 
+-    SDL_snprintf(path1, sizeof(path1), "%s\\*.*", src);
++    if (!tig_file_path_format(path1, sizeof(path1), "%s\\*.*", src)) return false;
+     tig_file_list_create(&list, path1);
+ 
+     if (list.count != 0) {
+         if (!tig_file_mkdir(dst)) {
+-            // FIXME: Leaks `list`.
++            tig_file_list_destroy(&list);
+             return false;
+         }
+ 
+         for (index = 0; index < list.count; index++) {
+-            SDL_snprintf(path1, sizeof(path1), "%s\\%s", src, list.entries[index].path);
+-            SDL_snprintf(path2, sizeof(path2), "%s\\%s", dst, list.entries[index].path);
++            if (!tig_file_path_format(path1, sizeof(path1), "%s\\%s", src, list.entries[index].path)
++                || !tig_file_path_format(path2, sizeof(path2), "%s\\%s", dst, list.entries[index].path)) {
++                tig_file_list_destroy(&list);
++                return false;
++            }
+ 
+             if ((list.entries[index].attributes & TIG_FILE_ATTRIBUTE_SUBDIR) != 0) {
+                 if (strcmp(list.entries[index].path, ".") != 0
+@@ -246,13 +361,13 @@ bool tig_file_archive_native(const char* dst, const char* src)
+         return false;
+     }
+ 
+-    SDL_snprintf(index_path, sizeof(index_path), "%s.tfai", dst);
++    if (!tig_file_path_format(index_path, sizeof(index_path), "%s.tfai", dst)
++        || !tig_file_path_format(data_path, sizeof(data_path), "%s.tfaf", dst)) return false;
+     index_stream = tig_file_fopen_native(index_path, "wb");
+     if (index_stream == NULL) {
+         return false;
+     }
+ 
+-    SDL_snprintf(data_path, sizeof(data_path), "%s.tfaf", dst);
+     data_stream = tig_file_fopen_native(data_path, "wb");
+     if (data_stream == NULL) {
+         tig_file_fclose(index_stream);
+@@ -280,7 +395,19 @@ bool tig_file_archive_native(const char* dst, const char* src)
+ 
+ // 0x52E550
+ bool tig_file_unarchive_native(const char* src, const char* dst)
+-{
++{
++#ifdef _WIN32
++    char index_logical[TIG_MAX_PATH], data_logical[TIG_MAX_PATH];
++    char index_physical[TIG_MAX_PATH], data_physical[TIG_MAX_PATH], destination[TIG_MAX_PATH];
++    int index_length = SDL_snprintf(index_logical, sizeof(index_logical), "%s.tfai", src);
++    int data_length = SDL_snprintf(data_logical, sizeof(data_logical), "%s.tfaf", src);
++    if (index_length < 0 || index_length >= (int)sizeof(index_logical)
++        || data_length < 0 || data_length >= (int)sizeof(data_logical)
++        || !tig_file_prepared_write_path(index_logical, index_physical)
++        || !tig_file_prepared_write_path(data_logical, data_physical)
++        || !tig_file_prepared_write_path(dst, destination)) return false;
++    return tig_save_archive_extract(index_physical, data_physical, destination);
++#else
+     char path1[TIG_MAX_PATH];
+     char path2[TIG_MAX_PATH];
+     char path3[TIG_MAX_PATH];
+@@ -364,6 +491,7 @@ bool tig_file_unarchive_native(const char* src, const char* dst)
+     tig_file_fclose(data_stream);
+     tig_file_fclose(index_stream);
+     return false;
++#endif
+ }
+ 
+ // 0x52E840
+@@ -612,7 +740,7 @@ bool tig_file_repository_add_native(const char* path)
+     // the resolved file name, only the provided `path`. This means that the
+     // same repository can be added multiple times if the pattern given to this
+     // function has several matches.
+-    if (SDL_GetPathInfo(path, &path_info)) {
++    if (tig_file_plain_info(path, &path_info)) {
+         if (path_info.type == SDL_PATHTYPE_DIRECTORY) {
+             repo = (TigFileRepository*)MALLOC(sizeof(TigFileRepository));
+             repo->type = 0;
+@@ -771,7 +899,7 @@ int tig_file_mkdir_ex_native(const char* path)
+         temp_path[temp_path_length] = '\0';
+     }
+ 
+-    if (!SDL_CreateDirectory(temp_path)) {
++    if (!tig_file_plain_mkdir(temp_path)) {
+         return -1;
+     }
+ 
+@@ -799,7 +927,7 @@ int tig_file_rmdir_ex_native(const char* path)
+ 
+     compat_append_path(temp_path, sizeof(temp_path), path);
+ 
+-    if (!SDL_RemovePath(temp_path)) {
++    if (!tig_file_plain_remove(temp_path)) {
+         return -1;
+     }
+ 
+@@ -1203,7 +1331,7 @@ int tig_file_remove_native(const char* file_name)
+     TigDatabaseEntry* database_entry;
+ 
+     if (file_name[0] == '.' || file_name[0] == '\\' || file_name[1] == ':' || file_name[0] == '/') {
+-        return SDL_RemovePath(file_name) ? 0 : 1;
++        return tig_file_plain_remove(file_name) ? 0 : 1;
+     }
+ 
+     if ((tig_file_ignored(file_name) & 0x2) != 0) {
+@@ -1215,7 +1343,7 @@ int tig_file_remove_native(const char* file_name)
+         if ((repo->type & TIG_FILE_PLAIN) != 0) {
+             compat_join_path(path, sizeof(path), repo->path, file_name);
+ 
+-            if (SDL_RemovePath(path)) {
++            if (tig_file_plain_remove(path)) {
+                 repo = repo->next;
+                 while (repo != NULL) {
+                     if ((repo->type & TIG_FILE_DATABASE) != 0
+@@ -1244,7 +1372,7 @@ int tig_file_rename_native(const char* old_file_name, const char* new_file_name)
+     char new_path[TIG_MAX_PATH];
+ 
+     if (old_file_name[0] == '.' || old_file_name[0] == '\\' || old_file_name[1] == ':' || old_file_name[0] == '/') {
+-        return SDL_RenamePath(old_file_name, new_file_name) ? 0 : 1;
++        return tig_file_plain_rename(old_file_name, new_file_name) ? 0 : 1;
+     }
+ 
+     if ((tig_file_ignored(old_file_name) & 0x2) != 0) {
+@@ -1257,7 +1385,7 @@ int tig_file_rename_native(const char* old_file_name, const char* new_file_name)
+             compat_join_path(old_path, sizeof(old_path), repo->path, old_file_name);
+             compat_join_path(new_path, sizeof(new_path), repo->path, new_file_name);
+ 
+-            if (SDL_RenamePath(old_path, new_path)) {
++            if (tig_file_plain_rename(old_path, new_path)) {
+                 return 0;
+             }
+         }
+@@ -1580,6 +1708,10 @@ int tig_file_ferror(TigFile* stream)
+ // 0x5308E0
+ bool tig_file_lock(const char* filename, const void* owner, size_t size)
+ {
++#ifdef _WIN32
++    char checked_filename[TIG_MAX_PATH];
++    if (!tig_file_path_copy(checked_filename, filename)) return false;
++#endif
+     char path[TIG_MAX_PATH];
+     TigFileRepository* repo;
+     FILE* stream;
+@@ -1599,10 +1731,10 @@ bool tig_file_lock(const char* filename, const void* owner, size_t size)
+             return false;
+         }
+ 
+-        SDL_snprintf(path, sizeof(path), "%s\\%s", repo->path, filename);
++        if (!tig_file_path_format(path, sizeof(path), "%s\\%s", repo->path, filename)) return false;
+     }
+ 
+-    stream = fopen(path, "wbx");
++    stream = tig_file_plain_open(path, "wbx");
+     if (stream == NULL) {
+         return false;
+     }
+@@ -1613,12 +1745,12 @@ bool tig_file_lock(const char* filename, const void* owner, size_t size)
+ 
+     if (fwrite(owner, size, 1, stream) != 1) {
+         fclose(stream);
+-        SDL_RemovePath(path);
++        tig_file_plain_remove(path);
+         return false;
+     }
+ 
+     if (fclose(stream) != 0) {
+-        SDL_RemovePath(path);
++        tig_file_plain_remove(path);
+         return false;
+     }
+ 
+@@ -1628,6 +1760,10 @@ bool tig_file_lock(const char* filename, const void* owner, size_t size)
+ // 0x530A10
+ bool tig_file_unlock(const char* filename, const void* owner, size_t size)
+ {
++#ifdef _WIN32
++    char checked_filename[TIG_MAX_PATH];
++    if (!tig_file_path_copy(checked_filename, filename)) return false;
++#endif
+     bool unlocked = true;
+     char drive[COMPAT_MAX_DRIVE];
+     char dir[COMPAT_MAX_DIR];
+@@ -1657,6 +1793,10 @@ bool tig_file_unlock(const char* filename, const void* owner, size_t size)
+ // 0x530AE0
+ bool tig_file_locked_by(const char* filename, const void* owner, size_t size)
+ {
++#ifdef _WIN32
++    char checked_filename[TIG_MAX_PATH];
++    if (!tig_file_path_copy(checked_filename, filename)) return false;
++#endif
+     char path[TIG_MAX_PATH];
+     TigFileRepository* repo;
+ 
+@@ -1675,7 +1815,7 @@ bool tig_file_locked_by(const char* filename, const void* owner, size_t size)
+             return false;
+         }
+ 
+-        SDL_snprintf(path, sizeof(path), "%s\\%s", repo->path, filename);
++        if (!tig_file_path_format(path, sizeof(path), "%s\\%s", repo->path, filename)) return false;
+     }
+ 
+     return sub_5310C0(path, owner, size);
+@@ -1737,7 +1877,7 @@ int tig_file_open_internal_native(const char* path, const char* mode, TigFile* s
+     stream->flags &= ~(TIG_FILE_DATABASE | TIG_FILE_PLAIN);
+ 
+     if (path[0] == '.' || path[0] == '\\' || path[1] == ':' || path[0] == '/') {
+-        stream->impl.plain_file_stream = fopen(path, mode);
++        stream->impl.plain_file_stream = tig_file_plain_open(path, mode);
+         if (stream->impl.plain_file_stream == NULL) {
+             return 0;
+         }
+@@ -1759,7 +1899,7 @@ int tig_file_open_internal_native(const char* path, const char* mode, TigFile* s
+                             compat_join_path(mutable_path, sizeof(mutable_path), writeable_repo->path, path);
+                             compat_resolve_path(mutable_path);
+ 
+-                            stream->impl.plain_file_stream = fopen(mutable_path, mode);
++                            stream->impl.plain_file_stream = tig_file_plain_open(mutable_path, mode);
+                             if (stream->impl.plain_file_stream != NULL) {
+                                 stream->flags |= TIG_FILE_PLAIN;
+                                 database_entry->flags &= ~TIG_DATABASE_ENTRY_0x100;
+@@ -1789,7 +1929,7 @@ int tig_file_open_internal_native(const char* path, const char* mode, TigFile* s
+                     compat_join_path(mutable_path, sizeof(mutable_path), repo->path, path);
+                     compat_resolve_path(mutable_path);
+ 
+-                    stream->impl.plain_file_stream = fopen(mutable_path, mode);
++                    stream->impl.plain_file_stream = tig_file_plain_open(mutable_path, mode);
+                     if (stream->impl.plain_file_stream != NULL) {
+                         stream->flags |= TIG_FILE_PLAIN;
+                         break;
+@@ -1852,7 +1992,7 @@ bool sub_5310C0(const char* filename, const void* owner, size_t size)
+     FILE* stream;
+     uint8_t file_owner[1024];
+ 
+-    stream = fopen(filename, "rb");
++    stream = tig_file_plain_open(filename, "rb");
+     if (stream == NULL) {
+         return false;
+     }
+@@ -1962,7 +2102,10 @@ bool tig_file_copy_internal(TigFile* dst, TigFile* src)
+ 
+ // 0x531320
+ int tig_file_rmdir_recursively_native(const char* path)
+-{
++{
++#ifdef _WIN32
++    return tig_prepared_copy_clear_directory(path, true) ? 0 : -1;
++#else
+     char mutable_path[TIG_MAX_PATH];
+     TigFindFileData ffd;
+ 
+@@ -1978,17 +2121,18 @@ int tig_file_rmdir_recursively_native(const char* path)
+                     tig_file_rmdir_recursively_native(mutable_path);
+                 }
+             } else {
+-                SDL_RemovePath(mutable_path);
++                tig_file_plain_remove(mutable_path);
+             }
+         } while (tig_find_next_file(&ffd));
+     }
+     tig_find_close(&ffd);
+ 
+-    if (!SDL_RemovePath(path)) {
++    if (!tig_file_plain_remove(path)) {
+         return -1;
+     }
+ 
+     return 0;
++#endif
+ }
+ 
+ static Sint64 tig_file_io_size(void* userdata)
+@@ -2090,7 +2234,7 @@ bool tig_file_mkdir(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2101,7 +2245,7 @@ bool tig_file_rmdir(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2112,7 +2256,7 @@ bool tig_file_empty_directory(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2123,7 +2267,7 @@ bool tig_file_is_empty_directory(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2134,7 +2278,7 @@ bool tig_file_is_directory(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2146,11 +2290,11 @@ bool tig_file_archive(const char* dst, const char* src)
+     char native_dst[TIG_MAX_PATH];
+     char native_src[TIG_MAX_PATH];
+ 
+-    strcpy(native_dst, dst);
++    if (!tig_file_path_copy(native_dst, dst)) return false;
+     compat_windows_path_to_native(native_dst);
+     compat_resolve_path(native_dst);
+ 
+-    strcpy(native_src, src);
++    if (!tig_file_path_copy(native_src, src)) return false;
+     compat_windows_path_to_native(native_src);
+     compat_resolve_path(native_src);
+ 
+@@ -2162,11 +2306,11 @@ bool tig_file_unarchive(const char* src, const char* dst)
+     char native_src[TIG_MAX_PATH];
+     char native_dst[TIG_MAX_PATH];
+ 
+-    strcpy(native_src, src);
++    if (!tig_file_path_copy(native_src, src)) return false;
+     compat_windows_path_to_native(native_src);
+     compat_resolve_path(native_src);
+ 
+-    strcpy(native_dst, dst);
++    if (!tig_file_path_copy(native_dst, dst)) return false;
+     compat_windows_path_to_native(native_dst);
+     compat_resolve_path(native_dst);
+ 
+@@ -2177,7 +2321,7 @@ bool tig_file_repository_add(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2188,7 +2332,7 @@ bool tig_file_repository_remove(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2199,7 +2343,7 @@ int tig_file_mkdir_ex(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return -1;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2210,7 +2354,7 @@ int tig_file_rmdir_ex(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return -1;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2221,7 +2365,7 @@ bool tig_file_extract(const char* filename, char* path)
+ {
+     char native_filename[TIG_MAX_PATH];
+ 
+-    strcpy(native_filename, filename);
++    if (!tig_file_path_copy(native_filename, filename)) return false;
+     compat_windows_path_to_native(native_filename);
+     compat_resolve_path(native_filename);
+ 
+@@ -2231,8 +2375,10 @@ bool tig_file_extract(const char* filename, char* path)
+ void tig_file_list_create(TigFileList* list, const char* pattern)
+ {
+     char native_pattern[TIG_MAX_PATH];
++    list->count = 0;
++    list->entries = NULL;
+ 
+-    strcpy(native_pattern, pattern);
++    if (!tig_file_path_copy(native_pattern, pattern)) return;
+     compat_windows_path_to_native(native_pattern);
+     compat_resolve_path(native_pattern);
+ 
+@@ -2243,7 +2389,7 @@ bool tig_file_exists(const char* path, TigFileInfo* info)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return false;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2255,11 +2401,11 @@ bool tig_file_exists_in_path(const char* search_path, const char* file_name, Tig
+     char native_search_path[TIG_MAX_PATH];
+     char native_file_name[TIG_MAX_PATH];
+ 
+-    strcpy(native_search_path, search_path);
++    if (!tig_file_path_copy(native_search_path, search_path)) return false;
+     compat_windows_path_to_native(native_search_path);
+     compat_resolve_path(native_search_path);
+ 
+-    strcpy(native_file_name, file_name);
++    if (!tig_file_path_copy(native_file_name, file_name)) return false;
+     compat_windows_path_to_native(native_file_name);
+     compat_resolve_path(native_file_name);
+ 
+@@ -2270,7 +2416,7 @@ int tig_file_remove(const char* path)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return 1;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2282,11 +2428,11 @@ int tig_file_rename(const char* old_file_name, const char* new_file_name)
+     char native_old_file_name[TIG_MAX_PATH];
+     char native_new_file_name[TIG_MAX_PATH];
+ 
+-    strcpy(native_old_file_name, old_file_name);
++    if (!tig_file_path_copy(native_old_file_name, old_file_name)) return 1;
+     compat_windows_path_to_native(native_old_file_name);
+     compat_resolve_path(native_old_file_name);
+ 
+-    strcpy(native_new_file_name, new_file_name);
++    if (!tig_file_path_copy(native_new_file_name, new_file_name)) return 1;
+     compat_windows_path_to_native(native_new_file_name);
+     compat_resolve_path(native_new_file_name);
+ 
+@@ -2297,11 +2443,11 @@ TigFile* tig_file_fopen(const char* path, const char* mode)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    if (path[0] == '\0') {
++    if (path == NULL || mode == NULL || mode[0] == '\0' || path[0] == '\0') {
+         return NULL;
+     }
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return NULL;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2312,7 +2458,7 @@ TigFile* tig_file_reopen(const char* path, const char* mode, TigFile* stream)
+ {
+     char native_path[TIG_MAX_PATH];
+ 
+-    strcpy(native_path, path);
++    if (!tig_file_path_copy(native_path, path)) return NULL;
+     compat_windows_path_to_native(native_path);
+     compat_resolve_path(native_path);
+ 
+@@ -2324,11 +2470,11 @@ bool tig_file_copy(const char* src, const char* dst)
+     char native_src[TIG_MAX_PATH];
+     char native_dst[TIG_MAX_PATH];
+ 
+-    strcpy(native_src, src);
++    if (!tig_file_path_copy(native_src, src)) return false;
+     compat_windows_path_to_native(native_src);
+     compat_resolve_path(native_src);
+ 
+-    strcpy(native_dst, dst);
++    if (!tig_file_path_copy(native_dst, dst)) return false;
+     compat_windows_path_to_native(native_dst);
+     compat_resolve_path(native_dst);
+ 
+diff --git a/first_party/tig/src/find_file.c b/first_party/tig/src/find_file.c
+index 753b60c..532fdcb 100644
+--- a/first_party/tig/src/find_file.c
++++ b/first_party/tig/src/find_file.c
+@@ -6,6 +6,89 @@
+ #include "tig/compat.h"
+ #include "tig/memory.h"
+ 
++#ifdef _WIN32
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include <stdlib.h>
++#include "tig/prepared_copy.h"
++
++typedef struct TigFindFileDataPriv {
++    HANDLE handle;
++    WIN32_FIND_DATAW entry;
++    char dir[TIG_MAX_PATH];
++    unsigned int visited;
++    bool first;
++} TigFindFileDataPriv;
++
++bool tig_find_first_file(const char* pattern, TigFindFileData* data)
++{
++    char resolved[TIG_MAX_PATH];
++    wchar_t wide[TIG_MAX_PATH];
++    memset(data, 0, sizeof(*data));
++    if (!tig_prepared_copy_path(pattern, true, resolved)) return false;
++    size_t length = strlen(resolved);
++    for (size_t i = 0; i <= length; i++) wide[i] = (unsigned char)resolved[i];
++    char* separator = strrchr(resolved, '\\');
++    if (separator == NULL || separator[1] == 0) return false;
++    *separator = 0;
++    TigFindFileDataPriv* priv = (TigFindFileDataPriv*)MALLOC(sizeof(*priv));
++    if (priv == NULL) abort();
++    memset(priv, 0, sizeof(*priv));
++    memcpy(priv->dir, resolved, strlen(resolved) + 1);
++    priv->handle = FindFirstFileW(wide, &priv->entry);
++    if (priv->handle == INVALID_HANDLE_VALUE) {
++        DWORD error = GetLastError();
++        FREE(priv);
++        if (error != ERROR_FILE_NOT_FOUND) abort();
++        return false;
++    }
++    priv->first = true;
++    data->handle = (intptr_t)priv;
++    if (tig_find_next_file(data)) return true;
++    tig_find_close(data);
++    return false;
++}
++
++bool tig_find_next_file(TigFindFileData* data)
++{
++    TigFindFileDataPriv* priv = (TigFindFileDataPriv*)data->handle;
++    if (priv == NULL) return false;
++    for (;;) {
++        if (!priv->first && !FindNextFileW(priv->handle, &priv->entry)) {
++            if (GetLastError() != ERROR_NO_MORE_FILES) abort();
++            return false;
++        }
++        priv->first = false;
++        if (++priv->visited > 65536) abort();
++        if (wcscmp(priv->entry.cFileName, L".") == 0 || wcscmp(priv->entry.cFileName, L"..") == 0) continue;
++        char name[TIG_MAX_PATH], path[TIG_MAX_PATH], physical[TIG_MAX_PATH];
++        size_t length = 0;
++        while (priv->entry.cFileName[length] != 0) {
++            wchar_t value = priv->entry.cFileName[length];
++            if (length >= 255 || value < 32 || value > 126) abort();
++            name[length++] = (char)value;
++        }
++        name[length] = 0;
++        int count = snprintf(path, sizeof(path), "%s\\%s", priv->dir, name);
++        if (count < 0 || count >= (int)sizeof(path)
++            || (priv->entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0
++            || !tig_prepared_copy_path(path, false, physical)
++            || !SDL_GetPathInfo(physical, &data->path_info)) abort();
++        memcpy(data->name, name, length + 1);
++        return true;
++    }
++}
++
++bool tig_find_close(TigFindFileData* data)
++{
++    TigFindFileDataPriv* priv = (TigFindFileDataPriv*)data->handle;
++    if (priv == NULL) return false;
++    bool closed = FindClose(priv->handle) != 0;
++    FREE(priv);
++    memset(data, 0, sizeof(*data));
++    return closed;
++}
++#else
+ typedef struct TigFindFileDataPriv {
+     char dir[TIG_MAX_PATH];
+     char** entries;
+@@ -108,3 +191,5 @@ bool tig_find_close(TigFindFileData* find_file_data)
+ 
+     return true;
+ }
++
++#endif
+diff --git a/first_party/tig/src/prepared_copy.c b/first_party/tig/src/prepared_copy.c
+new file mode 100644
+index 0000000..e795993
+--- /dev/null
++++ b/first_party/tig/src/prepared_copy.c
+@@ -0,0 +1,392 @@
++#ifdef _WIN32
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++
++#include "tig/prepared_copy.h"
++
++#include <fcntl.h>
++#include <io.h>
++#include <stdint.h>
++#include <stddef.h>
++#include <stdlib.h>
++#include <string.h>
++
++static char copy_root[TIG_PREPARED_COPY_PATH_CAPACITY];
++static size_t copy_root_length;
++static HANDLE root_handle = INVALID_HANDLE_VALUE;
++
++static unsigned char lower_ascii(unsigned char ch)
++{
++    return ch >= 'A' && ch <= 'Z' ? (unsigned char)(ch + ('a' - 'A')) : ch;
++}
++
++static bool equal_prefix(const char* lhs, const char* rhs, size_t length)
++{
++    for (size_t i = 0; i < length; i++) {
++        if (lower_ascii((unsigned char)lhs[i]) != lower_ascii((unsigned char)rhs[i])) return false;
++    }
++    return true;
++}
++
++static bool ascii_path(const char* path, size_t* length)
++{
++    for (size_t i = 0; i < TIG_PREPARED_COPY_PATH_CAPACITY; i++) {
++        unsigned char ch = (unsigned char)path[i];
++        if (ch == 0) { *length = i; return i != 0; }
++        if (ch < 0x20 || ch > 0x7e) return false;
++    }
++    return false;
++}
++
++static bool plain_directory_chain(const char* path)
++{
++    char part[TIG_PREPARED_COPY_PATH_CAPACITY];
++    size_t length;
++    if (!ascii_path(path, &length) || length <= 3 || path[1] != ':' || path[2] != '\\') return false;
++    memcpy(part, path, length + 1);
++    for (size_t i = 3; i <= length; i++) {
++        if (part[i] != '\\' && part[i] != 0) continue;
++        char separator = part[i]; part[i] = 0;
++        DWORD attributes = GetFileAttributesA(part);
++        part[i] = separator;
++        if (attributes == INVALID_FILE_ATTRIBUTES
++            || (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0
++            || (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0) return false;
++    }
++    return true;
++}
++
++static bool wide_ascii(const wchar_t* wide, char output[TIG_PREPARED_COPY_PATH_CAPACITY])
++{
++    // Never accept an ANSI best-fit spelling of a different Unicode directory.
++    for (size_t i = 0; i < TIG_PREPARED_COPY_PATH_CAPACITY; i++) {
++        if (wide[i] == 0) { output[i] = 0; return i != 0; }
++        if (wide[i] < 0x20 || wide[i] > 0x7e) return false;
++        output[i] = (char)wide[i];
++    }
++    return false;
++}
++
++static bool final_path(HANDLE handle, char output[TIG_PREPARED_COPY_PATH_CAPACITY])
++{
++    wchar_t buffer[TIG_PREPARED_COPY_PATH_CAPACITY + 4];
++    DWORD length = GetFinalPathNameByHandleW(handle, buffer, sizeof(buffer) / sizeof(buffer[0]), FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
++    if (length == 0 || length >= sizeof(buffer) / sizeof(buffer[0]) || length < 7
++        || memcmp(buffer, L"\\\\?\\", 4 * sizeof(buffer[0])) != 0) return false;
++    if (!wide_ascii(buffer + 4, output) || output[1] != ':' || output[2] != '\\') return false;
++    return true;
++}
++
++static bool loaded_path(const wchar_t* native, char output[TIG_PREPARED_COPY_PATH_CAPACITY])
++{
++    // Core may launch its canonical executable spelling. Strip only the exact
++    // extended local-drive prefix; UNC/device namespaces remain unsupported.
++    if (memcmp(native, L"\\\\?\\", 4 * sizeof(*native)) == 0) {
++        if (!((native[4] >= L'A' && native[4] <= L'Z') || (native[4] >= L'a' && native[4] <= L'z'))
++            || native[5] != L':' || native[6] != L'\\') return false;
++        native += 4;
++    }
++    return wide_ascii(native, output);
++}
++
++static void close_root(void)
++{
++    if (root_handle != INVALID_HANDLE_VALUE) CloseHandle(root_handle);
++    root_handle = INVALID_HANDLE_VALUE;
++    copy_root[0] = 0; copy_root_length = 0;
++}
++
++bool tig_prepared_copy_init(int argc)
++{
++    char cwd[TIG_PREPARED_COPY_PATH_CAPACITY], exe[TIG_PREPARED_COPY_PATH_CAPACITY];
++    char canonical[TIG_PREPARED_COPY_PATH_CAPACITY];
++    wchar_t native[TIG_PREPARED_COPY_PATH_CAPACITY + 4];
++    if (argc != 1 || root_handle != INVALID_HANDLE_VALUE) return false;
++    DWORD size = GetCurrentDirectoryW(sizeof(native) / sizeof(native[0]), native);
++    if (size == 0 || size >= sizeof(native) / sizeof(native[0]) || !loaded_path(native, cwd)
++        || !plain_directory_chain(cwd)) return false;
++    size = GetModuleFileNameW(NULL, native, sizeof(native) / sizeof(native[0]));
++    if (size == 0 || size >= sizeof(native) / sizeof(native[0]) || !loaded_path(native, exe)) return false;
++    char* separator = strrchr(exe, '\\');
++    if (separator == NULL) return false;
++    *separator = 0;
++    if (!plain_directory_chain(exe)) return false;
++    HANDLE working = CreateFileA(cwd, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE,
++        NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
++    if (working == INVALID_HANDLE_VALUE) return false;
++    HANDLE executable_parent = CreateFileA(exe, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE,
++        NULL, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
++    bool valid = executable_parent != INVALID_HANDLE_VALUE && final_path(working, canonical)
++        && final_path(executable_parent, exe);
++    if (executable_parent != INVALID_HANDLE_VALUE) CloseHandle(executable_parent);
++    size_t length = valid ? strlen(canonical) : 0;
++    if (!valid || strlen(exe) != length || !equal_prefix(canonical, exe, length)
++        || !plain_directory_chain(canonical)) { CloseHandle(working); return false; }
++    memcpy(copy_root, canonical, length + 1); copy_root_length = length; root_handle = working;
++    if (atexit(close_root) != 0) { close_root(); return false; }
++    return true;
++}
++
++static bool component(const char* name, size_t length, bool wildcard)
++{
++    char stem[TIG_PREPARED_COPY_PATH_CAPACITY];
++    if (length == 0 || length > 255 || name[length - 1] == '.' || name[length - 1] == ' ') return false;
++    for (size_t i = 0; i < length; i++) {
++        unsigned char ch = (unsigned char)name[i];
++        if (ch < 0x20 || ch > 0x7e || strchr("\\/:\"<>|", ch) != NULL
++            || (!wildcard && (ch == '*' || ch == '?'))) return false;
++    }
++    size_t count = 0;
++    while (count < length && name[count] != '.') { stem[count] = (char)lower_ascii((unsigned char)name[count]); count++; }
++    while (count > 0 && stem[count - 1] == ' ') count--;
++    stem[count] = 0;
++    if (strcmp(stem, "con") == 0 || strcmp(stem, "prn") == 0 || strcmp(stem, "aux") == 0
++        || strcmp(stem, "nul") == 0 || strcmp(stem, "conin$") == 0 || strcmp(stem, "conout$") == 0
++        || strcmp(stem, "clock$") == 0) return false;
++    return !(count == 4 && (memcmp(stem, "com", 3) == 0 || memcmp(stem, "lpt", 3) == 0)
++        && stem[3] >= '1' && stem[3] <= '9');
++}
++
++bool tig_prepared_copy_path(const char* path, bool pattern, char output[TIG_PREPARED_COPY_PATH_CAPACITY])
++{
++    char normalized[TIG_PREPARED_COPY_PATH_CAPACITY];
++    size_t length;
++    if (path == NULL || output == NULL || root_handle == INVALID_HANDLE_VALUE || !ascii_path(path, &length)) return false;
++    memcpy(normalized, path, length + 1);
++    for (size_t i = 0; i < length; i++) if (normalized[i] == '/') normalized[i] = '\\';
++    const char* relative = normalized;
++    if (length >= 3 && normalized[1] == ':' && normalized[2] == '\\') {
++        if (length < copy_root_length || !equal_prefix(normalized, copy_root, copy_root_length)
++            || (length > copy_root_length && normalized[copy_root_length] != '\\')) return false;
++        relative = normalized + copy_root_length;
++        if (*relative == '\\') relative++;
++    } else if (normalized[0] == '\\' || strchr(normalized, ':') != NULL) return false;
++    if (relative[0] == '.' && relative[1] == '\\') relative += 2;
++    if (strcmp(relative, ".") == 0) relative++;
++    size_t relative_length = strlen(relative);
++    if (relative_length == 0) { memcpy(output, copy_root, copy_root_length + 1); return true; }
++    if (copy_root_length + 1 + relative_length >= TIG_PREPARED_COPY_PATH_CAPACITY) return false;
++    const char* start = relative;
++    for (const char* p = relative;; p++) {
++        if (*p != '\\' && *p != 0) continue;
++        if (!component(start, (size_t)(p - start), pattern && *p == 0)) return false;
++        if (*p == 0) break;
++        start = p + 1;
++    }
++    memcpy(output, copy_root, copy_root_length); output[copy_root_length] = '\\';
++    memcpy(output + copy_root_length + 1, relative, relative_length + 1);
++    // Existing ancestors must be ordinary directories. A missing final leaf is
++    // allowed for creation; parents are checked again by the mutating opener.
++    for (size_t i = copy_root_length + 1; i <= copy_root_length + 1 + relative_length; i++) {
++        if (output[i] != '\\' && output[i] != 0) continue;
++        char separator = output[i]; output[i] = 0;
++        bool last = separator == 0;
++        DWORD attributes = last && pattern ? INVALID_FILE_ATTRIBUTES : GetFileAttributesA(output);
++        DWORD error = attributes == INVALID_FILE_ATTRIBUTES ? GetLastError() : 0;
++        output[i] = separator;
++        if (last && pattern) return true;
++        if (attributes == INVALID_FILE_ATTRIBUTES) return last && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND);
++        if ((attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0 || (!last && (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)) return false;
++    }
++    return true;
++}
++
++FILE* tig_prepared_copy_fopen(const char* path, const char* mode)
++{
++    char resolved[TIG_PREPARED_COPY_PATH_CAPACITY], physical[TIG_PREPARED_COPY_PATH_CAPACITY];
++    bool update = false, binary = false, text = false, exclusive = false;
++    if (mode == NULL || (mode[0] != 'r' && mode[0] != 'w' && mode[0] != 'a')) return NULL;
++    size_t i;
++    for (i = 1; i < 5 && mode[i] != 0; i++) {
++        if (mode[i] == '+' && !update) update = true;
++        else if (mode[i] == 'b' && !binary && !text) binary = true;
++        else if (mode[i] == 't' && !binary && !text) text = true;
++        else if (mode[i] == 'x' && !exclusive && mode[0] == 'w') exclusive = true;
++        else return NULL;
++    }
++    if (i == 5 || !tig_prepared_copy_path(path, false, resolved)) return NULL;
++    if (!binary && !text) {
++        int translation;
++        if (_get_fmode(&translation) != 0 || (translation != _O_BINARY && translation != _O_TEXT)) return NULL;
++        binary = translation == _O_BINARY;
++    }
++    size_t length = strlen(resolved);
++    if (length <= copy_root_length) return NULL;
++    char parent[TIG_PREPARED_COPY_PATH_CAPACITY];
++    memcpy(parent, resolved, length + 1);
++    char* separator = strrchr(parent, '\\');
++    if (separator == NULL) return NULL;
++    *separator = 0;
++    if (!plain_directory_chain(parent)) return NULL;
++    bool writing = mode[0] != 'r' || update;
++    DWORD access = writing ? GENERIC_WRITE : GENERIC_READ;
++    if (update) access |= GENERIC_READ;
++    DWORD creation = exclusive ? CREATE_NEW : (mode[0] == 'r' ? OPEN_EXISTING : OPEN_ALWAYS);
++    HANDLE handle = CreateFileA(resolved, access, FILE_SHARE_READ, NULL, creation,
++        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
++    if (handle == INVALID_HANDLE_VALUE) return NULL;
++    BY_HANDLE_FILE_INFORMATION information;
++    bool valid = GetFileType(handle) == FILE_TYPE_DISK
++        && GetFileInformationByHandle(handle, &information)
++        && (information.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY)) == 0
++        && information.nNumberOfLinks == 1
++        && final_path(handle, physical)
++        && strlen(physical) > copy_root_length
++        && equal_prefix(physical, copy_root, copy_root_length)
++        && physical[copy_root_length] == '\\'
++        && plain_directory_chain(parent);
++    if (!valid) { CloseHandle(handle); return NULL; }
++    // No CREATE_ALWAYS/TRUNCATE_EXISTING: validate this exact held regular,
++    // single-link object before any truncation or transfer into CRT ownership.
++    int flags = update ? _O_RDWR : (writing ? _O_WRONLY : _O_RDONLY);
++    flags |= _O_NOINHERIT | (binary ? _O_BINARY : _O_TEXT);
++    if (mode[0] == 'a') flags |= _O_APPEND;
++    int descriptor = _open_osfhandle((intptr_t)handle, flags);
++    if (descriptor == -1) { CloseHandle(handle); return NULL; }
++    char stream_mode[4] = { mode[0], 0, 0, 0 };
++    size_t cursor = 1;
++    if (update) stream_mode[cursor++] = '+';
++    stream_mode[cursor++] = binary ? 'b' : 't';
++    stream_mode[cursor] = 0;
++    FILE* stream = _fdopen(descriptor, stream_mode);
++    if (stream == NULL) { _close(descriptor); return NULL; }
++    if (mode[0] == 'w') {
++        LARGE_INTEGER zero; zero.QuadPart = 0;
++        if (!SetFilePointerEx(handle, zero, NULL, FILE_BEGIN) || !SetEndOfFile(handle)) {
++            fclose(stream); return NULL;
++        }
++    }
++    // CRT _O_APPEND supplies append-on-every-write even after a caller seeks.
++    // fclose now owns both descriptor and the original verified OS handle.
++    return stream;
++}
++
++
++static HANDLE mutation_object(const char* path)
++{
++    char resolved[TIG_PREPARED_COPY_PATH_CAPACITY], physical[TIG_PREPARED_COPY_PATH_CAPACITY];
++    if (!tig_prepared_copy_path(path, false, resolved) || strlen(resolved) <= copy_root_length) return INVALID_HANDLE_VALUE;
++    HANDLE handle = CreateFileA(resolved, DELETE | FILE_READ_ATTRIBUTES,
++        FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
++        FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
++    if (handle == INVALID_HANDLE_VALUE) return handle;
++    BY_HANDLE_FILE_INFORMATION information;
++    bool valid = GetFileType(handle) == FILE_TYPE_DISK
++        && GetFileInformationByHandle(handle, &information)
++        && (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0
++        && ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 || information.nNumberOfLinks == 1)
++        && final_path(handle, physical)
++        && strlen(physical) == strlen(resolved)
++        && equal_prefix(physical, resolved, strlen(resolved));
++    if (!valid) { CloseHandle(handle); return INVALID_HANDLE_VALUE; }
++    return handle;
++}
++
++bool tig_prepared_copy_mkdir(const char* path)
++{
++    char resolved[TIG_PREPARED_COPY_PATH_CAPACITY];
++    if (!tig_prepared_copy_path(path, false, resolved) || strlen(resolved) <= copy_root_length) return false;
++    // CreateDirectory never traverses a missing final component or overwrites an
++    // existing object. The path guard checked every existing parent directory.
++    return CreateDirectoryA(resolved, NULL) != 0;
++}
++
++bool tig_prepared_copy_remove(const char* path)
++{
++    HANDLE handle = mutation_object(path);
++    if (handle == INVALID_HANDLE_VALUE) return false;
++    FILE_DISPOSITION_INFO disposition; disposition.DeleteFile = TRUE;
++    bool result = SetFileInformationByHandle(handle, FileDispositionInfo, &disposition, sizeof(disposition)) != 0;
++    CloseHandle(handle);
++    return result;
++}
++
++bool tig_prepared_copy_rename(const char* source, const char* destination)
++{
++    char resolved[TIG_PREPARED_COPY_PATH_CAPACITY];
++    if (!tig_prepared_copy_path(destination, false, resolved) || strlen(resolved) <= copy_root_length) return false;
++    // Rename is deliberately no-overwrite: both an existing ordinary target
++    // and a target that appears after validation are preserved by the kernel.
++    if (GetFileAttributesA(resolved) != INVALID_FILE_ATTRIBUTES || GetLastError() != ERROR_FILE_NOT_FOUND) return false;
++    HANDLE handle = mutation_object(source);
++    if (handle == INVALID_HANDLE_VALUE) return false;
++    union {
++        FILE_RENAME_INFO alignment;
++        unsigned char bytes[sizeof(FILE_RENAME_INFO) + TIG_PREPARED_COPY_PATH_CAPACITY * sizeof(WCHAR)];
++    } storage;
++    memset(&storage, 0, sizeof(storage));
++    FILE_RENAME_INFO* rename = (FILE_RENAME_INFO*)storage.bytes;
++    size_t length = strlen(resolved);
++    rename->ReplaceIfExists = FALSE;
++    rename->RootDirectory = NULL;
++    rename->FileNameLength = (DWORD)(length * sizeof(WCHAR));
++    for (size_t i = 0; i <= length; i++) rename->FileName[i] = (WCHAR)(unsigned char)resolved[i];
++    bool result = SetFileInformationByHandle(handle, FileRenameInfo, rename,
++        (DWORD)(offsetof(FILE_RENAME_INFO, FileName) + (length + 1) * sizeof(WCHAR))) != 0;
++    CloseHandle(handle);
++    return result;
++}
++
++
++static bool clear_directory_worker(const char* path, bool remove_root, size_t* budget, unsigned int depth)
++{
++    if (depth > 32 || *budget == 0) return false;
++    (*budget)--;
++    char resolved[TIG_PREPARED_COPY_PATH_CAPACITY];
++    if (!tig_prepared_copy_path(path, false, resolved)) return false;
++    HANDLE directory = mutation_object(resolved);
++    if (directory == INVALID_HANDLE_VALUE) return false;
++    BY_HANDLE_FILE_INFORMATION information;
++    if (!GetFileInformationByHandle(directory, &information)
++        || (information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
++        CloseHandle(directory); return false;
++    }
++    size_t length = strlen(resolved);
++    if (length + 2 >= TIG_PREPARED_COPY_PATH_CAPACITY) { CloseHandle(directory); return false; }
++    WCHAR pattern[TIG_PREPARED_COPY_PATH_CAPACITY];
++    for (size_t i = 0; i < length; i++) pattern[i] = (WCHAR)(unsigned char)resolved[i];
++    pattern[length] = L'\\'; pattern[length + 1] = L'*'; pattern[length + 2] = 0;
++    WIN32_FIND_DATAW entry;
++    HANDLE find = FindFirstFileW(pattern, &entry);
++    bool success = true;
++    if (find == INVALID_HANDLE_VALUE) {
++        success = GetLastError() == ERROR_FILE_NOT_FOUND;
++    } else {
++        for (;;) {
++            bool trivia = entry.cFileName[0] == L'.'
++                && (entry.cFileName[1] == 0 || (entry.cFileName[1] == L'.' && entry.cFileName[2] == 0));
++            if (!trivia) {
++                char name[TIG_PREPARED_COPY_PATH_CAPACITY], child[TIG_PREPARED_COPY_PATH_CAPACITY];
++                if (*budget == 0 || (entry.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0
++                    || !wide_ascii(entry.cFileName, name)) { success = false; break; }
++                int count = snprintf(child, sizeof(child), "%s\\%s", resolved, name);
++                if (count < 0 || (size_t)count >= sizeof(child)) { success = false; break; }
++                if ((entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
++                    if (!clear_directory_worker(child, true, budget, depth + 1)) { success = false; break; }
++                } else {
++                    (*budget)--;
++                    if (!tig_prepared_copy_remove(child)) { success = false; break; }
++                }
++            }
++            if (!FindNextFileW(find, &entry)) {
++                if (GetLastError() != ERROR_NO_MORE_FILES) success = false;
++                break;
++            }
++        }
++        if (!FindClose(find)) success = false;
++    }
++    if (success && remove_root) {
++        FILE_DISPOSITION_INFO disposition; disposition.DeleteFile = TRUE;
++        success = SetFileInformationByHandle(directory, FileDispositionInfo, &disposition, sizeof(disposition)) != 0;
++    }
++    CloseHandle(directory);
++    return success;
++}
++
++bool tig_prepared_copy_clear_directory(const char* path, bool remove_root)
++{
++    size_t budget = 65536;
++    return clear_directory_worker(path, remove_root, &budget, 0);
++}
++
++#endif /* _WIN32 */
+diff --git a/first_party/tig/src/save_archive.c b/first_party/tig/src/save_archive.c
+new file mode 100644
+index 0000000..01e8aa3
+--- /dev/null
++++ b/first_party/tig/src/save_archive.c
+@@ -0,0 +1,201 @@
++#include "tig/save_archive.h"
++
++#include <limits.h>
++#include <stdlib.h>
++#include <string.h>
++
++static unsigned char ascii_lower(unsigned char ch)
++{
++    return ch >= 'A' && ch <= 'Z' ? (unsigned char)(ch + ('a' - 'A')) : ch;
++}
++
++static bool component_valid(const unsigned char* name, size_t length)
++{
++    size_t stem = 0;
++    char base[TIG_SAVE_ARCHIVE_MAX_COMPONENT + 1];
++    if (length == 0 || length > TIG_SAVE_ARCHIVE_MAX_COMPONENT
++        || name[length - 1] == '.' || name[length - 1] == ' ') {
++        return false;
++    }
++    for (size_t i = 0; i < length; i++) {
++        unsigned char ch = name[i];
++        if (ch < 0x20 || ch > 0x7e || strchr("\\/:*?\"<>|", ch) != NULL) {
++            return false;
++        }
++    }
++    while (stem < length && name[stem] != '.') {
++        base[stem] = (char)ascii_lower(name[stem]);
++        stem++;
++    }
++    // Win32 also recognizes reserved device stems with spaces before a dot.
++    // This comparison does not turn the supplied name into an accepted alias.
++    while (stem > 0 && base[stem - 1] == ' ') {
++        stem--;
++    }
++    base[stem] = '\0';
++    if (strcmp(base, "con") == 0 || strcmp(base, "prn") == 0
++        || strcmp(base, "aux") == 0 || strcmp(base, "nul") == 0
++        || strcmp(base, "conin$") == 0 || strcmp(base, "conout$") == 0
++        || strcmp(base, "clock$") == 0) {
++        return false;
++    }
++    return !(stem == 4 && (memcmp(base, "com", 3) == 0 || memcmp(base, "lpt", 3) == 0)
++        && base[3] >= '1' && base[3] <= '9');
++}
++
++static bool read_i32(const unsigned char* index, size_t length, size_t* cursor, int32_t* value)
++{
++    if (*cursor > length || length - *cursor < sizeof(*value)) {
++        return false;
++    }
++    // TIG's selected Windows archive is little endian, independent of the
++    // validation host. Reject negative lengths before any copy or indexing.
++    uint32_t raw = (uint32_t)index[*cursor]
++        | ((uint32_t)index[*cursor + 1] << 8)
++        | ((uint32_t)index[*cursor + 2] << 16)
++        | ((uint32_t)index[*cursor + 3] << 24);
++    memcpy(value, &raw, sizeof(raw));
++    *cursor += sizeof(*value);
++    return true;
++}
++
++static int entry_compare(const void* lhs, const void* rhs)
++{
++    const TigSaveArchiveEntry* const* left = lhs;
++    const TigSaveArchiveEntry* const* right = rhs;
++    const unsigned char* a = (const unsigned char*)(*left)->path;
++    const unsigned char* b = (const unsigned char*)(*right)->path;
++    for (;;) {
++        unsigned char lower_a = ascii_lower(*a);
++        unsigned char lower_b = ascii_lower(*b);
++        if (lower_a != lower_b || lower_a == 0) {
++            return (int)lower_a - (int)lower_b;
++        }
++        a++;
++        b++;
++    }
++}
++
++TigSaveArchivePlan* tig_save_archive_plan(const unsigned char* index, size_t index_size,
++    size_t data_size, size_t root_length)
++{
++    TigSaveArchivePlan* plan = NULL;
++    TigSaveArchiveEntry** sorted = NULL;
++    char prefix[TIG_SAVE_ARCHIVE_PATH_CAPACITY] = { 0 };
++    size_t parents[TIG_SAVE_ARCHIVE_MAX_DEPTH];
++    size_t depth = 0;
++    size_t prefix_length = 0;
++    size_t cursor = 0;
++    size_t data_cursor = 0;
++    size_t records = 0;
++    bool finished = false;
++
++    if (index == NULL || index_size < 4 || index_size > TIG_SAVE_ARCHIVE_MAX_INDEX_BYTES
++        || data_size > INT32_MAX || root_length == 0 || root_length >= TIG_SAVE_ARCHIVE_PATH_CAPACITY) {
++        return NULL;
++    }
++    // Allocation follows actual bounded raw bytes, never a declared name/data
++    // length. Even a compact INT32_MAX-name fixture only gets a tiny table.
++    size_t capacity = index_size / 4;
++    if (capacity > TIG_SAVE_ARCHIVE_MAX_RECORDS) {
++        capacity = TIG_SAVE_ARCHIVE_MAX_RECORDS;
++    }
++    plan = calloc(1, sizeof(*plan));
++    if (plan == NULL) {
++        return NULL;
++    }
++    plan->entries = calloc(capacity, sizeof(*plan->entries));
++    if (plan->entries == NULL) {
++        goto refused;
++    }
++
++    while (cursor < index_size) {
++        int32_t type;
++        int32_t length;
++        int32_t size;
++        if (++records > TIG_SAVE_ARCHIVE_MAX_RECORDS || !read_i32(index, index_size, &cursor, &type)) {
++            goto refused;
++        }
++        if (type == 3) {
++            finished = depth == 0 && cursor == index_size && data_cursor == data_size;
++            break;
++        }
++        if (type == 2) {
++            if (depth == 0) {
++                goto refused;
++            }
++            prefix_length = parents[--depth];
++            prefix[prefix_length] = '\0';
++            continue;
++        }
++        if ((type != 0 && type != 1) || plan->count >= capacity
++            || !read_i32(index, index_size, &cursor, &length)
++            || length <= 0 || length > TIG_SAVE_ARCHIVE_MAX_COMPONENT
++            || (size_t)length > index_size - cursor
++            || !component_valid(index + cursor, (size_t)length)) {
++            goto refused;
++        }
++        size_t relative_length = prefix_length + (size_t)length;
++        if (relative_length >= TIG_SAVE_ARCHIVE_PATH_CAPACITY
++            || root_length + 1 + relative_length >= TIG_SAVE_ARCHIVE_PATH_CAPACITY) {
++            goto refused;
++        }
++        TigSaveArchiveEntry* entry = &plan->entries[plan->count++];
++        memcpy(entry->path, prefix, prefix_length);
++        memcpy(entry->path + prefix_length, index + cursor, (size_t)length);
++        entry->path[relative_length] = '\0';
++        cursor += (size_t)length;
++        entry->directory = type == 1;
++        if (entry->directory) {
++            if (depth == TIG_SAVE_ARCHIVE_MAX_DEPTH || relative_length + 1 >= sizeof(prefix)) {
++                goto refused;
++            }
++            parents[depth++] = prefix_length;
++            memcpy(prefix, entry->path, relative_length);
++            prefix[relative_length] = '/';
++            prefix_length = relative_length + 1;
++            prefix[prefix_length] = '\0';
++        } else {
++            if (!read_i32(index, index_size, &cursor, &size) || size < 0
++                || (size_t)size > data_size - data_cursor) {
++                goto refused;
++            }
++            entry->data_offset = data_cursor;
++            entry->size = (uint32_t)size;
++            data_cursor += (size_t)size;
++        }
++    }
++    if (!finished) {
++        goto refused;
++    }
++    if (plan->count > 1) {
++        sorted = malloc(plan->count * sizeof(*sorted));
++        if (sorted == NULL) {
++            goto refused;
++        }
++        for (size_t i = 0; i < plan->count; i++) {
++            sorted[i] = &plan->entries[i];
++        }
++        qsort(sorted, plan->count, sizeof(*sorted), entry_compare);
++        for (size_t i = 1; i < plan->count; i++) {
++            if (entry_compare(&sorted[i - 1], &sorted[i]) == 0) {
++                goto refused;
++            }
++        }
++        free(sorted);
++    }
++    return plan;
++
++refused:
++    free(sorted);
++    tig_save_archive_plan_destroy(plan);
++    return NULL;
++}
++
++void tig_save_archive_plan_destroy(TigSaveArchivePlan* plan)
++{
++    if (plan != NULL) {
++        free(plan->entries);
++        free(plan);
++    }
++}
+diff --git a/first_party/tig/src/save_extract.c b/first_party/tig/src/save_extract.c
+new file mode 100644
+index 0000000..55bfa45
+--- /dev/null
++++ b/first_party/tig/src/save_extract.c
+@@ -0,0 +1,149 @@
++#ifdef _WIN32
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#include <io.h>
++#include <limits.h>
++#include <stdint.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include "tig/prepared_copy.h"
++#include "tig/save_archive.h"
++#include "tig/save_extract.h"
++
++static bool missing(const char* path)
++{
++    DWORD attributes = GetFileAttributesA(path);
++    return attributes == INVALID_FILE_ATTRIBUTES && GetLastError() == ERROR_FILE_NOT_FOUND;
++}
++
++bool tig_save_archive_extract(const char* index_path, const char* data_path, const char* destination)
++{
++    FILE* index = NULL;
++    FILE* data = NULL;
++    unsigned char* raw = NULL;
++    TigSaveArchivePlan* plan = NULL;
++    char current[260], copy_root[260], parent[260], stage[260] = { 0 }, backup[260] = { 0 };
++    bool stage_created = false, previous_moved = false, success = false;
++    if (!tig_prepared_copy_path(destination, false, current)
++        || !tig_prepared_copy_path(".", false, copy_root)
++        || strlen(current) <= strlen(copy_root)) goto finished;
++    memcpy(parent, current, strlen(current) + 1);
++    char* separator = strrchr(parent, '\\');
++    if (separator == NULL || _stricmp(separator + 1, "Current") != 0) goto finished;
++    *separator = 0;
++    separator = strrchr(parent, '\\');
++    if (separator == NULL || _stricmp(separator + 1, "Save") != 0) goto finished;
++    DWORD old_attributes = GetFileAttributesA(current);
++    bool old_exists = old_attributes != INVALID_FILE_ATTRIBUTES;
++    if (old_exists && (old_attributes & (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) != FILE_ATTRIBUTE_DIRECTORY) goto finished;
++    if (!old_exists && GetLastError() != ERROR_FILE_NOT_FOUND) goto finished;
++
++    // Stock slot pairs are direct children of this same Save directory.
++    // Never consume sources from Current: its prior cache may be cleaned after
++    // a successful commit, and canonical slot bytes must remain untouched.
++    char resolved_index[260], resolved_data[260];
++    if (!tig_prepared_copy_path(index_path, false, resolved_index)
++        || !tig_prepared_copy_path(data_path, false, resolved_data)) goto finished;
++    size_t parent_length = strlen(parent), index_length = strlen(resolved_index), data_length = strlen(resolved_data);
++    if (index_length <= parent_length + 6 || data_length != index_length
++        || _strnicmp(resolved_index, parent, parent_length) != 0
++        || _strnicmp(resolved_data, parent, parent_length) != 0
++        || resolved_index[parent_length] != '\\' || resolved_data[parent_length] != '\\'
++        || strchr(resolved_index + parent_length + 1, '\\') != NULL
++        || strchr(resolved_data + parent_length + 1, '\\') != NULL
++        || _stricmp(resolved_index + index_length - 5, ".tfai") != 0
++        || _stricmp(resolved_data + data_length - 5, ".tfaf") != 0
++        || _strnicmp(resolved_index, resolved_data, index_length - 5) != 0) goto finished;
++    index = tig_prepared_copy_fopen(resolved_index, "rb");
++    data = tig_prepared_copy_fopen(resolved_data, "rb");
++    if (index == NULL || data == NULL) goto finished;
++    // Bound the physical held streams before allocation, copying or parser use.
++    __int64 index_size = _filelengthi64(_fileno(index));
++    __int64 data_size = _filelengthi64(_fileno(data));
++    if (index_size <= 0 || index_size > TIG_SAVE_ARCHIVE_MAX_INDEX_BYTES
++        || data_size < 0 || data_size > INT32_MAX) goto finished;
++    raw = malloc((size_t)index_size);
++    if (raw == NULL || fread(raw, 1, (size_t)index_size, index) != (size_t)index_size
++        || fgetc(index) != EOF || ferror(index)) goto finished;
++
++    bool names_available = false;
++    for (unsigned int attempt = 0; attempt < 128; attempt++) {
++        DWORD process = GetCurrentProcessId();
++        unsigned long long tick = (unsigned long long)GetTickCount64();
++        int stage_length = snprintf(stage, sizeof(stage), "%s\\pc6-stage-%08lx-%016llx-%02x", parent, (unsigned long)process, tick, attempt);
++        int backup_length = snprintf(backup, sizeof(backup), "%s\\pc6-backup-%08lx-%016llx-%02x", parent, (unsigned long)process, tick, attempt);
++        if (stage_length < 0 || backup_length < 0 || (size_t)stage_length >= sizeof(stage) || (size_t)backup_length >= sizeof(backup)) goto finished;
++        char checked[260];
++        if (!tig_prepared_copy_path(stage, false, checked) || !tig_prepared_copy_path(backup, false, checked)) goto finished;
++        if (missing(stage) && missing(backup)) { names_available = true; break; }
++    }
++    if (!names_available) goto finished;
++    size_t physical_length = strlen(stage) > strlen(current) ? strlen(stage) : strlen(current);
++    plan = tig_save_archive_plan(raw, (size_t)index_size, (size_t)data_size, physical_length);
++    free(raw); raw = NULL;
++    if (plan == NULL) goto finished;
++    bool has_game_data = false;
++    for (size_t entry = 0; entry < plan->count; entry++) {
++        if (!plan->entries[entry].directory && plan->entries[entry].size > 0
++            && _stricmp(plan->entries[entry].path, "data.sav") == 0) has_game_data = true;
++    }
++    if (!has_game_data) goto finished;
++    // No destination or staging mutation has occurred before full validation.
++    if (!tig_prepared_copy_mkdir(stage)) goto finished;
++    stage_created = true;
++    for (size_t entry = 0; entry < plan->count; entry++) {
++        const TigSaveArchiveEntry* item = &plan->entries[entry];
++        char path[260];
++        int count = snprintf(path, sizeof(path), "%s\\%s", stage, item->path);
++        if (count < 0 || (size_t)count >= sizeof(path)) goto finished;
++        if (item->directory) {
++            if (!tig_prepared_copy_mkdir(path)) goto finished;
++        } else {
++            if (_ftelli64(data) != (__int64)item->data_offset) goto finished;
++            FILE* output = tig_prepared_copy_fopen(path, "wbx");
++            if (output == NULL) goto finished;
++            unsigned char buffer[32768];
++            size_t remaining = item->size;
++            bool copied = true;
++            while (remaining > 0) {
++                size_t amount = remaining < sizeof(buffer) ? remaining : sizeof(buffer);
++                if (fread(buffer, 1, amount, data) != amount || fwrite(buffer, 1, amount, output) != amount) { copied = false; break; }
++                remaining -= amount;
++            }
++            if (fflush(output) != 0 || _commit(_fileno(output)) != 0) copied = false;
++            if (fclose(output) != 0) copied = false;
++            if (!copied) goto finished;
++        }
++    }
++    if (_ftelli64(data) != data_size || fgetc(data) != EOF || ferror(data)
++        || _filelengthi64(_fileno(index)) != index_size || _filelengthi64(_fileno(data)) != data_size) goto finished;
++    int data_closed = fclose(data); data = NULL;
++    int index_closed = fclose(index); index = NULL;
++    if (data_closed != 0 || index_closed != 0) goto finished;
++    // Best-effort custody diagnostics, not a journal or automatic recovery.
++    fprintf(stderr, "Prepared save cache commit: Current=%s staging=%s prior=%s\n", current, stage, backup);
++    fflush(stderr);
++    if (old_exists) {
++        if (!tig_prepared_copy_rename(current, backup)) goto finished;
++        previous_moved = true;
++    }
++    if (!tig_prepared_copy_rename(stage, current)) {
++        if (previous_moved && tig_prepared_copy_rename(backup, current)) previous_moved = false;
++        goto finished;
++    }
++    stage_created = false;
++    success = true;
++    // Current is complete. Cleanup never follows redirects or weakens file-link
++    // checks; a refusal retains the prior cache as a separate recovery copy.
++    if (previous_moved && tig_prepared_copy_clear_directory(backup, true)) previous_moved = false;
++finished:
++    if (index != NULL) fclose(index);
++    if (data != NULL) fclose(data);
++    free(raw);
++    tig_save_archive_plan_destroy(plan);
++    if (stage_created) fprintf(stderr, "Prepared save extraction retained staging: %s\n", stage);
++    if (previous_moved) fprintf(stderr, "Prepared save extraction retained prior cache: %s\n", backup);
++    return success;
++}
++#endif
+\ No newline at end of file
+diff --git a/src/game/gamelib.c b/src/game/gamelib.c
+index 846e7bc..8f26d2d 100644
+--- a/src/game/gamelib.c
++++ b/src/game/gamelib.c
+@@ -1,6 +1,7 @@
+ #include "game/gamelib.h"
+ 
+ #include <stdio.h>
++#include <string.h>
+ 
+ #include "game/ai.h"
+ #include "game/anim.h"
+@@ -556,6 +557,9 @@ void gamelib_resize(GameResizeInfo* resize_info)
+ // 0x402780
+ void gamelib_default_module_name_set(const char* name)
+ {
++#ifdef _WIN32
++    if (name == NULL || SDL_strcasecmp(name, "Arcanum") != 0) return;
++#endif
+     strcpy(gamelib_default_module_name, name);
+ }
+ 
+@@ -604,6 +608,10 @@ void gamelib_modlist_create(GameModuleList* module_list, int type)
+             cont = true;
+         }
+ 
++#ifdef _WIN32
++        // Inspect only stock identity before any fixed-path concatenation or mount.
++        if (cont && SDL_strcasecmp(file_list.entries[file_index].path, "Arcanum") != 0) cont = false;
++#endif
+         if (cont) {
+             found = false;
+             module_index = module_list->count;
+@@ -661,6 +669,9 @@ void gamelib_modlist_destroy(GameModuleList* module_list)
+ // 0x402A50
+ bool gamelib_mod_load(const char* path)
+ {
++#ifdef _WIN32
++    if (path == NULL || SDL_strcasecmp(path, "Arcanum") != 0) return false;
++#endif
+     TigFileList file_list;
+     unsigned int file_index;
+     int module_index;
+@@ -920,11 +931,38 @@ const char* gamelib_current_module_name_get(void)
+ // 0x402FF0
+ void gamelib_current_mode_name_set(const char* name)
+ {
++#ifdef _WIN32
++    if (name == NULL || SDL_strcasecmp(name, "Arcanum") != 0) return;
++#endif
+     if (name != NULL && *name != '\0') {
+         strcpy(gamelib_current_module_name, name);
+     }
+ }
+ 
++#ifdef _WIN32
++static bool gamelib_text_fits(const char* text, size_t capacity)
++{
++    if (text == NULL) return false;
++    for (size_t i = 0; i < capacity; i++) if (text[i] == 0) return true;
++    return false;
++}
++
++static bool gamelib_save_component(const char* text, size_t capacity, bool empty)
++{
++    if (!gamelib_text_fits(text, capacity) || (!empty && text[0] == 0)) return false;
++    for (const unsigned char* p = (const unsigned char*)text; *p != 0; p++) {
++        if (*p < 32 || *p > 126 || strchr("<>:\"/\\|?*", *p) != NULL) return false;
++    }
++    return true;
++}
++
++static bool gamelib_save_slot(const char* name)
++{
++    // Existing slot coordinates and deletion use an eight-byte basename.
++    return gamelib_save_component(name, 9, false) && strlen(name) == 8;
++}
++#endif
++
+ // 0x403030
+ bool gamelib_save(const char* name, const char* description)
+ {
+@@ -940,6 +978,10 @@ bool gamelib_save(const char* name, const char* description)
+     int version;
+     GameSaveInfo save_info;
+ 
++#ifdef _WIN32
++    if (!gamelib_save_slot(name) || !gamelib_save_component(description, 256, true)
++        || strlen(name) + strlen(description) + 9 >= sizeof(path)) return false;
++#endif
+     tig_debug_printf("\ngamelib_save(): Saving to File: %s.\n", name);
+     tig_timer_now(&start_time);
+ 
+@@ -1075,6 +1117,9 @@ bool gamelib_load(const char* name)
+     int index;
+     unsigned int sentinel;
+ 
++#ifdef _WIN32
++    if (!gamelib_save_slot(name)) return false;
++#endif
+     tig_debug_printf("\ngamelib_load: Loading from File: %s.\n", name);
+     tig_timer_now(&start_time);
+ 
+@@ -1090,6 +1135,7 @@ bool gamelib_load(const char* name)
+ 
+     snprintf(path, sizeof(path), "save\\%s", name);
+ 
++#ifndef _WIN32
+     tig_debug_printf("gamelib_load: begin removing files...");
+     tig_timer_now(&time);
+     if (!tig_file_empty_directory("Save\\Current")) {
+@@ -1100,6 +1146,8 @@ bool gamelib_load(const char* name)
+     duration = tig_timer_elapsed(time);
+     tig_debug_printf("done.  Time (ms): %d\n", duration);
+ 
++#endif
++
+     tig_debug_printf("gamelib_load: begin restoring folder archive...");
+     tig_timer_now(&time);
+     if (!tig_file_unarchive(path, "Save\\Current")) {
+@@ -1195,6 +1243,9 @@ bool gamelib_delete(const char* name)
+ {
+     char path[TIG_MAX_PATH];
+ 
++#ifdef _WIN32
++    if (!gamelib_save_component(name, 251, false) || strlen(name) < 8) return false;
++#endif
+     if (SDL_strcasecmp(name, "SlotAutoAuto-Save") == 0) {
+         return false;
+     }
+@@ -1297,6 +1348,10 @@ void gamelib_savelist_create_module(const char* module, GameSaveList* save_list)
+ 
+     save_list->count = 0;
+     save_list->names = NULL;
++    save_list->module = NULL;
++#ifdef _WIN32
++    if (module == NULL || SDL_strcasecmp(module, "Arcanum") != 0) return;
++#endif
+     save_list->module = STRDUP(module);
+ 
+     snprintf(path, sizeof(path), ".\\Modules\\%s\\save\\slot*.*", module);
+@@ -1344,6 +1399,9 @@ void gamelib_savelist_sort(GameSaveList* save_list, GameSaveListOrder order, boo
+     char path[TIG_MAX_PATH];
+     TigFileInfo file_info;
+ 
++#ifdef _WIN32
++    if (save_list->module != NULL && SDL_strcasecmp(save_list->module, "Arcanum") != 0) return;
++#endif
+     gamelib_savelist_sort_check_autosave = !a3;
+ 
+     entries = (GameSaveEntry*)MALLOC(sizeof(*entries) * save_list->count);
+@@ -1435,6 +1493,12 @@ bool gamelib_saveinfo_init(const char* name, const char* description, GameSaveIn
+         return false;
+     }
+ 
++#ifdef _WIN32
++    save_info->thumbnail_video_buffer = NULL;
++    if (!gamelib_save_slot(name) || !gamelib_save_component(description, sizeof(save_info->description), true)
++        || strlen(name) + strlen(description) + 9 >= TIG_MAX_PATH
++        || !gamelib_text_fits(gamelib_current_module_name_get(), sizeof(save_info->module_name))) return false;
++#endif
+     pc_obj = player_get_local_pc_obj();
+ 
+     save_info->version = 25;
+@@ -1479,6 +1543,14 @@ bool gamelib_saveinfo_init(const char* name, const char* description, GameSaveIn
+     }
+ 
+     obj_field_string_get(pc_obj, OBJ_F_PC_PLAYER_NAME, &pc_name);
++#ifdef _WIN32
++    if (!gamelib_text_fits(pc_name, sizeof(save_info->pc_name))) {
++        if (pc_name != NULL) FREE(pc_name);
++        tig_video_buffer_destroy(save_info->thumbnail_video_buffer);
++        save_info->thumbnail_video_buffer = NULL;
++        return false;
++    }
++#endif
+     strcpy(save_info->pc_name, pc_name);
+     FREE(pc_name);
+ 
+@@ -1511,6 +1583,13 @@ bool gamelib_saveinfo_save(GameSaveInfo* save_info)
+     bool success = false;
+     int size;
+ 
++#ifdef _WIN32
++    if (save_info == NULL || !gamelib_save_slot(save_info->name)
++        || !gamelib_save_component(save_info->description, sizeof(save_info->description), true)
++        || strlen(save_info->name) + strlen(save_info->description) + 9 >= sizeof(path)
++        || !gamelib_text_fits(save_info->module_name, sizeof(save_info->module_name))
++        || !gamelib_text_fits(save_info->pc_name, sizeof(save_info->pc_name))) return false;
++#endif
+     snprintf(path, sizeof(path), "save\\%s%s.gsi", save_info->name, save_info->description);
+ 
+     stream = tig_file_fopen(path, "wb");
+@@ -1567,7 +1646,13 @@ bool gamelib_saveinfo_load(const char* name, GameSaveInfo* save_info)
+     int size;
+     bool success = false;
+ 
+-    snprintf(byte_5D0A50, sizeof(byte_5D0A50), "save\\%s.gsi", name);
++    if (name == NULL || save_info == NULL) {
++        return false;
++    }
++    int path_length = snprintf(byte_5D0A50, sizeof(byte_5D0A50), "save\\%s.gsi", name);
++    if (path_length < 0 || (size_t)path_length >= sizeof(byte_5D0A50)) {
++        return false;
++    }
+ 
+     stream = tig_file_fopen(byte_5D0A50, "rb");
+     if (stream == NULL) {
+@@ -1576,9 +1661,7 @@ bool gamelib_saveinfo_load(const char* name, GameSaveInfo* save_info)
+ 
+     save_info->thumbnail_video_buffer = NULL;
+ 
+-    strcpy(byte_5D0A50, "save\\");
+-    strncpy(&(byte_5D0A50[5]), name, 8);
+-    strcpy(&(byte_5D0A50[13]), ".bmp");
++    snprintf(byte_5D0A50, sizeof(byte_5D0A50), "save\\%.8s.bmp", name);
+ 
+     do {
+         if (tig_video_buffer_load_from_bmp(byte_5D0A50, &save_info->thumbnail_video_buffer, 0x1) != TIG_OK) break;
+@@ -1586,10 +1669,16 @@ bool gamelib_saveinfo_load(const char* name, GameSaveInfo* save_info)
+         if (tig_file_fread(&(save_info->version), sizeof(save_info->version), 1, stream) != 1) break;
+ 
+         if (tig_file_fread(&size, sizeof(size), 1, stream) != 1) break;
++        if (size <= 0 || (size_t)size >= sizeof(save_info->module_name)) break;
+         if (tig_file_fread(save_info->module_name, size, 1, stream) != 1) break;
++        if (memchr(save_info->module_name, '\0', (size_t)size) != NULL) break;
++        save_info->module_name[size] = '\0';
+ 
+         if (tig_file_fread(&size, sizeof(size), 1, stream) != 1) break;
+-        if (tig_file_fread(save_info->pc_name, size, 1, stream) != 1) break;
++        if (size < 0 || (size_t)size >= sizeof(save_info->pc_name)) break;
++        if (size != 0 && tig_file_fread(save_info->pc_name, size, 1, stream) != 1) break;
++        if (memchr(save_info->pc_name, '\0', (size_t)size) != NULL) break;
++        save_info->pc_name[size] = '\0';
+ 
+         if (tig_file_fread(&(save_info->map), sizeof(save_info->map), 1, stream) != 1) break;
+         if (tig_file_fread(&(save_info->datetime), sizeof(save_info->datetime), 1, stream) != 1) break;
+@@ -1599,13 +1688,21 @@ bool gamelib_saveinfo_load(const char* name, GameSaveInfo* save_info)
+         if (tig_file_fread(&(save_info->story_state), sizeof(save_info->story_state), 1, stream) != 1) break;
+ 
+         if (tig_file_fread(&size, sizeof(size), 1, stream) != 1) break;
++        if (size < 0 || (size_t)size >= sizeof(save_info->description)) break;
+         if (size != 0 && tig_file_fread(save_info->description, size, 1, stream) != 1) break;
++        if (memchr(save_info->description, '\0', (size_t)size) != NULL) break;
++        save_info->description[size] = '\0';
+ 
+         success = true;
+     } while (0);
+ 
+     tig_file_fclose(stream);
+ 
++    if (!success && save_info->thumbnail_video_buffer != NULL) {
++        tig_video_buffer_destroy(save_info->thumbnail_video_buffer);
++        save_info->thumbnail_video_buffer = NULL;
++    }
++
+     return success;
+ }
+ 
+@@ -1837,6 +1934,10 @@ void gamelib_load_data(void)
+ // 0x404C10
+ bool gamelib_load_module_data(const char* module_name)
+ {
++#ifdef _WIN32
++    // Saves/configuration cannot select a module path or mount outside stock.
++    if (module_name == NULL || SDL_strcasecmp(module_name, "Arcanum") != 0) return false;
++#endif
+     char path1[TIG_MAX_PATH];
+     char path2[TIG_MAX_PATH];
+     size_t end;
+diff --git a/src/game/settings.c b/src/game/settings.c
+index c447278..cd7699c 100644
+--- a/src/game/settings.c
++++ b/src/game/settings.c
+@@ -5,6 +5,18 @@
+ #include <string.h>
+ 
+ #include "game/obj_private.h"
++#ifdef _WIN32
++#include <tig/prepared_copy.h>
++#endif
++
++static FILE* settings_fopen(const char* path, const char* mode)
++{
++#ifdef _WIN32
++    return tig_prepared_copy_fopen(path, mode);
++#else
++    return fopen(path, mode);
++#endif
++}
+ 
+ static SettingsEntry* settings_find(Settings* settings, const char* key);
+ static void settings_trim(char* str);
+@@ -67,7 +79,7 @@ void settings_load(Settings* settings)
+         return;
+     }
+ 
+-    stream = fopen(settings->path, "rt");
++    stream = settings_fopen(settings->path, "rt");
+     if (stream == NULL) {
+         return;
+     }
+@@ -113,7 +125,7 @@ void settings_save(Settings* settings)
+         return;
+     }
+ 
+-    stream = fopen(settings->path, "wt");
++    stream = settings_fopen(settings->path, "wt");
+     if (stream == NULL) {
+         // Something's wrong, this should not normally happen.
+         return;
+diff --git a/src/main.c b/src/main.c
+index bc69b46..b04cbd3 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -9,6 +9,9 @@
+ #endif
+ 
+ #include <tig/tig.h>
++#ifdef _WIN32
++#include <tig/prepared_copy.h>
++#endif
+ 
+ #include "game/ai.h"
+ #include "game/anim.h"
+@@ -65,6 +68,13 @@ static int dword_5CFF00;
+ // 0x401000
+ int main(int argc, char** argv)
+ {
++#ifdef _WIN32
++    // Refuse before command-line conversion, config, debug or TIG startup.
++    if (!tig_prepared_copy_init(argc)) {
++        fputs("This prepared runtime requires its physical copy root and no arguments.\n", stderr);
++        return 1;
++    }
++#endif
+     TigInitInfo init_info;
+     TigVideoScreenshotSettings screenshotter;
+     GameInitInfo game_init_info;

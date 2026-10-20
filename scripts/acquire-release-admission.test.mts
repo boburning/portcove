@@ -7,6 +7,9 @@ import test from "node:test";
 import {
   acquireReleaseAdmission,
   requireActualReleaseAdmissionContext,
+  acquireActualCandidateBuildingEligibility,
+  requireActualCandidateBuildingEligibility,
+  inspectAdmissionNativeStage,
 } from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
@@ -17,6 +20,68 @@ import { rateLimitFromResponse } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+
+void test("qualifying continuation consumes pre-sign native stage without claiming payload admission", () => {
+  assert.equal(inspectAdmissionNativeStage("admission", "candidate-building"), "payload-signing");
+  assert.equal(inspectAdmissionNativeStage("payload", "payload-signing"), "payload-signing");
+  assert.equal(
+    inspectAdmissionNativeStage("release-publication", "release-publication"),
+    "release-publication",
+  );
+  for (const [phase, stage] of [
+    ["admission", "payload-signing"],
+    ["payload", "candidate-building"],
+    ["release-publication", "candidate-building"],
+    ["payload", "release-publication"],
+    ["admission", "release-publication"],
+  ])
+    assert.throws(() => inspectAdmissionNativeStage(phase, stage), /cannot appoint/);
+});
+
+void test("building eligibility is a separate private proof and imported success cannot authorize phase progress", async () => {
+  for (const raw of [
+    {},
+    Object.freeze({
+      kind: "actual-candidate-building-eligibility",
+      decision: "eligible-for-candidate-building",
+      checkpoint: "a".repeat(40),
+      admission: { holds: [], evidence_scope: "github.com" },
+      authority: "none",
+    }),
+  ]) {
+    await assert.rejects(requireActualCandidateBuildingEligibility(raw), /actual same-process/);
+    assert.throws(
+      () => requireActualReleaseAdmissionContext(raw, "payload-signing"),
+      /actual same-process/,
+    );
+  }
+});
+void test("qualifying collector requires genuine tools before source reads or output effects", async (t) => {
+  const f = await fixture(t);
+  const before = await readdir(f.root);
+  await assert.rejects(
+    acquireActualCandidateBuildingEligibility(f.root, f.config, {}, []),
+    /actual same-process controller tool/,
+  );
+  assert.deepEqual(await readdir(f.root), before);
+});
+void test("ordinary admission cannot activate the private qualifying path with caller flags", async (t) => {
+  const f = await fixture(t);
+  f.input.active_candidate.phase = "qualifying";
+  const options = {
+    ...f.options,
+    qualifying: true,
+    candidateBuilding: true,
+    controlPhase: "admission" as const,
+  };
+  await assert.rejects(acquireReleaseAdmission(f.root, f.config, options), (error: unknown) => {
+    assert.ok(error instanceof CoordinatorRemoteError);
+    assert.ok(isRecord(error.evidence));
+    assert.equal(error.evidence.phase, "repository-and-reservation");
+    return true;
+  });
+});
+
 void test("imported or frozen zero-hold descriptors cannot mint an actual stage-specific admission continuation", () => {
   for (const raw of [
     {},

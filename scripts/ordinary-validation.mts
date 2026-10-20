@@ -299,7 +299,19 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
+    `scripts/release-semantic-${name}.mts`,
+    ["scripts/release-semantic-worker.test.mts"],
+  ]),
+  [
+    "scripts/release-classification-request.mts",
+    ["scripts/release-classification-request.test.mts"],
+  ],
+  ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
+  ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
+  ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
+  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-published-source.mts", ["scripts/release-published-source.test.mts"]],
   ["scripts/release-semantic-disposition.mts", ["scripts/release-semantic-disposition.test.mts"]],
   [
@@ -317,7 +329,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-semantic-disposition-reader.test.mts",
     ],
   ],
-  ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   [
     "scripts/release-coordinator-journal-api.mts",
     ["scripts/release-coordinator-journal-api.test.mts"],
@@ -375,6 +386,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/read-native-scheduler.ps1", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
+  [
+    "scripts/release-signing-context-artifact.mts",
+    ["scripts/release-signing-context-artifact.test.mts"],
+  ],
   [
     "scripts/release-authority-configuration.mts",
     ["scripts/production-controller-admission.test.mts"],
@@ -720,6 +736,8 @@ const releaseContractTests = Object.freeze([
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
   "scripts/release-signing-handoff.test.mts",
+  "scripts/release-signing-context.test.mts",
+  "scripts/release-signing-context-artifact.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

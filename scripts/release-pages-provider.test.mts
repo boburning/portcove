@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-pages-provider.mts";
 
 const expected = {
@@ -16,6 +17,56 @@ const response = (body: unknown, status = 200) => ({
   status,
   body,
   headers: new Map<string, string>(),
+});
+
+void test("one phase deadline covers credential delay, pre-POST guard and ambiguous late acknowledgement", async () => {
+  let posts = 0;
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const deadline = performance.now() + 100;
+  const provider = createPagesProviderTransport(
+    ".",
+    {
+      token: async () => {
+        await blocked;
+        return "inert-token";
+      },
+      api: {
+        request: () => {
+          posts++;
+          return response(ack);
+        },
+      },
+    },
+    deadline,
+  );
+  const attempt = provider.create(expected);
+  await new Promise((resolve) => setTimeout(resolve, 110));
+  release();
+  await assert.rejects(attempt, /phase deadline/);
+  assert.equal(posts, 0);
+  await assert.rejects(provider.create(expected), /already attempted/);
+  assert.throws(() => provider.observe({ ...expected, id: ack.id }), /phase deadline/);
+  assert.throws(() => createPagesProviderTransport(".", {}, Number.NaN), /phase deadline/);
+  const late = createPagesProviderTransport(
+    ".",
+    {
+      token: async () => "inert-token",
+      api: {
+        request: () => {
+          posts++;
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 110);
+          return response(ack);
+        },
+      },
+    },
+    performance.now() + 100,
+  );
+  await assert.rejects(late.create(expected), /phase deadline/);
+  assert.equal(posts, 1);
+  await assert.rejects(late.create(expected), /already attempted/);
 });
 
 void test("documented Pages acknowledgement URLs remain fixed and recognized terminal statuses retain refusal", async () => {

@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { createGitHubRunner } from "./github-api.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { performance } from "node:perf_hooks";
 const repository = "boburning/portcove";
 export function verifyControllerArtifactStatement(
   directory: string,
@@ -20,8 +21,17 @@ export function verifyControllerArtifactStatement(
   options: {
     spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
     environment?: NodeJS.ProcessEnv;
+    deadline?: number;
   } = {},
 ) {
+  const remaining =
+    options.deadline === undefined ? 30000 : Math.ceil(options.deadline - performance.now());
+  if (
+    !Number.isFinite(remaining) ||
+    remaining < 1 ||
+    (options.deadline !== undefined && remaining > 600000)
+  )
+    throw new Error("controller attestation phase deadline exhausted");
   const runner = createGitHubRunner({
     cwd: directory,
     spawn:
@@ -32,7 +42,7 @@ export function verifyControllerArtifactStatement(
           env: { ...(options.environment ?? process.env), GH_HOST: "github.com" },
         })),
     maxBuffer: 1024 * 1024,
-    timeoutMs: 30000,
+    timeoutMs: Math.min(30000, remaining),
   });
   const raw: unknown = JSON.parse(
     runner([
@@ -60,6 +70,8 @@ export function verifyControllerArtifactStatement(
       "json",
     ]),
   );
+  if (options.deadline !== undefined && performance.now() >= options.deadline)
+    throw new Error("controller attestation phase deadline exhausted");
   if (
     !Array.isArray(raw) ||
     raw.length !== 1 ||

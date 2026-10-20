@@ -6,6 +6,7 @@ import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import {
   bundleControllerEntries,
@@ -112,13 +113,36 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   );
   assert.equal(ready.status, 2);
   assert.match(ready.stderr, /fixed reader readiness refused/);
+  const context = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-signing-controller.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(context.status, 2);
+  assert.match(context.stderr, /fixed payload\/context controller refused/);
+  assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
     ).includes("semver"),
     true,
   );
-  assert.equal(controllerToolEntries.length, 5);
+  const driver = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-coordinator-driver.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(driver.status, 1);
+  assert.match(driver.stderr, /usage: release-coordinator-driver/u);
+  assert.deepEqual(controllerToolEntries, [
+    "production-controller-admission",
+    "release-control-ready",
+    "release-reviewed-inputs",
+    "release-payload-preparation",
+    "release-signing-controller",
+    "release-role-key-channel",
+    "release-coordinator-driver",
+  ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
   const env = controllerBootstrapEnvironment("/owned/home", "/owned/target");
@@ -476,6 +500,45 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     );
   }
 });
+void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, { ...f.options, deadline: 999 }),
+    /phase deadline/,
+  );
+  assert.deepEqual(await readdir(root), []);
+  let calls = 0;
+  await assert.rejects(
+    receiveControllerTools(root, f.expected, f.bundle, {
+      ...f.options,
+      deadline: 2000,
+      api: {
+        request(method, endpoint) {
+          calls++;
+          const result = f.options.api.request(method, endpoint);
+          clock = 2001;
+          return result;
+        },
+      },
+    }),
+    /controller tool verification refused; retain/,
+  );
+  assert.equal(calls, 1);
+  const [partial] = await readdir(root);
+  assert.ok(partial);
+  assert.equal(
+    (await readFile(path.join(root, partial, "refusal.json"), "utf8")).includes(
+      '"phase":"provider-before"',
+    ),
+    true,
+  );
+  await assert.rejects(readdir(path.join(root, partial, "tools")));
+});
+
 void test("injected verification boundary materializes exact bytes only after signed association and provider custody; never claims production", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-receiver-"));
   t.after(() => rm(root, { recursive: true, force: true }));

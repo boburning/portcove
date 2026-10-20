@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { parse } from "yaml";
 import {
   config,
@@ -15,11 +16,159 @@ import {
 import { persistReviewedClassification } from "./release-control-inputs.mts";
 import {
   authenticateReleaseControlSource,
+  authenticateControlReaderJob,
   requireAuthenticatedReleaseControlSource,
 } from "./release-live-control-admission.mts";
 import { prepareProductionProtectionHandoff } from "./release-input-protections.mts";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
+import { createReleaseReviewRequest } from "./release-review-request.mts";
+import { semanticReviewCheckName } from "./release-semantic-review.mts";
+import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
+import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
+
+void test("coordinator exact request reader accepts persisted independent proof and refuses conflicting outcomes", async () => {
+  const selected = { ...config, review_check_name: semanticReviewCheckName };
+  const request = createReleaseReviewRequest({
+    before_checkpoint: "e".repeat(40),
+    requested_at: "2025-12-31T00:00:00.000Z",
+    base_commit: opportunity.base_commit,
+    base_version: opportunity.classification.base_version,
+    source_commit: opportunity.source_commit,
+    source_tree: opportunity.source_tree,
+    change_set_sha256: opportunity.change_set_sha256,
+  });
+  for (const persisted of [false, true]) {
+    const control = releaseControlInputsFixture(
+      capacityDocumentFixture(),
+      opportunity,
+      selected,
+      false,
+    );
+    let conflict = false;
+    const full = negativeSemanticDispositionFixture();
+    const negative = prepareNegativeSemanticDispositionCheck({
+      ...full,
+      request,
+      request_id: request.request_id,
+      opportunity,
+      opportunity_sha256: capacityDigest(opportunity),
+      review: { ...full.review, completed_at: "2026-01-01T00:00:00Z" },
+    }).proposed_request.body;
+    const accepted = () => {
+      const value = control.api.request("GET", "repos/boburning/portcove/check-runs/303").body;
+      assert.ok(isRecord(value));
+      return {
+        ...value,
+        check_suite: { id: 404 },
+        external_id: `portcove-release-review-v2:${capacityDigest(opportunity)}`,
+      };
+    };
+    const api = {
+      ...control.api,
+      request(method: string, endpoint: string, body?: unknown) {
+        if (endpoint.includes("/commits/") && endpoint.includes("/check-suites?"))
+          return {
+            status: 200,
+            headers: new Map<string, string>(),
+            body: {
+              total_count: 1,
+              check_suites: [
+                {
+                  id: 404,
+                  head_sha: opportunity.source_commit,
+                  app: { id: selected.review_app_id },
+                  repository: { id: 1354613114, full_name: "boburning/portcove" },
+                },
+              ],
+            },
+          };
+        if (endpoint.includes("/check-suites/404/check-runs?")) {
+          const records: Record<string, unknown>[] = persisted ? [accepted()] : [];
+          if (conflict)
+            records.push({
+              ...negative,
+              id: 505,
+              app: { id: selected.review_app_id },
+              check_suite: { id: 404 },
+              output: { ...negative.output, annotations_count: 0, text: "" },
+            });
+          return {
+            status: 200,
+            headers: new Map<string, string>(),
+            body: { total_count: records.length, check_runs: records },
+          };
+        }
+        if (endpoint.endsWith("/check-runs/303"))
+          return { status: 200, headers: new Map<string, string>(), body: accepted() };
+        return control.api.request(method, endpoint, body);
+      },
+    };
+    if (persisted) persistReviewedClassification(api, selected, opportunity, 303, () => {});
+    const runtime = liveControlRuntimeFixture(
+      protectionFixture(control.head()),
+      selected,
+      "coordinator",
+    );
+    const source = await runtime.create();
+    const result = source.readRequest(api, request);
+    assert.equal(result.classification.status, persisted ? "reviewed" : "missing");
+    if (persisted) {
+      assert.equal(result.classification.status, "reviewed");
+      if (result.classification.status === "reviewed")
+        assert.deepEqual(result.classification.opportunity, opportunity);
+      conflict = true;
+      assert.throws(() => source.readRequest(api, request), /conflict/);
+      conflict = false;
+      control.conflicting();
+      assert.throws(() => source.readRequest(api, request));
+    }
+    runtime.advance(60001);
+    assert.throws(() => source.readRequest(api, request), /fresh/);
+    assert.equal(control.mutations(), persisted ? 1 : 0);
+  }
+});
+
+void test("source policy selects protected admission identity only in complete workflow mode", async () => {
+  const runtime = liveControlRuntimeFixture(protectionFixture("a".repeat(40)));
+  const policy: unknown = JSON.parse(runtime.environment.PORTCOVE_CONTROLLER_ADMISSION);
+  assert.ok(isRecord(policy));
+  const environment = {
+    ...runtime.environment,
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...policy,
+      schema_version: 2,
+      mode: "bounded-application-release",
+      authority_configuration_sha256: "a".repeat(64),
+      grant_sha256: "b".repeat(64),
+    }),
+  };
+  await assert.rejects(
+    authenticateControlReaderJob(environment, runtime.workflow, runtime.options),
+  );
+  const protectedRuntime = liveControlRuntimeFixture(
+    protectionFixture("a".repeat(40)),
+    config,
+    "admission",
+    true,
+  );
+  const protectedOptions = protectedRuntime.options;
+  const result = await authenticateControlReaderJob(
+    environment,
+    runtime.workflow,
+    protectedOptions,
+  );
+  assert.equal(result.admitted.mode, "bounded-application-release");
+  assert.equal(result.identity.evidence_scope, "injected-provider");
+  await assert.rejects(
+    authenticateControlReaderJob(runtime.environment, runtime.workflow, protectedOptions),
+  );
+  assert.equal(
+    (await authenticateControlReaderJob(runtime.environment, runtime.workflow, runtime.options))
+      .admitted.mode,
+    "admission-only",
+  );
+});
 
 function publicationProtection(commit: string, enabled = true) {
   const original = protectionFixture(commit);
@@ -41,6 +190,37 @@ function fixture(document: unknown = capacityDocumentFixture(), paused = false) 
   const runtime = liveControlRuntimeFixture(protectionFixture(control.head()));
   return { control, runtime };
 }
+
+void test("controls cap the actual observer subprocess and refuse its late response without minting a source", async (t) => {
+  const f = fixture();
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const { observerApi, ...options } = f.runtime.options;
+  let requests = 0;
+  await assert.rejects(
+    authenticateReleaseControlSource(f.runtime.environment, f.runtime.workflow, {
+      ...options,
+      deadline: 2000,
+      observerTransport: {
+        spawn(_command, args, settings) {
+          requests++;
+          assert.ok(settings.timeout && settings.timeout <= 1000);
+          const endpoint = args.find((arg) => arg.startsWith("repos/boburning/portcove/"));
+          assert.ok(endpoint);
+          const response = observerApi.request("GET", endpoint);
+          clock = 2001;
+          return {
+            status: 0,
+            stdout: `HTTP/2.0 200 OK\r\ncontent-type: application/json\r\n\r\n${JSON.stringify(response.body)}`,
+            stderr: "",
+          };
+        },
+      },
+    }),
+    /phase deadline/u,
+  );
+  assert.equal(requests, 1);
+});
 
 void test("default observer REST path explicitly pins github.com despite ambient GH_HOST", async (t) => {
   const f = fixture();

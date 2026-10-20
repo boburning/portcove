@@ -81,24 +81,30 @@ export function liveControlRuntimeFixture(
   observation: unknown,
   producerConfig: unknown = config,
   phase: ReleaseControlPhase = "admission",
+  completeWorkflow = false,
 ) {
   const profile = releaseControlPhaseProfile(phase);
   const workflow = Buffer.from("inert fixed same-workflow source fixture\n");
   const policy = {
-    schema_version: 1,
-    mode: "admission-only",
+    schema_version: completeWorkflow ? 2 : 1,
+    mode: completeWorkflow ? "bounded-application-release" : "admission-only",
+    ...(completeWorkflow
+      ? { authority_configuration_sha256: "a".repeat(64), grant_sha256: "b".repeat(64) }
+      : {}),
     revision: expected.controller_revision,
     execution_ref: expected.controller_ref,
     workflow_sha256: createHash("sha256").update(workflow).digest("hex"),
     actor_id: expected.actor_id,
   };
-  const subject = controllerOidcSubject(expected.controller_ref, profile.reader_environment);
+  const readerEnvironment =
+    phase === "admission" && !completeWorkflow ? undefined : profile.reader_environment;
+  const subject = controllerOidcSubject(expected.controller_ref, readerEnvironment);
   const identity = assemblerIdentityFixture(
     {
       run_attempt: "1",
       aud: profile.reader_audience,
       sub: subject,
-      ...(profile.reader_environment ? { environment: profile.reader_environment } : {}),
+      ...(readerEnvironment ? { environment: readerEnvironment } : {}),
     },
     {},
     { workflow: productionControllerWorkflow, job: profile.reader_name },

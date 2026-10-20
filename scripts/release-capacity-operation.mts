@@ -17,6 +17,8 @@ import {
   inspectMetadataRenewalDescriptor,
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
+  inspectMetadataBootstrapDescriptor,
+  assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
@@ -62,6 +64,7 @@ type Effect = (
 ) => Promise<void>;
 type InternalOptions = CapacityOperationOptions & {
   metadataRenewal?: unknown;
+  metadataBootstrap?: unknown;
   metadataRecovery?: "transient" | "substantive-repair";
 };
 export async function runBoundedCapacityOperation(
@@ -89,6 +92,21 @@ export async function runBoundedMetadataRenewalOperation(
     ...(options.recovery ? { metadataRecovery: options.recovery } : {}),
   });
 }
+export async function runBoundedMetadataBootstrapOperation(
+  repository: string,
+  expected: string,
+  descriptor: unknown,
+  request: Request,
+  readBoundary: () => Promise<unknown>,
+  effect: Effect,
+  options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
+) {
+  return runOperation(repository, expected, request, readBoundary, effect, {
+    ...options,
+    metadataBootstrap: descriptor,
+    ...(options.recovery ? { metadataRecovery: options.recovery } : {}),
+  });
+}
 function metadataNow() {
   const [base, fraction = ""] = new Date().toISOString().slice(0, -1).split(".");
   const trimmed = fraction.replace(/0+$/u, "");
@@ -107,6 +125,12 @@ async function runOperation(
     options.metadataRenewal === undefined
       ? null
       : inspectMetadataRenewalDescriptor(structuredClone(options.metadataRenewal));
+  const bootstrap =
+    options.metadataBootstrap === undefined
+      ? null
+      : inspectMetadataBootstrapDescriptor(structuredClone(options.metadataBootstrap));
+  if (metadata && bootstrap) throw new Error("one exact metadata subject required");
+  const maintenance = metadata ?? bootstrap;
   const executor =
     options.executorIdentity === undefined
       ? null
@@ -131,14 +155,14 @@ async function runOperation(
     input.schema_version !== 2 ||
     !isRecord(input.controller) ||
     !isRecord(input.controller.capacity_attempt) ||
-    (!metadata && !isRecord(input.active_candidate))
+    (!maintenance && !isRecord(input.active_candidate))
   )
     throw new Error("bounded operation requires schema2 and an existing frozen reservation");
   const controller = input.controller,
     capacity = controller.capacity_attempt;
   if (!isRecord(capacity)) throw new Error("bounded capacity input unavailable");
   const modern = capacity.schema_version === 2;
-  if (metadata && !modern)
+  if (maintenance && !modern)
     throw new Error(
       "metadata effects require capacity schema2 and explicit authenticated published seed",
     );
@@ -147,23 +171,33 @@ async function runOperation(
   if (
     ready.eligibility !== "eligible" ||
     controller.publication_paused !== false ||
-    (!metadata && recovered.plan.action !== "resume-active")
+    (!maintenance && recovered.plan.action !== "resume-active")
   )
     throw new Error("bounded operation is held by capacity or another coordinator condition");
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
   const observedAt = metadataNow();
-  if (metadata) {
-    assertMetadataRenewalBinding(
-      metadata,
-      inspectPublishedMetadata(input.published_metadata),
-      observedAt,
-    );
-    input.metadata_renewal = structuredClone(metadata);
+  if (maintenance) {
+    const subject = bootstrap
+      ? { kind: "metadata-bootstrap", identity: capacityDigest(bootstrap) }
+      : { kind: "metadata-renewal", identity: metadata!.prior_repository_sha256 };
+    if (bootstrap) {
+      assertMetadataBootstrapBinding(
+        bootstrap,
+        inspectPublishedMetadata(input.published_metadata),
+        observedAt,
+      );
+      input.metadata_bootstrap = structuredClone(bootstrap);
+    } else if (metadata) {
+      assertMetadataRenewalBinding(
+        metadata,
+        inspectPublishedMetadata(input.published_metadata),
+        observedAt,
+      );
+      input.metadata_renewal = structuredClone(metadata);
+    }
     const groups = inspectCompactCapacityOperations(capacity.prior_operations).filter(
-      (group) =>
-        group.subject.kind === "metadata-renewal" &&
-        group.subject.identity === metadata.prior_repository_sha256,
+      (group) => group.subject.kind === subject.kind && group.subject.identity === subject.identity,
     );
     metadataCounters = {
       transient_retries: Math.max(0, ...groups.map((group) => group.transient_retries)),
@@ -176,8 +210,8 @@ async function runOperation(
     );
     if (
       ready.operation &&
-      capacityOperationSubject(ready.operation).kind === "metadata-renewal" &&
-      capacityOperationSubject(ready.operation).identity === metadata.prior_repository_sha256
+      capacityOperationSubject(ready.operation).kind === subject.kind &&
+      capacityOperationSubject(ready.operation).identity === subject.identity
     ) {
       const counters = capacityOperationCounters(ready.operation);
       metadataCounters.transient_retries = Math.max(
@@ -202,24 +236,34 @@ async function runOperation(
   }
   const identity = {
     before_checkpoint: expected,
-    ...(metadata
+    ...(bootstrap
       ? {
-          metadata_renewal: {
-            descriptor_sha256: capacityDigest(metadata),
-            prior_repository_sha256: metadata.prior_repository_sha256,
+          metadata_bootstrap: {
+            descriptor_sha256: capacityDigest(bootstrap),
+            setup_plan_sha256: bootstrap.setup_plan_sha256,
+            initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
             observed_at: observedAt,
             ...metadataCounters,
           },
         }
-      : {
-          candidate: {
-            source_commit: candidate?.source_commit,
-            prepared_commit: candidate?.prepared_commit,
-            version: candidate?.version,
-            transient_retries: candidate?.transient_retries,
-            substantive_repairs: candidate?.substantive_repairs,
-          },
-        }),
+      : metadata
+        ? {
+            metadata_renewal: {
+              descriptor_sha256: capacityDigest(metadata),
+              prior_repository_sha256: metadata.prior_repository_sha256,
+              observed_at: observedAt,
+              ...metadataCounters,
+            },
+          }
+        : {
+            candidate: {
+              source_commit: candidate?.source_commit,
+              prepared_commit: candidate?.prepared_commit,
+              version: candidate?.version,
+              transient_retries: candidate?.transient_retries,
+              substantive_repairs: candidate?.substantive_repairs,
+            },
+          }),
     destination: request.destination,
     // An invocation-generated claim makes independent executors' pending bytes
     // distinct. Seeing somebody else's identical logical operation is not an
@@ -332,6 +376,12 @@ async function runOperation(
     const owned = await recoverReleaseOpportunity(repository, current);
     if (capacityDigest(owned.input) !== capacityDigest(input))
       throw new Error("capacity pending ownership changed");
+    if (bootstrap)
+      assertMetadataBootstrapBinding(
+        bootstrap,
+        inspectPublishedMetadata(input.published_metadata),
+        metadataNow(),
+      );
     if (metadata)
       assertMetadataRenewalBinding(
         metadata,

@@ -8,6 +8,41 @@ import path from "node:path";
 import test from "node:test";
 import { inspect } from "node:util";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
+import { performance } from "node:perf_hooks";
+
+void test("journal transport shares one role deadline and refuses late write responses without retry", async (t) => {
+  const root = await fixture(t);
+  process.env.PORTCOVE_COORDINATOR_JOURNAL_TOKEN = "disposable-journal-only-secret";
+  let clock = Math.floor(performance.now()),
+    calls = 0;
+  t.mock.method(performance, "now", () => clock);
+  assert.throws(() => createCoordinatorJournalApi(root, clock - 1), /phase deadline/);
+  assert.throws(() => createCoordinatorJournalApi(root, Infinity), /must be finite/);
+  assert.deepEqual(await readdir(root), []);
+  t.mock.method(
+    childProcess,
+    "spawnSync",
+    (_command: string, _args: readonly string[], options: SpawnSyncOptionsWithStringEncoding) => {
+      calls++;
+      assert.equal(options.timeout, 1000);
+      clock += 1001;
+      return {
+        status: 0,
+        stdout: 'HTTP/2.0 201 Created\r\n\r\n{"sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}',
+        stderr: "",
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  const api = createCoordinatorJournalApi(root, clock + 1000);
+  assert.throws(
+    () => api.request("POST", "repos/boburning/portcove/git/blobs", { content: "public" }),
+    /phase deadline/,
+  );
+  assert.equal(calls, 1);
+  assert.throws(() => api.request("GET", "repos/boburning/portcove"), /phase deadline/);
+  assert.equal(calls, 1);
+});
 
 async function fixture(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), "journal-api-"));

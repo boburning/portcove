@@ -55,7 +55,7 @@ const phases = Object.freeze({
     reader_job: "independent_admission",
     reader_name: "Authenticate release control inputs",
     reader_audience: "portcove-release-input-reader-v1",
-    reader_environment: undefined,
+    reader_environment: "production-release-admission",
     observer_environment: "production-release-protection-observer",
     observer_job: "protection_observation",
     observer_name: "Observe production release input protections",
