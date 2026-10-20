@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-pages-provider.mts";
 
 const expected = {
   artifact_id: 12,
@@ -16,6 +16,53 @@ const response = (body: unknown, status = 200) => ({
   status,
   body,
   headers: new Map<string, string>(),
+});
+
+void test("documented Pages acknowledgement URLs remain fixed and recognized terminal statuses retain refusal", async () => {
+  const provider = createPagesProviderTransport(".", {
+    token: async () => "inert-token",
+    api: {
+      request: () =>
+        response({
+          ...ack,
+          status_url: `${ack.status_url}/status`,
+          page_url: "boburning.github.io/portcove/",
+        }),
+    },
+  });
+  assert.equal((await provider.create(expected)).id, ack.id);
+  for (const status of [
+    "deployment_perms_error",
+    "deployment_content_failed",
+    "deployment_cancelled",
+    "deployment_lost",
+  ])
+    assert.equal(isTerminalPagesFailure(status), true);
+  assert.equal(isTerminalPagesFailure("succeed"), false);
+});
+void test("controls expiring during token acquisition refuse before the POST and cannot repeat", async () => {
+  let clock = 0,
+    posts = 0;
+  const provider = createPagesProviderTransport(".", {
+    token: async () => {
+      clock = 60001;
+      return "inert-token";
+    },
+    api: {
+      request: () => {
+        posts++;
+        return response(ack);
+      },
+    },
+  });
+  await assert.rejects(
+    provider.create(expected, () => {
+      if (clock >= 60000) throw new Error("controls expired");
+    }),
+    /controls expired/,
+  );
+  assert.equal(posts, 0);
+  await assert.rejects(provider.create(expected), /already attempted/);
 });
 
 void test("concurrent entry claims the one-shot boundary before asynchronous credential acquisition", async () => {

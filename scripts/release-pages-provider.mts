@@ -5,6 +5,18 @@ import { isRecord } from "./runtime-values.mts";
 const endpoint = "repos/boburning/portcove/pages/deployments";
 const publicUrl = "https://boburning.github.io/portcove/";
 const audience = "https://github.com/boburning";
+const terminalFailures = new Set([
+  "cancelled",
+  "failed",
+  "deployment_failed",
+  "deployment_perms_error",
+  "deployment_content_failed",
+  "deployment_cancelled",
+  "deployment_lost",
+]);
+export function isTerminalPagesFailure(status: string) {
+  return terminalFailures.has(status);
+}
 interface Api {
   request(
     method: string,
@@ -60,8 +72,13 @@ export function createPagesProviderTransport(
   let attempted = false;
   return {
     evidence_scope: scope,
-    async create(raw: Omit<PagesDeploymentIdentity, "id">) {
+    async create(
+      raw: Omit<PagesDeploymentIdentity, "id">,
+      beforePost?: () => Promise<void> | void,
+    ) {
       const expected = identity({ ...structuredClone(raw), id: "pending" });
+      if (scope === "github.com" && typeof beforePost !== "function")
+        throw new Error("actual Pages transport requires the fixed final pre-POST guard");
       if (attempted)
         throw new Error(
           "Pages POST already attempted; reconcile original evidence before any later action",
@@ -74,6 +91,9 @@ export function createPagesProviderTransport(
       const token = await (injected.token ?? (() => requestAssemblerToken(audience)))();
       if (typeof token !== "string" || token.length < 1 || token.length > 16384)
         throw new Error("Pages OIDC credential is unavailable");
+      // Credential acquisition can outlast the caller's fresh controls. Its
+      // fixed guard runs after that await, immediately before the sole POST.
+      await beforePost?.();
       let response: ReturnType<Api["request"]>;
       try {
         response = api.request("POST", endpoint, {
@@ -93,8 +113,13 @@ export function createPagesProviderTransport(
         !isRecord(body) ||
         typeof body.id !== "string" ||
         !/^[A-Za-z0-9_-]{1,128}$/u.test(body.id) ||
-        body.status_url !== `https://api.github.com/${endpoint}/${body.id}` ||
-        body.page_url !== publicUrl
+        ![
+          `https://api.github.com/${endpoint}/${body.id}`,
+          `https://api.github.com/${endpoint}/${body.id}/status`,
+        ].includes(String(body.status_url)) ||
+        ![publicUrl, publicUrl.slice(0, -1), publicUrl.slice(8), publicUrl.slice(8, -1)].includes(
+          String(body.page_url),
+        )
       )
         throw new Error(
           "Pages POST acknowledgement unavailable; preserve pending intent and require readback",
@@ -121,7 +146,7 @@ export function createPagesProviderTransport(
         response.status !== 200 ||
         !isRecord(body) ||
         typeof body.status !== "string" ||
-        ![
+        (![
           "deployment_in_progress",
           "syncing_files",
           "updating_pages",
@@ -129,7 +154,8 @@ export function createPagesProviderTransport(
           "cancelled",
           "failed",
           "deployment_failed",
-        ].includes(body.status)
+        ].includes(body.status) &&
+          !isTerminalPagesFailure(body.status))
       )
         throw new Error("Pages deployment readback incomplete; retain original pending intent");
       return {

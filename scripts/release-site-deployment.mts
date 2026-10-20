@@ -26,7 +26,7 @@ import {
   recoverOwnedPublishedMetadata,
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
-import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-pages-provider.mts";
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
@@ -404,6 +404,10 @@ export async function publishPreparedSiteDeployment(
       input.metadata_renewal,
       prepared.publication,
     );
+  else
+    throw new Error(
+      "new release site requires privately reconstructed exact record-set binding; integration pending",
+    );
   const executorIdentity = capacityExecutorIdentity(executor);
   if (
     executorIdentity.role !== "site-publication" ||
@@ -484,11 +488,17 @@ export async function publishPreparedSiteDeployment(
         immutable_release: immutableRelease,
       });
       try {
-        const accepted = await provider.create({
-          artifact_id: prepared.upload!.artifact_id,
-          controller_revision: executorIdentity.controller_revision,
-          generation: prepared.generation.generation,
-        });
+        const accepted = await provider.create(
+          {
+            artifact_id: prepared.upload!.artifact_id,
+            controller_revision: executorIdentity.controller_revision,
+            generation: prepared.generation.generation,
+          },
+          async () => {
+            await refreshCapacityExecutor(executor);
+            await readBoundary();
+          },
+        );
         await write("acknowledgement.json", accepted);
         const deadline = performance.now() + 150_000;
         let status: ReturnType<typeof provider.observe> | null = null;
@@ -505,7 +515,7 @@ export async function publishPreparedSiteDeployment(
           if (performance.now() >= deadline)
             throw new Error("Pages observation arrived after deadline; retain pending intent");
           if (status.status === "succeed") break;
-          if (["cancelled", "failed", "deployment_failed"].includes(status.status))
+          if (isTerminalPagesFailure(status.status))
             throw new Error("Pages provider stopped the affected attempt; retain all effects");
           await new Promise((resolve) => setTimeout(resolve, 5000));
         }
