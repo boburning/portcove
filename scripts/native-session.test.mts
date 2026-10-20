@@ -523,6 +523,71 @@ void test("isolated driver stop refuses stale identity without acting", windows,
 });
 
 void test(
+  "driver stop never terminates a replacement or path-mismatched captured survivor",
+  { ...windows, timeout: 60_000 },
+  async () => {
+    const root = await temporaryRoot();
+    try {
+      for (const mismatch of ["creation", "path"]) {
+        const driver = await ownedChild();
+        const unrelated = await ownedChild();
+        try {
+          const snapshot = path.join(root, `${mismatch}-driver.json`);
+          const other = path.join(root, `${mismatch}-unrelated.json`);
+          for (const [child, file] of [
+            [driver, snapshot],
+            [unrelated, other],
+          ] as const) {
+            const captured = spawnSync(
+              "pwsh",
+              [
+                "-NoProfile",
+                "-File",
+                script,
+                "-Mode",
+                "SnapshotDriverTree",
+                "-DriverProcessId",
+                String(child.pid),
+                "-SnapshotPath",
+                file,
+              ],
+              { encoding: "utf8", windowsHide: true, timeout: 10_000 },
+            );
+            assert.equal(captured.status, 0, captured.stderr);
+          }
+          const recorded = readNativeProcessSnapshot(json(await readFile(snapshot, "utf8")));
+          const survivor = readNativeProcessSnapshot(json(await readFile(other, "utf8"))).driver;
+          if (mismatch === "creation")
+            survivor.started_filetime = (BigInt(survivor.started_filetime) - 10_000n).toString();
+          else survivor.path = path.join(root, "different-executable.exe");
+          recorded.processes.push(survivor);
+          await writeFile(snapshot, JSON.stringify(recorded));
+          const result = run("StopDriver", snapshot);
+          if (mismatch === "creation") assert.equal(result.status, 0, result.stderr);
+          else {
+            assert.notEqual(result.status, 0);
+            assert.match(
+              result.stderr,
+              /Captured isolated process path changed before termination/,
+            );
+          }
+          process.kill(naturalPid(unrelated.pid), 0);
+          if (mismatch === "creation") {
+            const exited = run("Wait", snapshot);
+            assert.equal(exited.status, 0, exited.stderr);
+          }
+        } finally {
+          await stop(driver);
+          await stop(unrelated);
+        }
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
   "ordinary close refuses changed identity or a windowless owned application",
   windows,
   async () => {

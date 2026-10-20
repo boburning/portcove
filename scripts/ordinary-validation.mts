@@ -299,6 +299,17 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...[
+    "scripts/semantic-review-linux-supervisor.py",
+    "scripts/semantic-review-linux-supervisor.test.py",
+    "scripts/qualify-semantic-linux.mts",
+  ].map((name): [string, string[]] => [
+    name,
+    [
+      "scripts/semantic-review-linux-supervisor.test.mts",
+      "scripts/release-semantic-broker.test.mts",
+    ],
+  ]),
   ...["inputs", "runtime", "reader", "reader-core", "reader-server", "broker"].map(
     (name): [string, string[]] => [
       `scripts/release-semantic-${name}.mts`,
