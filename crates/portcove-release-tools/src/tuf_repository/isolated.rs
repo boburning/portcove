@@ -10,6 +10,9 @@ use std::io::Write;
 use tough::editor::signed::SignedRole;
 use tough::schema::{DelegatedTargets, KeyHolder, Metafile, Snapshot, Targets};
 
+pub mod renewal;
+pub use renewal::prepare_tuf_renewal;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnlineRole {
     Releases,
