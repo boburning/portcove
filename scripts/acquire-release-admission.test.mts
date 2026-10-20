@@ -135,7 +135,7 @@ async function fixture(t: test.TestContext) {
     archives.set(id, archive);
     artifacts.push({
       id,
-      name: `release-build-${platform}`,
+      name: `release-build-${platform}-12345-1`,
       size_in_bytes: archive.length,
       digest: `sha256:${hash(archive)}`,
       expired: false,

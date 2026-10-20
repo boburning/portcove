@@ -3,6 +3,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { stageReleaseArtifact } from "./release-artifact-archive.mts";
+import { releaseBuildArtifactName } from "./release-package-policy.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import type { ReleaseEvidenceOptions, ReleaseEvidenceRequest } from "./release-run-evidence.mts";
 import {
@@ -94,7 +95,12 @@ export async function assembleReleaseArtifacts(
         matched.length !== 1 ||
         !actual ||
         actual.expired ||
-        actual.name !== `release-build-${archive.platform}` ||
+        actual.name !==
+          releaseBuildArtifactName(
+            archive.platform,
+            String(evidenceRequest.run_id),
+            evidenceRequest.attempt,
+          ) ||
         actual.bytes !== archive.bytes ||
         actual.archive_sha256 !== archive.sha256
       )
@@ -121,10 +127,17 @@ export async function assembleReleaseArtifacts(
         },
       );
       active();
-      await stageReleaseArtifact(inputs, bytes, accepted, archive.platform, {
-        bytes: archive.bytes,
-        sha256: archive.sha256,
-      });
+      await stageReleaseArtifact(
+        inputs,
+        bytes,
+        accepted,
+        archive.platform,
+        {
+          bytes: archive.bytes,
+          sha256: archive.sha256,
+        },
+        { exactProducerAttempt: true },
+      );
     }
     const after = collectReleaseRunEvidence(evidenceRequest, evidenceOptions);
     check(after);

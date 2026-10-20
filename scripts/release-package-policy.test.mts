@@ -10,10 +10,29 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
   releaseLabels,
+  releaseBuildArtifactName,
   validatePackagePolicy,
 } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
+
+void test("provider artifact names bind one platform, run and immutable attempt", () => {
+  assert.equal(
+    releaseBuildArtifactName("linux-x86_64", "12345", 1),
+    "release-build-linux-x86_64-12345-1",
+  );
+  assert.notEqual(
+    releaseBuildArtifactName("linux-x86_64", "12345", 1),
+    releaseBuildArtifactName("linux-x86_64", "12345", 2),
+  );
+  for (const args of [
+    ["foreign", "12345", 1],
+    ["linux-x86_64", "0", 1],
+    ["linux-x86_64", "12345", 0],
+    ["linux-x86_64", "12345", 1.5],
+  ] as const)
+    assert.throws(() => releaseBuildArtifactName(args[0], args[1], args[2]));
+});
 
 void test("declares the exact supported desktop and CLI package matrix", () => {
   assert.deepEqual(releaseLabels(policy), [
