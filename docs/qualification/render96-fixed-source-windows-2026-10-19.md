@@ -167,6 +167,16 @@ exception; the underlying cover does not merge Render96 and Ghostship identities
 
 ## Evidence custody
 
+Integrated CI39365675418/1 passed1,859 of1,860 selected tests. The sole
+retained-rollback policy test hit the Windows30s harness cutoff after its second
+startup/status phases at22.8s/27.5s; the first complete rollback/preservation
+attempt had finished at22.0s. The exact Windows case receives finite60s room,
+retaining both attempts, assertions, two workers, zero retries and all product
+deadlines. That failed run remains failed; a pass under the calibrated budget
+establishes completion under that budget, not a product repair.
+The focused nextest selection passed1/1 locally in20.819s with both actual
+rollback/preservation attempts complete; fresh final-head hosted CI follows.
+
 Private evidence lives under `H:/pc6-qualification-20261019-a3`:
 `evidence/render96-source-pickup-a1`, `render96-materialization-a1`,
 `render96-build-inputs-a1`, `render96-original-a2`,

@@ -59,6 +59,16 @@ success-output = "immediate"
 # exact-case harness budget without changing product deadlines.
 slow-timeout = { period = "5s", terminate-after = 9, grace-period = "0s" }
 
+# CI39365675418/1 passed 1,859 tests; this exact Windows lifecycle reached
+# its second startup/status at 22.8s/27.5s before the 30s harness cutoff.
+# Keep both rollback/reopen/preservation attempts, two workers and zero retries;
+# only this case gets finite 60s headroom. Product deadlines are unchanged.
+[[profile.default.overrides]]
+platform = 'x86_64-pc-windows-msvc'
+filter = 'package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)'
+slow-timeout = { period = "5s", terminate-after = 12, grace-period = "0s" }
+success-output = "immediate"
+
 # Historical #706 calibration (issuecomment-6190196270), exact Intel case only.
 # Preserve both real rollback/restart/preservation attempts and all assertions.
 [[profile.default.overrides]]
