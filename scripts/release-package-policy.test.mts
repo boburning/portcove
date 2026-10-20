@@ -11,10 +11,44 @@ import {
   packagesForPlatform,
   releaseLabels,
   releaseBuildArtifactName,
+  selectReleasePackagePolicy,
+  releaseBuildMatrix,
   validatePackagePolicy,
 } from "./release-package-policy.mts";
 
 const policy = await loadPackagePolicy();
+
+void test("initial beta derives six mandatory Windows/Linux packages from the complete policy", () => {
+  const beta = selectReleasePackagePolicy(policy, "initial-beta-win-linux");
+  assert.equal(beta.packages.length, 6);
+  assert.deepEqual(releaseLabels(beta), ["windows-x86_64", "linux-x86_64"]);
+  assert.deepEqual(
+    beta.packages.map((p) => p.format),
+    ["nsis", "zip", "appimage", "deb", "rpm", "tar.gz"],
+  );
+  assert.deepEqual(
+    releaseBuildMatrix("initial-beta-win-linux").include.map((p) => p.label),
+    releaseLabels(beta),
+  );
+  assert.equal(selectReleasePackagePolicy(policy).packages.length, 10);
+  assert.throws(
+    () => selectReleasePackagePolicy(policy, "missing-packages"),
+    /unknown trusted release profile/,
+  );
+  assert.throws(
+    () =>
+      selectReleasePackagePolicy({ ...policy, packages: beta.packages }, "initial-beta-win-linux"),
+    /invalid release package policy/,
+  );
+  assert.throws(
+    () =>
+      selectReleasePackagePolicy(
+        { ...policy, packages: policy.packages.filter((entry) => entry.format !== "deb") },
+        "initial-beta-win-linux",
+      ),
+    /exact six/,
+  );
+});
 
 void test("provider artifact names bind one platform, run and immutable attempt", () => {
   assert.equal(

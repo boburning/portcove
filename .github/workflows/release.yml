@@ -4,6 +4,12 @@ on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      release_profile:
+        description: Trusted declared distribution inventory.
+        type: choice
+        default: full
+        options: [full, initial-beta-win-linux]
 
 permissions:
   contents: read
@@ -17,6 +23,9 @@ concurrency:
 
 jobs:
   identity:
+    outputs:
+      release_profile: ${{ steps.build-plan.outputs.profile }}
+      build_matrix: ${{ steps.build-plan.outputs.build_matrix }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,6 +34,11 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+      - name: Select fixed release distribution profile
+        id: build-plan
+        env:
+          PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
+        run: node scripts/release-package-policy.mts --profile "$PORTCOVE_RELEASE_PROFILE" --build-plan >> "$GITHUB_OUTPUT"
       - name: Verify release identity and workflow contracts
         run: |
           node --test scripts/check-release-metadata.test.mts scripts/release-package-policy.test.mts scripts/write-release-checksums.test.mts scripts/reconcile-release-assets.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/release-workflow.test.mts
@@ -41,6 +55,7 @@ jobs:
       pull-requests: read
     uses: ./.github/workflows/qualification.yml
     with:
+      release_profile: ${{ needs.identity.outputs.release_profile }}
       qualification_caller: release
       caller_workflow: release.yml
       provenance_scope: release-qualification
@@ -87,6 +102,7 @@ jobs:
           PORTCOVE_PLAN_GZIP_BASE64: ${{ needs.qualification.outputs.plan_gzip_base64 }}
           PORTCOVE_PLAN_DIGEST: ${{ needs.qualification.outputs.plan_digest }}
           PORTCOVE_EXPECTED_CHECKOUT: ${{ github.sha }}
+          PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
         run: node scripts/validation-plan.mts
       - name: Record exact workflow, checkout, toolchain, and build configuration
         env:
@@ -136,20 +152,7 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            label: windows-x86_64
-            bundles: nsis
-            target: ""
-          - os: ubuntu-24.04
-            label: linux-x86_64
-            bundles: appimage,deb,rpm
-            target: ""
-          - os: macos-14
-            label: macos-aarch64
-            bundles: dmg
-            target: aarch64-apple-darwin
+      matrix: ${{ fromJSON(needs.identity.outputs.build_matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -227,6 +230,7 @@ jobs:
           overwrite: false
 
   build_intel:
+    if: needs.identity.outputs.release_profile == 'full'
     needs: [identity, validate]
     runs-on: macos-15
     permissions:
@@ -279,6 +283,7 @@ jobs:
           overwrite: false
 
   verify_intel:
+    if: needs.identity.outputs.release_profile == 'full'
     needs: [identity, build_intel]
     runs-on: macos-15-intel
     permissions:
@@ -324,17 +329,19 @@ jobs:
           node-version-file: .node-version
       - name: Require every release producer and validator
         env:
+          PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
           PORTCOVE_RELEASE_RESULTS: >-
             {"identity":"${{ needs.identity.result }}","qualification":"${{ needs.qualification.result }}","validate":"${{ needs.validate.result }}","build":"${{ needs.build.result }}","build_intel":"${{ needs.build_intel.result }}","verify_intel":"${{ needs.verify_intel.result }}"}
         run: node scripts/release-result-gate.mts
 
   assemble:
-    needs: release_gate
+    needs: [identity, release_gate]
     runs-on: ubuntu-22.04
     permissions:
       contents: read
     env:
       GH_TOKEN: ${{ github.token }}
+      PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -368,7 +375,8 @@ jobs:
             --inventory release-metadata/release-inventory.json \
             --run-id "${{ github.run_id }}" \
             --revision "${{ github.sha }}" \
-            --max-attempt "${{ github.run_attempt }}" --artifact-layout attempt
+            --max-attempt "${{ github.run_attempt }}" --artifact-layout attempt \
+            --profile "$PORTCOVE_RELEASE_PROFILE"
       - name: Generate SPDX SBOM from the release checkout and payloads
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:

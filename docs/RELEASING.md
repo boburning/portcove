@@ -718,6 +718,25 @@ existing protected architecture.
 
 ### Bounded artifact-to-aggregate integration
 
+The trusted `initial-beta-win-linux` profile declares exactly six distributions:
+Windows x86-64 current-user NSIS and CLI ZIP; ordinary Linux x86-64 AppImage,
+DEB, RPM and CLI tar.gz. NSIS/AppImage retain application-updater ownership;
+DEB/RPM retain package-manager ownership. The complete repository package policy
+is validated before selecting this fixed subset; missing selected packages refuse.
+Default `full` builds and qualification retain all four platforms and ten packages.
+
+The Release identity job validates the named profile and emits its fixed build
+matrix. Reusable qualification binds the same profile into the plan digest and
+requires all applicable Windows/Linux checks. The reduced profile is available
+only to explicitly forced Release qualification, not PRs or nightly qualification.
+The result gate requires macOS jobs to be skipped for that profile; it still
+requires every applicable producer. An expected-full consumer refuses a reduced
+qualification plan. Assembly schema 2 and ratified admission configuration schema
+2 bind `release_profile`; historical schema 1 still means the complete full matrix.
+Provider archive selection, verified aggregation, aggregate attestation and download
+guidance consume the selected inventory. Selecting a distribution profile grants
+no execution, signing, publication, native acceptance or catalog authority.
+
 Release workflow uploads use immutable attempt names:
 `release-build-<platform>-<run-id>-<attempt>` and
 `release-{final,attestation-metadata,publication-metadata}-<run-id>-<attempt>`.

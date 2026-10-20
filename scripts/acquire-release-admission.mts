@@ -24,6 +24,8 @@ import {
   loadPackagePolicy,
   releaseLabels,
   releaseBuildArtifactName,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
 } from "./release-package-policy.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
@@ -69,14 +71,23 @@ function record(value: unknown): Record<string, unknown> {
 function configuration(raw: unknown) {
   const value = record(raw);
   if (
-    Object.keys(value).sort().join(",") !== "namespace,schema_version" ||
-    value.schema_version !== 1 ||
+    !(
+      (value.schema_version === 1 &&
+        Object.keys(value).sort().join(",") === "namespace,schema_version") ||
+      (value.schema_version === 2 &&
+        Object.keys(value).sort().join(",") === "namespace,release_profile,schema_version")
+    ) ||
     typeof value.namespace !== "string" ||
     !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(value.namespace) ||
     value.namespace.length > 64
   )
     throw new Error("admission needs separately ratified coordinator configuration");
-  return { schema_version: 1, namespace: value.namespace };
+  return {
+    schema_version: value.schema_version,
+    namespace: value.namespace,
+    release_profile:
+      value.schema_version === 2 ? inspectReleaseProfile(value.release_profile) : ("full" as const),
+  };
 }
 function peel(ref: Record<string, unknown>) {
   let target = record(ref.target);
@@ -330,7 +341,11 @@ export async function acquireReleaseAdmission(
         })
         .sort((a, b) => a.id - b.id);
     const recover = () =>
-      (options.recover ?? recoverRemoteCoordinator)(root, config, { transport: { cwd: root } });
+      (options.recover ?? recoverRemoteCoordinator)(
+        root,
+        { schema_version: 1, namespace: config.namespace },
+        { transport: { cwd: root } },
+      );
     const before = record(structuredClone(await recover()));
     oid(before.checkpoint);
     checkpoint = before.checkpoint;
@@ -572,7 +587,10 @@ export async function acquireReleaseAdmission(
     const contexts = readQualification();
     if (contexts.some((context) => context.outcome !== "success" || context.source !== "check-run"))
       holds.add("exact-prepared-head-required-contexts-not-successful");
-    const policy = await loadPackagePolicy(project);
+    const policy = selectReleasePackagePolicy(
+      await loadPackagePolicy(project),
+      config.release_profile,
+    );
     const labels = releaseLabels(policy);
     const archives = [];
     for (const platform of labels) {
@@ -629,7 +647,8 @@ export async function acquireReleaseAdmission(
       declarations.push(discovered.declared_producer);
     }
     const assembly = {
-      schema_version: 1,
+      schema_version: 2,
+      release_profile: config.release_profile,
       source_commit: active.prepared_commit,
       source_tree: active.prepared_tree,
       version,

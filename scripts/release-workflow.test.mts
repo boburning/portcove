@@ -26,6 +26,7 @@ import { isRecord } from "./runtime-values.mts";
 import {
   loadPackagePolicy,
   releaseLabels as policyReleaseLabels,
+  releaseBuildMatrix,
 } from "./release-package-policy.mts";
 
 const releaseLabels = policyReleaseLabels(await loadPackagePolicy());
@@ -190,12 +191,13 @@ void test("cheap identity unlocks qualification and builds before the explicit r
     "verify_intel",
   ]);
   assert.match(gateSection, /scripts\/release-result-gate\.mts/);
-  needs("assemble", ["release_gate"]);
+  needs("assemble", ["identity", "release_gate"]);
 });
 
 void test("every builder uploads only the staged checksummed payload with short fallback retention", () => {
   for (const label of releaseLabels.filter((label) => label !== "macos-x86_64"))
-    assert.match(buildSection, new RegExp(`label: ${label}`));
+    assert.ok(releaseBuildMatrix().include.some((row) => row.label === label));
+  assert.match(buildSection, /fromJSON\(needs.identity.outputs.build_matrix\)/);
   assert.match(intelBuildSection, /--label macos-x86_64/);
   artifact("build", "upload-artifact", {
     name: "release-build-${{ matrix.label }}-${{ github.run_id }}-${{ github.run_attempt }}",
@@ -223,10 +225,11 @@ void test("every builder uploads only the staged checksummed payload with short 
 void test("builders package the versioned CLI smoke test it and request explicit Tauri bundles", () => {
   assert.match(buildSection, /scripts\/package-cli\.ps1/);
   assert.match(buildSection, /scripts\/smoke-test-cli-archive\.ps1/);
-  assert.match(buildSection, /bundles: nsis/);
-  assert.match(buildSection, /bundles: appimage,deb,rpm/);
-  assert.equal((buildSection.match(/bundles: dmg/g) ?? []).length, 1);
-  assert.match(buildSection, /target: aarch64-apple-darwin/);
+  assert.deepEqual(
+    releaseBuildMatrix().include.map((row) => row.bundles),
+    ["nsis", "appimage,deb,rpm", "dmg"],
+  );
+  assert.equal(releaseBuildMatrix().include[2]?.target, "aarch64-apple-darwin");
   assert.equal(workflowData.jobs.build_intel?.["runs-on"], "macos-15");
   assert.match(intelBuildSection, /--target x86_64-apple-darwin/);
   assert.match(intelBuildSection, /--bundles dmg/);
@@ -255,7 +258,7 @@ void test("supplemental CLI smoke source guard excludes shell-based launcher det
 });
 
 void test("assembler reconciles the full matrix then generates and checksums the release SBOM", () => {
-  needs("assemble", ["release_gate"]);
+  needs("assemble", ["identity", "release_gate"]);
   artifact("assemble", "download-artifact", {
     pattern: "release-build-*-${{ github.run_id }}-${{ github.run_attempt }}",
   });

@@ -14,6 +14,30 @@ const policy = await loadPackagePolicy();
 const version = "0.1.0-alpha.3";
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 
+void test("named beta assembles all six Windows/Linux distributions and refuses missing, extra or unbound profile inputs", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const assembled = await assembleTrustedRelease(f.root, f.input, f.request);
+  assert.equal(assembled.output_files.length, 7);
+  const inventory: unknown = JSON.parse(await readFile(assembled.inventory.path, "utf8"));
+  assert.ok(
+    inventory &&
+      typeof inventory === "object" &&
+      "packages" in inventory &&
+      Array.isArray(inventory.packages),
+  );
+  assert.equal(inventory.packages.length, 6);
+  for (const request of [
+    { ...f.request, files: f.request.files.slice(1) },
+    { ...f.request, release_profile: "full" },
+    { ...f.request, release_profile: "unknown" },
+    {
+      ...f.request,
+      files: [...f.request.files, { ...f.request.files[0], platform_label: "macos-aarch64" }],
+    },
+  ])
+    await assert.rejects(assembleTrustedRelease(f.root, f.input, request));
+});
+
 void test("trusted assembly produces a complete new aggregate and exact inventory without authenticating declared producers", async (t) => {
   const f = await fixture(t);
   const first = await assembleTrustedRelease(f.root, f.input, f.request);

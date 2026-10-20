@@ -19,6 +19,7 @@ export interface ReconcileOptions {
   version?: string;
   tag?: string;
   lineage?: ReleaseConsumerLineage;
+  profile?: import("./release-package-policy.mts").ReleaseProfile;
   artifactLayout?: "staged" | "attempt";
 }
 import { createHash } from "node:crypto";
@@ -32,6 +33,8 @@ import {
   loadPackagePolicy,
   packagesForPlatform,
   releaseBuildArtifactName,
+  inspectReleaseProfile,
+  selectReleasePackagePolicy,
   releaseLabels as policyReleaseLabels,
   workspaceVersion,
 } from "./release-package-policy.mts";
@@ -144,7 +147,9 @@ export async function reconcileReleaseAssets(
   if (inventoryPath && contains(output, inventoryPath)) {
     throw new Error("release inventory must remain outside the public asset directory");
   }
-  const policy = options.policy ?? (await loadPackagePolicy(projectRoot));
+  const policy =
+    options.policy ??
+    selectReleasePackagePolicy(await loadPackagePolicy(projectRoot), options.profile);
   const version = options.version ?? (await workspaceVersion(projectRoot));
   const tag = options.tag ?? `v${version}`;
   if (tag !== `v${version}`) throw new Error(`release tag ${tag} must exactly match v${version}`);
@@ -326,6 +331,7 @@ function parseArguments(argv: readonly string[]) {
         "--revision",
         "--max-attempt",
         "--artifact-layout",
+        "--profile",
       ].includes(name) ||
       !value
     ) {
@@ -346,6 +352,7 @@ function parseArguments(argv: readonly string[]) {
     } else if (name === "--run-id") options.runId = value;
     else if (name === "--revision") options.revision = value;
     else if (name === "--max-attempt") options.maxAttempt = Number(value);
+    else if (name === "--profile") options.profile = inspectReleaseProfile(value);
     else if (name === "--artifact-layout") {
       if (value !== "attempt" && value !== "staged")
         throw new Error("invalid release artifact layout");
