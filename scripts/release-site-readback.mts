@@ -5,6 +5,8 @@ import { performance } from "node:perf_hooks";
 import { isSafeSitePath } from "./release-site-composer.mts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-api.mts";
 
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
@@ -13,6 +15,138 @@ const maximumFileBytes = 64 * 1024 * 1024;
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+
+/** One-time setup preimage, not routine admission or publication authority.
+ * A marker 404 alone cannot prove absence: require the actual owner with full
+ * repository visibility, no configured project site or user-site repository,
+ * and bracket those facts around credential-free probes of the fixed routes.
+ * Existing sites require their real preserved inventory, never this path. */
+export async function observeInitialApplicationSite(
+  privateParent: string,
+  options: { api?: GitHubRestReader; fetch?: typeof fetch } = {},
+) {
+  const apiOverride = options.api,
+    fetchOverride = options.fetch;
+  const injected = apiOverride !== undefined || fetchOverride !== undefined;
+  if (!path.isAbsolute(privateParent)) throw new Error("private setup parent required");
+  const parent = await lstat(privateParent);
+  if (
+    !parent.isDirectory() ||
+    parent.isSymbolicLink() ||
+    (await realpath(privateParent)) !== path.resolve(privateParent)
+  )
+    throw new Error("private setup parent is linked or unavailable");
+  const directory = await mkdtemp(path.join(privateParent, "initial-site-readback-"));
+  const deadline = performance.now() + 60_000;
+  const runner = createGitHubRunner({ cwd: directory, timeoutMs: 5000, maxBuffer: 128 * 1024 });
+  const api =
+    apiOverride ??
+    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+  const observations: unknown[] = [];
+  const withinBudget = () => {
+    if (performance.now() >= deadline) throw new Error("initial site observation deadline expired");
+  };
+  const get = (endpoint: string) => {
+    withinBudget();
+    try {
+      const response = api.request("GET", endpoint);
+      withinBudget();
+      return response;
+    } catch (error) {
+      // Collected 404 only; timeout discards even a partly received response.
+      if (!(error instanceof GitHubApiError) || error.status !== 404) throw error;
+      withinBudget();
+      return { status: 404, body: null, headers: new Map<string, string>() };
+    }
+  };
+  const provider = () => {
+    const viewer = get("user");
+    const repo = get("repos/boburning/portcove");
+    const scopes = repo.headers
+      .get("x-oauth-scopes")
+      ?.split(",")
+      .map((value) => value.trim());
+    if (
+      viewer.status !== 200 ||
+      !isRecord(viewer.body) ||
+      viewer.body.id !== 43177418 ||
+      viewer.body.login !== "boburning" ||
+      repo.status !== 200 ||
+      !isRecord(repo.body) ||
+      repo.body.id !== 1354613114 ||
+      repo.body.full_name !== "boburning/portcove" ||
+      repo.body.private !== false ||
+      !isRecord(repo.body.owner) ||
+      repo.body.owner.id !== 43177418 ||
+      !isRecord(repo.body.permissions) ||
+      repo.body.permissions.admin !== true ||
+      !scopes?.includes("repo")
+    )
+      throw new Error("initial absence requires actual owner and full repository visibility");
+    const projectSite = get("repos/boburning/portcove/pages");
+    const userSite = get("repos/boburning/boburning.github.io");
+    if (projectSite.status !== 404 || userSite.status !== 404)
+      throw new Error("existing or unavailable Pages origin requires preserved site inventory");
+    return {
+      owner_id: 43177418,
+      repository_id: 1354613114,
+      owner_repository_visibility: "repo-scope-with-admin-readback",
+      project_site_status: 404,
+      user_site_repository_status: 404,
+    };
+  };
+  try {
+    const before = provider();
+    observations.push({ phase: "provider-before", ...before });
+    for (const route of [
+      "",
+      "publication.json",
+      "application/metadata/timestamp.json",
+      "catalog/metadata/timestamp.json",
+    ]) {
+      withinBudget();
+      const url = new URL(route, origin).href;
+      const response = await (fetchOverride ?? fetch)(url, {
+        redirect: "error",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { Accept: "application/octet-stream", "Cache-Control": "no-cache" },
+        signal: AbortSignal.timeout(
+          Math.max(1, Math.floor(Math.min(5000, deadline - performance.now()))),
+        ),
+      });
+      await response.body?.cancel();
+      observations.push({ phase: "public-route", url, status: response.status });
+      if (response.url !== url || response.status !== 404)
+        throw new Error("initial fixed public route is present, redirected or unavailable");
+    }
+    const after = provider();
+    observations.push({ phase: "provider-after", ...after });
+    if (capacityDigest(before) !== capacityDigest(after))
+      throw new Error("initial site provider state changed during observation");
+    const receipt = {
+      schema_version: 1,
+      kind: "unconfigured-application-site-preimage",
+      observed_at: new Date().toISOString(),
+      origin,
+      observations,
+      evidence_scope: injected ? "injected-provider" : "github.com",
+      authority: "none",
+      scope:
+        "initial setup preimage only; no unlisted URL, historical absence or publication claim",
+    };
+    const bytes = Buffer.from(`${JSON.stringify(receipt)}\n`);
+    await writeFile(path.join(directory, "initial-site.json"), bytes, { flag: "wx", mode: 0o600 });
+    return { directory, receipt, sha256: hash(bytes) };
+  } catch (error) {
+    await writeFile(
+      path.join(directory, "refusal.json"),
+      JSON.stringify({ observations, authority: "none", automatic_retry: false }),
+      { flag: "wx", mode: 0o600 },
+    );
+    throw new Error(`initial site observation refused; retain ${directory}`, { cause: error });
+  }
+}
 
 function marker(value: unknown, expected: string) {
   if (
