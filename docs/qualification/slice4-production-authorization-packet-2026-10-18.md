@@ -11,6 +11,30 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [owned publication result and feed binding](slice4-534-publication-result-integration-2026-10-20.md)
+was delivered through [#2291](https://github.com/boburning/portcove/pull/2291),
+source `eca252e577b15e2924273a68afc9bccb623ed9af`, merged as
+`ca5b93d6667be1daf4061ed8f9d9e5347baaa8d1`; all five required CI contexts
+passed in run `39515210411`, attempt 1. The private producer/result receiver
+connects exact immutable Release settlement, full signed record context and
+current promoting reservation to the existing Pages boundary. It does not
+establish actual signing, public feed deployment, ordinary-client acceptance or
+final candidate completion. The actual Release callable and complete fixed DAG
+remain engineering work.
+
+[#2290](https://github.com/boburning/portcove/pull/2290), source
+`7b95df0059616c783bb988ee97e9356d4008aaa4`, merged as
+`72fe696f128ee5fce795531ca3f7dfe05521ac43`, delivered retained phase history,
+actual forward phase writers and automatic renewal selection while a candidate
+is held. All five CI contexts passed in `39512868758`, attempt 1. These are
+coordinator implementation results, not actual provisioned runtime operation.
+
+The [automatic wake implementation](slice4-534-automatic-wake-2026-10-20.md)
+prepares an immutable intent before acquiring the selected dispatch App and
+uses explicit returned-run identity/readback. Its reviewed workflow remains an
+inert proposal pending the complete controller and consolidated setup grant;
+it introduces no recurring operator dispatch or administrator step.
+
 The October 20 [coordinator and initial empty-feed continuation](slice4-534-coordinator-and-initial-feed-2026-10-20.md)
 connects existing journal recovery, exact-request classification discovery,
 prepared transport and bounded dispatch, and adds an explicit no-prior empty TUF
