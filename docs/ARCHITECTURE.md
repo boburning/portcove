@@ -2757,6 +2757,10 @@ ports and platforms keep their existing behavior. An explicit dynamic user-data
 environment remains authoritative. A runtime-only `Save` interpretation uses the
 existing checked additive-mutability rules. Frozen current/retained catalog
 contracts and manifests remain unchanged, including during checked import.
+`installed_mutability` owns this checked interpretation for both service actions
+and transfer destination verification. Transfer supplies the retained definition
+as both baselines, so current catalog changes cannot expand imported authority;
+immutable overlap and unexpected files still refuse verification.
 Backup assessment reads the same contract without collecting data;
 backup creation, launch preparation, activation, rollback and removal collect
 launched working data before replacing or removing it. An existing non-directory

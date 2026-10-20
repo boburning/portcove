@@ -128,6 +128,45 @@ fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_autho
 }
 
 #[test]
+fn shipwright_frozen_catalog_import_still_refuses_unrecorded_immutable_files() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("original")).unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let qualification =
+        InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64).unwrap();
+    let active = register(&library, &qualification, "original", true);
+    game_write(&active, b"game-owned save in retained runtime");
+    fs::write(active.path.join("unrecorded.dll"), b"not a mutable save").unwrap();
+    let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
+    let metadata = temporary.path().join("metadata.json");
+    PortcoveService::new(library.clone())
+        .unwrap()
+        .write_library_metadata(&metadata)
+        .unwrap();
+    let destination = temporary.path().join("refused");
+    let plan =
+        PortcoveService::plan_library_import(&metadata, library.root(), &destination).unwrap();
+    assert!(!destination.exists());
+    let error =
+        PortcoveService::import_library(&metadata, library.root(), &destination, &plan.plan_sha256)
+            .unwrap_err();
+    assert!(error.message.contains("immutable manifest verification"));
+    assert!(error.details["failures"].contains("unexpected: unrecorded.dll"));
+    assert_eq!(
+        fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
+        manifest
+    );
+    assert_eq!(
+        fs::read(active.path.join("Save/file1.sav")).unwrap(),
+        b"game-owned save in retained runtime"
+    );
+    assert_eq!(
+        fs::read(active.path.join("unrecorded.dll")).unwrap(),
+        b"not a mutable save"
+    );
+}
+
+#[test]
 fn shipwright_retained_save_is_collected_before_launch_restore_without_manifest_rewrite() {
     let (_temporary, service, active, _qualification) = fixture();
     let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
