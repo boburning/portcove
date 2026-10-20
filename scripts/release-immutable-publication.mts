@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -624,6 +625,7 @@ export type PreparedReleasePublication = Awaited<
 export function verifyPreparedImmutableRelease(
   session: PreparedReleasePublication,
   candidate: unknown,
+  deadline?: number,
 ) {
   const privateValue = prepared.get(session);
   if (!privateValue || !isRecord(candidate))
@@ -634,14 +636,24 @@ export function verifyPreparedImmutableRelease(
     candidate.version !== identity.version
   )
     throw new Error("immutable Release preparation differs from the current reservation");
-  const runner = createGitHubRunner({
-    cwd: privateValue.session.directory,
-    timeoutMs: 15000,
-    maxBuffer: 2 * 1024 * 1024,
+  const remaining = () => {
+    if (deadline !== undefined && !Number.isFinite(deadline))
+      throw new Error("immutable Release readback phase deadline exhausted");
+    const timeoutMs =
+      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
+    if (timeoutMs < 1) throw new Error("immutable Release readback phase deadline exhausted");
+    return timeoutMs;
+  };
+  remaining();
+  const api = new GitHubApiClient((args, body) => {
+    const result = createGitHubRunner({
+      cwd: privateValue.session.directory,
+      timeoutMs: remaining(),
+      maxBuffer: 2 * 1024 * 1024,
+    })([...args, "--hostname", "github.com"], body);
+    remaining();
+    return result;
   });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
   const actual = readImmutableReleaseState(api, identity);
   const transition = proposeImmutableReleaseTransition(identity, actual.release, actual.assets);
   if (transition.decision !== "complete")

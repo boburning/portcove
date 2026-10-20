@@ -128,3 +128,33 @@ Actual hosted site publication, the final controller revision/digest and resourc
 ratification, applicable custody, provider protections and consolidated setup
 remain pending. #254 stays Done; #315/#534/#246 acceptance and Chameleon protected
 acceptance retain their existing holds. Slice 5 is excluded.
+
+## One Pages phase budget
+
+The actual deployment session now retains an optional absolute monotonic phase
+deadline supplied by the fixed controller. It follows the same attempt through
+keyless Rust assembly, bounded filesystem composition, immutable upload
+verification, the prior public readback, fresh controls, final immutable Release
+readback, Pages token acquisition, the sole deployment POST, bounded status
+observation and complete public-byte readback. Existing finite per-operation
+limits remain upper bounds; none can restart the phase clock. A late provider
+acknowledgement remains an attempted effect requiring readback, not permission
+to POST again. The existing no-deadline component callers retain their limits.
+
+Local component verification: 44 cases passed with one optional Rust case
+skipped. The Rust case was then exercised with the retained public renewal
+fixture and existing verifier SHA-256
+`b8a200fd447c052b1170cc8168746dffaed013948fdc847f642e33b3f2d71ecc`:
+all seven composer cases passed, including actual keyless assembly under the
+same deadline. Evidence is retained at
+`work/slice4/site-deadline-rust-composition-tests-1.log` and
+`work/slice4/site-deadline-lint-2.log`. The first typed check exposed an explicit
+`undefined` optional-property mismatch; the conditional projection was repaired
+and the second typed check passed. Provider tests use inert credentials and
+injected HTTP; they demonstrate refusal after credential delay and retention of
+the one-shot boundary after a late successful POST response. They do not observe
+production provider enforcement or clear the new-release record binding hold.
+
+The final fixed caller and coordinator local-Git deadline composition remain
+separate integration work. No setup, credential, signing or publication action
+was performed by these checks.
