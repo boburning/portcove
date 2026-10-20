@@ -305,6 +305,22 @@ $evidence = if ($EvidencePath) {
     }
     [ordered]@{
         format = 1
+        observation_identity = [ordered]@{
+            schema_version = 1
+            harness = "scripts/test-windows-installer.ps1"
+            harness_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+            source_commit = (& git rev-parse HEAD | Out-String).Trim()
+            source_tree = (& git rev-parse 'HEAD^{tree}' | Out-String).Trim()
+            started_at = [DateTime]::UtcNow.ToString('o')
+            host_os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+            host_architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+            powershell = $PSVersionTable.PSVersion.ToString()
+            authority = "none; local native observation requires independently authenticated handoff"
+        }
+        package_inputs = [ordered]@{
+            installer_sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+            predecessor_installer_sha256 = if ($predecessor) { (Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+        }
         phase = "initialized"
         process_runs = @()
         unverified_child_observations = @()

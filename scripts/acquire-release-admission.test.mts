@@ -4,7 +4,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
-import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
+import {
+  acquireReleaseAdmission,
+  requireActualReleaseAdmissionContext,
+} from "./acquire-release-admission.mts";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { releasePublicBuildArtifactName } from "./release-public-build-provenance.mts";
@@ -13,6 +16,23 @@ import type { IncludedResponse } from "./github-api.mts";
 import { rateLimitFromResponse } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
+void test("imported or frozen zero-hold descriptors cannot mint an actual stage-specific admission continuation", () => {
+  for (const raw of [
+    {},
+    Object.freeze({
+      stage: "release-publication",
+      facts: {},
+      controls: { evidence_scope: "github.com" },
+      admission: { decision: "admitted", holds: [], evidence_scope: "github.com" },
+      checkpoint: "a".repeat(40),
+      pending_obligations: [],
+    }),
+    { stage: "payload-signing", decision: "eligible-for-payload-signing" },
+  ]) {
+    for (const stage of ["payload-signing", "release-publication"] as const)
+      assert.throws(() => requireActualReleaseAdmissionContext(raw, stage), /actual same-process/);
+  }
+});
 import {
   releaseControlInputsFixture,
   config as reviewProducer,
@@ -418,7 +438,8 @@ void test("actual admission authenticates frozen semantic producer, owner pause 
   assert.equal(result.holds.includes("admitted-spending-boundary-source-unconfigured"), false);
   assert.equal(result.holds.includes("publication-paused-by-owner-source"), false);
   assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
-  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(result.holds.includes("strict-release-SBOM-document-unverified"));
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
   assert.ok(
     result.holds.includes(
       "current-controller-workflow-differs-from-ratified-capacity-resource-policy",
@@ -720,7 +741,8 @@ void test("bounded capacity eligibility cannot clear unrelated admission holds o
   assert.equal(result.descriptor, null);
   assert.ok(result.holds.includes("independent-classification-and-pause-sources-unconfigured"));
   assert.ok(result.holds.includes("candidate-workflow-execution-and-producer-acceptance-unproven"));
-  assert.ok(result.holds.includes("strict-release-SBOM-and-native-authorization-not-evaluated"));
+  assert.ok(result.holds.includes("strict-release-SBOM-document-unverified"));
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
 });
 
 void test("capacity bracketing snapshots aliased observations and initial ratification", async (t) => {

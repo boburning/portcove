@@ -1,7 +1,8 @@
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
@@ -86,6 +87,7 @@ async function expectedMembers(rawRequest: unknown) {
 function verifyMembers(
   archive: Buffer,
   files: { filename: string; bytes: number; sha256: string }[],
+  consume?: (file: { filename: string; bytes: number; sha256: string }, bytes: Buffer) => void,
 ) {
   const { entries } = inspectBoundedZip(archive, {
     compressedBytes: maximumArchiveBytes,
@@ -115,6 +117,64 @@ function verifyMembers(
       hash(bytes) !== expected.sha256
     )
       throw new Error("aggregate archive member bytes differ from independently accepted inputs");
+    consume?.(expected, bytes);
+  }
+}
+
+/** Data-only staging for the fixed finalizer. The existing aggregate verifier
+ * must establish provider provenance separately. No member is executed, no
+ * receipt supplies release authority, and a later failure retains partial files. */
+export async function stageAggregatePackages(
+  directory: string,
+  rawArchive: Buffer,
+  rawAssembly: unknown,
+  expectedArchiveSha256: string,
+) {
+  digest(expectedArchiveSha256);
+  if (
+    !path.isAbsolute(directory) ||
+    !Buffer.isBuffer(rawArchive) ||
+    rawArchive.length < 22 ||
+    rawArchive.length > maximumArchiveBytes
+  )
+    throw new Error("aggregate package staging requires bounded bytes and private storage");
+  const archive = Buffer.from(rawArchive);
+  if (hash(archive) !== expectedArchiveSha256)
+    throw new Error("aggregate package staging archive differs");
+  const { files } = await expectedMembers(rawAssembly);
+  if (files.some((file) => path.basename(file.filename) !== file.filename))
+    throw new Error("aggregate package staging path is not a filename");
+  const parent = path.dirname(directory);
+  const parentInfo = await lstat(parent);
+  if (
+    !parentInfo.isDirectory() ||
+    parentInfo.isSymbolicLink() ||
+    (await realpath(parent)) !== path.resolve(parent)
+  )
+    throw new Error("aggregate staging parent is linked or unavailable");
+  await mkdir(directory, { mode: 0o700 });
+  try {
+    verifyMembers(archive, files, (file, bytes) => {
+      // One bounded decoded member at a time; no all-members buffer or generic
+      // archive extractor. wx preserves both prior and partially written state.
+      writeFileSync(path.join(directory, file.filename), bytes, { flag: "wx", mode: 0o600 });
+    });
+    return {
+      directory,
+      files,
+      archive_sha256: expectedArchiveSha256,
+      authority: "none",
+      scope: "aggregate package bytes only; independent acceptance still required",
+    };
+  } catch {
+    throw new CoordinatorRemoteError(
+      "aggregate package materialization refused; retain partial state",
+      {
+        directory,
+        authority: "none",
+        automatic_retry: false,
+      },
+    );
   }
 }
 

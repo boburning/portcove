@@ -1,4 +1,8 @@
-import { validateCapacityTransition } from "./release-capacity.mts";
+import {
+  validateCapacityTransition,
+  verifyRetainedCapacityOperation,
+  capacityDigest,
+} from "./release-capacity.mts";
 import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -187,6 +191,48 @@ function readCheckpoint(git: Git, commit: string) {
   if (canonical(parents) !== canonical(expectedParents) || canonical(state) !== raw)
     throw new Error("coordinator checkpoint history or canonical bytes disagree");
   return { previous: state.previous, ...checkedInput(state.input) };
+}
+
+/** Resolve public raw receipts referenced by a compact summary in this same
+ * immutable journal. No ref mutation, ancestry walk, candidate execution or
+ * lazy fetch occurs; sparse callers must explicitly hydrate this exact object.
+ */
+export function readRetainedCapacityOperation(repository: string, proof: unknown) {
+  if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
+    throw new Error("retained operation proof schema differs");
+  identity(proof.checkpoint);
+  if (
+    typeof proof.id !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.id) ||
+    typeof proof.operation_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.operation_sha256)
+  )
+    throw new Error("retained operation proof identity invalid");
+  const checkpoint = readCheckpoint(gitRepository(repository), proof.checkpoint);
+  const controller = checkpoint.input.controller;
+  const capacity =
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt
+      : null;
+  if (!capacity) throw new Error("original checkpoint has no raw capacity receipt");
+  const retained: unknown[] = Array.isArray(capacity.prior_operations)
+    ? capacity.prior_operations
+    : [];
+  const candidates: unknown[] = [capacity.operation, ...retained];
+  const raw = candidates.find(
+    (entry) =>
+      isRecord(entry) &&
+      !Object.hasOwn(entry, "summary_schema_version") &&
+      entry.id === proof.id &&
+      capacityDigest(entry) === proof.operation_sha256,
+  );
+  if (!raw) throw new Error("original checkpoint does not contain exact raw capacity operation");
+  return structuredClone(
+    verifyRetainedCapacityOperation(raw, {
+      id: proof.id,
+      operation_sha256: proof.operation_sha256,
+    }),
+  );
 }
 
 function active(input: Record<string, unknown>): Record<string, unknown> | null {

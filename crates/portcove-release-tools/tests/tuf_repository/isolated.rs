@@ -4,6 +4,9 @@ use portcove_release_tools::tuf_repository::{
     isolated::{OnlineRole, RoleReport, assemble_tuf_repository, sign_tuf_role},
 };
 
+#[path = "isolated/renewal.rs"]
+mod renewal;
+
 struct Fixture {
     directory: tempfile::TempDir,
     context: serde_json::Value,

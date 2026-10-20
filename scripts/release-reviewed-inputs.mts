@@ -28,8 +28,9 @@ import {
 async function main() {
   const mode = process.argv[2];
   if (
-    process.argv.length !== 3 ||
-    ![
+    (process.argv.length !== 3 &&
+      !(process.argv.length === 4 && mode?.startsWith("observe-production"))) ||
+    (![
       "admission",
       "observe",
       "observe-production",
@@ -38,7 +39,8 @@ async function main() {
       "observe-production-release-publication",
       "persist",
       "read",
-    ].includes(mode ?? "")
+    ].includes(mode ?? "") &&
+      !mode?.startsWith("observe-production-"))
   )
     throw new Error("fixed reviewed-input operation required");
   if (mode === "admission") {
@@ -70,7 +72,16 @@ async function main() {
     );
     return;
   }
+  const inspectControlRound =
+    process.argv[3] === undefined
+      ? undefined
+      : (await import("./release-control-handshake.mts")).inspectControlRound;
   const productionObservation = mode?.startsWith("observe-production") === true;
+  const roundIndex =
+    process.argv[3] === undefined
+      ? undefined
+      : inspectControlRound!({ index: Number(process.argv[3]) }, false).index;
+  const roundSuffix = roundIndex === undefined ? "" : `-r${roundIndex}`;
   const phase = inspectReleaseControlPhase(
     productionObservation && mode !== "observe-production"
       ? mode.slice("observe-production-".length)
@@ -83,7 +94,11 @@ async function main() {
     throw new Error("private runner temporary directory unavailable");
   // Exclusive receipt opens before any source or mutation. Never persist tokens
   // or raw exceptions/provider output. Existing receipt means no retry.
-  const receipt = await open(path.join(temp, `release-reviewed-inputs-${mode}.jsonl`), "wx", 0o600);
+  const receipt = await open(
+    path.join(temp, `release-reviewed-inputs-${mode}${roundSuffix}.jsonl`),
+    "wx",
+    0o600,
+  );
   try {
     await receipt.writeFile(
       JSON.stringify({ schema_version: 1, operation: mode, status: "started", authority: "none" }) +
@@ -166,19 +181,21 @@ async function main() {
     }
     let result: unknown;
     if (observing) {
-      result = observeReleaseInputProtections(api);
+      result = observeReleaseInputProtections(api, {
+        releasePublication: phase === "release-publication",
+      });
       if (productionObservation)
         result = prepareProductionProtectionHandoff(observerIdentity, result, phase);
-      const encoded = JSON.stringify(result);
-      if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
-        throw new Error("trusted observer output channel unavailable or oversized");
-      await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
       if (productionObservation) {
         // The fixed source waits for readiness before releasing the App token.
         // Preserve its exact artifact association beside the actual report.
         const ready = JSON.parse(
           await readFile(
-            path.join(temp, `release-control-ready-${phase}`, "control-ready-readback.json"),
+            path.join(
+              temp,
+              `release-control-ready-${phase}${roundSuffix}`,
+              "control-ready-readback.json",
+            ),
             "utf8",
           ),
         ) as unknown;
@@ -196,10 +213,32 @@ async function main() {
           ready.body.producer.controller_revision !== result.producer.controller_revision
         )
           throw new Error("matching fixed reader readiness unavailable");
-        await writeFile(path.join(temp, `observation-${phase}.json`), encoded, {
-          flag: "wx",
-          mode: 0o600,
-        });
+        if (roundIndex !== undefined) {
+          const round = inspectControlRound!(ready.body.round);
+          if (round.index !== roundIndex) throw new Error("observer ready round differs");
+          result = { ...result, round };
+        } else if (Object.hasOwn(ready.body, "round"))
+          throw new Error("unexpected round on legacy observer");
+      }
+      const encoded = JSON.stringify(result);
+      if (Buffer.byteLength(encoded) > 60 * 1024 || !process.env.GITHUB_OUTPUT)
+        throw new Error("trusted observer output channel unavailable or oversized");
+      await appendFile(process.env.GITHUB_OUTPUT, `observation=${encoded}\n`);
+      if (productionObservation) {
+        await writeFile(
+          roundIndex === undefined
+            ? path.join(temp, `observation-${phase}.json`)
+            : path.join(
+                temp,
+                `release-control-ready-${phase}${roundSuffix}`,
+                `observation-${phase}.json`,
+              ),
+          encoded,
+          {
+            flag: "wx",
+            mode: 0o600,
+          },
+        );
       }
     } else {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =

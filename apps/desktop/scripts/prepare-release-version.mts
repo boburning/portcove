@@ -10,6 +10,7 @@ import { parseWorkspacePackage } from "../../../scripts/check-release-metadata.m
 import {
   proposeApplicationVersion,
   parseVersionClassification,
+  classifyApplicationVersion,
 } from "./release-version-policy.mts";
 
 function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) {
@@ -75,7 +76,7 @@ function replaceOnce(
   return updated;
 }
 
-function workspacePackages(git: Git, commit: string, cargo: string) {
+function workspacePackages(readSource: (filename: string) => string, cargo: string) {
   // Support the repository's explicit member list, rejecting globs, traversal
   // and other TOML forms instead of guessing the version authority.
   const list = cargo.match(/^members\s*=\s*(\[[\s\S]*?\])/m)?.[1];
@@ -86,7 +87,7 @@ function workspacePackages(git: Git, commit: string, cargo: string) {
   const names = values.map((member) => {
     if (typeof member !== "string" || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)+$/.test(member))
       throw new Error("unsupported workspace member path");
-    const manifest = sourceFile(git, commit, `${member}/Cargo.toml`);
+    const manifest = readSource(`${member}/Cargo.toml`);
     const table = manifest.match(/^\[package\]\r?\n([\s\S]*?)(?=^\[|(?![\s\S]))/m)?.[1];
     const name = table?.match(/^name\s*=\s*"([a-zA-Z0-9_-]+)"\s*$/m)?.[1];
     if (!name || !/^version\.workspace\s*=\s*true\s*$/m.test(table ?? ""))
@@ -126,11 +127,26 @@ function versionedFiles(
   git: Git,
   proposal: Pick<Proposal, "source_commit" | "base_version" | "version">,
 ) {
-  const { source_commit: source, base_version: base, version } = proposal;
-  const cargo = sourceFile(git, source, "Cargo.toml");
+  return reproducePreparedReleaseVersionFiles(
+    (filename) => sourceFile(git, proposal.source_commit, filename),
+    proposal,
+  );
+}
+
+/** Exact existing preparation transform, reusable with authenticated inert blob
+ * readers. It computes bytes only and grants no source, version or execution
+ * authority; callers must independently bind their reservation and parent. */
+export function reproducePreparedReleaseVersionFiles(
+  readSource: (filename: string) => string,
+  proposal: Pick<Proposal, "base_version" | "version">,
+) {
+  const { base_version: base, version } = proposal;
+  classifyApplicationVersion(base);
+  classifyApplicationVersion(version);
+  const cargo = readSource("Cargo.toml");
   if (parseWorkspacePackage(cargo).version !== base)
     throw new Error("frozen workspace version differs from reviewed base");
-  const names = workspacePackages(git, source, cargo);
+  const names = workspacePackages(readSource, cargo);
   const files = new Map<string, string>();
   files.set(
     "Cargo.toml",
@@ -141,9 +157,9 @@ function versionedFiles(
       "workspace version",
     ),
   );
-  files.set("Cargo.lock", updatedLock(sourceFile(git, source, "Cargo.lock"), names, base, version));
+  files.set("Cargo.lock", updatedLock(readSource("Cargo.lock"), names, base, version));
   for (const filename of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"]) {
-    const original = sourceFile(git, source, filename);
+    const original = readSource(filename);
     const metadata: unknown = JSON.parse(original);
     if (!isRecord(metadata) || metadata.version !== base)
       throw new Error(`frozen version authority drift: ${filename}`);

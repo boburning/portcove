@@ -299,7 +299,47 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  [
+    "scripts/release-coordinator-journal-api.mts",
+    ["scripts/release-coordinator-journal-api.test.mts"],
+  ],
+  ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
+  ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
+  [
+    "scripts/release-compiler-source-closure.mts",
+    ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source-admission.mts",
+    [
+      "scripts/release-compiler-source-admission.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-source-attestation.mts",
+    ["scripts/release-source-attestation.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-source.mts",
+    [
+      "scripts/release-compiler-source.test.mts",
+      "scripts/release-compiler-source-admission.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-compiler-evidence.mts",
+    ["scripts/release-compiler-evidence.test.mts", "scripts/acquire-release-admission.test.mts"],
+  ],
+  [
+    "scripts/release-compiler-outputs.mts",
+    ["scripts/release-compiler-outputs.test.mts", "scripts/release-compiler-evidence.test.mts"],
+  ],
+  ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
+  ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",
@@ -572,6 +612,9 @@ const releaseContractTests = Object.freeze([
   "scripts/release-public-build-provenance.test.mts",
   "scripts/release-handshake-hosted-fixture.test.mts",
   "scripts/release-controller-tools.test.mts",
+  "scripts/release-compiler-source.test.mts",
+  "scripts/release-native-qualification-contract.test.mts",
+  "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
   "scripts/release-live-control-admission.test.mts",
   "scripts/write-release-checksums.test.mts",

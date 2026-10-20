@@ -106,6 +106,7 @@ const receivedTools = new WeakMap<
     files: { path: string; bytes: number; sha256: string }[];
     manifest_sha256: string;
     scope: string;
+    expected: ControllerToolArtifactExpected;
   }
 >();
 /** Same-process use only. Imported receipts and injected providers cannot choose
@@ -125,8 +126,13 @@ export async function verifiedControllerToolPaths(receipt: object) {
   )
     throw new Error("verified tool manifest changed");
   return Object.freeze({
+    identity: Object.freeze(structuredClone(retained.expected)),
+    root: retained.tools,
     node: path.join(retained.tools, "bin/node"),
     rust: path.join(retained.tools, "bin/portcove-release-tools"),
+    tauriAddon: path.join(retained.tools, "bin/tauri-addon.node"),
+    publicAssets: path.join(retained.tools, "release"),
+    compiler_source_closure: path.join(retained.tools, "compiler-source-closure.json"),
     entries: Object.freeze(
       Object.fromEntries(
         controllerToolEntries.map((name) => [
@@ -515,6 +521,7 @@ export async function receiveControllerTools(
       files: structuredClone(inspected.manifest.files),
       manifest_sha256: inspected.manifest_sha256,
       scope: result.evidence_scope,
+      expected: structuredClone(expected),
     });
     return Object.freeze(result);
   } catch {

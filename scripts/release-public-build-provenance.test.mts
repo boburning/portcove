@@ -16,6 +16,7 @@ import {
   requirePublicBuildInputProviderBinding,
   requireStablePublicBuildInputEvidence,
   verifyReleasePublicBuildInputs,
+  requireVerifiedReleasePublicBuildInputs,
 } from "./release-public-build-provenance.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
@@ -38,6 +39,14 @@ void test("schema3 binds complete exact immutable public inputs through actual p
   assert.equal(result.original_compiler, null);
   assert.equal(result.authority, "none");
   assert.match(result.public_build_inputs.scope, /no compiler-content or execution claim/);
+  await assert.rejects(
+    requireVerifiedReleasePublicBuildInputs(result.public_build_inputs),
+    /actual same-process/,
+  );
+  await assert.rejects(
+    requireVerifiedReleasePublicBuildInputs(structuredClone(result.public_build_inputs)),
+    /actual same-process/,
+  );
   for (const receipt of result.public_build_inputs.receipts) {
     assert.equal(receipt.manifest_sha256, f.configuration.manifest_sha256);
     assert.equal(receipt.root_sha256, f.prepared.receipt.root_sha256);
