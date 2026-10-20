@@ -48,8 +48,10 @@ The October 20 [compiler output binding preparation](slice4-534-compiler-output-
 connects actual compiler reports, the existing isolated report-byte attester,
 complete fixed producer-source closure and exact staged package output checks.
 It uses fresh private beta Cargo targets and preserves the general full profile.
-Actual tool-manifest asset integration and observed candidate proofs remain
-separate; native/security/semantic/history holds are retained. Candidate build
+The generated tool-manifest asset and actual receiver getter are connected;
+observed candidate proofs remain separate, and native/security/semantic/history
+holds are retained. Signed SPDX publication bytes retain private same-process
+custody with bounded readback, without importing summary authority. Candidate build
 costs and the four seven-day report archives are explicit, with no increase to
 the 100-minute controller ceiling or claim of capacity/headroom. Older affected
 workflow/resource ratification must be replaced before execution.

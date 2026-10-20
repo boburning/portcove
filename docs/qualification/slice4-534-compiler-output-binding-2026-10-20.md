@@ -86,13 +86,33 @@ of imported runtime brands. Synthetic provider signatures and package bytes reta
 fixture scope; no native package build or actual compiler attestation was run.
 The GNU-tar producer observation is skipped on this Windows host.
 
+The combined main-target integration ran 98 focused cases: 95 passed and three
+were explicitly skipped (the unavailable GNU producer and two existing
+non-Windows shell publisher cases). It includes the actual pinned tool bundle
+and isolated receiver load without `node_modules`, source/output joins, refusal
+cases, native wire integrity and SPDX custody. Type-aware lint and formatting
+passed. The existing reviewed shared publication inventory extraction is also
+included; its 15 admission cases passed after exact-byte composition. Independent
+reviews cleared compiler source `68e7e5d`, tool/native-wire source `5fae0416` and
+SPDX custody source `bac4e5a0`; these are component review identities, not native
+or production execution evidence.
+
 The original Node test-runner invocation for the existing Vitest preparation
 suite failed before collecting that suite. Its corrected maintained
 `run-ui-tests.mts exact scripts/prepare-release-version.test.mts` invocation
 executed all six tests successfully, with ordinary resource admission and
 supervisor cleanup. This was a test invocation correction, not a product repair.
 
-Actual controller tool-asset integration, eligible candidate/reservation,
+The reviewed generated tool asset and actual receiver getter are integrated in
+the combined delivery; its eleven-file ordinary hosted build remains separately
+observed evidence. The actual signed SPDX collector also retains its publication
+document through a private same-process getter, with bounded document,
+verification, artifact and receipt readback. Imported or injected summaries
+cannot appoint publication bytes, and the getter does not supply scanner or
+native acceptance. The private admission continuation carries the actual SPDX
+receipt independently of detached public facts.
+
+Eligible candidate/reservation,
 authenticated semantic producer output, stage-specific native pre-sign and
 post-sign qualification, relevant custody/public keys, observed protections and
 the final exact grant remain separate. No current native/security/history hold
