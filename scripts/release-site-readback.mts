@@ -149,6 +149,8 @@ export async function materializePublishedCompleteSite(
       flag: "wx",
       mode: 0o600,
     });
+    if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
+      throw new Error("complete site phase deadline exhausted before custody");
     completeSiteCustody.set(receipt, {
       directory,
       pins: expected,
@@ -364,6 +366,10 @@ function publicReader(deadline: number) {
       headers: { Accept: "application/octet-stream", "Cache-Control": "no-cache" },
       signal: AbortSignal.timeout(timeout),
     });
+    if (performance.now() >= deadline) {
+      await response.body?.cancel();
+      throw new Error("public site readback deadline exceeded after response");
+    }
     if (response.status !== 200 || response.url !== url || !response.body) {
       await response.body?.cancel();
       throw new Error(`public site response unavailable: ${name}`);
@@ -379,6 +385,8 @@ function publicReader(deadline: number) {
     try {
       while (true) {
         const item = await reader.read();
+        if (performance.now() >= deadline)
+          throw new Error("public site readback deadline exceeded during stream");
         if (item.done) break;
         const bytes: unknown = item.value;
         if (!(bytes instanceof Uint8Array)) throw new Error("public site stream is not bytes");
@@ -399,11 +407,16 @@ function publicReader(deadline: number) {
  * complete site. The expected marker must come from actual trusted composition,
  * never from the server being checked. This does not enumerate unlisted URLs,
  * authenticate a deployment actor or grant publication/settlement authority. */
-export async function readPublicApplicationSite(expectedMarker: unknown) {
+export async function readPublicApplicationSite(expectedMarker: unknown, phaseDeadline?: number) {
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+  )
+    throw new Error("public site phase deadline exhausted");
   if (!isRecord(expectedMarker) || !digest(expectedMarker.generation))
     throw new Error("independently expected site generation unavailable");
   const expected = marker(expectedMarker, expectedMarker.generation);
-  const deadline = performance.now() + 120_000;
+  const deadline = Math.min(performance.now() + 120_000, phaseDeadline ?? Infinity);
   const observations: { path: string; bytes: number; sha256: string }[] = [];
   const read = publicReader(deadline);
   const first = await read("publication.json", 4 * 1024 * 1024);
@@ -433,11 +446,22 @@ export async function readPublicApplicationSite(expectedMarker: unknown) {
 
 /** Lightweight late bracket over a previously independently verified complete
  * generation. Marker equality is not a substitute for that prior byte readback. */
-export async function readPublicApplicationSiteMarker(expectedMarker: unknown) {
+export async function readPublicApplicationSiteMarker(
+  expectedMarker: unknown,
+  phaseDeadline?: number,
+) {
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+  )
+    throw new Error("public marker phase deadline exhausted");
   if (!isRecord(expectedMarker) || !digest(expectedMarker.generation))
     throw new Error("independently expected site generation unavailable");
   const expected = marker(expectedMarker, expectedMarker.generation);
-  const bytes = await publicReader(performance.now() + 30_000)("publication.json", 4 * 1024 * 1024);
+  const bytes = await publicReader(Math.min(performance.now() + 30_000, phaseDeadline ?? Infinity))(
+    "publication.json",
+    4 * 1024 * 1024,
+  );
   const observed: unknown = JSON.parse(bytes.toString("utf8"));
   if (JSON.stringify(marker(observed, expected.generation)) !== JSON.stringify(expected))
     throw new Error("public marker differs from trusted expected site");
@@ -459,7 +483,13 @@ export async function materializePublishedApplicationComponent(
     repository_sha256: string;
   },
   privateParent: string,
+  phaseDeadline?: number,
 ) {
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+  )
+    throw new Error("public component phase deadline exhausted");
   const expected = structuredClone(raw);
   if (
     !isRecord(expected) ||
@@ -482,7 +512,7 @@ export async function materializePublishedApplicationComponent(
   const directory = path.join(retained, "repository");
   await mkdir(directory, { mode: 0o700 });
   try {
-    const read = publicReader(performance.now() + 120_000);
+    const read = publicReader(Math.min(performance.now() + 120_000, phaseDeadline ?? Infinity));
     const first = await read("publication.json", 4 * 1024 * 1024);
     const observed = marker(JSON.parse(first.toString("utf8")), expected.site_generation_sha256);
     if (observed.application_root_sha256 !== expected.root_sha256)
@@ -533,6 +563,8 @@ export async function materializePublishedApplicationComponent(
       flag: "wx",
       mode: 0o600,
     });
+    if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
+      throw new Error("public component phase deadline exhausted after materialization");
     return { directory, root_path: path.join(directory, roots[0]!.path), receipt };
   } catch (error) {
     await writeFile(
