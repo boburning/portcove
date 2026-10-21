@@ -155,6 +155,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
       );
       await log.sync();
     };
+    let stage = "prepared";
     try {
       await append("prepared");
       // The private parent getter positively rechecks the issuer file's
@@ -244,6 +245,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
       };
       const app = await get("app", "app"),
         installation = await get("app", `app/installations/${issuer.installation_id}`);
+      stage = "installation-token";
       const minted = await request(
         "app",
         "POST",
@@ -258,6 +260,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
         { app, installation, repositories, repository: repo },
         issuer,
       );
+      stage = "issuer-observed";
       await writeFile(path.join(directory, "issuer-observation.json"), JSON.stringify(observed), {
         flag: "wx",
         mode: 0o600,
@@ -268,6 +271,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
       // The sole mutating Check request is latched durably BEFORE invoking
       // HTTP. Refusal, timeout or lost response can never trigger a retry.
       await append("post-started");
+      stage = "post-started";
       const response = await request("installation", "POST", `${repository}/check-runs`, wire.body);
       await writeFile(
         path.join(directory, "check-post-response.json"),
@@ -281,6 +285,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
         actual.request,
         wire,
       );
+      stage = "readback-completed";
       await writeFile(path.join(directory, "check-readback.json"), JSON.stringify(readback), {
         flag: "wx",
         mode: 0o600,
@@ -295,6 +300,22 @@ export async function publishActualNativePreSignReport(receipt: object) {
         scope:
           "direct native report persisted; independently authenticated acceptance consumer required",
       });
+    } catch (error) {
+      await writeFile(
+        path.join(directory, "check-failure.json"),
+        JSON.stringify({
+          schema_version: 1,
+          invocation_id: actual.request.request.invocation_id,
+          body_sha256: digest(wire.body),
+          stage,
+          observed_at: new Date().toISOString(),
+          failure: error instanceof Error ? error.message.slice(0, 2048) : "native issuer refused",
+          automatic_retry: false,
+          authority: "none",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+      throw error;
     } finally {
       await log.close();
     }
