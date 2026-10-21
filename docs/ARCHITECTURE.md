@@ -1638,161 +1638,18 @@ TUF roles without executing candidate tooling with production credentials.
 
 ## Library model
 
-External folder relinking reads the retained registration and catalog in one
-observation, binds their exact stored bytes and the fully inspected proposed
-folder to a distinct reviewed authorization, then rechecks under the port lock.
-An immediate transaction refuses a changed row, managed installation or pending
-launch and changes only the external location and validated preference binding.
-It preserves registration identity, timestamps and the original catalog bytes;
-it never re-captures a possibly newer definition. A missing old folder is allowed,
-while its structural and account scope remain binding. New-folder shared consent
-uses the outer relink fingerprint. No external files or saves are moved or adopted.
-Managed planning, installation and updates refuse an extant external registration
-before provider resolution; the UI and adapters do not create another authority.
+Core owns the library's records and the rules for inspecting game files,
+managing saved data and transferring or recovering library state. Choose the
+subsystem before changing its behavior:
 
-The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
-read-only provider collection and factual operational checkpoints. It submits
-inert observations through the standalone CLI to core's existing release
-channel and asset policy. Core validates the exact scope and facts and exports
-metadata eligibility separately from authentication, integrity and admission.
-The CLI translates this offline command without opening a library. The
-observer neither writes catalog support nor owns installed/update state;
-existing crate dependency rules remain unchanged.
-
-`source_assessment` defines the shared source fact contract: existing
-`SourceHealth` (including selected bytes without a baseline), classification,
-reviewed release-contract result, actual admission/mode/reason, and scoped
-evidence are independent. These serializable records are descriptions, not
-operation authorizations or a second matcher. Existing validators and lifecycle
-checks remain authoritative. Schema export exposes the contract for subsequent
-inspection integration; current verification responses retain their existing
-fields and read-only behavior.
-
-Launch readiness additionally exposes optional source and BIOS assessments for
-the effective retained installed definition and artifact. `Current` byte health
-means the registered storage baseline still matches; it does not mean an edition
-is compatible. Core reassesses validated registration facts using the existing
-file matcher, without a second hash pass or implicit validator execution. Legacy
-facts and shapes whose structural proof cannot be reconstructed remain
-unevaluated. Confirmed compatibility requires an exact recognized identity, an
-enforced contract for the correct port/input role, and applicability to that
-installed release and artifact. Missing fields in older responses remain unknown.
-Known input rejection prevents launch and is checked again before launch side
-effects; unconfirmed compatibility alone permits an explained setup/trial route.
-No assessment, clean process exit or launch-history counter proves gameplay.
-
-For catalog-declared canonical N64 inputs, inspection rejects a missing/invalid
-byte-order header using canonical facts from the existing bounded hash pass,
-including ZIP members. This happens before structural admission and acquisition.
-A valid header alone establishes plausible format, never game identity. Other
-file kinds do not inherit an N64 requirement from their filename extension.
-
-Evidence relevance compares the exact port, platform, artifact, upstream ref,
-contract, source variant/representation and check version. An unspecified legacy
-variant or absent artifact/check identity cannot establish exact qualification.
-Relevance does not mean success: consumers must retain the evidence kind and
-outcome, including failed and not-run observations. Recorded Portcove build and
-observation time remain historical attribution; changing an unrelated build
-does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
-Schema 2 stores exact source qualification under the same core authority. Core
-validates each record's port, platform, contract, artifact applicability,
-variant, representation, check version, method, outcome, and evidence references
-and derives category and all-source claims from exact matches only. Legacy
-platform arrays remain historical unscoped facts. Signed format 1 can add
-reviewed artifact applicability and exact qualification for existing contracts,
-while source meanings and prior facts remain frozen.
-
-The schema-2 source contract models the input to those facts through reusable
-identity profiles with logical variants and alternative physical
-representations. Per-port contracts select supported variants and an enforced
-or informational admission mode. Digests inside one identity record are
-conjunctive and carry an explicit byte scope; separate identity records and
-representations are alternatives. Evidence, validators, aliases, tombstones,
-release applicability, and review URLs use stable validated IDs. The embedded
-catalog is schema 2. Core deterministically projects its source authority into
-the temporary schema-1 `SourceProfile` view consumed by the existing matcher;
-catalog input may not supply a conflicting view. The frozen full schema-1
-fixture and contract fingerprints prove that projection preserves every prior
-profile and port binding. Profiles with reviewed Alpha 2 variant corrections
-retain an explicit `legacy_projection_only` record that contracts cannot select;
-this keeps the old matcher unchanged without treating the projection as current
-schema-2 identity. The projection retires when #180 moves all consumers to the
-shared inspector.
-
-Each current embedded port also carries an additive `presentation` object. Core
-owns its installation method, required game/BIOS labels, verification method,
-and saves/settings behavior; catalog validation binds every displayed source
-requirement to the exact profile and schema-2 contract. CLI and Tauri transport
-the same object, while React translates its stable enums into interface copy and
-combines it with existing structured project state, platforms, channels, support
-tier, and qualification arrays. Older schema-1 and signed schema-2 documents may
-omit presentation and remain readable; clients show that absence explicitly.
-Signed format 1 may update presentation independently of its frozen installed-code
-contract, while core still rejects presentation that disagrees with source
-authority. The field adds no lifecycle behavior, qualification, or source authority.
-
-`SourceInspection` is the read-only core result for selected source bytes. Its
-observed digests retain algorithm and byte scope, schema-2 digest fields match
-conjunctively, representations match as alternatives, and more than one matching
-representation is rejected as ambiguous. Ordinary files, cartridge ZIP members,
-canonical N64 byte orders, and file sets use this result for discovery,
-registration, relink, verification, install overrides, and launch preflight.
-GameCube and PlayStation disc sources use the same result through their existing
-bounded conversion paths. LIVE/STFS compound inspection also applies the same
-bounded parser, path checks, expanded-size limit, and block-chain checks used by
-materialization before an exact package identity can be admitted. Pinned
-upstream-validator sources record the selected validator contract and a `not_run`
-result while preserving preliminary structural admission; they do not claim an
-exact identity until the pinned setup tool performs its validation.
-
-File-set inspection records each required top-level member with its stable
-catalog member ID, selected filename, byte size, and SHA-1, SHA-256, and CRC32
-facts. It matches all digest fields inside one member identity together and
-aggregates admitted members with the established source-record algorithm. ZIP
-storage identity remains distinct from member and aggregate content identity.
-
-Disc inspection reuses the established bounded GameCube and PlayStation
-materializers without changing the selected input. GameCube results retain the
-normalized ISO SHA-1/SHA-256 separately from compressed-container storage
-identity. PlayStation results retain ordered per-disc track counts, readable
-volume IDs, normalized data-track SHA-1/SHA-256, and aggregate versus CHD-set
-storage identity. Schema-2 matching requires every configured fact for one
-representation and rejects reordered, incomplete, mismatching, or ambiguous
-disc sets before a source record becomes usable.
-`HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
-
-Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
-
-Favorites use the compatible `favorites_by_library` extension in that same
-format-1 host preference document. `HostPreferenceStore::favorite_ports` and
-`set_favorite` read or change independent canonical port IDs under a selected
-library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
-corrections and managed library moves preserve that identity; importing into a
-different library does not inherit its favorites. Temporarily absent or retired
-catalog IDs remain stored until explicitly unset. The existing locks, atomic
-publication and 64 KiB document limit apply, and unrelated preferences and unknown
-extensions survive a change. Removing the last choice removes the empty extension;
-explicit preference reset clears it with the rest of the document.
-
-Only favorites operations decode this extension. A malformed favorite map reports
-an actionable preference error without preventing ordinary library selection,
-locale or host-tool preference operations, and those writers preserve it as JSON
-data rather than silently deleting it. Reads create no storage, and favorite
-changes neither open a library nor confer installation, source or catalog
-ownership. These private host choices do not enter public catalog data or trigger
-networking or scanning. This is the Core preference foundation for #1552; Desktop
-toggles, filter composition, counts and navigation remain separate implementation
-and acceptance work under that issue.
-
-For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
-
-Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
-
-Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
-
-Catalog `runtime_mutable_file_patterns` reuses that anchored filename syntax for narrowly reviewed, disposable files created inside the managed runtime working directory. Core projects both pattern classes into the existing manifest `mutable_file_patterns`, with their separately resolved directories, so immutable verification has one fail-closed matching boundary. Only `persistent_file_patterns` participates in enumeration, backup, restore and migration; runtime-only matches never become player-data ownership. Catalog validation refuses unsupported adapters, overlapping declarations, executables, source materialization, Portcove metadata, exact runtime paths and persistent data, while manifest construction and import repeat the resolved executable/runtime checks. An absent field preserves prior catalog serialization and existing manifest schemas require no new authority. External per-user paths remain outside this contract.
-
-Before rollback, retained reuse, or staged activation switches the active pointer, core collects the current launched version and synchronizes its target. A previously launched target also loses persistent entries deleted from canonical data; a never-launched version keeps upstream defaults absent from canonical data. Synchronization failure leaves the old pointer authoritative, and activation recovery repeats the same order. This prevents a stale launch marker from collecting older saves over current progress after a version switch.
+| Task                                            | Owning contract                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------- |
+| Open a library or change its schema             | [Database and migrations](#database-and-migrations)                             |
+| Coordinate clients, operations and readback     | [Concurrency](#concurrency)                                                     |
+| Inspect, register, verify or relink game files  | [Original game files](#original-game-files)                                     |
+| Preserve player data and host choices           | [Saves and settings](#saves-and-settings)                                       |
+| Create, review or restore a saved-data snapshot | [Backups](#backups) and [backup service ownership](#backup-service-ownership)   |
+| Export, move, import or recover a whole library | [Library transfers](#library-transfers) and [library imports](#library-imports) |
 
 The default application-data directory contains:
 
@@ -1810,21 +1667,7 @@ library/
   logs/
 ```
 
-`runtime-sources` is a lazy, core-owned, rebuildable cache for source bytes that
-an upstream process needs only while creating its own persistent runtime data.
-It is outside authoritative `user` data. Before an archive-backed Libultraship
-first launch, core removes only its exact fixed or UUID-named cache files,
-normalizes into a private temporary file, verifies the result against the
-admitted source SHA-256 and size, and publishes it with an atomic no-replace
-rename. A restart removes an interrupted temporary; recognition of the
-catalog-declared generated archive removes the cached ROM. Unknown entries,
-links, and non-files fail closed.
-
-The cache is excluded from library metadata content roots, backup content,
-library import, and library move. A destination library rebuilds it from its
-still-registered source when required. The retained source directory from a
-library move may keep an old cache until that retained directory is removed by
-the owner; it is never treated as user data or recovery evidence.
+### Database and migrations
 
 SQLite stores source references, settings, install records, active/previous version pointers, successful launch history, timestamped successful update-check snapshots, a typed activity ledger, durable launch requests, and the small set of incomplete cross-store lifecycle operations. An install record keeps its human-readable display version separately from the asset name, verified asset SHA-256 and size, manifest SHA-256, selected executable, and exact concrete path. Database opening takes a library-scoped operating-system migration lock before checking or changing the schema. Migrations are contiguous, postcondition-checked steps. When the database is absent under the migration lock and its new ledger is empty, all pending steps and their history publish in one transaction; a failed step rolls the whole initial schema back. Existing database files retain one transaction per pending version, including empty ledgers left by an interrupted first initialization. A gap, a recorded partial step, or a schema newer than the running build fails with the affected versions instead of guessing. WAL and the busy timeout remain ordinary concurrency aids, not migration locks. Schema-8 migration leaves pre-identity installs explicitly unqualified rather than inventing provenance; they fail current-integrity gates until replaced or re-adopted. Schema 9 introduced active launch sessions. Schema 13 evolves them into retained request records with exact supervisor/child process-start identities, active phase, terminal outcome, child exit code, explanation, and timestamps; migrated sessions without start identity remain blocked for manual review rather than trusting a PID. Schema 14 adds an optional normalized absolute output directory to each port's settings. Core resolves a request override, then that saved setting, then the existing `versions/<port-id>` default. This preference controls future placement only; current installs, central user data, backups, sources, and shared tools keep their recorded locations. Schema 15 assigns the movable library a stable identity and records every claimed external game-output root with its port, marker identity, and filesystem-volume identity. The root marker and SQLite record must agree before core stages or publishes there. External installation preparation lives under that root's private `.staging` directory so verified publication remains a same-filesystem rename; missing or replaced volumes fail instead of falling back to the library drive.
 
@@ -1853,62 +1696,13 @@ non-destructive conflict. If original cleanup cannot complete,
 the verified Inbox copy stays registered and the result reports the exact
 retained path rather than claiming a move.
 
-The Source Inbox is the core-owned `source-inbox/<profile-id>` tree inside the
-movable library. Profile IDs pass one conservative ASCII portable-component
-policy, case aliases and symlink ancestors fail closed, and every scan stays
-inside one canonical profile root. Core reuses the shared inspector and returns
-typed exact, approval-required, ambiguous, incomplete, or unresolved results.
-Only one exact result may be rechecked and registered when install needs that
-profile; a saved registration retains precedence. Library metadata format 2
-adds the Source Inbox as a reviewed movable content root. Format-1 Alpha 1
-metadata remains readable and has no implied Source Inbox content. Explicit
-import defaults to copy, while use-current-location performs inspection and
-registration without copying. Deterministic digest-suffixed collision paths
-prevent an unrelated existing entry from being replaced.
+### Concurrency
 
-CLI and Tauri expose the same core-owned Source Inbox paths, profile scan,
-state-bound import plan, and transactional import result. Adapters may open a
-core-validated profile directory with the operating-system file manager and
-may collect move confirmation, but they do not choose destinations, classify
-candidates, copy bytes, grant reusable authorization, or write registrations.
-React retains only transient scan, plan-review, progress, and cancellation
-state.
+Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
 
-Source inspection problems may include only the registry-owned host-tool ID
-needed to continue a check. Desktop maps that ID back to the shared readiness
-controls and reuses the selected paths for the retry; tool paths and other
-private error details do not cross this presentation contract.
+Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
 
-The versioned source-inspection report is the shared explanation boundary for CLI
-and desktop. It combines current health and observed facts with the complete
-expected profile, every dependent port contract, reviewed evidence metadata,
-release applicability, exact evidence records, and explicitly conservative
-legacy platform coverage. Its open state code supports additive presentation
-states while the report and outer API schema versions guard typed meaning. A
-registered inspection returns missing and unreadable states without mutating its
-baseline. Evidence navigation accepts a stable evidence ID; core resolves that
-ID from the active catalog and revalidates the immutable HTTPS URL at the moment
-the Tauri host opens it.
-
-React presents that report without deriving a second source decision. It leads
-with the requirement, edition, admission, and per-port result, then exposes full
-scoped expected and calculated identities, compound members, qualification, and
-reviewed evidence. An absent expected digest stays visibly absent. Inspection
-requests are bound to the selected path and active source catalog so an older
-response cannot replace newer intent. A saved registered path may display its
-current report; a different typed or picked path remains selected and unchecked
-until a core operation evaluates it.
-
-Native game-file intake is another read-only route to the same inspector. Core
-classifies empty, single-path, directory, multi-path, unsupported, mismatch, and
-ambiguous inputs for one requested source profile. Tauri translates only native
-external-file events and does not infer identity or perform a mutation. React
-temporarily reveals eligible port-card targets, binds each reply to the current
-port/profile/path intent, and opens the same detailed evidence before offering
-separate copy, current-location, or authorized move actions. A drop by itself
-never registers, installs, copies, moves, replaces, or deletes source data.
-
-Core also owns the read-only output-destination preview, capacity/ownership assessment, state-bound fingerprint, one-use authorization, port locking, and apply-time revalidation. CLI and Tauri translate the same preview and mutation results. New desktop storage commands bind each request to the active bootstrap generation, while React holds only the typed path entry and transient review state; a library, port, path, or newer-request change discards an old response. The Settings surface reviews whole-library switching separately, and a game page labels its per-port choice “Install folder” and states that it changes future placement without relocating recorded installs.
+#### Activity and readback
 
 Management operations create a running activity before work and finish it as succeeded or failed without replacing the command's primary result. Best-effort progress uses a versioned core event envelope containing that activity UUID, a per-operation sequence, millisecond timestamp, typed target, optional parent operation, and terminal result. Nested work receives its own ID and names the parent. SQLite activity is authoritative after disconnect or restart; event delivery is never treated as durable truth. Update snapshots likewise come from the core, allowing a CLI check to repopulate the desktop after restart; consumers validate the snapshot's installed artifact digest, display version, and channel before presenting it as current. Status acquisition is set-oriented and scoped to the requested port identities: settings, related installs, launch history, and update snapshots use four parameterized queries per chunk, capped at 4,000 ports and reduced to the live SQLite connection's variable limit, preserve caller order, and decode no unrelated rows. A single-port service read likewise loads only the source profiles required by that port's current or retained definition. Catalog-wide status uses the same path and reassembles results in catalog order without writing default rows. Required source identities are hashed once per profile during that status request and shared by every installed dependent. Uninstalled registrations are reported as `not_checked` instead of causing catalog browsing to hash source files. Debug diagnostics record both query and decoded-row counts; scale tests cover 250, 500, 1,000, and 5,000 requested ports plus a one-port read beside 5,000 malformed unrelated records.
 
@@ -2031,19 +1825,265 @@ last completed report together with its never-loaded, loading, stale, failed, or
 Every invalidation advances a revision, so an older in-flight report cannot mark later library state
 fresh, and Updates can discover recovery work without requiring a prior visit to Settings.
 
-Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
+### Original game files
+
+Core resolves newly opened library roots and validated source references to absolute paths before they produce durable records. Relative CLI arguments therefore do not tie a new installation or source to that process's working directory. Existing ambiguous relative records are not guessed or silently rebased; they require qualification from their original base and explicit reinstallation or source relinking.
 
 Each registered source keeps its original path, content identity, storage identity, and registration time. A normal file has the same content and storage identity. A ZIP-backed cartridge records the selected inner member separately from the outer ZIP, a GameCube compressed image records its normalized ISO identity separately from its container, and a PS1 CHD records the normalized Track 01 identity separately from the CHD container. A file-set profile registers one folder or ZIP and derives a stable identity from every exact, top-level member; folder symlinks, nested ZIP members, and ambiguous alternative names are rejected. ZIP-backed file sets also retain the outer container identity. A declared multi-disc profile similarly derives a stable identity from its exact filename-sorted CHD set. Verification reruns the catalog profile checks and compares both fresh identities with the stored baseline without updating SQLite, activity history, or source bytes. It runs on demand and before a registered source is reused for install, update, or launch. Status reports each installed requirement as `current`, `missing`, `unreadable`, or `changed`; `unregistered` and the deliberately deferred `not_checked` state remain distinct. `current` proves only that storage bytes still match the registration baseline and never promotes an informational or extension-only catalog profile into an exact-revision claim. After adapter preparation, core performs a final identity check immediately before process creation; managed PS1 preparation rechecks storage identity after disc materialization and after BIOS use. A persistent source swap therefore fails before launch markers or child creation. Single-profile checks return normal structured failures; bulk checks isolate each profile so one missing or replaced file does not hide the others. Removing a source is a two-step core operation whose preview fingerprint binds the source identity, catalog dependents, and installed-dependent set; a short-lived one-use core authorization is consumed only after locking those ports and recomputing that state. Removal deletes only the SQLite reference.
 
+Source registration is a core-owned mutation. All source writers take a library/profile lock and the locks for every catalog port sharing that game source or BIOS, including registration through install overrides. These fail-fast locks prevent reference changes throughout a dependent launch or lifecycle operation without introducing a wait-order deadlock. Read-only relink planning validates the new location against the current profile and stored content identity; applying the content-bound plan repeats validation under those locks. The old source can be offline, but a changed registration or candidate invalidates the plan. Only SQLite's reference and validation baseline are replaced; source bytes remain untouched. CLI and desktop use this same service boundary.
+
+#### Inspection, source contracts and evidence
+
+`source_assessment` defines the shared source fact contract: existing
+`SourceHealth` (including selected bytes without a baseline), classification,
+reviewed release-contract result, actual admission/mode/reason, and scoped
+evidence are independent. These serializable records are descriptions, not
+operation authorizations or a second matcher. Existing validators and lifecycle
+checks remain authoritative. Schema export exposes the contract for subsequent
+inspection integration; current verification responses retain their existing
+fields and read-only behavior.
+
+Launch readiness additionally exposes optional source and BIOS assessments for
+the effective retained installed definition and artifact. `Current` byte health
+means the registered storage baseline still matches; it does not mean an edition
+is compatible. Core reassesses validated registration facts using the existing
+file matcher, without a second hash pass or implicit validator execution. Legacy
+facts and shapes whose structural proof cannot be reconstructed remain
+unevaluated. Confirmed compatibility requires an exact recognized identity, an
+enforced contract for the correct port/input role, and applicability to that
+installed release and artifact. Missing fields in older responses remain unknown.
+Known input rejection prevents launch and is checked again before launch side
+effects; unconfirmed compatibility alone permits an explained setup/trial route.
+No assessment, clean process exit or launch-history counter proves gameplay.
+
+For catalog-declared canonical N64 inputs, inspection rejects a missing/invalid
+byte-order header using canonical facts from the existing bounded hash pass,
+including ZIP members. This happens before structural admission and acquisition.
+A valid header alone establishes plausible format, never game identity. Other
+file kinds do not inherit an N64 requirement from their filename extension.
+
+Evidence relevance compares the exact port, platform, artifact, upstream ref,
+contract, source variant/representation and check version. An unspecified legacy
+variant or absent artifact/check identity cannot establish exact qualification.
+Relevance does not mean success: consumers must retain the evidence kind and
+outcome, including failed and not-run observations. Recorded Portcove build and
+observation time remain historical attribution; changing an unrelated build
+does not erase a fact. Evidence IDs are catalog references, not renderer URLs.
+Schema 2 stores exact source qualification under the same core authority. Core
+validates each record's port, platform, contract, artifact applicability,
+variant, representation, check version, method, outcome, and evidence references
+and derives category and all-source claims from exact matches only. Legacy
+platform arrays remain historical unscoped facts. Signed format 1 can add
+reviewed artifact applicability and exact qualification for existing contracts,
+while source meanings and prior facts remain frozen.
+
+The schema-2 source contract models the input to those facts through reusable
+identity profiles with logical variants and alternative physical
+representations. Per-port contracts select supported variants and an enforced
+or informational admission mode. Digests inside one identity record are
+conjunctive and carry an explicit byte scope; separate identity records and
+representations are alternatives. Evidence, validators, aliases, tombstones,
+release applicability, and review URLs use stable validated IDs. The embedded
+catalog is schema 2. Core deterministically projects its source authority into
+the temporary schema-1 `SourceProfile` view consumed by the existing matcher;
+catalog input may not supply a conflicting view. The frozen full schema-1
+fixture and contract fingerprints prove that projection preserves every prior
+profile and port binding. Profiles with reviewed Alpha 2 variant corrections
+retain an explicit `legacy_projection_only` record that contracts cannot select;
+this keeps the old matcher unchanged without treating the projection as current
+schema-2 identity. The projection retires when #180 moves all consumers to the
+shared inspector.
+
+Each current embedded port also carries an additive `presentation` object. Core
+owns its installation method, required game/BIOS labels, verification method,
+and saves/settings behavior; catalog validation binds every displayed source
+requirement to the exact profile and schema-2 contract. CLI and Tauri transport
+the same object, while React translates its stable enums into interface copy and
+combines it with existing structured project state, platforms, channels, support
+tier, and qualification arrays. Older schema-1 and signed schema-2 documents may
+omit presentation and remain readable; clients show that absence explicitly.
+Signed format 1 may update presentation independently of its frozen installed-code
+contract, while core still rejects presentation that disagrees with source
+authority. The field adds no lifecycle behavior, qualification, or source authority.
+
+`SourceInspection` is the read-only core result for selected source bytes. Its
+observed digests retain algorithm and byte scope, schema-2 digest fields match
+conjunctively, representations match as alternatives, and more than one matching
+representation is rejected as ambiguous. Ordinary files, cartridge ZIP members,
+canonical N64 byte orders, and file sets use this result for discovery,
+registration, relink, verification, install overrides, and launch preflight.
+GameCube and PlayStation disc sources use the same result through their existing
+bounded conversion paths. LIVE/STFS compound inspection also applies the same
+bounded parser, path checks, expanded-size limit, and block-chain checks used by
+materialization before an exact package identity can be admitted. Pinned
+upstream-validator sources record the selected validator contract and a `not_run`
+result while preserving preliminary structural admission; they do not claim an
+exact identity until the pinned setup tool performs its validation.
+
+File-set inspection records each required top-level member with its stable
+catalog member ID, selected filename, byte size, and SHA-1, SHA-256, and CRC32
+facts. It matches all digest fields inside one member identity together and
+aggregates admitted members with the established source-record algorithm. ZIP
+storage identity remains distinct from member and aggregate content identity.
+
+Disc inspection reuses the established bounded GameCube and PlayStation
+materializers without changing the selected input. GameCube results retain the
+normalized ISO SHA-1/SHA-256 separately from compressed-container storage
+identity. PlayStation results retain ordered per-disc track counts, readable
+volume IDs, normalized data-track SHA-1/SHA-256, and aggregate versus CHD-set
+storage identity. Schema-2 matching requires every configured fact for one
+representation and rejects reordered, incomplete, mismatching, or ambiguous
+disc sets before a source record becomes usable.
+
+#### Source Inbox and intake
+
+The Source Inbox is the core-owned `source-inbox/<profile-id>` tree inside the
+movable library. Profile IDs pass one conservative ASCII portable-component
+policy, case aliases and symlink ancestors fail closed, and every scan stays
+inside one canonical profile root. Core reuses the shared inspector and returns
+typed exact, approval-required, ambiguous, incomplete, or unresolved results.
+Only one exact result may be rechecked and registered when install needs that
+profile; a saved registration retains precedence. Library metadata format 2
+adds the Source Inbox as a reviewed movable content root. Format-1 Alpha 1
+metadata remains readable and has no implied Source Inbox content. Explicit
+import defaults to copy, while use-current-location performs inspection and
+registration without copying. Deterministic digest-suffixed collision paths
+prevent an unrelated existing entry from being replaced.
+
+CLI and Tauri expose the same core-owned Source Inbox paths, profile scan,
+state-bound import plan, and transactional import result. Adapters may open a
+core-validated profile directory with the operating-system file manager and
+may collect move confirmation, but they do not choose destinations, classify
+candidates, copy bytes, grant reusable authorization, or write registrations.
+React retains only transient scan, plan-review, progress, and cancellation
+state.
+
+Source inspection problems may include only the registry-owned host-tool ID
+needed to continue a check. Desktop maps that ID back to the shared readiness
+controls and reuses the selected paths for the retry; tool paths and other
+private error details do not cross this presentation contract.
+
+The versioned source-inspection report is the shared explanation boundary for CLI
+and desktop. It combines current health and observed facts with the complete
+expected profile, every dependent port contract, reviewed evidence metadata,
+release applicability, exact evidence records, and explicitly conservative
+legacy platform coverage. Its open state code supports additive presentation
+states while the report and outer API schema versions guard typed meaning. A
+registered inspection returns missing and unreadable states without mutating its
+baseline. Evidence navigation accepts a stable evidence ID; core resolves that
+ID from the active catalog and revalidates the immutable HTTPS URL at the moment
+the Tauri host opens it.
+
+React presents that report without deriving a second source decision. It leads
+with the requirement, edition, admission, and per-port result, then exposes full
+scoped expected and calculated identities, compound members, qualification, and
+reviewed evidence. An absent expected digest stays visibly absent. Inspection
+requests are bound to the selected path and active source catalog so an older
+response cannot replace newer intent. A saved registered path may display its
+current report; a different typed or picked path remains selected and unchecked
+until a core operation evaluates it.
+
+Native game-file intake is another read-only route to the same inspector. Core
+classifies empty, single-path, directory, multi-path, unsupported, mismatch, and
+ambiguous inputs for one requested source profile. Tauri translates only native
+external-file events and does not infer identity or perform a mutation. React
+temporarily reveals eligible port-card targets, binds each reply to the current
+port/profile/path intent, and opens the same detailed evidence before offering
+separate copy, current-location, or authorized move actions. A drop by itself
+never registers, installs, copies, moves, replaces, or deletes source data.
+
+#### Rebuildable runtime source cache
+
+`runtime-sources` is a lazy, core-owned, rebuildable cache for source bytes that
+an upstream process needs only while creating its own persistent runtime data.
+It is outside authoritative `user` data. Before an archive-backed Libultraship
+first launch, core removes only its exact fixed or UUID-named cache files,
+normalizes into a private temporary file, verifies the result against the
+admitted source SHA-256 and size, and publishes it with an atomic no-replace
+rename. A restart removes an interrupted temporary; recognition of the
+catalog-declared generated archive removes the cached ROM. Unknown entries,
+links, and non-files fail closed.
+
+The cache is excluded from library metadata content roots, backup content,
+library import, and library move. A destination library rebuilds it from its
+still-registered source when required. The retained source directory from a
+library move may keep an old cache until that retained directory is removed by
+the owner; it is never treated as user data or recovery evidence.
+
+#### External runtime locations
+
+External folder relinking reads the retained registration and catalog in one
+observation, binds their exact stored bytes and the fully inspected proposed
+folder to a distinct reviewed authorization, then rechecks under the port lock.
+An immediate transaction refuses a changed row, managed installation or pending
+launch and changes only the external location and validated preference binding.
+It preserves registration identity, timestamps and the original catalog bytes;
+it never re-captures a possibly newer definition. A missing old folder is allowed,
+while its structural and account scope remain binding. New-folder shared consent
+uses the outer relink fingerprint. No external files or saves are moved or adopted.
+Managed planning, installation and updates refuse an extant external registration
+before provider resolution; the UI and adapters do not create another authority.
+
+#### Upstream observations
+
+The [configured upstream observer](UPSTREAM-OBSERVATIONS.md) owns bounded,
+read-only provider collection and factual operational checkpoints. It submits
+inert observations through the standalone CLI to core's existing release
+channel and asset policy. Core validates the exact scope and facts and exports
+metadata eligibility separately from authentication, integrity and admission.
+The CLI translates this offline command without opening a library. The
+observer neither writes catalog support nor owns installed/update state;
+existing crate dependency rules remain unchanged.
+
+### Saves and settings
+
 Before launch, catalog-declared persistent paths are synchronized from `user/<port-id>/` into the active version. They are collected from that exact launched version when the child exits and before update, staged activation, rollback, removal, or backup. Synchronization refuses symlink destinations and ancestors. A per-version marker prevents a fresh release's defaults from replacing established user data while still recovering changes after an abnormal exit. Adapters may also use an upstream storage contract: Libultraship receives `SHIP_HOME`, N64 recomp releases get their upstream-supported `portable.txt` marker, and a reviewed catalog entry can declare a portable marker beside its executable together with a narrowly validated source-import variable and fixed arguments. Mutable paths are resolved against the same working directory the adapter launches, including when a release archive contains a wrapper directory.
 
+Catalog `persistent_file_patterns` extends the same core-owned persistence boundary to named save files. Rules are literal nonempty filename prefixes/suffixes in one working directory, with no recursive traversal or general glob syntax. A scan admits at most 4,096 directory entries and 1,024 matching regular files; links, directories, special entries and unsafe filenames fail closed. Collection and restore consider both source and destination names so deleted/restored-away profiles cannot reappear. Manifest schema 5 stores the rules with their resolved directory, preserves immutable executable/bootstrap/runtime checks, records the qualified target platform and each immutable file's executable intent, and rejects changed rules or permissions during import. Schema 2-4 manifests remain readable without silently acquiring executable metadata they never recorded. Signed catalog delivery keeps persistence rules frozen like literal persistence paths. This adds no adapter authority or crate dependency; the existing architecture metadata rules remain unchanged.
+
+Catalog `runtime_mutable_file_patterns` reuses that anchored filename syntax for narrowly reviewed, disposable files created inside the managed runtime working directory. Core projects both pattern classes into the existing manifest `mutable_file_patterns`, with their separately resolved directories, so immutable verification has one fail-closed matching boundary. Only `persistent_file_patterns` participates in enumeration, backup, restore and migration; runtime-only matches never become player-data ownership. Catalog validation refuses unsupported adapters, overlapping declarations, executables, source materialization, Portcove metadata, exact runtime paths and persistent data, while manifest construction and import repeat the resolved executable/runtime checks. An absent field preserves prior catalog serialization and existing manifest schemas require no new authority. External per-user paths remain outside this contract.
+
+Before rollback, retained reuse, or staged activation switches the active pointer, core collects the current launched version and synchronizes its target. A previously launched target also loses persistent entries deleted from canonical data; a never-launched version keeps upstream defaults absent from canonical data. Synchronization failure leaves the old pointer authoritative, and activation recovery repeats the same order. This prevents a stale launch marker from collecting older saves over current progress after a version switch.
+
 Removal consumes its short-lived, one-use, state-bound authorization under the port lock before collecting live data. An admitted operation may finish a large collection after that token's expiry; expiry is never extended for a new request. The recovery journal is published with the exact managed paths before quarantine begins. A rejected request cannot collect live data or create a resumable removal intent. Startup marks legacy empty preparation intents as failed without claiming that versions were removed.
+
+Core also owns the read-only output-destination preview, capacity/ownership assessment, state-bound fingerprint, one-use authorization, port locking, and apply-time revalidation. CLI and Tauri translate the same preview and mutation results. New desktop storage commands bind each request to the active bootstrap generation, while React holds only the typed path entry and transient review state; a library, port, path, or newer-request change discards an old response. The Settings surface reviews whole-library switching separately, and a game page labels its per-port choice “Install folder” and states that it changes future placement without relocating recorded installs.
+
+#### Host preferences and library selection
+
+`HostPreferenceStore` provides bounded format-1 host preference storage and selection provenance without moving a library. CLI and desktop use its platform configuration path outside movable library data and credentials, with an optional absolute preference-file override for portable/test hosts. Selection precedence is an explicit invocation path, saved path, then the platform default. Invalid selected configuration fails visibly; an explicit invocation path or reset remains available when preferences are corrupt or from a future format.
+
+Preference writers serialize through a process lock keyed by the exact preference path before taking the persistent sibling operating-system lock, then publish a flushed sibling atomically using the shared durability helper. The process lock closes platforms where operating-system file locks do not serialize handles owned by one process; the sibling lock preserves the cross-process boundary. Reads never create files. Setting or clearing a library preserves compatible unknown JSON fields and unrelated host preferences; explicit recovery reset replaces the whole document, including damaged or future-format content, with current defaults. Core validates that a saved target is an existing empty directory or recognizable Portcove root, refuses symlinks, filesystem roots, unrelated content, and preference/library overlap, then stores its canonical path without initializing it.
+
+Favorites use the compatible `favorites_by_library` extension in that same
+format-1 host preference document. `HostPreferenceStore::favorite_ports` and
+`set_favorite` read or change independent canonical port IDs under a selected
+library's canonical 32-character lowercase hexadecimal ID obtained from `Library::identity_record`. Display-name
+corrections and managed library moves preserve that identity; importing into a
+different library does not inherit its favorites. Temporarily absent or retired
+catalog IDs remain stored until explicitly unset. The existing locks, atomic
+publication and 64 KiB document limit apply, and unrelated preferences and unknown
+extensions survive a change. Removing the last choice removes the empty extension;
+explicit preference reset clears it with the rest of the document.
+
+Only favorites operations decode this extension. A malformed favorite map reports
+an actionable preference error without preventing ordinary library selection,
+locale or host-tool preference operations, and those writers preserve it as JSON
+data rather than silently deleting it. Reads create no storage, and favorite
+changes neither open a library nor confer installation, source or catalog
+ownership. These private host choices do not enter public catalog data or trigger
+networking or scanning. This is the Core preference foundation for #1552; Desktop
+toggles, filter composition, counts and navigation remain separate implementation
+and acceptance work under that issue.
+
+For a live desktop switch, the adapter makes its current state unavailable and drops its cached library/providers. Core then acquires an exclusive lease on the old root; an already-dispatched operation retains a shared lease and makes the switch fail, after which the adapter reopens the old state. Only a successfully opened target is persisted and published as current. A monotonically increasing bootstrap generation remounts React's library-owned state so results from the old workspace cannot populate the new one. This introduces no second library authority or database/catalog migration.
+
+### Backups
 
 Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
-
-Source registration is a core-owned mutation. All source writers take a library/profile lock and the locks for every catalog port sharing that game source or BIOS, including registration through install overrides. These fail-fast locks prevent reference changes throughout a dependent launch or lifecycle operation without introducing a wait-order deadlock. Read-only relink planning validates the new location against the current profile and stored content identity; applying the content-bound plan repeats validation under those locks. The old source can be offline, but a changed registration or candidate invalidates the plan. Only SQLite's reference and validation baseline are replaced; source bytes remain untouched. CLI and desktop use this same service boundary.
 
 Backup inventory exposes separate Core creation and Restore assessments. Restore
 review eligibility requires a usable snapshot, safe owned locations and no
@@ -2055,7 +2095,12 @@ selected tree. Desktop consumes only the current Restore assessment, including
 failed/pending refreshes, independently of Delete. Doctor remains history-only;
 execution preserves its locks, integrity checks and state-bound authorization.
 
-Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
+### Library transfers
+
+[Concurrency](#concurrency) describes the shared library lease that a transfer
+must acquire exclusively. [Public library identity](#public-library-identity)
+remains stable across a managed move; [library imports](#library-imports) owns
+the separate checked destination and historical-admission contract.
 
 `portability` owns the versioned metadata document and its export policy inside core. It uses the library's existing source/install readers inside one SQLite read transaction, with typed settings and history. It exports identities and references, not payloads or credentials; managed paths become relative and the four content categories remain explicit. A metadata file is published from a flushed private sibling file without replacing an existing destination. CLI and Tauri only translate output choices and native picker results.
 

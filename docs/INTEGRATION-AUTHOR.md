@@ -1,13 +1,22 @@
 # Build an external Portcove client
 
-Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
+Build against the public CLI, its exported schemas and one explicitly selected
+library. Core owns admission, plans, consent-bound execution, lifecycle state and
+recovery. The client presents that authority; it does not read SQLite or infer
+permission from a catalog flag.
 
-Start with a verified standalone CLI and an explicit library. The
-[public releases](https://github.com/boburning/portcove/releases) provide separate
-CLI packages; follow their checksum instructions. This guide's schema-42 launch
-and identity examples require a matching candidate until that contract is in a
-published release. Identify a candidate by source commit, package and executable
-SHA-256. Do not silently substitute an old preview or label a local build released.
+| Stage                 | Use this recipe                                                   | Required observation or boundary                                                                                 |
+| --------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Choose inputs         | [CLI and fixture library](#choose-a-cli-and-fixture-library)      | Verified artifact, host prerequisites and an explicitly owned library.                                           |
+| Discover              | [Capabilities, schemas and identity](#discover-and-bind)          | Supported commands/versions, actual library ID and unknown-value handling.                                       |
+| Inspect               | [Public requirements and current state](#inspect-before-planning) | Catalog requirements, current readiness and stable blocking reasons.                                             |
+| Plan and authorize    | [Optional management](#optional-management)                       | Exact supported plan, disclosed consequences and the matching operation's consent.                               |
+| Observe and reconnect | [Launch and reconnect](#launch-and-reconnect)                     | Authoritative terminal result and retained/current readback; lost output is not success or permission to replay. |
+| Diagnose              | [Troubleshooting](#troubleshooting-and-conformance)               | Actual failure, mutation state and advertised operation-specific recovery.                                       |
+| Hand off              | [Evidence and continuation](#evidence-and-continuation)           | Exact artifact/library/target/operation, observed result and next permitted action.                              |
+
+See the [domain glossary](../GLOSSARY.md) for current and proposed terms, and the
+[content-design contract](CONTENT-DESIGN.md) when presenting these distinctions.
 
 The [Playnite reference](../integrations/playnite/README.md) is one external
 consumer. Its protocol and process files are examples, not a general SDK or
@@ -21,6 +30,40 @@ recovery. A basic launcher is not required to implement every management command
 Negotiate the operations and schemas actually used, and keep unsupported higher
 levels unavailable rather than accepting consequential data the client cannot
 interpret.
+
+## Choose a CLI and fixture library
+
+1. Choose the standalone CLI for the actual operating system and processor from
+   the [download guide](DOWNLOADS.md). Follow the selected release's checksum
+   manifest; Desktop and GitHub Source code archives are different deliverables.
+2. Check the artifact's available capabilities before designing its client.
+   Published Alpha 2 exposes API 34. It cannot run this guide's schema-42 identity
+   and launch-request path or later reviewed management. Do not silently substitute
+   that preview for a compatible artifact.
+3. For current development, reuse an exactly identified compatible candidate
+   through the [maintained packaging route](RELEASING.md#standalone-cli-integration-artifact).
+   Retain source commit, package and extracted-executable SHA-256, host prerequisites
+   and the capabilities actually read. A local release-profile build can retain an
+   Alpha 2 product-version string while exposing newer APIs; it is still a local
+   candidate, not the historical published package. The final published-client
+   claim must identify an available compatible released artifact.
+4. Select a disposable fixture directory or a library explicitly chosen by the
+   player. Pass `--library` on every invocation, including readback and recovery.
+   `library show` inspects selection without opening the library; `library identity`
+   can initialize an empty root and records the resulting identity. Never fall back
+   to the operator's default library to make a fixture pass.
+
+Use the [reference client's redistributable fixtures](../integrations/playnite/README.md)
+and [representative source-built checks](#representative-source-built-developer-checks)
+when their scope fits. They need no personal game data. The
+[completed packaged-agent evidence](archive/2026-10-11-packaged-agent-consumer.md)
+records the exact Windows/Linux candidates, synthetic inputs, isolation and
+limitations used for #1499. Reuse those accepted results at their recorded scope;
+an unchanged documentation task does not require a new package build or replay.
+
+## Channel compatibility
+
+Game-port release channels display as **Stable / Preview / Rolling**. Current game-port CLI inputs prefer `stable` / `preview` / `rolling`; `beta` remains a compatibility alias for `preview`. Both Preview spellings select the same existing stream. Canonical JSON, catalog, installation and preference values remain `stable` / `beta` / `rolling`; no serialized `preview` value or saved-choice migration is introduced. Copied commands and integrations may retain `beta` when the intended CLI's Preview input support is unverified, preserving supported older consumers. Changing the spelling does not select a different release. Offered channels, the selected stream and the actual upstream release are separate facts. Preview prefers eligible prereleases and can fall back to an eligible stable release; that fallback does not acquire an upstream Beta/Alpha designation. Original upstream tags/names, application Public beta milestones, qualification evidence and compatibility limitations retain their own meaning.
 
 ## Discover and bind
 
@@ -132,6 +175,30 @@ Use the active installation only as current display state. Update/rollback and
 managed moves retain the game key; a supported import destination has its own
 library ID. Recheck selection before operations, and reject keys belonging to
 another library. Do not identify games by name, executable path or version.
+
+## Inspect before planning
+
+Read `catalog show PORT_ID` or the exported catalog for accepted original/BIOS
+requirements and offered routes, then `status PORT_ID` for the selected library's
+installation and current action assessments. `doctor` reports host/tool and
+retained-recovery facts; it does not execute a repair. For registered game files,
+`source inspect PROFILE_ID` distinguishes observed identity, unchanged bytes,
+admission and scoped evidence. A source record is not a promise that the file is
+still present, compatible with every release or authorized for installation.
+
+Keep the stable port ID and library identity through the workflow. Select the
+supported plan for the actual task: first managed installation, preparation of
+an existing managed installation, reviewed external registration or another
+advertised operation. Source registration, copy, move, game installation,
+external-folder registration and launch have different effects. A missing
+capability or unknown consequential value stops that action with an explicit
+compatibility message; it does not justify a private API or a guessed command.
+
+A launch-only client can stop after supported readiness and the launch route.
+Library integration adds public entry/metadata discovery. Lifecycle management
+adds the plan, authorization and outcome obligations below. Application updates,
+game updates, catalog/definition updates and plugin updates retain their
+[separate owners](INTEGRATIONS.md#update-ownership).
 
 ## Launch and reconnect
 
@@ -398,7 +465,10 @@ proof and an identified packaged-agent exercise remain separate evidence.
 
 The [October 11 packaged-agent evidence map](archive/2026-10-11-packaged-agent-consumer.md)
 records the identified local Windows/Linux candidates, public preparation,
-negative cases, cancellation and lost-output readback. Reuse each result only at
+negative cases, cancellation and lost-output readback. It was delivered through
+[PR #1768](https://github.com/boburning/portcove/pull/1768) and the
+[complete #1499 acceptance receipt](https://github.com/boburning/portcove/issues/1499#issuecomment-6106634012).
+The completed exercise is consumed proof, not a new prerequisite to repeat. Reuse each result only at
 its stated artifact, fixture and environment scope. In particular, an obstructed
 library path is not a disk-full test, synthetic setup is not retail-source or
 gameplay qualification, and a local package is not a published release. This map
@@ -435,3 +505,36 @@ generic registration consent. The reference client binds the returned
 registration to the reviewed shared account and path. External
 `preparation_required` remains manual preparation, not a managed setup action.
 See [the CLI shared-directory contract](CLI.md#shared-directory-external-runtimes-api-73).
+
+## Evidence and continuation
+
+Keep a bounded sanitized receipt that another author can use without private
+implementation knowledge:
+
+| Record                                                                            | Why it matters                                                                                                              |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Source/package/executable identities, OS/processor and prerequisites              | Distinguishes the exact published artifact or local candidate from a product-version label.                                 |
+| Used API/event versions and capabilities                                          | Shows which consequential data the client was prepared to interpret.                                                        |
+| Explicit library identity, catalog port ID and relevant operation/request ID      | Binds readback to the intended library and action without using mutable names or paths as identity.                         |
+| Reviewed plan, selected inputs, actual authorization and observed terminal result | Separates proposed effects, permission, execution and authoritative outcome. Do not persist process-local tokens as grants. |
+| Current state, retained recovery guidance and selected redacted diagnostics       | Makes interruption or lost output understandable before another mutation.                                                   |
+| Fixture/input identity, interventions, limits and next supported action           | Preserves synthetic/native/published scope and enables a concrete handoff without inventing speedup or autonomous service.  |
+
+After interruption, preserve the original error and inspect retained activity plus
+current status before another mutation. If no authoritative terminal outcome was
+observed, a failed readback leaves that outcome unknown; a later successful read
+does not retroactively prove what missing output said. If a committed mutation or
+terminal success is already known, preserve that fact and report a failed refresh
+separately. Regenerate affected commands and request a fresh plan when runtime,
+library, target or consequential inputs change. Use only the advertised
+operation-specific recovery and its current review. A cleanup preview is not
+cleanup application, and a cancellation acknowledgment is not a terminal outcome.
+
+Report demonstrated contract/recipe gaps through the [contributor workflow](../CONTRIBUTING.md)
+and the existing owning issue. Link the exact public response and reproduction,
+state expected versus observed behavior, preserve failures, and identify the next
+capable action. [Architecture ownership](ARCHITECTURE.md#find-the-owning-boundary),
+[CLI schema history](reference/cli-schema-history.md) and
+[platform/package limits](RELEASING.md#standalone-cli-integration-artifact) provide
+the subsystem and migration routes. No private source bytes, credentials or
+unredacted personal library paths belong in a public report.

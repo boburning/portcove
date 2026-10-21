@@ -1,5 +1,60 @@
 # Releasing Portcove
 
+## Release task order
+
+Use this route for the exact candidate and platforms being claimed. The current
+[Slice 4 producer, activation and storage holds](#inactive-slice-4-input-integration)
+and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
+effective. Preparation, a successful rehearsal and an ordinary merge each retain
+their own scope; publication requires its existing explicit authority.
+
+### Preflight
+
+Establish the [frozen source and input identities](#frozen-source-consistency)
+and the applicable [readiness record](#roadmap-readiness-snapshot). For Windows,
+follow [Windows preflight](#windows-preflight); the
+[isolated installer checks](#isolated-windows-installer-checks) explain its
+expected lifecycle evidence. Retain a failed command's output and owned evidence
+before diagnosing or repeating that step.
+
+### Build matrix
+
+Use the [declared package matrix](#declared-package-policy) for the required
+Desktop and standalone CLI outputs by operating system and processor.
+[Tagged build](#tagged-build) explains the actual producers, native Intel
+verification, checksum reconciliation, SBOM and draft assembly. The separate
+[release rehearsal](#release-rehearsal) exercises packaging without creating a
+tag, attestation or release. Each claimed platform keeps its own
+[upgrade acceptance](#upgrade-acceptance-and-technical-previews) and
+[signing/trust requirements](UPDATER-TRUST.md#owners-and-independent-trust-claims).
+Linux packages retain their [package-manager or AppImage ownership](UPGRADING.md#linux-package-choice).
+
+### Publish
+
+Follow the [frozen candidate's authorization boundaries](#roadmap-readiness-snapshot)
+and [draft review steps](#release-rehearsal). Review the tag build's exact assets,
+notes, checksums, channel and evidence before separately authorized publication;
+rehearsal bytes do not certify a later build. Then complete
+[public asset and attestation verification](#post-publication-verification-and-release-channels).
+Existing published releases and historical manifests remain unchanged.
+
+### Retain evidence
+
+Keep the linked [pre-publication snapshot and execution record](#roadmap-readiness-snapshot):
+exact source, run and attempt, package digests, selected platform observations,
+required check results, failures and limitations. Installer/session receipts
+retain their [process and preservation observations](#isolated-windows-installer-checks).
+Follow the existing [attempt-artifact retention and custody rules](#tagged-build);
+expiry is not proof of successor custody or free capacity. For retained native
+inputs, use the [verification evidence store](DEVELOPMENT-STORAGE.md#retained-verification-evidence).
+
+The existing [installed Windows update and staging-recovery guide](media/application-update/README.md)
+contains authentic test-build media and its exact receipt. The
+[first-launch guide](media/first-play/README.md) records a separate Windows
+development-build game journey. Their build, environment, input and observation
+limits remain attached to those guides; neither is qualification of a new
+release or a production update feed.
+
 ## Inactive Slice 4 input integration
 
 The prepared semantic input wire uses summary schema 2: the complete validated
@@ -1239,7 +1294,40 @@ To qualify replacement of an earlier local build, retain its installer before re
 .\scripts\test-windows-installer.ps1 -InstallerPath <new-setup.exe> -UpgradeFromInstallerPath <earlier-setup.exe> -ExpectedExecutablePath <new-portcove-desktop.exe>
 ```
 
-The test refuses to replace an existing registered Portcove installation. In a new isolated directory it installs and cleanly closes the predecessor, replaces it with the candidate, checks the candidate executable hash and responsive window, then uninstalls. Expected executable hashing reproduces Tauri's single fixed bundle-type marker substitution from `UNK` to `NSS` in memory; it compares the entire resulting file, and reports both raw and bundled hashes. The library database and a clearly labeled test data marker must survive replacement and uninstall. Forced termination is a failed smoke result. Same-version build replacement is recorded separately from a future version-number upgrade, signed production validation, and interactive shell observations.
+### Isolated Windows installer checks
+
+The test refuses to replace an existing registered Portcove installation. Its
+ordinary silent-install route performs these checks in a new isolated directory:
+
+1. **Establish the isolated inputs.** Bind the candidate installer and expected
+   executable identities to the run. When an earlier installer is supplied,
+   install and cleanly close that predecessor before replacing it. Retain the
+   predecessor identity and upgrade result separately from a fresh installation.
+2. **Install silently.** Require the installer to succeed and the isolated
+   installation to have exactly one matching registration. Retain the installer
+   digest, signature observation, install mode, observed exit code and registered
+   version. An observed unsigned artifact remains unsigned.
+3. **Launch and check responsiveness.** Compare the installed executable with
+   the expected bytes and wait for a responsive application window. Retain the
+   installed hash, window title and responsiveness result. A process start alone
+   does not complete this check.
+4. **Close normally.** Request closure through the application window and retain
+   the observed application exit code. Forced termination is a failed smoke
+   result; an unobserved exit code cannot establish a clean exit.
+5. **Uninstall and compare preserved data.** Require managed installation files
+   and registration to be removed. Compare the before/after preservation
+   manifests: the library database and clearly labeled test data marker must
+   survive replacement and uninstall. Retain cleanup and process observations,
+   including any unavailable uninstaller-child exit code described below.
+
+Expected executable hashing reproduces Tauri's single fixed bundle-type marker
+substitution from `UNK` to `NSS` in memory; it compares the entire resulting file,
+and reports both raw and bundled hashes. Same-version build replacement is
+recorded separately from a future version-number upgrade, signed production
+validation, and interactive shell observations. The harness emits its structured
+result and can retain a phase journal at the explicit `-EvidencePath`; failed
+runs preserve their owned run directory. The packaged session below adds its
+build record, verified tool copies and retained receipt.
 
 The [NSIS uninstaller launcher returns before its temporary self-copy finishes](https://nsis.sourceforge.io/When_I_use_ExecWait_uninstaller.exe_it_doesn%27t_wait_for_the_uninstaller).
 The harness retains the launcher handle and observes any live direct child using

@@ -3,7 +3,7 @@
 The public, user-owned
 [Portcove Roadmap](https://github.com/users/boburning/projects/1) is the sole live
 planning authority. Project fields may change freely without a documentation
-rewrite. GitHub issues preserve executable specifications and evidence;
+rewrite. GitHub issues preserve implementation-ready specifications and evidence;
 repository documentation preserves stable contracts and dated snapshots;
 `catalog.json` preserves actual port support.
 

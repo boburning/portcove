@@ -72,6 +72,16 @@ qualified at the actual claimed scope. Required foundations include:
   [Windows/Linux application updates #52](https://github.com/boburning/portcove/issues/52),
   applicable security, interruption, recovery and data preservation.
 
+For the exact release artifacts, upgrade paths, packaging and signing
+requirements for each claimed platform, follow the
+[release task order](RELEASING.md#release-task-order),
+[required package matrix](RELEASING.md#declared-package-policy),
+[upgrade and recovery guide](UPGRADING.md) and
+[independent trust owners](UPDATER-TRUST.md#owners-and-independent-trust-claims).
+[Signed in-app updates](RELEASING.md#upgrade-acceptance-and-technical-previews)
+retain their platform-specific acceptance; optional
+[signed catalog delivery](SIGNED-CATALOG.md) has its own metadata authority.
+
 Completed source, lifecycle, definition and public-client foundations remain
 credited. Reusable CLI/integration contracts and useful manual/plugin-free
 [Steam launch #290](https://github.com/boburning/portcove/issues/290) remain.

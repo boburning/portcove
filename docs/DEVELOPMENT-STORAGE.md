@@ -5,6 +5,12 @@ free space, including the Windows system drive. Repository defaults check physic
 paths, capacity and cleanup containment; a drive letter alone is not a failure.
 The primary maintainer retains a stricter non-system-drive machine policy.
 
+Start with [what preflight checks](#what-preflight-checks), then read
+[when it stops](#when-it-stops) before [changing an override intentionally](#how-to-override-intentionally).
+For reclamation, use [checked cleanup](#clean-up-verified-disposable-content);
+[retained verification evidence](#retained-verification-evidence) has a separate
+custody and cleanup decision.
+
 Prefer a non-system **SSD** for active development. Free capacity alone does not
 make an HDD suitable for the many small reads and writes in dependency loading,
 SQLite fixtures and linking. Moving only Cargo output or temporary files leaves
@@ -75,7 +81,7 @@ storage checks, directory creation or cleanup. When wrapping a command with
 `run`, put storage options before `--`; every argument after it belongs to the
 child command, including the child's own `--help`.
 
-Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and the root `pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
+Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and the root `pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been verified to be disposable.
 
 From the new workspace, inspect the resolved layout and prerequisites before a
 heavy command:
@@ -97,6 +103,8 @@ Preserve failed evidence during diagnosis.
 Use the owning task's narrow test command and `just local-check`; exhaustive
 validation remains required only for its documented acceptance or investigation.
 
+### What preflight checks
+
 The read-only preflight follows existing symlinks and junctions (including missing
 descendants), checks directory access and capacity, and prints the physical paths.
 Its default `all` scope resolves the actual Cargo workspace/target through
@@ -107,12 +115,6 @@ generated paths. `--scope tooling` checks workspace, temporary and output paths;
 Rust build script writes schemas) without frontend dependency/output paths. Unknown
 commands retain `all`; cleanup always uses complete Cargo discovery/containment.
 
-Path refusals identify the affected directory and the correction: reconnect an
-unavailable volume, choose a readable/writable directory, or move configured
-storage to a volume allowed by the machine policy. Cleanup never follows a link
-to repair a rejected path. Preserve custom targets, linked contents, source
-inputs, recovery material and verification evidence while correcting the layout.
-
 The existing local planner selects these scopes from its complete command plan.
 Its outer launcher uses tooling scope; selected Rust/mixed work still resolves
 Cargo before execution. Plan-only frontend/tooling discovery does not require
@@ -120,13 +122,27 @@ Cargo. Receipt identity collection may probe optional tool versions; those probe
 do not require the tools or resolve native outputs. Ordinary `cargo build -p
 portcove-cli` remains independent of the frontend launcher and Node toolchain.
 
+`preflight --json` returns the checked layout without creating output directories.
+
+### When it stops
+
+Path refusals identify the affected directory and the correction: reconnect an
+unavailable volume, choose a readable/writable directory, or move configured
+storage to a volume allowed by the machine policy. Cleanup never follows a link
+to repair a rejected path. Preserve custom targets, linked contents, source
+inputs, recovery material and verification evidence while correcting the layout.
+
 Any selected filesystem with less than 20 GiB free blocks execution.
+
+### How to override intentionally
+
 `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` changes this configurable margin;
 use observed requirements rather than treating it as a precise build prediction.
 The command-line value takes precedence over the environment value. Both require
 a positive finite number; invalid values are reported with the effective input
 and a correction instruction.
-`preflight --json` returns the checked layout without creating output directories.
+
+`PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. The root `pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
 
 For a stricter Windows profile, set `PORTCOVE_BLOCK_SYSTEM_DRIVE=1`, or keep this
 private machine file at `~/.config/portcove/development-storage.json`:
@@ -141,6 +157,8 @@ or unreadable configuration blocks execution with its exact path. Environment
 value `0` does not relax a strict machine policy. Do not commit machine settings or
 change another contributor's policy. The primary maintainer's strict file must be
 verified before switching from the historical repository-wide drive prohibition.
+
+### Dependencies and default paths
 
 Before installing dependencies, compare `pnpm --version` with `packageManager`
 in the root `package.json`. A host-provided fallback that ignores the project
@@ -163,8 +181,6 @@ The default layout is entirely relative to the checkout:
 
 The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir`, and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
 
-`PORTCOVE_TEMP_DIR`, `PORTCOVE_OUTPUT_DIR`, and `PORTCOVE_PNPM_STORE_DIR` override their defaults; relative values are resolved from the repository root. Cargo owns target selection through its configuration or `CARGO_TARGET_DIR`. The root `pnpm-workspace.yaml` supplies the default store for direct pnpm commands; the launcher applies its checked override to pnpm itself. The PowerShell packaging/release scripts use the same checked layout and restore the caller's environment afterward. Local packaging requires its output below the workspace and excludes configured build/scratch/store/output directories from the source ZIP. Installer qualification uses a private run directory below project temporary storage and retains failed-run evidence; an explicit `-TestBase` selects a different qualification root.
-
 On a host where the workspace volume is rotational, sustained fixture-heavy
 validation can saturate that volume even after cross-worktree Rust admission is
 serialized. Set `PORTCOVE_TEMP_DIR` to a unique directory for this worktree on a
@@ -178,6 +194,8 @@ isolated validation checkout is deliberately located on that SSD.
 Required CI runs the storage regression suite in both the Windows `rust` job and Linux `rust-quality` job. CI, release, and deep-quality workflows export the workspace store before pnpm cache discovery, so the cached directory and the install directory agree even when a setup action runs from the repository root.
 
 Run rust-analyzer from the selected workspace so its Cargo metadata resolves the same `target` directory. That workspace must satisfy the effective machine-local policy as well as portable repository checks. Do not create validation-mode-specific target directories unless a tool proves that isolation is required. These controls cover repository build and scratch data; they do not relocate installed tools, Cargo's global registry, or other user-level caches. Native executables receive their arguments directly. Windows batch shims support spaced arguments but reject shell expansion/control characters rather than interpreting them.
+
+### Clean up verified disposable content
 
 Use the explicit cleanup command when the shared Cargo tree is no longer needed:
 

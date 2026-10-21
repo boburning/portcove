@@ -39,10 +39,18 @@ Existing Alpha 1 libraries can be carried forward with the documented
 
 ## What Portcove does
 
+### For players
+
 - Browse a catalog of native ports and manage them as one library. Explicitly
   check game-file availability for a selected route, platform and channel, then
   combine current observations with catalog filters. Details explain the same
   observation; setup and launch still use their ordinary reviews.
+- Keep managed versions side by side so updates can be saved for later, installed,
+  checked, or rolled back.
+- Adopt an existing installation by copying it into Portcove without changing the original.
+
+### Library safety
+
 - Check game files locally. A saved location can point to the
   current file; copying into Portcove leaves the original in place, while Move
   requires separate authorization. Portcove checks known exact identities and
@@ -51,12 +59,24 @@ Existing Alpha 1 libraries can be carried forward with the documented
   Current hosted releases use provider digests or checksum sidecars; accepted
   direct manifests pin exact artifacts. Catalog-curated acquisition is planned
   under [#315](https://github.com/boburning/portcove/issues/315).
-- Keep managed versions side by side so updates can be saved for later, installed, checked, or rolled back.
 - Keep the saved data declared for a port, such as its known save, settings, and
   mod locations, separately from installed versions; back up and restore that
   managed data. This does not establish save compatibility across game versions.
-- Adopt an existing installation by copying it into Portcove without changing the original.
-- Provide the same behavior through a keyboard- and controller-friendly Tauri app or an automation-focused CLI with JSON, JSONL, schemas, and stable exit codes.
+
+### Launcher use
+
+- Launch an installed port through the desktop app or the standalone CLI, with
+  the selected library and Portcove's current launch checks.
+- Connect another launcher through the [public integration routes](docs/INTEGRATIONS.md).
+  Launch-only, library and lifecycle integrations have different capabilities;
+  a named launcher is not a claim that its complete plugin is supported.
+
+### Developer and integration support
+
+- Use the shared Core behavior through Desktop or the independent CLI.
+- Discover versioned JSON/JSONL, schemas, capabilities and stable error/exit
+  behavior through the [CLI guide](docs/CLI.md) and
+  [external-author workflow](docs/INTEGRATION-AUTHOR.md).
 
 Portcove keeps its library, saved game-file locations, and application state
 local. A GitHub account is optional and is used only to raise the API rate
@@ -135,6 +155,74 @@ Ocarina of Time source, preparing its game data, and reaching the title screen.
 It is separate from Alpha 2 package qualification and does not establish gameplay,
 audio, save compatibility or physical-controller behavior.
 
+## Manage, check, update and recover
+
+Use the selected port's requirements and current state to choose the next action.
+These CLI examples describe the maintained development contract; check your
+selected package's `--help` and capabilities before using a newer command. The
+[CLI task guide](docs/CLI.md) separates current source behavior from published
+preview limitations.
+
+| Task                        | Start here                                                                                                      | What the result means                                                                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inspect a library or port   | Open Library/game details, or run `portcove status PORT_ID`.                                                    | Current installation and action assessments; reading them does not authorize or execute a change.                                                             |
+| Check installed files       | Run `portcove verify PORT_ID`.                                                                                  | Installed files are compared with their recorded identities. This does not test gameplay or save compatibility.                                               |
+| Check original game files   | Use Game files in Settings, or `portcove source inspect PROFILE_ID` and `portcove source verify PROFILE_ID`.    | Inspection and baseline comparison are distinct from compatibility with a particular installed release. Original bytes and the saved baseline stay unchanged. |
+| Check for a game update     | Run `portcove check PORT_ID`, or use the game's update check.                                                   | An update check does not install it. Review the current release, policy and consequences before installation or activation.                                   |
+| Protect managed saved data  | Use the port's backups, or `portcove backup create PORT_ID` followed by `portcove backup list PORT_ID`.         | The backup covers declared managed saved data, not the game download or original inputs. Restore replaces the affected current saved data after review.       |
+| Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                              |
+| Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                         |
+| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                               |
+
+Bulk `check --all`, `reconcile --all` and `update --all` continue after a
+per-port failure and report each outcome. A completed batch can contain failed
+ports; inspect every result. `reconcile` follows each saved update policy and
+can download or activate a release, while `check` only checks. Saving a policy
+does not execute it.
+
+Cancellation is a request. Downloads and hashing stop cooperatively; a current
+conversion or build step may need to settle, and an admitted publication can
+finish. Wait for the operation's terminal result and read any recovery guidance.
+See [safe cancellation](docs/CLI.md#cancel-work-safely) and
+[interrupted library transfers](docs/CLI.md#recover-an-interrupted-transfer).
+Desktop and CLI share library locks and recovery rules; close other clients
+before a whole-library transfer.
+
+### Optional disc tools
+
+Some declared disc formats or preparation routes need a local `chdman` or
+`DolphinTool`. Other ports do not. `portcove tool list` reports each tool's purpose,
+resolution and official setup reference; `portcove doctor` reports missing or
+misconfigured prerequisites. Configure a trusted executable only when the
+selected route requires it. Portcove does not silently download these executables
+or modify the original disc image. See [disc-format requirements](docs/CLI.md#disc-formats-and-optional-tools).
+
+## GitHub access
+
+### Anonymous use
+
+An account is optional. Browsing public releases and ordinary local library use
+work without signing in; public GitHub requests remain subject to GitHub's
+request limits. Startup and launching do not require an account.
+
+### Personal access token
+
+Use `portcove auth set-token` to enter a token with hidden input, or the
+documented standard-input/environment route for automation. Tokens are not
+accepted as positional command arguments. Saved credentials use the operating
+system's credential store. See [GitHub authentication](docs/CLI.md#github-authentication).
+
+### Device sign-in
+
+`portcove auth login` starts the configured GitHub device flow. Follow the
+displayed instructions; the CLI follows the required polling interval and
+reports denial, expiry or cancellation. `portcove auth status` shows the active
+credential source without exposing the token; `portcove auth logout` removes a
+saved credential, but cannot remove an environment-provided token.
+
+Authentication raises the GitHub API allowance. It does not supply game files,
+bypass their checks or change a port's support evidence.
+
 ## Catalog and support
 
 The catalog changes too quickly for a hand-maintained count or title list here. Browse it in the desktop app, through the CLI, or directly in [`catalog.json`](crates/portcove-core/catalog/catalog.json).
@@ -149,7 +237,7 @@ Each entry records its upstream project, platforms, release channels, required l
 
 ## Build from source
 
-Requirements:
+### Prerequisites
 
 - Rust at the version specified in [`rust-toolchain.toml`](rust-toolchain.toml)
 - [Global Vite+](https://viteplus.dev/guide/global-cli) with environment management
@@ -230,13 +318,24 @@ adapters; use small title-specific core code when it enables a bounded useful
 route without duplicating lifecycle authority. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
+## Optional signed catalog updates
+
+A signed catalog changes eligible catalog metadata; applying it does not install
+game updates or update Portcove itself. No publisher key or scheduled fetch is
+configured by default. Trusting a publisher is a separate explicit decision and
+permits changes such as release download locations within the implemented
+format's limits. A signature does not replace release checksum checks, source
+requirements or platform qualification. Read the [format-1 trust, review and
+recovery contract](docs/SIGNED-CATALOG.md) before configuring this optional route.
+
 ## License
 
 Portcove is available under either the [MIT License](LICENSE-MIT) or the [Apache License 2.0](LICENSE-APACHE), at your option.
 
 ## Development and responsibility
 
-Portcove uses AI-assisted development. The project owner is responsible for the
+Portcove is maintained in [boburning's public repository](https://github.com/boburning/portcove)
+and uses AI-assisted development. The project owner is responsible for the
 changes and release decisions. Published test evidence describes its actual
 scope; it does not guarantee every port, platform or personal library.
 

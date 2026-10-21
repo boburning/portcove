@@ -4,6 +4,24 @@ Choose a Desktop package for the graphical app, or the separate CLI archive for
 terminal use, from the [published release](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2).
 GitHub Source code archives require a development toolchain.
 
+## Choose the package
+
+| What you want                      | Choose                                                    | Next step                                                                                                                                   |
+| ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Graphical Portcove app             | A Desktop package for your operating system and processor | Use the [exact Alpha 2 package choices](../README.md#download-the-technical-alpha), then follow [first play](../README.md#your-first-game). |
+| Terminal use or an external client | The separate CLI archive for that same OS/processor       | Read its capabilities and the [CLI task guide](CLI.md#task-guides). Desktop does not require this extra archive.                            |
+| Build or change Portcove           | A source checkout or GitHub's Source code archive         | Follow the [development prerequisites](../README.md#prerequisites); a source archive is not an installed app or CLI package.                |
+
+The release page is the asset inventory for the exact tag you choose. Alpha 1
+and Alpha 2 keep their frozen unversioned CLI filenames. Future release tooling
+generates the chooser and versioned filenames from the checked package inventory;
+do not infer that a new naming pattern is present on an old release.
+
+Published Alpha 2 exposes CLI API 34. Newer integration recipes require an
+[identified compatible candidate](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library)
+until a suitable public release exists. A local package with the same product
+version string is not the historical published artifact.
+
 ## Verify a download
 
 Download `SHA256SUMS-<platform>.txt` or `SHA256SUMS.txt` from the same release

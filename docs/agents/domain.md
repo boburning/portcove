@@ -1,9 +1,16 @@
 # Domain docs
 
-Use established vocabulary. Read relevant entries in root `GLOSSARY.md` and
-`docs/adr/` when the task concerns their terms or decisions; if absent, proceed.
-Create them lazily through authorized domain-modeling work. Surface conflicts
-with existing ADRs explicitly.
+Use established vocabulary. Read the relevant [glossary](../../GLOSSARY.md)
+entries and [architecture decisions](../adr/) when a task concerns their terms
+or decisions. [Content design](../CONTENT-DESIGN.md) maps those meanings to
+player tasks, messages and controls. Surface conflicts with existing ADRs
+explicitly; vocabulary does not create new permission or acceptance gates.
+
+The [source observation and registration decision](../adr/0005-distinguish-source-observations-and-registration.md)
+distinguishes current contracts from the proposed #1686 migration. Current
+`SourceRecord` can appear as uncommitted relink planning data; its type name
+alone does not prove registration. Use current CLI/type names in executable
+examples until the coordinated migration is delivered.
 
 For cross-layer changes, use the [ownership map](../ARCHITECTURE.md#find-the-owning-boundary)
 and affected subsystem. The [agent contract](../../AGENTS.md) owns authority boundaries.

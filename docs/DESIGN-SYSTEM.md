@@ -260,20 +260,26 @@ The first foundation slice records the actual `components.json` paths, aliases, 
 
 ## Product vocabulary
 
-| Term            | Meaning                                                                                                |
-| --------------- | ------------------------------------------------------------------------------------------------------ |
-| Port            | One cataloged native decompilation, recompilation, or source-port integration.                         |
-| Library         | Ports installed or adopted into the selected Portcove library root.                                    |
-| Port catalog    | Every reviewed Portcove definition, including ports not installed locally.                             |
-| Source          | A legally obtained original game file or reviewed file set referenced in place.                        |
-| BIOS            | A separately modeled firmware requirement. It is not called a game source in recovery copy.            |
-| Release channel | Stable, Preview (`beta`), or Rolling stream selected per port.                                         |
-| Update policy   | Notify, stage, or automatically install for one installed port.                                        |
-| Staged release  | A verified release retained locally but not yet active.                                                |
-| Active version  | The managed version currently selected for launch.                                                     |
-| Persistent data | Saves, settings, bindings, mods, and other mutable upstream-owned files kept outside managed versions. |
-| Backup          | A verified snapshot of persistent data.                                                                |
-| Build or setup  | Use the precise upstream operation. Do not call every install a build or every first launch a compile. |
+The [glossary](../GLOSSARY.md) owns domain meanings and the
+[content-design contract](CONTENT-DESIGN.md) owns task wording, verification
+claims, state distinctions, actions, errors and formatting. This table maps
+those meanings to interface contexts; the specific compositions below retain
+their existing behavior.
+
+| Term                         | Meaning                                                                                                                                                                                                                                  |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Port                         | One independently identified native implementation or catalog integration; several ports can implement the same game.                                                                                                                    |
+| Library                      | The selected library's records and managed content, including installed, external and retained unfinished-setup entries.                                                                                                                 |
+| Port catalog                 | Available port definitions; inclusion alone does not establish qualification, current readiness or permission to operate.                                                                                                                |
+| Game files / source          | Original inputs required by a route. Name the ROM, disc image or file set when relevant. A remembered external location, managed copy and authorized Move have different consequences; a file check does not establish legal provenance. |
+| BIOS                         | A separately modeled firmware requirement. It is not called a game source in recovery copy.                                                                                                                                              |
+| Release channel              | Stable, Preview (`beta`), or Rolling stream selected per port; separate from catalog designation and test evidence.                                                                                                                      |
+| Update policy                | Notify, stage, or automatically install for one managed port. A saved preference is not a completed update.                                                                                                                              |
+| Staged release               | A downloaded/checked release retained locally for later activation. Activation still needs the current Core checks.                                                                                                                      |
+| Active version               | The managed version currently selected for launch, subject to current launch checks.                                                                                                                                                     |
+| Saved data / persistent data | The port's declared saves, settings and other persistent files. Describe the actual catalog and operation scope rather than promising all player files.                                                                                  |
+| Backup                       | A recorded snapshot of the selected managed saved-data scope. Name the content checks actually performed; a snapshot alone is not an exercised restore.                                                                                  |
+| Build or setup               | Use the precise upstream operation. Do not call every install a build or every first launch a compile.                                                                                                                                   |
 
 GUI labels should match the CLI concepts. A GUI action that external tools may automate should expose its canonical `portcove` command where practical.
 
@@ -368,8 +374,8 @@ and grants no cleanup, restart or resume authority.
 Use sentence case and neutral task names beside authoritative status. Complete
 localized messages use named interpolation and correct plurals; human formatting
 may follow locale while machine contracts remain stable. Keep technical detail
-for the audience that needs it. [#209](https://github.com/boburning/portcove/issues/209)
-owns the broader 1.0 documentation architecture.
+for the audience that needs it. The [content-design contract](CONTENT-DESIGN.md)
+applies these rules across the documentation, CLI and interface.
 
 When a general product explanation is useful, prefer: “Portcove handles
 installation, updates, and saves for native game ports. Use its desktop app, or
