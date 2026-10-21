@@ -29,7 +29,7 @@ export function PortSearch({
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Game or port name"
       />
-      <Shortcut className="ms-auto">{commandShortcut("F")}</Shortcut>
+      <Shortcut className="ms-auto shrink-0">{commandShortcut("F")}</Shortcut>
     </label>
   );
 }
