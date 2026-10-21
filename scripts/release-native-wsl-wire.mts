@@ -35,7 +35,16 @@ export async function hashRetainedNativeCaptureFile(
   name: string,
   maximum: number,
   expectedBytes?: number,
+  deadline?: number,
 ) {
+  const active = () => {
+    if (deadline !== undefined)
+      assert.ok(
+        Number.isFinite(deadline) && performance.now() < deadline,
+        "original capture hash budget exhausted",
+      );
+  };
+  active();
   assert.ok(Number.isSafeInteger(maximum) && maximum >= 0 && maximum <= maximumWire);
   const filename = await assertOwnedUnlinkedPath(root, path.join(root, name), "native capture");
   const before = await lstat(filename);
@@ -48,7 +57,9 @@ export async function hashRetainedNativeCaptureFile(
     assert.equal(identity(await input.stat()), identity(before));
     const buffer = Buffer.alloc(65536);
     for (;;) {
+      active();
       const { bytesRead } = await input.read(buffer, 0, buffer.length, null);
+      active();
       if (!bytesRead) break;
       total += bytesRead;
       assert.ok(total <= maximum);
@@ -57,6 +68,7 @@ export async function hashRetainedNativeCaptureFile(
     assert.equal(total, before.size);
     assert.equal(identity(await input.stat()), identity(before));
     assert.equal(identity(await lstat(filename)), identity(before));
+    active();
     return hash.digest("hex");
   } finally {
     await input.close();

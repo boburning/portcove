@@ -13,6 +13,21 @@ import {
   boundedNativeWslOperationTimeout,
   requireActualWslNativeCapture,
 } from "./release-native-wsl-capture.mts";
+void test("a retained hash cannot return usable bytes after its original clock expires during a read", async (context) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "native-capture-hash-clock-"));
+  await writeFile(path.join(directory, "retained.bin"), Buffer.alloc(65536, 1));
+  let now = 0;
+  const clock = context.mock.method(performance, "now", () => (now += 100));
+  try {
+    await assert.rejects(
+      hashRetainedNativeCaptureFile(directory, "retained.bin", 65536, 65536, 250),
+      /original capture hash budget exhausted/u,
+    );
+    assert.ok(now >= 300);
+  } finally {
+    clock.mock.restore();
+  }
+});
 void test("parked capture parsing refuses an exhausted original clock before opening or creating paths", async () => {
   await assert.rejects(
     retainNativeCaptureWire(

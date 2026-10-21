@@ -308,6 +308,10 @@ export async function captureActualLinuxPublicJourney(claim: object) {
         sha(driverBytes),
       ],
       {
+        queueDeadline: Math.min(
+          selected.original_deadline - 60000,
+          performance.now() + remainingNativeParentBudget() - 60000,
+        ),
         cwd: parent.controller_root,
         environment: {
           SystemRoot: process.env.SystemRoot,
@@ -367,6 +371,8 @@ export async function captureActualLinuxPublicJourney(claim: object) {
       directory,
       "public-capture.stdout.bin",
       272 * 1024 * 1024,
+      undefined,
+      selected.original_deadline,
     ),
     retained = await retainNativeCaptureWire(
       wirePath,
@@ -443,12 +449,19 @@ export async function requireActualLinuxPublicCapture(receipt: object) {
       retained.wire.path,
       272 * 1024 * 1024,
       retained.wire.bytes,
+      selected.original_deadline,
     ),
     retained.wire.sha256,
   );
   for (const file of retained.files)
     assert.equal(
-      await hashRetainedNativeCaptureFile(retained.directory, file.path, 65536, file.bytes),
+      await hashRetainedNativeCaptureFile(
+        retained.directory,
+        file.path,
+        65536,
+        file.bytes,
+        selected.original_deadline,
+      ),
       file.sha256,
     );
   for (const file of retained.retained.entries)
@@ -458,6 +471,7 @@ export async function requireActualLinuxPublicCapture(receipt: object) {
         file.path,
         32 * 1024 * 1024,
         file.bytes,
+        selected.original_deadline,
       ),
       file.sha256,
     );
@@ -473,6 +487,11 @@ export async function requireActualLinuxPublicCapture(receipt: object) {
   assert.equal(sha(reportBytes), reportEntry.sha256);
   const report: unknown = JSON.parse(reportBytes.toString("utf8"));
   assert.ok(isRecord(report) && report.authority === "none" && report.phase === selected.phase);
+  await requireActualPublicJourneyInvocation(retained.claim);
+  assert.ok(
+    performance.now() < selected.original_deadline,
+    "original public capture lifetime exhausted",
+  );
   return {
     claim: retained.claim,
     selected,
