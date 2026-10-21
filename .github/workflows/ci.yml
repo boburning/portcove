@@ -283,6 +283,11 @@ jobs:
       - name: Check Rust formatting
         if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
         run: cargo fmt --all -- --check
+      - name: Test Linux update process environment
+        if: contains(fromJSON(needs.classify.outputs.groups_json), 'rust')
+        run: |
+          rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"
+          "$RUNNER_TEMP/portcove-update-environment-tests"
       - name: Read pinned script tool manager
         if: needs.classify.outputs.script_tools == 'true'
         id: aqua-version

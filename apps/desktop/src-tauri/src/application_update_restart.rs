@@ -49,40 +49,10 @@ use crate::application_update_windows::WindowsNsisUpdateAdmission;
 use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
-const HELPER_MODE: &str = "--portcove-apply-update";
-
-/// Configuration owned by the Portcove desktop process must survive the
-/// trusted update helper and a successful same-application relaunch. The
-/// general child-process policy intentionally carries only host session state,
-/// so keep this overlay exact rather than admitting arbitrary `PORTCOVE_*`
-/// variables.
 #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
-const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
-    // AppImage's runtime uses this standard host setting to select executable
-    // FUSE helper code. Preserve the inherited selection, not a new lookup or
-    // updater override; an isolated host must appoint and protect that helper.
-    #[cfg(target_os = "linux")]
-    "FUSERMOUNT_PROG",
-    "PORTCOVE_APPLICATION_RUNTIME_LOCK",
-    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
-    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
-    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
-    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
-    "PORTCOVE_APPLICATION_UPDATE_STAGING",
-    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
-    "PORTCOVE_CHDMAN",
-    "PORTCOVE_DOLPHIN_TOOL",
-    "PORTCOVE_GITHUB_CLIENT_ID",
-    "PORTCOVE_LIBRARY",
-    "PORTCOVE_PREFERENCES",
-    "PORTCOVE_TEMP_DIR",
-];
+use crate::application_update_process_environment::copy_desktop_update_environment;
+
+const HELPER_MODE: &str = "--portcove-apply-update";
 
 #[tauri::command]
 pub(crate) async fn restart_to_apply_application_update(
@@ -692,20 +662,6 @@ fn desktop_update_process_command(
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)?;
     copy_desktop_update_environment(&mut command, environment);
     Ok(command)
-}
-
-#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
-fn copy_desktop_update_environment(
-    command: &mut std::process::Command,
-    environment: impl IntoIterator<Item = (OsString, OsString)>,
-) {
-    command.envs(environment.into_iter().filter(|(name, _)| {
-        name.to_str().is_some_and(|name| {
-            DESKTOP_UPDATE_PROCESS_ENVIRONMENT
-                .iter()
-                .any(|candidate| name.eq_ignore_ascii_case(candidate))
-        })
-    }));
 }
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
