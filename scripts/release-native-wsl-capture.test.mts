@@ -81,6 +81,30 @@ function fixture() {
     parent_deadline_utc: "2026-11-01T00:00:00.000Z",
   };
 }
+void test("post-sign transport package preparation permits only a distinct bounded retained predecessor", () => {
+  const old = fixture();
+  const next = {
+    ...old,
+    schema_version: 2,
+    predecessor: {
+      ...old.package,
+      path: old.package.path.replace("Portcove.AppImage", "Predecessor.AppImage"),
+      sha256: "9".repeat(64),
+    },
+  };
+  assert.equal(inspectWslNativeDriverPlan(next).predecessor?.sha256, next.predecessor.sha256);
+  for (const wrong of [
+    { ...next, schema_version: 1 },
+    { ...next, predecessor: { ...next.predecessor, sha256: old.package.sha256 } },
+    {
+      ...next,
+      predecessor: { ...next.predecessor, path: String.raw`E:\other\Predecessor.AppImage` },
+    },
+    { ...next, predecessor: { ...next.predecessor, bytes: 512 * 1024 * 1024 + 1 } },
+  ])
+    assert.throws(() => inspectWslNativeDriverPlan(wrong));
+  assert.equal(inspectWslNativeDriverPlan(old).predecessor, null);
+});
 void test("bounded guest wire retains complete raw observations and refuses oversized metadata, wrong digest and incomplete closure", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-wire-")),
     invocation = "a".repeat(64),

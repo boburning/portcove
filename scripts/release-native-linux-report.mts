@@ -6,7 +6,11 @@ import { writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectNativeReleaseQualification } from "./release-native-qualification-contract.mts";
+import {
+  inspectNativeReleaseQualification,
+  nativePrepublicationProfile,
+  nativePrepublicationPending,
+} from "./release-native-qualification-contract.mts";
 import type { NativeStageRequest } from "./release-native-stage-capture.mts";
 import type { inspectNativeCompatibilitySources } from "./release-native-source-contract.mts";
 import { inspectIsolatedNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
@@ -81,7 +85,52 @@ export function inspectNativeLinuxCreation(raw: unknown) {
   });
 }
 
-export function reconstructNativeLinuxPreSignReport(
+function inspectLinuxLaunch(
+  observed: Record<string, unknown>,
+  expectedSha256: string,
+  uid: number,
+) {
+  const live = object(observed.process);
+  const launch = object(live.launch_root),
+    creation = inspectNativeLinuxCreation(launch),
+    liveCreation = inspectNativeLinuxCreation(live);
+  assert.ok(
+    Array.isArray(live.launch_ancestry) &&
+      live.launch_ancestry.length > 0 &&
+      live.launch_ancestry.length <= 64,
+  );
+  const ancestry = live.launch_ancestry.map(object);
+  assert.equal(ancestry[0]!.pid, live.pid);
+  assert.equal(ancestry[0]!.creation_ticks, live.creation_ticks);
+  assert.equal(ancestry.at(-1)!.pid, launch.pid);
+  assert.equal(ancestry.at(-1)!.creation_ticks, launch.creation_ticks);
+  assert.ok(Number.isSafeInteger(observed.driver_pid) && Number(observed.driver_pid) > 1);
+  assert.equal(launch.parent_pid, observed.driver_pid);
+  assert.equal(new Set(ancestry.map((entry) => entry.pid)).size, ancestry.length);
+  for (let index = 0; index < ancestry.length - 1; index++)
+    assert.equal(ancestry[index]!.parent_pid, ancestry[index + 1]!.pid);
+  assert.equal(launch.uid, uid);
+  assert.ok(Number.isSafeInteger(launch.pid) && Number(launch.pid) > 1);
+  assert.match(text(launch.image_sha256), /^[a-f0-9]{64}$/u);
+  assert.equal(
+    launch.image_sha256,
+    expectedSha256,
+    "actual launch root is not the exact opaque candidate",
+  );
+  assert.equal(
+    launch.image,
+    "/native/application.AppImage",
+    "actual launch root is not the fixed readonly package",
+  );
+  assert.ok(creation.started_at <= liveCreation.started_at);
+  assert.equal(live.uid, uid);
+  assert.ok(Number.isSafeInteger(live.pid) && Number(live.pid) > 1);
+  assert.match(text(live.image), /\/portcove-desktop$/u);
+  assert.match(text(live.image_sha256), /^[a-f0-9]{64}$/u);
+  return { launch, creation };
+}
+
+function reconstructNativeLinuxReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
@@ -89,7 +138,8 @@ export function reconstructNativeLinuxPreSignReport(
   const input = object(raw),
     request = prepared.request;
   assert.equal(request.platform_label, "linux-x86_64");
-  assert.equal(request.stage, "payload-signing");
+  assert.ok(request.stage === "payload-signing" || request.stage === "release-publication");
+  const publication = request.stage === "release-publication";
   const binding = inspectIsolatedNativeLinuxBinding(input.binding),
     outer = object(input.outer),
     driver = object(input.driver),
@@ -208,45 +258,27 @@ export function reconstructNativeLinuxPreSignReport(
   assert.equal(webkits.length, 1);
   const webkit = object(webkits[0]);
   assert.match(text(webkit.sha256), /^[a-f0-9]{64}$/u);
-  const launch = object(live.launch_root),
-    creation = inspectNativeLinuxCreation(launch),
-    liveCreation = inspectNativeLinuxCreation(live);
-  assert.ok(
-    Array.isArray(live.launch_ancestry) &&
-      live.launch_ancestry.length > 0 &&
-      live.launch_ancestry.length <= 64,
-  );
-  const ancestry = live.launch_ancestry.map(object);
-  assert.equal(ancestry[0]!.pid, live.pid);
-  assert.equal(ancestry[0]!.creation_ticks, live.creation_ticks);
-  assert.equal(ancestry.at(-1)!.pid, launch.pid);
-  assert.equal(ancestry.at(-1)!.creation_ticks, launch.creation_ticks);
-  assert.ok(Number.isSafeInteger(observed.driver_pid) && Number(observed.driver_pid) > 1);
-  assert.equal(launch.parent_pid, observed.driver_pid);
-  assert.equal(new Set(ancestry.map((entry) => entry.pid)).size, ancestry.length);
-  for (let index = 0; index < ancestry.length - 1; index++)
-    assert.equal(ancestry[index]!.parent_pid, ancestry[index + 1]!.pid);
-  assert.equal(launch.uid, binding.account.uid);
-  assert.ok(Number.isSafeInteger(launch.pid) && Number(launch.pid) > 1);
-  assert.match(text(launch.image_sha256), /^[a-f0-9]{64}$/u);
-  assert.equal(
-    launch.image_sha256,
+  const candidateLaunch = inspectLinuxLaunch(
+    observed,
     request.candidate.package.sha256,
-    "actual launch root is not the exact opaque candidate",
+    binding.account.uid,
   );
-  assert.equal(
-    launch.image,
-    "/native/application.AppImage",
-    "actual launch root is not the fixed readonly package",
-  );
-  assert.ok(creation.started_at <= liveCreation.started_at);
-  assert.equal(live.uid, binding.account.uid);
-  assert.ok(Number.isSafeInteger(live.pid) && Number(live.pid) > 1);
-  assert.match(text(live.image), /\/portcove-desktop$/u);
-  assert.match(text(live.image_sha256), /^[a-f0-9]{64}$/u);
+  // The stage lifetime begins at the earliest real candidate-package root,
+  // including the genuine predecessor when ordinary compatibility is tested.
+  const publicationEntries = publication ? object(input.publication).entries : null;
+  if (publication) assert.ok(Array.isArray(publicationEntries) && publicationEntries.length > 0);
+  const firstEntry = Array.isArray(publicationEntries) ? object(publicationEntries[0]) : null;
+  const { launch, creation } = firstEntry
+    ? inspectLinuxLaunch(
+        object(object(firstEntry.runtime).runtime),
+        text(object(firstEntry.package).sha256),
+        binding.account.uid,
+      )
+    : candidateLaunch;
   assert.equal(capture.outcome, "completed");
   assert.equal(capture.request_sha256, prepared.request_sha256);
-  assert.ok(Array.isArray(capture.roots) && capture.roots.length === 2);
+  const rootCount = publication && request.journey && "predecessor" in request.journey ? 6 : 2;
+  assert.ok(Array.isArray(capture.roots) && capture.roots.length === rootCount);
   for (const rawRoot of capture.roots) {
     const root = object(rawRoot),
       image = object(root.image),
@@ -278,7 +310,13 @@ export function reconstructNativeLinuxPreSignReport(
       instant(observed.observed_at) <= end,
   );
   const report = inspectNativeReleaseQualification({
-    schema_version: 1,
+    schema_version: publication ? 2 : 1,
+    ...(publication
+      ? {
+          native_prepublication_profile: nativePrepublicationProfile,
+          pending_obligations: [...nativePrepublicationPending],
+        }
+      : {}),
     stage: request.stage,
     platform_label: request.platform_label,
     candidate: request.candidate,
@@ -312,7 +350,7 @@ export function reconstructNativeLinuxPreSignReport(
       },
     },
     compatibility,
-    journey: null,
+    journey: request.journey,
     scenarios: request.required_scenarios.map((name) => ({
       name,
       outcome: "passed",
@@ -328,6 +366,129 @@ export function reconstructNativeLinuxPreSignReport(
     authority: "none" as const,
     scope: "reconstruction only; actual parent capture required" as const,
   };
+}
+export function reconstructNativeLinuxPreSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  assert.equal(prepared.request.stage, "payload-signing");
+  return reconstructNativeLinuxReport(prepared, raw, source);
+}
+/** Signed-package compatibility only. Ordinary public discovery/apply/recovery
+ * remains explicitly pending in report2; no private feed substitutes for it. */
+export function reconstructNativeLinuxPostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  const request = prepared.request,
+    input = object(raw),
+    details = object(input.publication);
+  assert.equal(request.stage, "release-publication");
+  assert.equal(request.native_report_schema_version, 2);
+  assert.equal(request.native_prepublication_profile, nativePrepublicationProfile);
+  assert.ok(request.journey);
+  const journey = request.journey,
+    initial = "kind" in journey,
+    crypto = object(details.payload_cryptography);
+  assert.equal(crypto.signed_context_sha256, journey.signed_context_sha256);
+  assert.equal(crypto.signatures_sha256, journey.signatures_sha256);
+  assert.equal(crypto.file, "native-payload-result.json");
+  assert.match(text(crypto.sha256), /^[a-f0-9]{64}$/u);
+  const ids = initial ? ["candidate"] : ["predecessor", "candidate", "rollback"];
+  assert.ok(Array.isArray(details.entries) && details.entries.length === ids.length);
+  const entries = details.entries.map(object),
+    binding = inspectIsolatedNativeLinuxBinding(input.binding);
+  const expectedEngine = object(object(request.expected.host).engine);
+  let firstPreferences: string | null = null;
+  let previousEnd = instant(input.started_at);
+  const end = instant(object(input.outer).completed_at);
+  for (let index = 0; index < ids.length; index++) {
+    const entry = entries[index]!,
+      id = ids[index]!,
+      packageIdentity =
+        id === "candidate"
+          ? request.candidate.package
+          : !initial
+            ? journey.predecessor.package
+            : null;
+    assert.ok(packageIdentity);
+    assert.equal(entry.id, id);
+    same(entry.package, { bytes: packageIdentity.bytes, sha256: packageIdentity.sha256 });
+    const replacement = object(entry.replacement);
+    assert.equal(replacement.step, id);
+    assert.equal(replacement.slot, id === "candidate" ? "candidate" : "predecessor");
+    assert.equal(replacement.authority, "none");
+    assert.equal(replacement.scope, "portable package replacement only");
+    same(replacement.installed, entry.package);
+    same(replacement.previous, index ? entries[index - 1]!.package : null);
+    const active = object(replacement.active_identity);
+    assert.match(text(active.device), /^[0-9]+$/u);
+    assert.match(text(active.inode), /^[1-9][0-9]*$/u);
+    assert.equal(
+      entry.before_preferences_sha256,
+      index ? entries[index - 1]!.after_preferences_sha256 : null,
+    );
+    assert.match(text(entry.after_preferences_sha256), /^[a-f0-9]{64}$/u);
+    firstPreferences ??= text(entry.after_preferences_sha256);
+    assert.equal(entry.after_preferences_sha256, firstPreferences);
+    assert.equal(entry.preferences_capture, `package-${id}.preferences.bin`);
+    assert.equal(entry.preferences_capture_sha256, entry.after_preferences_sha256);
+    const native = object(entry.native),
+      runtime = object(entry.runtime),
+      observed = object(runtime.runtime),
+      core = object(runtime.core);
+    assert.equal(native.outcome, "passed");
+    assert.equal(native.revision, request.expected.producer.source_commit);
+    assert.equal(native.platform, "linux");
+    assert.equal(native.architecture, "x64");
+    assert.equal(object(native.executable).sha256, packageIdentity.sha256);
+    same(object(native.context).selected_scenarios, ["empty-library", "appearance-restart"]);
+    assert.ok(Array.isArray(native.checks));
+    for (const scenario of ["empty-library", "appearance-restart"])
+      assert.equal(
+        native.checks.filter(
+          (value) => isRecord(value) && value.scenario === scenario && value.outcome === "passed",
+        ).length,
+        1,
+      );
+    assert.equal(runtime.schema_version, 1);
+    assert.equal(runtime.authority, "none");
+    assert.equal(runtime.binding_sha256, entry.binding_sha256);
+    assert.match(text(entry.binding_sha256), /^[a-f0-9]{64}$/u);
+    assert.equal(core.product, "Portcove");
+    assert.equal(core.schema_version, source.cli_protocol.min);
+    assert.equal(
+      core.product_version,
+      id === "candidate" ? input.version : details.predecessor_version,
+    );
+    const { creation } = inspectLinuxLaunch(observed, packageIdentity.sha256, binding.account.uid);
+    assert.equal(observed.kernel_release, object(object(input.runtime).runtime).kernel_release);
+    assert.equal(observed.os_release, object(object(input.runtime).runtime).os_release);
+    same(
+      object(observed.process).loaded_libraries,
+      object(object(object(input.runtime).runtime).process).loaded_libraries,
+    );
+    assert.ok(atLeast(object(runtime.browser).version, expectedEngine.minimum_version));
+    assert.ok(Array.isArray(entry.restart) && entry.restart.length === 1);
+    const restart = object(entry.restart[0]);
+    assert.equal(restart.preference_preserved, true);
+    const start = instant(entry.started_at),
+      completed = instant(entry.completed_at);
+    assert.ok(previousEnd <= start && start <= creation.started_at);
+    assert.ok(creation.started_at <= instant(observed.observed_at));
+    assert.ok(instant(observed.observed_at) <= instant(restart.session_delete_completed));
+    assert.ok(instant(restart.session_delete_completed) <= instant(restart.connected));
+    assert.ok(instant(restart.connected) <= completed && completed <= end);
+    previousEnd = completed;
+  }
+  if (initial) assert.equal(details.predecessor_version, null);
+  else
+    assert.ok(
+      typeof details.predecessor_version === "string" && details.predecessor_version.length > 0,
+    );
+  return reconstructNativeLinuxReport(prepared, input, source);
 }
 
 const actualReports = new WeakMap<
@@ -347,7 +508,7 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     prepared = selected.request,
     request = prepared.request,
     summary = object(actual.summary);
-  assert.equal(request.stage, "payload-signing");
+  const publication = request.stage === "release-publication";
   assert.equal(actual.resource_status, 0);
   assert.equal(summary.status, 0);
   assert.equal(summary.failure, null);
@@ -377,10 +538,57 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
   const bindingBytes = await guestBytes("linux-binding.json"),
     binding = inspectIsolatedNativeLinuxBinding(JSON.parse(bindingBytes.toString("utf8"))),
     outer = object(await json("outer-isolation.json"));
-  const driver = await json("linux-driver-result.json"),
-    native = await json("desktop/evidence.json"),
-    runtime = await json("desktop/linux-native-runtime.json"),
-    restart = await json("desktop/restart-observations.json");
+  const driver = object(await json("linux-driver-result.json"));
+  const outputs = publication
+    ? request.journey && "predecessor" in request.journey
+      ? ["predecessor", "candidate", "rollback"]
+      : ["candidate"]
+    : ["desktop"];
+  const candidateOutput = publication ? "candidate" : "desktop";
+  const native = await json(`${candidateOutput}/evidence.json`),
+    runtime = await json(`${candidateOutput}/linux-native-runtime.json`),
+    restart = await json(`${candidateOutput}/restart-observations.json`);
+  let publicationDetails: Record<string, unknown> | undefined;
+  if (publication) {
+    assert.ok(selected.payload_cryptography && request.journey);
+    assert.ok(
+      Array.isArray(driver.package_lifecycle) && driver.package_lifecycle.length === outputs.length,
+    );
+    const entries = [];
+    for (const [index, id] of outputs.entries()) {
+      const item = object(driver.package_lifecycle[index]);
+      assert.equal(item.id, id);
+      const stepBindingBytes = await guestBytes(`linux-binding-${id}.json`);
+      const stepBinding = inspectIsolatedNativeLinuxBinding(
+        JSON.parse(stepBindingBytes.toString("utf8")),
+      );
+      assert.equal(sha(stepBindingBytes), item.binding_sha256);
+      same(stepBinding.home, binding.home);
+      same(stepBinding.unit, binding.unit);
+      same(stepBinding.controller, binding.controller);
+      same(stepBinding.tools, binding.tools);
+      same(stepBinding.account, binding.account);
+      assert.equal(stepBinding.application.path, binding.application.path);
+      same(
+        { bytes: stepBinding.application.bytes, sha256: stepBinding.application.sha256 },
+        item.package,
+      );
+      same(await json(`package-${id}-replacement.json`), item.replacement);
+      const preference = await guestBytes(`package-${id}.preferences.bin`, 65536);
+      entries.push({
+        ...item,
+        preferences_capture_sha256: sha(preference),
+        native: await json(`${id}/evidence.json`),
+        runtime: await json(`${id}/linux-native-runtime.json`),
+        restart: await json(`${id}/restart-observations.json`),
+      });
+    }
+    publicationDetails = {
+      payload_cryptography: selected.payload_cryptography,
+      predecessor_version: selected.predecessor?.version ?? null,
+      entries,
+    };
+  }
   const guestHostBytes = await readBoundedPublicBuildInputFile(
       directory,
       "guest-host-before.stdout.bin",
@@ -389,24 +597,42 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     host: unknown = JSON.parse(guestHostBytes.toString("utf8"));
   const materializationBytes = await readBoundedPublicBuildInputFile(
       directory,
-      "stage-application.stdout.bin",
+      publication ? "stage-candidate.stdout.bin" : "stage-application.stdout.bin",
       65536,
     ),
     materialization = object(JSON.parse(materializationBytes.toString("utf8")));
   assert.equal(materialization.invocation_id, request.invocation_id);
-  assert.equal(materialization.entry, "application");
+  assert.equal(materialization.entry, publication ? "candidate" : "application");
   assert.equal(materialization.bytes, request.candidate.package.bytes);
   assert.equal(materialization.sha256, request.candidate.package.sha256);
   assert.equal(materialization.staged, true);
   assert.equal(materialization.authority, "none");
+  if (publication && selected.predecessor) {
+    const previous = object(
+      JSON.parse(
+        (
+          await readBoundedPublicBuildInputFile(directory, "stage-predecessor.stdout.bin", 65536)
+        ).toString("utf8"),
+      ),
+    );
+    assert.equal(previous.invocation_id, request.invocation_id);
+    assert.equal(previous.entry, "predecessor");
+    assert.equal(previous.bytes, selected.predecessor.bytes);
+    assert.equal(previous.sha256, selected.predecessor.sha256);
+    assert.equal(previous.staged, true);
+    assert.equal(previous.authority, "none");
+  }
   const joins = [];
-  for (const index of [1, 2])
-    joins.push(object(await json(`desktop/linux-native-launch-${index}-join.json`)));
+  for (const output of outputs)
+    for (const index of [1, 2])
+      joins.push(object(await json(`${output}/linux-native-launch-${index}-join.json`)));
   assert.equal(
     retained.entries.filter((value) =>
-      /^desktop\/linux-native-launch-[0-9]+-join\.json$/u.test(value.path),
+      /^(?:desktop|candidate|predecessor|rollback)\/linux-native-launch-[0-9]+-join\.json$/u.test(
+        value.path,
+      ),
     ).length,
-    2,
+    outputs.length * 2,
     "exact native launch inventory required",
   );
   const roots = [];
@@ -528,8 +754,11 @@ export async function prepareActualLinuxNativeStageReport(captured: object) {
     host,
     capture: stageCapture.capture,
     evidence_sha256,
+    ...(publicationDetails ? { publication: publicationDetails } : {}),
   };
-  const result = reconstructNativeLinuxPreSignReport(prepared, input, source.declaration);
+  const result = publication
+    ? reconstructNativeLinuxPostSignReport(prepared, input, source.declaration)
+    : reconstructNativeLinuxPreSignReport(prepared, input, source.declaration);
   await keep("native-linux-stage-evidence.json", Buffer.from(JSON.stringify(input)));
   await keep("capture.json", Buffer.from(stageCapture.bytes));
   await keep("native-report.json", Buffer.from(JSON.stringify(result.report)));
