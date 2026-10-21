@@ -1089,6 +1089,9 @@ async function performAdmissionHandshake(
         JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
         { flag: "wx", mode: 0o600 },
       );
+      await (
+        await import("./release-control-step-bridge.mts")
+      ).retainControlStepLocator(path.join(root, `ready-${phase}.json`), phase, 0);
       const observedArtifact = await waitForControlArtifact(root, "observation", {
         phase,
         controller_revision: reader.admitted.revision,

@@ -17,3 +17,9 @@ After verified public bytes and durable metadata handoff, the continuation uses 
 ## Remaining integration
 
 The controller callable is not yet the complete held workflow DAG. Exact Pages ambiguous-POST recovery/readback integration, metadata bootstrap and renewal continuation, registered attested site bundle, dynamic observer loops, cleanup and consolidated real setup/proof remain work. A unique Pages build identity needs reconciliation with the actual provider contract; a fixed controller commit cannot uniquely identify several site generations. Public matching bytes alone do not establish provider terminality. These facts must not be described as completed recovery or observed provider enforcement.
+
+## Fixed readiness step connection
+
+The trusted reader now retains a CreateNew locator after its initial and continuation ready files are frozen. The fixed Actions step bridge binds phase/ordinal, source/ref/run/attempt and ready-byte digest, refuses linked ancestors and changed bytes, and emits only the exact fixed upload path/name. It does not mint a control proof: the independent consumer still verifies actual provider artifacts, producer jobs and signed OIDC. A trusted producer terminal marker skips unused rounds; original provider job start caps every wait, so another step cannot reset the job budget. The held workflow must write its exact terminal marker and verify the original process exit separately; a skipped unused upload is not success evidence.
+
+Four focused bridge cases and the existing acquisition/coordinator/live-control cases passed together: 45 tests, zero skips. Type-aware lint passed for the five changed modules/tests. Initial lint caught an unsafe test JSON access and an optional environment-value closure; both were repaired without changing acceptance behavior. No actual Actions upload or observer credential was exercised by these tests.
