@@ -1672,36 +1672,8 @@ export async function preparationScenarios({
               await browser.manage().window().setRect({ width: 1366, height: 768 });
               const target = '.collection-entry button[aria-label^="More actions for "]';
               const more = await browser.findElement(By.css(target));
-              await clickVisible(browser, more);
-              await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
-              await browser.actions().sendKeys(Key.ESCAPE).perform();
-              await browser.wait(
-                () =>
-                  executeBrowserScript(
-                    browser,
-                    (element) => document.activeElement === element,
-                    more,
-                  ),
-                5000,
-                "Closing the enlarged Library menu must restore its exact trigger",
-              );
-              for (const requestedWindow of [
-                { width: 1366, height: 768 },
-                { width: 1920, height: 1080 },
-                { width: 960, height: 640 },
-                { width: 1366, height: 768 },
-              ]) {
-                await browser.manage().window().setRect(requestedWindow);
-                const state = await measure();
-                const continuity = await executeBrowserScript(browser, launchContinuityPoint, more);
-                observations.push({
-                  phase: "focused-resize-200",
-                  requestedWindow,
-                  window: await browser.manage().window().getRect(),
-                  ...state,
-                  continuity,
-                });
-                await browser.wait(
+              const waitForVisibleAction = () =>
+                browser.wait(
                   () =>
                     executeBrowserScript(
                       browser,
@@ -1718,8 +1690,104 @@ export async function preparationScenarios({
                       more,
                     ),
                   5000,
-                  "The focused Library action must remain visible after resizing",
+                  "The focused Library action must remain visible through feedback and resizing",
                 );
+              await clickVisible(browser, more);
+              await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+              const menuFocus = await browser.switchTo().activeElement();
+              const feedbackBefore = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              // Owned DOM-only geometry diagnostic: this does not report a Core
+              // artwork failure or change either imported asset/selection.
+              const insertFeedback = () =>
+                executeBrowserScript(
+                  browser,
+                  async (element) => {
+                    const state = element
+                      .closest(".collection-entry")
+                      ?.querySelector(".collection-state");
+                    if (!state) throw new Error("Owned Library state region missing");
+                    const notice = document.createElement("p");
+                    notice.dataset.ownedArtworkFeedback = "true";
+                    notice.className = "m-0 text-pc-muted-foreground";
+                    notice.textContent = "Image unavailable";
+                    state.prepend(notice);
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                  },
+                  more,
+                );
+              await insertFeedback();
+              const feedbackWithMenu = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              assert.equal(
+                await executeBrowserScript(
+                  browser,
+                  (element) => document.activeElement === element,
+                  menuFocus,
+                ),
+                true,
+                "Library feedback must not take focus from the open menu",
+              );
+              assert.equal(feedbackWithMenu.scrollTop, feedbackBefore.scrollTop);
+              observations.push({
+                phase: "owned-dom-artwork-feedback-with-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                before: feedbackBefore,
+                after: feedbackWithMenu,
+              });
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
+              await browser.actions().sendKeys(Key.ESCAPE).perform();
+              await browser.wait(
+                () =>
+                  executeBrowserScript(
+                    browser,
+                    (element) => document.activeElement === element,
+                    more,
+                  ),
+                5000,
+                "Closing the enlarged Library menu must restore its exact trigger",
+              );
+              await insertFeedback();
+              await waitForVisibleAction();
+              observations.push({
+                phase: "owned-dom-artwork-feedback-after-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                ...(await measure()),
+                continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+              });
+              for (const requestedWindow of [
+                { width: 1366, height: 768 },
+                { width: 1920, height: 1080 },
+                { width: 960, height: 640 },
+                { width: 1366, height: 768 },
+              ]) {
+                await browser.manage().window().setRect(requestedWindow);
+                const state = await measure();
+                const continuity = await executeBrowserScript(browser, launchContinuityPoint, more);
+                observations.push({
+                  phase: "focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...state,
+                  continuity,
+                });
+                await waitForVisibleAction();
                 observations.push({
                   phase: "settled-focused-resize-200",
                   requestedWindow,
@@ -1760,11 +1828,23 @@ export async function preparationScenarios({
                         Array.from(document.images).every((image) => image.complete) &&
                         document.activeElement === element &&
                         localStorage.getItem("portcove.appearance.interface-size") === "200",
+                      feedbackFixture:
+                        "Owned DOM-only artwork feedback; imported artwork remains available",
                     }),
                     more,
                   ),
               });
               artifacts.push(capture.image.path, capture.receipt);
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
               await browser.manage().window().setRect({ width: 960, height: 640 });
             }
           }
