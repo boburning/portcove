@@ -2761,6 +2761,15 @@ contracts and manifests remain unchanged, including during checked import.
 and transfer destination verification. Transfer supplies the retained definition
 as both baselines, so current catalog changes cannot expand imported authority;
 immutable overlap and unexpected files still refuse verification.
+The same exact artifact has a persistent `SoHTimeSplitData.json` leaf for
+player split lists/bests and a runtime-only `logs/Ship of Harkinian.log` leaf.
+Their checked interpretation requires absent or single-link regular files,
+refuses linked ancestors and filesystem errors, and checks the canonical
+time-split destination as well as the working tree. A directory with either
+filename cannot gain prefix mutability for its descendants. Diagnostic logs
+are not collected into player backups. Rotated log names and interrupted
+time-split temporary files are not inferred or granted by this interpretation;
+their release-specific qualification remains separate.
 Backup assessment reads the same contract without collecting data;
 backup creation, launch preparation, activation, rollback and removal collect
 launched working data before replacing or removing it. An existing non-directory

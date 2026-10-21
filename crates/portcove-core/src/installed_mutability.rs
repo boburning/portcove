@@ -11,10 +11,26 @@ pub(crate) fn checked_port(
     platform: Platform,
 ) -> Result<PortDefinition> {
     let mut current = current.clone();
-    if shipwright_windows_cwd_persistence(retained, install, platform)
-        && !current.persistent_paths.iter().any(|path| path == "Save")
-    {
-        current.persistent_paths.push("Save".into());
+    let shipwright = shipwright_windows_cwd_persistence(retained, install, platform);
+    if shipwright {
+        for path in ["Save", "SoHTimeSplitData.json"] {
+            if !current
+                .persistent_paths
+                .iter()
+                .any(|existing| existing == path)
+            {
+                current.persistent_paths.push(path.into());
+            }
+        }
+        if !current
+            .runtime_mutable_paths
+            .iter()
+            .any(|path| path == "logs/Ship of Harkinian.log")
+        {
+            current
+                .runtime_mutable_paths
+                .push("logs/Ship of Harkinian.log".into());
+        }
     }
     let mut retained_baseline = retained.clone();
     let mut current_baseline = current.clone();
@@ -47,6 +63,16 @@ pub(crate) fn checked_port(
     let candidate_qualification = InstallQualification::from_port(&candidate, platform)?;
     if !installer.permits_additive_mutability(install, &original, &candidate_qualification)? {
         return Ok(retained.clone());
+    }
+    if shipwright {
+        // Path mutability is prefix-based. These two known leaves must never
+        // authorize directories or aliases, including canonical saved data.
+        installer.require_mutability_file_shapes(
+            install,
+            &candidate_qualification,
+            &["SoHTimeSplitData.json"],
+            &["logs/Ship of Harkinian.log"],
+        )?;
     }
     Ok(candidate)
 }

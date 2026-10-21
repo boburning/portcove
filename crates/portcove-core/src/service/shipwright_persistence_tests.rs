@@ -5,6 +5,9 @@ use super::*;
 
 const PORT: &str = "shipwright";
 const OFFICIAL_SHA256: &str = "429292a0bfbdfcda283b33c1538ecdc49163b9ed53e8702cac80b2489d9fe26c";
+// Opaque populated witnesses test byte preservation, not the game's JSON schema.
+const SPLITS_A: &[u8] = br#"{"player":"Test player","splits":[{"name":"Forest","best":120}]}"#;
+const SPLITS_B: &[u8] = br#"{"player":"Test player","splits":[{"name":"Forest","best":110}]}"#;
 
 fn register(
     library: &Library,
@@ -91,6 +94,13 @@ fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_autho
         InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64).unwrap();
     let active = register(&library, &qualification, "original", true);
     game_write(&active, b"game-owned save in retained runtime");
+    fs::create_dir_all(active.path.join("logs")).unwrap();
+    fs::write(
+        active.path.join("logs/Ship of Harkinian.log"),
+        b"runtime diagnostics",
+    )
+    .unwrap();
+    fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();
     let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
     let service = PortcoveService::new(library.clone()).unwrap();
     let metadata = temporary.path().join("metadata.json");
@@ -113,6 +123,15 @@ fn shipwright_frozen_catalog_import_retains_runtime_save_without_rewriting_autho
         b"game-owned save in retained runtime"
     );
     let backup = restored.create_backup(PORT).unwrap();
+    assert_eq!(
+        fs::read(backup.path.join("data/SoHTimeSplitData.json")).unwrap(),
+        SPLITS_A
+    );
+    assert!(
+        !backup.path.join("data/logs").exists(),
+        "diagnostics are not player backup data"
+    );
+    assert!(!restored.library.user_dir(PORT).join("logs").exists());
     assert_eq!(
         fs::read(backup.path.join("data/Save/file1.sav")).unwrap(),
         b"game-owned save in retained runtime"
@@ -137,6 +156,12 @@ fn shipwright_frozen_catalog_import_still_refuses_unrecorded_immutable_files() {
     let active = register(&library, &qualification, "original", true);
     game_write(&active, b"game-owned save in retained runtime");
     fs::write(active.path.join("unrecorded.dll"), b"not a mutable save").unwrap();
+    fs::create_dir_all(active.path.join("logs")).unwrap();
+    fs::write(
+        active.path.join("logs/unrecorded.dll"),
+        b"not a runtime log",
+    )
+    .unwrap();
     let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
     let metadata = temporary.path().join("metadata.json");
     PortcoveService::new(library.clone())
@@ -152,6 +177,7 @@ fn shipwright_frozen_catalog_import_still_refuses_unrecorded_immutable_files() {
             .unwrap_err();
     assert!(error.message.contains("immutable manifest verification"));
     assert!(error.details["failures"].contains("unexpected: unrecorded.dll"));
+    assert!(error.details["failures"].contains("unexpected: logs/unrecorded.dll"));
     assert_eq!(
         fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
         manifest
@@ -222,10 +248,13 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
     let (_temporary, service, active, _) = fixture();
     eprintln!("Shipwright restore fixture ready: {:?}", started.elapsed());
     game_write(&active, b"wanted save");
+    fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();
     let wanted = service.create_backup(PORT).unwrap();
     eprintln!("Shipwright wanted backup created: {:?}", started.elapsed());
     assert_eq!(b"wanted save".len(), b"newest save".len());
     game_write(&active, b"newest save");
+    assert_eq!(SPLITS_A.len(), SPLITS_B.len());
+    fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_B).unwrap();
     let preview = service
         .preview_backup_action(PORT, &wanted.id, BackupAction::Restore)
         .unwrap();
@@ -275,6 +304,26 @@ fn shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup()
     let restored = service
         .restore_backup(PORT, &wanted.id, &approval.token)
         .unwrap();
+    assert_eq!(
+        fs::read(active.path.join("SoHTimeSplitData.json")).unwrap(),
+        SPLITS_A
+    );
+    assert_eq!(
+        fs::read(service.library.user_dir(PORT).join("SoHTimeSplitData.json")).unwrap(),
+        SPLITS_A
+    );
+    assert_eq!(
+        fs::read(
+            restored
+                .safety_backup
+                .as_ref()
+                .unwrap()
+                .path
+                .join("data/SoHTimeSplitData.json")
+        )
+        .unwrap(),
+        SPLITS_B
+    );
     eprintln!(
         "Shipwright freshly reviewed restore complete: {:?}",
         started.elapsed()
@@ -314,6 +363,7 @@ fn shipwright_activation_and_rollback_collect_before_replacing_working_save() {
         started.elapsed()
     );
     game_write(&active, b"active progress");
+    fs::write(active.path.join("SoHTimeSplitData.json"), SPLITS_A).unwrap();
     service
         .activate_staged_reviewed(PORT, Some(&active.id), &staged.id)
         .unwrap();
@@ -326,7 +376,20 @@ fn shipwright_activation_and_rollback_collect_before_replacing_working_save() {
         b"active progress"
     );
     game_write(&staged, b"staged progress");
+    assert_eq!(
+        fs::read(staged.path.join("SoHTimeSplitData.json")).unwrap(),
+        SPLITS_A
+    );
+    fs::write(staged.path.join("SoHTimeSplitData.json"), SPLITS_B).unwrap();
     service.rollback(PORT).unwrap();
+    assert_eq!(
+        fs::read(active.path.join("SoHTimeSplitData.json")).unwrap(),
+        SPLITS_B
+    );
+    assert_eq!(
+        fs::read(service.library.user_dir(PORT).join("SoHTimeSplitData.json")).unwrap(),
+        SPLITS_B
+    );
     eprintln!("Shipwright rollback complete: {:?}", started.elapsed());
     assert_eq!(
         fs::read(active.path.join("Save/file1.sav")).unwrap(),
@@ -621,4 +684,152 @@ fn shipwright_save_root_symlinks_hold_without_following_or_writing_external_data
 #[test]
 fn shipwright_save_root_junctions_hold_without_following_or_writing_external_data() {
     assert_save_root_links_refused(super::tests::create_adoption_test_junction);
+}
+
+#[test]
+fn shipwright_file_shaped_directories_hold_assessment_and_mutation() {
+    for (relative, canonical) in [
+        ("SoHTimeSplitData.json", false),
+        ("logs/Ship of Harkinian.log", false),
+        ("SoHTimeSplitData.json", true),
+    ] {
+        let (_temporary, service, active, _) = fixture();
+        game_write(&active, b"preserved progress");
+        let root = if canonical {
+            service.library.user_dir(PORT)
+        } else {
+            active.path.clone()
+        };
+        let directory = root.join(relative);
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("evil.dll"), b"not an admitted data file").unwrap();
+        assert!(service.installed_mutability_port(&active).is_err());
+        assert_eq!(
+            service
+                .list_backups(PORT)
+                .unwrap()
+                .create_assessment
+                .availability,
+            PortActionAvailability::Held
+        );
+        assert!(service.create_backup(PORT).is_err());
+        assert!(service.prepare_launch(PORT, None).is_err());
+        assert_eq!(
+            fs::read(directory.join("evil.dll")).unwrap(),
+            b"not an admitted data file"
+        );
+        assert_eq!(
+            fs::read(active.path.join("Save/file1.sav")).unwrap(),
+            b"preserved progress"
+        );
+    }
+}
+
+#[test]
+fn shipwright_frozen_import_refuses_directories_named_as_compatibility_files() {
+    for relative in ["SoHTimeSplitData.json", "logs/Ship of Harkinian.log"] {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("original")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let qualification =
+            InstallQualification::from_catalog(&catalog, PORT, Platform::WindowsX86_64).unwrap();
+        let active = register(&library, &qualification, "original", true);
+        game_write(&active, b"original progress");
+        let directory = active.path.join(relative);
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("evil.dll"), b"not a mutable leaf").unwrap();
+        let manifest = fs::read(active.path.join(".portcove-manifest.json")).unwrap();
+        let metadata = temporary.path().join("metadata.json");
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .write_library_metadata(&metadata)
+            .unwrap();
+        let destination = temporary.path().join("refused");
+        let plan =
+            PortcoveService::plan_library_import(&metadata, library.root(), &destination).unwrap();
+        let error = PortcoveService::import_library(
+            &metadata,
+            library.root(),
+            &destination,
+            &plan.plan_sha256,
+        )
+        .unwrap_err();
+        assert!(error.message.contains("not a regular file"), "{error:?}");
+        assert!(
+            Library::open(&destination).is_err(),
+            "refused import must keep its open gate closed"
+        );
+        assert_eq!(
+            fs::read(directory.join("evil.dll")).unwrap(),
+            b"not a mutable leaf"
+        );
+        assert_eq!(
+            fs::read(active.path.join(".portcove-manifest.json")).unwrap(),
+            manifest
+        );
+    }
+}
+
+#[test]
+fn shipwright_runtime_file_hard_links_hold_without_reading_or_collecting_aliases() {
+    for (relative, canonical) in [
+        ("SoHTimeSplitData.json", false),
+        ("logs/Ship of Harkinian.log", false),
+        ("SoHTimeSplitData.json", true),
+    ] {
+        let (temporary, service, active, _) = fixture();
+        game_write(&active, b"owned progress");
+        let witness = temporary.path().join("outside.json");
+        fs::write(&witness, b"external witness").unwrap();
+        let root = if canonical {
+            service.library.user_dir(PORT)
+        } else {
+            active.path.clone()
+        };
+        let link = root.join(relative);
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        fs::hard_link(&witness, &link).unwrap();
+        assert!(service.installed_mutability_port(&active).is_err());
+        assert!(service.create_backup(PORT).is_err());
+        assert!(service.prepare_launch(PORT, None).is_err());
+        assert_eq!(fs::read(&witness).unwrap(), b"external witness");
+        assert_eq!(
+            fs::read(active.path.join("Save/file1.sav")).unwrap(),
+            b"owned progress"
+        );
+    }
+}
+
+#[test]
+fn shipwright_runtime_file_junctions_hold_in_working_and_canonical_roots() {
+    for (relative, canonical) in [
+        ("logs", false),
+        ("SoHTimeSplitData.json", false),
+        ("SoHTimeSplitData.json", true),
+    ] {
+        let (temporary, service, active, _) = fixture();
+        game_write(&active, b"owned progress");
+        let outside = temporary.path().join("outside");
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(outside.join("Ship of Harkinian.log"), b"external witness").unwrap();
+        let root = if canonical {
+            service.library.user_dir(PORT)
+        } else {
+            active.path.clone()
+        };
+        let link = root.join(relative);
+        fs::create_dir_all(link.parent().unwrap()).unwrap();
+        super::tests::create_adoption_test_junction(&outside, &link);
+        assert!(service.installed_mutability_port(&active).is_err());
+        assert!(service.create_backup(PORT).is_err());
+        assert!(service.prepare_launch(PORT, None).is_err());
+        assert_eq!(
+            fs::read(outside.join("Ship of Harkinian.log")).unwrap(),
+            b"external witness"
+        );
+        assert_eq!(
+            fs::read(active.path.join("Save/file1.sav")).unwrap(),
+            b"owned progress"
+        );
+    }
 }
