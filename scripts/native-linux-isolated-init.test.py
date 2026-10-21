@@ -41,6 +41,112 @@ def binding():
 
 
 class InertNativeInit(unittest.TestCase):
+    def test_public_runtime_absence_is_read_only_not_ready_without_clearing_legacy_failure(self):
+        with patch.object(native.Path, "iterdir", return_value=[]):
+            with self.assertRaises(native.RuntimeNotReady):
+                native.runtime_snapshot(3, 1002, {})
+            with self.assertRaisesRegex(RuntimeError, "one actual live candidate") as raised:
+                native.runtime_snapshot(3, 1002)
+            self.assertNotIsInstance(raised.exception, native.RuntimeNotReady)
+        self.assertEqual(
+            native.inspect_request({"method": "GET", "path": "/native-public-runtime", "body_base64": ""}),
+            ("GET", "/native-public-runtime", b""),
+        )
+        for method, payload in (("POST", ""), ("DELETE", ""), ("GET", "YQ==")):
+            with self.assertRaises(RuntimeError):
+                native.inspect_request({"method": method, "path": "/native-public-runtime", "body_base64": payload})
+
+    def test_public_runtime_requires_exact_retained_readonly_fuse_mount_not_driver_ancestry(self):
+        target = "/tmp/.mount_PortcoveABC"
+        retained = {
+            target: {
+                "kind": "native-private-fuse",
+                "stage": "mounted",
+                "runtime": {"pid": 4, "creation_ticks": "100", "package": {"bytes": 123, "sha256": "a" * 64}},
+                "mount": {
+                    "id": "55",
+                    "path": target,
+                    "options": ["ro", "nosuid", "nodev"],
+                    "filesystem": "fuse.AppImage",
+                    "source": "/native/installation/Portcove.AppImage",
+                },
+            }
+        }
+        mountinfo = f"55 1 0:55 / {target} ro,nosuid,nodev - fuse.AppImage /native/installation/Portcove.AppImage ro\n"
+        image = target + "/usr/bin/portcove-desktop"
+        result = native.inspect_public_runtime_mount(image, mountinfo, retained)
+        with self.assertRaises(native.RuntimeNotReady):
+            native.inspect_public_runtime_mount(image, mountinfo, {})
+        retained[target]["runtime"]["package"]["sha256"] = "b" * 64
+        self.assertEqual(result["runtime"]["package"]["sha256"], "a" * 64)
+        for changed in (
+            mountinfo.replace("55 1", "56 1"),
+            mountinfo.replace("ro,nosuid,nodev", "rw,nosuid,nodev"),
+            mountinfo.replace("fuse.AppImage", "fuse.other"),
+            mountinfo.replace("/native/installation/Portcove.AppImage", "/tmp/other.AppImage"),
+            "",
+        ):
+            with self.assertRaises(RuntimeError) as refused:
+                native.inspect_public_runtime_mount(image, changed, retained)
+            self.assertNotIsInstance(refused.exception, native.RuntimeNotReady)
+        for changed in (
+            image + " (deleted)",
+            image.replace(".mount_PortcoveABC/", ".mount_PortcoveABC-other/"),
+            "/native/installation/portcove-desktop",
+        ):
+            with self.assertRaises(RuntimeError):
+                native.inspect_public_runtime_mount(changed, mountinfo, retained)
+
+    def test_ordinary_public_binding_keeps_fixed_paths_source_pins_and_normal_launch_alias(self):
+        value = binding()
+        invocation = "a" * 64
+        root = f"/home/native/portcove-native/invocations/{invocation}/work/home"
+        value.update(
+            {
+                "schema_version": 2,
+                "home": root + "/state",
+                "application_original": root + "/installation/Portcove.AppImage",
+                "environment": {"XDG_CONFIG_HOME": root + "/state/config"},
+                "public": {
+                    "invocation_id": invocation,
+                    "deadline_utc": "2026-11-01T00:00:00.000Z",
+                    **{
+                        key: "b" * 64
+                        for key in (
+                            "services_sha256",
+                            "fuse_sha256",
+                            "network_sha256",
+                            "fuse_policy_sha256",
+                            "network_policy_sha256",
+                        )
+                    },
+                },
+            }
+        )
+        actual = native.inspect_binding(copy.deepcopy(value))
+        request = {
+            "capabilities": {
+                "alwaysMatch": {"browserName": "wry", "tauri:options": {"application": actual["application_original"]}}
+            }
+        }
+        rewritten = json.loads(native.rewrite_session(json.dumps(request).encode(), actual))
+        self.assertEqual(
+            rewritten["capabilities"]["alwaysMatch"]["tauri:options"],
+            {"application": "/native/installation/Portcove.AppImage"},
+        )
+        for alter in (
+            lambda item: item.update({"schema_version": 1}),
+            lambda item: item["public"].pop("services_sha256"),
+            lambda item: item.update({"application_original": "/tmp/unbounded.AppImage"}),
+            lambda item: item["public"].update({"deadline_utc": "2026-11-01T00:00:00Z"}),
+            lambda item: item["environment"].update({"APPIMAGE_EXTRACT_AND_RUN": "1"}),
+            lambda item: item["environment"].update({"FUSERMOUNT_PROG": "/tmp/other-helper"}),
+        ):
+            changed = copy.deepcopy(value)
+            alter(changed)
+            with self.assertRaises((RuntimeError, ValueError)):
+                native.inspect_binding(changed)
+
     def test_actual_launch_root_includes_appimage_ancestor_and_refuses_missing_or_cyclic_ancestry(self):
         processes = {4: {"pid": 4, "parent_pid": 3}, 3: {"pid": 3, "parent_pid": 2}}
         self.assertEqual(native.candidate_launch_root(processes, 4, 2), processes[3])

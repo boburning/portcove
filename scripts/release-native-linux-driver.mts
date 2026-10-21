@@ -5,7 +5,10 @@ import { createHash } from "node:crypto";
 import { readFile, lstat, statfs, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectIsolatedNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
+import {
+  inspectIsolatedNativeLinuxBinding,
+  inspectNativeLinuxHomeMount,
+} from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
@@ -16,6 +19,7 @@ import {
   inspectNativeQualificationJourney,
   nativePrepublicationProfile,
 } from "./release-native-qualification-contract.mts";
+export { inspectNativeLinuxHomeMount } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 export const nativeLinuxPreSignHarnessScenarios = Object.freeze([
   "empty-library",
   "appearance-restart",
@@ -110,43 +114,6 @@ export async function requireFreshNativeLinuxOutput(filename: string) {
   throw new Error("native desktop output already exists; retain it without reuse");
 }
 
-export function inspectNativeLinuxHomeMount(
-  mountinfo: string,
-  home: string,
-  filesystem: { type: number; bsize: number; blocks: number },
-) {
-  assert.ok(Buffer.byteLength(mountinfo) <= 1024 * 1024);
-  assert.equal(filesystem.type, 0x01021994, "native state home must be hard-bounded tmpfs");
-  assert.ok(
-    Number.isSafeInteger(filesystem.bsize) &&
-      filesystem.bsize > 0 &&
-      Number.isSafeInteger(filesystem.blocks) &&
-      filesystem.blocks > 0,
-  );
-  const bytes = filesystem.bsize * filesystem.blocks;
-  assert.ok(Number.isSafeInteger(bytes) && bytes <= 512 * 1024 * 1024);
-  const matches = mountinfo.split("\n").filter((line) => line.split(" ")[4] === home);
-  assert.equal(matches.length, 1, "exact native home mount must be distinct");
-  const fields = matches[0]!.split(" "),
-    separator = fields.indexOf("-");
-  assert.ok(
-    separator >= 6 &&
-      fields[separator + 1] === "tmpfs" &&
-      fields[3] === "/" &&
-      fields[5]!.split(",").includes("rw"),
-  );
-  assert.ok(/^[1-9][0-9]*$/u.test(fields[0]!) && /^[0-9]+:[0-9]+$/u.test(fields[2]!));
-  return Object.freeze({
-    mount_id: fields[0]!,
-    parent_mount_id: fields[1]!,
-    device: fields[2]!,
-    root: "/",
-    mount_point: home,
-    filesystem: "tmpfs",
-    maximum_bytes: bytes,
-    authority: "none" as const,
-  });
-}
 async function boundedJson(filename: string, expected: string) {
   assert.match(expected, /^[a-f0-9]{64}$/u);
   const before = await lstat(filename);

@@ -41,12 +41,17 @@ export function inspectPrivateNativeDriverRequest(raw: unknown): PrivateNativeDr
     !["GET", "POST", "DELETE"].includes(String(raw.method)) ||
     typeof raw.path !== "string" ||
     raw.path.length > 2048 ||
-    !/^\/(?:status|native-runtime|session(?:\/[A-Za-z0-9._-]+)*)$/u.test(raw.path) ||
+    !/^\/(?:status|native-runtime|native-public-runtime|session(?:\/[A-Za-z0-9._-]+)*)$/u.test(
+      raw.path,
+    ) ||
     raw.path.split("/").some((part) => part === "." || part === "..")
   )
     throw new Error("private native driver route differs from the fixed WebDriver surface");
   const bytes = base64(raw.body_base64, requestLimit);
-  if (raw.path === "/native-runtime" && (raw.method !== "GET" || bytes.length))
+  if (
+    ["/native-runtime", "/native-public-runtime"].includes(raw.path) &&
+    (raw.method !== "GET" || bytes.length)
+  )
     throw new Error("native runtime observation is read-only");
   if (raw.method !== "POST" && bytes.length !== 0)
     throw new Error("private native driver read/delete body is unexpected");
