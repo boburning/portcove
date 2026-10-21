@@ -338,9 +338,9 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-pending-release-recovery.mts",
-    "scripts/release-effect-contract.mts",
     ["scripts/release-pending-release-recovery.test.mts"],
   ],
+  ["scripts/release-effect-contract.mts", ["scripts/release-pending-release-recovery.test.mts"]],
   [
     "scripts/release-run-artifact-inventory.mts",
     ["scripts/release-run-artifact-inventory.test.mts"],
