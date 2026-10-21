@@ -407,6 +407,29 @@ async fn offline_ceremony_refuses_duplicate_signers_body_changes_wrong_roles_and
         fixture.finalize("extra-envelope.json", &body, "extra-envelope-output.json"),
         "extra-envelope-config.json",
     );
+    for (name, pointer, value) in [
+        ("wrong-keytype", "/keytype", json!("rsa")),
+        ("wrong-scheme", "/scheme", json!("rsassa-pss-sha256")),
+        ("short-public", "/keyval/public", json!("00")),
+        ("uppercase-public", "/keyval/public", json!("AB".repeat(32))),
+    ] {
+        let mut public: serde_json::Value = serde_json::from_slice(
+            &fs::read(fixture.root().join("custodian-0/public.json")).unwrap(),
+        )
+        .unwrap();
+        *public.pointer_mut(pointer).unwrap() = value;
+        let bytes = serde_json::to_vec(&public).unwrap();
+        let filename = format!("{name}.json");
+        fs::write(fixture.root().join(&filename), &bytes).unwrap();
+        let mut proposal = fixture.proposal();
+        proposal["root_public_keys"][0] = json!({"path":filename,"sha256":sha256(&bytes)});
+        proposal["output"] = json!(format!("{name}-output.json"));
+        fixture.refuse(
+            "prepare-offline-root",
+            proposal,
+            &format!("{name}-config.json"),
+        );
+    }
     let before = fs::read(fixture.root().join("root-final.json")).unwrap();
     let result = fixture.cli(
         "finalize-offline-root",

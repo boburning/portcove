@@ -267,6 +267,17 @@ fn public_key(base: &Path, input: &PublicKeyInput) -> Result<Key, TufRepositoryE
 }
 
 fn inspect_public_key(value: &serde_json::Value) -> Result<(), TufRepositoryError> {
+    if value["keytype"] != "ed25519"
+        || value["scheme"] != "ed25519"
+        || value["keyval"]["public"].as_str().is_none_or(|public| {
+            public.len() != 64
+                || !public
+                    .bytes()
+                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        })
+    {
+        return invalid("offline roles require a canonical 32-byte Ed25519 public key");
+    }
     let object = value.as_object().ok_or_else(|| {
         TufRepositoryError::Invalid("public key must be a public TUF object".into())
     })?;
