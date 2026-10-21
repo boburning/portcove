@@ -3,7 +3,8 @@ import type { WebDriver } from "selenium-webdriver";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
 export interface PublicUserState {
-  application_origin: "http://tauri.localhost" | "tauri://localhost";
+  application_origin: string;
+  application_url: string;
   app_local_data: string;
   application_version: string;
   library_root: string;
@@ -44,7 +45,8 @@ export async function readPublicUserState(
         };
         if (!boot.ready) throw new Error("ordinary library unavailable");
         const value = {
-          application_origin: platform === "win32" ? location.origin : "tauri://localhost",
+          application_origin: location.origin,
+          application_url: location.href,
           app_local_data: await bridge.invoke("plugin:path|resolve_directory", { directory: 15 }),
           application_version: await bridge.invoke("plugin:app|version"),
           library_root: boot.library_root,
@@ -63,7 +65,19 @@ export async function readPublicUserState(
   const reply: unknown = JSON.parse(raw);
   assert.ok(isRecord(reply) && reply.ok === true && isRecord(reply.value));
   const value = reply.value;
-  assert.equal(value.application_origin, expectedOrigin);
+  if (platform === "win32") assert.equal(value.application_origin, expectedOrigin);
+  else {
+    assert.ok(value.application_origin === "null" || value.application_origin === expectedOrigin);
+    assert.ok(
+      typeof value.application_url === "string" &&
+        /^tauri:\/\/localhost\/?$/u.test(value.application_url),
+    );
+  }
+  assert.ok(
+    typeof value.application_url === "string" &&
+      value.application_url.length > 0 &&
+      value.application_url.length <= 32768,
+  );
   assert.ok(
     typeof value.app_local_data === "string" &&
       value.app_local_data.length > 0 &&
@@ -91,7 +105,8 @@ export async function readPublicUserState(
   assert.ok(value.rendered_theme === "light" || value.rendered_theme === "dark");
   assert.ok(isRecord(value.update_preferences));
   return {
-    application_origin: expectedOrigin,
+    application_origin: String(value.application_origin),
+    application_url: value.application_url,
     app_local_data: value.app_local_data,
     application_version: value.application_version,
     library_root: value.library_root,

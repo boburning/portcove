@@ -63,8 +63,9 @@ for (const platform of ["win32", "linux"] as const)
     const before = await readPublicUserState(local.browser, platform);
     assert.equal(
       before.application_origin,
-      platform === "win32" ? "http://tauri.localhost" : "tauri://localhost",
+      platform === "win32" ? "http://tauri.localhost" : "null",
     );
+    assert.equal(before.application_url, origin);
     assert.ok(
       local.commands.every(
         ({ command }) => !command.startsWith("set_") && !command.startsWith("recover_"),
