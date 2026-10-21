@@ -15,7 +15,7 @@ type Step = {
 type Job = {
   if?: string;
   steps: Step[];
-  needs?: string[];
+  needs?: string | string[];
   environment?: string;
   permissions?: Record<string, string>;
   "runs-on": string;
@@ -28,12 +28,48 @@ type Workflow = {
   jobs: Record<string, Job>;
 };
 const root = new URL("../", import.meta.url);
+void test("installed workflows remain inert without configuration and preserve exactly reviewed proposal bytes", async () => {
+  for (const [actual, proposal] of [
+    [
+      ".github/workflows/application-update-production.yml",
+      "docs/qualification/application-update-production.complete.yml",
+    ],
+    [
+      ".github/workflows/application-update-wake.yml",
+      "docs/qualification/application-update-wake.held.yml",
+    ],
+  ] as const) {
+    const source = await readFile(new URL(actual, root), "utf8");
+    assert.equal(source, await readFile(new URL(proposal, root), "utf8"));
+    const workflow = parse(source) as Workflow;
+    const states: Record<string, { result: string; outputs: Record<string, string> }> = {};
+    for (const [name, job] of Object.entries(workflow.jobs)) {
+      const dependencies = typeof job.needs === "string" ? [job.needs] : (job.needs ?? []);
+      const needs = Object.fromEntries(dependencies.map((key) => [key, states[key]]));
+      const vars = new Proxy({}, { get: () => "" });
+      const expression = (job.if ?? "${{ success() }}").slice(3, -2);
+      const allowed: unknown = runInNewContext(expression, {
+        vars,
+        github: { sha: "a".repeat(40), ref: "refs/heads/main" },
+        needs,
+        always: () => true,
+        success: () => Object.values(needs).every((value) => value?.result === "success"),
+      });
+      assert.equal(
+        allowed,
+        false,
+        `${actual}: ${name} must not start without separately approved configuration`,
+      );
+      states[name] = { result: "skipped", outputs: {} };
+    }
+  }
+});
 void test("held automatic wake uses only the bound dispatch App and its actual installation", async () => {
   const wake = parse(
-    await readFile(new URL("docs/qualification/application-update-wake.held.yml", root), "utf8"),
+    await readFile(new URL(".github/workflows/application-update-wake.yml", root), "utf8"),
   ) as Workflow;
   const job = wake.jobs.wake!;
-  assert.equal(job.if, "${{ false }}");
+  assert.equal(job.if, "${{ vars.PORTCOVE_CONTROLLER_WAKE != '' }}");
   assert.equal(job["timeout-minutes"], slice4CapacityResources.wake_job_minutes[0]);
   assert.equal(wake.concurrency.group, slice4CapacityResources.wake_concurrency);
   const app = job.steps.findIndex((step) =>
@@ -57,10 +93,7 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
 });
 void test("actual held job conditions route retained custody without repeating signing and preserve renewal", async () => {
   const workflow = parse(
-    await readFile(
-      new URL("docs/qualification/application-update-production.complete.yml", root),
-      "utf8",
-    ),
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
   ) as Workflow;
   const permitted = (job: string, mode: string, reused: boolean, failed?: string) => {
     const needs = Object.fromEntries(
@@ -120,7 +153,7 @@ void test("actual held job conditions route retained custody without repeating s
 });
 void test("complete held DAG keeps bounded resource and credential ownership across actual callables", async () => {
   const source = await readFile(
-    new URL("docs/qualification/application-update-production.complete.yml", root),
+    new URL(".github/workflows/application-update-production.yml", root),
     "utf8",
   );
   const workflow = parse(source) as Workflow;
@@ -290,7 +323,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
 void test("held DAG embedded fixed Node programs parse in the actual pinned runtime", async () => {
   const documents = await Promise.all(
     [
-      "docs/qualification/application-update-production.complete.yml",
+      ".github/workflows/application-update-production.yml",
       ".github/actions/release-controller-job/action.yml",
       ".github/actions/release-control-observer/action.yml",
     ].map(
@@ -325,10 +358,7 @@ void test("held DAG embedded fixed Node programs parse in the actual pinned runt
 
 void test("actual observer installation guard refuses drift before invoking its reader", async () => {
   const workflow = parse(
-    await readFile(
-      new URL("docs/qualification/application-update-production.complete.yml", root),
-      "utf8",
-    ),
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
   ) as Workflow;
   const observer = parse(
     await readFile(new URL(".github/actions/release-control-observer/action.yml", root), "utf8"),

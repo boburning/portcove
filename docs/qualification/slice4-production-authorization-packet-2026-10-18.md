@@ -5,9 +5,8 @@ refines the [accepted custody design](https://github.com/boburning/portcove/issu
 its [custody amendment](https://github.com/boburning/portcove/issues/534#issuecomment-5999823580),
 [execution amendment](https://github.com/boburning/portcove/issues/534#issuecomment-6107645487)
 and [controller proposal](https://github.com/boburning/portcove/issues/534#issuecomment-6119064584).
-It grants nothing. The runnable workflow remains admission-only. The
-[complete held controller](application-update-production.complete.yml) is outside
-`.github/workflows`; it is not activated. The older aggregate-only proposal is
+It grants nothing. The complete controller and automatic wake now have installed source at their actual workflow paths, held by empty separately approved configuration and all existing admission checks. The
+[complete held controller](application-update-production.complete.yml) retains identical review bytes; it is not activated. The older aggregate-only proposal is
 retained as historical evidence.
 
 ## Current local runtime checkpoint

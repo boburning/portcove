@@ -1,4 +1,4 @@
-# HELD REVIEW ARTIFACT; activate only through the consolidated exact setup grant.
+# Installed source only; remains held until separately approved exact configuration.
 name: Automatic application controller wake-up
 on:
   push:
@@ -15,7 +15,7 @@ concurrency:
   queue: max
 jobs:
   wake:
-    if: ${{ false }}
+    if: ${{ vars.PORTCOVE_CONTROLLER_WAKE != '' }}
     name: Wake fixed application controller
     runs-on: ubuntu-22.04
     timeout-minutes: 1

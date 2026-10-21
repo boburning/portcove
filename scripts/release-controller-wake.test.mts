@@ -388,7 +388,7 @@ void test("fixed wake starts from a builtin-only source graph and retains intent
   );
   assert.doesNotMatch(workflow, /pnpm install|npm install|^\s+cache:|^\s+actions: write/mu);
   assert.match(workflow, /permission-actions: write/u);
-  assert.match(workflow, /if: \$\{\{ false \}\}/u);
+  assert.match(workflow, /if: \$\{\{ vars\.PORTCOVE_CONTROLLER_WAKE != '' \}\}/u);
 });
 void test("manual, rerun, foreign, injected policy and unprotected wake refuse before reads or effects", async () => {
   for (const change of [
