@@ -266,3 +266,67 @@ void test("bootstrap and renewal route distinct explicit subjects through only t
     "candidate",
   );
 });
+
+void test("actual recovery provider transport caps each read to original session remaining and refuses late replies", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-capacity-executor.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function capacityRecoveryProviderApi("),
+    end = source.indexOf("export async function recoverOwnedCapacityEffect(", start);
+  assert.ok(start > 0 && end > start);
+  let now = 10,
+    delay = 0,
+    gets = 0;
+  const timeouts: number[] = [];
+  const makeApi = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\ncapacityRecoveryProviderApi",
+    {
+      performance: { now: () => now },
+      Number,
+      Math,
+      Error,
+      createGitHubRunner: (settings: { timeoutMs: number }) => {
+        timeouts.push(settings.timeoutMs);
+        return (args: string[]) => {
+          assert.ok(args.includes("github.com"));
+          gets++;
+          now += delay;
+          return { status: 200, body: { original: true } };
+        };
+      },
+      GitHubApiClient: class {
+        private runner: (...args: unknown[]) => unknown;
+        constructor(runner: (...args: unknown[]) => unknown) {
+          this.runner = runner;
+        }
+        request() {
+          return this.runner(["api", "fixed-original-job"], undefined);
+        }
+      },
+    },
+  ) as (value: { directory: string; deadline?: number }) => { request: () => unknown };
+  const api = makeApi({ directory: "private", deadline: 100 });
+  api.request();
+  now = 50;
+  api.request();
+  assert.deepEqual(timeouts, [90, 50]);
+  now = 100;
+  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.equal(gets, 2);
+  now = 95;
+  delay = 6;
+  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.equal(gets, 3);
+  assert.deepEqual(timeouts, [90, 50, 5]);
+  assert.throws(() => makeApi({ directory: "private", deadline: NaN }).request(), /invalid/);
+  assert.equal(gets, 3);
+  now = 1;
+  delay = 0;
+  makeApi({ directory: "private" }).request();
+  assert.equal(timeouts.at(-1), 15000);
+  assert.equal(source.split("const api = capacityRecoveryProviderApi(value);").length - 1, 2);
+});

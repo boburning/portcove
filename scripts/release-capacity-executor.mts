@@ -413,6 +413,30 @@ async function executeOwnedCapacityEffectWithinScope(
  * and resolve an old intent only after the original exact executor is terminal;
  * it never inherits permission to re-POST the effect. Readback callbacks in the
  * immutable controller must positively establish the requested resolution. */
+/** Provider reads share the actual executor's original phase clock. This
+ * transport carries no executor authority and never extends a retained session. */
+function capacityRecoveryProviderApi(value: Pick<PrivateSession, "directory" | "deadline">) {
+  const remaining = () => {
+    if (value.deadline !== undefined && !Number.isFinite(value.deadline))
+      throw new Error("capacity recovery phase deadline invalid");
+    const timeout =
+      value.deadline === undefined
+        ? 15000
+        : Math.floor(Math.min(15000, value.deadline - performance.now()));
+    if (timeout < 1) throw new Error("capacity recovery phase deadline exhausted");
+    return timeout;
+  };
+  return new GitHubApiClient((args, body) => {
+    const result = createGitHubRunner({
+      cwd: value.directory,
+      timeoutMs: remaining(),
+      maxBuffer: 2 * 1024 * 1024,
+    })([...args, "--hostname", "github.com"], body);
+    remaining();
+    return result;
+  });
+}
+
 export async function recoverOwnedCapacityEffect(
   ...args: Parameters<typeof recoverOwnedCapacityEffectWithinScope>
 ) {
@@ -444,14 +468,7 @@ async function recoverOwnedCapacityEffectWithinScope(
   if (state.busy || state.failed)
     throw new Error("executor is busy or stopped; retain original recovery evidence");
   state.busy = true;
-  const runner = createGitHubRunner({
-    cwd: value.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
+  const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
     api: createCoordinatorJournalApi(value.directory, value.deadline),
@@ -572,14 +589,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   }
   if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
   state.busy = true;
-  const runner = createGitHubRunner({
-    cwd: value.directory,
-    timeoutMs: 15000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
+  const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
     api: createCoordinatorJournalApi(value.directory, value.deadline),
