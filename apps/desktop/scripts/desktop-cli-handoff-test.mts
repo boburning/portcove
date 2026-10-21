@@ -100,12 +100,14 @@ export async function cliHandoffScenario({
         ),
       ),
       [
-        "Updates",
-        "Requirements",
         "Installation and version",
+        "Requirements",
+        "Updates",
         "Saves and storage",
+        "About this port",
         "Compatibility and testing",
         "Project and release",
+        "Artwork",
       ],
     );
     const versionSummary = await browser
