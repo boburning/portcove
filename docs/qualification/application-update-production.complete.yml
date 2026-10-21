@@ -1,4 +1,4 @@
-# HELD AUTHORING CANDIDATE OUTSIDE WORKFLOWS. Resume-custody routing remains under integration.
+# HELD AUTHORING: complete controller proposal; not activated or ratified.
 name: Fixed application-update controller
 env:
   GH_TOKEN: ${{ github.token }}
@@ -360,6 +360,8 @@ jobs:
       mode: ${{ steps.job.outputs.mode }}
       stage: ${{ steps.job.outputs.stage }}
       context_locator: ${{ steps.job.outputs.context_locator }}
+      signing_custody: ${{ steps.job.outputs.signing_custody }}
+      role_locators: ${{ steps.job.outputs.role_locators }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -634,7 +636,7 @@ jobs:
     if: ${{ needs.coordinator.outputs.mode == 'release' }}
   payload_signing:
     name: Sign admitted updater payloads
-    if: ${{ needs.coordinator.outputs.mode == 'release' }}
+    if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}
     needs: &a2
       - admission
       - tool_bootstrap
@@ -694,7 +696,7 @@ jobs:
           role_password: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
   payload_protection_observation:
     name: Observe payload signing input protections
-    if: ${{ needs.coordinator.outputs.mode == 'release' }}
+    if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}
     needs: *a2
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -723,8 +725,9 @@ jobs:
   tuf_releases:
     name: Sign authenticated Releases metadata
     if:
-      ${{ always() && (needs.coordinator.outputs.mode == 'release' || needs.coordinator.outputs.mode == 'metadata') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' }}
+      ${{ always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode == 'release' &&
+      needs.coordinator.outputs.signing_custody != 'reused' && needs.payload_signing.result == 'success')) }}
     needs:
       - admission
       - tool_bootstrap
@@ -786,8 +789,10 @@ jobs:
   tuf_preview:
     name: Sign authenticated Preview metadata
     if:
-      ${{ always() && (needs.coordinator.outputs.mode == 'release' || needs.coordinator.outputs.mode == 'metadata') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' }}
+      ${{ always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode == 'release' &&
+      needs.coordinator.outputs.signing_custody != 'reused' && needs.payload_signing.result == 'success')) &&
+      needs.tuf_releases.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -850,8 +855,10 @@ jobs:
   tuf_stable:
     name: Sign authenticated Stable metadata
     if:
-      ${{ always() && (needs.coordinator.outputs.mode == 'release' || needs.coordinator.outputs.mode == 'metadata') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' }}
+      ${{ always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode == 'release' &&
+      needs.coordinator.outputs.signing_custody != 'reused' && needs.payload_signing.result == 'success')) &&
+      needs.tuf_preview.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -915,8 +922,10 @@ jobs:
   tuf_snapshot:
     name: Sign authenticated Snapshot metadata
     if:
-      ${{ always() && (needs.coordinator.outputs.mode == 'release' || needs.coordinator.outputs.mode == 'metadata') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' }}
+      ${{ always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode == 'release' &&
+      needs.coordinator.outputs.signing_custody != 'reused' && needs.payload_signing.result == 'success')) &&
+      needs.tuf_stable.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -981,8 +990,10 @@ jobs:
   tuf_timestamp:
     name: Sign authenticated Timestamp metadata
     if:
-      ${{ always() && (needs.coordinator.outputs.mode == 'release' || needs.coordinator.outputs.mode == 'metadata') &&
-      needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' }}
+      ${{ always() && needs.tool_attest.result == 'success' && needs.coordinator.result == 'success' &&
+      ((needs.coordinator.outputs.mode == 'metadata') || (needs.coordinator.outputs.mode == 'release' &&
+      needs.coordinator.outputs.signing_custody != 'reused' && needs.payload_signing.result == 'success')) &&
+      needs.tuf_snapshot.result == 'success' }}
     needs:
       - admission
       - tool_bootstrap
@@ -1114,7 +1125,9 @@ jobs:
           installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   release_publication:
     name: Publish immutable application release
-    if: ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.tuf_timestamp.result == 'success' }}
+    if:
+      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.attest.result == 'success' &&
+      (needs.tuf_timestamp.result == 'success' || needs.coordinator.outputs.signing_custody == 'reused') }}
     needs: &a3
       - admission
       - tool_bootstrap
@@ -1195,7 +1208,9 @@ jobs:
           phase: release-publication
   release_protection_observation:
     name: Observe immutable application release publication protections
-    if: ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.tuf_timestamp.result == 'success' }}
+    if:
+      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.attest.result == 'success' &&
+      (needs.tuf_timestamp.result == 'success' || needs.coordinator.outputs.signing_custody == 'reused') }}
     needs: *a3
     runs-on: ubuntu-22.04
     timeout-minutes: 6
@@ -1224,8 +1239,8 @@ jobs:
   site_publication:
     name: Publish authenticated application site
     if:
-      ${{ always() && needs.tuf_timestamp.result == 'success' && (needs.coordinator.outputs.mode == 'metadata' ||
-      needs.release_publication.result == 'success') }}
+      ${{ always() && ((needs.coordinator.outputs.mode == 'metadata' && needs.tuf_timestamp.result == 'success') ||
+      (needs.coordinator.outputs.mode == 'release' && needs.release_publication.result == 'success')) }}
     needs: &a4
       - admission
       - tool_bootstrap
@@ -1291,8 +1306,8 @@ jobs:
   site_protection_observation:
     name: Observe application site publication protections
     if:
-      ${{ always() && needs.tuf_timestamp.result == 'success' && (needs.coordinator.outputs.mode == 'metadata' ||
-      needs.release_publication.result == 'success') }}
+      ${{ always() && ((needs.coordinator.outputs.mode == 'metadata' && needs.tuf_timestamp.result == 'success') ||
+      (needs.coordinator.outputs.mode == 'release' && needs.release_publication.result == 'success')) }}
     needs: *a4
     runs-on: ubuntu-22.04
     timeout-minutes: 5

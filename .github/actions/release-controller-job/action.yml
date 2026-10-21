@@ -17,6 +17,12 @@ outputs:
   mode:
     description: Inert coordinator route
     value: ${{ steps.output.outputs.mode }}
+  signing_custody:
+    description: Inert original signing-custody route; consumers reauthenticate
+    value: ${{ steps.output.outputs.signing_custody }}
+  role_locators:
+    description: Original five role locators; not accepted authority
+    value: ${{ steps.output.outputs.role_locators }}
   stage:
     description: Existing candidate phase
     value: ${{ steps.output.outputs.stage }}

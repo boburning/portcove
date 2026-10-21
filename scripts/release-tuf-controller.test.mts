@@ -323,6 +323,76 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
     "portcove-production",
   );
   assert.equal("identity" in coordinator, false);
+  const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
+  const oldContext = { ...context, run_id: "12344" };
+  const retainedRoles = roles.map((role, index) => ({
+    role,
+    controller: { ...producer, run_id: "12344" },
+    artifact: artifact(5 + index * 2),
+    bundle: artifact(6 + index * 2),
+    context_manifest_sha256: context.manifest_sha256,
+    context_binding_sha256: context.binding_sha256,
+    context_facts_sha256: context.facts_sha256,
+  }));
+  const reused = projectFixedControllerJobOutputs("coordinator", {
+    decision: "candidate-signing-custody-reused",
+    candidate_phase: "publishing",
+    context_locator: oldContext,
+    role_locators: retainedRoles,
+  });
+  const resumedInput = {
+    ...input,
+    native_locators: null,
+    operation: "release-publication",
+    needs: {
+      ...needs,
+      coordinator: out(reused),
+      independent_admission: out({ artifact_id: "21", artifact_sha256: "a".repeat(64) }),
+      attest: out({ bundle_artifact_id: "22", bundle_artifact_sha256: "b".repeat(64) }),
+      payload_signing: { result: "skipped", outputs: {} },
+      ...Object.fromEntries(
+        roles.map((role) => [`tuf_${role}`, { result: "skipped", outputs: {} }]),
+      ),
+    },
+  };
+  const resumed = prepareFixedControllerConfiguration(resumedInput);
+  assert.ok(
+    "context" in resumed &&
+      "roles" in resumed &&
+      "configuration" in resumed &&
+      isRecord(resumed.configuration) &&
+      isRecord(resumed.configuration.aggregate),
+  );
+  assert.equal(resumed.context.run_id, "12344");
+  assert.deepEqual(
+    resumed.roles.map((role) => role.controller.run_id),
+    roles.map(() => "12344"),
+  );
+  assert.equal(resumed.configuration.aggregate.run_id, fixed.run_id);
+  for (const operation of ["payload", "tuf-releases", "tuf-timestamp"])
+    assert.throws(() => prepareFixedControllerConfiguration({ ...resumedInput, operation }));
+  for (const changed of [
+    { ...reused, stage: "building" },
+    { ...reused, role_locators: JSON.stringify(retainedRoles.slice(1)) },
+    {
+      ...reused,
+      role_locators: JSON.stringify(
+        retainedRoles.map((role, index) =>
+          index === 0 ? { ...role, context_binding_sha256: "0".repeat(64) } : role,
+        ),
+      ),
+    },
+    {
+      ...reused,
+      context_locator: JSON.stringify({ ...oldContext, controller_revision: "0".repeat(40) }),
+    },
+  ])
+    assert.throws(() =>
+      prepareFixedControllerConfiguration({
+        ...resumedInput,
+        needs: { ...resumedInput.needs, coordinator: out(changed) },
+      }),
+    );
 });
 
 void test("fixed job adapter and source bootstrap refuse unknown operations without output", async (t) => {
@@ -408,6 +478,7 @@ void test("same-job aggregate outputs carry exact original custody to the mainta
           source_tree: fixed.source_tree,
         }),
         tool_attest: out({ bundle_artifact_id: "2", bundle_artifact_sha256: "3".repeat(64) }),
+        coordinator: out({ mode: "release", stage: "building" }),
         independent_admission: out(outputs),
         attest: out({ bundle_artifact_id: "88", bundle_artifact_sha256: "4".repeat(64) }),
       },

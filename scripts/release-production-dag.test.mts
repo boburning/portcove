@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { runInNewContext } from "node:vm";
 import { parse } from "yaml";
 
 type Step = {
@@ -11,6 +12,7 @@ type Step = {
   env?: Record<string, string>;
 };
 type Job = {
+  if?: string;
   steps: Step[];
   needs?: string[];
   environment?: string;
@@ -20,6 +22,62 @@ type Job = {
 };
 type Workflow = { on: unknown; concurrency: Record<string, unknown>; jobs: Record<string, Job> };
 const root = new URL("../", import.meta.url);
+void test("actual held job conditions route retained custody without repeating signing and preserve renewal", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("docs/qualification/application-update-production.complete.yml", root),
+      "utf8",
+    ),
+  ) as Workflow;
+  const permitted = (job: string, mode: string, reused: boolean, failed?: string) => {
+    const needs = Object.fromEntries(
+      Object.keys(workflow.jobs).map((name) => [
+        name,
+        {
+          result:
+            name === failed
+              ? "failure"
+              : reused && (name === "payload_signing" || name.startsWith("tuf_"))
+                ? "skipped"
+                : "success",
+          outputs: name === "coordinator" ? { mode, signing_custody: reused ? "reused" : "" } : {},
+        },
+      ]),
+    );
+    const condition = workflow.jobs[job]?.if;
+    assert.ok(condition);
+    return runInNewContext(condition.slice(3, -2), { needs, always: () => true }) as boolean;
+  };
+  for (const name of [
+    "payload_signing",
+    "payload_protection_observation",
+    ...["releases", "preview", "stable", "snapshot", "timestamp"].map((role) => `tuf_${role}`),
+  ]) {
+    assert.equal(permitted(name, "release", true), false, name);
+    assert.equal(permitted(name, "release", false), true, name);
+  }
+  for (const name of [
+    "independent_admission",
+    "protection_observation",
+    "attest",
+    "release_publication",
+    "release_protection_observation",
+    "site_publication",
+    "site_protection_observation",
+  ]) {
+    assert.equal(permitted(name, "release", true), true, name);
+    assert.equal(permitted(name, "held", false), false, name);
+  }
+  for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"]) {
+    assert.equal(permitted(`tuf_${role}`, "metadata", false), true);
+    assert.equal(permitted(`tuf_${role}`, "release", false, "payload_signing"), false);
+  }
+  assert.equal(permitted("tuf_preview", "metadata", false, "tuf_releases"), false);
+  assert.equal(permitted("release_publication", "release", true, "attest"), false);
+  assert.equal(permitted("site_publication", "release", true, "release_publication"), false);
+  assert.equal(permitted("site_publication", "metadata", false), true);
+  assert.equal(permitted("site_publication", "metadata", false, "tuf_timestamp"), false);
+});
 void test("complete held DAG keeps bounded resource and credential ownership across actual callables", async () => {
   const source = await readFile(
     new URL("docs/qualification/application-update-production.complete.yml", root),
