@@ -159,8 +159,10 @@ The new actual-default source callable reuses the parent's existing pinned
 read-only GitHub transport. It recovers the current journal's published seed,
 materializes the complete exact public site, and invokes the maintained pinned
 Rust/Tough verifier. It binds Root, offline Targets and payload registry to the
-protected publication configuration. The first two namespace allocations must
-match exact prepared source/tree and retained release records; current eligible
+protected publication configuration. The first two namespace allocations with
+eligible published records must match exact prepared source/tree; failed or
+retired allocations without such records do not consume either slot. Inconsistent
+records or immutable Release assets still refuse. Current eligible
 Preview must still equal V1, and both versions and package bytes must differ.
 Opaque package acquisition brackets a complete immutable Release/asset inventory
 and retains exact hashes. Imported JSON cannot enter these private custody maps.
@@ -179,3 +181,33 @@ existing optional keyless-tool fixture skipped on this invocation. Type-aware
 lint passed all five changed TypeScript files after four ordinary draft typing
 diagnostics were repaired; retained logs preserve the original result. These
 checks invoke no native account, installer, GUI, provider mutation or public feed.
+
+The next source increment reuses the existing compiler report parser and
+attestation inspector through the same parent-owned pinned GitHub transport.
+It generates the complete compiler-source closure from the protected local
+controller with its pinned Git executable, verifies the real four-file prepared
+transform and original source tree, then checks the actual producer run, complete
+four-report subject matrix, independently appointed public-build bundle and the
+single NSIS package against the Tough record. The protected local workflow bytes
+supply the expected workflow digest. The public bundle Root/payload key must
+match the actual published pair. Report ZIP parsing is mechanically shared with
+the hosted collector; injected/hosted scope and the hosted private getter remain
+unchanged. A separate local private map retains all raw reports, original ZIPs,
+public bundle archives, verification output, provider facts and source closure.
+It cannot be populated from imported hosted/local summaries.
+
+The deterministic cohort rule skips failed/retired allocations lacking eligible
+public records. A later unpublished allocation can proceed without changing the
+selected pair; every getter still reconstructs the exact same pair from complete
+current allocation facts and requires the same published seed. Current Preview
+or selected source/record drift continues to refuse.
+
+The final focused source/parser/import-refusal selection passed 11/11 with zero
+skips; type-aware lint passed eight changed source/test files before the final
+mechanical removal of a redundant whole-allocation-list comparison. The first
+new ZIP fixture accidentally supplied objects to the existing tuple-based helper
+and failed before parsing; its log is retained alongside the corrected run under
+`work/windows-public-update/`. This does not qualify an actual local-parent,
+GitHub, compiler, installer or public updater execution. The actual attempt,
+parent dispatch, supervised driver and cross-invocation public proof remain
+unfinished and must be connected before this branch is delivered.
