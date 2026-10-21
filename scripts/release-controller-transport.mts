@@ -3,7 +3,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFile, open, lstat } from "node:fs/promises";
+import { appendFile, open, lstat, mkdir } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
@@ -47,13 +47,69 @@ function filename(root: string, phase: Phase, suffix: string) {
   return path.join(root, `controller-transport-${phase}-${suffix}.json`);
 }
 async function retain(file: string, value: unknown) {
+  return retainBytes(file, Buffer.from(JSON.stringify(value)));
+}
+async function retainBytes(file: string, bytes: Buffer) {
   const handle = await open(file, "wx", 0o600);
   try {
-    await handle.writeFile(JSON.stringify(value));
+    await handle.writeFile(bytes);
     await handle.sync();
   } finally {
     await handle.close();
   }
+}
+function bundleRoute(phase: Phase) {
+  if (!allowed(phase, "attest")) throw new Error("fixed attestation phase required");
+  const prefix =
+    phase === "coordinator"
+      ? "trusted-coordinator-signing-context"
+      : phase === "payload"
+        ? "trusted-payload-signing-context"
+        : phase === "release-publication"
+          ? "trusted-immutable-release-result"
+          : `trusted-${phase}`;
+  return {
+    name: `${prefix}-attestation-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`,
+    filename:
+      phase === "release-publication"
+        ? "immutable-release-result-attestation.json"
+        : phase.startsWith("tuf-")
+          ? "role-attestation.json"
+          : "signing-context-attestation.json",
+  };
+}
+/** Copies only the completed pinned Action's bounded raw bundle. This is
+ * transport normalization, never signature verification or a private receipt. */
+export async function normalizeControllerAttestationBundle(
+  root: string,
+  rawPhase: unknown,
+  slot: number,
+  source: string,
+  deadline: number,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  active(deadline);
+  if (!path.isAbsolute(source)) throw new Error("completed pinned Action bundle path required");
+  const event = inspectControllerTransportEvent(
+    await json(filename(root, phase, `slot-${slot}`)),
+    root,
+    phase,
+  );
+  if (event.kind !== "attest") throw new Error("fixed attestation slot unavailable");
+  await verifyEvent(root, event);
+  if (!endedState(await json(path.join(root, `controller-job-settlement-${phase}.json`))))
+    throw new Error("producer did not require attestation");
+  const bytes = await readControllerToolFile(source, 512 * 1024);
+  active(deadline);
+  const route = bundleRoute(phase),
+    directory = path.join(root, `controller-attestation-bundle-${phase}`);
+  await mkdir(directory, { mode: 0o700 });
+  const file = path.join(directory, route.filename);
+  await retainBytes(file, bytes);
+  const ready = { path: file, name: route.name, bytes: bytes.length, sha256: hash(bytes) };
+  active(deadline);
+  await retain(filename(root, phase, "bundle-ready"), ready);
+  return ready;
 }
 async function json(file: string, max = 16384): Promise<unknown> {
   return JSON.parse((await readControllerToolFile(file, max)).toString("utf8"));
@@ -777,7 +833,7 @@ export async function acknowledgeControllerTransport(
   }
   const event = inspectControllerTransportEvent(raw, root, phase);
   await verifyEvent(root, event);
-  if (event.ack) {
+  if (event.ack || event.kind === "attest") {
     if (
       !artifact ||
       !Number.isSafeInteger(artifact.artifact_id) ||
@@ -785,10 +841,34 @@ export async function acknowledgeControllerTransport(
       !/^[a-f0-9]{64}$/u.test(artifact.sha256)
     )
       throw new Error("actual upload Action output unavailable");
-    await retain(
-      event.ack,
-      event.kind === "site" ? { artifact_id: artifact.artifact_id } : artifact,
-    );
+    if (event.kind === "attest") {
+      const ready = await json(filename(root, phase, "bundle-ready")),
+        route = bundleRoute(phase);
+      if (
+        !exact(ready, "bytes,name,path,sha256") ||
+        ready.name !== route.name ||
+        typeof ready.path !== "string" ||
+        ready.path !== path.join(root, `controller-attestation-bundle-${phase}`, route.filename) ||
+        typeof ready.bytes !== "number" ||
+        ready.bytes < 1 ||
+        ready.bytes > 512 * 1024
+      )
+        throw new Error("normalized fixed attestation bundle missing");
+      const actual = await fileIdentity(root, ready.path, 512 * 1024);
+      if (actual.sha256 !== ready.sha256 || actual.bytes !== ready.bytes)
+        throw new Error("normalized attestation bytes changed");
+      await retain(filename(root, phase, "attestation-uploaded"), artifact);
+    } else {
+      if (!event.ack) throw new Error("fixed upload acknowledgement unavailable");
+      await retain(
+        event.ack,
+        event.kind === "site"
+          ? { artifact_id: artifact.artifact_id }
+          : event.kind === "result"
+            ? { id: artifact.artifact_id, sha256: artifact.sha256 }
+            : artifact,
+      );
+    }
   }
   await retain(filename(root, phase, `${event.kind}-ack`), { authority: "none" });
 }
@@ -837,6 +917,17 @@ async function cli() {
     } catch {
       process.exitCode = 2;
     }
+    return;
+  }
+  if (process.argv[2] === "normalize") {
+    const ready = await normalizeControllerAttestationBundle(
+      root,
+      phase,
+      slot,
+      process.env.PORTCOVE_TRANSPORT_BUNDLE_PATH ?? "",
+      deadline,
+    );
+    await output({ bundle_path: ready.path, bundle_name: ready.name });
     return;
   }
   if (process.argv[2] === "ack") {

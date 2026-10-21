@@ -10,7 +10,7 @@ credential roles or an arbitrary backend. The final DAG still owns activation.
 Producer hooks publish job-local locators only after the existing ready file or
 authenticated pending operation boundary; the key locator follows the actual
 socket listen and mode change. Upload acknowledgements retain the existing
-`artifact_id`/`sha256` shape (site uses `artifact_id` alone), use exclusive creation,
+`artifact_id`/`sha256` shape (result uses `id`/`sha256`, site uses `artifact_id` alone), use exclusive creation,
 and remain untrusted locators until the existing producer verifies provider bytes.
 The composite pins the existing upload and attest Actions. Uploads keep seven-day
 retention, compression zero and no overwrite. Only the key-client step receives
@@ -38,6 +38,13 @@ subject/predicate locator before settlement, and the pinned attest Action must
 return before the pump acknowledges it. A genuine no-op may explicitly require
 no attestation. Failure, exhausted slots, expired time, changed bytes, missing
 acknowledgement or malformed settlement stops the job without effect retries.
+After the attest Action succeeds, the same slot copies only its completed bounded
+raw bundle into the exact filename required by the existing receiver and uploads
+it under that receiver's fixed artifact name. The slot is acknowledged only after
+the bundle upload returns its numeric artifact ID and archive digest. The public
+`controller-transport-PHASE-attestation-uploaded.json` locator retains those outputs;
+the bundle-ready projection separately retains the normalized file digest. Neither
+record verifies a signature or replaces downstream provider/Sigstore authentication.
 
 Local tests exercise real temporary-file routing across control round zero,
 pending context upload acknowledgement, round one and final attestation. They

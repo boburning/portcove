@@ -17,6 +17,7 @@ import {
   inspectControllerKeyProcess,
   startControllerKeyClient,
   finishControllerKeyClient,
+  normalizeControllerAttestationBundle,
 } from "./release-controller-transport.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { setTimeout as delay } from "node:timers/promises";
@@ -288,10 +289,123 @@ void test("actual local routing interleaves control and pending upload before th
     JSON.stringify({ exit_code: 0, requires_attestation: true }),
   );
   assert.equal((await nextControllerTransport(root, "coordinator", 4, deadline)).kind, "attest");
-  await acknowledgeControllerTransport(root, "coordinator", 4);
+  await assert.rejects(acknowledgeControllerTransport(root, "coordinator", 4), /Action output/);
+  const bundleSource = path.join(root, "completed-pinned-action-bundle.json");
+  const bundleBytes = Buffer.from("public synthetic bundle bytes, no verification claim");
+  await assert.rejects(
+    normalizeControllerAttestationBundle(root, "coordinator", 4, bundleSource, deadline),
+    /ENOENT/,
+  );
+  await writeFile(bundleSource, Buffer.alloc(512 * 1024 + 1, 1));
+  await assert.rejects(
+    normalizeControllerAttestationBundle(root, "coordinator", 4, bundleSource, deadline),
+    /bound/,
+  );
+  await writeFile(bundleSource, "");
+  await assert.rejects(
+    normalizeControllerAttestationBundle(root, "coordinator", 4, bundleSource, deadline),
+    /bound/,
+  );
+  await assert.rejects(
+    readFile(path.join(root, "controller-transport-coordinator-bundle-ready.json")),
+    /ENOENT/,
+  );
+  await writeFile(bundleSource, bundleBytes);
+  const normalized = await normalizeControllerAttestationBundle(
+    root,
+    "coordinator",
+    4,
+    bundleSource,
+    deadline,
+  );
+  assert.equal(normalized.name, "trusted-coordinator-signing-context-attestation-123-1");
+  assert.equal(path.basename(normalized.path), "signing-context-attestation.json");
+  assert.deepEqual(await readFile(normalized.path), bundleBytes);
+  await assert.rejects(
+    normalizeControllerAttestationBundle(root, "coordinator", 4, bundleSource, deadline),
+    /EEXIST/,
+  );
+  await acknowledgeControllerTransport(root, "coordinator", 4, {
+    artifact_id: 88,
+    sha256: "e".repeat(64),
+  });
+  assert.deepEqual(
+    JSON.parse(
+      await readFile(
+        path.join(root, "controller-transport-coordinator-attestation-uploaded.json"),
+        "utf8",
+      ),
+    ),
+    { artifact_id: 88, sha256: "e".repeat(64) },
+  );
   assert.equal((await nextControllerTransport(root, "coordinator", 5, deadline)).kind, "done");
-  await assert.rejects(acknowledgeControllerTransport(root, "coordinator", 4), /EEXIST/);
+  await assert.rejects(
+    acknowledgeControllerTransport(root, "coordinator", 4, {
+      artifact_id: 88,
+      sha256: "e".repeat(64),
+    }),
+    /EEXIST/,
+  );
   await assert.rejects(nextControllerTransport(root, "coordinator", 41, deadline), /forty/);
+});
+void test("result acknowledgement passes the maintained producer's exact consumer schema", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-result-ack-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const previous = { ...process.env };
+  Object.assign(process.env, identity);
+  t.after(() => {
+    for (const key of Object.keys(identity)) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  });
+  const directory = path.join(root, "result"),
+    upload = path.join(directory, "upload");
+  await mkdir(upload, { recursive: true });
+  await writeFile(path.join(upload, "immutable-release-result.json"), "retained public report");
+  await writeFile(
+    path.join(directory, "result-ready.json"),
+    JSON.stringify({
+      name: "trusted-immutable-release-result-123-1",
+      files: ["immutable-release-result.json"],
+    }),
+  );
+  await retainControllerUpload(root, "release-publication", "result", directory);
+  assert.equal(
+    (await nextControllerTransport(root, "release-publication", 1, performance.now() + 5000)).kind,
+    "result",
+  );
+  await acknowledgeControllerTransport(root, "release-publication", 1, {
+    artifact_id: 93,
+    sha256: "f".repeat(64),
+  });
+  const uploaded: unknown = JSON.parse(
+    await readFile(path.join(directory, "result-uploaded.json"), "utf8"),
+  );
+  const producer = await readFile(
+    new URL("./release-publication-result-artifact.mts", import.meta.url),
+    "utf8",
+  );
+  const start = producer.indexOf(
+      'exact(uploaded, "id,sha256");',
+      producer.indexOf("export async function handoffPublicationResultArtifact"),
+    ),
+    end = producer.indexOf("const result =", start);
+  assert(start >= 0 && end > start);
+  const validation = producer.slice(start, end);
+  const validate = (value: unknown) =>
+    runInNewContext(
+      validation,
+      {
+        uploaded: value,
+        exact: (raw: Record<string, unknown>, keys: string) =>
+          assert.equal(Object.keys(raw).sort().join(","), keys),
+        hex: (value: string) => assert.match(value, /^[a-f0-9]{64}$/u),
+      },
+      { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
+    );
+  assert.doesNotThrow(() => validate(uploaded));
+  assert.throws(() => validate({ artifact_id: 93, sha256: "f".repeat(64) }));
 });
 void test("fixed routing rejects cross-role keys, escaped files and changed public upload bytes", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "fixed-pump-refuse-"));
@@ -382,14 +496,14 @@ void test("composite contains forty fixed slots with isolated key env and unchan
   assert.equal(
     (source.match(/actions\/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9/gu) ?? [])
       .length,
-    40,
+    80,
   );
   assert.equal(
     (source.match(/actions\/attest@1e69f48acb82d1966a394da916b4c1698aa569d6/gu) ?? []).length,
     40,
   );
   assert.equal((source.match(/PORTCOVE_ROLE_KEY:/gu) ?? []).length, 40);
-  assert.equal((source.match(/retention-days: 7/gu) ?? []).length, 40);
+  assert.equal((source.match(/retention-days: 7/gu) ?? []).length, 80);
   assert(!source.includes("overwrite: true"));
   assert(!source.includes("GH_TOKEN"));
 });
