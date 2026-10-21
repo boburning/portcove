@@ -21,7 +21,7 @@ const start = source.indexOf("async function openInstalledUpdateSettings(");
 assert.ok(start >= 0);
 const drivers = runInNewContext(
   stripTypeScriptTypes(source.slice(start).replace(/^export /gmu, "")) +
-    "\n({driveInstalledUpdateToRestart,driveInstalledUpdateRecovery});",
+    "\n({driveInstalledUpdateToRestart,driveInstalledUpdateRecovery,driveInstalledForwardRepairToRestart});",
   {
     assert,
     isRecord,
@@ -44,8 +44,18 @@ const drivers = runInNewContext(
     actions: string[],
     area: "schedule" | "staging" | "apply",
   ) => Promise<{ before: unknown; after: unknown; authority: string }>;
+  driveInstalledForwardRepairToRestart: (
+    browser: WebDriver,
+    actions: string[],
+    version: string,
+    expectedPrior: { apply: Record<string, unknown>; staged: Record<string, unknown> },
+  ) => Promise<{ before: unknown; staged: unknown; authority: string }>;
 };
-const { driveInstalledUpdateToRestart, driveInstalledUpdateRecovery } = drivers;
+const {
+  driveInstalledUpdateToRestart,
+  driveInstalledUpdateRecovery,
+  driveInstalledForwardRepairToRestart,
+} = drivers;
 
 void test("shipping status reader imports and executes outside dependency ancestry with Selenium unavailable", async (t) => {
   const parent = path.resolve(tmpdir());
@@ -178,6 +188,89 @@ void test("a restart control alone cannot qualify wrong, absent, incompatible or
     assert.ok(!actions.includes("exact-installed-candidate-status-read-back"));
     assert.ok(!f.calls.some((call) => call.includes("Restart to update")));
   }
+});
+
+void test("forward staging preserves the exact prior pre-native restart request and uses ordinary V2 controls", async () => {
+  const f = fixture();
+  const expectedPrior = {
+    apply: {
+      revision: 2,
+      request: "restart-to-apply",
+      termination: "restart-to-apply",
+      native_launch: null,
+    },
+    staged: { version: "0.1.0-beta.1", channel: "preview", bytes: 120 },
+  };
+  f.responses.splice(
+    0,
+    2,
+    { ...f.before, ...expectedPrior },
+    { ...f.after, apply: expectedPrior.apply },
+  );
+  const actions: string[] = [];
+  const observed = await driveInstalledForwardRepairToRestart(
+    f.browser,
+    actions,
+    "0.1.0-beta.2",
+    expectedPrior,
+  );
+  assert.equal(observed.authority, "none");
+  assert.deepEqual(observed.staged, { ...f.after, apply: expectedPrior.apply });
+  assert.equal(f.calls.filter((call) => call.includes("Download and verify update")).length, 1);
+  assert.equal(f.calls.filter((call) => call.startsWith("invoke:")).length, 2);
+  assert.ok(!f.calls.some((call) => call.includes("Clear pending update request")));
+  assert.ok(
+    !f.calls.some((call) => call.includes("Retry restart to update")),
+    "staging cannot authorize a restart",
+  );
+});
+
+void test("forward staging refuses ambiguous, unrelated or changed old intent before UI mutation", async () => {
+  const expectedPrior = {
+    apply: {
+      revision: 2,
+      request: "restart-to-apply",
+      termination: "restart-to-apply",
+      native_launch: null,
+    },
+    staged: { version: "0.1.0-beta.1", channel: "preview", bytes: 120 },
+  };
+  for (const change of [
+    { apply: { ...expectedPrior.apply, native_launch: "starting" } },
+    { apply: { ...expectedPrior.apply, request: "safe-exit" } },
+    { apply: { ...expectedPrior.apply, termination: "crash" } },
+    { staged: { ...expectedPrior.staged, version: "0.1.0-beta.2" } },
+  ]) {
+    const f = fixture();
+    const altered = { ...expectedPrior, ...change };
+    await assert.rejects(
+      driveInstalledForwardRepairToRestart(f.browser, [], "0.1.0-beta.2", altered),
+    );
+    assert.equal(f.calls.length, 0);
+  }
+  for (const change of [
+    { apply: { ...expectedPrior.apply, revision: 3 } },
+    { staged: { ...expectedPrior.staged, bytes: 121 } },
+    { recovery_required: [{ area: "apply" }] },
+  ]) {
+    const f = fixture();
+    f.responses[0] = { ...f.before, ...expectedPrior, ...change };
+    await assert.rejects(
+      driveInstalledForwardRepairToRestart(f.browser, [], "0.1.0-beta.2", expectedPrior),
+    );
+    assert.equal(f.calls.filter((call) => call.startsWith("click:")).length, 0);
+  }
+  const f = fixture();
+  f.responses.splice(
+    0,
+    2,
+    { ...f.before, ...expectedPrior },
+    { ...f.after, apply: { ...expectedPrior.apply, revision: 3 } },
+  );
+  await assert.rejects(
+    driveInstalledForwardRepairToRestart(f.browser, [], "0.1.0-beta.2", expectedPrior),
+  );
+  assert.ok(!f.calls.some((call) => call.includes("Retry restart to update")));
 });
 
 void test("named ordinary recovery clears only its hold through one fixed UI action", async () => {

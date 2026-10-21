@@ -132,6 +132,25 @@ proposal remains a separate decision, with the current expiry and scanner facts.
 
 ## Current checks
 
+The forward-repair connection now allows the existing explicit restart command
+to supersede an older pre-native restart request with a strictly newer staged
+candidate on the same installation, library and channel. The actual apply lock
+and journal revision exclude an admitted helper or fence its old request; this
+does not establish process-tree teardown. Every recorded native attempt remains
+under its original reconciliation rules. No generic clear command, malformed
+journal or new trust authority is used. A separate ordinary UI staging function
+retains the exact old sanitized request while downloading the new candidate;
+its caller must independently retain raw intent, installed identity, fresh
+public source and positive helper settlement. It cannot supply those facts.
+
+Nine controlled UI/actual status-reader tests pass, including changed and
+ambiguous old-request refusals; two changed TypeScript files pass type-aware
+lint. The new Rust regressions exercise actual apply/staging/preference locks,
+old-revision refusal and ordinary new-candidate admission, plus preservation of
+recorded native and unrelated intents. Their execution is recorded by the
+change's exact-head required Rust checks, not by the UI fixtures. No actual
+native account, public artifact or updater execution is claimed by this change.
+
 Controlled Node/PowerShell preflight, real temporary-file custody, alias/reparse
 refusal, identity comparison and actual serialized ordinary-query callback tests
 exercise engineering behavior only. They launch no candidate, account session or
