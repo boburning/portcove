@@ -145,5 +145,17 @@ export async function readActualWindowsPublicContinuation(claim: object) {
   );
   await requireActualPublicJourneyInvocation(claim);
   await requireActualWindowsPublicParent(selected.parent_receipt);
-  return result;
+  const reportIdentity = previous.settled.files.find(
+    (file) => file.path === "ordinary-public-update/public-update-journey.json",
+  );
+  assert.ok(reportIdentity);
+  return {
+    ...result,
+    previous_invocation_id: previous.marker.invocation_id,
+    previous_report: {
+      path: path.join(previous.directory, reportIdentity.path),
+      bytes: reportIdentity.bytes,
+      sha256: reportIdentity.sha256,
+    },
+  };
 }

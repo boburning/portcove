@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { classifyChanges } from "./ordinary-validation.mts";
+import { validationOwnershipForPath } from "./validation-plan.mts";
 import {
   inspectWindowsPublicContinuationPaths,
   readActualWindowsPublicContinuation,
@@ -47,6 +49,15 @@ function fixture() {
   };
   return { invocation, executable, staged, boundary, binding, installer, report };
 }
+void test("the continuation custody helper alone selects its consumers and protected release coverage", () => {
+  const file = "scripts/release-native-windows-public-continuation.mts";
+  const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => true });
+  assert.ok(selection.nodeTests.has("scripts/release-native-windows-public-continuation.test.mts"));
+  assert.ok(selection.nodeTests.has("scripts/release-native-windows-driver.test.mts"));
+  const ownership = validationOwnershipForPath(file);
+  assert.equal(ownership.qualificationRequired, true);
+  assert.ok(ownership.areas.includes("release-security"));
+});
 function inspect(f: ReturnType<typeof fixture>) {
   return inspectWindowsPublicContinuationPaths(
     f.binding,

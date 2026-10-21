@@ -16,6 +16,66 @@ import {
 } from "./release-native-windows-capture.mts";
 
 void test(
+  "actual continuation installer guard verifies original registration and installed bytes before any launch",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-original-b-"));
+    try {
+      const script = String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_INSTALLER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'installer syntax failure'}
+$functions=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object {$_.Name -cin @('Assert-NoReparseAncestry','Assert-InstallerUserRegistration')})
+foreach($function in $functions){Invoke-Expression $function.Extent.Text}
+$guard=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.IfStatementAst] -and $item.Clauses[0].Item1.Extent.Text -ceq '$ordinaryPublicContinue' -and $item.Extent.Text.Contains("throw 'Public continuation original paths differ'")},$true))
+if($guard.Count -ne 1){throw 'original continuation guard absent'}
+$ordinaryPublicContinue=$true
+$runRoot=$env:PORTCOVE_TEST_TEMP;$installRoot=Join-Path $runRoot 'installed';$libraryRoot=Join-Path $runRoot 'library'
+$null=New-Item -ItemType Directory $installRoot;$null=New-Item -ItemType Directory $libraryRoot
+$application=Join-Path $installRoot 'portcove-desktop.exe';$uninstaller=Join-Path $installRoot 'uninstall.exe'
+[IO.File]::WriteAllText($application,'inert original V0 bytes; never execute');[IO.File]::WriteAllText($uninstaller,'inert uninstaller; never execute')
+$sid='S-1-5-21-1-2-3-1003';$nativeAccount=@{binding=@{account_sid=$sid}}
+$registered='Microsoft.PowerShell.Core\Registry::HKEY_USERS\'+$sid+'\Software\Microsoft\Windows\CurrentVersion\Uninstall\Portcove'
+$script:registration=[pscustomobject]@{PSPath=$registered;DisplayVersion='0.1.0-beta.1'}
+function Get-UninstallEntries {param($location) @($script:registration)}
+$continued=@{install_root=$installRoot;library_root=$libraryRoot;application=$application;uninstaller=$uninstaller;registration_path=$registered;uninstaller_sha256=(Get-FileHash $uninstaller).Hash.ToLowerInvariant()}
+$ordinaryPublicInputs=@{prior_version='0.1.0-beta.1';prior_executable_sha256=(Get-FileHash $application).Hash.ToLowerInvariant()}
+Invoke-Expression $guard[0].Extent.Text
+$refused=0
+$script:registration.PSPath=$registered.Replace($sid,'S-1-5-21-1-2-3-1002');try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++};$script:registration.PSPath=$registered
+$continued.library_root=Join-Path $runRoot 'other';try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++};$continued.library_root=$libraryRoot
+[IO.File]::AppendAllText($uninstaller,'changed');try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++}
+if($refused -ne 3){throw 'original B guard widened'}
+Write-Output 'original-b-guard-pass'
+`;
+      const result = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          maxBuffer: 128 * 1024,
+          windowsHide: true,
+          env: {
+            SystemRoot: process.env.SystemRoot,
+            PATH: process.env.PATH,
+            PORTCOVE_TEST_TEMP: root,
+            PORTCOVE_TEST_INSTALLER: fileURLToPath(
+              new URL("./test-windows-installer.ps1", import.meta.url),
+            ),
+          },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /original-b-guard-pass/u);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  },
+);
+
+void test(
   "actual fixed installer arguments satisfy the maintained strict account-work descendant guard",
   { skip: process.platform !== "win32" },
   async () => {
@@ -152,6 +212,7 @@ Invoke-Expression $function[0].Extent.Text
 $plan=[ordered]@{schema_version=2;stage='ordinary-public-initial';journey=$null;predecessor=$null;boundary=@{};invocation_id='a'*64;request_sha256='b'*64;package=@{};tools=@{};version='0.1.0-beta.1';public_inputs=@{path='C:\capture\public-inputs.json';sha256='c'*64}}
 Assert-DriverStageSelection ($plan|ConvertTo-Json -Depth 5|ConvertFrom-Json)
 $park=$plan|ConvertTo-Json -Depth 5|ConvertFrom-Json;$park.stage='ordinary-public-park';Assert-DriverStageSelection $park
+$continued=$plan|ConvertTo-Json -Depth 5|ConvertFrom-Json;$continued.stage='ordinary-public-continue';Assert-DriverStageSelection $continued
 $original=$plan|ConvertTo-Json -Depth 5 -Compress
 $refused=0
 foreach($change in @({param($p)$p.stage='release-publication'},{param($p)$p.schema_version=1},{param($p)$p.predecessor=@{path='other'}},{param($p)$p.public_inputs.sha256='bad'},{param($p)$p|Add-Member -NotePropertyName accepted -NotePropertyValue $true})){

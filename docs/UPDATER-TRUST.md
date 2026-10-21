@@ -860,3 +860,15 @@ No account, credential, ACL or task is created or changed by these parsers.
 The existing ordinary signed-in broker session is still required; the public
 account uses the maintained credentialed private-desktop logon/profile keeper,
 not a new recurring interactive-owner approval.
+
+The fixed Windows public continuation reuses only the original positively
+settled B work/install/runtime under that selected public SID, with a fresh
+supervised invocation and no profile reconstruction or V0 reinstall. Current
+registration/V0/uninstaller checks precede startup. The ordinary parked-V1
+Restart must leave pre-native state and genuine V0 bytes, followed by ordinary
+V2 forward staging/Retry Restart, actual new V2 process/bytes and same-profile
+readback before owned uninstall. Same-image helper processes remain in the
+owned group and cannot substitute for a visible shipping-title GUI generation.
+Source wiring and controlled fixtures do not establish actual native behavior
+or the helper's unexposed failure subtype; initial setup/grant and host evidence
+remain required.

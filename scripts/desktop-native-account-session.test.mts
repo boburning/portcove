@@ -58,6 +58,7 @@ void test(
         changed = false;
         stops = 0;
         reads = 0;
+        windows = 0;
         launch: NativeAccountLaunch | null = null;
         constructor() {
           super(binding);
@@ -66,6 +67,7 @@ void test(
           operation: Parameters<NativeAccountClient["invoke"]>[0],
           _id: string,
           launch: NativeAccountLaunch | null = null,
+          target: { pid: number; started_filetime: string } | null = null,
         ) {
           if (operation === "start") {
             this.launch = structuredClone(launch);
@@ -87,6 +89,14 @@ void test(
                   ]
                 : [],
             };
+          if (operation === "window") {
+            assert.deepEqual(target, {
+              pid: application.pid,
+              started_filetime: application.started_filetime,
+            });
+            this.windows++;
+            return { title: "Portcove" };
+          }
           if (operation === "stop") {
             this.stops++;
             this.live = false;
@@ -130,6 +140,15 @@ void test(
       const result = session.observe("Snapshot", snapshot, app);
       assert.equal(result.application_pid, 457);
       assert.equal(result.processes.length, 2);
+      assert.equal(session.readOwnedApplicationWindowTitle(application), "Portcove");
+      assert.equal(client.windows, 1);
+      assert.throws(() =>
+        session.readOwnedApplicationWindowTitle({
+          ...application,
+          started_filetime: "134000000000000003",
+        }),
+      );
+      assert.equal(client.windows, 1, "foreign creation is refused before window observation");
       assert.throws(() => session.observe("Snapshot", snapshot, app), /EEXIST/u);
       client.changed = true;
       assert.throws(() => session.observe("Observe", snapshot, app), /identity changed/u);

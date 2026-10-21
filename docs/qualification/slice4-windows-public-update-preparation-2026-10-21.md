@@ -492,3 +492,50 @@ an account capability. Three controlled path/private-import-refusal tests and
 two-file typed lint passed. Initial lint feedback on control-character regex and
 boundary-record narrowing was repaired without expanding accepted paths. Actual
 PS/Node continuation execution remains under engineering and is not enabled.
+
+### Windows parked-B continuation source connection
+
+The later `continue-with-v2` claim now connects to the same ordinary Windows
+installer/UI route. It selects the separate protected public account and derives
+only its original positively settled B work/run/install/library/runtime paths.
+The new invocation still owns a fresh capture, broker, profile keeper, process
+group and original lifetime. Before any application startup it verifies the
+single exact public-HKU V0 registration, V0 compiler bytes and retained
+uninstaller hash. It does not reinstall V0, seed a library, write a new marker or
+copy a profile. Initial/native branches keep their original fresh-install guard.
+
+The ordinary UI attempts the parked V1 Restart once. The parent requires a new
+owned V0 application generation, exact V0 installed bytes and a visible window
+with the shipping title, then closes that exact GUI application and settles its
+owned tree. A new read-only broker operation observes only a PID/creation pair
+already in that same job, brackets it with actual job membership and held-process
+creation checks, and reads its private-desktop title. A same-image updater helper
+cannot satisfy the GUI observation; it remains in the full settlement inventory.
+Raw post-restart apply state must retain the valid old request with no native
+launch, replacement or exit. After reopening V0, the maintained ordinary forward
+repair UI downloads V2 while preserving that old request; one Retry Restart must
+produce actual V2 bytes/new GUI generation before a separate normal V2 UI reopen
+and meaningful favorite/Light/Preview/Manual state readback. The original owned
+uninstall then completes. Only the fixed continuation preimage leaf receives the
+existing bounded large-payload treatment; no arbitrary file limit is widened.
+
+The installed worker now obtains original retained V0/V1 compiler custody and
+fresh current V2 compiler custody, claims the already derived continuation,
+runs the fixed Windows capture and records the existing positive settlement.
+No new journal, publication rendezvous, native Check identity or active-candidate
+permission is introduced. The normal helper has no typed failure-cause output;
+these observations establish only pre-native refusal plus independently checked
+current public Tough/V2 lineage and later V2 behavior, not a claimed native error
+subtype. Actual execution/acceptance remains unobserved, and the separate-account
+setup/protected proof grant remains unapplied.
+
+Focused connected validation passed 69 tests with zero skips, including actual
+PowerShell continuation-guard evaluation against inert files/registration
+objects, native helper compilation, worker import routing, fixed phase/config,
+private-import refusal and indexed-inventory fixtures. Fourteen changed
+TypeScript modules passed typed lint. An initial continuation helper call passed
+an obsolete second navigation argument; typed validation identified it and the
+caller now uses the maintained one-argument API. No candidate GUI/account logon,
+credential access, account/ACL/task provisioning, network proof or protected
+publication occurred. The earlier Windows-continuation HOLD descriptions above
+record earlier checkpoints; this section describes the connected source only.

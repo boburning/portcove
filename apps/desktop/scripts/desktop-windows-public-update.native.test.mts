@@ -97,6 +97,70 @@ void test("public relaunch requires original exit and a distinct exact installed
   );
 });
 
+void test("V2 continuation has a separate exact schema with parent-retained B paths and report pin", () => {
+  const continuation = {
+    application,
+    install_root: "C:\\qualification\\install",
+    library_root: "C:\\qualification\\library",
+    parked_executable_sha256: "a".repeat(64),
+    parked_installer_sha256: "b".repeat(64),
+    parked_version: "0.1.0-beta.2",
+    previous_invocation_id: "c".repeat(64),
+    previous_report: {
+      path: "C:\\capture\\old\\public-update-journey.json",
+      bytes: 1024,
+      sha256: "d".repeat(64),
+    },
+    registration_path:
+      "Microsoft.PowerShell.Core\\Registry::HKEY_USERS\\S-1-5-21-1-2-3-1003\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
+    run_root: "C:\\qualification\\run",
+    runtime_root: "C:\\qualification\\runtime",
+    test_base: "C:\\qualification\\installer",
+    uninstaller: "C:\\qualification\\install\\uninstall.exe",
+    uninstaller_sha256: "e".repeat(64),
+    work_root: "C:\\qualification",
+  };
+  const raw = {
+    schema_version: 3,
+    kind: "ordinary-windows-public-update",
+    journey: {
+      application,
+      binding: "C:\\owner\\binding.json",
+      binding_sha256: "f".repeat(64),
+      output: "C:\\capture\\current\\ordinary-public-update",
+      prior_sha256: "1".repeat(64),
+      prior_version: "0.1.0-beta.1",
+      candidate_sha256: "2".repeat(64),
+      candidate_installer_sha256: "3".repeat(64),
+      candidate_version: "0.1.0-beta.3",
+      phase: "continue-with-v2",
+      continuation,
+    },
+  };
+  const value = inspectWindowsPublicUpdateConfiguration(raw);
+  assert.equal(value.phase, "continue-with-v2");
+  assert.deepEqual(value.continuation, continuation);
+  for (const changed of [
+    { ...raw, schema_version: 2 },
+    { ...raw, journey: { ...raw.journey, phase: "park-v0-with-v1" } },
+    {
+      ...raw,
+      journey: { ...raw.journey, continuation: { ...continuation, keep_installed: true } },
+    },
+    {
+      ...raw,
+      journey: {
+        ...raw.journey,
+        continuation: {
+          ...continuation,
+          previous_report: { ...continuation.previous_report, bytes: 4 * 1024 * 1024 + 1 },
+        },
+      },
+    },
+  ])
+    assert.throws(() => inspectWindowsPublicUpdateConfiguration(changed));
+});
+
 void test("PID reuse needs changed creation identity and cannot silently change the original capture", () => {
   const reused = { ...next, pid: prior.pid };
   assert.equal(

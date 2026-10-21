@@ -1,10 +1,14 @@
 import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
-import { mkdir, open, writeFile } from "node:fs/promises";
+import { mkdir, open, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WebDriver } from "selenium-webdriver";
 import { readPublicUpdateFile as readWindowsPublicExecutable } from "./desktop-public-update-files.mts";
+import {
+  readBoundedPublicUpdateBytes,
+  publicUpdateApplySchemaVersion,
+} from "./desktop-public-update-files.mts";
 import {
   readPublicUserState,
   assertPublicUserStateChoicesPreserved,
@@ -33,6 +37,73 @@ function sameProcess(a: CapturedNativeProcess, b: CapturedNativeProcess) {
     a.started_filetime === b.started_filetime &&
     path.win32.resolve(a.path).toLowerCase() === path.win32.resolve(b.path).toLowerCase()
   );
+}
+
+/** Fixed parent-appointed continuation inputs; data only, never a claim. */
+export function inspectWindowsPublicContinuationInput(raw: unknown) {
+  assert.ok(isRecord(raw));
+  const names = [
+    "application",
+    "install_root",
+    "library_root",
+    "parked_executable_sha256",
+    "parked_installer_sha256",
+    "parked_version",
+    "previous_invocation_id",
+    "previous_report",
+    "registration_path",
+    "run_root",
+    "runtime_root",
+    "test_base",
+    "uninstaller",
+    "uninstaller_sha256",
+    "work_root",
+  ];
+  assert.deepEqual(Object.keys(raw).sort(), names.sort());
+  const text = (name: string) => {
+    const value = raw[name];
+    assert.ok(typeof value === "string" && value.length > 0 && value.length <= 32768);
+    return value;
+  };
+  assert.ok(isRecord(raw.previous_report));
+  const previous = raw.previous_report;
+  assert.deepEqual(Object.keys(previous).sort(), ["bytes", "path", "sha256"]);
+  assert.ok(typeof previous.path === "string" && path.win32.isAbsolute(previous.path));
+  assert.ok(
+    Number.isSafeInteger(previous.bytes) &&
+      Number(previous.bytes) > 0 &&
+      Number(previous.bytes) <= 4 * 1024 * 1024,
+  );
+  assert.ok(typeof previous.sha256 === "string" && /^[a-f0-9]{64}$/u.test(previous.sha256));
+  const value = {
+    application: text("application"),
+    install_root: text("install_root"),
+    library_root: text("library_root"),
+    parked_executable_sha256: text("parked_executable_sha256"),
+    parked_installer_sha256: text("parked_installer_sha256"),
+    parked_version: text("parked_version"),
+    previous_invocation_id: text("previous_invocation_id"),
+    previous_report: {
+      path: previous.path,
+      bytes: Number(previous.bytes),
+      sha256: previous.sha256,
+    },
+    registration_path: text("registration_path"),
+    run_root: text("run_root"),
+    runtime_root: text("runtime_root"),
+    test_base: text("test_base"),
+    uninstaller: text("uninstaller"),
+    uninstaller_sha256: text("uninstaller_sha256"),
+    work_root: text("work_root"),
+  };
+  for (const name of [
+    "parked_executable_sha256",
+    "parked_installer_sha256",
+    "previous_invocation_id",
+    "uninstaller_sha256",
+  ] as const)
+    assert.match(value[name], /^[a-f0-9]{64}$/u);
+  return value;
 }
 
 /** Inert identity comparison. Only the account broker supplies actual process observations. */
@@ -88,7 +159,8 @@ export function assertWindowsPublicUserStatePreserved(
  * It neither issues a Check nor establishes native acceptance/publication authority. */
 export async function runWindowsPublicUpdateJourney(
   input: {
-    phase?: "park-v0-with-v1";
+    phase?: "park-v0-with-v1" | "continue-with-v2";
+    continuation?: ReturnType<typeof inspectWindowsPublicContinuationInput>;
     binding: string;
     binding_sha256: string;
     application: string;
@@ -115,9 +187,15 @@ export async function runWindowsPublicUpdateJourney(
       "prior_sha256",
       "prior_version",
       ...(Object.hasOwn(input, "phase") ? ["phase"] : []),
+      ...(input.phase === "continue-with-v2" ? ["continuation"] : []),
     ].sort(),
   );
-  if (Object.hasOwn(input, "phase")) assert.equal(input.phase, "park-v0-with-v1");
+  if (Object.hasOwn(input, "phase"))
+    assert.ok(input.phase === "park-v0-with-v1" || input.phase === "continue-with-v2");
+  const continuation =
+    input.phase === "continue-with-v2"
+      ? inspectWindowsPublicContinuationInput(input.continuation)
+      : undefined;
   for (const name of ["application", "binding", "output"] as const)
     assert.ok(path.isAbsolute(input[name]));
   assert.equal(process.platform, "win32");
@@ -145,7 +223,18 @@ export async function runWindowsPublicUpdateJourney(
     "Installed application must belong to this account invocation work root",
   );
   await mkdir(input.output, { recursive: false });
-  await mkdir(runtime, { recursive: false });
+  if (continuation) {
+    assert.equal(
+      path.resolve(runtime).toLowerCase(),
+      path.resolve(continuation.runtime_root).toLowerCase(),
+    );
+    assert.equal(
+      path.resolve(input.application).toLowerCase(),
+      path.resolve(continuation.application).toLowerCase(),
+    );
+    const existing = await lstat(runtime);
+    assert.ok(existing.isDirectory() && !existing.isSymbolicLink());
+  } else await mkdir(runtime, { recursive: false });
   const environment = {
     PORTCOVE_LIBRARY: path.join(runtime, "library"),
     PORTCOVE_PREFERENCES: path.join(runtime, "preferences.json"),
@@ -154,8 +243,12 @@ export async function runWindowsPublicUpdateJourney(
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtime, "staging"),
   };
   const { By, until } = await import("selenium-webdriver");
-  const { driveInstalledUpdateToRestart, driveInstalledUpdateRecovery } =
-    await import("./desktop-application-update-journey.mts");
+  const {
+    driveInstalledUpdateToRestart,
+    driveInstalledUpdateRecovery,
+    driveInstalledForwardRepairToRestart,
+    openInstalledUpdateSettings,
+  } = await import("./desktop-application-update-journey.mts");
   const { connectInstalledUpdateDriver, readInstalledUpdateStatus } =
     await import("./desktop-installed-update-harness.mts");
   const actions: string[] = [];
@@ -266,85 +359,175 @@ export async function runWindowsPublicUpdateJourney(
     }
     return close;
   };
+  const observeAutomatic = async (
+    before: NativeProcessSnapshot,
+    expectedSha: string,
+    name: string,
+  ) => {
+    assert.ok(view);
+    const until = Math.min(deadline, performance.now() + 120000);
+    for (let sequence = 0; sequence < 120; sequence++) {
+      active();
+      assert.ok(performance.now() < until, "Automatic owned application relaunch timed out");
+      const current = session.observeRoot(view);
+      const applications = current.processes.filter(
+        (member) =>
+          path.resolve(member.path).toLowerCase() === path.resolve(input.application).toLowerCase(),
+      );
+      if (
+        applications.length === 1 &&
+        applications[0] &&
+        !before.processes.some((member) => sameProcess(member, applications[0]!))
+      ) {
+        const target = applications[0];
+        const executable = await readWindowsPublicExecutable(input.application);
+        if (executable.sha256 === expectedSha) {
+          const title = session.readOwnedApplicationWindowTitle(target);
+          if (title === "Portcove") {
+            const snapshotFile = path.join(input.output, `${name}-${sequence}.json`);
+            const snapshot = session.observe("Snapshot", snapshotFile, input.application);
+            const selected = selectWindowsPublicRelaunch(before, snapshot, input.application);
+            assert.ok(sameProcess(selected.relaunched, target));
+            assert.deepEqual(await readWindowsPublicExecutable(input.application), executable);
+            // One positively identified GUI application, not the same-image
+            // apply helper. Keep that helper in the full owned group inventory.
+            const closed = session.observe("RequestClose", snapshotFile, input.application);
+            const closeDeadline = Math.min(deadline, performance.now() + 30000);
+            while (
+              session.observeRoot(view).processes.some((member) => sameProcess(member, target))
+            ) {
+              assert.ok(
+                performance.now() < closeDeadline,
+                "Automatic application did not close naturally",
+              );
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            return { ...selected, executable, title, closed };
+          }
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    throw new Error("Automatic relaunch observation budget exhausted");
+  };
   try {
     assert.equal((await readWindowsPublicExecutable(input.application)).sha256, input.prior_sha256);
-    let initial = await connect(input.prior_version);
-    report.favorite_port = await seedPublicFavorite(initial, "win32");
-    await selectPublicLightTheme(initial);
-    report.staging = await driveInstalledUpdateToRestart(initial, actions, input.candidate_version);
-    active();
-    let beforeState = await readWindowsPublicUserState(initial);
-    assert.equal(beforeState.application_version, input.prior_version);
-    assert.ok(beforeState.favorites.includes(String(report.favorite_port)));
-    assertWindowsPublicUserStatePreserved(beforeState, beforeState);
-    assert.equal(
-      (await readWindowsPublicExecutable(path.join(runtime, "staging", "candidate-installer.exe")))
-        .sha256,
-      input.candidate_installer_sha256,
-    );
-    if (input.phase === "park-v0-with-v1") {
-      const status = await readInstalledUpdateStatus(initial);
-      assert.ok(isRecord(status.staged));
-      assert.equal(status.staged.version, input.candidate_version);
-      assert.equal(status.apply, null);
-      assert.equal(status.recovery_required.length, 0);
-      report.parked = {
-        installed_sha256: input.prior_sha256,
-        staged_installer_sha256: input.candidate_installer_sha256,
-        status,
-      };
-      const parkedState = await readWindowsPublicUserState(initial);
-      assert.equal(parkedState.application_version, input.prior_version);
-      assertWindowsPublicUserStatePreserved(beforeState, parkedState);
-      report.user_state = {
-        before: beforeState,
-        after: parkedState,
-        scope: "same V0 UI with genuine V1 staged; no apply",
-      };
+    if (continuation) {
+      // Read the original parent-hashed B report before startup/status can
+      // reconcile anything. The current private parent supplied this exact pin.
+      const oldIdentity = await readWindowsPublicExecutable(
+        continuation.previous_report.path,
+        4 * 1024 * 1024,
+      );
+      assert.equal(oldIdentity.sha256, continuation.previous_report.sha256);
+      assert.equal(oldIdentity.bytes, continuation.previous_report.bytes);
+      const oldBytes = await readBoundedPublicUpdateBytes(
+        continuation.previous_report.path,
+        4 * 1024 * 1024,
+        deadline,
+      );
+      assert.equal(createHash("sha256").update(oldBytes).digest("hex"), oldIdentity.sha256);
+      const old: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(oldBytes));
+      assert.ok(
+        isRecord(old) &&
+          isRecord(old.user_state) &&
+          isRecord(old.user_state.after) &&
+          isRecord(old.parked) &&
+          isRecord(old.parked.status),
+      );
+      assert.equal(old.phase, "park-v0-with-v1");
+      assert.equal(old.outcome, "parked");
+      assert.deepEqual(
+        await readWindowsPublicExecutable(continuation.previous_report.path, 4 * 1024 * 1024),
+        oldIdentity,
+      );
+      let current = await connect(input.prior_version);
+      const beforeState = await readWindowsPublicUserState(current);
+      const oldState = old.user_state.after;
+      for (const name of [
+        "app_local_data",
+        "library_root",
+        "favorites",
+        "theme_preference",
+        "rendered_theme",
+        "update_preferences",
+      ] as const)
+        assert.deepEqual(beforeState[name], oldState[name]);
+      assert.ok(beforeState.favorites.length > 0);
+      const parkedStatus = await readInstalledUpdateStatus(current);
+      assert.equal(parkedStatus.apply, null);
+      assert.deepEqual(parkedStatus.recovery_required, []);
+      assert.deepEqual(parkedStatus.staged, old.parked.status.staged);
+      assert.ok(isRecord(parkedStatus.staged));
+      assert.equal(parkedStatus.staged.version, continuation.parked_version);
+      assert.equal(
+        (
+          await readWindowsPublicExecutable(
+            path.join(runtime, "staging", "candidate-installer.exe"),
+          )
+        ).sha256,
+        continuation.parked_installer_sha256,
+      );
+      await openInstalledUpdateSettings(current);
+      const beforeOld = session.observe(
+        "Snapshot",
+        path.join(input.output, "before-old-restart.json"),
+        input.application,
+      );
+      try {
+        await current
+          .findElement(By.xpath('//button[normalize-space(.)="Restart to update"]'))
+          .click();
+      } catch (error) {
+        report.old_restart_click_error = String(error).slice(0, 1024);
+      }
+      actions.push("one-ordinary-parked-v1-restart-attempted");
+      report.old_restart_relaunch = await observeAutomatic(
+        beforeOld,
+        input.prior_sha256,
+        "old-restart-v0",
+      );
+      report.old_restart_cleanup = stop();
+      report.old_restart_preimages = await retainWindowsPublicUpdatePreimages(
+        runtime,
+        path.join(input.output, "after-old-restart-before-reopen"),
+        deadline,
+      );
+      const rawApply: unknown = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(
+          await readBoundedPublicUpdateBytes(
+            path.join(runtime, "staging", "apply.json"),
+            512 * 1024,
+            deadline,
+          ),
+        ),
+      );
+      assert.ok(isRecord(rawApply) && isRecord(rawApply.intent));
+      assert.equal(rawApply.schema_version, publicUpdateApplySchemaVersion);
+      assert.ok(Number.isSafeInteger(rawApply.revision) && Number(rawApply.revision) > 0);
+      assert.equal(rawApply.intent.request, "restart-to-apply");
+      assert.equal(rawApply.termination, "restart-to-apply");
+      assert.equal(rawApply.native_launch, null);
+      assert.equal(rawApply.native_replacement, null);
+      assert.equal(rawApply.native_exit_code, null);
+      report.pre_native_old_request = rawApply;
       assert.equal(
         (await readWindowsPublicExecutable(input.application)).sha256,
         input.prior_sha256,
       );
-      report.parked_close = await closeCurrentApplication("public-v1-park");
-      report.parked_cleanup = stop();
-      report.parked_preimages = await retainWindowsPublicUpdatePreimages(
-        runtime,
-        path.join(input.output, "parked-v1"),
-        deadline,
-      );
-      report.final_status = status;
-      report.outcome = "parked";
-    } else {
-      const tamperClose = await closeCurrentApplication("before-local-tamper");
-      const tamperCleanup = stop();
-      const tamperPreimages = await retainWindowsPublicUpdatePreimages(
-        runtime,
-        path.join(input.output, "before-local-payload-tamper"),
-        deadline,
-      );
-      const tamper = await prepareWindowsPublicPayloadFault(runtime, deadline);
-      active();
-      initial = await connect(input.prior_version);
-      const tamperRecovery = await driveInstalledUpdateRecovery(initial, actions, "staging");
-      assert.equal(
-        (await readWindowsPublicExecutable(input.application)).sha256,
-        input.prior_sha256,
-      );
-      assertWindowsPublicUserStatePreserved(beforeState, await readWindowsPublicUserState(initial));
-      report.local_payload_custody_refusal = {
-        original: tamperPreimages,
-        fault: tamper,
-        closed: tamperClose,
-        cleanup: tamperCleanup,
-        recovery: tamperRecovery,
-        scope: "native local custody refusal; cryptographic subtype not observable",
-      };
-      report.restaging = await driveInstalledUpdateToRestart(
-        initial,
+      current = await connect(input.prior_version);
+      assertWindowsPublicUserStatePreserved(beforeState, await readWindowsPublicUserState(current));
+      const oldStatus = await readInstalledUpdateStatus(current);
+      assert.ok(isRecord(oldStatus.apply) && isRecord(oldStatus.staged));
+      assert.equal(oldStatus.apply.revision, rawApply.revision);
+      assert.equal(oldStatus.apply.native_launch, null);
+      assert.deepEqual(oldStatus.staged, parkedStatus.staged);
+      report.forward_staging = await driveInstalledForwardRepairToRestart(
+        current,
         actions,
         input.candidate_version,
+        { apply: oldStatus.apply, staged: oldStatus.staged },
       );
-      active();
       assert.equal(
         (
           await readWindowsPublicExecutable(
@@ -353,145 +536,275 @@ export async function runWindowsPublicUpdateJourney(
         ).sha256,
         input.candidate_installer_sha256,
       );
-      const restagedState = await readWindowsPublicUserState(initial);
-      assertWindowsPublicUserStatePreserved(beforeState, restagedState);
-      beforeState = restagedState;
-      await writeFile(
-        path.join(input.output, "before-restart-user-state.json"),
-        JSON.stringify(beforeState) + "\n",
-        { flag: "wx" },
-      );
-      const before = session.observe(
+      const beforeRetry = session.observe(
         "Snapshot",
-        path.join(input.output, "before-restart-processes.json"),
+        path.join(input.output, "before-v2-retry.json"),
         input.application,
       );
-      assert.equal(
-        (await readWindowsPublicExecutable(input.application)).sha256,
-        input.prior_sha256,
-      );
-      active();
       try {
-        await initial
-          .findElement(By.xpath('//button[normalize-space(.)="Restart to update"]'))
+        await current
+          .findElement(By.xpath('//button[normalize-space(.)="Retry restart to update"]'))
           .click();
       } catch (error) {
-        report.restart_click_error = String(error).slice(0, 1024);
+        report.retry_restart_click_error = String(error).slice(0, 1024);
       }
-      actions.push("ordinary-restart-button-attempted");
-      let automatic: ReturnType<typeof selectWindowsPublicRelaunch> | undefined;
-      let sequence = 0;
-      const relaunchDeadline = Math.min(deadline, performance.now() + 120000);
-      while (!automatic) {
-        active();
-        assert.ok(
-          performance.now() < relaunchDeadline,
-          "Automatic relaunch was not observed within 120 seconds",
-        );
-        const observed = session.observe(
-          "SnapshotDriverTree",
-          path.join(input.output, `relaunch-${sequence++}.json`),
-          input.application,
-        );
-        if (sequence > 120) throw new Error("Automatic relaunch polling budget exhausted");
-        let captured: ReturnType<typeof selectWindowsPublicRelaunch> | undefined;
-        if (observed.application_pid !== null) {
-          try {
-            const bytesBefore = await readWindowsPublicExecutable(input.application);
-            if (bytesBefore.sha256 === input.candidate_sha256) {
-              const bracket = session.observe(
-                "Snapshot",
-                path.join(input.output, `relaunch-bracket-${sequence}.json`),
-                input.application,
-              );
-              const selected = selectWindowsPublicRelaunch(before, bracket, input.application);
-              const bytesAfter = await readWindowsPublicExecutable(input.application);
-              assert.deepEqual(bytesAfter, bytesBefore);
-              report.automatic_relaunch = {
-                ...selected,
-                executable: bytesAfter,
-                scope: "owned-process identity and installed bytes",
-              };
-              captured = selected;
-            }
-          } catch (error) {
-            report.last_relaunch_observation_error = String(error).slice(0, 1024);
-          }
-        }
-        if (captured) {
-          active();
-          // Latch the one close request outside observational polling. Ambiguity cannot retry it.
-          report.automatic_close = session.observe(
-            "RequestClose",
-            path.join(input.output, `relaunch-bracket-${sequence}.json`),
-            input.application,
-          );
-          const closeDeadline = Math.min(deadline, performance.now() + 30000);
-          assert.ok(view);
-          while (
-            session
-              .observeRoot(view)
-              .processes.some((item) => sameProcess(item, captured.relaunched))
-          ) {
-            assert.ok(
-              performance.now() < closeDeadline,
-              "Automatically relaunched application did not close naturally",
-            );
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
-          automatic = captured;
-        }
-        if (!automatic) await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-      report.first_driver_cleanup = stop();
-      actions.push("automatic-v1-observed-before-normal-ui-reopen");
-      assert.equal(
-        (await readWindowsPublicExecutable(input.application)).sha256,
+      actions.push("one-ordinary-v2-retry-restart-attempted");
+      report.automatic_relaunch = await observeAutomatic(
+        beforeRetry,
         input.candidate_sha256,
+        "v2-relaunch",
       );
-      const reopened = await connect(input.candidate_version);
-      const afterState = await readWindowsPublicUserState(reopened);
-      assert.equal(afterState.application_version, input.candidate_version);
+      report.automatic_cleanup = stop();
+      current = await connect(input.candidate_version);
+      const afterState = await readWindowsPublicUserState(current);
       assertWindowsPublicUserStatePreserved(beforeState, afterState);
-      const status = await readInstalledUpdateStatus(reopened);
-      active();
-      assert.equal(status.recovery_required.length, 0);
+      const finalStatus = await readInstalledUpdateStatus(current);
+      assert.deepEqual(finalStatus.recovery_required, []);
       report.user_state = {
         before: beforeState,
         after: afterState,
-        scope: "separate normal V1 UI reopen",
+        scope: "same parked B profile, V1 refusal then ordinary V2",
       };
-      report.final_status = status;
-      report.public_reopen_close = await closeCurrentApplication("public-reopen");
-      report.public_reopen_cleanup = stop();
-      const recoveryCases: Record<string, unknown>[] = [];
-      report.recovery_cases = recoveryCases;
-      for (const area of ["schedule", "staging", "apply"] as const) {
-        active();
-        // stop() above proves this owned tree empty before the fixed fault mutation.
-        const original = await retainWindowsPublicUpdatePreimages(
+      report.final_status = finalStatus;
+      report.final_close = await closeCurrentApplication("v2-reopen");
+      report.final_cleanup = stop();
+      report.outcome = "observed";
+    } else {
+      let initial = await connect(input.prior_version);
+      report.favorite_port = await seedPublicFavorite(initial, "win32");
+      await selectPublicLightTheme(initial);
+      report.staging = await driveInstalledUpdateToRestart(
+        initial,
+        actions,
+        input.candidate_version,
+      );
+      active();
+      let beforeState = await readWindowsPublicUserState(initial);
+      assert.equal(beforeState.application_version, input.prior_version);
+      assert.ok(beforeState.favorites.includes(String(report.favorite_port)));
+      assertWindowsPublicUserStatePreserved(beforeState, beforeState);
+      assert.equal(
+        (
+          await readWindowsPublicExecutable(
+            path.join(runtime, "staging", "candidate-installer.exe"),
+          )
+        ).sha256,
+        input.candidate_installer_sha256,
+      );
+      if (input.phase === "park-v0-with-v1") {
+        const status = await readInstalledUpdateStatus(initial);
+        assert.ok(isRecord(status.staged));
+        assert.equal(status.staged.version, input.candidate_version);
+        assert.equal(status.apply, null);
+        assert.equal(status.recovery_required.length, 0);
+        report.parked = {
+          installed_sha256: input.prior_sha256,
+          staged_installer_sha256: input.candidate_installer_sha256,
+          status,
+        };
+        const parkedState = await readWindowsPublicUserState(initial);
+        assert.equal(parkedState.application_version, input.prior_version);
+        assertWindowsPublicUserStatePreserved(beforeState, parkedState);
+        report.user_state = {
+          before: beforeState,
+          after: parkedState,
+          scope: "same V0 UI with genuine V1 staged; no apply",
+        };
+        assert.equal(
+          (await readWindowsPublicExecutable(input.application)).sha256,
+          input.prior_sha256,
+        );
+        report.parked_close = await closeCurrentApplication("public-v1-park");
+        report.parked_cleanup = stop();
+        report.parked_preimages = await retainWindowsPublicUpdatePreimages(
           runtime,
-          path.join(input.output, `before-${area}-fault`),
+          path.join(input.output, "parked-v1"),
           deadline,
         );
-        const fault = await prepareWindowsPublicJournalFault(runtime, area, deadline);
+        report.final_status = status;
+        report.outcome = "parked";
+      } else {
+        const tamperClose = await closeCurrentApplication("before-local-tamper");
+        const tamperCleanup = stop();
+        const tamperPreimages = await retainWindowsPublicUpdatePreimages(
+          runtime,
+          path.join(input.output, "before-local-payload-tamper"),
+          deadline,
+        );
+        const tamper = await prepareWindowsPublicPayloadFault(runtime, deadline);
         active();
+        initial = await connect(input.prior_version);
+        const tamperRecovery = await driveInstalledUpdateRecovery(initial, actions, "staging");
+        assert.equal(
+          (await readWindowsPublicExecutable(input.application)).sha256,
+          input.prior_sha256,
+        );
+        assertWindowsPublicUserStatePreserved(
+          beforeState,
+          await readWindowsPublicUserState(initial),
+        );
+        report.local_payload_custody_refusal = {
+          original: tamperPreimages,
+          fault: tamper,
+          closed: tamperClose,
+          cleanup: tamperCleanup,
+          recovery: tamperRecovery,
+          scope: "native local custody refusal; cryptographic subtype not observable",
+        };
+        report.restaging = await driveInstalledUpdateToRestart(
+          initial,
+          actions,
+          input.candidate_version,
+        );
+        active();
+        assert.equal(
+          (
+            await readWindowsPublicExecutable(
+              path.join(runtime, "staging", "candidate-installer.exe"),
+            )
+          ).sha256,
+          input.candidate_installer_sha256,
+        );
+        const restagedState = await readWindowsPublicUserState(initial);
+        assertWindowsPublicUserStatePreserved(beforeState, restagedState);
+        beforeState = restagedState;
+        await writeFile(
+          path.join(input.output, "before-restart-user-state.json"),
+          JSON.stringify(beforeState) + "\n",
+          { flag: "wx" },
+        );
+        const before = session.observe(
+          "Snapshot",
+          path.join(input.output, "before-restart-processes.json"),
+          input.application,
+        );
+        assert.equal(
+          (await readWindowsPublicExecutable(input.application)).sha256,
+          input.prior_sha256,
+        );
+        active();
+        try {
+          await initial
+            .findElement(By.xpath('//button[normalize-space(.)="Restart to update"]'))
+            .click();
+        } catch (error) {
+          report.restart_click_error = String(error).slice(0, 1024);
+        }
+        actions.push("ordinary-restart-button-attempted");
+        let automatic: ReturnType<typeof selectWindowsPublicRelaunch> | undefined;
+        let sequence = 0;
+        const relaunchDeadline = Math.min(deadline, performance.now() + 120000);
+        while (!automatic) {
+          active();
+          assert.ok(
+            performance.now() < relaunchDeadline,
+            "Automatic relaunch was not observed within 120 seconds",
+          );
+          const observed = session.observe(
+            "SnapshotDriverTree",
+            path.join(input.output, `relaunch-${sequence++}.json`),
+            input.application,
+          );
+          if (sequence > 120) throw new Error("Automatic relaunch polling budget exhausted");
+          let captured: ReturnType<typeof selectWindowsPublicRelaunch> | undefined;
+          if (observed.application_pid !== null) {
+            try {
+              const bytesBefore = await readWindowsPublicExecutable(input.application);
+              if (bytesBefore.sha256 === input.candidate_sha256) {
+                const bracket = session.observe(
+                  "Snapshot",
+                  path.join(input.output, `relaunch-bracket-${sequence}.json`),
+                  input.application,
+                );
+                const selected = selectWindowsPublicRelaunch(before, bracket, input.application);
+                const bytesAfter = await readWindowsPublicExecutable(input.application);
+                assert.deepEqual(bytesAfter, bytesBefore);
+                report.automatic_relaunch = {
+                  ...selected,
+                  executable: bytesAfter,
+                  scope: "owned-process identity and installed bytes",
+                };
+                captured = selected;
+              }
+            } catch (error) {
+              report.last_relaunch_observation_error = String(error).slice(0, 1024);
+            }
+          }
+          if (captured) {
+            active();
+            // Latch the one close request outside observational polling. Ambiguity cannot retry it.
+            report.automatic_close = session.observe(
+              "RequestClose",
+              path.join(input.output, `relaunch-bracket-${sequence}.json`),
+              input.application,
+            );
+            const closeDeadline = Math.min(deadline, performance.now() + 30000);
+            assert.ok(view);
+            while (
+              session
+                .observeRoot(view)
+                .processes.some((item) => sameProcess(item, captured.relaunched))
+            ) {
+              assert.ok(
+                performance.now() < closeDeadline,
+                "Automatically relaunched application did not close naturally",
+              );
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+            automatic = captured;
+          }
+          if (!automatic) await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        report.first_driver_cleanup = stop();
+        actions.push("automatic-v1-observed-before-normal-ui-reopen");
         assert.equal(
           (await readWindowsPublicExecutable(input.application)).sha256,
           input.candidate_sha256,
         );
-        const current = await connect(input.candidate_version);
-        const recovery = await driveInstalledUpdateRecovery(current, actions, area);
+        const reopened = await connect(input.candidate_version);
+        const afterState = await readWindowsPublicUserState(reopened);
+        assert.equal(afterState.application_version, input.candidate_version);
+        assertWindowsPublicUserStatePreserved(beforeState, afterState);
+        const status = await readInstalledUpdateStatus(reopened);
         active();
-        const retained = await readWindowsPublicUserState(current);
-        assert.equal(retained.application_version, input.candidate_version);
-        assertWindowsPublicUserStatePreserved(beforeState, retained);
-        const closed = await closeCurrentApplication(`${area}-recovery`);
-        const cleanup = stop();
-        recoveryCases.push({ area, original, fault, recovery, retained, closed, cleanup });
-        report.final_status = recovery.after;
+        assert.equal(status.recovery_required.length, 0);
+        report.user_state = {
+          before: beforeState,
+          after: afterState,
+          scope: "separate normal V1 UI reopen",
+        };
+        report.final_status = status;
+        report.public_reopen_close = await closeCurrentApplication("public-reopen");
+        report.public_reopen_cleanup = stop();
+        const recoveryCases: Record<string, unknown>[] = [];
+        report.recovery_cases = recoveryCases;
+        for (const area of ["schedule", "staging", "apply"] as const) {
+          active();
+          // stop() above proves this owned tree empty before the fixed fault mutation.
+          const original = await retainWindowsPublicUpdatePreimages(
+            runtime,
+            path.join(input.output, `before-${area}-fault`),
+            deadline,
+          );
+          const fault = await prepareWindowsPublicJournalFault(runtime, area, deadline);
+          active();
+          assert.equal(
+            (await readWindowsPublicExecutable(input.application)).sha256,
+            input.candidate_sha256,
+          );
+          const current = await connect(input.candidate_version);
+          const recovery = await driveInstalledUpdateRecovery(current, actions, area);
+          active();
+          const retained = await readWindowsPublicUserState(current);
+          assert.equal(retained.application_version, input.candidate_version);
+          assertWindowsPublicUserStatePreserved(beforeState, retained);
+          const closed = await closeCurrentApplication(`${area}-recovery`);
+          const cleanup = stop();
+          recoveryCases.push({ area, original, fault, recovery, retained, closed, cleanup });
+          report.final_status = recovery.after;
+        }
+        report.outcome = "observed";
       }
-      report.outcome = "observed";
     }
   } catch (error) {
     failure =
@@ -528,7 +841,7 @@ export async function runWindowsPublicUpdateJourney(
 export function inspectWindowsPublicUpdateConfiguration(raw: unknown) {
   assert.ok(isRecord(raw));
   assert.deepEqual(Object.keys(raw).sort(), ["journey", "kind", "schema_version"]);
-  assert.ok(raw.schema_version === 1 || raw.schema_version === 2);
+  assert.ok(raw.schema_version === 1 || raw.schema_version === 2 || raw.schema_version === 3);
   assert.equal(raw.kind, "ordinary-windows-public-update");
   const value = raw.journey;
   assert.ok(isRecord(value));
@@ -544,10 +857,12 @@ export function inspectWindowsPublicUpdateConfiguration(raw: unknown) {
       "output",
       "prior_sha256",
       "prior_version",
-      ...(raw.schema_version === 2 ? ["phase"] : []),
+      ...(raw.schema_version !== 1 ? ["phase"] : []),
+      ...(raw.schema_version === 3 ? ["continuation"] : []),
     ].sort(),
   );
   if (raw.schema_version === 2) assert.equal(value.phase, "park-v0-with-v1");
+  if (raw.schema_version === 3) assert.equal(value.phase, "continue-with-v2");
   const text = (field: string) => {
     const result = value[field];
     assert.ok(typeof result === "string" && result.length > 0 && result.length <= 32768);
@@ -555,6 +870,12 @@ export function inspectWindowsPublicUpdateConfiguration(raw: unknown) {
   };
   return {
     ...(raw.schema_version === 2 ? { phase: "park-v0-with-v1" as const } : {}),
+    ...(raw.schema_version === 3
+      ? {
+          phase: "continue-with-v2" as const,
+          continuation: inspectWindowsPublicContinuationInput(value.continuation),
+        }
+      : {}),
     binding: text("binding"),
     binding_sha256: text("binding_sha256"),
     application: text("application"),

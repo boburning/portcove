@@ -144,7 +144,7 @@ try {
         Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch','target')
         if ($request.schema_version -ne 1 -or $request.invocation_id -cne $InvocationId -or $request.sequence -ne $sequence -or $request.id -cnotmatch '^[a-z][a-z0-9-]{0,63}$') { throw 'Bridge command identity mismatch' }
         Assert-CaptureHealthy
-        if ($request.operation -cne 'close' -and $null -ne $request.target) { throw 'Only close accepts an exact owned child target' }
+        if ($request.operation -cnotin @('close','window') -and $null -ne $request.target) { throw 'Only close/window accepts an exact owned child target' }
         $value = $null
         switch -CaseSensitive ($request.operation) {
             'start' {
@@ -173,6 +173,13 @@ try {
                 $identities=@($process.SnapshotOwnedJob() | ForEach-Object { [ordered]@{ pid=$_.Pid; path=$_.Path; started_filetime=$_.CreatedFileTime.ToString() } })
                 $value=[ordered]@{ exited=$exited; exit_code=$(if ($exited) {$process.ExitCode} else {$null}); processes=$identities;
                     responding=$process.Responding; window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
+            }
+            'window' {
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id) -or $null -eq $request.target) { throw 'Unknown native window root/target' }
+                Assert-ExactMembers $request.target @('pid','started_filetime')
+                if (($request.target.pid -isnot [long] -and $request.target.pid -isnot [int]) -or
+                    $request.target.pid -lt 1 -or $request.target.pid -gt [int]::MaxValue -or $request.target.started_filetime -cnotmatch '^[1-9][0-9]+$') { throw 'Invalid window identity' }
+                $value=[ordered]@{ title=$roots[$request.id].OwnedVisibleWindowTitle([uint32]$request.target.pid,[long]$request.target.started_filetime) }
             }
             'close' {
                 if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }

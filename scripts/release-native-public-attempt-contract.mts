@@ -265,6 +265,10 @@ export function inspectPublicJourneySettlement(
       (/^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
         file.path,
       ) ||
+        (marker.phase === "continue-with-v2" &&
+          /^ordinary-public-update\/after-old-restart-before-reopen\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+            file.path,
+          )) ||
         (marker.phase === "park-v0-with-v1" &&
           /^ordinary-public-update\/parked-v1\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
             file.path,

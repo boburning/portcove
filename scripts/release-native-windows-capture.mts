@@ -19,6 +19,7 @@ import {
   requireActualWindowsPublicParent,
 } from "./release-native-parent.mts";
 import { requireActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
+import { readActualWindowsPublicContinuation } from "./release-native-windows-public-continuation.mts";
 import {
   runActualPublicSignatureControl,
   requireActualPublicSignatureControl,
@@ -63,7 +64,9 @@ export async function captureActualWindowsPublicJourney(claim: object) {
   if (
     process.platform !== "win32" ||
     selected.parent.descriptor.platform_label !== "windows-x86_64" ||
-    (selected.phase !== "initial-v0-v1" && selected.phase !== "park-v0-with-v1")
+    (selected.phase !== "initial-v0-v1" &&
+      selected.phase !== "park-v0-with-v1" &&
+      selected.phase !== "continue-with-v2")
   )
     throw new Error("actual Windows initial or parked public journey claim required");
   const compiler = selected.compiler_receipts;
@@ -72,9 +75,18 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     candidate = await requireActualPublicWindowsCompilerIdentity(compiler.candidate);
   const tools = selected.parent.transport_configuration.windows_tools;
   if (!tools) throw new Error("actual fixed Windows tools missing");
+  const continuation =
+    selected.phase === "continue-with-v2"
+      ? await readActualWindowsPublicContinuation(claim)
+      : undefined;
+  const parked =
+    continuation && compiler.parked
+      ? await requireActualPublicWindowsCompilerIdentity(compiler.parked)
+      : undefined;
+  if (continuation) assert.ok(parked && selected.parked_package);
   const input = {
-    schema_version: selected.phase === "initial-v0-v1" ? 1 : 2,
-    ...(selected.phase === "park-v0-with-v1" ? { phase: "park-v0-with-v1" } : {}),
+    schema_version: continuation ? 3 : selected.phase === "initial-v0-v1" ? 1 : 2,
+    ...(selected.phase !== "initial-v0-v1" ? { phase: selected.phase } : {}),
     kind: "ordinary-public-windows-update-inputs",
     prior_installer_sha256: selected.prior_package.identity.package.sha256,
     prior_executable_sha256: prior.identity.executable.nsis_sha256,
@@ -82,6 +94,27 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     candidate_installer_sha256: selected.candidate_package.identity.package.sha256,
     candidate_executable_sha256: candidate.identity.executable.nsis_sha256,
     candidate_version: selected.candidate_package.identity.version,
+    ...(continuation && parked && selected.parked_package
+      ? {
+          continuation: {
+            previous_invocation_id: continuation.previous_invocation_id,
+            previous_report: continuation.previous_report,
+            work_root: continuation.work_root,
+            test_base: continuation.test_base,
+            run_root: continuation.run_root,
+            install_root: continuation.install_root,
+            library_root: continuation.library_root,
+            runtime_root: continuation.runtime_root,
+            application: continuation.application,
+            uninstaller: continuation.uninstaller,
+            uninstaller_sha256: continuation.uninstaller_sha256,
+            registration_path: continuation.registration_path,
+            parked_version: selected.parked_package.identity.version,
+            parked_installer_sha256: selected.parked_package.identity.package.sha256,
+            parked_executable_sha256: parked.identity.executable.nsis_sha256,
+          },
+        }
+      : {}),
   };
   const inputBytes = Buffer.from(JSON.stringify(input)),
     inputPath = path.join(selected.capture_directory, "public-inputs.json");
@@ -105,7 +138,11 @@ export async function captureActualWindowsPublicJourney(claim: object) {
   await requireActualPublicSignatureControl(component);
   const plan = {
     schema_version: 2,
-    stage: selected.phase === "initial-v0-v1" ? "ordinary-public-initial" : "ordinary-public-park",
+    stage: continuation
+      ? "ordinary-public-continue"
+      : selected.phase === "initial-v0-v1"
+        ? "ordinary-public-initial"
+        : "ordinary-public-park",
     journey: null,
     predecessor: null,
     invocation_id: selected.invocation_id,
@@ -251,17 +288,37 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
       report.automatic_relaunch.executable.sha256,
       candidate.identity.executable.nsis_sha256,
     );
-    assert.ok(Array.isArray(report.recovery_cases));
-    assert.deepEqual(
-      report.recovery_cases
-        .map((item) => {
-          assert.ok(isRecord(item));
-          assert.ok(typeof item.area === "string");
-          return item.area;
-        })
-        .sort((a, b) => a.localeCompare(b)),
-      ["apply", "schedule", "staging"],
-    );
+    if (selected.phase === "continue-with-v2") {
+      assert.ok(
+        isRecord(report.pre_native_old_request) &&
+          isRecord(report.old_restart_relaunch) &&
+          isRecord(report.old_restart_relaunch.executable),
+      );
+      assert.equal(report.pre_native_old_request.native_launch, null);
+      assert.equal(report.pre_native_old_request.native_replacement, null);
+      assert.equal(report.pre_native_old_request.native_exit_code, null);
+      const prior = await requireActualPublicWindowsCompilerIdentity(compiler.prior);
+      assert.equal(
+        report.old_restart_relaunch.executable.sha256,
+        prior.identity.executable.nsis_sha256,
+      );
+      assert.equal(report.old_restart_relaunch.title, "Portcove");
+      assert.equal(report.automatic_relaunch.title, "Portcove");
+      assert.ok(isRecord(report.forward_staging));
+      await readActualWindowsPublicContinuation(retained.claim);
+    } else {
+      assert.ok(Array.isArray(report.recovery_cases));
+      assert.deepEqual(
+        report.recovery_cases
+          .map((item) => {
+            assert.ok(isRecord(item));
+            assert.ok(typeof item.area === "string");
+            return item.area;
+          })
+          .sort((a, b) => a.localeCompare(b)),
+        ["apply", "schedule", "staging"],
+      );
+    }
   }
   assert.ok(isRecord(report.harness));
   assert.equal(
@@ -305,7 +362,7 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
       }
       assert.ok(files.length < 512, "public retained file inventory exceeds bound");
       const payload =
-        /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault|parked-v1)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+        /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault|parked-v1|after-old-restart-before-reopen)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
           name,
         );
       files.push(

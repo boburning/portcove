@@ -47,6 +47,7 @@ $nativeAccount = $null
 $ordinaryPublicClock = [Diagnostics.Stopwatch]::StartNew()
 $ordinaryPublicInputs = $null
 $ordinaryPublicPark = $false
+$ordinaryPublicContinue = $false
 $ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
 if ($ordinaryPublicMode) {
     if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
@@ -78,8 +79,22 @@ if ($ordinaryPublicMode) {
         if($ordinaryPublicInputs.phase -cne 'park-v0-with-v1'){throw 'Ordinary public update park phase differs'}
         $ordinaryPublicPark=$true
     }
+    if($ordinaryPublicInputs.schema_version -eq 3){
+        $publicInputNames+=@('phase','continuation')
+        if($ordinaryPublicInputs.phase -cne 'continue-with-v2'){throw 'Ordinary public continuation phase differs'}
+        $ordinaryPublicContinue=$true
+        $continued=$ordinaryPublicInputs.continuation
+        $continuationNames='application,install_root,library_root,parked_executable_sha256,parked_installer_sha256,parked_version,previous_invocation_id,previous_report,registration_path,run_root,runtime_root,test_base,uninstaller,uninstaller_sha256,work_root'
+        if((@($continued.PSObject.Properties.Name|Sort-Object)-join ',') -cne $continuationNames -or
+            $continued.previous_invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
+            (@($continued.previous_report.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'bytes,path,sha256' -or
+            $continued.previous_report.sha256 -cnotmatch '^[a-f0-9]{64}$' -or $continued.previous_report.bytes -lt 1 -or $continued.previous_report.bytes -gt 4MB){throw 'Public continuation fixed original inputs differ'}
+        foreach($field in @('parked_executable_sha256','parked_installer_sha256','uninstaller_sha256')){
+            if($continued.$field -cnotmatch '^[a-f0-9]{64}$'){throw 'Public continuation original digest differs'}
+        }
+    }
     if ((@($ordinaryPublicInputs.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($publicInputNames | Sort-Object) -join '|') -or
-        $ordinaryPublicInputs.schema_version -notin @(1,2) -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
+        $ordinaryPublicInputs.schema_version -notin @(1,2,3) -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
         throw 'Ordinary public update fixed input schema differs'
     }
     foreach ($field in @('prior_installer_sha256','prior_executable_sha256','candidate_executable_sha256','candidate_installer_sha256')) {
@@ -377,7 +392,7 @@ if ($NormalPackageManifestPath) {
         }
     }
 }
-if (@(Get-UninstallEntries "").Count -ne 0) {
+if (-not $ordinaryPublicContinue -and @(Get-UninstallEntries "").Count -ne 0) {
     throw "A Portcove installer registration already exists. Refusing to replace another installation during qualification."
 }
 
@@ -389,7 +404,15 @@ if (-not $base -or $base -eq $volumeRoot) {
 [System.IO.Directory]::CreateDirectory($base) | Out-Null
 $base = (Resolve-Path -LiteralPath $base).Path.TrimEnd('\')
 
-$runRoot = Join-Path $base ("run-" + [System.Guid]::NewGuid().ToString("N"))
+$runRoot = if($ordinaryPublicContinue){
+    if(-not $nativeAccount -or -not [string]::Equals($base,[IO.Path]::GetFullPath($continued.test_base),[StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($base,(Join-Path $nativeAccount.binding.work_root 'installer'),[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation TestBase differs'}
+    $originalRun=[IO.Path]::GetFullPath($continued.run_root)
+    if([IO.Path]::GetFileName($originalRun) -cnotmatch '^run-[a-f0-9]{32}$' -or
+        -not [string]::Equals([IO.Path]::GetDirectoryName($originalRun),$base,[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation original run differs'}
+    Assert-NoReparseAncestry $originalRun
+    $originalRun
+}else{Join-Path $base ("run-" + [System.Guid]::NewGuid().ToString("N"))}
 $installRoot = Join-Path $runRoot "installed"
 $expectedPrefix = $base + [System.IO.Path]::DirectorySeparatorChar
 if (-not $runRoot.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -413,6 +436,19 @@ $libraryRoot = if ($RetainedLibraryRoot) {
     Join-Path $runRoot "library"
 }
 [System.IO.Directory]::CreateDirectory($runRoot) | Out-Null
+if($ordinaryPublicContinue){
+    foreach($entry in @(@($installRoot,$continued.install_root),@($libraryRoot,$continued.library_root),@((Join-Path $installRoot 'portcove-desktop.exe'),$continued.application),@((Join-Path $installRoot 'uninstall.exe'),$continued.uninstaller))){
+        if(-not [string]::Equals([IO.Path]::GetFullPath($entry[0]),[IO.Path]::GetFullPath($entry[1]),[StringComparison]::OrdinalIgnoreCase)){throw 'Public continuation original paths differ'}
+        Assert-NoReparseAncestry $entry[0]
+    }
+    $originalRegistration=@(Get-UninstallEntries '')
+    if($originalRegistration.Count -ne 1 -or $originalRegistration[0].PSPath -cne $continued.registration_path -or
+        $originalRegistration[0].DisplayVersion -cne $ordinaryPublicInputs.prior_version -or
+        @(Get-UninstallEntries $installRoot).Count -ne 1){throw 'Public continuation requires exactly its original V0 registration'}
+    Assert-InstallerUserRegistration ([string]$originalRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+    if((Get-FileHash -LiteralPath $continued.application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_executable_sha256 -or
+        (Get-FileHash -LiteralPath $continued.uninstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne $continued.uninstaller_sha256){throw 'Public continuation original installed bytes differ'}
+}
 
 $evidence = if ($EvidencePath) {
     $evidenceFull = [System.IO.Path]::GetFullPath($EvidencePath)
@@ -926,6 +962,19 @@ try {
     $uninstaller = Join-Path $installRoot "uninstall.exe"
     [System.Environment]::SetEnvironmentVariable("PORTCOVE_LIBRARY", $libraryRoot, "Process")
     $upgrade = $null
+    if($ordinaryPublicContinue){
+        # Reuse only the already settled B installation. No installer, smoke
+        # startup, profile/library seed or sentinel write precedes raw capture.
+        $install=$null;$smoke=$null;$normalBoundary=$null
+        $registryEntries=$originalRegistration
+        $installedHash=$ordinaryPublicInputs.prior_executable_sha256
+        $sentinel=Join-Path $libraryRoot 'user\installer-qualification\preserve.txt'
+        Assert-NoReparseAncestry $sentinel
+        $sentinelHash=(Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash
+        $beforeUninstallManifest=Get-PreservationManifest $libraryRoot
+        $evidence.uninstaller_sha256=$continued.uninstaller_sha256
+        Write-InstallerEvidence 'public_original_b_verified'
+    }else{
     if ($predecessor) {
         Write-InstallerEvidence "predecessor_installing"
         $previousInstall = Invoke-JournaledProcess -Role "predecessor_installer" -Executable $predecessor -Arguments @("/S", "/D=$installRoot") -AllowedRelocationRoot $runRoot
@@ -1428,6 +1477,7 @@ try {
         Write-InstallerEvidence "current_installed_boundary_complete" $normalBoundary
     }
 
+    }
     $isolatedAccountBoundary=$null
     if ($nativeAccount) {
         # Exercise the maintained ordinary client before uninstalling its actual
@@ -1449,6 +1499,7 @@ try {
                     prior_sha256=$ordinaryPublicInputs.prior_executable_sha256;prior_version=$ordinaryPublicInputs.prior_version;
                     candidate_sha256=$ordinaryPublicInputs.candidate_executable_sha256;candidate_installer_sha256=$ordinaryPublicInputs.candidate_installer_sha256;candidate_version=$ordinaryPublicInputs.candidate_version}}
                 if($ordinaryPublicPark){$publicConfiguration.schema_version=2;$publicConfiguration.journey['phase']='park-v0-with-v1'}
+                if($ordinaryPublicContinue){$publicConfiguration.schema_version=3;$publicConfiguration.journey['phase']='continue-with-v2';$publicConfiguration.journey['continuation']=$continued}
                 $publicConfigurationPath=Join-Path $evidenceParent 'ordinary-public-update.json'
                 $stream=[IO.File]::Open($publicConfigurationPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
                 try { $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($publicConfiguration|ConvertTo-Json -Depth 6 -Compress)+"`n");$stream.Write($bytes);$stream.Flush($true) } finally {$stream.Dispose()}
@@ -1584,7 +1635,7 @@ try {
         installer = $installer
         installer_sha256 = $installerHash
         signature_status = $signature.Status.ToString()
-        install_exit_code = if ($RendererUpdate) { $null } else { $install.ExitCode }
+        install_exit_code = if ($RendererUpdate -or $ordinaryPublicContinue) { $null } else { $install.ExitCode }
         install_mode = $InstallMode
         update_path = if ($RendererUpdate) { "installed_app_renderer" } elseif ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
