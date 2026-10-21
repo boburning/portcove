@@ -15,6 +15,7 @@ import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import {
   tufOriginalJobDeadline,
   payloadOriginalJobDeadline,
+  classificationOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
@@ -136,4 +137,55 @@ void test("fixed source entry/launcher reject arbitrary commands, offline roles 
     /deadline/u,
   );
   assert.deepEqual(await readdir(root), []);
+});
+
+void test("classification original job clocks keep their own names, first attempt and two-minute reserve", () => {
+  const started = Date.parse("2026-10-20T00:00:00Z");
+  for (const [role, name] of [
+    ["writer", "Persist independently reviewed classification"],
+    ["observer", "Observe release input protections"],
+  ] as const) {
+    const job = {
+      id: 501,
+      run_id: Number(identity.run_id),
+      run_attempt: 1,
+      head_sha: identity.controller_revision,
+      status: "in_progress",
+      started_at: new Date(started).toISOString(),
+      name,
+    };
+    const inventory = { total_count: 1, jobs: [job] };
+    assert.equal(
+      classificationOriginalJobDeadline(role, inventory, identity, started + 35000, 1000),
+      81000,
+    );
+    for (const changed of [
+      { name: "caller job" },
+      { run_attempt: 2 },
+      { head_sha: "b".repeat(40) },
+      { started_at: new Date(started + 36000).toISOString() },
+    ])
+      assert.throws(() =>
+        classificationOriginalJobDeadline(
+          role,
+          { ...inventory, jobs: [{ ...job, ...changed }] },
+          identity,
+          started + 35000,
+          1000,
+        ),
+      );
+    assert.throws(() =>
+      classificationOriginalJobDeadline(role, inventory, identity, started + 115000, 1000),
+    );
+    assert.throws(() =>
+      classificationOriginalJobDeadline(
+        role,
+        { ...inventory, total_count: 2 },
+        identity,
+        started + 35000,
+        1000,
+      ),
+    );
+    assert.throws(() => tufOriginalJobDeadline(`classification-${role}`, inventory, identity));
+  }
 });

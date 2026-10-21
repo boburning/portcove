@@ -5,6 +5,8 @@ import { performance } from "node:perf_hooks";
 import {
   verifyAssemblerJobIdentity,
   verifyClassificationWriterJobIdentity,
+  verifyProductionClassificationWriterJobIdentity,
+  verifyProductionClassificationObserverJobIdentity,
   verifyProtectionObserverJobIdentity,
   verifyPayloadSignerJobIdentity,
   verifyCapacityExecutorJobIdentity,
@@ -666,4 +668,41 @@ void test("five TUF roles bind separate fixed environment/job identities and one
   ])
     assert.equal(isMaintenanceReleaseControlPhase(phase), false);
   assert.throws(() => inspectReleaseControlPhase("tuf-root"));
+});
+
+void test("complete controller D1 jobs authenticate distinct environments and actual signed source", async () => {
+  for (const [verify, name, environment, audience] of [
+    [
+      verifyProductionClassificationWriterJobIdentity,
+      "Persist independently reviewed classification",
+      "production-release-classification",
+      "portcove-release-classification-v1",
+    ],
+    [
+      verifyProductionClassificationObserverJobIdentity,
+      "Observe release input protections",
+      "production-release-protection-observer",
+      "portcove-release-classification-protection-v1",
+    ],
+  ] as const) {
+    const wanted = {
+      ...expected,
+      audience,
+      subject: controllerOidcSubject(expected.controller_ref, environment),
+    };
+    const claims = { aud: audience, sub: wanted.subject, environment };
+    const location = { workflow: productionControllerWorkflow, job: name };
+    const good = fixture(claims, {}, location);
+    assert.equal((await verify(good.token, wanted, good)).job_id, 501);
+    for (const bad of [
+      fixture({ ...claims, environment: "production-payload-signing" }, {}, location),
+      fixture(
+        claims,
+        {},
+        { ...location, workflow: ".github/workflows/release-reviewed-inputs.yml" },
+      ),
+      fixture({ ...claims, iss: "https://wrong.example" }, {}, location),
+    ])
+      await assert.rejects(verify(bad.token, wanted, bad));
+  }
 });

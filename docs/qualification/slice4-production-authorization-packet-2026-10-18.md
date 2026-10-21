@@ -15,8 +15,12 @@ The reviewed [whole-site continuation and fixed readiness bridge](slice4-complet
 connect actual tools/context/five-role/immutable-Release custody to durable archive
 upload, existing Pages intent, complete public readback, metadata handoff and
 candidate-clear CAS/readback. The site tool is now in the fixed attested tool
-inventory. These are implementation results awaiting exact delivery identities;
-they do not establish public deployment or ordinary-client acceptance. Exact
+inventory. Delivered in [#2300](https://github.com/boburning/portcove/pull/2300),
+source `c9df88e3f4c2dace184b3eb233b95ba96a776187`, merged as
+`27104e187a7dba2a8602e951ab54ce32e77b7c37`. All five required checks passed
+in `39527459323`, attempt 1; the hosted ten-entry tool fixture passed in
+`39527459706`, attempt 1 (138 seconds). These implementation results do not
+establish public deployment or ordinary-client acceptance. Exact
 ambiguous Pages recovery, metadata/bootstrap continuation, final held DAG and
 eligible cleanup remain engineering work. No new VHD experiment or recurring
 administrator command is part of this path. Historical one-attempt VHD grants
