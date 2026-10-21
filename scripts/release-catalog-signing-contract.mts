@@ -5,6 +5,10 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
 import { metadataInstant } from "./release-metadata-contract.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
+import {
+  inspectPublishedCatalogMetadata,
+  currentPublishedSite,
+} from "./release-catalog-metadata-contract.mts";
 
 export const catalogSigningRoles = ["definitions", "policy", "snapshot", "timestamp"] as const;
 export type CatalogSigningRole = (typeof catalogSigningRoles)[number];
@@ -12,6 +16,126 @@ export function inspectCatalogSigningRole(raw: unknown): CatalogSigningRole {
   if (!catalogSigningRoles.some((role) => role === raw))
     throw new Error("fixed catalog signing role required");
   return raw as CatalogSigningRole;
+}
+/** A caller must independently authenticate the durable journal or initial Git
+ * source before this integrity comparison. No latest-app baseline is accepted. */
+export function assertCatalogSemanticPublishedBaseline(
+  raw: unknown,
+  rawSeed: unknown,
+  initial: { commit: string; tree: string; root_sha256: string } | null,
+) {
+  const opportunity = inspectCatalogSemanticOpportunity(raw),
+    seed = inspectPublishedCatalogMetadata(rawSeed);
+  const source = seed
+    ? { commit: seed.source_commit, tree: seed.source_tree, root_sha256: seed.root_sha256 }
+    : initial;
+  if (
+    !source ||
+    opportunity.baseline.source_commit !== source.commit ||
+    opportunity.baseline.source_tree !== source.tree ||
+    opportunity.baseline.catalog_root_sha256 !== source.root_sha256 ||
+    opportunity.baseline.catalog_repository_sha256 !== (seed?.repository_sha256 ?? null)
+  )
+    throw new Error("catalog review baseline differs from accepted catalog source");
+  return opportunity;
+}
+/** Formatting/integrity only. The protected coordinator establishes all actual
+ * Core, selected semantic producer, configuration and journal inputs first. */
+export function deriveCatalogSigningDescriptor(
+  rawOpportunity: unknown,
+  inspection: {
+    source: { commit: string; tree: string };
+    bundle_sha256: string;
+    inspection_sha256: string;
+  },
+  configuration_sha256: string,
+  semantic_proof_sha256: string,
+  input: Record<string, unknown>,
+  initial_root_sha256: string,
+) {
+  const opportunity = inspectCatalogSemanticOpportunity(rawOpportunity),
+    catalog = inspectPublishedCatalogMetadata(input.published_catalog_metadata),
+    site = currentPublishedSite(input);
+  if (
+    opportunity.source_commit !== inspection.source.commit ||
+    opportunity.source_tree !== inspection.source.tree ||
+    opportunity.bundle_sha256 !== inspection.bundle_sha256 ||
+    opportunity.core_inspection_sha256 !== inspection.inspection_sha256 ||
+    opportunity.publisher_configuration_sha256 !== configuration_sha256
+  )
+    throw new Error("catalog actual inspection/configuration differs from semantic subject");
+  const descriptor = inspectCatalogPublicationDescriptor({
+    schema_version: 1,
+    kind: "catalog-publication",
+    source_commit: inspection.source.commit,
+    source_tree: inspection.source.tree,
+    bundle_sha256: inspection.bundle_sha256,
+    core_inspection_sha256: inspection.inspection_sha256,
+    publisher_configuration_sha256: configuration_sha256,
+    admission_sha256: catalogSigningAdmissionDigest({ ...opportunity, semantic_proof_sha256 }),
+    prior: {
+      application_repository_sha256: site?.components.application?.repository_sha256 ?? null,
+      application_root_sha256: site?.components.application?.root_sha256 ?? null,
+      catalog_repository_sha256: catalog?.repository_sha256 ?? null,
+      catalog_root_sha256: catalog?.root_sha256 ?? initial_root_sha256,
+      site_generation_sha256: site?.generation_sha256 ?? null,
+    },
+  });
+  for (const name of Object.keys(descriptor.prior) as (keyof typeof descriptor.prior)[])
+    if (opportunity.baseline[name] !== descriptor.prior[name])
+      throw new Error("catalog semantic whole-site baseline differs from actual journal");
+  return descriptor;
+}
+/** Conservative producer preflight. Existing immutable history is never deleted
+ * to make space; reserve all four maximum envelopes and the full site marker.
+ * It is deliberately stricter than Core's independent bundle capability. */
+export function inspectCatalogSigningPreflight(
+  files: ReadonlyMap<string, Buffer>,
+  priorSite: readonly { path: string; bytes: number; sha256: string }[],
+) {
+  let contextBytes = 0;
+  for (const bytes of files.values()) {
+    if (bytes.length < 1 || bytes.length > 1024 ** 2)
+      throw new Error("catalog context per-file transport cap exceeded");
+    contextBytes += bytes.length;
+  }
+  if (files.size > 2208 || contextBytes > 127 * 1024 ** 2)
+    throw new Error("catalog context aggregate transport cap exceeded");
+  const seen = new Set<string>();
+  let siteBytes = 0;
+  for (const file of priorSite) {
+    if (
+      seen.has(file.path) ||
+      !Number.isSafeInteger(file.bytes) ||
+      file.bytes < 0 ||
+      file.bytes > 64 * 1024 ** 2
+    )
+      throw new Error("catalog prior site inventory differs");
+    sha(file.sha256);
+    seen.add(file.path);
+    siteBytes += file.bytes;
+  }
+  const targets = [...files].filter(([name]) => name.startsWith("bundle/")),
+    anchors = ["trusted-root.json", "offline-targets.json"].map((name) => files.get(name));
+  if (anchors.some((bytes) => !bytes)) throw new Error("catalog preflight anchors missing");
+  // Counting anchors/new targets even when already retained is a safe upper bound.
+  const siteFilesUpperBound =
+    priorSite.length + targets.length + 2 + 4 + 1 + (seen.has(".nojekyll") ? 0 : 1);
+  const siteBytesUpperBound =
+    siteBytes +
+    targets.reduce((sum, [, bytes]) => sum + bytes.length, 0) +
+    anchors.reduce((sum, bytes) => sum + (bytes?.length ?? 0), 0) +
+    4 * 512 * 1024 +
+    4 * 1024 ** 2;
+  if (siteFilesUpperBound > 6000 || siteBytesUpperBound > 256 * 1024 ** 2)
+    throw new Error("catalog prospective complete-site bound exceeded before key release");
+  return {
+    context_files: files.size,
+    context_bytes: contextBytes,
+    site_files_upper_bound: siteFilesUpperBound,
+    site_bytes_upper_bound: siteBytesUpperBound,
+    authority: "none" as const,
+  };
 }
 export const catalogRoleName = (raw: unknown) => {
   const role = inspectCatalogSigningRole(raw);

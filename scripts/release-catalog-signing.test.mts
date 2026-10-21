@@ -4,6 +4,13 @@ import test from "node:test";
 import path from "node:path";
 import os from "node:os";
 import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
+import { isRecord } from "./runtime-values.mts";
+import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
+import {
+  checkpointReleaseOpportunity,
+  recoverReleaseOpportunity,
+} from "./release-coordinator-state.mts";
 import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
@@ -13,6 +20,9 @@ import {
   inspectCatalogContextPaths,
   inspectIsolatedCatalogRoleRequest,
   catalogRoleDependencies,
+  assertCatalogSemanticPublishedBaseline,
+  deriveCatalogSigningDescriptor,
+  inspectCatalogSigningPreflight,
 } from "./release-catalog-signing-contract.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
@@ -180,6 +190,233 @@ function fixture() {
   };
   return { facts, context, files, binding, archive };
 }
+void test("catalog subject derives from actual source tuple and accepted catalog baseline, never app/latest source", () => {
+  const f = fixture(),
+    op = f.facts.semantic_opportunity,
+    inspection = {
+      source: { commit: op.source_commit, tree: op.source_tree },
+      bundle_sha256: op.bundle_sha256,
+      inspection_sha256: op.core_inspection_sha256,
+    };
+  const initial = {
+    commit: op.baseline.source_commit,
+    tree: op.baseline.source_tree,
+    root_sha256: f.facts.root_sha256,
+  };
+  assert.deepEqual(assertCatalogSemanticPublishedBaseline(op, null, initial), op);
+  assert.throws(() =>
+    assertCatalogSemanticPublishedBaseline(op, null, { ...initial, commit: op.source_commit }),
+  );
+  assert.throws(() =>
+    assertCatalogSemanticPublishedBaseline(op, null, { ...initial, tree: op.source_tree }),
+  );
+  assert.deepEqual(
+    deriveCatalogSigningDescriptor(
+      op,
+      inspection,
+      op.publisher_configuration_sha256,
+      f.facts.semantic_proof_sha256,
+      {},
+      f.facts.root_sha256,
+    ),
+    f.facts.descriptor,
+  );
+  assert.throws(() =>
+    deriveCatalogSigningDescriptor(
+      op,
+      { ...inspection, source: { ...inspection.source, tree: "9".repeat(40) } },
+      op.publisher_configuration_sha256,
+      f.facts.semantic_proof_sha256,
+      {},
+      f.facts.root_sha256,
+    ),
+  );
+  const versions = { targets: "1", definitions: "1", policy: "1", snapshot: "1", timestamp: "1" },
+    expires = Object.fromEntries(
+      Object.keys(versions).map((role) => [role, "2026-10-22T00:00:00Z"]),
+    ),
+    seed = {
+      schema_version: 1,
+      root_sha256: f.facts.root_sha256,
+      offline_targets_sha256: f.facts.offline_targets_sha256,
+      index_sha256: op.classification.index_sha256,
+      repository_sha256: "4".repeat(64),
+      verifier_repository_sha256: "5".repeat(64),
+      snapshot_sha256: "6".repeat(64),
+      timestamp_sha256: "7".repeat(64),
+      immutable_targets_sha256: "8".repeat(64),
+      versions,
+      expires,
+      source_commit: op.baseline.source_commit,
+      source_tree: op.baseline.source_tree,
+      operation_id: "9".repeat(64),
+      publication: {
+        evidence_sha256: "a".repeat(64),
+        remote_identity: "inert:catalog",
+        site_generation_sha256: "b".repeat(64),
+      },
+    };
+  const updated = {
+    ...op,
+    baseline: {
+      ...op.baseline,
+      catalog_repository_sha256: seed.repository_sha256,
+      site_generation_sha256: seed.publication.site_generation_sha256,
+    },
+    classification: { ...op.classification, change: "update" },
+  };
+  assert.equal(
+    assertCatalogSemanticPublishedBaseline(updated, seed, null).baseline.source_commit,
+    seed.source_commit,
+  );
+  assert.throws(() =>
+    assertCatalogSemanticPublishedBaseline(
+      updated,
+      { ...seed, source_commit: op.source_commit },
+      null,
+    ),
+  );
+  assert.throws(() =>
+    assertCatalogSemanticPublishedBaseline(updated, { ...seed, source_tree: op.source_tree }, null),
+  );
+  const site = {
+      schema_version: 1,
+      generation_sha256: seed.publication.site_generation_sha256,
+      components: {
+        application: null,
+        catalog: { root_sha256: seed.root_sha256, repository_sha256: seed.repository_sha256 },
+      },
+      operation_id: seed.operation_id,
+      publication: {
+        evidence_sha256: seed.publication.evidence_sha256,
+        remote_identity: seed.publication.remote_identity,
+      },
+    },
+    input = { published_catalog_metadata: seed, published_site: site };
+  const descriptor = deriveCatalogSigningDescriptor(
+    updated,
+    inspection,
+    op.publisher_configuration_sha256,
+    f.facts.semantic_proof_sha256,
+    input,
+    f.facts.root_sha256,
+  );
+  assert.equal(descriptor.prior.catalog_repository_sha256, seed.repository_sha256);
+  assert.throws(() =>
+    deriveCatalogSigningDescriptor(
+      updated,
+      inspection,
+      op.publisher_configuration_sha256,
+      f.facts.semantic_proof_sha256,
+      { ...input, published_site: { ...site, generation_sha256: "d".repeat(64) } },
+      f.facts.root_sha256,
+    ),
+  );
+});
+void test("catalog producer reserves complete prior site, new targets and four envelopes before keys without increasing caps", () => {
+  const f = fixture(),
+    small = inspectCatalogSigningPreflight(f.files, []);
+  assert.equal(small.authority, "none");
+  assert.ok(small.site_bytes_upper_bound >= 6 * 1024 ** 2);
+  assert.equal(small.context_files, f.files.size);
+  assert.throws(
+    () =>
+      inspectCatalogSigningPreflight(
+        new Map([...f.files, ["bundle/too-large", Buffer.alloc(1024 ** 2 + 1)]]),
+        [],
+      ),
+    /per-file/,
+  );
+  const many = new Map(Array.from({ length: 2209 }, (_, i) => [`bundle/${i}`, Buffer.from("x")]));
+  assert.throws(() => inspectCatalogSigningPreflight(many, []), /aggregate/);
+  const prior = Array.from({ length: 5993 }, (_, i) => ({
+    path: i ? `catalog/targets/retained-${i}` : ".nojekyll",
+    bytes: 1,
+    sha256: "1".repeat(64),
+  }));
+  assert.throws(() => inspectCatalogSigningPreflight(f.files, prior), /complete-site/);
+  const full = Array.from({ length: 4 }, (_, i) => ({
+    path: `application/targets/retained-${i}`,
+    bytes: 64 * 1024 ** 2,
+    sha256: "2".repeat(64),
+  }));
+  assert.throws(() => inspectCatalogSigningPreflight(f.files, full), /complete-site/);
+  assert.throws(() => inspectCatalogSigningPreflight(f.files, [prior[0]!, prior[0]!]), /inventory/);
+});
+void test("catalog descriptor checkpoint uses existing journal CAS and preserves inert setup and capacity state", async (t) => {
+  const journal = await mkdtemp(path.join(os.tmpdir(), "catalog-subject-cas-"));
+  t.after(() => rm(journal, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "--quiet", journal], {
+    windowsHide: true,
+    timeout: 10000,
+  });
+  const raw: unknown = JSON.parse(
+    await readFile(new URL("./fixtures/release-coordinator-legacy.json", import.meta.url), "utf8"),
+  );
+  assert.ok(
+    isRecord(raw) &&
+      Array.isArray(raw.rows) &&
+      isRecord(raw.rows[0]) &&
+      isRecord(raw.rows[0].input),
+  );
+  const input = structuredClone(raw.rows[0].input),
+    f = fixture(),
+    op = f.facts.semantic_opportunity;
+  input.schema_version = 2;
+  input.opportunity = null;
+  input.active_candidate = null;
+  input.controller = {
+    workflow: ".github/workflows/fixture.yml",
+    revision: "3".repeat(40),
+    publication_paused: false,
+    capacity_attempt: { ...capacityFixture(), schema_version: 2 },
+  };
+  input.catalog_initialization = {
+    schema_version: 1,
+    kind: "catalog-initialization",
+    authority: "none",
+    source_commit: op.baseline.source_commit,
+    source_tree: op.baseline.source_tree,
+    root_sha256: f.facts.root_sha256,
+    publisher_configuration_sha256: op.publisher_configuration_sha256,
+    setup_plan_sha256: "4".repeat(64),
+    initial_site_preimage_sha256: "5".repeat(64),
+  };
+  const initial = await checkpointReleaseOpportunity(journal, null, input),
+    before = await recoverReleaseOpportunity(journal, initial.checkpoint);
+  assert.equal(before.plan.action, "skip");
+  const descriptor = deriveCatalogSigningDescriptor(
+      op,
+      {
+        source: { commit: op.source_commit, tree: op.source_tree },
+        bundle_sha256: op.bundle_sha256,
+        inspection_sha256: op.core_inspection_sha256,
+      },
+      op.publisher_configuration_sha256,
+      f.facts.semantic_proof_sha256,
+      input,
+      f.facts.root_sha256,
+    ),
+    selected = { ...input, catalog_publication: descriptor },
+    checkpoint = await checkpointReleaseOpportunity(journal, initial.checkpoint, selected),
+    after = await recoverReleaseOpportunity(journal, checkpoint.checkpoint);
+  assert.equal(after.plan.action, "catalog-publication");
+  assert.deepEqual(after.input.controller, input.controller);
+  assert.deepEqual(after.input.catalog_initialization, input.catalog_initialization);
+  assert.deepEqual(after.input.catalog_publication, descriptor);
+  const { catalog_publication: _subject, ...other } = after.input;
+  assert.deepEqual(other, input);
+  await assert.rejects(() =>
+    checkpointReleaseOpportunity(journal, initial.checkpoint, {
+      ...selected,
+      catalog_publication: { ...descriptor, bundle_sha256: "9".repeat(64) },
+    }),
+  );
+  assert.equal(
+    (await recoverReleaseOpportunity(journal, checkpoint.checkpoint)).checkpoint,
+    checkpoint.checkpoint,
+  );
+});
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),
     actual = inspectSigningContextArchive(f.archive());

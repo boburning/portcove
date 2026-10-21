@@ -60,6 +60,7 @@ import {
   catalogSigningContextBytes,
   inspectCatalogSigningBinding,
   inspectCatalogSigningFacts,
+  inspectCatalogSigningPreflight,
 } from "./release-catalog-signing-contract.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -350,6 +351,12 @@ async function prepareContext(session: Session, parent: string) {
   });
   const context = catalogSigningContextBytes(facts);
   files.set("context.json", context);
+  const priorSite = site
+    ? await (site_component === "catalog"
+        ? requirePublishedCatalogCompleteSite(site)
+        : requirePublishedCompleteSite(site))
+    : null;
+  inspectCatalogSigningPreflight(files, priorSite?.generation.files ?? []);
   const binding = inspectCatalogSigningBinding(
     facts,
     {

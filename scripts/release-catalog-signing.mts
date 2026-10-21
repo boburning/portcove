@@ -142,7 +142,10 @@ export function recheckCatalogSemanticProof(
 async function admittedContext(
   contextReceipt: object,
   toolsReceipt: object,
-  phase: "site-publication" | `catalog-${ReturnType<typeof inspectCatalogSigningRole>}`,
+  phase:
+    | "coordinator"
+    | "site-publication"
+    | `catalog-${ReturnType<typeof inspectCatalogSigningRole>}`,
   deadline: number,
 ) {
   active(deadline);
@@ -592,6 +595,7 @@ export async function runFixedCatalogRoleConfiguration(
 }
 
 type Assembly = {
+  phase: "coordinator" | "site-publication";
   context: object;
   tools: object;
   roles: readonly object[];
@@ -615,7 +619,28 @@ export async function assembleActualCatalogRepository(
 ) {
   active(deadline);
   return withCoordinatorDeadline(deadline, () =>
-    assembleRepository(contextReceipt, toolsReceipt, rawRoles, parent, deadline),
+    assembleRepository(
+      contextReceipt,
+      toolsReceipt,
+      rawRoles,
+      parent,
+      deadline,
+      "site-publication",
+    ),
+  );
+}
+/** GET-only coordinator recovery has its own appointed job admission. This
+ * never changes the default publisher's required site-publication identity. */
+export async function assembleActualCatalogRepositoryForRecovery(
+  contextReceipt: object,
+  toolsReceipt: object,
+  rawRoles: readonly object[],
+  parent: string,
+  deadline: number,
+) {
+  active(deadline);
+  return withCoordinatorDeadline(deadline, () =>
+    assembleRepository(contextReceipt, toolsReceipt, rawRoles, parent, deadline, "coordinator"),
   );
 }
 async function assembleRepository(
@@ -624,10 +649,11 @@ async function assembleRepository(
   rawRoles: readonly object[],
   parent: string,
   deadline: number,
+  phase: "coordinator" | "site-publication",
 ) {
   active(deadline);
   const roles = Array.from(rawRoles),
-    admitted = await admittedContext(contextReceipt, toolsReceipt, "site-publication", deadline),
+    admitted = await admittedContext(contextReceipt, toolsReceipt, phase, deadline),
     signed = await roleInputs(contextReceipt, roles, catalogSigningRoles, admitted, deadline),
     directory = await mkdtemp(path.join(parent, "catalog-keyless-assembly-")),
     scratch = path.join(directory, "work"),
@@ -636,12 +662,7 @@ async function assembleRepository(
   await mkdir(roleDirectory, { mode: 0o700 });
   const guard = async () => {
     active(deadline);
-    const current = await admittedContext(
-      contextReceipt,
-      toolsReceipt,
-      "site-publication",
-      deadline,
-    );
+    const current = await admittedContext(contextReceipt, toolsReceipt, phase, deadline);
     if (current.manifest_sha256 !== admitted.manifest_sha256)
       throw new Error("catalog assembly context changed");
     recheckCatalogSemanticProof(
@@ -722,6 +743,7 @@ async function assembleRepository(
     }
     const receipt = Object.freeze({ kind: "actual-catalog-keyless-assembly", authority: "none" });
     assemblies.set(receipt, {
+      phase,
       context: contextReceipt,
       tools: toolsReceipt,
       roles,
@@ -770,7 +792,7 @@ async function readRepository(receipt: object) {
   const admitted = await admittedContext(
     actual.context,
     actual.tools,
-    "site-publication",
+    actual.phase,
     actual.deadline,
   );
   await roleInputs(actual.context, actual.roles, catalogSigningRoles, admitted, actual.deadline);
