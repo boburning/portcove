@@ -1,5 +1,13 @@
+import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
+import {
+  inspectCatalogReviewRequest,
+  assertCatalogReviewRequestBaseline,
+} from "./release-catalog-review-request.mts";
 import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
-import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
+import {
+  inspectCatalogPublicationDescriptor,
+  inspectCatalogInitialization,
+} from "./release-catalog-publication-contract.mts";
 import {
   inspectPublishedCatalogMetadata,
   currentPublishedSite,
@@ -8,6 +16,7 @@ import {
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import {
   inspectPublishedMetadata,
+  applicationMetadataMaintenancePriority,
   inspectMetadataRenewalDescriptor,
   inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
@@ -399,6 +408,9 @@ type Authority = {
   metadata_renewal_sha256?: string;
   metadata_bootstrap_sha256?: string;
   catalog_publication_sha256?: string;
+  catalog_initialization_sha256?: string;
+  catalog_review_request_sha256?: string;
+  catalog_review_disposition_sha256?: string;
   published_catalog_metadata_sha256?: string;
   published_site_sha256?: string;
 };
@@ -493,6 +505,9 @@ export function planReleaseOpportunity(input: unknown) {
       "review_request",
       "review_disposition",
       "catalog_publication",
+      "catalog_initialization",
+      "catalog_review_request",
+      "catalog_review_disposition",
       "published_catalog_metadata",
       "published_site",
     ],
@@ -506,6 +521,9 @@ export function planReleaseOpportunity(input: unknown) {
   const active = validateActive(input.active_candidate);
   const hasMetadata =
     Object.hasOwn(input, "catalog_publication") ||
+    Object.hasOwn(input, "catalog_initialization") ||
+    Object.hasOwn(input, "catalog_review_request") ||
+    Object.hasOwn(input, "catalog_review_disposition") ||
     Object.hasOwn(input, "published_catalog_metadata") ||
     Object.hasOwn(input, "published_site") ||
     Object.hasOwn(input, "published_metadata") ||
@@ -521,6 +539,7 @@ export function planReleaseOpportunity(input: unknown) {
       input.controller.capacity_attempt.schema_version !== 2)
   )
     throw new Error("metadata journal fields require bounded capacity schema2");
+  const catalogInitialization = inspectCatalogInitialization(input.catalog_initialization);
   const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
   const publishedCatalog = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
   const publishedSite = currentPublishedSite(input);
@@ -536,6 +555,10 @@ export function planReleaseOpportunity(input: unknown) {
       ? { published_catalog_metadata_sha256: capacityDigest(publishedCatalog) }
       : {}),
   };
+  const catalogReviewRequest = inspectCatalogReviewRequest(input.catalog_review_request);
+  const catalogReviewDisposition = inspectCatalogReviewDisposition(
+    input.catalog_review_disposition,
+  );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const metadataRenewal =
@@ -547,6 +570,15 @@ export function planReleaseOpportunity(input: unknown) {
       ? null
       : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
   if (catalogPublication) {
+    if (catalogReviewRequest)
+      throw new Error("catalog publication must consume its neutral review request");
+    if (
+      catalogInitialization &&
+      (catalogPublication.prior.catalog_root_sha256 !== catalogInitialization.root_sha256 ||
+        catalogPublication.publisher_configuration_sha256 !==
+          catalogInitialization.publisher_configuration_sha256)
+    )
+      throw new Error("catalog subject differs from initial setup identity");
     const authority: Authority = {
       ...siteAuthority,
       controller_workflow: controller.workflow,
@@ -580,9 +612,82 @@ export function planReleaseOpportunity(input: unknown) {
       { catalog_publication: catalogPublication, admission: "required" as const },
     );
   }
+  if (
+    (catalogReviewRequest || catalogReviewDisposition) &&
+    applicationMetadataMaintenancePriority(input, String(input.now))
+  ) {
+    if (catalogReviewRequest) assertCatalogReviewRequestBaseline(catalogReviewRequest, input);
+    if (input.opportunity !== null) validateOpportunity(input.opportunity);
+    return plan(
+      controller.publication_paused || controller.capacity?.eligibility !== "eligible"
+        ? "pause"
+        : "skip",
+      "accepted application metadata maintenance precedes neutral catalog review; request/history retained",
+      {
+        ...siteAuthority,
+        controller_workflow: controller.workflow,
+        controller_revision: controller.revision,
+        publication_observed_at: publication.observed_at,
+        publication_sha256: capacityDigest(input.publication),
+        published_metadata_sha256: capacityDigest(publishedMetadata),
+        metadata_renewal_sha256: capacityDigest(metadataRenewal),
+        metadata_bootstrap_sha256: capacityDigest(metadataBootstrap),
+        catalog_review_request_sha256: capacityDigest(catalogReviewRequest),
+        catalog_review_disposition_sha256: capacityDigest(catalogReviewDisposition),
+        ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      },
+    );
+  }
+  if (catalogReviewRequest) {
+    if (input.opportunity !== null) validateOpportunity(input.opportunity);
+    assertCatalogReviewRequestBaseline(catalogReviewRequest, input);
+    const authority: Authority = {
+      ...siteAuthority,
+      controller_workflow: controller.workflow,
+      controller_revision: controller.revision,
+      publication_observed_at: publication.observed_at,
+      publication_sha256: capacityDigest(input.publication),
+      catalog_review_request_sha256: capacityDigest(catalogReviewRequest),
+      ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+    };
+    return plan(
+      controller.publication_paused ||
+        controller.capacity?.eligibility !== "eligible" ||
+        active ||
+        publication.reserved_versions.length ||
+        reviewRequest ||
+        reviewDisposition
+        ? "pause"
+        : "catalog-review-request",
+      "neutral catalog request awaits independently authenticated whole-opportunity review",
+      authority,
+      { catalog_review_request: catalogReviewRequest, admission: "required" as const },
+    );
+  }
+  if (input.opportunity === null && catalogReviewDisposition && !catalogReviewRequest) {
+    return plan(
+      controller.publication_paused ||
+        controller.capacity?.eligibility !== "eligible" ||
+        active ||
+        reviewRequest ||
+        reviewDisposition
+        ? "pause"
+        : "skip",
+      "catalog negative review retained; only a bounded changed-source request or actual catalog baseline advance may continue",
+      {
+        ...siteAuthority,
+        controller_workflow: controller.workflow,
+        controller_revision: controller.revision,
+        publication_observed_at: publication.observed_at,
+        publication_sha256: capacityDigest(input.publication),
+        catalog_review_disposition_sha256: capacityDigest(catalogReviewDisposition),
+        ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      },
+    );
+  }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite) ||
+      (!metadataBootstrap && !publishedSite && !catalogInitialization) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -597,6 +702,9 @@ export function planReleaseOpportunity(input: unknown) {
       publication_sha256: capacityDigest(input.publication),
       ...(metadataBootstrap
         ? { metadata_bootstrap_sha256: capacityDigest(metadataBootstrap) }
+        : {}),
+      ...(catalogInitialization
+        ? { catalog_initialization_sha256: capacityDigest(catalogInitialization) }
         : {}),
       ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
       ...(Object.hasOwn(input, "published_metadata")
@@ -620,9 +728,11 @@ export function planReleaseOpportunity(input: unknown) {
         ? "publication emergency pause is active"
         : controller.capacity?.eligibility !== "eligible"
           ? "bounded initial metadata state is held"
-          : metadataBootstrap
-            ? "explicit initial metadata state has no semantic release opportunity"
-            : "catalog-only published site has no application release opportunity",
+          : catalogInitialization && !publishedSite
+            ? "inert catalog initialization awaits an authenticated complete opportunity"
+            : metadataBootstrap
+              ? "explicit initial metadata state has no semantic release opportunity"
+              : "catalog-only published site has no application release opportunity",
       authority,
     );
   }

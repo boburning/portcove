@@ -1,5 +1,9 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
+import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import { performance } from "node:perf_hooks";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { inspectInitialProofRisk706 } from "./linux-beta-risk-706-profile.mts";
 import {
@@ -395,4 +399,297 @@ function inspectBoundControllerAuthorities(
       "configured automatic dispatch actor differs from ratified controller principal",
     );
   return structuredClone(result);
+}
+
+const catalogApps = [
+  "semantic",
+  "classification",
+  "protection_observer",
+  "coordinator_journal",
+  "dispatch",
+] as const;
+const catalogOperations = ["install", "update", "prepare", "launch"] as const;
+function scopeIdentity(raw: unknown) {
+  const value = text(raw, 128);
+  if (!/^[a-z0-9][a-z0-9-]{0,127}$/u.test(value))
+    throw new Error("catalog publisher identity differs");
+  return value;
+}
+function uniqueValues<T>(raw: unknown, maximum: number, inspect: (value: unknown) => T): T[] {
+  if (!Array.isArray(raw) || raw.length > maximum)
+    throw new Error("catalog scope list bound differs");
+  const result = raw.map(inspect);
+  if (new Set(result).size !== result.length) throw new Error("catalog scope list duplicates");
+  return result;
+}
+function catalogFilePin(raw: unknown) {
+  exact(raw, "bytes,path,sha256");
+  const filename = text(raw.path, 256);
+  if (
+    !filename.endsWith(".json") ||
+    filename.split("/").length > 8 ||
+    !filename.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
+    positive(raw.bytes) > 1024 * 1024
+  )
+    throw new Error("catalog public pin differs");
+  return { path: filename, bytes: Number(raw.bytes), sha256: hex(raw.sha256, 64) };
+}
+/** Inert appointments only. This configuration cannot appoint application
+ * native, payload, Release or application TUF roles. No private keys occur. */
+export function inspectCatalogAuthorityConfiguration(raw: unknown) {
+  const value: unknown = structuredClone(raw);
+  exact(value, "apps,catalog,kind,namespace,repository_id,schema_version");
+  if (
+    value.schema_version !== 1 ||
+    value.kind !== "catalog-publication-authorities" ||
+    value.repository_id !== 1354613114 ||
+    Buffer.byteLength(JSON.stringify(value)) > 32 * 1024
+  )
+    throw new Error("catalog authority purpose/repository/bound differs");
+  exact(value.apps, [...catalogApps].sort().join(","));
+  const appRecords = value.apps;
+  const apps = Object.fromEntries(
+    catalogApps.map((role) => {
+      const app = appRecords[role];
+      exact(
+        app,
+        role === "dispatch" ? "actor_id,app_id,installation_id" : "app_id,installation_id",
+      );
+      if (
+        role === "dispatch" &&
+        (typeof app.actor_id !== "string" ||
+          !/^[1-9][0-9]{0,15}$/u.test(app.actor_id) ||
+          ["43177418", "41898282"].includes(app.actor_id))
+      )
+        throw new Error("catalog dispatch actor differs");
+      return [
+        role,
+        {
+          app_id: positive(app.app_id),
+          installation_id: positive(app.installation_id),
+          ...(role === "dispatch" ? { actor_id: String(app.actor_id) } : {}),
+        },
+      ];
+    }),
+  ) as Record<(typeof catalogApps)[number], { app_id: number; installation_id: number }> & {
+    dispatch: { app_id: number; installation_id: number; actor_id: string };
+  };
+  if (
+    new Set([15368, ...catalogApps.map((role) => apps[role].app_id)]).size !==
+      catalogApps.length + 1 ||
+    new Set(catalogApps.map((role) => apps[role].installation_id)).size !== catalogApps.length
+  )
+    throw new Error("catalog issuer/writer/observer/journal/dispatch identities conflated");
+  exact(value.catalog, "public_source,publisher_scope,setup_plan_sha256");
+  const initialSite =
+    isRecord(value.catalog.public_source) &&
+    Object.hasOwn(value.catalog.public_source, "initial_site_preimage");
+  exact(
+    value.catalog.public_source,
+    initialSite
+      ? "commit,initial_site_preimage,offline_targets,root"
+      : "commit,offline_targets,root",
+  );
+  const source = value.catalog.public_source;
+  const root = catalogFilePin(source.root),
+    targets = catalogFilePin(source.offline_targets);
+  if (root.path === targets.path || root.sha256 === targets.sha256)
+    throw new Error("catalog public anchors conflated");
+  const preimage = initialSite ? catalogFilePin(source.initial_site_preimage) : undefined;
+  if (
+    preimage &&
+    (preimage.bytes > 128 * 1024 ||
+      [root.path, targets.path].includes(preimage.path) ||
+      [root.sha256, targets.sha256].includes(preimage.sha256))
+  )
+    throw new Error("catalog initial site preimage differs from separate bounded setup pin");
+  if (
+    !Array.isArray(value.catalog.publisher_scope) ||
+    value.catalog.publisher_scope.length < 1 ||
+    value.catalog.publisher_scope.length > 4096
+  )
+    throw new Error("catalog publisher scope unavailable");
+  const seen = new Set<string>();
+  const publisher_scope = value.catalog.publisher_scope.map((raw) => {
+    exact(
+      raw,
+      "artifact_hosts,max_redirects,namespace,operations,policy_schemas,repository_id,stable_id,template",
+    );
+    const stable_id = scopeIdentity(raw.stable_id);
+    if (raw.namespace !== "official" || seen.has(stable_id))
+      throw new Error("catalog scope namespace/identity differs");
+    seen.add(stable_id);
+    const artifact_hosts = uniqueValues(raw.artifact_hosts, 32, (host) => {
+      const name = text(host, 253);
+      if (!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/u.test(name))
+        throw new Error("catalog exact artifact hostname differs");
+      return name;
+    });
+    const operations = uniqueValues(raw.operations, 4, (operation) => {
+      if (!catalogOperations.includes(operation as (typeof catalogOperations)[number]))
+        throw new Error("catalog operation scope differs");
+      return operation as (typeof catalogOperations)[number];
+    });
+    const policy_schemas = uniqueValues(raw.policy_schemas, 4, (schema) => {
+      if (typeof schema !== "number" || ![1, 2, 3, 4].includes(schema))
+        throw new Error("catalog policy schema scope differs");
+      return schema;
+    });
+    if (
+      !policy_schemas.length ||
+      typeof raw.max_redirects !== "number" ||
+      !Number.isSafeInteger(raw.max_redirects) ||
+      raw.max_redirects < 0 ||
+      raw.max_redirects > 5
+    )
+      throw new Error("catalog scope redirects/schema differs");
+    return {
+      namespace: "official" as const,
+      stable_id,
+      template: scopeIdentity(raw.template),
+      repository_id: raw.repository_id === null ? null : positive(raw.repository_id),
+      artifact_hosts,
+      max_redirects: raw.max_redirects,
+      operations,
+      policy_schemas,
+    };
+  });
+  return {
+    schema_version: 1 as const,
+    kind: "catalog-publication-authorities" as const,
+    namespace: inspectCoordinatorRemoteNamespace({ schema_version: 1, namespace: value.namespace }),
+    repository_id: 1354613114 as const,
+    apps,
+    catalog: {
+      public_source: {
+        commit: hex(source.commit, 40),
+        root,
+        offline_targets: targets,
+        ...(preimage ? { initial_site_preimage: preimage } : {}),
+      },
+      setup_plan_sha256: hex(value.catalog.setup_plan_sha256, 64),
+      publisher_scope,
+    },
+  };
+}
+/** Source/config binding only; imported policy or JSON never creates OIDC or
+ * live protection/semantic acceptance. The actual getter below adds identity. */
+export function inspectBoundCatalogControllerAuthorities(
+  raw: unknown,
+  source: {
+    mode: unknown;
+    authority_configuration_sha256?: string;
+    grant_sha256?: string;
+    actor_id: string;
+  },
+) {
+  if (
+    source.mode !== "bounded-catalog-publication" ||
+    !source.authority_configuration_sha256 ||
+    !source.grant_sha256
+  )
+    throw new Error("explicit catalog controller grant required");
+  hex(source.grant_sha256, 64);
+  hex(source.authority_configuration_sha256, 64);
+  const configuration = inspectCatalogAuthorityConfiguration(raw),
+    configuration_sha256 = releaseCanonicalDigest(configuration);
+  if (
+    configuration_sha256 !== source.authority_configuration_sha256 ||
+    configuration.apps.dispatch.actor_id !== source.actor_id
+  )
+    throw new Error("catalog authority configuration/dispatch changed after ratification");
+  return { ...configuration, configuration_sha256 };
+}
+export async function requireControllerCatalogPublicationAuthorities(phase: unknown) {
+  const deadline = performance.now() + coordinatorCommandTimeout(15000);
+  const env = { ...process.env },
+    raw = env.PORTCOVE_CATALOG_AUTHORITIES;
+  if (!raw || Buffer.byteLength(raw) > 32 * 1024)
+    throw new Error("protected catalog authority configuration unavailable");
+  const { authenticateCatalogControlReaderJob } =
+    await import("./release-live-control-admission.mts");
+  const actual = await authenticateCatalogControlReaderJob(
+    env,
+    await readProductionControllerWorkflowBytes(),
+    { phase: inspectReleaseControlPhase(phase), deadline },
+  );
+  if (actual.identity.evidence_scope !== "github.com")
+    throw new Error("actual catalog OIDC identity required");
+  const result = inspectBoundCatalogControllerAuthorities(JSON.parse(raw), actual.admitted);
+  if (performance.now() >= deadline)
+    throw new Error("catalog authority original phase deadline exhausted");
+  return result;
+}
+/** Limits an already Core-inspected bundle to the appointed publisher. This
+ * assertion does not authenticate the supplied report or create acceptance. */
+export function assertControllerCatalogPublisherScope(
+  raw: unknown,
+  inspection: unknown,
+  files: ReadonlyMap<string, Buffer>,
+) {
+  const authorities = inspectCatalogAuthorityConfiguration(
+    isRecord(raw) && Object.hasOwn(raw, "configuration_sha256")
+      ? Object.fromEntries(Object.entries(raw).filter(([key]) => key !== "configuration_sha256"))
+      : raw,
+  );
+  if (
+    isRecord(raw) &&
+    Object.hasOwn(raw, "configuration_sha256") &&
+    raw.configuration_sha256 !== releaseCanonicalDigest(authorities)
+  )
+    throw new Error("catalog publisher configuration digest differs");
+  const report = inspectCatalogCoreReport(inspection, files);
+  for (const rawDefinition of report.definitions as unknown[]) {
+    if (
+      !isRecord(rawDefinition) ||
+      rawDefinition.namespace !== "official" ||
+      typeof rawDefinition.stable_id !== "string" ||
+      typeof rawDefinition.policy_target !== "string" ||
+      typeof rawDefinition.definition_target !== "string"
+    )
+      throw new Error("catalog Core identity absent");
+    const scope = authorities.catalog.publisher_scope.find(
+      (row) => row.stable_id === rawDefinition.stable_id,
+    );
+    const definitionBytes = files.get(rawDefinition.definition_target),
+      policyBytes = files.get(rawDefinition.policy_target);
+    if (!scope || !definitionBytes || !policyBytes)
+      throw new Error("catalog title outside appointed publisher scope");
+    const definition: unknown = JSON.parse(definitionBytes.toString("utf8")),
+      policy: unknown = JSON.parse(policyBytes.toString("utf8"));
+    if (
+      !isRecord(definition) ||
+      !isRecord(definition.port) ||
+      definition.port.adapter !== scope.template ||
+      !isRecord(policy) ||
+      typeof policy.policy_schema !== "number" ||
+      !scope.policy_schemas.includes(policy.policy_schema) ||
+      policy.policy_schema !== rawDefinition.policy_schema ||
+      !isRecord(policy.decision)
+    )
+      throw new Error("catalog template/schema outside appointed publisher scope");
+    const decision = policy.decision;
+    if (decision.status === "managed_github") {
+      if (
+        decision.template !== scope.template ||
+        decision.repository_id !== scope.repository_id ||
+        scope.repository_id === null ||
+        !Array.isArray(decision.artifact_hosts) ||
+        !decision.artifact_hosts.every(
+          (host) => typeof host === "string" && scope.artifact_hosts.includes(host),
+        ) ||
+        !Array.isArray(decision.operations) ||
+        !decision.operations.every((op) => scope.operations.includes(op as never)) ||
+        typeof decision.max_redirects !== "number" ||
+        !Number.isSafeInteger(decision.max_redirects) ||
+        decision.max_redirects < 0 ||
+        decision.max_redirects > scope.max_redirects
+      )
+        throw new Error("catalog managed Github capabilities exceed publisher scope");
+    } else if (decision.status === "availability") {
+      if (decision.template !== scope.template)
+        throw new Error("catalog availability template exceeds publisher scope");
+    } else if (decision.status !== "revoked") throw new Error("catalog Core policy status differs");
+  }
+  return { authority: "none" as const, scope: "appointed-catalog-publisher-limits-only" as const };
 }

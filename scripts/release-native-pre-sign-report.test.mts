@@ -779,7 +779,7 @@ void test("pre-sign report refuses metadata-only success, wrong host/source/pack
   assert.throws(() =>
     reconstructNativePreSignReport(f.prepared, e, {
       ...f.source,
-      cli_protocol: { min: 76, max: 76 },
+      cli_protocol: { min: f.source.cli_protocol.min - 1, max: f.source.cli_protocol.min - 1 },
     }),
   );
 });

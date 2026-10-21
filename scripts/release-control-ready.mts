@@ -3,10 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   admitProductionProtectionObserver,
+  admitProductionCatalogProtectionObserver,
   readProductionControllerWorkflowBytes,
 } from "./production-controller-admission.mts";
 import { waitForControlArtifact, inspectControlRound } from "./release-control-handshake.mts";
-import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import {
+  inspectControllerExecutionPurpose,
+  inspectReleaseControlPhase,
+} from "./release-control-phases.mts";
 
 async function main() {
   if (
@@ -21,8 +25,15 @@ async function main() {
     process.argv[3] === undefined
       ? undefined
       : inspectControlRound({ index: Number(process.argv[3]) }, false);
-  const admitted = admitProductionProtectionObserver(
-    process.env.PORTCOVE_CONTROLLER_ADMISSION,
+  const purpose = inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE);
+  const admitted = (
+    purpose === "catalog-publication"
+      ? admitProductionCatalogProtectionObserver
+      : admitProductionProtectionObserver
+  )(
+    purpose === "catalog-publication"
+      ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+      : process.env.PORTCOVE_CONTROLLER_ADMISSION,
     process.env,
     await readProductionControllerWorkflowBytes(),
     phase,

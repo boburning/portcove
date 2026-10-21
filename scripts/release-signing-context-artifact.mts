@@ -34,6 +34,12 @@ import {
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import {
+  catalogSigningContextBytes,
+  inspectCatalogSigningBinding,
+  inspectCatalogSigningFacts,
+} from "./release-catalog-signing-contract.mts";
+import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const signingContextPredicateType =
@@ -45,7 +51,10 @@ export const signingContextArchiveLimits = Object.freeze({
   nameBytes: 64,
 });
 type Files = Map<string, Buffer>;
-type ContextKind = "release-signing-context" | "metadata-signing-context";
+type ContextKind =
+  | "release-signing-context"
+  | "metadata-signing-context"
+  | "catalog-signing-context";
 const contextRoute = (kind: ContextKind) =>
   kind === "release-signing-context"
     ? {
@@ -54,12 +63,19 @@ const contextRoute = (kind: ContextKind) =>
         job: "Sign admitted updater payloads",
         audience: "portcove-payload-signing",
       }
-    : {
-        prefix: "trusted-coordinator-signing-context",
-        stage: "coordinator",
-        job: "Coordinate application release",
-        audience: "portcove-capacity-executor",
-      };
+    : kind === "catalog-signing-context"
+      ? {
+          prefix: "trusted-catalog-signing-context",
+          stage: "coordinator",
+          job: "Coordinate application release",
+          audience: "portcove-capacity-executor",
+        }
+      : {
+          prefix: "trusted-coordinator-signing-context",
+          stage: "coordinator",
+          job: "Coordinate application release",
+          audience: "portcove-capacity-executor",
+        };
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const identities = (files: Files) =>
   [...files]
@@ -81,6 +97,20 @@ function safe(name: string) {
   );
 }
 function publicContextPath(name: string, kind: ContextKind) {
+  if (kind === "catalog-signing-context")
+    return (
+      [
+        "context.json",
+        "trusted-root.json",
+        "offline-targets.json",
+        "core-inspection.json",
+        "bundle/definitions/index.json",
+      ].includes(name) ||
+      /^bundle\/(?:sha256\/[a-f0-9]{64}|policy\/official\/[a-z0-9][a-z0-9-]*(?:\.launch)?)\.json$/u.test(
+        name,
+      ) ||
+      /^prior\/(?:metadata|targets)\/.+\.json$/u.test(name)
+    );
   return (
     (kind === "metadata-signing-context" &&
       ["renewal.json", "initial-bootstrap.json"].includes(name)) ||
@@ -137,16 +167,19 @@ export function inspectSigningContextArchive(raw: Buffer) {
     manifest.kind === "metadata-signing-context" &&
     isRecord(manifest.facts) &&
     manifest.facts.mode === "bootstrap";
-  if (bootstrap) {
-    if (manifest.previous_site_pins !== null)
-      throw new Error("initial context cannot invent a prior site");
+  if (manifest.kind === "catalog-signing-context") {
+    inspectCatalogSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
+  } else if (bootstrap) {
+    inspectMetadataSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
   } else {
     exact(manifest.previous_site_pins, "repository_sha256,root_sha256,site_generation_sha256");
     for (const value of Object.values(manifest.previous_site_pins)) sha(value);
   }
   if (
     manifest.schema_version !== 1 ||
-    !["release-signing-context", "metadata-signing-context"].includes(String(manifest.kind)) ||
+    !["release-signing-context", "metadata-signing-context", "catalog-signing-context"].includes(
+      String(manifest.kind),
+    ) ||
     manifest.authority !== "none" ||
     !Array.isArray(manifest.files) ||
     manifest.files.length < 1 ||
@@ -172,7 +205,9 @@ export function inspectSigningContextArchive(raw: Buffer) {
   )
     throw new Error("signing context controller identity differs");
   const kind = manifest.kind as ContextKind;
-  if (kind === "metadata-signing-context")
+  if (kind === "catalog-signing-context")
+    inspectCatalogSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
+  else if (kind === "metadata-signing-context")
     inspectMetadataSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
   else {
     exact(
@@ -214,6 +249,64 @@ export function inspectSigningContextArchive(raw: Buffer) {
   if (offset !== packed.length) throw new Error("signing context has unrepresented bytes");
   if (digest(identities(contextFiles)) !== digest(manifest.files))
     throw new Error("signing context complete inventory differs");
+  if (kind === "catalog-signing-context") {
+    const { facts, binding } = inspectCatalogSigningBinding(
+      manifest.facts,
+      manifest.binding,
+      manifest.previous_site_pins,
+    );
+    for (const name of [
+      "context.json",
+      "trusted-root.json",
+      "offline-targets.json",
+      "core-inspection.json",
+      "bundle/definitions/index.json",
+    ])
+      if (!contextFiles.has(name)) throw new Error("catalog context public inputs missing");
+    const context = contextFiles.get("context.json")!;
+    if (
+      !context.equals(catalogSigningContextBytes(facts)) ||
+      hash(context) !== binding.context_sha256 ||
+      hash(contextFiles.get("trusted-root.json")!) !== facts.root_sha256 ||
+      hash(contextFiles.get("offline-targets.json")!) !== facts.offline_targets_sha256 ||
+      hash(contextFiles.get("core-inspection.json")!) !== facts.descriptor.core_inspection_sha256
+    )
+      throw new Error("catalog context exact raw inputs differ");
+    const bundle = new Map(
+      [...contextFiles]
+        .filter(([name]) => name.startsWith("bundle/"))
+        .map(([name, bytes]) => [name.slice(7), bytes]),
+    );
+    const report = inspectCatalogCoreReport(
+      JSON.parse(contextFiles.get("core-inspection.json")!.toString("utf8")),
+      bundle,
+    );
+    if (
+      digest(report.files) !== facts.descriptor.bundle_sha256 ||
+      digest(report.definitions) !==
+        digest(facts.semantic_opportunity.classification.definitions) ||
+      report.index_sha256 !== facts.semantic_opportunity.classification.index_sha256
+    )
+      throw new Error("catalog context bundle differs from subject/semantic inputs");
+    const prior = new Map(
+      [...contextFiles]
+        .filter(([name]) => name.startsWith("prior/"))
+        .map(([name, bytes]) => [name.slice(6), bytes]),
+    );
+    if (
+      facts.descriptor.prior.catalog_repository_sha256 === null
+        ? prior.size !== 0
+        : digest(identities(prior)) !== facts.descriptor.prior.catalog_repository_sha256
+    )
+      throw new Error("catalog context prior repository differs");
+    return {
+      manifest,
+      manifest_sha256: hash(manifestBytes),
+      files: contextFiles,
+      manifest_bytes: Buffer.from(manifestBytes),
+      authority: "none" as const,
+    };
+  }
   if (
     !contextFiles.has("context.json") ||
     !contextFiles.has("trusted-root.json") ||
@@ -291,19 +384,31 @@ export async function prepareMetadataSigningContextArtifact(
 ) {
   return prepareContextArtifact("metadata-signing-context", contextReceipt, parent);
 }
-const requireProducerContext = (kind: ContextKind, receipt: object) =>
-  kind === "release-signing-context"
+export async function prepareCatalogSigningContextArtifact(contextReceipt: object, parent: string) {
+  return prepareContextArtifact("catalog-signing-context", contextReceipt, parent);
+}
+const requireProducerContext = async (kind: ContextKind, receipt: object) => {
+  if (kind === "catalog-signing-context")
+    return (
+      await import("./release-catalog-signing-context.mts")
+    ).requireActualCatalogSigningContext(receipt);
+  return kind === "release-signing-context"
     ? requireReleaseSigningContext(receipt)
     : requireCoordinatorSigningContext(receipt);
+};
 async function prepareContextArtifact(kind: ContextKind, contextReceipt: object, parent: string) {
   const context = await requireProducerContext(kind, contextReceipt);
   const bootstrap =
     kind === "metadata-signing-context" && "mode" in context && context.mode === "bootstrap";
-  if (!context.previous_site && !bootstrap)
+  if (!context.previous_site && !bootstrap && kind !== "catalog-signing-context")
     throw new Error("actual complete published site custody required for context handoff");
-  const files = await (kind === "release-signing-context"
-    ? readReleaseSigningContextFiles(contextReceipt)
-    : readCoordinatorSigningContextFiles(contextReceipt));
+  const files = await (kind === "catalog-signing-context"
+    ? (await import("./release-catalog-signing-context.mts")).readActualCatalogSigningContextFiles(
+        contextReceipt,
+      )
+    : kind === "release-signing-context"
+      ? readReleaseSigningContextFiles(contextReceipt)
+      : readCoordinatorSigningContextFiles(contextReceipt));
   const tools = context.tools.identity;
   const manifest = {
     schema_version: 1,
@@ -318,7 +423,12 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
     binding: context.binding,
     facts: context.facts,
     control_facts: context.control_facts,
-    previous_site_pins: context.previous_site?.pins ?? null,
+    previous_site_pins:
+      kind === "catalog-signing-context"
+        ? inspectCatalogSigningFacts(context.facts).descriptor.prior
+        : bootstrap
+          ? context.facts.previous_site_pins
+          : (context.previous_site?.pins ?? null),
     facts_sha256: digest(context.facts),
     files: identities(files),
     authority: "none",
@@ -685,6 +795,14 @@ export function receiveMetadataSigningContextArtifact(
 ) {
   return receiveContextArtifact("metadata-signing-context", parent, expected, deadline, options);
 }
+export function receiveCatalogSigningContextArtifact(
+  parent: string,
+  expected: SigningContextArtifactExpected,
+  deadline: number,
+  options: ContextReceiverOptions = {},
+) {
+  return receiveContextArtifact("catalog-signing-context", parent, expected, deadline, options);
+}
 async function receiveContextArtifact(
   kind: ContextKind,
   parent: string,
@@ -984,7 +1102,9 @@ async function receiveContextArtifact(
       kind:
         kind === "release-signing-context"
           ? "attested-pre-sign-release-context"
-          : "attested-metadata-signing-context",
+          : kind === "catalog-signing-context"
+            ? "attested-catalog-signing-context"
+            : "attested-metadata-signing-context",
       directory,
       manifest_sha256: inspected.manifest_sha256,
       evidence_scope: injected ? "injected-provider" : "github.com",
@@ -1022,9 +1142,12 @@ async function readReceivedSigningContext(
   receipt: object,
   phaseDeadline: number | undefined,
   provider: "fresh" | "retained",
+  purpose: "application" | "catalog" = "application",
 ) {
   const actual = received.get(receipt);
   if (!actual) throw new Error("actual authenticated signing context receiver required");
+  if ((actual.manifest.kind === "catalog-signing-context") !== (purpose === "catalog"))
+    throw new Error("signing context component purpose differs");
   if (phaseDeadline !== undefined) actual.tighten(phaseDeadline);
   actual.active();
   for (const file of actual.public_evidence) {
@@ -1066,4 +1189,10 @@ export function requireReceivedSigningContext(receipt: object, phaseDeadline?: n
  * provider observation, current eligibility or protected authority is implied. */
 export function requireRetainedSigningContext(receipt: object, phaseDeadline?: number) {
   return readReceivedSigningContext(receipt, phaseDeadline, "retained");
+}
+export function requireReceivedCatalogSigningContext(receipt: object, phaseDeadline?: number) {
+  return readReceivedSigningContext(receipt, phaseDeadline, "fresh", "catalog");
+}
+export function requireRetainedCatalogSigningContext(receipt: object, phaseDeadline?: number) {
+  return readReceivedSigningContext(receipt, phaseDeadline, "retained", "catalog");
 }

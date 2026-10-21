@@ -14,13 +14,38 @@ export type IsolatedSigningRole =
   | "preview"
   | "stable"
   | "snapshot"
-  | "timestamp";
-const roles = ["payload", "releases", "preview", "stable", "snapshot", "timestamp"] as const;
+  | "timestamp"
+  | "catalog-definitions"
+  | "catalog-policy"
+  | "catalog-snapshot"
+  | "catalog-timestamp";
+const roles = [
+  "payload",
+  "releases",
+  "preview",
+  "stable",
+  "snapshot",
+  "timestamp",
+  "catalog-definitions",
+  "catalog-policy",
+  "catalog-snapshot",
+  "catalog-timestamp",
+] as const;
 const maximum = 128 * 1024;
 function role(raw: unknown): IsolatedSigningRole {
   if (!roles.some((value) => value === raw))
     throw new Error("fixed isolated signing role required");
   return raw as IsolatedSigningRole;
+}
+/** Closed appointed channel names. Catalog keys never fall back to app roles. */
+export function isolatedRoleKeyEnvironment(raw: unknown) {
+  const selected = role(raw);
+  if (selected === "payload") return "TAURI_SIGNING_PRIVATE_KEY";
+  if (selected === "catalog-definitions") return "PORTCOVE_CATALOG_DEFINITIONS_KEY";
+  if (selected === "catalog-policy") return "PORTCOVE_CATALOG_POLICY_KEY";
+  if (selected === "catalog-snapshot") return "PORTCOVE_CATALOG_SNAPSHOT_KEY";
+  if (selected === "catalog-timestamp") return "PORTCOVE_CATALOG_TIMESTAMP_KEY";
+  return `PORTCOVE_TUF_${selected.toUpperCase()}_KEY`;
 }
 function address(directory: string) {
   if (process.platform !== "linux" || !path.isAbsolute(directory))
@@ -225,10 +250,7 @@ export async function supplyIsolatedRoleKey(
             !/^[a-f0-9]{64}$/u.test(input.challenge)
           )
             throw new Error("role worker challenge differs");
-          const keyName =
-            selected === "payload"
-              ? "TAURI_SIGNING_PRIVATE_KEY"
-              : `PORTCOVE_TUF_${selected.toUpperCase()}_KEY`;
+          const keyName = isolatedRoleKeyEnvironment(selected);
           const key = environment[keyName];
           const password =
             selected === "payload" ? (environment.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "") : "";

@@ -133,9 +133,16 @@ export function inspectPublishedCatalogMetadata(raw: unknown) {
   if (raw == null) return null;
   exact(
     raw,
-    "expires,immutable_targets_sha256,index_sha256,offline_targets_sha256,operation_id,publication,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,verifier_repository_sha256,versions",
+    "expires,immutable_targets_sha256,index_sha256,offline_targets_sha256,operation_id,publication,repository_sha256,root_sha256,schema_version,snapshot_sha256,source_commit,source_tree,timestamp_sha256,verifier_repository_sha256,versions",
   );
-  const { operation_id, publication, ...facts } = raw;
+  const { operation_id, publication, source_commit, source_tree, ...facts } = raw;
+  if (
+    typeof source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source_commit) ||
+    typeof source_tree !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source_tree)
+  )
+    throw new Error("catalog publication requires retained accepted source identity");
   sha(operation_id);
   exact(publication, "evidence_sha256,remote_identity,site_generation_sha256");
   sha(publication.evidence_sha256);
@@ -143,6 +150,8 @@ export function inspectPublishedCatalogMetadata(raw: unknown) {
   text(publication.remote_identity);
   return {
     ...inspectCatalogTufPublicationFacts(facts),
+    source_commit,
+    source_tree,
     operation_id,
     publication: {
       evidence_sha256: publication.evidence_sha256,
@@ -249,6 +258,42 @@ export function assertCatalogPublicationBaseline(raw: unknown, input: Record<str
     throw new Error("catalog publication differs from current component/site baseline");
   return descriptor;
 }
+/** Current complete-site locator for the SAME application component. The app
+ * record's publication generation remains its historical proof provenance. */
+export function currentApplicationSitePins(input: Record<string, unknown>) {
+  const site = currentPublishedSite(input);
+  const application = inspectPublishedMetadata(input.published_metadata);
+  if (!site || !application || !site.components.application)
+    throw new Error("current authenticated application component/site cursor unavailable");
+  return Object.freeze({
+    root_sha256: site.components.application.root_sha256,
+    repository_sha256: site.components.application.repository_sha256,
+    site_generation_sha256: site.generation_sha256,
+  });
+}
+/** Formatting only, after the owning caller's actual Pages/public readback.
+ * Existing component records and global cursor are still checked under CAS. */
+export function applicationPublishedSiteCursor(input: Record<string, unknown>, raw: unknown) {
+  const application = inspectPublishedMetadata(raw),
+    previous = currentPublishedSite(input);
+  if (!application) throw new Error("actual application publication facts absent");
+  return inspectPublishedSite({
+    schema_version: 1,
+    generation_sha256: application.publication.site_generation_sha256,
+    components: {
+      application: {
+        root_sha256: application.root_sha256,
+        repository_sha256: application.repository_sha256,
+      },
+      catalog: previous?.components.catalog ?? null,
+    },
+    operation_id: application.operation_id,
+    publication: {
+      evidence_sha256: application.publication.evidence_sha256,
+      remote_identity: application.publication.remote_identity,
+    },
+  })!;
+}
 function settled(
   operation: unknown,
   operationId: string | null,
@@ -327,6 +372,8 @@ export function validatePublishedSiteTransition(
     const expectation = operation.catalog_site_expectation;
     if (
       descriptor.prior.catalog_root_sha256 !== catalog.root_sha256 ||
+      descriptor.source_commit !== catalog.source_commit ||
+      descriptor.source_tree !== catalog.source_tree ||
       expectation.catalog_root_sha256 !== catalog.root_sha256 ||
       expectation.catalog_repository_sha256 !== catalog.repository_sha256 ||
       expectation.site_generation_sha256 !== after.generation_sha256 ||

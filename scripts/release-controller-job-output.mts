@@ -8,7 +8,11 @@ import { createHash, randomBytes } from "node:crypto";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
+import {
+  requireControllerCatalogPublicationAuthorities,
+  requireControllerReleaseAuthorities,
+} from "./release-authority-configuration.mts";
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
@@ -46,6 +50,10 @@ function role(raw: unknown) {
       "tuf-stable",
       "tuf-snapshot",
       "tuf-timestamp",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
     ].includes(raw)
   )
     throw new Error("fixed controller output role required");
@@ -108,7 +116,10 @@ export function projectFixedControllerJobOutputs(
   }
   if (selected === "coordinator" && result.decision === "metadata-context-reused")
     return { mode: "metadata", context_locator: JSON.stringify(record(result.context_locator)) };
-  if (selected === "coordinator" && result.decision !== "metadata-context-prepared") {
+  if (
+    selected === "coordinator" &&
+    !["metadata-context-prepared", "catalog-context-prepared"].includes(String(result.decision))
+  ) {
     const candidate = isRecord(result.active_candidate) ? result.active_candidate : null;
     const stage = result.decision === "dispatched" ? "qualifying" : candidate?.phase;
     return typeof stage === "string" &&
@@ -165,23 +176,31 @@ export function projectFixedControllerJobOutputs(
     };
   }
   if (selected === "site-publication") {
-    if (!["site-published", "metadata-site-published"].includes(result.decision))
+    if (
+      !["site-published", "metadata-site-published", "catalog-site-published"].includes(
+        result.decision,
+      )
+    )
       throw new Error("site output held");
     return { decision: result.decision };
   }
   if (!custody) throw new Error("actual attestation custody unavailable");
   const bundle = artifact(custody.bundle, true),
     predicate = record(JSON.parse(custody.predicate.toString("utf8")));
-  if (selected.startsWith("tuf-")) {
+  if (selected.startsWith("tuf-") || selected.startsWith("catalog-")) {
     if (
-      result.decision !== "role-output-prepared" ||
+      result.decision !==
+        (selected.startsWith("catalog-")
+          ? "catalog-role-output-prepared"
+          : "role-output-prepared") ||
       predicate.role !== selected ||
       result.subject_digest !== hash(custody.subject)
     )
       throw new Error("role output subject differs");
     return {
       role_locator: JSON.stringify({
-        role: selected.slice(4),
+        ...(selected.startsWith("catalog-") ? { purpose: "catalog" } : {}),
+        role: selected.startsWith("catalog-") ? selected.slice(8) : selected.slice(4),
         controller: record(predicate.controller),
         artifact: artifact(result.artifact),
         bundle,
@@ -219,16 +238,26 @@ export function projectFixedControllerJobOutputs(
     handoff = record(selected === "payload" ? result.context_upload : result.artifact),
     manifestSha = selected === "payload" ? handoff.manifest_sha256 : result.manifest_sha256;
   if (
+    (result.decision === "catalog-context-prepared" &&
+      (manifest.kind !== "catalog-signing-context" ||
+        predicate.role !== "catalog-signing-context")) ||
     hash(custody.subject) !== manifestSha ||
     predicate.manifest_sha256 !== manifestSha ||
     manifest.facts_sha256 !== releaseCanonicalDigest(manifest.facts) ||
     (selected === "payload"
       ? result.decision !== "payload-and-context-prepared"
-      : result.decision !== "metadata-context-prepared")
+      : !["metadata-context-prepared", "catalog-context-prepared"].includes(
+          String(result.decision),
+        ))
   )
     throw new Error("context output subject differs");
   return {
-    mode: selected === "coordinator" ? "metadata" : "release",
+    mode:
+      selected === "coordinator"
+        ? result.decision === "catalog-context-prepared"
+          ? "catalog"
+          : "metadata"
+        : "release",
     context_locator: JSON.stringify({
       ...controller,
       artifact: artifact(handoff, selected === "payload"),
@@ -246,7 +275,12 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
     root = process.env.RUNNER_TEMP;
   if (!root || !path.isAbsolute(root) || !process.env.GITHUB_OUTPUT)
     throw new Error("fixed output channels unavailable");
-  await requireControllerReleaseAuthorities(phase);
+  await (
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+      ? requireControllerCatalogPublicationAuthorities
+      : requireControllerReleaseAuthorities
+  )(phase);
   const deadline = currentControllerJobDeadline(
     selected,
     {

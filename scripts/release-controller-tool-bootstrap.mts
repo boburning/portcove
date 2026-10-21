@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
 import { prepareControllerToolPredicate } from "./release-controller-tool-admission.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
 const project = fileURLToPath(new URL("..", import.meta.url));
@@ -19,6 +20,7 @@ try {
     throw new Error("fixed bootstrap operation required");
   for (const key of Object.keys(process.env))
     if (
+      /^PORTCOVE_CATALOG_(?:DEFINITIONS|POLICY|SNAPSHOT|TIMESTAMP)_KEY$/u.test(key) ||
       /^(?:TAURI_|AWS_|AZURE_|PORTCOVE_(?:CONTROL_APP_TOKEN|SIGNING_|ROOT_KEY|RELEASE_TOKEN))/u.test(
         key,
       )
@@ -46,7 +48,12 @@ try {
     if (!process.env.GITHUB_OUTPUT) throw new Error("fixed bootstrap output channel unavailable");
     await appendFile(process.env.GITHUB_OUTPUT, `tools=${built.tools}\nsource_tree=${tree}\n`);
   } else {
-    const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
+    const policy: unknown = JSON.parse(
+      (inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+        ? process.env.PORTCOVE_CATALOG_CONTROLLER_ADMISSION
+        : process.env.PORTCOVE_CONTROLLER_ADMISSION) ?? "null",
+    );
     if (!isRecord(policy))
       throw new Error("ratified controller actor/ref configuration unavailable");
     const binding = await prepareControllerToolPredicate(

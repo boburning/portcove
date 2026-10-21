@@ -86,7 +86,7 @@ runs:
         import path from 'node:path';
         import { inspectControllerKeyProcess } from './scripts/release-controller-transport.mts';
         const operation=process.env.PORTCOVE_JOB_OPERATION, phase=process.env.PORTCOVE_JOB_PHASE;
-        const roles=['coordinator','building','payload','release-publication','site-publication','tuf-releases','tuf-preview','tuf-stable','tuf-snapshot','tuf-timestamp'];
+        const roles=['coordinator','building','payload','release-publication','site-publication','tuf-releases','tuf-preview','tuf-stable','tuf-snapshot','tuf-timestamp','catalog-definitions','catalog-policy','catalog-snapshot','catalog-timestamp'];
         if (!roles.includes(operation) || phase!==(operation==='building'?'admission':operation) || process.platform!=='linux' || !path.isAbsolute(process.env.RUNNER_TEMP??'')) throw Error('fixed Linux worker route required');
         const root=process.env.RUNNER_TEMP;
         const log=await open(path.join(root,`controller-${operation}.log`),'wx',0o600);

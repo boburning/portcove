@@ -4,7 +4,7 @@ import {
   requireFrozenSemanticProposalInputs,
 } from "./release-semantic-inputs.mts";
 import type {
-  prepareFrozenSemanticInputs,
+  FrozenSemanticAcceptanceBundle,
   prepareFrozenSemanticProposalInputs,
   FrozenSemanticSnapshot,
 } from "./release-semantic-inputs.mts";
@@ -13,7 +13,7 @@ import {
   createSemanticSnapshotRpc,
 } from "./release-semantic-reader-core.mts";
 export { isSemanticReaderCall, semanticReaderServer } from "./release-semantic-reader-core.mts";
-type Bundle = ReturnType<typeof prepareFrozenSemanticInputs>;
+type Bundle = FrozenSemanticAcceptanceBundle;
 export function createSemanticBundleReader(raw: Bundle) {
   return createSemanticSnapshotReader(requireFrozenSemanticInputs(raw));
 }

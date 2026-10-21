@@ -12,6 +12,7 @@ import { inspectSemanticReviewEvidence } from "./release-semantic-review.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
+import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 
 const repository = "boburning/portcove";
 const repositoryId = 1354613114;
@@ -238,7 +239,10 @@ function review(
   get: ReturnType<typeof session>["get"],
   checkId: number,
   config: ReviewProducerConfiguration,
-  opportunity: ReturnType<typeof validateOpportunity>,
+  opportunity:
+    | ReturnType<typeof validateOpportunity>
+    | ReturnType<typeof inspectCatalogSemanticOpportunity>,
+  purpose: "application" | "catalog-publication" = "application",
 ) {
   const value = get(`/check-runs/${checkId}`);
   if (
@@ -255,7 +259,10 @@ function review(
     Date.parse(value.completed_at) > Date.now() ||
     !isRecord(value.output) ||
     value.output.annotations_count !== 0 ||
-    value.output.title !== "Portcove independent release review v1" ||
+    value.output.title !==
+      (purpose === "application"
+        ? "Portcove independent release review v1"
+        : "Portcove independent catalog review v1") ||
     typeof value.output.summary !== "string" ||
     value.output.summary.length > 64 * 1024 ||
     (value.output.text != null && value.output.text !== "")
@@ -264,14 +271,29 @@ function review(
       "independent semantic review is missing, incomplete or from another producer/input",
     );
   const report: unknown = JSON.parse(value.output.summary);
-  exact(report, "opportunity,opportunity_sha256,review,schema_version");
-  const evidence = inspectSemanticReviewEvidence(report.review);
+  exact(
+    report,
+    purpose === "application"
+      ? "opportunity,opportunity_sha256,review,schema_version"
+      : "opportunity,opportunity_sha256,purpose,review,schema_version",
+  );
+  const evidence = inspectSemanticReviewEvidence(report.review, purpose);
   if (evidence.completed_at !== value.completed_at)
     throw new Error("semantic review completion identity differs");
   if (
-    report.schema_version !== 2 ||
-    report.opportunity_sha256 !== releaseOpportunityDigest(opportunity) ||
-    canonical(validateOpportunity(report.opportunity)) !== canonical(opportunity)
+    report.schema_version !== (purpose === "application" ? 2 : 3) ||
+    (purpose === "catalog-publication" &&
+      (report.purpose !== purpose ||
+        value.external_id !== `portcove-catalog-review-v1:${capacityDigest(opportunity)}`)) ||
+    report.opportunity_sha256 !==
+      (purpose === "application"
+        ? releaseOpportunityDigest(opportunity)
+        : capacityDigest(opportunity)) ||
+    canonical(
+      purpose === "application"
+        ? validateOpportunity(report.opportunity)
+        : inspectCatalogSemanticOpportunity(report.opportunity),
+    ) !== canonical(opportunity)
   )
     throw new Error("independent review does not bind the complete exact opportunity");
   return canonical({
@@ -303,6 +325,24 @@ export function readIndependentSemanticReview(
   const config = configuration(rawConfig);
   const opportunity = validateOpportunity(rawOpportunity);
   return review(session(api).get, checkId, config, opportunity);
+}
+
+/** Same independent issuer transport; distinct catalog purpose. No application
+ * classification persistence, reservation or accepted catalog state is created. */
+export function readIndependentCatalogSemanticReview(
+  api: CoordinatorRemoteApi,
+  rawConfig: unknown,
+  rawOpportunity: unknown,
+  checkId: number,
+) {
+  numeric(checkId);
+  return review(
+    session(api).get,
+    checkId,
+    configuration(rawConfig),
+    inspectCatalogSemanticOpportunity(rawOpportunity),
+    "catalog-publication",
+  );
 }
 
 /** Persistence adapter, not a classifier or execution grant. An admitted fixed

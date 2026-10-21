@@ -5,7 +5,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { prepareFixedControllerConfiguration } from "./release-controller-configuration.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import {
+  requireControllerReleaseAuthorities,
+  requireControllerCatalogPublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import { inspectControllerExecutionPurpose } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
@@ -25,7 +29,11 @@ function operation(raw: unknown) {
     raw !== "tuf-preview" &&
     raw !== "tuf-stable" &&
     raw !== "tuf-snapshot" &&
-    raw !== "tuf-timestamp"
+    raw !== "tuf-timestamp" &&
+    raw !== "catalog-definitions" &&
+    raw !== "catalog-policy" &&
+    raw !== "catalog-snapshot" &&
+    raw !== "catalog-timestamp"
   )
     throw new Error("fixed complete-controller job required");
   return raw;
@@ -41,13 +49,22 @@ function configPath(role: ReturnType<typeof operation>) {
   return path.join(temporary(), `controller-${role}.json`);
 }
 async function authority(role: ReturnType<typeof operation>) {
-  return requireControllerReleaseAuthorities(role === "building" ? "admission" : role);
+  return (
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+      ? requireControllerCatalogPublicationAuthorities
+      : requireControllerReleaseAuthorities
+  )(role === "building" ? "admission" : role);
 }
 export async function configureFixedControllerJob(rawRole: unknown) {
   const role = operation(rawRole),
     selected = await authority(role);
   const rawNeeds = process.env.PORTCOVE_FIXED_NEEDS,
-    rawAdmission = process.env.PORTCOVE_COORDINATOR_CONFIGURATION;
+    rawAdmission =
+      inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+        ? JSON.stringify({ namespace: selected.namespace })
+        : process.env.PORTCOVE_COORDINATOR_CONFIGURATION;
   if (
     !rawNeeds ||
     Buffer.byteLength(rawNeeds) > 256 * 1024 ||
@@ -70,6 +87,7 @@ export async function configureFixedControllerJob(rawRole: unknown) {
     throw new Error("fixed tool tree output unavailable");
   const configuration = prepareFixedControllerConfiguration({
     operation: role,
+    publication_purpose: inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE),
     fixed: {
       controller_revision: commit,
       source_tree: needs.tool_bootstrap.outputs.source_tree,
@@ -120,10 +138,22 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
       privateRoot,
       phaseDeadline ?? performance.now() + 570000,
     );
+  else if (role.startsWith("catalog-"))
+    result = await (
+      await import("./release-catalog-signing.mts")
+    ).runFixedCatalogRoleConfiguration(configuration, privateRoot, phaseDeadline);
   else if (role.startsWith("tuf-"))
     result = await (
       await import("./release-tuf-controller.mts")
     ).runFixedTufRoleConfiguration(configuration, privateRoot, phaseDeadline);
+  else if (
+    role === "site-publication" &&
+    inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+  )
+    result = await (
+      await import("./release-catalog-site-controller.mts")
+    ).runFixedCatalogSiteConfiguration(configuration, privateRoot, phaseDeadline);
   else if (role === "site-publication")
     result = await (
       await import("./release-site-controller.mts")
@@ -135,20 +165,31 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
   else {
     if (!isRecord(configuration)) throw new Error("fixed coordinator configuration unavailable");
     const work = path.join(root, "work");
+    // Both named factories require an existing private parent. Create it only
+    // once inside the verified fresh tool root; EEXIST also refuses links.
     await mkdir(work, { mode: 0o700 });
-    const driver = await import("./release-coordinator-driver.mts");
-    // The fixed same-bundle factory is supplied by the genuine bootstrap join.
-    const entry: unknown = driver;
-    if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
-      throw new Error("same-bundle coordinator factory unavailable");
-    const worker = entry as {
-      runFixedCoordinatorConfiguration(
-        raw: unknown,
-        parent: string,
-        deadline?: number,
-      ): Promise<unknown>;
-    };
-    result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+    if (
+      inspectControllerExecutionPurpose(process.env.PORTCOVE_EXECUTION_PURPOSE) ===
+      "catalog-publication"
+    ) {
+      result = await (
+        await import("./release-catalog-coordinator.mts")
+      ).runFixedCatalogCoordinatorConfiguration(configuration, work, phaseDeadline);
+    } else {
+      const driver = await import("./release-coordinator-driver.mts");
+      // The fixed same-bundle factory is supplied by the genuine bootstrap join.
+      const entry: unknown = driver;
+      if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
+        throw new Error("same-bundle coordinator factory unavailable");
+      const worker = entry as {
+        runFixedCoordinatorConfiguration(
+          raw: unknown,
+          parent: string,
+          deadline?: number,
+        ): Promise<unknown>;
+      };
+      result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
+    }
   }
 
   if (!isRecord(result) || typeof result.decision !== "string")
@@ -165,8 +206,13 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
         : role === "release-publication"
           ? result.decision === "immutable-release-and-result-prepared"
           : role === "site-publication"
-            ? ["site-published", "metadata-site-published"].includes(result.decision)
-            : result.decision === "role-output-prepared");
+            ? ["site-published", "metadata-site-published", "catalog-site-published"].includes(
+                result.decision,
+              )
+            : result.decision ===
+              (role.startsWith("catalog-")
+                ? "catalog-role-output-prepared"
+                : "role-output-prepared"));
   await writeFile(
     path.join(privateRoot, `controller-${role}-result.json`),
     JSON.stringify(result),
@@ -184,7 +230,10 @@ export function fixedControllerResultAttestation(rawRole: unknown, raw: unknown)
   if (role === "building" || role === "site-publication") return null;
   const contextType = "https://portcove.dev/attestations/release-signing-context/v1";
   if (role === "coordinator") {
-    if (raw.decision !== "metadata-context-prepared" || raw.attestation_required === false)
+    if (
+      !["metadata-context-prepared", "catalog-context-prepared"].includes(String(raw.decision)) ||
+      raw.attestation_required === false
+    )
       return null;
     if (
       typeof raw.subject_path !== "string" ||
@@ -198,10 +247,13 @@ export function fixedControllerResultAttestation(rawRole: unknown, raw: unknown)
       predicate_type: contextType,
     };
   }
-  if (role.startsWith("tuf-")) {
-    const type = "https://portcove.dev/attestations/tuf-role-output/v1";
+  if (role.startsWith("tuf-") || role.startsWith("catalog-")) {
+    const type = role.startsWith("catalog-")
+      ? "https://portcove.dev/attestations/catalog-role-output/v1"
+      : "https://portcove.dev/attestations/tuf-role-output/v1";
     if (
-      raw.decision !== "role-output-prepared" ||
+      raw.decision !==
+        (role.startsWith("catalog-") ? "catalog-role-output-prepared" : "role-output-prepared") ||
       typeof raw.subject_path !== "string" ||
       typeof raw.predicate_path !== "string" ||
       raw.predicate_type !== type
@@ -251,7 +303,9 @@ export async function runConfiguredFixedControllerJob(rawRole: unknown, deadline
         role !== "site-publication" &&
         (role !== "coordinator" ||
           (isRecord(result) &&
-            result.decision === "metadata-context-prepared" &&
+            ["metadata-context-prepared", "catalog-context-prepared"].includes(
+              String(result.decision),
+            ) &&
             result.attestation_required !== false));
       const attestation = fixedControllerResultAttestation(role, result);
       if (attestation) {

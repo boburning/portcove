@@ -14,6 +14,8 @@ import {
   inspectPublishedSite,
   assertCatalogPublicationBaseline,
   validatePublishedSiteTransition,
+  currentApplicationSitePins,
+  applicationPublishedSiteCursor,
 } from "./release-catalog-metadata-contract.mts";
 
 const now = "2026-10-21T12:00:00.000Z";
@@ -58,6 +60,8 @@ function catalogAdvance() {
   };
   const catalog = inspectPublishedCatalogMetadata({
     ...facts(),
+    source_commit: descriptor.source_commit,
+    source_tree: descriptor.source_tree,
     operation_id: "3".repeat(64),
     publication,
   })!;
@@ -144,6 +148,23 @@ void test("catalog publication advances global cursor while preserving applicati
   assert.doesNotThrow(() => validatePublishedSiteTransition(f.before, f.after, f.operation));
   assert.equal(currentPublishedSite(f.after)!.generation_sha256, "2".repeat(64));
   assert.equal(f.after.published_metadata.publication.site_generation_sha256, "8".repeat(64));
+  assert.equal(
+    inspectPublishedCatalogMetadata(f.after.published_catalog_metadata)!.source_commit,
+    f.descriptor.source_commit,
+  );
+  for (const source of [{ source_commit: "a".repeat(40) }, { source_tree: "b".repeat(40) }])
+    assert.throws(
+      () =>
+        validatePublishedSiteTransition(
+          f.before,
+          {
+            ...f.after,
+            published_catalog_metadata: { ...f.catalog, ...source },
+          },
+          f.operation,
+        ),
+      /frozen Pages expectation/,
+    );
   const nextDescriptor = {
     ...f.descriptor,
     prior: {
@@ -229,6 +250,26 @@ void test("application advance uses global catalog generation and preserves cata
     },
   };
   const after = { ...f.after, published_metadata: application, published_site: site };
+  assert.deepEqual(currentApplicationSitePins(f.after), {
+    root_sha256: f.app.root_sha256,
+    repository_sha256: f.app.repository_sha256,
+    site_generation_sha256: f.after.published_site.generation_sha256,
+  });
+  assert.notEqual(
+    currentApplicationSitePins(f.after).site_generation_sha256,
+    f.app.publication.site_generation_sha256,
+  );
+  assert.deepEqual(applicationPublishedSiteCursor(f.after, application), site);
+  assert.deepEqual(f.after.published_metadata, f.app);
+  assert.throws(() =>
+    currentApplicationSitePins({
+      ...f.after,
+      published_metadata: {
+        ...f.app,
+        repository_sha256: "0".repeat(64),
+      },
+    }),
+  );
   const operation = {
     id: application.operation_id,
     kind: "upload",

@@ -6,9 +6,77 @@ import path from "node:path";
 import test from "node:test";
 import type { TestContext } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { receiveIsolatedRoleKey, supplyIsolatedRoleKey } from "./release-role-key-channel.mts";
+import {
+  receiveIsolatedRoleKey,
+  supplyIsolatedRoleKey,
+  isolatedRoleKeyEnvironment,
+} from "./release-role-key-channel.mts";
 
 const linux = process.platform === "linux";
+void test("catalog secret names are closed and disjoint from all application secret names", () => {
+  for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
+    assert.equal(
+      isolatedRoleKeyEnvironment(`catalog-${role}`),
+      `PORTCOVE_CATALOG_${role.toUpperCase()}_KEY`,
+    );
+    if (role === "snapshot" || role === "timestamp")
+      assert.notEqual(
+        isolatedRoleKeyEnvironment(role),
+        isolatedRoleKeyEnvironment(`catalog-${role}`),
+      );
+  }
+  for (const role of [
+    "catalog-releases",
+    "definitions",
+    "PORTCOVE_CATALOG_POLICY_KEY",
+    "catalog-policy-extra",
+  ])
+    assert.throws(() => isolatedRoleKeyEnvironment(role));
+});
+void test(
+  "actual catalog socket reads only the appointed key and rejects app cross-purpose before secret access",
+  { skip: !linux },
+  async (t) => {
+    let reads = 0,
+      calls = 0;
+    const env: NodeJS.ProcessEnv = {
+      get PORTCOVE_CATALOG_SNAPSHOT_KEY() {
+        reads++;
+        return "catalog-disposable";
+      },
+      get PORTCOVE_TUF_SNAPSHOT_KEY(): string {
+        throw new Error("app secret must not be accessed");
+      },
+    };
+    const wrong = await scratch(t),
+      refusing = receiveIsolatedRoleKey(wrong, "catalog-snapshot", Date.now() + 10000, async () => {
+        calls++;
+      }),
+      refused = assert.rejects(refusing);
+    await socketReady(wrong);
+    await assert.rejects(() => supplyIsolatedRoleKey(wrong, "snapshot", env));
+    await refused;
+    assert.equal(reads, 0);
+    assert.equal(calls, 0);
+    const directory = await scratch(t),
+      worker = receiveIsolatedRoleKey(
+        directory,
+        "catalog-snapshot",
+        Date.now() + 10000,
+        async (key, password) => {
+          calls++;
+          assert.equal(key, "catalog-disposable");
+          assert.equal(password, "");
+          return "catalog-result";
+        },
+      );
+    await socketReady(directory);
+    await supplyIsolatedRoleKey(directory, "catalog-snapshot", env);
+    assert.equal(await worker, "catalog-result");
+    assert.equal(reads, 1);
+    assert.equal(calls, 1);
+  },
+);
 async function socketReady(directory: string) {
   const deadline = Date.now() + 2000;
   for (;;) {

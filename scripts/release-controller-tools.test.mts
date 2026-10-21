@@ -23,6 +23,7 @@ import {
   controllerCompilerSourceAsset,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { slice4CapacityResources } from "./release-capacity.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,
@@ -1090,4 +1091,45 @@ void test("held bootstrap separates compilation from isolated attestation and ne
   assert.doesNotMatch(attester, /pnpm|cargo|checkout@/);
   assert.match(text, /retention-days: 7/);
   assert.match(text, /overwrite: false/);
+});
+
+void test("installed bootstrap clears inherited GitHub credentials only for compilation", async () => {
+  const text = await readFile(
+    new URL("../.github/workflows/application-update-production.yml", import.meta.url),
+    "utf8",
+  );
+  const document = parseDocument(text, { uniqueKeys: true });
+  assert.deepEqual(document.errors, []);
+  const raw: unknown = document.toJS();
+  assert.ok(isRecord(raw) && isRecord(raw.env) && isRecord(raw.jobs));
+  assert.equal(raw.env.GH_TOKEN, "${{ github.token }}");
+  assert.ok(isRecord(raw.jobs.tool_bootstrap) && Array.isArray(raw.jobs.tool_bootstrap.steps));
+  const steps: unknown[] = raw.jobs.tool_bootstrap.steps;
+  const build = steps.filter(
+    (step) =>
+      isRecord(step) && step.run === "node scripts/release-controller-tool-bootstrap.mts build",
+  );
+  assert.equal(build.length, 1);
+  assert.ok(isRecord(build[0]) && isRecord(build[0].env));
+  assert.equal(build[0].env.GH_TOKEN, "");
+  assert.equal(build[0].env.GITHUB_TOKEN, "");
+  const binding = steps.filter(
+    (step) =>
+      isRecord(step) &&
+      step.run === "node scripts/release-controller-tool-bootstrap.mts bind-upload",
+  );
+  assert.equal(binding.length, 1);
+  assert.ok(isRecord(binding[0]) && isRecord(binding[0].env));
+  assert.equal(binding[0].env.GH_TOKEN, "${{ github.token }}");
+  assert.equal(document.getIn(["jobs", "tool_bootstrap", "timeout-minutes"]), 4);
+  const workflowSha = createHash("sha256").update(text).digest("hex");
+  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
+  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
+  assert.equal(
+    await readFile(
+      new URL("../docs/qualification/application-update-production.complete.yml", import.meta.url),
+      "utf8",
+    ),
+    text,
+  );
 });

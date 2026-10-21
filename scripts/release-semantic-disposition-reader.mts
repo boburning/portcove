@@ -1,3 +1,6 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { inspectNegativeCatalogSemanticDisposition } from "./release-semantic-disposition.mts";
+import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
 import { performance } from "node:perf_hooks";
 import { capacityDigest } from "./release-capacity.mts";
 import { inspectReviewProducerConfiguration } from "./release-control-inputs.mts";
@@ -16,14 +19,17 @@ import { isRecord } from "./runtime-values.mts";
  * therefore never brands its output as direct runtime/provider authority.
  * The fixed coordinator must independently authenticate its current control
  * source and producer configuration before consuming any retirement receipt. */
-export function readIndependentSemanticDisposition(
+function readDisposition(
   api: GitHubRestReader,
   rawConfiguration: unknown,
   rawRequest: unknown,
   checkId: number,
+  catalog: boolean,
 ) {
   const config = inspectReviewProducerConfiguration(structuredClone(rawConfiguration));
-  const request = inspectReleaseReviewRequest(rawRequest);
+  const request = catalog
+    ? inspectCatalogReviewRequest(rawRequest)
+    : inspectReleaseReviewRequest(rawRequest);
   if (
     !request ||
     config.review_check_name !== semanticReviewCheckName ||
@@ -66,7 +72,8 @@ export function readIndependentSemanticDisposition(
       !isRecord(value.app) ||
       value.app.id !== config.review_app_id ||
       value.name !== semanticReviewCheckName ||
-      value.head_sha !== request.source_commit ||
+      value.head_sha !==
+        ("opportunity" in request ? request.opportunity.source_commit : request.source_commit) ||
       value.status !== "completed" ||
       value.conclusion !== "failure" ||
       typeof value.completed_at !== "string" ||
@@ -74,7 +81,10 @@ export function readIndependentSemanticDisposition(
       Date.parse(value.completed_at) > Date.now() ||
       !isRecord(value.output) ||
       value.output.annotations_count !== 0 ||
-      value.output.title !== "Portcove independent release review disposition v1" ||
+      value.output.title !==
+        (catalog
+          ? "Portcove independent catalog review disposition v1"
+          : "Portcove independent release review disposition v1") ||
       typeof value.output.summary !== "string" ||
       Buffer.byteLength(value.output.summary) > 64 * 1024 ||
       (value.output.text != null && value.output.text !== "")
@@ -82,12 +92,15 @@ export function readIndependentSemanticDisposition(
       throw new Error(
         "independent negative semantic Check is incomplete or from another producer/input",
       );
-    const wire = inspectNegativeSemanticDisposition(JSON.parse(value.output.summary));
+    const wire = (
+      catalog ? inspectNegativeCatalogSemanticDisposition : inspectNegativeSemanticDisposition
+    )(JSON.parse(value.output.summary));
     const wire_sha256 = capacityDigest(wire);
     if (
       capacityDigest(wire.request) !== capacityDigest(request) ||
       value.completed_at !== wire.review.completed_at ||
-      value.external_id !== `portcove-release-review-negative-v1:${wire_sha256}`
+      value.external_id !==
+        `${catalog ? "portcove-catalog-review-negative-v1" : "portcove-release-review-negative-v1"}:${wire_sha256}`
     )
       throw new Error("negative semantic Check does not bind exact request/report/completion");
     const observed = {
@@ -124,6 +137,24 @@ export function readIndependentSemanticDisposition(
     ...first,
     authority: "none" as const,
   };
+}
+
+export function readIndependentSemanticDisposition(
+  api: GitHubRestReader,
+  config: unknown,
+  request: unknown,
+  checkId: number,
+) {
+  const result = readDisposition(api, config, request, checkId, false);
+  return { ...result, wire: inspectNegativeSemanticDisposition(result.wire) };
+}
+export function readIndependentCatalogSemanticDisposition(
+  api: GitHubRestReader,
+  config: unknown,
+  request: unknown,
+  checkId: number,
+) {
+  return readDisposition(api, config, request, checkId, true);
 }
 
 /** Discover a lost/unreturned Check locator without asking a human or trusting
@@ -319,6 +350,12 @@ export function inspectSemanticRequestCheckMatches(
     )
       throw new Error("semantic request Check report incomplete");
     const summary: unknown = JSON.parse(value.output.summary);
+    if (
+      isRecord(summary) &&
+      (summary.kind === "catalog-publication-semantic-disposition" ||
+        (summary.schema_version === 3 && summary.purpose === "catalog-publication"))
+    )
+      continue;
     if (value.conclusion === "failure") {
       const wire = inspectNegativeSemanticDisposition(summary);
       if (
@@ -443,4 +480,132 @@ export function createReleaseReviewDispositionReceipt(
     transient_retries: previous?.transient_retries ?? 0,
     substantive_repairs: previous?.substantive_repairs ?? 0,
   })!;
+}
+
+/** Complete selected-App inventory projection only; caller authenticates producer and fresh detail. */
+export function inspectCatalogSemanticRequestCheckMatches(
+  records: readonly Record<string, unknown>[],
+  rawRequest: unknown,
+) {
+  const request = inspectCatalogReviewRequest(rawRequest);
+  if (!request) throw new Error("catalog Check selection requires exact neutral request");
+  const accepted: {
+      check_run_id: number;
+      opportunity: ReturnType<typeof inspectCatalogSemanticOpportunity>;
+    }[] = [],
+    negative: number[] = [];
+  for (const value of records) {
+    if (
+      value.status !== "completed" ||
+      (value.conclusion !== "success" && value.conclusion !== "failure")
+    )
+      continue;
+    if (
+      !Number.isSafeInteger(value.id) ||
+      Number(value.id) < 1 ||
+      !isRecord(value.output) ||
+      typeof value.output.summary !== "string" ||
+      Buffer.byteLength(value.output.summary) > 64 * 1024 ||
+      value.output.annotations_count !== 0 ||
+      (value.output.text != null && value.output.text !== "")
+    )
+      throw new Error("catalog Check report incomplete");
+    const summary: unknown = JSON.parse(value.output.summary);
+    // The selected App may have unrelated app-purpose reports on the same commit.
+    if (!isRecord(summary)) throw new Error("catalog Check report schema differs");
+    if (value.conclusion === "failure") {
+      if (summary.kind !== "catalog-publication-semantic-disposition") continue;
+      const wire = inspectNegativeCatalogSemanticDisposition(summary);
+      if (capacityDigest(wire.request) !== capacityDigest(request)) continue;
+      if (
+        value.output.title !== "Portcove independent catalog review disposition v1" ||
+        value.completed_at !== wire.review.completed_at ||
+        value.external_id !== `portcove-catalog-review-negative-v1:${capacityDigest(wire)}`
+      )
+        throw new Error("catalog negative Check identity differs");
+      negative.push(Number(value.id));
+    } else {
+      if (summary.schema_version !== 3 || summary.purpose !== "catalog-publication") continue;
+      if (
+        Object.keys(summary).sort().join(",") !==
+        "opportunity,opportunity_sha256,purpose,review,schema_version"
+      )
+        throw new Error("catalog accepted Check schema differs");
+      const opportunity = inspectCatalogSemanticOpportunity(summary.opportunity),
+        review = inspectSemanticReviewEvidence(summary.review, "catalog-publication");
+      if (
+        summary.opportunity_sha256 !== capacityDigest(opportunity) ||
+        value.completed_at !== review.completed_at ||
+        value.output.title !== "Portcove independent catalog review v1" ||
+        value.external_id !== `portcove-catalog-review-v1:${capacityDigest(opportunity)}`
+      )
+        throw new Error("catalog accepted Check identity differs");
+      if (capacityDigest(opportunity) === capacityDigest(request.opportunity))
+        accepted.push({ check_run_id: Number(value.id), opportunity });
+    }
+  }
+  if (accepted.length > 1 || negative.length > 1 || (accepted.length && negative.length))
+    throw new Error("catalog Check outcomes duplicate or conflict");
+  return { accepted, negative, authority: "none" as const };
+}
+export function discoverIndependentCatalogSemanticDisposition(
+  api: GitHubRestReader,
+  config: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectCatalogReviewRequest(rawRequest);
+  if (!request) throw new Error("catalog negative discovery requires request");
+  const inventory = readIndependentSemanticCheckInventory(
+      api,
+      config,
+      request.opportunity.source_commit,
+    ),
+    matches = inspectCatalogSemanticRequestCheckMatches(inventory.records, request);
+  if (matches.negative.length !== 1 || matches.accepted.length !== 0)
+    throw new Error("catalog negative absent or ambiguous; no POST");
+  const result = readIndependentCatalogSemanticDisposition(
+    api,
+    config,
+    request,
+    matches.negative[0]!,
+  );
+  inventory.assertUnchanged();
+  return result;
+}
+
+/** Inert compact custody only. The fixed controller must use a fresh selected-App
+ * reader result; this serializer cannot authenticate an imported receipt. */
+export function createCatalogReviewDispositionReceipt(
+  observed: ReturnType<typeof readIndependentCatalogSemanticDisposition>,
+  requestCheckpoint: string,
+) {
+  const wire = inspectNegativeCatalogSemanticDisposition(observed.wire);
+  if (
+    !/^[a-f0-9]{40}$/u.test(requestCheckpoint) ||
+    capacityDigest(wire) !== observed.wire_sha256 ||
+    !Number.isSafeInteger(observed.check_run_id) ||
+    observed.check_run_id < 1 ||
+    !Number.isSafeInteger(observed.review_app_id) ||
+    observed.review_app_id < 1
+  )
+    throw new Error("catalog disposition observed identity differs");
+  return {
+    schema_version: 1 as const,
+    kind: "catalog-publication-semantic-disposition-receipt" as const,
+    request: wire.request,
+    request_checkpoint: requestCheckpoint,
+    check_run_id: observed.check_run_id,
+    review_app_id: observed.review_app_id,
+    stage: wire.stage,
+    disposition: wire.disposition,
+    wire_sha256: observed.wire_sha256,
+    opportunity_sha256: wire.opportunity_sha256,
+    bundle_sha256: wire.bundle_sha256,
+    invocation_sha256: wire.invocation_sha256,
+    events_sha256: wire.events_sha256,
+    isolation_sha256: wire.isolation_sha256,
+    report_sha256: wire.review.report_sha256,
+    session_ref: wire.review.session_ref,
+    completed_at: wire.review.completed_at,
+  };
 }

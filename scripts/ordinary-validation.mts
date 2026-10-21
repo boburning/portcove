@@ -308,11 +308,39 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "release-coordinator-namespace",
   ].map((name): [string, string[]] => [
     `scripts/${name}.mts`,
-    ["scripts/release-tuf-controller.test.mts", "scripts/release-controller-tools.test.mts"],
+    [
+      "scripts/release-tuf-controller.test.mts",
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ]),
   [
     ".github/actions/release-controller-job/action.yml",
-    ["scripts/release-controller-tools.test.mts"],
+    [
+      "scripts/release-controller-tools.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ],
+  ...[
+    "release-control-phases",
+    "release-input-protections",
+    "release-control-ready",
+    "release-reviewed-inputs",
+    "release-controller-tool-bootstrap",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    [
+      "scripts/release-control-inputs.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ]),
+  [
+    "scripts/production-controller-admission.mts",
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   ["scripts/read-native-wsl-host.ps1", ["scripts/release-native-wsl-boundary.test.mts"]],
   [
@@ -445,6 +473,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
     ],
   ],
   [
@@ -484,6 +513,52 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-site-composer.test.mts", "scripts/release-site-readback.test.mts"],
   ],
   ["scripts/release-catalog-inspection.mts", ["scripts/release-catalog-inspection.test.mts"]],
+  ["scripts/release-catalog-semantic.mts", ["scripts/release-catalog-semantic.test.mts"]],
+  [
+    "scripts/release-catalog-signing.mts",
+    [
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-catalog-recovery.test.mts",
+      "scripts/release-catalog-context-boundary.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-catalog-signing-context.mts",
+    [
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-catalog-context-boundary.test.mts",
+    ],
+  ],
+  ["scripts/release-catalog-signing-contract.mts", ["scripts/release-catalog-signing.test.mts"]],
+  [
+    "scripts/release-catalog-source.mts",
+    ["scripts/release-catalog-source.test.mts", "scripts/release-catalog-coordinator.test.mts"],
+  ],
+  [
+    "scripts/release-catalog-review-request.mts",
+    [
+      "scripts/release-catalog-review-maintenance.test.mts",
+      "scripts/release-catalog-review-request.test.mts",
+      "scripts/release-catalog-review-disposition.test.mts",
+      "scripts/release-catalog-coordinator.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-catalog-review-disposition.mts",
+    [
+      "scripts/release-catalog-review-disposition.test.mts",
+      "scripts/release-catalog-coordinator.test.mts",
+    ],
+  ],
+  ["scripts/release-catalog-coordinator.mts", ["scripts/release-catalog-coordinator.test.mts"]],
+  [
+    "scripts/release-catalog-recovery.mts",
+    ["scripts/release-catalog-continuation.test.mts", "scripts/release-catalog-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-catalog-site-controller.mts",
+    ["scripts/release-catalog-site-controller.test.mts"],
+  ],
   [
     "scripts/release-catalog-publication-contract.mts",
     ["scripts/release-capacity-operation.test.mts"],
@@ -696,7 +771,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-native-publication-admission.mts",
     ["scripts/release-native-admission.test.mts"],
   ],
-  ["scripts/release-controller-wake.mts", ["scripts/release-controller-wake.test.mts"]],
+  [
+    "scripts/release-controller-wake.mts",
+    [
+      "scripts/release-catalog-review-maintenance.test.mts",
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ],
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
@@ -711,6 +793,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
     ],
   ],
   ...["fuse", "services"].flatMap((name): [string, string[]][] => [
@@ -1065,17 +1148,43 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/ordinary-validation.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts"],
   ],
+  [
+    "scripts/release-capacity-operation.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  [
+    "scripts/release-coordinator-state.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  ["scripts/release-coordinator.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
+  [
+    "scripts/release-metadata-contract.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  [
+    "scripts/release-semantic-worker-recovery.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
 ]);
 
 const workflowTests = new Map([
   ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
   [
     "application-update-production.yml",
-    ["scripts/production-controller-admission.test.mts", "scripts/release-production-dag.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-production-dag.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   [
     "application-update-wake.yml",
-    ["scripts/release-controller-wake.test.mts", "scripts/release-production-dag.test.mts"],
+    [
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-production-dag.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
   ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],

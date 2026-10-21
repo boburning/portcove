@@ -264,11 +264,11 @@ export async function runTufRoleController(
       await requireRetainedSigningContext(contextReceipt, deadline);
       for (const dependency of capturedDependencies)
         await requireRetainedTufRoleArtifact(dependency, deadline);
-      await fresh();
       const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
         transport: { cwd: directory, deadline },
       });
       await reservation(snapshot);
+      await fresh();
       active();
     };
     await guard();

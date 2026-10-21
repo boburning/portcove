@@ -3,6 +3,7 @@
 import path from "node:path";
 import { mkdtemp, open, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -29,10 +30,13 @@ import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   materializePublishedCompleteSite,
   requirePublishedCompleteSite,
+  materializePublishedCatalogCompleteSite,
+  requirePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
 import {
   prepareSiteDeploymentFromActualTufPublication,
   prepareInitialSiteDeploymentFromActualTufPublication,
+  prepareInitialApplicationOverCatalogSiteDeployment,
   verifyPriorPublicSite,
   verifyUploadedSiteArchive,
   publishPreparedSiteDeployment,
@@ -186,6 +190,18 @@ export async function runMetadataSitePublicationController(
           typeof pins.site_generation_sha256 !== "string")
       )
         throw new Error("metadata prior differs from protected public root");
+      const catalogPrior =
+        bootstrap && pins
+          ? await materializePublishedCatalogCompleteSite(
+              {
+                root_sha256: String(pins.root_sha256),
+                repository_sha256: String(pins.repository_sha256),
+                site_generation_sha256: String(pins.site_generation_sha256),
+              },
+              directory,
+              deadline,
+            )
+          : null;
       const prior = bootstrap
         ? null
         : await materializePublishedCompleteSite(
@@ -197,8 +213,14 @@ export async function runMetadataSitePublicationController(
             directory,
             deadline,
           );
-      const prepared =
-        prior === null
+      const prepared = catalogPrior
+        ? await prepareInitialApplicationOverCatalogSiteDeployment(
+            actualTufReceipt,
+            catalogPrior.receipt,
+            directory,
+            deadline,
+          )
+        : prior === null
           ? await prepareInitialSiteDeploymentFromActualTufPublication(
               actualTufReceipt,
               directory,
@@ -235,6 +257,7 @@ export async function runMetadataSitePublicationController(
         if (++round > 5) throw new Error("metadata site control-round limit exhausted");
         await requireRetainedActualTufPublication(actualTufReceipt, deadline);
         if (prior) await requirePublishedCompleteSite(prior.receipt);
+        if (catalogPrior) await requirePublishedCatalogCompleteSite(catalogPrior.receipt);
         const source = await authenticateReleaseControlRound(
           path.join(directory, `controls-r${round}`),
           digest({ descriptor: selected.descriptor, generation: prepared.generation.generation }),
@@ -367,6 +390,8 @@ export async function runMetadataSitePublicationController(
         !published ||
         published.operation_id !== result.operation_id ||
         published.publication.site_generation_sha256 !== prepared.generation.generation ||
+        currentPublishedSite(completed.input)?.generation_sha256 !==
+          prepared.generation.generation ||
         published.repository_sha256 !== tuf.publication.repository_sha256 ||
         published.records_sha256 !== tuf.publication.records_sha256
       )

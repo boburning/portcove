@@ -663,7 +663,12 @@ void test("initial context archive is exactly six public inputs with explicit em
     descriptor_sha256: digest(descriptor),
     records_sha256: digest([]),
   };
-  const archive = (source = files, prior: unknown = null) => {
+  const archive = (
+    source = files,
+    prior: unknown = null,
+    boundFacts: unknown = facts,
+    boundBinding: unknown = binding,
+  ) => {
     const ordered = [...source].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
     const manifest = {
       schema_version: 1,
@@ -676,11 +681,11 @@ void test("initial context archive is exactly six public inputs with explicit em
         run_id: "123",
         run_attempt: 1,
       },
-      facts,
-      binding,
+      facts: boundFacts,
+      binding: boundBinding,
       control_facts: { fixture: true },
       previous_site_pins: prior,
-      facts_sha256: digest(facts),
+      facts_sha256: digest(boundFacts),
       files: ordered.map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: hash(bytes) })),
     };
     return createAuditZip([
@@ -701,6 +706,47 @@ void test("initial context archive is exactly six public inputs with explicit em
         }),
       ),
     /prior/,
+  );
+  const catalogPins = {
+    kind: "catalog-only",
+    root_sha256: "3".repeat(64),
+    repository_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  const initialSitePreimage = JSON.stringify({
+    kind: "catalog-only-application-site-preimage",
+    pins: catalogPins,
+  });
+  const catalogFacts = {
+    ...facts,
+    previous_site_pins: catalogPins,
+    initial_site_preimage: initialSitePreimage,
+    catalog_readback_sha256: "a".repeat(64),
+    descriptor: {
+      ...descriptor,
+      initial_site_preimage_sha256: hash(Buffer.from(initialSitePreimage)),
+    },
+  };
+  const catalogContext = inspectSigningContextArchive(
+    archive(
+      new Map([
+        ...files,
+        ["initial-bootstrap.json", Buffer.from(JSON.stringify(catalogFacts.descriptor))],
+      ]),
+      catalogPins,
+      catalogFacts,
+      { ...binding, descriptor_sha256: digest(catalogFacts.descriptor) },
+    ),
+  );
+  assert.deepEqual(catalogContext.manifest.previous_site_pins, catalogPins);
+  assert.equal(catalogContext.files.size, 6);
+  assert.throws(() =>
+    inspectSigningContextArchive(
+      archive(files, catalogPins, {
+        ...facts,
+        previous_site_pins: { ...catalogPins, root_sha256: "6".repeat(64) },
+      }),
+    ),
   );
   for (const [name, bytes] of [
     ["prior/repository-manifest.json", Buffer.from("{}")],

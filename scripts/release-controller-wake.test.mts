@@ -388,7 +388,19 @@ void test("fixed wake starts from a builtin-only source graph and retains intent
   );
   assert.doesNotMatch(workflow, /pnpm install|npm install|^\s+cache:|^\s+actions: write/mu);
   assert.match(workflow, /permission-actions: write/u);
-  assert.match(workflow, /if: \$\{\{ vars\.PORTCOVE_CONTROLLER_WAKE != '' \}\}/u);
+  assert.match(
+    workflow,
+    /if: \$\{\{ vars\.PORTCOVE_CONTROLLER_WAKE != '' \|\| vars\.PORTCOVE_CATALOG_CONTROLLER_WAKE != '' \}\}/u,
+  );
+  assert.match(workflow, /app-id: \$\{\{ steps\.prepare\.outputs\.dispatch_app_id \}\}/u);
+  assert.match(
+    workflow,
+    /PORTCOVE_EXPECTED_INSTALLATION_ID: \$\{\{ steps\.prepare\.outputs\.dispatch_installation_id \}\}/u,
+  );
+  assert.match(
+    workflow,
+    /\(steps\.prepare\.outputs\.publication_purpose == 'catalog-publication' && secrets\.PORTCOVE_CATALOG_DISPATCH_APP_PRIVATE_KEY\) \|\| \(steps\.prepare\.outputs\.publication_purpose == 'application' && secrets\.PORTCOVE_DISPATCH_APP_PRIVATE_KEY\)/u,
+  );
 });
 void test("manual, rerun, foreign, injected policy and unprotected wake refuse before reads or effects", async () => {
   for (const change of [

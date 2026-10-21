@@ -1,3 +1,5 @@
+import { validateCatalogReviewRecoveryTransition } from "./release-catalog-review-disposition.mts";
+import { validateCatalogReviewRequestTransition } from "./release-catalog-review-request.mts";
 import { validatePublicationReportRepairTransition } from "./release-report-repair-contract.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
@@ -214,7 +216,10 @@ function readCheckpoint(git: Git, commit: string) {
   const checked = checkedInput(state.input);
   if (
     state.previous === null &&
-    (checked.input.review_request != null || checked.input.review_disposition != null)
+    (checked.input.review_request != null ||
+      checked.input.review_disposition != null ||
+      checked.input.catalog_review_request != null ||
+      checked.input.catalog_review_disposition != null)
   )
     throw new Error("initial coordinator cannot invent a frozen review request");
   return { previous: state.previous, ...checked };
@@ -284,6 +289,8 @@ function transition(
 ) {
   validateCapacityTransition(previous.input, next, checkpoint);
   validateReleaseReviewRequestTransition(previous.input, next, checkpoint);
+  if (!validateCatalogReviewRecoveryTransition(previous.input, next, checkpoint))
+    validateCatalogReviewRequestTransition(previous.input, next, checkpoint);
   const old = active(previous.input);
   const candidate = active(next);
   validateCandidateStageTransition(old, candidate, checkpoint);
@@ -499,7 +506,12 @@ export async function checkpointReleaseOpportunity(
   if (previous) transition(previous, input, expectedPrevious!);
   else if (active(input))
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
-  else if (input.review_request != null || input.review_disposition != null)
+  else if (
+    input.review_request != null ||
+    input.review_disposition != null ||
+    input.catalog_review_request != null ||
+    input.catalog_review_disposition != null
+  )
     throw new Error("first coordinator checkpoint cannot invent a frozen review request");
   else if (input.published_catalog_metadata != null || input.published_site != null)
     throw new Error(

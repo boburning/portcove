@@ -2,6 +2,10 @@
  * appoint a publisher: actual context, five role receipts, immutable result,
  * current controls and executor identity all remain independently required. */
 import path from "node:path";
+import {
+  currentApplicationSitePins,
+  currentPublishedSite,
+} from "./release-catalog-metadata-contract.mts";
 import { mkdtemp, open, writeFile, appendFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
@@ -320,27 +324,20 @@ export async function runSitePublicationController(
         publication.context.manifest.facts,
       );
       const published = inspectPublishedMetadata(recovered.input.published_metadata);
+      const currentPins = currentApplicationSitePins(recovered.input);
       const pins = publication.context.manifest.previous_site_pins;
       if (
         !published ||
         typeof published.repository_sha256 !== "string" ||
-        typeof published.publication.site_generation_sha256 !== "string" ||
+        typeof currentPins.site_generation_sha256 !== "string" ||
         !isRecord(pins) ||
         published.root_sha256 !== authorities.publication.public_source.root.sha256 ||
         published.repository_sha256 !== pins.repository_sha256 ||
         published.root_sha256 !== pins.root_sha256 ||
-        published.publication.site_generation_sha256 !== pins.site_generation_sha256
+        currentPins.site_generation_sha256 !== pins.site_generation_sha256
       )
         throw new Error("current published seed differs from original signed prior");
-      const prior = await materializePublishedCompleteSite(
-        {
-          repository_sha256: published.repository_sha256,
-          root_sha256: published.root_sha256,
-          site_generation_sha256: published.publication.site_generation_sha256,
-        },
-        directory,
-        deadline,
-      );
+      const prior = await materializePublishedCompleteSite(currentPins, directory, deadline);
       const prepared = await prepareSiteDeploymentFromActualTufPublication(
         actualTufReceipt,
         prior.receipt,
@@ -540,6 +537,8 @@ export async function runSitePublicationController(
         !completedMetadata ||
         completedMetadata.operation_id !== result.operation_id ||
         completedMetadata.publication.site_generation_sha256 !== prepared.generation.generation ||
+        currentPublishedSite(completionSnapshot.input)?.generation_sha256 !==
+          prepared.generation.generation ||
         completedMetadata.repository_sha256 !== tuf.publication.repository_sha256 ||
         completedMetadata.records_sha256 !== tuf.publication.records_sha256
       )

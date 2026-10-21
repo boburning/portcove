@@ -1,8 +1,10 @@
+import { refreezeCatalogReviewAfterApplicationMetadata } from "./release-catalog-review-request.mts";
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
   inspectPublishedCatalogMetadata,
   inspectPublishedSite,
   assertCatalogPublicationBaseline,
+  applicationPublishedSiteCursor,
 } from "./release-catalog-metadata-contract.mts";
 import {
   inspectCatalogPublicationDescriptor,
@@ -86,6 +88,9 @@ type PendingEffect = {
   checkpoint: string;
   operation: NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 };
+/** Integrity-only observation of the exact intent just durably published by
+ * this invocation. Actual executor custody is added only by its private wrapper. */
+export type CapacityBoundaryReader = (pending?: Readonly<PendingEffect>) => Promise<unknown>;
 type Effect = (
   recordCompleted: (remoteIdentity: string, evidenceSha256: string) => Promise<void>,
   pending: PendingEffect,
@@ -100,7 +105,7 @@ export async function runBoundedCapacityOperation(
   repository: string,
   expected: string,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions = {},
 ) {
@@ -111,7 +116,7 @@ export async function runBoundedMetadataRenewalOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -126,7 +131,7 @@ export async function runBoundedMetadataBootstrapOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -141,7 +146,7 @@ export async function runBoundedCatalogPublicationOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -160,7 +165,7 @@ async function runOperation(
   repository: string,
   expected: string,
   rawRequest: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: InternalOptions = {},
 ) {
@@ -495,7 +500,12 @@ async function runOperation(
     await publish();
     const fresh = assessBoundedCapacity({
       ...capacity,
-      boundary: structuredClone(await readBoundary()),
+      boundary: structuredClone(
+        await readBoundary({
+          checkpoint: current,
+          operation: structuredClone(inspectCapacityOperation(operation)!),
+        }),
+      ),
       operation: ready.operation,
     });
     if (fresh.eligibility !== "eligible")
@@ -677,6 +687,25 @@ export async function recordPublishedCatalogMetadata(
 ) {
   return recordPublishedComponent(repository, expected, "catalog", raw, site, options);
 }
+/** Actual application Pages callers use this atomic metadata+cursor handoff;
+ * recordPublishedMetadata remains the historical app-only setup/import seam. */
+export async function recordPublishedApplicationSiteMetadata(
+  repository: string,
+  expected: string,
+  raw: unknown,
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  const published = inspectPublishedMetadata(structuredClone(raw));
+  if (!published) throw new Error("actual application publication absent");
+  const current = await recoverReleaseOpportunity(repository, expected);
+  const site = applicationPublishedSiteCursor(current.input, published);
+  return recordPublishedSitePublication(
+    repository,
+    expected,
+    { component: "application", metadata: published, site },
+    options,
+  );
+}
 /** One CAS updates the affected component plus the global site cursor. The
  * other component's original publication provenance is preserved verbatim. */
 export async function recordPublishedSitePublication(
@@ -739,6 +768,17 @@ async function recordPublishedComponent(
     input.catalog_publication = null;
   } else input.published_metadata = structuredClone(published);
   if (cursor) input.published_site = cursor;
+  if (
+    component === "application" &&
+    recovered.input.catalog_review_request != null &&
+    isRecord(capacity.operation) &&
+    (capacity.operation.metadata_renewal != null || capacity.operation.metadata_bootstrap != null)
+  )
+    input.catalog_review_request = refreezeCatalogReviewAfterApplicationMetadata(
+      recovered.input,
+      input,
+      expected,
+    );
   capacity.prior_operations = expectedCompactCapacityOperations(recovered.input, input, expected);
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {

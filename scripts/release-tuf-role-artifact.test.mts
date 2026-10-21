@@ -14,11 +14,17 @@ import {
   requireRetainedTufRoleArtifact,
   tufRolePredicateType,
   recheckTufRoleArtifactCustody,
+  readAttestedCatalogRoleArtifact,
+  requireReceivedCatalogRoleArtifact,
+  catalogRolePredicateType,
 } from "./release-tuf-role-artifact.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { GitHubRestReader, createGitHubRunner } from "./github-api.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-function fixture() {
+function fixture(catalog = false) {
+  const phase = catalog ? "catalog-definitions" : "tuf-releases",
+    filename = catalog ? "official-definitions.json" : "releases.json",
+    predicateType = catalog ? catalogRolePredicateType : tufRolePredicateType;
   const controller = {
     controller_revision: "a".repeat(40),
     source_tree: "b".repeat(40),
@@ -35,11 +41,11 @@ function fixture() {
     job_id: 501,
     check_run_id: "777",
     actor_id: "1234",
-    role: "tuf-releases",
+    role: phase,
   };
   const envelope = Buffer.from("inert-fixture-role-signature-not-authenticated"),
     envelopeIdentity = {
-      filename: "releases.json",
+      filename,
       bytes: envelope.length,
       sha256: hash(envelope),
     };
@@ -55,12 +61,13 @@ function fixture() {
     }),
   );
   const archive = createAuditZip([
-    ["releases.json", envelope],
+    [filename, envelope],
     ["signing-output-manifest.json", manifest],
   ]);
   const bundle = createAuditZip([["role-attestation.json", Buffer.from("inert-sigstore-bundle")]]);
   const expected = {
-    role: "releases",
+    role: catalog ? "definitions" : "releases",
+    ...(catalog ? { purpose: "catalog" } : {}),
     controller,
     artifact: { id: 900, sha256: hash(archive) },
     bundle: { id: 901, sha256: hash(bundle) },
@@ -76,7 +83,7 @@ function fixture() {
   };
   const artifact = {
     id: 900,
-    name: "trusted-tuf-releases-output-12345-1",
+    name: `trusted-${phase}-output-12345-1`,
     size_in_bytes: archive.length,
     digest: `sha256:${hash(archive)}`,
     expired: false,
@@ -85,13 +92,13 @@ function fixture() {
   const bundleArtifact = {
     ...artifact,
     id: 901,
-    name: "trusted-tuf-releases-attestation-12345-1",
+    name: `trusted-${phase}-attestation-12345-1`,
     size_in_bytes: bundle.length,
     digest: `sha256:${hash(bundle)}`,
   };
   const predicate = {
     schema_version: 1,
-    role: "tuf-releases",
+    role: phase,
     controller,
     producer,
     artifact: { id: 900, bytes: archive.length, sha256: hash(archive), name: artifact.name },
@@ -106,8 +113,13 @@ function fixture() {
   };
   const statement = {
     _type: "https://in-toto.io/Statement/v1",
-    subject: [{ name: "tuf-role-output-manifest", digest: { sha256: hash(manifest) } }],
-    predicateType: tufRolePredicateType,
+    subject: [
+      {
+        name: catalog ? "catalog-role-output-manifest" : "tuf-role-output-manifest",
+        digest: { sha256: hash(manifest) },
+      },
+    ],
+    predicateType,
     predicate,
   };
   const certificate = {
@@ -140,7 +152,7 @@ function fixture() {
     check_run_url: "https://api.github.com/repos/boburning/portcove/check-runs/777",
     status: "completed",
     conclusion: "success",
-    name: releaseControlPhaseProfile("tuf-releases").reader_name,
+    name: releaseControlPhaseProfile(phase).reader_name,
   };
   const calls: string[] = [];
   const api: GitHubRestReader = {
@@ -178,7 +190,7 @@ function fixture() {
       verifications++;
       assert.ok(argv.includes("--deny-self-hosted-runners"));
       assert.ok(argv.includes(controller.controller_revision));
-      assert.ok(argv.includes(tufRolePredicateType));
+      assert.ok(argv.includes(predicateType));
       return {
         status: 0,
         stderr: "",
@@ -204,6 +216,29 @@ function fixture() {
     verifications: () => verifications,
   };
 }
+void test("catalog injected role transport verifies distinct producer/context/subject and cannot mint actual catalog or app custody", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "catalog-role-inert-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture(true),
+    result = await readAttestedCatalogRoleArtifact(
+      root,
+      f.expected,
+      performance.now() + 30000,
+      f.options,
+    );
+  assert.equal(result.expected.role, "definitions");
+  assert.equal(result.envelope.filename, "official-definitions.json");
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(() => requireReceivedCatalogRoleArtifact(result));
+  await assert.rejects(() => requireReceivedTufRoleArtifact(result));
+  await assert.rejects(() =>
+    readAttestedTufRoleArtifact(root, f.expected, performance.now() + 30000, f.options),
+  );
+  f.predicate.context_binding_sha256 = "9".repeat(64);
+  await assert.rejects(() =>
+    readAttestedCatalogRoleArtifact(root, f.expected, performance.now() + 30000, f.options),
+  );
+});
 void test("injected existing attestation + completed numeric role custody is data only and preserves failed downstream-run lineage", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "tuf-role-custody-inert-"));
   t.after(() => rm(root, { recursive: true, force: true }));

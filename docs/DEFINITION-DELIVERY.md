@@ -932,6 +932,25 @@ sole Pages writer. The site's 6,000-file / 256 MiB bound remains independent of
 producer and historical-repository bounds. Protected configuration, admission,
 source/producer binding and the live controller integration remain required.
 
+The automatic catalog authoring boundary is the fixed inert source subtree
+`release/catalog-publication/`: strict `request.json` plus `bundle/` containing
+the managed index, checksum-addressed definitions and official policy/launch
+records. This is separate from the compiled catalog. The existing coordinator
+freezes exact raw Git inputs, actual Core projection, accumulated changes from
+the accepted catalog baseline and current component/site identities. Its neutral
+request is consumed by the selected independent whole-opportunity producer;
+parser success or persistence does not establish acceptance. Negative results
+retain the actual authenticated Check and bounded repair history in the same
+journal. An unchanged accepted subtree does not require another review solely
+because unrelated main commits arrived.
+
+Four independently isolated catalog online roles feed keyless Tough assembly
+and the same complete-site deployment owner as application publication. Recovery
+verifies existing public bytes against the original intent and attested roles;
+it does not remint clocks or repeat publication. See the dated
+[controller connection receipt](qualification/slice4-catalog-controller-connection-2026-10-21.md)
+for reviewed implementation and the remaining provisioning/public acceptance.
+
 ## Verification boundary
 
 The design fixtures cover decision outcomes, independent evidence dimensions,

@@ -2548,6 +2548,14 @@ for (const lost of [false, true])
         },
         f.repository,
       );
+      const siteExpectation = {
+        archive_sha256: "b".repeat(64),
+        artifact_id: 123,
+        prior_site_generation_sha256: metadata.published.publication.site_generation_sha256,
+        repository_sha256: "9".repeat(64),
+        root_sha256: metadata.published.root_sha256,
+        site_generation_sha256: "a".repeat(64),
+      };
       const request = {
         repository: f.bare,
         checkpoint: seeded.checkpoint,
@@ -2555,6 +2563,7 @@ for (const lost of [false, true])
         request: {
           kind: "upload" as const,
           destination: "github-pages:boburning/portcove:complete-site",
+          ...(lost ? {} : { site_expectation: siteExpectation }),
         },
       };
       let effects = 0;
@@ -2574,6 +2583,7 @@ for (const lost of [false, true])
         assert.ok(isRecord(operation) && isRecord(operation.executor_identity));
         assert.equal(operation.id, pending.operation_id);
         assert.equal(operation.executor_identity.job_id, 501);
+        assert.deepEqual(operation.site_expectation, lost ? undefined : siteExpectation);
         assert.equal(operation.outcome, "pending");
         if (lost) throw new Error("simulated response lost after provider effect");
         return {

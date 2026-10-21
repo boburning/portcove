@@ -1,3 +1,5 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { prepareFrozenCatalogSemanticInputs } from "./release-semantic-inputs.mts";
 import {
   prepareFrozenSemanticProposalInputs,
   prepareFrozenSemanticInputs,
@@ -151,4 +153,72 @@ export async function reviewFrozenCoordinatorRequest(
     authenticateIssuer: () => authenticateCapturedSemanticIssuer(accepted, configuration.issuer),
   });
   return { stage: "complete-opportunity", outcome: "accepted", check };
+}
+
+/** One complete catalog opportunity, with no application version proposal. Only
+ * private settled runtime captures can release the existing issuer credential. */
+export async function reviewFrozenCatalogCoordinatorRequest(
+  api: GitHubRestReader,
+  sourceRepository: string,
+  rawRequest: unknown,
+  input: {
+    files: ReadonlyMap<string, Buffer>;
+    prior_repository: ReadonlyMap<string, Buffer> | null;
+  },
+  configuration: Parameters<typeof reviewFrozenCoordinatorRequest>[3],
+) {
+  const request = inspectCatalogReviewRequest(structuredClone(rawRequest));
+  if (!request) throw new Error("catalog pipeline requires exact neutral request");
+  const runtime = {
+      ...configuration.runtime,
+      tools_sha256: { ...configuration.runtime.tools_sha256 },
+    },
+    issuer = structuredClone(configuration.issuer),
+    guard = configuration.requireCurrentRequestAndProvisioning,
+    retain = configuration.retainOriginalCheckRequest;
+  if (typeof guard !== "function" || typeof retain !== "function")
+    throw new Error("catalog pipeline current provisioning guard unavailable");
+  await guard();
+  // The maintained builder copies and validates all bytes synchronously before runtime callbacks.
+  const bundle = prepareFrozenCatalogSemanticInputs(api, sourceRepository, request.opportunity, {
+    inspection: Buffer.from(request.core_inspection),
+    files: input.files,
+    prior_repository: input.prior_repository,
+  });
+  await guard();
+  let accepted: Awaited<ReturnType<typeof runSemanticRuntime>>;
+  try {
+    accepted = await runSemanticRuntime(bundle, runtime);
+  } catch (error) {
+    try {
+      await requireDirectSemanticRefusalCapture(error);
+    } catch {
+      throw error;
+    }
+    const capture = await prepareCapturedSemanticDisposition({
+      kind: "complete-catalog-publication-opportunity",
+      error,
+      request,
+    });
+    await guard();
+    const direct = await requireDirectSemanticDispositionCapture(capture);
+    await retain({ root: direct.root, proposed_request: direct.proposed_request });
+    const check = await publishSemanticDispositionCapture(capture, issuer.issuer, {
+      requireProvisioningGrant: guard,
+      authenticateIssuer: () => authenticateCapturedSemanticDisposition(capture, issuer),
+    });
+    return {
+      stage: "complete-catalog-publication-opportunity",
+      outcome: capture.wire.disposition,
+      check,
+    };
+  }
+  await guard();
+  const actual = await verifyDirectSemanticCapture(accepted);
+  await retain({ root: actual.root, proposed_request: actual.handoff.proposed_request });
+  const check = await publishSemanticCapture(accepted, issuer.issuer, {
+    requireProvisioningGrant: guard,
+    authenticateIssuer: () => authenticateCapturedSemanticIssuer(accepted, issuer),
+  });
+  return { stage: "complete-catalog-publication-opportunity", outcome: "accepted", check };
 }

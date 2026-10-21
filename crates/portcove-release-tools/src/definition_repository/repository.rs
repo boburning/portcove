@@ -500,6 +500,22 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         true
     };
     recheck(&context)?;
+    repository_report(
+        &files,
+        &context.root_bytes,
+        &context.top_bytes,
+        &context.index_sha256,
+        changed,
+    )
+}
+
+fn repository_report(
+    files: &Files,
+    root: &[u8],
+    top: &[u8],
+    index_sha256: &str,
+    changed: bool,
+) -> Result<DefinitionRepositoryReport> {
     let identities = bundle::identities(&files);
     let repository_sha256 = sha(&serde_json::to_vec(&identities)?);
     let actual_roles = current_roles(&files)?;
@@ -537,15 +553,73 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
         changed,
         files: identities,
         repository_sha256,
-        root_sha256: sha(&context.root_bytes),
-        offline_targets_sha256: sha(&context.top_bytes),
+        root_sha256: sha(root),
+        offline_targets_sha256: sha(top),
         timestamp_sha256: sha(at(&actual_roles, "timestamp.json")?),
         snapshot_sha256: sha(at(&actual_roles, "snapshot.json")?),
         versions,
         expires,
-        index_sha256: context.index_sha256,
+        index_sha256: index_sha256.to_owned(),
         authority: "none",
     })
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VerificationConfig {
+    schema_version: u32,
+    trusted_root: String,
+    trusted_root_sha256: String,
+    offline_targets: String,
+    offline_targets_sha256: String,
+    repository: String,
+}
+
+/// Read-only current Tough verification of already published bytes. No signing
+/// context, supplied clock, output path or private key is accepted. Historical
+/// admission and exact expected inventory remain the controller's separate job.
+pub async fn verify_definition_repository(path: &Path) -> Result<DefinitionRepositoryReport> {
+    let config_raw = io::read(path, CONFIG_MAX)?;
+    let config: VerificationConfig = serde_json::from_slice(&config_raw)?;
+    if config.schema_version != 1 {
+        return invalid("catalog verification schema differs");
+    }
+    let base = path.parent().unwrap_or(Path::new("."));
+    let root_path = io::resolve(base, &config.trusted_root)?;
+    let top_path = io::resolve(base, &config.offline_targets)?;
+    let repository_path = io::resolve(base, &config.repository)?;
+    let root_bytes = io::read(&root_path, ROOT_MAX)?;
+    let top_bytes = io::read(&top_path, ROLE_MAX)?;
+    expected(&root_bytes, &config.trusted_root_sha256)?;
+    expected(&top_bytes, &config.offline_targets_sha256)?;
+    let root: Signed<Root> = serde_json::from_slice(&root_bytes)?;
+    let top: Signed<Targets> = serde_json::from_slice(&top_bytes)?;
+    let now = Timestamp::now();
+    policy::root(&root, now)?;
+    policy::top(&root.signed, &top, now)?;
+    let files = io::tree(&repository_path, 65536, 128 * 1024 * 1024)?;
+    validate_public_paths(&files)?;
+    if at(
+        &files,
+        &format!("metadata/{}.root.json", root.signed.version),
+    )? != &root_bytes
+    {
+        return invalid("catalog public Root differs from pinned trust anchor");
+    }
+    let logical = authenticate(&root_bytes, &files).await?;
+    let roles = current_roles(&files)?;
+    if at(&roles, "targets.json")? != &top_bytes {
+        return invalid("catalog public offline Targets differs from appointed bytes");
+    }
+    let index_sha256 = sha(at(&logical, "definitions/index.json")?);
+    if io::read(path, CONFIG_MAX)? != config_raw
+        || io::read(&root_path, ROOT_MAX)? != root_bytes
+        || io::read(&top_path, ROLE_MAX)? != top_bytes
+        || io::tree(&repository_path, 65536, 128 * 1024 * 1024)? != files
+    {
+        return invalid("catalog public verification inputs changed during readback");
+    }
+    repository_report(&files, &root_bytes, &top_bytes, &index_sha256, false)
 }
 
 fn verify_history(context: &Context, files: &Files) -> Result<()> {

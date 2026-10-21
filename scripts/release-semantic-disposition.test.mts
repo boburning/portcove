@@ -146,3 +146,201 @@ void test("wrong request/opportunity, report mutation, missing capture hashes an
     input.review.report_sha256 = createHash("sha256").update(input.review.report).digest("hex");
   });
 });
+
+// Disposable inert tuple only: no capture/provider admission is manufactured.
+function catalogFixture() {
+  const core = `${JSON.stringify({ authority: "none", definitions: [], files: [], index_sha256: "a".repeat(64), publication_schema: 1, scope: "inert-managed-definition-publication-inspection" })}\n`;
+  const opportunity = {
+    kind: "catalog-publication",
+    source_commit: "1".repeat(40),
+    source_tree: "2".repeat(40),
+    base_commit: "3".repeat(40),
+    change_set_sha256: "4".repeat(64),
+    bundle_sha256: "5".repeat(64),
+    core_inspection_sha256: createHash("sha256").update(core).digest("hex"),
+    publisher_configuration_sha256: "6".repeat(64),
+    baseline: {
+      source_commit: "3".repeat(40),
+      source_tree: "7".repeat(40),
+      catalog_root_sha256: "8".repeat(64),
+      catalog_repository_sha256: null,
+      site_generation_sha256: null,
+      application_root_sha256: null,
+      application_repository_sha256: null,
+    },
+    classification: { change: "initial", definitions: [], index_sha256: "a".repeat(64) },
+    compatibility: {
+      contract: "official-definition-policy-launch-v1",
+      notes: "Inert fixture; no semantic acceptance.",
+    },
+  };
+  const request = createCatalogReviewRequest({
+    before_checkpoint: "b".repeat(40),
+    requested_at: "2026-01-01T00:00:00.000Z",
+    opportunity,
+    core_inspection: core,
+  });
+  const app = negativeSemanticDispositionFixture();
+  const wire = {
+    ...app,
+    kind: "catalog-publication-semantic-disposition",
+    stage: "complete-catalog-publication-opportunity",
+    request,
+    request_id: request.request_id,
+    opportunity,
+    opportunity_sha256: capacityDigest(opportunity),
+    review: { ...app.review, scope: "complete-catalog-publication-opportunity" },
+  };
+  return { request, wire };
+}
+import { createCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import {
+  inspectNegativeCatalogSemanticDisposition,
+  prepareNegativeCatalogSemanticDispositionCheck,
+} from "./release-semantic-disposition.mts";
+import {
+  readIndependentCatalogSemanticDisposition,
+  inspectCatalogSemanticRequestCheckMatches,
+  inspectSemanticRequestCheckMatches,
+  createCatalogReviewDispositionReceipt,
+} from "./release-semantic-disposition-reader.mts";
+import { inspectSemanticWorkerRequest } from "./release-semantic-worker.mts";
+import { prepareCapturedSemanticDisposition } from "./release-semantic-runtime.mts";
+
+void test("catalog negative wire binds exact full request, never app classification or accepted result", async () => {
+  const { request, wire } = catalogFixture(),
+    result = prepareNegativeCatalogSemanticDispositionCheck(wire);
+  assert.equal(result.proposed_request.body.conclusion, "failure");
+  assert.match(result.proposed_request.body.external_id, /^portcove-catalog-review-negative-v1:/u);
+  assert.deepEqual(inspectNegativeCatalogSemanticDisposition(result.wire).request, request);
+  assert.throws(() => inspectNegativeSemanticDisposition(result.wire));
+  assert.throws(() =>
+    inspectNegativeCatalogSemanticDisposition(negativeSemanticDispositionFixture()),
+  );
+  for (const changed of [
+    { ...wire, disposition: "accepted" },
+    { ...wire, stage: "classification-proposal" },
+    { ...wire, opportunity: { ...wire.opportunity, source_tree: "f".repeat(40) } },
+    { ...wire, review: { ...wire.review, scope: "complete-release-opportunity" } },
+    { ...wire, review: { ...wire.review, report: "changed" } },
+    { ...wire, review: { ...wire.review, report: "x".repeat(64 * 1024) } },
+  ])
+    assert.throws(() => inspectNegativeCatalogSemanticDisposition(changed));
+  await assert.rejects(
+    prepareCapturedSemanticDisposition({
+      kind: "complete-catalog-publication-opportunity",
+      request,
+      error: new Error("copied negative result"),
+    }),
+    /imported failure/u,
+  );
+});
+void test("catalog GET reader and complete inventory preserve negative identity, drift and conflicting outcome refusal", () => {
+  const { request, wire } = catalogFixture(),
+    record = prepareNegativeCatalogSemanticDispositionCheck(wire);
+  const row = {
+    ...record.proposed_request.body,
+    id: 99,
+    app: { id: 123 },
+    output: { ...record.proposed_request.body.output, annotations_count: 0 },
+  };
+  const producer = {
+    schema_version: 1,
+    review_app_id: 123,
+    writer_app_id: 456,
+    review_check_name: semanticReviewCheckName,
+  };
+  const reader = (mutate?: (v: typeof row, n: number) => unknown) => {
+    let n = 0;
+    return {
+      request(method: string, endpoint: string) {
+        assert.equal(method, "GET");
+        return {
+          status: 200,
+          headers: new Map<string, string>(),
+          body:
+            endpoint === "repos/boburning/portcove"
+              ? { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" }
+              : mutate
+                ? mutate(structuredClone(row), ++n)
+                : structuredClone(row),
+        };
+      },
+    };
+  };
+  const proof = readIndependentCatalogSemanticDisposition(reader(), producer, request, 99);
+  assert.equal(proof.authority, "none");
+  assert.equal(
+    createCatalogReviewDispositionReceipt(proof, request.before_checkpoint).request.request_id,
+    request.request_id,
+  );
+  assert.deepEqual(inspectCatalogSemanticRequestCheckMatches([row], request).negative, [99]);
+  assert.deepEqual(
+    inspectSemanticRequestCheckMatches([row], negativeSemanticDispositionFixture().request)
+      .negative,
+    [],
+  );
+  assert.throws(
+    () => inspectCatalogSemanticRequestCheckMatches([row, { ...row, id: 100 }], request),
+    /duplicate|conflict/u,
+  );
+  for (const mutation of [
+    (v: typeof row) => ({ ...v, app: { id: 456 } }),
+    (v: typeof row) => ({ ...v, head_sha: "f".repeat(40) }),
+    (v: typeof row) => ({ ...v, conclusion: "success" }),
+    (v: typeof row, n: number) => (n === 2 ? { ...v, external_id: "changed" } : v),
+  ])
+    assert.throws(() =>
+      readIndependentCatalogSemanticDisposition(reader(mutation), producer, request, 99),
+    );
+  const accepted = prepareSemanticReviewHandoff(request.opportunity, {
+    runtime: "codex-independent-local-review",
+    scope: "complete-catalog-publication-opportunity",
+    session_ref: "inert",
+    completed_at: wire.review.completed_at,
+    coverage: { accumulated_changes: true, classification: true, compatibility: true },
+    report: "Inert accepted wire, not actual runtime.",
+    accepted_opportunity: request.opportunity,
+  });
+  const acceptedRow = {
+    ...accepted.proposed_request.body,
+    id: 101,
+    app: { id: 123 },
+    output: { ...accepted.proposed_request.body.output, annotations_count: 0 },
+  };
+  assert.equal(
+    inspectCatalogSemanticRequestCheckMatches([acceptedRow], request).accepted[0]?.check_run_id,
+    101,
+  );
+  assert.throws(
+    () => inspectCatalogSemanticRequestCheckMatches([row, acceptedRow], request),
+    /conflict/u,
+  );
+});
+void test("worker chooses exact catalog purpose without application version and refuses malformed or simultaneous requests", () => {
+  const { request } = catalogFixture();
+  const selected = inspectSemanticWorkerRequest({ catalog_review_request: request });
+  assert.equal(selected?.purpose, "catalog");
+  assert.equal(selected?.source_commit, request.opportunity.source_commit);
+  assert.equal(Object.hasOwn(selected.request, "base_version"), false);
+  assert.equal(inspectSemanticWorkerRequest({}), null);
+  assert.throws(
+    () =>
+      inspectSemanticWorkerRequest({
+        catalog_review_request: request,
+        review_request: negativeSemanticDispositionFixture().request,
+      }),
+    /simultaneous/u,
+  );
+  assert.throws(() =>
+    inspectSemanticWorkerRequest({
+      catalog_review_request: { ...request, request_id: "f".repeat(64) },
+    }),
+  );
+  assert.throws(() =>
+    inspectSemanticWorkerRequest({
+      catalog_review_request: request,
+      published_site: { malformed: true },
+    }),
+  );
+});

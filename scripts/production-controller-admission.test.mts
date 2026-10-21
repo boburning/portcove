@@ -273,9 +273,11 @@ const workflow = await readFile(
 
 void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
   const parsed = parse(workflow) as {
+    env: Record<string, string>;
     jobs: {
       admission: {
         environment?: string;
+        env?: Record<string, string>;
         "timeout-minutes": number;
         steps: { run?: string; uses?: string }[];
       };
@@ -287,13 +289,37 @@ void test("configured held workflow enforces bootstrap identities before checkou
   const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const execute = (delta: Record<string, string | undefined>) =>
     execFileSync(bash, ["-c", script], {
-      env: { ...process.env, ...environment, PORTCOVE_CONTROLLER_ADMISSION: raw, ...delta },
+      env: {
+        ...process.env,
+        ...environment,
+        PORTCOVE_EXECUTION_PURPOSE: "application",
+        PORTCOVE_CONTROLLER_ADMISSION: raw,
+        PORTCOVE_CATALOG_CONTROLLER_ADMISSION: "",
+        ...delta,
+      },
       windowsHide: true,
       timeout: 5000,
       stdio: "pipe",
     });
   execute({});
+  execute({
+    PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+    PORTCOVE_CONTROLLER_ADMISSION: "",
+    PORTCOVE_CATALOG_CONTROLLER_ADMISSION: "configured-catalog-only",
+  });
   for (const delta of [
+    { PORTCOVE_EXECUTION_PURPOSE: undefined },
+    { PORTCOVE_EXECUTION_PURPOSE: "unknown" },
+    {
+      PORTCOVE_EXECUTION_PURPOSE: "application",
+      PORTCOVE_CONTROLLER_ADMISSION: "",
+      PORTCOVE_CATALOG_CONTROLLER_ADMISSION: "catalog-cannot-substitute",
+    },
+    {
+      PORTCOVE_EXECUTION_PURPOSE: "catalog-publication",
+      PORTCOVE_CATALOG_CONTROLLER_ADMISSION: "",
+      PORTCOVE_CONTROLLER_ADMISSION: raw,
+    },
     { PORTCOVE_CONTROLLER_REVISION: undefined },
     { PORTCOVE_CONTROLLER_REF: "refs/heads/main" },
     { PORTCOVE_CONTROLLER_ADMISSION: "" },
@@ -316,7 +342,16 @@ void test("configured held workflow enforces bootstrap identities before checkou
   assert.match(workflow, /run: node scripts\/production-controller-admission\.mts/u);
   assert.equal(bootstrap.environment, undefined);
   assert.ok(!JSON.stringify(bootstrap).includes("secrets."));
-  assert.ok(!JSON.stringify(bootstrap).includes("inputs."));
+  assert.equal(parsed.env.PORTCOVE_EXECUTION_PURPOSE, "${{ inputs.publication_purpose }}");
+  assert.deepEqual(
+    [
+      ...new Set(
+        [...JSON.stringify(bootstrap).matchAll(/inputs\.([a-z_]+)/gu)].map((match) => match[1]),
+      ),
+    ],
+    ["publication_purpose"],
+  );
+  assert.doesNotMatch(script, /\$\{\{ inputs\.|eval|node|gh /u);
   assert.ok(!bootstrap.steps.some((step) => step.uses?.startsWith("./")));
   assert.ok(bootstrap.steps[1]?.uses?.startsWith("actions/checkout@"));
 });

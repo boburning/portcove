@@ -1,3 +1,8 @@
+import {
+  inspectCatalogCoreReport,
+  catalogPublicationInventory as inventory,
+} from "./release-catalog-publication-contract.mts";
+export { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
 /** Actual fixed Core inspection, not publisher or semantic acceptance. Imported
  * reports and copied receipts cannot construct this process-local capability. */
 import { execFile } from "node:child_process";
@@ -15,10 +20,34 @@ import { isRecord } from "./runtime-values.mts";
 
 const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-const inventory = (files: ReadonlyMap<string, Buffer>) =>
-  [...files]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: hash(bytes) }));
+
+/** Strict inert machine-response reader shared by the actual inspector and its
+ * real-CLI build fixture. It binds report bytes, never a private tool/inspection
+ * receipt, semantic acceptance or publisher authority. Future schemas refuse. */
+export function readCatalogCoreMachineEnvelope(
+  stdout: string,
+  stderr: string,
+  files: ReadonlyMap<string, Buffer>,
+) {
+  if (
+    stderr !== "" ||
+    Buffer.byteLength(stdout) > 4 * 1024 ** 2 ||
+    Buffer.from(stdout, "utf8").toString("utf8") !== stdout
+  )
+    throw new Error("actual Core machine response differs");
+  const envelope: unknown = JSON.parse(stdout);
+  if (
+    !isRecord(envelope) ||
+    Object.keys(envelope).sort().join(",") !== "command,data,error,ok,schema_version" ||
+    envelope.schema_version !== 78 ||
+    envelope.ok !== true ||
+    envelope.error !== null ||
+    envelope.command !== "catalog.inspect-definition-publication"
+  )
+    throw new Error("actual Core machine response differs");
+  return inspectCatalogCoreReport(envelope.data, files);
+}
+
 function remaining(deadline: number) {
   const left = Math.floor(deadline - performance.now());
   if (!Number.isFinite(deadline) || left < 1)
@@ -91,25 +120,6 @@ export async function readCatalogPublicationBundle(directory: string, deadline: 
   await walk(directory, "", 0);
   if (!files.has("definitions/index.json")) throw new Error("catalog content index missing");
   return files;
-}
-
-/** Validates byte binding only. Semantic projection comes from the actual Core
- * invocation below, never this parser or a caller-supplied success flag. */
-export function inspectCatalogCoreReport(raw: unknown, files: ReadonlyMap<string, Buffer>) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "authority,definitions,files,index_sha256,publication_schema,scope" ||
-    raw.publication_schema !== 1 ||
-    raw.authority !== "none" ||
-    raw.scope !== "inert-managed-definition-publication-inspection" ||
-    !Array.isArray(raw.definitions) ||
-    !Array.isArray(raw.files) ||
-    JSON.stringify(raw.files) !== JSON.stringify(inventory(files)) ||
-    raw.index_sha256 !== hash(files.get("definitions/index.json") ?? Buffer.alloc(0))
-  )
-    throw new Error("Core inspection does not bind exact catalog bytes");
-  return structuredClone(raw);
 }
 
 interface InspectionReceipt {
@@ -189,18 +199,7 @@ export async function inspectActualCatalogPublication(request: {
     });
     await writeFile(path.join(directory, "stderr.txt"), result.stderr, { flag: "wx", mode: 0o600 });
     phase = "bind-actual-report";
-    const envelope: unknown = JSON.parse(result.stdout);
-    if (
-      result.stderr ||
-      !isRecord(envelope) ||
-      Object.keys(envelope).sort().join(",") !== "command,data,error,ok,schema_version" ||
-      envelope.schema_version !== 77 ||
-      envelope.ok !== true ||
-      envelope.error !== null ||
-      envelope.command !== "catalog.inspect-definition-publication"
-    )
-      throw new Error("actual Core machine response differs");
-    const report = inspectCatalogCoreReport(envelope.data, original);
+    const report = readCatalogCoreMachineEnvelope(result.stdout, result.stderr, original);
     const inspection = Buffer.from(`${JSON.stringify(report)}\n`);
     await writeFile(path.join(directory, "inspection.json"), inspection, {
       flag: "wx",
@@ -280,6 +279,8 @@ export async function requireActualCatalogInspection(receipt: InspectionReceipt,
     throw new Error("retained Core inspection changed");
   remaining(deadline);
   return Object.freeze({
+    tools_receipt: actual.tools,
+    tool_sha256: actual.tool_sha256,
     source: Object.freeze({ ...actual.source }),
     bundle: actual.bundle,
     bundle_sha256: actual.bundle_sha256,

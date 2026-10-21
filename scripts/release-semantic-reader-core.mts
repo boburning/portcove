@@ -55,9 +55,12 @@ export function inspectSemanticReaderIndex(bytes: Buffer, expectedSha256: string
     return { name: file.name, bytes: data, sha256: file.sha256 };
   });
   if (
-    !["baseline,source", "baseline,published,source"].includes(
-      Object.keys(index.manifest.snapshots).sort().join(","),
-    )
+    !(
+      isRecord(index.manifest.opportunity) &&
+      index.manifest.opportunity.kind === "catalog-publication"
+        ? ["baseline,catalog,source", "baseline,catalog,catalog_prior,source"]
+        : ["baseline,source", "baseline,published,source"]
+    ).includes(Object.keys(index.manifest.snapshots).sort().join(","))
   )
     throw new Error("materialized reader snapshot set differs");
   for (const snapshot of Object.keys(index.manifest.snapshots)) {
@@ -114,7 +117,13 @@ export function createSemanticSnapshotReader(raw: FrozenSemanticSnapshot) {
     return value;
   };
   const entries = (snapshot: unknown) => {
-    if (snapshot !== "source" && snapshot !== "baseline" && snapshot !== "published")
+    if (
+      snapshot !== "source" &&
+      snapshot !== "baseline" &&
+      snapshot !== "published" &&
+      snapshot !== "catalog" &&
+      snapshot !== "catalog_prior"
+    )
       throw new Error("reader snapshot differs");
     const rows = bundle.manifest.snapshots[snapshot];
     if (!rows) throw new Error("reader published snapshot is unavailable");
@@ -274,7 +283,11 @@ export function isSemanticReaderCall(tool: unknown, args: unknown): boolean {
   if (!isRecord(args)) return false;
   const keys = Object.keys(args).sort().join(",");
   const snapshot =
-    args.snapshot === "source" || args.snapshot === "baseline" || args.snapshot === "published";
+    args.snapshot === "source" ||
+    args.snapshot === "baseline" ||
+    args.snapshot === "published" ||
+    args.snapshot === "catalog" ||
+    args.snapshot === "catalog_prior";
   const nonnegative = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
   if (tool === "list")
     return (
@@ -363,8 +376,15 @@ export function createSemanticSnapshotRpc(raw: FrozenSemanticSnapshot) {
                       type: "string",
                       enum:
                         name === "read" || name === "read_text"
-                          ? ["baseline", "source", "published", "manifest"]
-                          : ["baseline", "source", "published"],
+                          ? [
+                              "baseline",
+                              "source",
+                              "published",
+                              "catalog",
+                              "catalog_prior",
+                              "manifest",
+                            ]
+                          : ["baseline", "source", "published", "catalog", "catalog_prior"],
                     },
                     ...(name === "search"
                       ? { literal: { type: "string", minLength: 1, maxLength: 256 } }

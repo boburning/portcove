@@ -631,8 +631,8 @@ void test("Node proposals update every maintained isolated pin without rewriting
   for (const [filename, count] of [
     [".node-version", 1],
     ["scripts/controller-node-runtime.mts", 1],
-    [".github/workflows/application-update-production.yml", 2],
-    ["docs/qualification/application-update-production.complete.yml", 2],
+    [".github/workflows/application-update-production.yml", 1],
+    ["docs/qualification/application-update-production.complete.yml", 1],
     ["docs/qualification/application-update-production.controller-tools.yml", 1],
   ] as const) {
     assert.equal(owns(filename), true, filename);
@@ -644,6 +644,34 @@ void test("Node proposals update every maintained isolated pin without rewriting
       assert.equal(matches.length, count, filename);
       for (const match of matches)
         assert.equal(required(match.groups).currentValue, controllerNodeVersion, filename);
+      if (filename.endsWith(".yml")) {
+        const document = parseDocument(contents, { uniqueKeys: true });
+        assert.deepEqual(document.errors, []);
+        const workflow = record(document.toJS());
+        let isolatedPins = 0;
+        for (const [jobName, rawJob] of Object.entries(record(workflow.jobs))) {
+          const job = record(rawJob);
+          assert.ok(Array.isArray(job.steps));
+          for (const step of job.steps.map(record)) {
+            if (typeof step.uses !== "string" || !step.uses.startsWith("actions/setup-node@"))
+              continue;
+            const inputs = record(step.with);
+            if (Object.hasOwn(inputs, "node-version")) {
+              isolatedPins++;
+              assert.equal(
+                inputs["node-version"],
+                controllerNodeVersion,
+                `${filename}: ${jobName}`,
+              );
+              assert.equal(inputs["node-version-file"], undefined);
+            } else {
+              assert.equal(inputs["node-version-file"], ".node-version", `${filename}: ${jobName}`);
+              assert.equal((await read(".node-version")).trim(), controllerNodeVersion);
+            }
+          }
+        }
+        assert.equal(isolatedPins, filename.endsWith("controller-tools.yml") ? 1 : 2, filename);
+      }
     }
   }
 });

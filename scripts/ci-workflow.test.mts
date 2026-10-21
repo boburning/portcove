@@ -3160,6 +3160,13 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     /^#\[test\]\s*#\[ignore(?:\s*=\s*"[^"]*")?\]\s*fn cvlod_host_sdk_stage_timings\(\)/mu,
     "The extended host SDK diagnostic must remain excluded from ordinary test execution.",
   );
+  // Retain the exact diagnostic source/deadline assertions from the release
+  // integration as well as the target's complete platform/filter inventory.
+  assert.match(
+    hostSdkSource,
+    /#\[ignore = "explicit host SDK measurement; retains a fresh private C: copy"\]\s*fn cvlod_host_sdk_stage_timings\(\)/u,
+  );
+  assert.match(hostSdkSource, /Duration::from_secs\(15 \* 60\)/u);
   for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");

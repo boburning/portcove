@@ -21,7 +21,7 @@ mod io;
 mod policy;
 mod repository;
 mod signing;
-pub use repository::assemble_definition_repository;
+pub use repository::{assemble_definition_repository, verify_definition_repository};
 pub use signing::{sign_definition_role, sign_offline_definition_targets};
 
 type Result<T> = std::result::Result<T, TufRepositoryError>;

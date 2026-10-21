@@ -24,6 +24,8 @@ revision/digest/resource/#706 boundary before activation. Catalog semantic,
 protected custody/configuration and publication integration remain separate;
 no production authority is inferred from these implementation results.
 
+The [connected controller receipt](slice4-catalog-controller-connection-2026-10-21.md) records #2353's merged foundation (`7583122ef6c7dc250450f30c8ae716f86e4a43d0`), actual hosted tool-build fit, frozen semantic request/negative handling, separate catalog-purpose workflow and exact-intent recovery preparation. It preserves each controlled or actual-tool evidence scope. The current setup source below is a **held prior proposal**, not an activation instruction for subsequent implementation. Final source/digest/resource/#706 reconciliation remains required after the connected delivery; no routine operator action is requested by these engineering receipts.
+
 ## Consolidated conditional initial setup
 
 The current reviewable proposal is [the consolidated procedure](slice4-consolidated-initial-setup-2026-10-21.md). It replaces the historical series of per-attempt VHD/admin instructions for the normal application path. Its raw SHA-256 is 72287ecc0cd28ed940c3630f2eefb6478954d5f36437cdb2209c1c5e2cdeb80a. No setup operation is authorized or observed by this document.

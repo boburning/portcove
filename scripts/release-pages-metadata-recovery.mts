@@ -3,6 +3,14 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
+import { assertBootstrapSiteBaseline } from "./release-metadata-signing-contract.mts";
+import {
+  readBootstrapPublicSource,
+  bootstrapPreimageCatalogPins,
+} from "./release-bootstrap-public-inputs.mts";
+import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
@@ -39,9 +47,9 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   const operation = capacity ? inspectCapacityOperation(capacity.operation) : null;
   if (
     !operation?.site_expectation ||
-    operation.outcome !== "recovered" ||
-    !isRecord(operation.recovery) ||
-    operation.recovery.resolution !== "effect-completed" ||
+    !["succeeded", "recovered"].includes(operation.outcome) ||
+    (operation.outcome === "recovered" &&
+      (!isRecord(operation.recovery) || operation.recovery.resolution !== "effect-completed")) ||
     operation.receipt_limit !== 1 ||
     operation.executor_identity?.role !== "site-publication" ||
     operation.completed_effects.length !== 1
@@ -54,8 +62,10 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   )
     throw new Error("settled Pages receipt differs from durable generation");
   const seed = inspectPublishedMetadata(input.published_metadata);
-  if (seed?.publication.site_generation_sha256 === expected.site_generation_sha256) {
+  const site = currentPublishedSite(input);
+  if (site?.generation_sha256 === expected.site_generation_sha256) {
     if (
+      !seed ||
       seed.repository_sha256 !== expected.repository_sha256 ||
       seed.root_sha256 !== expected.root_sha256 ||
       seed.operation_id !== operation.id
@@ -65,14 +75,15 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   }
   if (seed) {
     if (
-      seed.publication.site_generation_sha256 !== expected.prior_site_generation_sha256 ||
+      site?.generation_sha256 !== expected.prior_site_generation_sha256 ||
       seed.root_sha256 !== expected.root_sha256
     )
       throw new Error("settled Pages handoff does not advance the exact old published seed");
   } else {
     const bootstrap = inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
     if (
-      expected.prior_site_generation_sha256 !== null ||
+      site?.components.application != null ||
+      expected.prior_site_generation_sha256 !== (site?.generation_sha256 ?? null) ||
       !operation.metadata_bootstrap ||
       operation.metadata_bootstrap.descriptor_sha256 !== capacityDigest(bootstrap) ||
       bootstrap.root_sha256 !== expected.root_sha256
@@ -124,6 +135,7 @@ export async function recoverPublishedPagesMetadata(
   privateParent: string,
   phaseDeadline: number,
   freshBoundary: () => Promise<void>,
+  beforeMutation?: () => void,
 ) {
   const check = () => {
     if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
@@ -152,67 +164,119 @@ export async function recoverPublishedPagesMetadata(
   try {
     await freshBoundary();
     const result = await withCoordinatorDeadline(phaseDeadline, () =>
-      recoverOwnedPublishedMetadata(executor, raw, async (actualOperation) => {
-        const current = await recoverReleaseOpportunity(raw.repository, raw.checkpoint);
-        const handoff = inspectSettledPagesMetadataHandoff(current.input);
-        if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
-          throw new Error("exact settled Pages checkpoint/operation changed");
-        const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
-        const expected = {
-          artifact_id: handoff.expected.artifact_id,
-          generation: handoff.expected.site_generation_sha256,
-          controller_revision: handoff.operation.executor_identity!.controller_revision,
-        };
-        if (provider.observeByGeneration(expected).status !== "succeed")
-          throw new Error("settled Pages provider completion unavailable");
-        const acquired = await materializePublishedCompleteSite(
-          {
-            site_generation_sha256: handoff.expected.site_generation_sha256,
-            root_sha256: handoff.expected.root_sha256,
-            repository_sha256: handoff.expected.repository_sha256,
-          },
-          directory,
-          phaseDeadline,
-        );
-        const site = await requirePublishedCompleteSite(acquired.receipt);
-        const verifierSha = createHash("sha256")
-          .update(await readControllerToolFile(tools.rust, 128 * 1024 * 1024))
-          .digest("hex");
-        const verified = await prepareAuthenticatedMetadataRenewal({
-          verifier: tools.rust,
-          verifier_sha256: verifierSha,
-          trusted_root: site.root_path,
-          trusted_root_sha256: site.pins.root_sha256,
-          previous_repository: site.application,
-          prior_repository_sha256: site.pins.repository_sha256,
-          generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
-          output_parent: directory,
-          deadline: phaseDeadline,
-        });
-        const currentFacts = await inspectPreparedMetadataRenewal(verified);
-        const published = publishedPagesMetadataFromCurrentFacts(currentFacts.descriptor, handoff);
-        await verifiedControllerToolPaths(toolsReceipt);
-        await requirePublishedCompleteSite(acquired.receipt);
-        await inspectPreparedMetadataRenewal(verified);
-        await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
-        if (provider.observeByGeneration(expected).status !== "succeed")
-          throw new Error("Pages provider changed during current-feed verification");
-        await writeFile(
-          path.join(directory, "current-publication.json"),
-          JSON.stringify({
-            operation_id: handoff.operation.id,
-            published,
-            verified_current_descriptor: currentFacts.descriptor,
-            scope: "actual current public feed; unused next plan not published",
-            pages_posts: 0,
-            authority: "none",
-          }),
-          { flag: "wx", mode: 0o600 },
-        );
-        await freshBoundary();
-        check();
-        return published;
-      }),
+      recoverOwnedPublishedMetadata(
+        executor,
+        raw,
+        async (actualOperation) => {
+          const current = await recoverReleaseOpportunity(raw.repository, raw.checkpoint);
+          const handoff = inspectSettledPagesMetadataHandoff(current.input);
+          if (!handoff || capacityDigest(handoff.operation) !== capacityDigest(actualOperation))
+            throw new Error("exact settled Pages checkpoint/operation changed");
+          const provider = createPagesProviderTransport(directory, {}, phaseDeadline);
+          const expected = {
+            artifact_id: handoff.expected.artifact_id,
+            generation: handoff.expected.site_generation_sha256,
+            controller_revision: handoff.operation.executor_identity!.controller_revision,
+          };
+          if (provider.observeByGeneration(expected).status !== "succeed")
+            throw new Error("settled Pages provider completion unavailable");
+          const acquired = await materializePublishedCompleteSite(
+            {
+              site_generation_sha256: handoff.expected.site_generation_sha256,
+              root_sha256: handoff.expected.root_sha256,
+              repository_sha256: handoff.expected.repository_sha256,
+            },
+            directory,
+            phaseDeadline,
+          );
+          const site = await requirePublishedCompleteSite(acquired.receipt);
+          if (!handoff.seed) {
+            const authority = await requireControllerPublicationAuthorities("coordinator");
+            const descriptor = inspectMetadataBootstrapDescriptor(current.input.metadata_bootstrap);
+            if (
+              descriptor.initial_site_preimage_sha256 !==
+                authority.publication.initial_site_preimage_sha256 ||
+              descriptor.setup_plan_sha256 !== authority.publication.setup_plan_sha256 ||
+              descriptor.root_sha256 !== authority.publication.public_source.root.sha256
+            )
+              throw new Error("bootstrap handoff differs from current protected setup");
+            const api = new GitHubApiClient((args, body) => {
+              check();
+              return createGitHubRunner({
+                cwd: directory,
+                timeoutMs: Math.max(
+                  1,
+                  Math.floor(Math.min(15000, phaseDeadline - performance.now())),
+                ),
+                maxBuffer: 16 * 1024 * 1024,
+              })([...args, "--hostname", "github.com"], body);
+            });
+            const source = readBootstrapPublicSource(
+              api,
+              authority.publication,
+              descriptor.generated_at,
+              phaseDeadline,
+            );
+            const pins = bootstrapPreimageCatalogPins(
+              source.files.get("initial_site_preimage")!,
+              descriptor.generated_at,
+            );
+            assertBootstrapSiteBaseline(pins, current.input);
+            const catalog = site.generation.files
+              .filter((file) => file.path.startsWith("catalog/"))
+              .map((file) => ({ ...file, path: file.path.slice("catalog/".length) }));
+            if (
+              site.generation.previous_generation !== (pins?.site_generation_sha256 ?? null) ||
+              (site.generation.schema_version === 2
+                ? site.generation.catalog_root_sha256
+                : null) !== (pins?.root_sha256 ?? null) ||
+              (pins ? capacityDigest(catalog) !== pins.repository_sha256 : catalog.length !== 0)
+            )
+              throw new Error("bootstrap handoff changed the setup-appointed catalog component");
+          }
+          const verifierSha = createHash("sha256")
+            .update(await readControllerToolFile(tools.rust, 128 * 1024 * 1024))
+            .digest("hex");
+          const verified = await prepareAuthenticatedMetadataRenewal({
+            verifier: tools.rust,
+            verifier_sha256: verifierSha,
+            trusted_root: site.root_path,
+            trusted_root_sha256: site.pins.root_sha256,
+            previous_repository: site.application,
+            prior_repository_sha256: site.pins.repository_sha256,
+            generated_at: new Date().toISOString().replace(/\.\d{3}Z$/u, "Z"),
+            output_parent: directory,
+            deadline: phaseDeadline,
+          });
+          const currentFacts = await inspectPreparedMetadataRenewal(verified);
+          const published = publishedPagesMetadataFromCurrentFacts(
+            currentFacts.descriptor,
+            handoff,
+          );
+          await verifiedControllerToolPaths(toolsReceipt);
+          await requirePublishedCompleteSite(acquired.receipt);
+          await inspectPreparedMetadataRenewal(verified);
+          await readPublicApplicationSiteMarker(site.generation, phaseDeadline);
+          if (provider.observeByGeneration(expected).status !== "succeed")
+            throw new Error("Pages provider changed during current-feed verification");
+          await writeFile(
+            path.join(directory, "current-publication.json"),
+            JSON.stringify({
+              operation_id: handoff.operation.id,
+              published,
+              verified_current_descriptor: currentFacts.descriptor,
+              scope: "actual current public feed; unused next plan not published",
+              pages_posts: 0,
+              authority: "none",
+            }),
+            { flag: "wx", mode: 0o600 },
+          );
+          await freshBoundary();
+          check();
+          return published;
+        },
+        beforeMutation,
+      ),
     );
     check();
     await writeFile(path.join(directory, "handoff.json"), JSON.stringify(result), {

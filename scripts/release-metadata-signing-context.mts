@@ -11,7 +11,10 @@ import {
   requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
 import { inspectPreparedMetadataBootstrap } from "./release-bootstrap-preparation.mts";
-import { readConfiguredBootstrapSite } from "./release-bootstrap-public-inputs.mts";
+import {
+  readConfiguredBootstrapSite,
+  readConfiguredCatalogOnlyBootstrapSite,
+} from "./release-bootstrap-public-inputs.mts";
 import { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -25,7 +28,11 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
-import { capacityExecutorIdentity, refreshCapacityExecutor } from "./release-capacity-executor.mts";
+import {
+  capacityExecutorIdentity,
+  refreshCapacityExecutor,
+  requireOwnedCapacityPendingBoundary,
+} from "./release-capacity-executor.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -134,11 +141,14 @@ async function snapshot(owned: Owned) {
   );
 }
 async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapshot>>) {
-  const site =
-    owned.session.mode === "renewal"
-      ? await requirePublishedCompleteSite(owned.session.complete_site)
-      : null;
-  inspectMetadataSigningReservation(owned.facts, owned.binding, site?.pins ?? null, state);
+  if (owned.session.mode === "renewal")
+    await requirePublishedCompleteSite(owned.session.complete_site);
+  inspectMetadataSigningReservation(
+    owned.facts,
+    owned.binding,
+    owned.facts.previous_site_pins,
+    state,
+  );
   if (!owned.pending) {
     if (state.checkpoint !== owned.session.checkpoint)
       throw new Error("metadata context initial checkpoint changed");
@@ -154,6 +164,7 @@ async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapsh
   if (
     !operation ||
     operation.id !== owned.pending.operation_id ||
+    operation.before_checkpoint !== owned.session.checkpoint ||
     (owned.session.mode === "renewal"
       ? operation.metadata_renewal?.descriptor_sha256
       : operation.metadata_bootstrap?.descriptor_sha256) !== digest(owned.descriptor) ||
@@ -225,7 +236,13 @@ export async function prepareCoordinatorSigningContext(
     descriptor: prepared.descriptor,
     namespace: session.namespace,
     checkpoint: session.checkpoint,
-    previous_site_pins: site?.pins ?? null,
+    previous_site_pins: site?.pins ?? (session.mode === "bootstrap" ? session.catalog_pins : null),
+    ...(session.mode === "bootstrap" && session.catalog_pins
+      ? {
+          initial_site_preimage: session.initial_site_preimage,
+          catalog_readback_sha256: digest(session.fresh_configured_site),
+        }
+      : {}),
     setup_plan_sha256: authorities.publication.setup_plan_sha256,
     public_source_commit: pins.commit,
   };
@@ -237,7 +254,7 @@ export async function prepareCoordinatorSigningContext(
         ? prepared.descriptor.unchanged_records_sha256
         : prepared.descriptor.initial_records_sha256,
   };
-  inspectMetadataSigningBinding(facts, binding, site?.pins ?? null);
+  inspectMetadataSigningBinding(facts, binding, facts.previous_site_pins);
   const owned: Owned = {
     session,
     directory,
@@ -282,6 +299,34 @@ export async function prepareCoordinatorSigningContext(
     throw new Error("actual metadata context refused; retain public inputs");
   }
 }
+/** The actual executor invokes this only while its private post-pending boundary
+ * receipt is live. No arbitrary checkpoint or copied operation can advance context. */
+export async function bindCoordinatorSigningContextBoundary(
+  receipt: object,
+  executor: Executor,
+  pendingReceipt: object,
+) {
+  const owned = contexts.get(receipt);
+  if (!owned) throw new Error("actual coordinator metadata context required");
+  remaining(owned);
+  const selected = requireOwnedCapacityPendingBoundary(executor, pendingReceipt),
+    op = selected.operation;
+  if (
+    op.before_checkpoint !== owned.session.checkpoint ||
+    op.outcome !== "pending" ||
+    op.completed_effects.length !== 0 ||
+    op.kind !== "upload" ||
+    op.destination !== `github-actions:boburning/portcove:metadata-${owned.session.mode}-context` ||
+    (owned.session.mode === "bootstrap"
+      ? op.metadata_bootstrap?.descriptor_sha256
+      : op.metadata_renewal?.descriptor_sha256) !== digest(owned.descriptor)
+  )
+    throw new Error("metadata context boundary differs from its original pending upload");
+  await bindCoordinatorSigningContextPending(receipt, executor, {
+    checkpoint: selected.checkpoint,
+    operation_id: op.id,
+  });
+}
 /** Only an actual executor and its independently observed existing durable
  * metadata pending can advance this private context across its original CP. */
 export async function bindCoordinatorSigningContextPending(
@@ -297,7 +342,10 @@ export async function bindCoordinatorSigningContextPending(
     Object.keys(expected).sort().join(",") !== "checkpoint,operation_id" ||
     !/^[a-f0-9]{40}$/u.test(expected.checkpoint) ||
     !/^[a-f0-9]{64}$/u.test(expected.operation_id) ||
-    owned.pending
+    (owned.pending &&
+      (owned.pending.executor !== executor ||
+        owned.pending.checkpoint !== expected.checkpoint ||
+        owned.pending.operation_id !== expected.operation_id))
   )
     throw new Error("one exact coordinator metadata pending required");
   const identity = await refreshCapacityExecutor(executor),
@@ -313,7 +361,7 @@ export async function bindCoordinatorSigningContextPending(
   const state = await snapshot(owned);
   if (state.checkpoint !== expected.checkpoint)
     throw new Error("metadata pending checkpoint changed");
-  owned.pending = { executor, ...expected };
+  owned.pending ??= { executor, ...expected };
   await verifyState(owned, state);
   await requireCoordinatorSigningContext(receipt);
 }
@@ -339,13 +387,25 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
     digest(inventory(await readBoundedReleaseContextFiles(owned.directory))) !== digest(owned.files)
   )
     throw new Error("actual metadata context retained bytes changed");
-  const current = await controls(owned);
+  await controls(owned);
   await verifyState(owned, await snapshot(owned));
   if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
   else if (performance.now() - owned.bootstrap_observed >= 45000) {
-    await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
+    if (owned.session.mode === "bootstrap" && owned.session.catalog_site) {
+      const readback = await readConfiguredCatalogOnlyBootstrapSite(
+        apiFor(owned),
+        owned.session.catalog_pins,
+        owned.session.catalog_site,
+        owned.deadline,
+      );
+      if (digest(readback) !== owned.facts.catalog_readback_sha256)
+        throw new Error("metadata catalog baseline readback changed");
+    } else await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
     owned.bootstrap_observed = performance.now();
   }
+  // Source/public reads may consume the original controls lifetime. Return only
+  // a freshly checked stable maintenance boundary after those reads.
+  const current = await controls(owned);
   remaining(owned);
   return Object.freeze({
     mode: owned.session.mode,

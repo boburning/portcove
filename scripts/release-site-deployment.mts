@@ -6,11 +6,16 @@ import {
   isSafeSitePath,
   readComposedSite,
   composeSiteFiles,
+  composeCatalogSiteFiles,
+  readComposedCatalogSite,
 } from "./release-site-composer.mts";
 import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
   requirePublishedCompleteSite,
+  requirePublishedCatalogCompleteSite,
+  materializePublishedCompleteSite,
+  materializePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -19,19 +24,39 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
-import { recordPublishedMetadata } from "./release-capacity-operation.mts";
+import {
+  recordPublishedApplicationSiteMetadata,
+  recordPublishedCatalogMetadata,
+} from "./release-capacity-operation.mts";
+import {
+  currentApplicationSitePins,
+  currentPublishedSite,
+  assertCatalogPublicationBaseline,
+  inspectCatalogTufPublicationFacts,
+} from "./release-catalog-metadata-contract.mts";
+import {
+  inspectCatalogCapacitySubject,
+  inspectCatalogPublicationDescriptor,
+  inspectCatalogInitialization,
+  inspectCatalogSitePublicationExpectation,
+} from "./release-catalog-publication-contract.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
   refreshCapacityExecutor,
   recoverOwnedPublishedMetadata,
+  recoverOwnedPublishedCatalogMetadata,
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
 import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-pages-provider.mts";
-import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
+import {
+  requireAuthenticatedReleaseControlSource,
+  requireAuthenticatedCatalogControlSource,
+} from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   assertMetadataRenewalPublication,
   assertMetadataBootstrapPublication,
@@ -40,8 +65,16 @@ import {
   inspectMetadataSigningBinding,
   inspectMetadataSigningReservation,
 } from "./release-metadata-signing-contract.mts";
-import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
-import { readConfiguredBootstrapSite } from "./release-bootstrap-public-inputs.mts";
+import {
+  requireControllerPublicationAuthorities,
+  requireControllerCatalogPublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import {
+  readConfiguredBootstrapSite,
+  readConfiguredCatalogOnlyBootstrapSite,
+  inspectCatalogOnlyBootstrapPreimage,
+  readConfiguredCatalogBootstrapSite,
+} from "./release-bootstrap-public-inputs.mts";
 import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
@@ -126,17 +159,32 @@ export function serializeSiteTar(files: ReadonlyMap<string, Buffer>) {
 }
 
 interface DeploymentSession {
-  readonly kind: "prepared-application-site-deployment";
+  readonly kind: "prepared-application-site-deployment" | "prepared-catalog-site-deployment";
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
   new_release_tuf?: object;
-  bootstrap?: { tuf: object; descriptor_sha256: string; readback_sha256?: string };
-  verifier: { path: string; sha256: string };
+  bootstrap?: {
+    tuf: object;
+    descriptor_sha256: string;
+    readback_sha256?: string;
+    catalog_site?: object;
+  };
+  verifier?: { path: string; sha256: string };
   release_binding?: { result: object; tools: object; report_sha256: string };
   deadline?: number;
   generation: Composed["generation"];
-  publication: Composed["publication"];
+  publication?: Composed["publication"];
+  catalog?: {
+    recovery_only?: true;
+    recovery_intent?: { checkpoint: string; operation_sha256: string };
+    assembly: object;
+    subject: ReturnType<typeof inspectCatalogPublicationDescriptor>;
+    facts: ReturnType<typeof inspectCatalogTufPublicationFacts>;
+    prior: ReturnType<typeof currentPublishedSite>;
+    initialization?: NonNullable<ReturnType<typeof inspectCatalogInitialization>>;
+    bootstrap_readback_sha256?: string;
+  };
   previous_generation: Composed["generation"] | null;
   prior_public_readback?: { generation: string; evidence_sha256: string };
   archive_sha256: string;
@@ -211,7 +259,8 @@ export async function verifyUploadedSiteArchive(
   } = {},
 ) {
   const prepared = sessions.get(session);
-  if (!prepared) throw new Error("actual prepared site session unavailable");
+  if (!prepared || prepared.catalog?.recovery_only)
+    throw new Error("actual publishable site session unavailable");
   remaining(prepared.deadline, 15000);
   const expected = structuredClone(rawExpected);
   if (
@@ -369,6 +418,19 @@ async function requireInitialSiteContext(receipt: object, deadline: number) {
       authorities.publication.public_source.payload_key_registry.sha256
   )
     throw new Error("initial site differs from protected setup/public anchors");
+  if (metadata.previous_site_pins) {
+    if (
+      !("initial_site_preimage" in metadata.facts) ||
+      typeof metadata.facts.initial_site_preimage !== "string"
+    )
+      throw new Error("initial catalog prior requires retained setup preimage");
+    const preimage = inspectCatalogOnlyBootstrapPreimage(
+      Buffer.from(metadata.facts.initial_site_preimage),
+      descriptor.generated_at,
+    );
+    if (capacityDigest(preimage.pins) !== capacityDigest(metadata.previous_site_pins))
+      throw new Error("initial signed catalog prior differs from protected historical preimage");
+  }
   assertMetadataBootstrapPublication(descriptor, actual.publication);
   remaining(deadline, 15000);
   return { actual, metadata, root_sha256: authorities.publication.public_source.root.sha256 };
@@ -386,6 +448,8 @@ export async function prepareInitialSiteDeploymentFromActualTufPublication(
     publicationReceipt,
     deadline,
   );
+  if (metadata.previous_site_pins !== null)
+    throw new Error("whole-404 initial site cannot adopt catalog prior");
   const composed = await composeSiteFiles({
     previous: null,
     expected_previous_generation: null,
@@ -412,6 +476,60 @@ export async function prepareInitialSiteDeploymentFromActualTufPublication(
     descriptor_sha256: capacityDigest(metadata.facts.descriptor),
   };
   remaining(deadline, 15000);
+  return prepared;
+}
+
+/** App-first metadata over an independently retained, setup-appointed catalog-only generation. */
+export async function prepareInitialApplicationOverCatalogSiteDeployment(
+  publicationReceipt: object,
+  catalogReceipt: object,
+  outputParent: string,
+  deadline: number,
+) {
+  await requireActualTufPublication(publicationReceipt, deadline);
+  const { actual, metadata, root_sha256 } = await requireInitialSiteContext(
+    publicationReceipt,
+    deadline,
+  );
+  const prior = await requirePublishedCatalogCompleteSite(catalogReceipt);
+  if (
+    !metadata.previous_site_pins ||
+    metadata.previous_site_pins.kind !== "catalog-only" ||
+    capacityDigest(metadata.previous_site_pins) !==
+      capacityDigest({ ...prior.pins, kind: "catalog-only" }) ||
+    prior.generation.application_root_sha256 !== null ||
+    prior.generation.files.some((file) => file.path.startsWith("application/"))
+  )
+    throw new Error("actual initial catalog prior differs from signed/setup binding");
+  const composed = await composeSiteFiles({
+    previous: prior.directory,
+    expected_previous_generation: prior.pins.site_generation_sha256,
+    application: actual.repository,
+    application_root_sha256: root_sha256,
+    output_parent: outputParent,
+    deadline,
+  });
+  await requirePublishedCatalogCompleteSite(catalogReceipt);
+  const prepared = await retainPreparedSiteDeployment(
+    { ...composed, publication: actual.publication },
+    {
+      output_parent: outputParent,
+      trusted_root_sha256: root_sha256,
+      verifier: actual.tools.rust,
+      verifier_sha256: hash(await readControllerToolFile(actual.tools.rust)),
+      previous_site: prior.directory,
+      expected_previous_generation: prior.pins.site_generation_sha256,
+      deadline,
+      catalog_prior_receipt: catalogReceipt,
+    },
+  );
+  if (!prepared.changed)
+    throw new Error("initial application publication must change catalog-only site");
+  sessions.get(prepared.session)!.bootstrap = {
+    tuf: publicationReceipt,
+    descriptor_sha256: capacityDigest(metadata.facts.descriptor),
+    catalog_site: catalogReceipt,
+  };
   return prepared;
 }
 
@@ -470,7 +588,7 @@ async function retainPreparedSiteDeployment(
     | "previous_site"
     | "expected_previous_generation"
     | "deadline"
-  >,
+  > & { catalog_prior_receipt?: object },
 ) {
   if (!composed.changed) return { changed: false as const, generation: composed.generation };
   const { files } = await readComposedSite(
@@ -511,12 +629,14 @@ async function retainPreparedSiteDeployment(
   const prior =
     request.previous_site === null
       ? null
-      : await readComposedSite(
-          request.previous_site,
-          request.expected_previous_generation!,
-          request.trusted_root_sha256,
-          request.deadline,
-        );
+      : request.catalog_prior_receipt
+        ? await requirePublishedCatalogCompleteSite(request.catalog_prior_receipt)
+        : await readComposedSite(
+            request.previous_site,
+            request.expected_previous_generation!,
+            request.trusted_root_sha256,
+            request.deadline,
+          );
   remaining(request.deadline, 15000);
   sessions.set(session, {
     verifier: { path: request.verifier, sha256: request.verifier_sha256 },
@@ -528,6 +648,342 @@ async function retainPreparedSiteDeployment(
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
 }
 
+/** Catalog composition consumes the actual keyless four-role receipt. Neither
+ * caller-supplied files nor a self-consistent catalog marker can create this
+ * session. The current journal supplies both components and the global cursor. */
+export async function prepareCatalogSiteDeploymentFromActualRepository(
+  assembly: object,
+  raw: { repository: string; checkpoint: string; output_parent: string; deadline: number },
+) {
+  const request = structuredClone(raw);
+  remaining(request.deadline, 15000);
+  const { requireActualCatalogRepository } = await import("./release-catalog-signing.mts");
+  const actual = await requireActualCatalogRepository(assembly, request.deadline);
+  const deadline = Math.min(request.deadline, actual.deadline);
+  const authorities = await withCoordinatorDeadline(deadline, () =>
+    requireControllerCatalogPublicationAuthorities("site-publication"),
+  );
+  remaining(deadline, 15000);
+  const recovered = await recoverReleaseOpportunity(request.repository, request.checkpoint);
+  const subject = inspectCatalogPublicationDescriptor(recovered.input.catalog_publication);
+  const descriptor = assertCatalogPublicationBaseline(actual.descriptor, recovered.input);
+  const facts = inspectCatalogTufPublicationFacts(actual.report.facts);
+  if (
+    !facts ||
+    capacityDigest(subject) !== capacityDigest(descriptor) ||
+    descriptor.publisher_configuration_sha256 !== authorities.configuration_sha256 ||
+    facts.root_sha256 !== authorities.catalog.public_source.root.sha256 ||
+    facts.offline_targets_sha256 !== authorities.catalog.public_source.offline_targets.sha256
+  )
+    throw new Error(
+      "catalog site differs from actual assembly, configured anchors or journal subject",
+    );
+  const prior = currentPublishedSite(recovered.input);
+  const initialization = prior
+    ? undefined
+    : inspectCatalogInitialization(recovered.input.catalog_initialization);
+  if (
+    !prior &&
+    (!initialization ||
+      initialization.publisher_configuration_sha256 !== authorities.configuration_sha256 ||
+      initialization.source_commit !== authorities.catalog.public_source.commit ||
+      initialization.root_sha256 !== facts.root_sha256 ||
+      initialization.setup_plan_sha256 !== authorities.catalog.setup_plan_sha256 ||
+      initialization.initial_site_preimage_sha256 !==
+        authorities.catalog.public_source.initial_site_preimage?.sha256)
+  )
+    throw new Error("catalog initial journal does not match explicit protected setup preimage");
+  const previous = prior
+    ? prior.components.catalog
+      ? await materializePublishedCatalogCompleteSite(
+          {
+            ...prior.components.catalog,
+            site_generation_sha256: prior.generation_sha256,
+          },
+          request.output_parent,
+          deadline,
+        )
+      : prior.components.application
+        ? await materializePublishedCompleteSite(
+            {
+              ...prior.components.application,
+              site_generation_sha256: prior.generation_sha256,
+            },
+            request.output_parent,
+            deadline,
+          )
+        : null
+    : null;
+  if (prior && !previous) throw new Error("current whole site has no appointed component");
+  const composed = await composeCatalogSiteFiles({
+    previous: previous?.directory ?? null,
+    expected_previous_generation: prior?.generation_sha256 ?? null,
+    catalog: actual.repository,
+    catalog_root_sha256: facts.root_sha256,
+    output_parent: request.output_parent,
+    deadline,
+  });
+  if (!composed.changed)
+    throw new Error("unchanged catalog composition cannot start a Pages effect");
+  const checked = await readComposedCatalogSite(
+    composed.output,
+    composed.generation.generation,
+    facts.root_sha256,
+    deadline,
+  );
+  const catalogFiles = checked.generation.files
+    .filter((file) => file.path.startsWith("catalog/"))
+    .map((file) => ({ ...file, path: file.path.slice("catalog/".length) }));
+  if (capacityDigest(catalogFiles) !== facts.repository_sha256)
+    throw new Error("catalog composition differs from actual Tough repository inventory");
+  const archive = serializeSiteTar(checked.files);
+  const directory = await mkdtemp(path.join(request.output_parent, "catalog-site-deployment-"));
+  await mkdir(path.join(directory, "upload"), { mode: 0o700 });
+  const archivePath = path.join(directory, "upload", "artifact.tar");
+  await writeFile(archivePath, archive, { flag: "wx", mode: 0o600 });
+  const generation = structuredClone(checked.generation);
+  for (const file of generation.files) Object.freeze(file);
+  Object.freeze(generation.files);
+  Object.freeze(generation);
+  const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
+  sessions.set(session, {
+    catalog: { assembly, subject, facts, prior, ...(initialization ? { initialization } : {}) },
+    deadline,
+    generation,
+    previous_generation: previous ? structuredClone(previous.generation) : null,
+    archive_bytes: archive.length,
+    archive_sha256: hash(archive),
+    directory,
+  });
+  await verifyPriorPublicSite(session);
+  await requireActualCatalogRepository(assembly, deadline);
+  remaining(deadline, 15000);
+  await writeFile(
+    path.join(directory, "preparation.json"),
+    JSON.stringify({
+      descriptor_sha256: capacityDigest(subject),
+      generation,
+      archive_sha256: hash(archive),
+      archive_bytes: archive.length,
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  return {
+    changed: true as const,
+    session,
+    archive: archivePath,
+    directory,
+    generation,
+    archive_sha256: hash(archive),
+    archive_bytes: archive.length,
+    authority: "none",
+  };
+}
+
+async function recheckCatalogDeployment(prepared: PrivateDeployment) {
+  const catalog = prepared.catalog;
+  if (!catalog || prepared.deadline === undefined)
+    throw new Error("actual catalog site session required");
+  const signing = await import("./release-catalog-signing.mts");
+  const actual = await (
+    catalog.recovery_only
+      ? signing.requireActualCatalogRepositoryForRecovery
+      : signing.requireActualCatalogRepository
+  )(catalog.assembly, prepared.deadline);
+  if (
+    capacityDigest(actual.descriptor) !== capacityDigest(catalog.subject) ||
+    capacityDigest(actual.report.facts) !== capacityDigest(catalog.facts)
+  )
+    throw new Error("actual catalog repository or descriptor changed");
+  remaining(prepared.deadline, 15000);
+  return catalog;
+}
+
+/** GET-only recovery reconstructs the exact ALREADY public generation. It
+ * never composes another marker, uploads or repeats the original Pages POST. */
+export async function prepareCatalogSiteHandoffFromActualRepository(
+  assembly: object,
+  raw: { repository: string; checkpoint: string; output_parent: string; deadline: number },
+) {
+  const request = structuredClone(raw);
+  remaining(request.deadline, 15000);
+  const actual = await (
+    await import("./release-catalog-signing.mts")
+  ).requireActualCatalogRepositoryForRecovery(assembly, request.deadline);
+  const deadline = Math.min(request.deadline, actual.deadline);
+  const authorities = await withCoordinatorDeadline(deadline, () =>
+    requireControllerCatalogPublicationAuthorities("coordinator"),
+  );
+  const state = await recoverReleaseOpportunity(request.repository, request.checkpoint);
+  const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
+  assertCatalogPublicationBaseline(subject, state.input);
+  const facts = inspectCatalogTufPublicationFacts(actual.report.facts);
+  const controller = state.input.controller;
+  const attempt =
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt
+      : null;
+  const operation = attempt && isRecord(attempt.operation) ? attempt.operation : null;
+  if (
+    !facts ||
+    !operation ||
+    !actual.recovery_intent ||
+    actual.recovery_intent.checkpoint !== request.checkpoint ||
+    capacityDigest(operation) !== actual.recovery_intent.operation_sha256 ||
+    capacityDigest(actual.descriptor) !== capacityDigest(subject) ||
+    subject.publisher_configuration_sha256 !== authorities.configuration_sha256 ||
+    facts.root_sha256 !== authorities.catalog.public_source.root.sha256 ||
+    facts.offline_targets_sha256 !== authorities.catalog.public_source.offline_targets.sha256 ||
+    capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
+      capacityDigest(subject) ||
+    operation.destination !== "github-pages:boburning/portcove:complete-site" ||
+    operation.kind !== "upload" ||
+    !["succeeded", "recovered"].includes(String(operation.outcome)) ||
+    (operation.outcome === "recovered" &&
+      (!isRecord(operation.recovery) || operation.recovery.resolution !== "effect-completed"))
+  )
+    throw new Error("exact settled catalog Pages subject required for GET-only recovery");
+  const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);
+  const prior = currentPublishedSite(state.input);
+  if (
+    expected.catalog_root_sha256 !== facts.root_sha256 ||
+    expected.catalog_repository_sha256 !== facts.repository_sha256 ||
+    expected.prior_site_generation_sha256 !== (prior?.generation_sha256 ?? null) ||
+    expected.application_root_sha256 !== (prior?.components.application?.root_sha256 ?? null)
+  )
+    throw new Error("catalog recovery differs from authenticated assembly or original prior");
+  const current = await materializePublishedCatalogCompleteSite(
+    {
+      root_sha256: facts.root_sha256,
+      repository_sha256: String(facts.repository_sha256),
+      site_generation_sha256: String(expected.site_generation_sha256),
+    },
+    request.output_parent,
+    deadline,
+  );
+  if (
+    current.generation.previous_generation !== expected.prior_site_generation_sha256 ||
+    current.generation.application_root_sha256 !== expected.application_root_sha256 ||
+    capacityDigest(
+      current.generation.files
+        .filter((file) => file.path.startsWith("application/"))
+        .map((file) => ({ ...file, path: file.path.slice("application/".length) })),
+    ) !== (prior?.components.application?.repository_sha256 ?? capacityDigest([]))
+  )
+    throw new Error(
+      "public catalog recovery changed preserved application bytes or marker ancestry",
+    );
+  const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
+  sessions.set(session, {
+    catalog: {
+      assembly,
+      subject,
+      facts,
+      prior,
+      recovery_only: true,
+      recovery_intent: actual.recovery_intent,
+    },
+    deadline,
+    generation: structuredClone(current.generation),
+    previous_generation: null,
+    archive_sha256: String(expected.archive_sha256),
+    archive_bytes: 0,
+    directory: current.directory,
+  });
+  await recheckCatalogDeployment(sessions.get(session)!);
+  return session;
+}
+
+export async function recoverPublishedCatalogSiteHandoff(
+  session: DeploymentSession,
+  executor: Awaited<ReturnType<typeof authenticateCapacityExecutor>>,
+  raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+  guards?: { refresh: () => Promise<void>; beforeMutation: () => void },
+) {
+  const prepared = sessions.get(session);
+  if (
+    !prepared?.catalog?.recovery_only ||
+    !prepared.catalog.recovery_intent ||
+    prepared.catalog.recovery_intent.checkpoint !== raw.checkpoint ||
+    prepared.upload ||
+    prepared.archive_bytes !== 0
+  )
+    throw new Error("actual GET-only catalog site recovery session required");
+  if (
+    !guards ||
+    typeof guards.refresh !== "function" ||
+    typeof guards.beforeMutation !== "function"
+  )
+    throw new Error("catalog recovery requires current control mutation guards");
+  await guards.refresh();
+  return recoverOwnedPublishedCatalogMetadata(
+    executor,
+    raw,
+    async (operation) => {
+      const catalog = await recheckCatalogDeployment(prepared);
+      if (capacityDigest(operation) !== catalog.recovery_intent?.operation_sha256)
+        throw new Error("catalog recovery operation differs from original verified intent");
+      const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);
+      const effect: unknown = Array.isArray(operation.completed_effects)
+        ? operation.completed_effects[0]
+        : null;
+      if (
+        !isRecord(effect) ||
+        typeof operation.id !== "string" ||
+        effect.remote_identity !==
+          `github-pages:boburning/portcove:${prepared.generation.generation}` ||
+        expected.site_generation_sha256 !== prepared.generation.generation ||
+        capacityDigest(inspectCatalogCapacitySubject(operation.catalog_publication).descriptor) !==
+          capacityDigest(catalog.subject)
+      )
+        throw new Error("catalog handoff differs from original exact Pages settlement");
+      const readback = await readBackSiteDeployment(session);
+      await recheckCatalogDeployment(prepared);
+      const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
+      await writeFile(
+        path.join(directory, "readback.json"),
+        JSON.stringify({
+          operation_id: operation.id,
+          original_effect: effect,
+          public_readback: readback,
+          provider_mutations: 0,
+          authority: "none",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+      const publication = {
+        evidence_sha256: effect.evidence_sha256,
+        remote_identity: effect.remote_identity,
+      };
+      await guards.refresh();
+      return {
+        metadata: {
+          ...catalog.facts,
+          source_commit: catalog.subject.source_commit,
+          source_tree: catalog.subject.source_tree,
+          operation_id: operation.id,
+          publication: { ...publication, site_generation_sha256: prepared.generation.generation },
+        },
+        site: {
+          schema_version: 1,
+          generation_sha256: prepared.generation.generation,
+          components: {
+            application: catalog.prior?.components.application ?? null,
+            catalog: {
+              root_sha256: catalog.facts.root_sha256,
+              repository_sha256: catalog.facts.repository_sha256,
+            },
+          },
+          operation_id: operation.id,
+          publication,
+        },
+      };
+    },
+    guards.beforeMutation,
+  );
+}
+
 /** Bind actual keyless composition to the authenticated publisher's exact
  * record set and the current fixed tool artifact. Valid TUF signatures alone
  * cannot select different release records or appoint a different verifier. */
@@ -537,7 +993,8 @@ export async function bindSiteDeploymentToPublicationResult(
   toolsReceipt: object,
 ) {
   const prepared = sessions.get(session);
-  if (!prepared?.publication) throw new Error("actual authenticated site composition required");
+  if (!prepared?.publication || !prepared.verifier || prepared.catalog)
+    throw new Error("actual authenticated site composition required for application binding");
   remaining(prepared.deadline, 15000);
   const result = await requireReceivedPublicationResult(resultReceipt, prepared.deadline);
   const tools = await verifiedControllerToolPaths(toolsReceipt);
@@ -586,6 +1043,41 @@ export async function readBackSiteDeployment(session: DeploymentSession) {
  * private continuation state; a later marker bracket cannot create it. */
 export async function verifyPriorPublicSite(session: DeploymentSession) {
   const prepared = sessions.get(session);
+  if (prepared?.catalog && prepared.previous_generation === null) {
+    const catalog = await recheckCatalogDeployment(prepared);
+    if (catalog.prior !== null)
+      throw new Error("existing site cannot use catalog bootstrap absence");
+    const deadline = prepared.deadline!;
+    const api = new GitHubApiClient((args, body) =>
+      createGitHubRunner({
+        cwd: prepared.directory,
+        timeoutMs: remaining(deadline, 15000),
+        maxBuffer: 512 * 1024,
+      })([...args, "--hostname", "github.com"], body),
+    );
+    const readback = await readConfiguredCatalogBootstrapSite(
+      api,
+      new Date().toISOString(),
+      deadline,
+    );
+    if (
+      readback.configuration_sha256 !== catalog.subject.publisher_configuration_sha256 ||
+      readback.root_sha256 !== catalog.facts.root_sha256 ||
+      !catalog.initialization ||
+      readback.source.source_tree !== catalog.initialization.source_tree ||
+      readback.setup_plan_sha256 !== catalog.initialization.setup_plan_sha256 ||
+      readback.historical_preimage_sha256 !== catalog.initialization.initial_site_preimage_sha256
+    )
+      throw new Error("catalog bootstrap configuration changed");
+    catalog.bootstrap_readback_sha256 = capacityDigest(readback);
+    await writeFile(
+      path.join(prepared.directory, `initial-catalog-readback-${performance.now()}.json`),
+      JSON.stringify(readback),
+      { flag: "wx", mode: 0o600 },
+    );
+    remaining(deadline, 15000);
+    return readback;
+  }
   if (prepared?.bootstrap) {
     const deadline = prepared.deadline ?? -1;
     const { metadata } = await requireInitialSiteContext(prepared.bootstrap.tuf, deadline);
@@ -601,7 +1093,20 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
       remaining(deadline, 15000);
       return result;
     });
-    const readback = await readConfiguredBootstrapSite(api, deadline);
+    const readback = prepared.bootstrap.catalog_site
+      ? await readConfiguredCatalogOnlyBootstrapSite(
+          api,
+          metadata.previous_site_pins,
+          prepared.bootstrap.catalog_site,
+          deadline,
+        )
+      : await readConfiguredBootstrapSite(api, deadline);
+    if (
+      prepared.bootstrap.catalog_site &&
+      (!("catalog_readback_sha256" in metadata.facts) ||
+        metadata.facts.catalog_readback_sha256 !== capacityDigest(readback))
+    )
+      throw new Error("fresh catalog readback differs from attested initial baseline");
     prepared.bootstrap.readback_sha256 = capacityDigest(readback);
     await writeFile(
       path.join(prepared.directory, `initial-public-readback-${performance.now()}.json`),
@@ -640,47 +1145,78 @@ export async function publishPreparedSiteDeployment(
     remote_configuration: unknown;
     metadata_renewal?: unknown;
     metadata_bootstrap?: unknown;
+    catalog_publication?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
   refreshControls?: () => Promise<AuthenticatedReleaseControlSource>,
 ) {
   const prepared = sessions.get(session);
-  if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
+  if (
+    !prepared ||
+    prepared.catalog?.recovery_only ||
+    !prepared.upload ||
+    prepared.upload.evidence_scope !== "github.com"
+  )
     throw new Error("actual authenticated composition and provider upload session required");
   remaining(prepared.deadline, 15000);
-  requireAuthenticatedReleaseControlSource(controls, "site-publication");
+  const requireControls = prepared.catalog
+    ? requireAuthenticatedCatalogControlSource
+    : requireAuthenticatedReleaseControlSource;
+  requireControls(controls, "site-publication");
   let currentControls = controls;
   const renewControls = async () => {
     if (!refreshControls) return;
     const next = await refreshControls();
-    requireAuthenticatedReleaseControlSource(next, "site-publication");
+    requireControls(next, "site-publication");
     if (next.evidence_scope !== "github.com")
       throw new Error("site continuation requires actual refreshed provider controls");
     currentControls = next;
   };
-  if (controls.evidence_scope !== "github.com" || !prepared.publication)
+  if (controls.evidence_scope !== "github.com" || (!prepared.catalog && !prepared.publication))
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
-  const bootstrap = input.metadata_bootstrap !== undefined,
-    maintenance = bootstrap || input.metadata_renewal !== undefined;
+  const catalog = prepared.catalog ? await recheckCatalogDeployment(prepared) : null;
+  const bootstrap = catalog
+      ? prepared.previous_generation === null
+      : input.metadata_bootstrap !== undefined,
+    maintenance = catalog !== null || bootstrap || input.metadata_renewal !== undefined;
+  if (catalog) {
+    if (
+      input.metadata_bootstrap !== undefined ||
+      input.metadata_renewal !== undefined ||
+      prepared.release_binding ||
+      prepared.publication ||
+      capacityDigest(inspectCatalogPublicationDescriptor(input.catalog_publication)) !==
+        capacityDigest(catalog.subject)
+    )
+      throw new Error("catalog site requires its exact separate catalog subject only");
+  } else if (input.catalog_publication !== undefined)
+    throw new Error("application site cannot publish a catalog subject");
   if (bootstrap && input.metadata_renewal !== undefined)
     throw new Error("site requires exactly one metadata subject");
-  if (bootstrap) {
-    if (!prepared.bootstrap || prepared.release_binding || prepared.previous_generation !== null)
+  if (catalog) {
+    // Actual keyless assembly, protected catalog appointments and the current
+    // journal subject were independently bound by the catalog session factory.
+  } else if (bootstrap) {
+    if (
+      !prepared.bootstrap ||
+      prepared.release_binding ||
+      (prepared.previous_generation !== null && !prepared.bootstrap.catalog_site)
+    )
       throw new Error("initial site requires actual initial preparation only");
     const proof = await requireInitialSiteContext(prepared.bootstrap.tuf, prepared.deadline ?? -1);
     if (capacityDigest(input.metadata_bootstrap) !== prepared.bootstrap.descriptor_sha256)
       throw new Error("initial site descriptor differs from actual signed context");
     input.metadata_bootstrap = assertMetadataBootstrapPublication(
       proof.metadata.facts.descriptor,
-      prepared.publication,
+      prepared.publication!,
     );
   } else if (input.metadata_renewal !== undefined) {
     if (prepared.release_binding)
       throw new Error("site requires one exact maintenance or release subject");
     input.metadata_renewal = assertMetadataRenewalPublication(
       input.metadata_renewal,
-      prepared.publication,
+      prepared.publication!,
     );
   } else if (!prepared.release_binding)
     throw new Error(
@@ -695,23 +1231,36 @@ export async function publishPreparedSiteDeployment(
   )
     throw new Error("site artifact is not associated with the actual fixed same-attempt executor");
   const checkpoint = await recoverReleaseOpportunity(input.repository, input.checkpoint);
-  const published = checkpoint.input.published_metadata;
-  const publication =
-    isRecord(published) && isRecord(published.publication) ? published.publication : null;
-  if (bootstrap) {
+  if (catalog) {
+    assertCatalogPublicationBaseline(catalog.subject, checkpoint.input);
+    if (
+      capacityDigest(inspectCatalogPublicationDescriptor(checkpoint.input.catalog_publication)) !==
+        capacityDigest(catalog.subject) ||
+      capacityDigest(currentPublishedSite(checkpoint.input)) !== capacityDigest(catalog.prior) ||
+      (bootstrap
+        ? !catalog.bootstrap_readback_sha256
+        : prepared.prior_public_readback?.generation !== catalog.prior?.generation_sha256) ||
+      prepared.generation.previous_generation !== (catalog.prior?.generation_sha256 ?? null)
+    )
+      throw new Error("catalog site current journal, prior readback or initial absence differs");
+  } else if (bootstrap) {
     const proof = await requireInitialSiteContext(prepared.bootstrap!.tuf, prepared.deadline ?? -1);
     inspectMetadataSigningReservation(
       proof.actual.context.manifest.facts,
       proof.actual.context.manifest.binding,
-      null,
+      proof.metadata.previous_site_pins,
       checkpoint,
     );
-    if (prepared.generation.previous_generation !== null || !prepared.bootstrap!.readback_sha256)
+    if (
+      prepared.generation.previous_generation !==
+        (proof.metadata.previous_site_pins?.site_generation_sha256 ?? null) ||
+      !prepared.bootstrap!.readback_sha256
+    )
       throw new Error("initial site requires independent configured/public preflight");
   } else if (
-    !publication ||
     !prepared.previous_generation ||
-    publication.site_generation_sha256 !== prepared.previous_generation.generation ||
+    currentApplicationSitePins(checkpoint.input).site_generation_sha256 !==
+      prepared.previous_generation.generation ||
     prepared.generation.previous_generation !== prepared.previous_generation.generation ||
     prepared.prior_public_readback?.generation !== prepared.previous_generation.generation
   )
@@ -796,7 +1345,8 @@ export async function publishPreparedSiteDeployment(
   );
   const readBoundary = async () => {
     remaining(prepared.deadline, 15000);
-    requireAuthenticatedReleaseControlSource(currentControls, "site-publication");
+    requireControls(currentControls, "site-publication");
+    if (catalog) await recheckCatalogDeployment(prepared);
     const facts = !maintenance
       ? currentControls.read(api, frozen)
       : currentControls.readMaintenance(api);
@@ -819,14 +1369,28 @@ export async function publishPreparedSiteDeployment(
       request: {
         kind: "upload",
         destination: "github-pages:boburning/portcove:complete-site",
-        site_expectation: {
-          artifact_id: prepared.upload.artifact_id,
-          archive_sha256: prepared.archive_sha256,
-          site_generation_sha256: prepared.generation.generation,
-          prior_site_generation_sha256: prepared.previous_generation?.generation ?? null,
-          root_sha256: prepared.publication.root_sha256,
-          repository_sha256: prepared.publication.repository_sha256,
-        },
+        ...(catalog
+          ? {
+              catalog_site_expectation: {
+                artifact_id: prepared.upload.artifact_id,
+                archive_sha256: prepared.archive_sha256,
+                site_generation_sha256: prepared.generation.generation,
+                prior_site_generation_sha256: prepared.previous_generation?.generation ?? null,
+                application_root_sha256: catalog.prior?.components.application?.root_sha256 ?? null,
+                catalog_root_sha256: catalog.facts.root_sha256,
+                catalog_repository_sha256: catalog.facts.repository_sha256,
+              },
+            }
+          : {
+              site_expectation: {
+                artifact_id: prepared.upload.artifact_id,
+                archive_sha256: prepared.archive_sha256,
+                site_generation_sha256: prepared.generation.generation,
+                prior_site_generation_sha256: prepared.previous_generation?.generation ?? null,
+                root_sha256: prepared.publication!.root_sha256,
+                repository_sha256: prepared.publication!.repository_sha256,
+              },
+            }),
       },
     },
     readBoundary,
@@ -857,9 +1421,9 @@ export async function publishPreparedSiteDeployment(
             generation: prepared.generation.generation,
           },
           async () => {
+            if (bootstrap) await verifyPriorPublicSite(session);
             await refreshCapacityExecutor(executor);
             await readBoundary();
-            if (bootstrap) await verifyPriorPublicSite(session);
           },
         );
         await write("acknowledgement.json", accepted);
@@ -946,20 +1510,50 @@ export async function publishPreparedSiteDeployment(
     typeof effect.remote_identity !== "string"
   )
     throw new Error("published site settlement identity differs; preserve original effects");
-  const advanced = await recordPublishedMetadata(
-    input.repository,
-    result.checkpoint,
-    {
-      ...prepared.publication,
-      operation_id: result.operation_id,
-      publication: {
-        remote_identity: effect.remote_identity,
-        evidence_sha256: result.evidence_sha256,
-        site_generation_sha256: prepared.generation.generation,
-      },
-    },
-    { remote: { configuration: input.remote_configuration, api } },
-  );
+  const publication = {
+    remote_identity: effect.remote_identity,
+    evidence_sha256: result.evidence_sha256,
+    site_generation_sha256: prepared.generation.generation,
+  };
+  const advanced = catalog
+    ? await recordPublishedCatalogMetadata(
+        input.repository,
+        result.checkpoint,
+        {
+          ...catalog.facts,
+          source_commit: catalog.subject.source_commit,
+          source_tree: catalog.subject.source_tree,
+          operation_id: result.operation_id,
+          publication,
+        },
+        {
+          schema_version: 1,
+          generation_sha256: prepared.generation.generation,
+          components: {
+            application: catalog.prior?.components.application ?? null,
+            catalog: {
+              root_sha256: catalog.facts.root_sha256,
+              repository_sha256: catalog.facts.repository_sha256,
+            },
+          },
+          operation_id: result.operation_id,
+          publication: {
+            evidence_sha256: result.evidence_sha256,
+            remote_identity: effect.remote_identity,
+          },
+        },
+        { remote: { configuration: input.remote_configuration, api } },
+      )
+    : await recordPublishedApplicationSiteMetadata(
+        input.repository,
+        result.checkpoint,
+        {
+          ...prepared.publication!,
+          operation_id: result.operation_id,
+          publication,
+        },
+        { remote: { configuration: input.remote_configuration, api } },
+      );
   remaining(prepared.deadline, 15000);
   if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)
     throw new Error("published metadata handoff remains unresolved; do not deploy again");

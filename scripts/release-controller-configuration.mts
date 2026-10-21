@@ -5,8 +5,16 @@ import {
   inspectAssemblerIdentityExpectation,
   controllerOidcSubject,
 } from "./assembler-job-identity.mts";
-import { releaseControlPhaseProfile } from "./release-control-phases.mts";
+import {
+  inspectControllerExecutionPurpose,
+  releaseControlPhaseProfile,
+} from "./release-control-phases.mts";
 import { tufRoleDependencies } from "./release-tuf-signing.mts";
+import {
+  catalogRoleDependencies,
+  catalogSigningRoles,
+} from "./release-catalog-signing-contract.mts";
+import { inspectCatalogRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 
@@ -121,6 +129,7 @@ function nativeLocators(raw: unknown) {
  * Unknown needs are ignored, never used as an alternate producer or entry. */
 export function prepareFixedControllerConfiguration(input: {
   operation: unknown;
+  publication_purpose?: unknown;
   fixed: Fixed;
   needs: unknown;
   admission_configuration: unknown;
@@ -132,15 +141,24 @@ export function prepareFixedControllerConfiguration(input: {
   if (!isRecord(needs) || Buffer.byteLength(JSON.stringify(needs)) > 256 * 1024)
     throw new Error("bounded fixed DAG needs required");
   const operation = input.operation;
+  const purpose = inspectControllerExecutionPurpose(input.publication_purpose);
   if (
     operation !== "coordinator" &&
     operation !== "building" &&
     operation !== "payload" &&
     operation !== "release-publication" &&
     operation !== "site-publication" &&
-    !["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(
-      String(operation),
-    )
+    ![
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
+      "tuf-releases",
+      "tuf-preview",
+      "tuf-stable",
+      "tuf-snapshot",
+      "tuf-timestamp",
+    ].includes(String(operation))
   )
     throw new Error("fixed DAG operation required");
   const bootstrap = output(needs, "tool_bootstrap"),
@@ -168,8 +186,72 @@ export function prepareFixedControllerConfiguration(input: {
     !/^portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}$/u.test(admission.namespace)
   )
     throw new Error("ratified admission namespace required");
+  if (
+    purpose === "application" &&
+    typeof operation === "string" &&
+    operation.startsWith("catalog-")
+  )
+    throw new Error("application cannot select catalog operation");
+  if (
+    purpose === "catalog-publication" &&
+    operation !== "coordinator" &&
+    operation !== "site-publication" &&
+    !(typeof operation === "string" && operation.startsWith("catalog-"))
+  )
+    throw new Error("catalog cannot select application operation");
   if (operation === "coordinator")
     return { remote_configuration: { schema_version: 1, namespace: admission.namespace }, tools };
+  if (purpose === "catalog-publication") {
+    const coordinated = output(needs, "coordinator");
+    if (coordinated.mode !== "catalog")
+      throw new Error("authenticated catalog coordinator route required");
+    const context = contextLocator(coordinated.context_locator, fixed);
+    const selectedPhase = releaseControlPhaseProfile(operation);
+    const identity = inspectAssemblerIdentityExpectation({
+      audience: selectedPhase.reader_audience,
+      subject: controllerOidcSubject(fixed.controller_ref, selectedPhase.reader_environment),
+      controller_revision: fixed.controller_revision,
+      controller_ref: fixed.controller_ref,
+      actor_id: fixed.actor_id,
+      run_id: fixed.run_id,
+      run_attempt: 1,
+    });
+    const roleLocator = (role: (typeof catalogSigningRoles)[number]) => {
+      const value = inspectCatalogRoleArtifactExpected(
+        json(output(needs, `catalog_${role}`).role_locator),
+      );
+      if (
+        value.role !== role ||
+        value.controller.controller_revision !== fixed.controller_revision ||
+        value.controller.source_tree !== fixed.source_tree ||
+        value.controller.controller_ref !== fixed.controller_ref ||
+        value.controller.run_id !== fixed.run_id ||
+        value.controller.run_attempt !== 1 ||
+        value.context_manifest_sha256 !== context.manifest_sha256 ||
+        value.context_binding_sha256 !== context.binding_sha256 ||
+        value.context_facts_sha256 !== context.facts_sha256
+      )
+        throw new Error("fixed catalog role/context differs");
+      return value;
+    };
+    if (operation === "site-publication")
+      return {
+        mode: "catalog",
+        identity,
+        tools,
+        context,
+        roles: catalogSigningRoles.map(roleLocator),
+      };
+    const role = String(operation).slice(8);
+    return {
+      role,
+      identity,
+      tools,
+      context,
+      dependencies: catalogRoleDependencies(role).map(roleLocator),
+    };
+  }
+
   if (operation === "building" && output(needs, "coordinator").publication_custody === "reused")
     throw new Error("retained publication cannot repeat aggregate preparation");
   if (operation === "building")

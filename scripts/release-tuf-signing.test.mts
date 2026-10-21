@@ -349,3 +349,63 @@ void test(
     }
   },
 );
+
+void test("actual isolated signer rechecks guard after final custody and deadline before key material", async () => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const { releaseCanonicalDigest: digest } = await import("./release-canonical.mts");
+  const source = await readFile(new URL("./release-tuf-signing.mts", import.meta.url), "utf8");
+  const start = source.indexOf('phase = "fresh-controls-before-key";'),
+    end = source.indexOf("\n    if (!Buffer.isBuffer(secret)", start);
+  assert(start > 0 && end > start);
+  for (const deadlineExpiry of [false, true]) {
+    let clock = 59000,
+      keys = 0;
+    const guards: number[] = [];
+    const tool = Buffer.from("unchanged reviewed tool");
+    const guarded = runInNewContext(
+      stripTypeScriptTypes(
+        "async function guarded(){let phase,secret;" + source.slice(start, end) + "}\nguarded",
+      ),
+      {
+        request: {
+          context_directory: "original",
+          tool: { path: "fixed", sha256: hash(tool) },
+          signed_roles: [],
+        },
+        publicRoot: "retained",
+        inputDigest: digest([]),
+        tool: "copy",
+        deadline: 115000,
+        digest,
+        hash,
+        inventory: () => [],
+        readBoundedReleaseContextFiles: async () => {
+          clock = 61000;
+          return new Map();
+        },
+        readControllerToolFile: async () => tool,
+        beforeKey: async () => {
+          guards.push(clock);
+          if (guards.length === 2) {
+            if (deadlineExpiry) clock = 116000;
+            else throw new Error("original controls expired");
+          }
+        },
+        remaining: () => {
+          if (clock >= 115000) throw new Error("original signer deadline exhausted");
+        },
+        keyMaterial: async () => {
+          keys++;
+          return Buffer.from("never");
+        },
+      },
+    ) as () => Promise<void>;
+    await assert.rejects(
+      guarded(),
+      deadlineExpiry ? /signer deadline exhausted/ : /controls expired/,
+    );
+    assert.deepEqual(guards, [59000, 61000]);
+    assert.equal(keys, 0);
+  }
+});

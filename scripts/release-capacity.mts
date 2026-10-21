@@ -6,6 +6,7 @@ import {
 } from "./release-catalog-metadata-contract.mts";
 import {
   inspectCatalogCapacitySubject,
+  inspectCatalogInitialization,
   catalogPublicationLifecycle,
   assertCatalogSitePublicationBinding,
 } from "./release-catalog-publication-contract.mts";
@@ -35,13 +36,17 @@ import {
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "79b6ef718ad5d3321bf07e847a36f28b95fe555455e1ea2051d93d399a82318e",
-  input_workflow_sha256: "79b6ef718ad5d3321bf07e847a36f28b95fe555455e1ea2051d93d399a82318e",
+  aggregate_workflow_sha256: "3c4985361df22afbd3a83e3238ee220375f6198b7ceb86c789686073f2916ec0",
+  input_workflow_sha256: "3c4985361df22afbd3a83e3238ee220375f6198b7ceb86c789686073f2916ec0",
   aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 10, 8, 6, 5]),
-  wake_workflow_sha256: "2c0d724bcb34deb0a1662af6dbb374add24acd8906f139517ef1efedccbf2a06",
+  wake_workflow_sha256: "55785021aefd968316c719dd67cc5f9ee00c4b15f8fd1f737f405ff00fc35988",
   wake_job_minutes: Object.freeze([1]),
   declared_job_minutes: 99,
+  catalog_job_minutes: Object.freeze([1, 4, 2, 3, 2, 2, 2, 2, 5]),
+  catalog_observer_job_minutes: Object.freeze([3, 8, 5]),
+  catalog_declared_job_minutes: 40,
+  purpose_accounting: "mutually-exclusive-max-application99-catalog40",
   // Separate candidate-workflow repair jobs; never enlarge the controller DAG.
   report_repair_job_minutes: 2,
   report_repair_attempts_per_candidate: 2,
@@ -940,6 +945,25 @@ function validateCapacityV2(
     throw new Error("new Release intent requires exact provider preimage");
   if (newIntent && after.aggregate_expectation)
     assertAggregateUploadCandidate(next.active_candidate);
+  const previousCatalogInitialization = inspectCatalogInitialization(
+    previous.catalog_initialization,
+  );
+  const nextCatalogInitialization = inspectCatalogInitialization(next.catalog_initialization);
+  if (
+    previousCatalogInitialization &&
+    capacityDigest(previousCatalogInitialization) !== capacityDigest(nextCatalogInitialization)
+  )
+    throw new Error("catalog initialization identity cannot disappear or be replaced");
+  if (
+    !previousCatalogInitialization &&
+    nextCatalogInitialization &&
+    (currentPublishedSite(previous) ||
+      currentPublishedSite(next) ||
+      previous.active_candidate != null ||
+      next.active_candidate != null ||
+      (before && !["succeeded", "recovered"].includes(before.outcome)))
+  )
+    throw new Error("catalog initialization cannot replace published or unresolved state");
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null

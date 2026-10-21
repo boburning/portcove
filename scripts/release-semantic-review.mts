@@ -3,11 +3,18 @@ import { validateOpportunity } from "./release-coordinator.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  inspectCatalogSemanticOpportunity,
+  isCatalogSemanticPurpose,
+} from "./release-catalog-semantic.mts";
 
 export const semanticReviewCheckName = "Portcove independent release semantic review";
 
 /** Shape/integrity only: this does not authenticate a runtime or certify review. */
-export function inspectSemanticReviewEvidence(raw: unknown) {
+export function inspectSemanticReviewEvidence(
+  raw: unknown,
+  purpose: "application" | "catalog-publication" = "application",
+) {
   if (
     !isRecord(raw) ||
     Object.keys(raw).sort().join(",") !==
@@ -15,7 +22,10 @@ export function inspectSemanticReviewEvidence(raw: unknown) {
   )
     throw new Error("semantic review evidence schema differs");
   if (
-    raw.scope !== "complete-release-opportunity" ||
+    raw.scope !==
+      (purpose === "application"
+        ? "complete-release-opportunity"
+        : "complete-catalog-publication-opportunity") ||
     raw.runtime !== "codex-independent-local-review" ||
     typeof raw.session_ref !== "string" ||
     !raw.session_ref ||
@@ -55,10 +65,16 @@ export function inspectSemanticReviewEvidence(raw: unknown) {
  * App identity remain separate requirements. No POST/CLI exists here.
  */
 export function prepareSemanticReviewHandoff(rawOpportunity: unknown, rawReview: unknown) {
-  const opportunity = validateOpportunity(structuredClone(rawOpportunity));
-  parseVersionClassification(opportunity.classification);
-  if (opportunity.classification.change_set_scope !== "portcove-release-net-tree-delta-v1")
-    throw new Error("semantic review needs the complete versioned accumulated opportunity");
+  const catalog = isCatalogSemanticPurpose(rawOpportunity);
+  const opportunity = catalog
+    ? inspectCatalogSemanticOpportunity(structuredClone(rawOpportunity))
+    : validateOpportunity(structuredClone(rawOpportunity));
+  if (!catalog) {
+    const application = validateOpportunity(rawOpportunity);
+    parseVersionClassification(application.classification);
+    if (application.classification.change_set_scope !== "portcove-release-net-tree-delta-v1")
+      throw new Error("semantic review needs the complete versioned accumulated opportunity");
+  }
   if (
     !isRecord(rawReview) ||
     Object.keys(rawReview).sort().join(",") !==
@@ -66,18 +82,26 @@ export function prepareSemanticReviewHandoff(rawOpportunity: unknown, rawReview:
   )
     throw new Error("semantic review record schema differs");
   const { accepted_opportunity: accepted, ...record } = rawReview;
-  const evidence = inspectSemanticReviewEvidence({
-    ...record,
-    report_sha256:
-      typeof record.report === "string"
-        ? createHash("sha256").update(record.report).digest("hex")
-        : null,
-  });
+  const evidence = inspectSemanticReviewEvidence(
+    {
+      ...record,
+      report_sha256:
+        typeof record.report === "string"
+          ? createHash("sha256").update(record.report).digest("hex")
+          : null,
+    },
+    catalog ? "catalog-publication" : "application",
+  );
   const digest = capacityDigest(opportunity);
-  if (capacityDigest(validateOpportunity(accepted)) !== digest)
+  if (
+    capacityDigest(
+      catalog ? inspectCatalogSemanticOpportunity(accepted) : validateOpportunity(accepted),
+    ) !== digest
+  )
     throw new Error("semantic review accepted different exact inputs");
   const summary = JSON.stringify({
-    schema_version: 2,
+    schema_version: catalog ? 3 : 2,
+    ...(catalog ? { purpose: "catalog-publication" } : {}),
     opportunity,
     opportunity_sha256: digest,
     review: evidence,
@@ -94,11 +118,18 @@ export function prepareSemanticReviewHandoff(rawOpportunity: unknown, rawReview:
       body: {
         name: semanticReviewCheckName,
         head_sha: opportunity.source_commit,
-        external_id: `portcove-release-review-v2:${digest}`,
+        external_id: catalog
+          ? `portcove-catalog-review-v1:${digest}`
+          : `portcove-release-review-v2:${digest}`,
         status: "completed",
         conclusion: "success",
         completed_at: evidence.completed_at,
-        output: { title: "Portcove independent release review v1", summary },
+        output: {
+          title: catalog
+            ? "Portcove independent catalog review v1"
+            : "Portcove independent release review v1",
+          summary,
+        },
       },
     },
   };

@@ -66,6 +66,16 @@ export function observeReleaseInputProtections(
   api: GitHubRestReader,
   options: { releasePublication?: boolean } = {},
 ) {
+  return observeProtections(api, options, "application");
+}
+export function observeCatalogMaintenanceProtections(api: GitHubRestReader) {
+  return observeProtections(api, {}, "catalog-publication");
+}
+function observeProtections(
+  api: GitHubRestReader,
+  options: { releasePublication?: boolean },
+  purpose: "application" | "catalog-publication",
+) {
   let requests = 0;
   const started = performance.now();
   const get = (suffix: string) => {
@@ -130,35 +140,37 @@ export function observeReleaseInputProtections(
     }
     if (!complete || new Set(rulesets.map((rule) => rule.id)).size !== rulesets.length)
       throw new Error("protection inventory pages incomplete or duplicated");
-    const branches = refs.map((branch) => {
-      const ref = get(`/git/ref/heads/${branch}`);
-      if (
-        !isRecord(ref) ||
-        ref.ref !== `refs/heads/${branch}` ||
-        !isRecord(ref.object) ||
-        ref.object.type !== "commit" ||
-        typeof ref.object.sha !== "string" ||
-        !/^[a-f0-9]{40}$/u.test(ref.object.sha)
-      )
-        throw new Error("protected input ref unavailable");
-      const effective: unknown[] = [];
-      let covered = false;
-      for (let page = 1; page <= 8; page++) {
-        const values = get(`/rules/branches/${branch}?per_page=100&page=${page}`);
-        if (!Array.isArray(values) || values.length > 100)
-          throw new Error("effective protection rules unavailable");
-        for (const value of values as unknown[]) effective.push(value);
-        if (values.length < 100) {
-          covered = true;
-          break;
+    const branches = (purpose === "catalog-publication" ? ["portcove-release-pause"] : refs).map(
+      (branch) => {
+        const ref = get(`/git/ref/heads/${branch}`);
+        if (
+          !isRecord(ref) ||
+          ref.ref !== `refs/heads/${branch}` ||
+          !isRecord(ref.object) ||
+          ref.object.type !== "commit" ||
+          typeof ref.object.sha !== "string" ||
+          !/^[a-f0-9]{40}$/u.test(ref.object.sha)
+        )
+          throw new Error("protected input ref unavailable");
+        const effective: unknown[] = [];
+        let covered = false;
+        for (let page = 1; page <= 8; page++) {
+          const values = get(`/rules/branches/${branch}?per_page=100&page=${page}`);
+          if (!Array.isArray(values) || values.length > 100)
+            throw new Error("effective protection rules unavailable");
+          for (const value of values as unknown[]) effective.push(value);
+          if (values.length < 100) {
+            covered = true;
+            break;
+          }
         }
-      }
-      if (!covered) throw new Error("effective rules pagination incomplete");
-      // Classic protection can add restrictions but cannot bypass a ruleset.
-      // This assertion concerns exact writers/ref immutability in active rulesets;
-      // it does not assert that a future operation will be available.
-      return { branch, ref, effective_rules: effective };
-    });
+        if (!covered) throw new Error("effective rules pagination incomplete");
+        // Classic protection can add restrictions but cannot bypass a ruleset.
+        // This assertion concerns exact writers/ref immutability in active rulesets;
+        // it does not assert that a future operation will be available.
+        return { branch, ref, effective_rules: effective };
+      },
+    );
     const immutable = options.releasePublication ? get("/immutable-releases") : undefined;
     if (
       options.releasePublication &&
@@ -185,9 +197,12 @@ export function observeReleaseInputProtections(
     api_requests: requests,
     inventory_sha256: createHash("sha256").update(canonical(after)).digest("hex"),
     inventory: after,
-    coverage: options.releasePublication
-      ? "current-repository-input-branches-and-release-immutability"
-      : "current-repository-input-branches-only",
+    coverage:
+      purpose === "catalog-publication"
+        ? "current-repository-catalog-maintenance-only"
+        : options.releasePublication
+          ? "current-repository-input-branches-and-release-immutability"
+          : "current-repository-input-branches-only",
     enforcement: "uninterpreted",
     admission: "hold",
     authority: "none",
@@ -203,6 +218,17 @@ export function requireReleaseInputWriterPolicy(
   writerAppId: number,
   now = Date.now(),
 ) {
+  return requireInputPolicy(raw, writerAppId, now, "application");
+}
+export function requireCatalogMaintenancePolicy(raw: unknown, now = Date.now()) {
+  return requireInputPolicy(raw, 43177418, now, "catalog-publication");
+}
+function requireInputPolicy(
+  raw: unknown,
+  writerAppId: number,
+  now: number,
+  purpose: "application" | "catalog-publication",
+) {
   if (
     !Number.isSafeInteger(writerAppId) ||
     writerAppId < 1 ||
@@ -210,10 +236,14 @@ export function requireReleaseInputWriterPolicy(
     !isRecord(raw) ||
     raw.schema_version !== 1 ||
     raw.repository_id !== 1354613114 ||
-    ![
-      "current-repository-input-branches-only",
-      "current-repository-input-branches-and-release-immutability",
-    ].includes(String(raw.coverage)) ||
+    !(
+      purpose === "catalog-publication"
+        ? ["current-repository-catalog-maintenance-only"]
+        : [
+            "current-repository-input-branches-only",
+            "current-repository-input-branches-and-release-immutability",
+          ]
+    ).includes(String(raw.coverage)) ||
     typeof raw.observed_at !== "string" ||
     !Number.isFinite(Date.parse(raw.observed_at)) ||
     now - Date.parse(raw.observed_at) < 0 ||
@@ -225,7 +255,7 @@ export function requireReleaseInputWriterPolicy(
   )
     throw new Error("fresh authenticated protection inventory unavailable");
   const rulesets = raw.inventory.rulesets;
-  for (const branch of refs) {
+  for (const branch of purpose === "catalog-publication" ? ["portcove-release-pause"] : refs) {
     const rows = raw.inventory.branches.filter(
       (value) => isRecord(value) && value.branch === branch,
     );

@@ -67,6 +67,7 @@ void test("actual maintained source recipe supplies declarations without runtime
   assert.equal(result.files.length, 4);
   for (const changed of [
     { ...files, [lib]: Buffer.from("invalid source") },
+    { ...files, [lib]: Buffer.concat([files[lib]!, Buffer.from(`\n${apiDeclaration}\n`)]) },
     {
       ...files,
       [lib]: Buffer.concat([

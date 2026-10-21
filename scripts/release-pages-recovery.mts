@@ -120,6 +120,7 @@ export async function recoverPendingPagesPublication(
   privateParent: string,
   phaseDeadline: number,
   beforeSettlement?: () => Promise<void>,
+  beforeMutation?: () => void,
 ) {
   if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
     throw new Error("Pages recovery deadline exhausted before observation");
@@ -142,19 +143,24 @@ export async function recoverPendingPagesPublication(
   try {
     await beforeSettlement?.();
     const settled = await withCoordinatorDeadline(phaseDeadline, () =>
-      recoverOwnedCapacityEffect(executor, raw, async (operation) => {
-        observation = await readPendingPagesPublication(directory, operation, phaseDeadline);
-        await writeFile(
-          path.join(directory, "readback.json"),
-          JSON.stringify(observation.evidence),
-          {
-            flag: "wx",
-            mode: 0o600,
-          },
-        );
-        await beforeSettlement?.();
-        return observation.resolution;
-      }),
+      recoverOwnedCapacityEffect(
+        executor,
+        raw,
+        async (operation) => {
+          observation = await readPendingPagesPublication(directory, operation, phaseDeadline);
+          await writeFile(
+            path.join(directory, "readback.json"),
+            JSON.stringify(observation.evidence),
+            {
+              flag: "wx",
+              mode: 0o600,
+            },
+          );
+          await beforeSettlement?.();
+          return observation.resolution;
+        },
+        beforeMutation,
+      ),
     );
     if (!observation) throw new Error("actual Pages readback was not completed");
     await requirePublishedCompleteSite(observation.complete_site);

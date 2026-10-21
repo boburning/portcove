@@ -604,3 +604,100 @@ void test("schema2 uses bounded eligibility with Unknown availability and preser
   });
   assert.equal(exhausted.action, "pause-exception");
 });
+
+void test("catalog-only initialization stays inert, retains holds and needs no application identity", async () => {
+  const input = fixture({
+    schema_version: 2,
+    opportunity: null,
+    catalog_initialization: {
+      schema_version: 1,
+      kind: "catalog-initialization",
+      authority: "none",
+      source_commit: "a".repeat(40),
+      source_tree: "b".repeat(40),
+      root_sha256: "c".repeat(64),
+      publisher_configuration_sha256: "d".repeat(64),
+      setup_plan_sha256: "e".repeat(64),
+      initial_site_preimage_sha256: "f".repeat(64),
+    },
+  });
+  const controller = {
+    workflow: ".github/workflows/application-update-production.yml",
+    revision: controllerRevision,
+    publication_paused: false,
+    capacity_attempt: { ...capacityFixture(), schema_version: 2 },
+  };
+  input.controller = controller;
+  const plan = planReleaseOpportunity(input);
+  assert.equal(plan.action, "skip");
+  assert.match(plan.reason, /inert catalog initialization/);
+  assert.equal(Object.hasOwn(plan.authority, "catalog_publication_sha256"), false);
+  assert.equal(Object.hasOwn(plan.authority, "opportunity_commit"), false);
+  assert.equal(Object.hasOwn(plan.authority, "metadata_bootstrap_sha256"), false);
+  assert.equal(
+    planReleaseOpportunity({ ...input, controller: { ...controller, publication_paused: true } })
+      .action,
+    "pause",
+  );
+  assert.equal(
+    planReleaseOpportunity({
+      ...input,
+      controller: {
+        ...controller,
+        capacity_attempt: {
+          ...controller.capacity_attempt,
+          ratification: { ...controller.capacity_attempt.ratification, active: false },
+        },
+      },
+    }).action,
+    "pause",
+  );
+  assert.throws(
+    () => planReleaseOpportunity({ ...input, catalog_initialization: null }),
+    /explicit initial/,
+  );
+  assert.throws(
+    () =>
+      planReleaseOpportunity({
+        ...input,
+        catalog_initialization: {
+          ...(input.catalog_initialization as object),
+          authority: "accepted",
+        },
+      }),
+    /inert/,
+  );
+  const publication = input.publication;
+  assert.ok(isRecord(publication));
+  assert.throws(
+    () =>
+      planReleaseOpportunity({
+        ...input,
+        publication: { ...publication, reserved_versions: ["0.1.0-alpha.3"] },
+      }),
+    /without a reservation/,
+  );
+  validateCapacityTransition(input, { ...input, now: input.now }, "f".repeat(40));
+  assert.throws(
+    () =>
+      validateCapacityTransition(input, { ...input, catalog_initialization: null }, "f".repeat(40)),
+    /initialization identity/,
+  );
+  const { checkpointReleaseOpportunity, recoverReleaseOpportunity } =
+    await import("./release-coordinator-state.mts");
+  const journal = await mkdtemp(path.join(os.tmpdir(), "catalog-initial-journal-"));
+  execFileSync("git", ["init", "--bare", "--quiet", journal], { windowsHide: true });
+  const initial = await checkpointReleaseOpportunity(journal, null, input);
+  const recovered = await recoverReleaseOpportunity(journal, initial.checkpoint);
+  assert.equal(recovered.plan.action, "skip");
+  assert.equal(recovered.input.opportunity, null);
+  assert.equal(recovered.input.active_candidate, null);
+  assert.equal(recovered.input.metadata_bootstrap, undefined);
+  await assert.rejects(
+    checkpointReleaseOpportunity(journal, initial.checkpoint, {
+      ...input,
+      catalog_initialization: null,
+    }),
+    /explicit initial|initialization identity/,
+  );
+});

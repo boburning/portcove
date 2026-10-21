@@ -12,7 +12,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let [command, config] = arguments.as_slice()
         && matches!(
             command.as_str(),
-            "sign-offline-definition-targets" | "assemble-definition-repository"
+            "sign-offline-definition-targets"
+                | "assemble-definition-repository"
+                | "verify-definition-repository"
         )
     {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -21,6 +23,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         if command == "sign-offline-definition-targets" {
             let report = runtime.block_on(
                 portcove_release_tools::definition_repository::sign_offline_definition_targets(
+                    Path::new(config),
+                ),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+        } else if command == "verify-definition-repository" {
+            let report = runtime.block_on(
+                portcove_release_tools::definition_repository::verify_definition_repository(
                     Path::new(config),
                 ),
             )?;
