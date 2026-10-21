@@ -1,3 +1,4 @@
+import { inspectCatalogReviewDisposition } from "./release-catalog-review-disposition.mts";
 import {
   inspectCatalogReviewRequest,
   assertCatalogReviewRequestBaseline,
@@ -408,6 +409,7 @@ type Authority = {
   catalog_publication_sha256?: string;
   catalog_initialization_sha256?: string;
   catalog_review_request_sha256?: string;
+  catalog_review_disposition_sha256?: string;
   published_catalog_metadata_sha256?: string;
   published_site_sha256?: string;
 };
@@ -504,6 +506,7 @@ export function planReleaseOpportunity(input: unknown) {
       "catalog_publication",
       "catalog_initialization",
       "catalog_review_request",
+      "catalog_review_disposition",
       "published_catalog_metadata",
       "published_site",
     ],
@@ -519,6 +522,7 @@ export function planReleaseOpportunity(input: unknown) {
     Object.hasOwn(input, "catalog_publication") ||
     Object.hasOwn(input, "catalog_initialization") ||
     Object.hasOwn(input, "catalog_review_request") ||
+    Object.hasOwn(input, "catalog_review_disposition") ||
     Object.hasOwn(input, "published_catalog_metadata") ||
     Object.hasOwn(input, "published_site") ||
     Object.hasOwn(input, "published_metadata") ||
@@ -551,6 +555,9 @@ export function planReleaseOpportunity(input: unknown) {
       : {}),
   };
   const catalogReviewRequest = inspectCatalogReviewRequest(input.catalog_review_request);
+  const catalogReviewDisposition = inspectCatalogReviewDisposition(
+    input.catalog_review_disposition,
+  );
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const metadataRenewal =
@@ -628,6 +635,27 @@ export function planReleaseOpportunity(input: unknown) {
       "neutral catalog request awaits independently authenticated whole-opportunity review",
       authority,
       { catalog_review_request: catalogReviewRequest, admission: "required" as const },
+    );
+  }
+  if (input.opportunity === null && catalogReviewDisposition && !catalogReviewRequest) {
+    return plan(
+      controller.publication_paused ||
+        controller.capacity?.eligibility !== "eligible" ||
+        active ||
+        reviewRequest ||
+        reviewDisposition
+        ? "pause"
+        : "skip",
+      "catalog negative review retained; only a bounded changed-source request or actual catalog baseline advance may continue",
+      {
+        ...siteAuthority,
+        controller_workflow: controller.workflow,
+        controller_revision: controller.revision,
+        publication_observed_at: publication.observed_at,
+        publication_sha256: capacityDigest(input.publication),
+        catalog_review_disposition_sha256: capacityDigest(catalogReviewDisposition),
+        ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+      },
     );
   }
   if (input.opportunity === null) {
