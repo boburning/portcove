@@ -16,7 +16,10 @@ import { requireActualTufPublication } from "./release-tuf-publication.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
-import { requireReservedAggregate } from "./production-aggregate-steps.mts";
+import {
+  requireReservedAggregate,
+  inspectReservedPublicationReadback,
+} from "./production-aggregate-steps.mts";
 import {
   inspectMetadataBootstrapDescriptor,
   inspectPublishedMetadata,
@@ -156,7 +159,29 @@ export function inspectNativeInitialPublicationJourney(raw: {
 
 /** The seven argument fixed entry deliberately cannot accept a journey,
  * expected-report JSON, caller trust boolean or injected provider. */
-export async function collectConfiguredNativePublicationQualificationPair(
+type NativePublicationPairArguments = [
+  parent: string,
+  locators: unknown,
+  assembly: unknown,
+  archives: unknown,
+  context: object,
+  tufPublication: object,
+  deadline: number,
+];
+export function collectConfiguredNativePublicationQualificationPair(
+  ...args: NativePublicationPairArguments
+) {
+  return collectNativePublicationPair("reserved", ...args);
+}
+/** The fixed promoting continuation only re-reads existing authenticated Checks.
+ * It cannot admit an aggregate or obtain any completion/effect capability. */
+export function collectConfiguredNativePublicationCompletionPair(
+  ...args: NativePublicationPairArguments
+) {
+  return collectNativePublicationPair("completion-readback", ...args);
+}
+async function collectNativePublicationPair(
+  purpose: "reserved" | "completion-readback",
   parent: string,
   rawLocators: unknown,
   rawAssembly: unknown,
@@ -249,7 +274,9 @@ export async function collectConfiguredNativePublicationQualificationPair(
       archives,
       evidence: {},
     });
-    await requireReservedAggregate(descriptor, before);
+    const associate =
+      purpose === "reserved" ? requireReservedAggregate : inspectReservedPublicationReadback;
+    await associate(descriptor, before);
     if (
       !isRecord(before.input.active_candidate) ||
       digest(before.input.active_candidate.frozen_opportunity) !==
@@ -442,7 +469,7 @@ export async function collectConfiguredNativePublicationQualificationPair(
     const after = await snapshot();
     if (after.checkpoint !== before.checkpoint)
       throw new Error("native publication reservation changed during collection");
-    await requireReservedAggregate(descriptor, after);
+    await associate(descriptor, after);
     remaining();
     return pair;
   } catch {

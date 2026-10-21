@@ -19,6 +19,7 @@ import {
   inspectNativePublicationPredecessor,
   inspectNativeInitialPublicationJourney,
   collectConfiguredNativePublicationQualificationPair,
+  collectConfiguredNativePublicationCompletionPair,
 } from "./release-native-publication-admission.mts";
 import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
 import { metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
@@ -158,6 +159,19 @@ void test("configured post-sign native entry refuses imported TUF/context before
   t.after(() => rm(root, { recursive: true, force: true }));
   await assert.rejects(
     collectConfiguredNativePublicationQualificationPair(
+      root,
+      [],
+      {},
+      [],
+      {},
+      {},
+      performance.now() + 10000,
+    ),
+    /actual keyless/u,
+  );
+  assert.deepEqual(await readdir(root), []);
+  await assert.rejects(
+    collectConfiguredNativePublicationCompletionPair(
       root,
       [],
       {},
