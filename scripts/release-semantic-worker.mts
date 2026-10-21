@@ -1,4 +1,7 @@
-import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import {
+  assertCatalogReviewRequestBaseline,
+  inspectCatalogReviewRequest,
+} from "./release-catalog-review-request.mts";
 import { readCatalogPublicationSourceBytes } from "./release-catalog-source.mts";
 import { inspectCatalogSemanticRequestCheckMatches } from "./release-semantic-disposition-reader.mts";
 import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
@@ -51,6 +54,7 @@ export function inspectSemanticWorkerRequest(input: unknown) {
     application = inspectReleaseReviewRequest(input.review_request);
   if (catalog && application)
     throw new Error("simultaneous catalog/application requests require reconciliation");
+  if (catalog) assertCatalogReviewRequestBaseline(catalog, input);
   if (catalog)
     return {
       purpose: "catalog" as const,

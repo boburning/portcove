@@ -178,7 +178,8 @@ export async function reviewFrozenCatalogCoordinatorRequest(
     retain = configuration.retainOriginalCheckRequest;
   if (typeof guard !== "function" || typeof retain !== "function")
     throw new Error("catalog pipeline current provisioning guard unavailable");
-  // The maintained builder copies and validates all bytes synchronously before callbacks.
+  await guard();
+  // The maintained builder copies and validates all bytes synchronously before runtime callbacks.
   const bundle = prepareFrozenCatalogSemanticInputs(api, sourceRepository, request.opportunity, {
     inspection: Buffer.from(request.core_inspection),
     files: input.files,

@@ -162,7 +162,16 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
   };
 }
 export function inspectNegativeCatalogSemanticDisposition(raw: unknown) {
-  return inspectDisposition(raw, true);
+  const result = inspectDisposition(raw, true),
+    request = inspectCatalogReviewRequest(result.request)!;
+  return {
+    ...result,
+    kind: "catalog-publication-semantic-disposition" as const,
+    stage: "complete-catalog-publication-opportunity" as const,
+    request,
+    opportunity: request.opportunity,
+    opportunity_sha256: capacityDigest(request.opportunity),
+  };
 }
 export type NegativeSemanticDisposition = ReturnType<typeof inspectNegativeSemanticDisposition>;
 

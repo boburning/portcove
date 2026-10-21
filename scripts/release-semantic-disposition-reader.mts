@@ -350,6 +350,12 @@ export function inspectSemanticRequestCheckMatches(
     )
       throw new Error("semantic request Check report incomplete");
     const summary: unknown = JSON.parse(value.output.summary);
+    if (
+      isRecord(summary) &&
+      (summary.kind === "catalog-publication-semantic-disposition" ||
+        (summary.schema_version === 3 && summary.purpose === "catalog-publication"))
+    )
+      continue;
     if (value.conclusion === "failure") {
       const wire = inspectNegativeSemanticDisposition(summary);
       if (
@@ -565,4 +571,41 @@ export function discoverIndependentCatalogSemanticDisposition(
   );
   inventory.assertUnchanged();
   return result;
+}
+
+/** Inert compact custody only. The fixed controller must use a fresh selected-App
+ * reader result; this serializer cannot authenticate an imported receipt. */
+export function createCatalogReviewDispositionReceipt(
+  observed: ReturnType<typeof readIndependentCatalogSemanticDisposition>,
+  requestCheckpoint: string,
+) {
+  const wire = inspectNegativeCatalogSemanticDisposition(observed.wire);
+  if (
+    !/^[a-f0-9]{40}$/u.test(requestCheckpoint) ||
+    capacityDigest(wire) !== observed.wire_sha256 ||
+    !Number.isSafeInteger(observed.check_run_id) ||
+    observed.check_run_id < 1 ||
+    !Number.isSafeInteger(observed.review_app_id) ||
+    observed.review_app_id < 1
+  )
+    throw new Error("catalog disposition observed identity differs");
+  return {
+    schema_version: 1 as const,
+    kind: "catalog-publication-semantic-disposition-receipt" as const,
+    request: wire.request,
+    request_checkpoint: requestCheckpoint,
+    check_run_id: observed.check_run_id,
+    review_app_id: observed.review_app_id,
+    stage: wire.stage,
+    disposition: wire.disposition,
+    wire_sha256: observed.wire_sha256,
+    opportunity_sha256: wire.opportunity_sha256,
+    bundle_sha256: wire.bundle_sha256,
+    invocation_sha256: wire.invocation_sha256,
+    events_sha256: wire.events_sha256,
+    isolation_sha256: wire.isolation_sha256,
+    report_sha256: wire.review.report_sha256,
+    session_ref: wire.review.session_ref,
+    completed_at: wire.review.completed_at,
+  };
 }

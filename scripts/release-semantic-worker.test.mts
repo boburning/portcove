@@ -1,3 +1,6 @@
+import { capacityDigest } from "./release-capacity.mts";
+import { createCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
@@ -405,6 +408,92 @@ void test("actual proposal pipeline freezes real Git inputs then refuses an unqu
   );
   assert.ok(reads > 0);
   assert.ok(guards >= 1);
+  assert.equal(handoffs, 0);
+  const files = new Map([
+    ["definitions/index.json", Buffer.from('{"catalog_schema":2,"entries":[]}')],
+  ]);
+  const fileBytes = files.get("definitions/index.json")!;
+  const entries = [
+    {
+      target: "definitions/index.json",
+      bytes: fileBytes.length,
+      sha256: createHash("sha256").update(fileBytes).digest("hex"),
+    },
+  ];
+  const inspection = `${JSON.stringify({ publication_schema: 1, authority: "none", index_sha256: entries[0]!.sha256, files: entries, definitions: [], scope: "inert-managed-definition-publication-inspection" })}\n`;
+  const catalog = createCatalogReviewRequest({
+    before_checkpoint: "f".repeat(40),
+    requested_at: "2026-01-01T00:00:00.000Z",
+    core_inspection: inspection,
+    opportunity: {
+      kind: "catalog-publication",
+      source_commit: f.original.sha,
+      source_tree: f.sourceTree,
+      base_commit: f.base.sha,
+      change_set_sha256: f.expectedHash,
+      bundle_sha256: capacityDigest(entries),
+      core_inspection_sha256: createHash("sha256").update(inspection).digest("hex"),
+      publisher_configuration_sha256: "a".repeat(64),
+      baseline: {
+        source_commit: f.base.sha,
+        source_tree: inspectRemoteCommitObject(f.base, f.base.sha).tree,
+        catalog_root_sha256: "b".repeat(64),
+        catalog_repository_sha256: null,
+        site_generation_sha256: null,
+        application_root_sha256: null,
+        application_repository_sha256: null,
+      },
+      classification: { change: "initial", index_sha256: entries[0]!.sha256, definitions: [] },
+      compatibility: {
+        contract: "official-definition-policy-launch-v1",
+        notes: "Controlled source fixture only, no actual semantic acceptance.",
+      },
+    },
+  });
+  reads = 0;
+  await assert.rejects(
+    reviewFrozenCatalogCoordinatorRequest(
+      api,
+      root,
+      catalog,
+      { files, prior_repository: null },
+      selected,
+    ),
+    /fixed ordinary Linux runtime|qualified runtime changed|ENOENT/,
+  );
+  assert.ok(reads > 0);
+  assert.equal(handoffs, 0);
+  reads = 0;
+  await assert.rejects(
+    reviewFrozenCatalogCoordinatorRequest(
+      api,
+      root,
+      catalog,
+      { files, prior_repository: null },
+      {
+        ...selected,
+        requireCurrentRequestAndProvisioning: async () => {
+          throw new Error("catalog superseded");
+        },
+      },
+    ),
+    /catalog superseded/,
+  );
+  assert.equal(reads, 0);
+  assert.equal(handoffs, 0);
+  await assert.rejects(
+    reviewFrozenCatalogCoordinatorRequest(
+      api,
+      root,
+      catalog,
+      {
+        files: new Map([["definitions/index.json", Buffer.from("changed")]]),
+        prior_repository: null,
+      },
+      selected,
+    ),
+    /catalog|inspection|hash|bytes/u,
+  );
   assert.equal(handoffs, 0);
   reads = 0;
   await assert.rejects(
