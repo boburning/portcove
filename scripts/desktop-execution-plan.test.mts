@@ -11,6 +11,7 @@ import os from "node:os";
 import test from "node:test";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripTypeScriptTypes } from "node:module";
 import { runTypeScriptInNewContext as runInNewContext } from "./test-source.mts";
 import { fileIdentity } from "./development-evidence.mts";
 import { planDesktopExecution, nativeTransportReceiptSources } from "./desktop-execution-plan.mts";
@@ -29,6 +30,36 @@ const executableNames = {
   "preparation-cli": "baseline-cli.exe",
   "preparation-tool": "baseline-tool.exe",
 };
+
+void test("native display identity dependency retains the exact helper consumed by preparation", async () => {
+  const preparation = new URL(
+    "../apps/desktop/scripts/desktop-preparation-test.mts",
+    import.meta.url,
+  );
+  const executed = stripTypeScriptTypes(await readFile(preparation, "utf8"), { mode: "strip" });
+  const identityImport = executed.match(
+    /import\s*\{\s*gameTitle,\s*gameIdentityLabel\s*\}\s*from\s*["']([^"']+)["']/u,
+  );
+  assert.ok(identityImport?.[1], "Preparation must use the shared display identity contract");
+  const dependency = new URL(identityImport[1], preparation);
+  const expected = "apps/desktop/src/port-identity.ts";
+  assert.equal(
+    fileURLToPath(dependency),
+    fileURLToPath(new URL(`../${expected}`, import.meta.url)),
+  );
+  assert.equal(nativeTransportReceiptSources.filter((source) => source === expected).length, 1);
+  // Preparation is statically imported even for smoke. Capture its actual pure
+  // identity dependency once for every platform/profile, without widening build
+  // features or treating captured source as proof that a journey executed.
+  for (const platform of ["win32", "linux", "darwin"] as const)
+    for (const profile of ["smoke", "presentation", "full"])
+      assert.equal(
+        planDesktopExecution(resolveDesktopSelection({ platform, profile }), {
+          platform,
+        }).receiptInputs.filter((input) => input.kind === "file" && input.path === expected).length,
+        1,
+      );
+});
 
 void test("Windows final custody gate retains failed current exit without fixture or lease release", async () => {
   const source = await readFile(
@@ -557,6 +588,32 @@ void test("execution planning preserves the independently reviewed pre-change or
         if (expectedSession.cleanupName === "backup-focus")
           expectedSession.cleanupName = "game-update-review";
       }
+      // Source-reference removal adds positive Windows custody through the existing
+      // owner. Preserve the oracle and restore explicit backup-focus name priority.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-source-reference-removal")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (
+          expectedSession.cleanupName === "backup-focus" &&
+          !selection.selected_scenarios.includes("native-backup-delete-focus")
+        )
+          expectedSession.cleanupName = "source-reference-removal";
+      }
+      // Steam batch adds Windows custody without rewriting historical oracle bytes
+      // or displacing any existing cleanup name, including explicit backup focus.
+      if (
+        row.platform === "win32" &&
+        selection.selected_scenarios.includes("native-reviewed-steam-batch-add")
+      ) {
+        expectedSession.identityBoundSession = true;
+        if (
+          expectedSession.cleanupName === "backup-focus" &&
+          !selection.selected_scenarios.includes("native-backup-delete-focus")
+        )
+          expectedSession.cleanupName = "steam-batch";
+      }
       assert.deepEqual(plan.session, expectedSession);
     }
     assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
@@ -777,7 +834,7 @@ for (const id of ["native-late-listener-disposal", "native-rejected-listener-reg
         );
   });
 
-void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
+void test("backup review requires identity-bound Windows cleanup within its lifecycle deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-reviewed-backup-restore-and-delete"],
@@ -786,7 +843,91 @@ void test("backup review requires identity-bound Windows cleanup under the exist
     const plan = planDesktopExecution(selection, { platform });
     assert.equal(plan.session.identityBoundSession, platform === "win32");
     assert.equal(plan.session.cleanupName, platform === "win32" ? "backup-review" : "backup-focus");
+    assert.equal(desktopHarnessDeadlineMs(selection), 600000);
+  }
+});
+
+void test("source-reference removal adds Windows custody without changing builds or setup", () => {
+  const id = "native-reviewed-source-reference-removal";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(
+      plan.session.cleanupName,
+      platform === "win32" ? "source-reference-removal" : "backup-focus",
+    );
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.deepEqual(plan.build.qualificationFeatures, []);
+    assert.equal(plan.fixtures.owned, true);
+    assert.ok(selection.prerequisites.includes("native-dialog"));
+    assert.ok(selection.host_resources.includes("native-dialog"));
     assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
+  for (const [other, cleanupName] of [
+    ["native-reviewed-backup-restore-and-delete", "backup-review"],
+    ["native-game-update-review", "game-update-review"],
+    ["native-retained-contract-repair-state", "retained-contract-repair"],
+    ["native-backup-delete-focus", "backup-focus"],
+  ] as const) {
+    for (const scenarios of [
+      [id, other],
+      [other, id],
+    ]) {
+      const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+        platform: "win32",
+      });
+      assert.equal(plan.session.identityBoundSession, true);
+      assert.equal(plan.session.cleanupName, cleanupName);
+    }
+  }
+});
+
+void test("Steam batch adds Windows custody without changing builds, setup or cleanup priorities", () => {
+  const id = "native-reviewed-steam-batch-add";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.selected_scenarios, [id]);
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.session.identityBoundSession, platform === "win32");
+    assert.equal(plan.session.cleanupName, platform === "win32" ? "steam-batch" : "backup-focus");
+    assert.deepEqual(plan.build.cliFeatures, []);
+    assert.deepEqual(plan.build.qualificationFeatures, ["qualification-fixtures"]);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.fixtures.steam, true);
+    assert.deepEqual(selection.prerequisites, [
+      "desktop",
+      "owned-fixture",
+      "native-dialog",
+      "steam-fixture",
+    ]);
+    assert.deepEqual(selection.host_resources, [
+      "native-desktop",
+      "keyboard-pointer",
+      "native-dialog",
+    ]);
+    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+  }
+  for (const [other, cleanupName] of [
+    ["native-reviewed-backup-restore-and-delete", "backup-review"],
+    ["native-game-update-review", "game-update-review"],
+    ["native-retained-contract-repair-state", "retained-contract-repair"],
+    ["native-reviewed-source-reference-removal", "source-reference-removal"],
+    ["native-backup-delete-focus", "backup-focus"],
+  ] as const) {
+    for (const scenarios of [
+      [id, other],
+      [other, id],
+    ]) {
+      const plan = planDesktopExecution(resolveDesktopSelection({ scenarios, platform: "win32" }), {
+        platform: "win32",
+      });
+      assert.equal(plan.session.identityBoundSession, true);
+      assert.equal(plan.session.cleanupName, cleanupName);
+    }
   }
 });
 
@@ -802,6 +943,8 @@ void test("qualified reviews and a running setup restart reject missing or forei
     { scenario: "native-host-publication-recovery" },
     { scenario: "native-real-prepared-runtime" },
     { scenario: "native-reviewed-backup-restore-and-delete" },
+    { scenario: "native-reviewed-source-reference-removal" },
+    { scenario: "native-reviewed-steam-batch-add" },
     { scenario: "native-preliminary-source-review" },
     { scenario: "native-late-listener-disposal" },
     { scenario: "native-rejected-listener-registration" },
@@ -834,6 +977,16 @@ void test("qualified reviews and a running setup restart reject missing or forei
         requireQualified,
       ),
     );
+    if (
+      scenario === "native-reviewed-source-reference-removal" ||
+      scenario === "native-reviewed-steam-batch-add"
+    ) {
+      assert.throws(() =>
+        validate({ processes: [entries[0], { path: "/foreign/driver.exe" }, entries[2]] }),
+      );
+      assert.throws(() => validate({ processes: [...entries, entries[0]] }));
+      assert.throws(() => validate({ processes: [...entries, entries[1]] }));
+    }
   }
 });
 

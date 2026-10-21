@@ -2,6 +2,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { ActivityRecord, InstallPlan } from "../types";
 import { StatusLayer } from "./Chrome";
@@ -94,6 +95,75 @@ function button(label: string) {
 async function click(label: string) {
   await act(async () => button(label).click());
 }
+
+it.each([
+  [240, "dark"],
+  [240, "light"],
+  [320, "dark"],
+  [320, "light"],
+  [960, "dark"],
+] as const)("keeps long installation consequences readable at %spx in %s", async (width, theme) => {
+  const original = { width: innerWidth, height: innerHeight };
+  const originalTheme = document.documentElement.dataset.theme;
+  const location =
+    "E:\\Codex-Worktrees\\native-scenario-contracts-2222\\Portcove-Development\\outputs\\desktop-verify\\2026-10-20T20-00-53-492Z-XPWaWD\\native\\library\\versions\\portcove-install-fixture\\未知のゲーム";
+  try {
+    await page.viewport(width, 160);
+    await expect.poll(() => innerWidth).toBe(width);
+    document.documentElement.dataset.theme = theme;
+    await root.rerender(
+      <InstallAction
+        ready
+        sourceReady
+        biosReady
+        plan={{
+          ...plan,
+          temporary_space: {
+            path: location,
+            required_bytes: plan.download_bytes,
+            available_bytes: plan.storage.volume_available_bytes,
+            volume_identity: "fixture-volume",
+            sufficient: true,
+          },
+          output_location: {
+            ...plan.output_location,
+            default_output_directory: location,
+            effective_output_directory: location,
+          },
+        }}
+        install={vi.fn()}
+        review={vi.fn()}
+        dismiss={vi.fn()}
+      />,
+    );
+    const dialog = document.querySelector<HTMLElement>('[aria-labelledby="install-review-title"]')!;
+    const overflow = [...dialog.querySelectorAll<HTMLElement>("*")]
+      .filter((item) => item.scrollWidth > item.clientWidth + 1)
+      .map((item) => ({
+        tag: item.tagName,
+        class: item.className,
+        client: item.clientWidth,
+        scroll: item.scrollWidth,
+      }));
+    expect(dialog.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(
+      dialog.clientWidth + 1,
+    );
+    expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
+    expect(dialog.textContent).toContain(location);
+    const action = button("Install ·");
+    action.scrollIntoView({ block: "center" });
+    const bounds = action.getBoundingClientRect();
+    expect(bounds.left).toBeGreaterThanOrEqual(0);
+    expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+    expect(bounds.top).toBeGreaterThanOrEqual(0);
+    expect(bounds.bottom).toBeLessThanOrEqual(innerHeight);
+  } finally {
+    await cleanup();
+    if (originalTheme === undefined) delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = originalTheme;
+    await page.viewport(original.width, original.height);
+  }
+});
 
 it("shows preservation limits before installing the reviewed release", async () => {
   const install = vi.fn();

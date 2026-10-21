@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { By, until } from "selenium-webdriver";
-import { reviewControls } from "./desktop-review-controls.mts";
+import { reviewControls, openCatalogPortAfterRefresh } from "./desktop-review-controls.mts";
 
 export async function primaryFilePickerScenario({
   browser,
@@ -29,12 +29,7 @@ export async function primaryFilePickerScenario({
   await scenario("native-primary-file-pickers", async () => {
     const port = transportValue("port", command(["catalog", "show", "mortal-kombat-4-recompiled"]));
     const { button, click } = reviewControls(browser);
-    await click(By.xpath('//nav//button[contains(., "Find games")]'));
-    await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-    await browser.findElement(By.id("port-search")).sendKeys(port.name);
-    const card = By.css(`button.port-card[data-detail-origin][aria-label^="${port.name}."]`);
-    await browser.wait(until.elementLocated(card), 15_000);
-    await click(card);
+    await openCatalogPortAfterRefresh(browser, port, port.name);
     await browser.wait(until.elementLocated(By.css("[data-detail-workspace]")), 15_000);
     const primary = () => By.css(".actions.primary-actions > button");
     const game = await browser.wait(until.elementLocated(primary()), 15_000);

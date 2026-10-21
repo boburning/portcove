@@ -177,6 +177,11 @@ export async function interruptedPreparationScenario({
       return feed.records;
     };
     const before = command(["status", "opengoal-jak2"]);
+    const port = required(
+      transportValue("catalog", (await invoke("get_catalog")).value).ports.find(
+        (candidate) => candidate.id === before.port_id,
+      ),
+    );
     const activity = cliActivities().find(
       (item) =>
         item.operation === "prepare" &&
@@ -289,7 +294,7 @@ export async function interruptedPreparationScenario({
     assert.equal(required(required(recovered).failure).details.cancel_requested, "true");
     const repair = doctor.repair.items.find((item) => item.operation_id === activity.id);
     assert.equal(required(repair).kind, "retained_preparation");
-    assert.match(required(repair).proposed_action, /cannot be resumed/);
+    assert.match(required(repair).proposed_action, /this interrupted setup cannot resume/);
     assert.equal(required(repair).path, required(privatePath));
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
@@ -298,8 +303,7 @@ export async function interruptedPreparationScenario({
     // consent. This does not claim that a real external process is still live.
     const unprovenQuiescenceError =
       "retained preparation process quiescence is not proven; cleanup is refused";
-    const unprovenQuiescenceSummary =
-      "The selection changed or another operation is using it. Review its current state.";
+    const unprovenQuiescenceSummary = `Game preparation for ${port.name} (${port.id}): The selection changed or another operation is using it. Review its current state.`;
     setPreparationProcessQuiescence(library, activity.id, null);
     const cleanupGeneration = transportValue(
       "desktop_bootstrap_status",
@@ -317,14 +321,18 @@ export async function interruptedPreparationScenario({
       object(object(refusedPreview.error).presentation).summary,
       unprovenQuiescenceSummary,
     );
-    const interruptedRows = By.css(".activity-row.failed");
+    // Durable identity and presentation key were checked above. Match that
+    // recovered task and its current Core summary, not a historical sentence.
+    const recoveredSummary = required(required(recovered).failure).presentation.summary;
+    assert.ok(recoveredSummary.trim(), "Recovered failure must have a current Core summary");
+    const interruptedRows = By.css(`.activity-row.failed[data-activity-id="${activity.id}"]`);
     const findInterruptedRow = async () => {
       const candidates = await browser.findElements(interruptedRows);
       for (const candidate of candidates) {
         const text = await candidate.getText();
         if (
           text.includes("Game-data setup") &&
-          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")
         ) {
@@ -373,7 +381,9 @@ export async function interruptedPreparationScenario({
     await beforeRestartLog.click();
     const beforeRestartText = await browser.wait(async () => {
       const text = await beforeRestart.getText();
-      return text.includes("Capture is incomplete") ? text : false;
+      return text.includes("Only the output saved before the last observation is available.")
+        ? text
+        : false;
     }, 15_000);
     assert.ok(beforeRestartText);
     assert.match(beforeRestartText, /Running game setup/);
@@ -403,7 +413,7 @@ export async function interruptedPreparationScenario({
         const text = await candidate.getText();
         if (
           text.includes("Game-data setup") &&
-          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")
         ) {
@@ -426,14 +436,14 @@ export async function interruptedPreparationScenario({
         const current = await candidate.getText();
         return current.includes("Reading the retained log")
           ? false
-          : current.includes("Capture reached the end") ||
-              current.includes("Capture is incomplete") ||
+          : current.includes("Both output streams ended. Saved output is shown below.") ||
+              current.includes("Only the output saved before the last observation is available.") ||
               current.includes("No retained diagnostic capture")
             ? current
             : false;
       }, 15_000);
       assert.ok(loadedText);
-      if (loadedText.includes("Capture is incomplete")) {
+      if (loadedText.includes("Only the output saved before the last observation is available.")) {
         row = candidate;
         break;
       }
@@ -467,13 +477,13 @@ export async function interruptedPreparationScenario({
     artifacts.push(evidence);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', row);
     const review = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"] > details`)),
       15_000,
     );
     await review.findElement(By.css("summary")).click();
-    assert.match(await review.getText(), /Retained preparation files/);
+    assert.match(await review.getText(), /Unfinished setup files/);
     assert.ok((await review.getText()).includes(required(privatePath)));
-    assert.match(await review.getText(), /cannot be resumed/);
+    assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
     const cleanupReview = await review.findElement(
       By.xpath('.//button[normalize-space(.)="Review unfinished setup files"]'),
@@ -527,11 +537,13 @@ export async function interruptedPreparationScenario({
     assert.ok(refusedCleanupText.includes(unprovenQuiescenceSummary));
     assert.deepEqual(
       await Promise.all(
-        (await browser.findElement(cleanupDialog).findElements(By.css("button"))).map((button) =>
-          button.getText(),
-        ),
+        (
+          await browser
+            .findElement(cleanupDialog)
+            .findElements(By.css('[data-slot="dialog-footer"] button'))
+        ).map((button) => button.getText()),
       ),
-      ["Keep retained files", "Review again"],
+      ["Keep files", "Review again"],
     );
     await access(required(privatePath));
     assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));
@@ -591,7 +603,7 @@ export async function interruptedPreparationScenario({
     const cleanupActionStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(controls.button("Delete setup working files")),
-      await browser.findElement(controls.button("Keep retained files")),
+      await browser.findElement(controls.button("Keep files")),
     );
     const cleanupText = await browser.findElement(cleanupDialog).getText();
     for (const expected of [
@@ -616,7 +628,7 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(cleanupImage);
-    await controls.click(controls.button("Keep retained files"));
+    await controls.click(controls.button("Keep files"));
     await access(required(privatePath));
 
     await clickVisible(browser, cleanupReview);
@@ -669,7 +681,7 @@ export async function interruptedPreparationScenario({
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
-    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
     let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
     await recoveredReview.findElement(By.css("summary")).click();
     await browser.wait(
@@ -765,7 +777,9 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
+    const journalOnlyReviewLocator = By.css(
+      `[data-recovery-operation="${journalOnlyId}"] > details`,
+    );
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(
       async () =>
@@ -816,7 +830,7 @@ export async function interruptedPreparationScenario({
     assert.ok(journalOnlyText.includes("before clearing this record"));
     assert.ok(!journalOnlyText.includes("before deleting these files"));
     assert.ok(journalOnlyText.includes("Cancel"));
-    assert.ok(!journalOnlyText.includes("Keep retained files"));
+    assert.ok(!journalOnlyText.includes("Keep files"));
     assert.match(journalOnlyText, /0 files/);
     assert.match(
       journalOnlyText,

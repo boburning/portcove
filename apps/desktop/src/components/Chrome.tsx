@@ -1071,8 +1071,12 @@ function SourceHealthRow({
       )}
       {outcome?.error && (
         <div className="min-w-0">
-          <p className="text-pc-danger-foreground">{errorText(outcome.error)}</p>
-          <FailureDetails presentation={outcome.error.presentation} code={outcome.error.code} />
+          <p className="text-pc-danger-foreground">Saved-file check did not pass.</p>
+          <FailureDetails
+            presentation={outcome.error.presentation}
+            code={outcome.error.code}
+            showMutationSummary={false}
+          />
         </div>
       )}
       {(profile || report) && (

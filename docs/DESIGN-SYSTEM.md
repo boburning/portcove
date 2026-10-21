@@ -52,6 +52,14 @@ controls. Both themes share semantic roles. This supersedes earlier Library
 card-density assumptions; Find games retains its discovery composition and
 dated audit/reference evidence remains retained.
 
+Find games currently uses a whole-card details button. Its accessible name comes
+from its content, including the visible game/port, state and action; do not
+replace it with a shorter synthesized label that omits visible card text.
+Decorative artwork remains hidden from the accessibility tree. Library keeps
+its separate identity and action controls. The discovery card's longer natural
+name is a consequence of that composition, not a reason to hide meaningful
+content or give it a conflicting speech-input label.
+
 The workspace remains the full available width. The desktop main element owns
 vertical scrolling; narrow navigation retains the existing document scroll owner.
 Below an effective workspace width of 80em, desktop navigation becomes
@@ -61,6 +69,19 @@ slice reuses the existing interface-size controller and does not establish new
 native enlargement acceptance.
 
 ## Activity and contextual task feedback
+
+Pending launch controls in Library covers/rows, Continue, details and Activity retain
+focusability through Base UI's focusable-disabled behavior and expose `aria-busy`.
+They refuse pointer and keyboard activation while excluded. This preserves the
+origin during native foreground re-entry without moving focus back after a player
+has navigated elsewhere. Unavailable launch requirements retain ordinary disabled
+behavior; focusability never supplies launch authority.
+
+Changing task or workspace feedback preserves the current visible reading anchor.
+The workspace reflow owner coordinates feedback-height and window changes using
+the remaining measured displacement, not a saved launch scroll offset. New user
+input, navigation, library/detail changes and modal interaction take precedence;
+feedback changes never take focus or reveal a control the player left behind.
 
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
 
@@ -186,6 +207,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
+- Shared review dialogs permit long path and identifier text to wrap anywhere when space requires it, including inline values in consequence paragraphs. Preserve the complete selectable value; do not hide horizontal overflow. Check real Windows paths spanning several directory names at 240px and 320px effective widths as well as ordinary windows: hyphenated or Unicode-only samples can introduce break opportunities that mask failures.
 - Motion is small, interruptible, reduced-motion safe, and independent of business logic. Approximately 100–140 ms for ordinary visual transitions and 160–220 ms for small floating surfaces are evaluation ranges, not standards or global release gates.
 - First use, no filtered matches, unavailable storage, refresh failure with retained data, operation failure, partial success, and cancellation remain distinct. Settings either persist immediately and report persistence truthfully or use an explicit Apply/Cancel transaction.
 
@@ -679,3 +701,5 @@ expanding the whole task; text remains selectable with keyboard or pointer.
 Features retain lazy capture, redaction, request/generation guards, clipboard
 outcomes and announcements. The primitive does not fetch, redact, copy or store
 diagnostics. Existing failure and Activity semantics remain authoritative.
+
+Saved-file verification failures use a contextual check message. Keep Core error code, mutation metadata and diagnostic context in collapsed technical details, but do not project generic preparation or mutation-outcome claims into the ordinary saved-file check. Current inspection results and reconnect/relink guidance remain separately visible; pending, cancelled and unavailable inspection states retain their own contracts. This presentation rule does not change Core error authority or claim database-byte immutability.

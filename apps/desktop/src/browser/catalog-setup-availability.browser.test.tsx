@@ -126,10 +126,11 @@ it.each(["dark", "light"])("keeps cached setup reasons and Details access in %s"
   flushSync(() => root.render(<Fixture />));
   for (const item of cases) {
     const card = page.getByRole("button", {
-      name: `${item.name}. ${item.label}. View details.`,
-      exact: true,
+      name: new RegExp(`^${item.name}\\s+${item.label}\\b`),
     });
     await expect.element(card).toBeEnabled();
+    await expect.element(card).toHaveAccessibleName(/\bView details$/);
+    await expect.element(card).toMatchTextContent("View details");
     await expect.element(card).toMatchTextContent(item.reason);
     await expect.element(card).toHaveAccessibleDescription(new RegExp(item.reason));
     await expect.element(card).toMatchTextContent(/Not installed/);
