@@ -44,4 +44,12 @@ provider enforcement or a protected execution grant.
 The [operating contract](../RELEASING.md#one-key-initial-offline-ceremony)
 records exact config fields and custody prerequisites. Existing Root lifetime is
 365 days maximum and Targets 90; no expiry or trust policy was extended.
+The complete pre-key-creator crate check passed 24 cases. After the final
+one-key creator, strict Root envelope and Ed25519 repairs, the four connected
+cases passed again; `cargo clippy --locked -p portcove-release-tools --all-targets
+-- -D warnings` passed under the maintained resource guard. One earlier queued
+full-crate request refused before payload because documentation changed; its
+log remains retained and is not a test result. The formatter completed both docs;
+its preceding automatic dependency reconciliation refused the existing linked
+workspace hoist directory, so no successful dependency installation is claimed.
 The canonical authorization packet remains owned by the consolidated setup work.

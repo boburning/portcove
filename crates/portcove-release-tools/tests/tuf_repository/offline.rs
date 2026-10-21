@@ -1,5 +1,6 @@
-//! Disposable fixture keys only. The production commands never generate keys;
-//! every actual CLI signing process below receives one private-key pathname.
+//! Disposable fixture keys only. Each creation process generates one key;
+//! every signing process receives one private-key pathname. Production use
+//! requires independently authorized initial custody setup.
 use super::*;
 use std::process::{Command, Output};
 use tough::schema::{Role, Signed};

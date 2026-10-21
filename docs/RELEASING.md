@@ -351,11 +351,12 @@ requires independently authorized offline setup.
 The maintained `portcove-release-tools` commands below prepare initial Root v1
 and top-level Targets v1 with one private key per signing process. They use
 existing Tough verification and fixed namespaces. They do not rotate keys,
-provision custody, generate production keys or authorize publication. The test-only
+provision custody or authorize publication; production invocation requires an
+independent custody grant. The test-only
 repository generator and consolidated `build-tuf` mode are not this custody route.
 
-All configurations are strict schema 1 JSON, resolve paths relative to their
-configuration file and contain `generated_at` plus `output`. Public key inputs
+The four proposal/signing configurations are strict schema 1 JSON, resolve paths
+relative to their configuration file and contain `generated_at` plus `output`. Public key inputs
 are `{ "path": "public-key.json", "sha256": "<raw-file-sha256>" }` objects;
 files contain only TUF `keytype`, `scheme` and `keyval.public`. Expected public
 hashes and the Root body digest must be independently reviewed before custody
