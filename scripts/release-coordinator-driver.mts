@@ -86,6 +86,10 @@ import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  inspectPendingPagesReadback,
+  recoverPendingPagesPublication,
+} from "./release-pages-recovery.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const metadataPreparations = new WeakMap<
@@ -1393,6 +1397,109 @@ function coordinatorHasUnresolvedEffect(input: Record<string, unknown>) {
   return operation !== null && !["succeeded", "recovered"].includes(operation.outcome);
 }
 
+/** A durable expected Pages generation routes GET-only recovery before waiting
+ * on semantic/native work. Absence of an expectation cannot invent one. */
+export function selectCoordinatorPendingPagesRecovery(input: Record<string, unknown>) {
+  const capacity =
+    isRecord(input.controller) && isRecord(input.controller.capacity_attempt)
+      ? input.controller.capacity_attempt
+      : null;
+  const operation = capacity ? inspectCapacityOperation(capacity.operation) : null;
+  if (!operation?.site_expectation || ["succeeded", "recovered"].includes(operation.outcome))
+    return null;
+  return inspectPendingPagesReadback(operation);
+}
+
+async function recoverTrustedCoordinatorPages(
+  directory: string,
+  configuration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
+  const selected = selectCoordinatorPendingPagesRecovery(recovered.input);
+  if (!selected) throw new Error("durable pending Pages intent required");
+  const authorities = await requireControllerReleaseAuthorities("coordinator");
+  const namespace = inspectCoordinatorRemoteNamespace(configuration);
+  if (namespace !== authorities.namespace)
+    throw new Error("Pages recovery authority namespace differs");
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+  });
+  const executor = await authenticateCapacityExecutor(
+    "coordinator",
+    {
+      audience: "portcove-capacity-executor",
+      subject: controllerOidcSubject(
+        reader.admitted.execution_ref,
+        "production-release-coordinator",
+      ),
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      actor_id: reader.admitted.actor_id,
+      run_id: reader.admitted.run_id,
+      run_attempt: reader.admitted.run_attempt,
+    },
+    directory,
+    budget.monotonicDeadline,
+  );
+  const factsSha = capacityDigest({
+    checkpoint: recovered.checkpoint,
+    operation_id: selected.operation.id,
+    expected: selected.expected,
+  });
+  const api = coordinatorApi(directory, budget, 256 * 1024);
+  let round = 0;
+  let initialIdentity: string | undefined;
+  const freshBoundary = async () => {
+    budget.check();
+    if (++round > 2) throw new Error("Pages readback coordinator rounds exhausted");
+    const controls = await authenticateReleaseControlRound(
+      path.join(directory, `pages-readback-control-${round}`),
+      factsSha,
+      "coordinator",
+      round,
+      { deadline: budget.monotonicDeadline },
+    );
+    const observed = controls.readMaintenance(api);
+    if (
+      controls.evidence_scope !== "github.com" ||
+      observed.reader.job_id !== reader.identity.job_id ||
+      observed.reader.check_run_id !== reader.identity.check_run_id
+    )
+      throw new Error("actual same coordinator Pages recovery controls required");
+    const identity = coordinatorMaintenanceIdentity(observed);
+    if (initialIdentity !== undefined && identity !== initialIdentity)
+      throw new Error("Pages recovery controls changed around public readback");
+    initialIdentity = identity;
+    budget.check();
+  };
+  const readback = await recoverPendingPagesPublication(
+    executor,
+    {
+      repository: recovered.repository,
+      checkpoint: recovered.checkpoint,
+      remote_configuration: configuration,
+    },
+    directory,
+    budget.monotonicDeadline,
+    freshBoundary,
+  );
+  return Object.freeze({
+    decision: "pages-effect-recovered",
+    ...readback,
+    checkpoint: readback.settled.checkpoint,
+    pending_obligations: [
+      "actual-tough-publication-authentication",
+      "published-metadata-handoff",
+      "applicable-public-client-journey",
+      "durable-candidate-completion",
+    ],
+    automatic_retry: false,
+  });
+}
+
 /** Freeze one neutral work request in the existing journal. While a candidate
  * or request is outstanding the current provider main head merely coalesces;
  * no second queue, semantic assertion or speculative version is created. */
@@ -1434,6 +1541,15 @@ async function requestTrustedSemanticReviewAt(
       transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     checkpoint = recovered.checkpoint;
+    if (selectCoordinatorPendingPagesRecovery(recovered.input)) {
+      phase = "actual-terminal-pages-readback-recovery";
+      return recoverTrustedCoordinatorPages(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        budget,
+      );
+    }
     const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
     if (["due", "resume"].includes(renewal)) {
       if (coordinatorHasUnresolvedEffect(recovered.input))
