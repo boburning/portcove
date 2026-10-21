@@ -734,6 +734,21 @@ launch availability: the refreshed Core readiness and existing current-action
 projection determine Play or the next required step. Package installation,
 preparation and external-folder registration remain separate operations.
 
+### Review and retained-operation identity
+
+A source-import review belongs to its source profile, current inputs and returned
+plan fingerprint. Cancelling Move grants no approval to a later review and does
+not affect another game's preparation eligibility. Production Move obtains its
+own native confirmation; the reference prototype's checkbox is not a second
+production consent owner.
+
+Activity recovery reads the retained operation ID and paths from the current
+Core repair report and cleanup preview. Opening or completing another game's
+preparation must not relabel the retained port or substitute its source, working
+folder, installation, saved-data, backup or log locations. Keep files dismisses
+the cleanup review without changing that retained item. Cleanup remains bound
+to its own operation, generation and accepted preview fingerprint.
+
 ### Library identity and artwork feedback
 
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
