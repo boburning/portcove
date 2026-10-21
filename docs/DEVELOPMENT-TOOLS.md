@@ -275,6 +275,11 @@ for the public import graph. Failed browser
 screenshots and traces remain under `.vitest` and `work/bt`.
 The trace-probe script deliberately fails and preserves diagnostics.
 
+Browser-session connection has a finite 180-second Windows budget and a
+60-second budget elsewhere. This accommodates cold startup on shared Windows
+storage; it does not lengthen test assertions or retry failed tests. Retain a
+failed connection attempt separately from tests that actually ran.
+
 `vp check` integrates formatting, linting and TypeScript checking. `pnpm check`
 first verifies the coordinated installed toolchain and also runs Stylelint. The
 shared compiler policy enables strict, exactOptionalPropertyTypes and
