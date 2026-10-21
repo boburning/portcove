@@ -262,6 +262,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-check-broker.mts",
   "scripts/release-native-worker.mts",
   "scripts/release-native-windows-capture.mts",
+  "scripts/release-native-windows-public-continuation.mts",
   "scripts/release-native-windows-driver.ps1",
   "scripts/release-local-native-setup.mts",
   "scripts/release-local-worker-tasks.mts",

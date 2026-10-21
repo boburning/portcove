@@ -61,6 +61,7 @@ namespace Portcove.NativeQualification {
             } finally { Native.CloseHandle(process); }
         }
     }
+    public enum AccountCredentialPurpose { NativeQualification = 0, OrdinaryPublicProof = 1 }
     public sealed class AccountConfiguration {
         public string UserName;
         public string AccountSid;
@@ -68,6 +69,7 @@ namespace Portcove.NativeQualification {
         public string ProfileRoot;
         public string WorkRoot;
         public string PrivateDesktop;
+        public AccountCredentialPurpose CredentialPurpose;
     }
 
     public sealed class TeardownObservation {
@@ -265,6 +267,20 @@ namespace Portcove.NativeQualification {
                 return window != IntPtr.Zero && Native.PostMessageW(window, 0x10, UIntPtr.Zero, IntPtr.Zero);
             } finally { Native.CloseHandle(handle); }
         }
+        public string OwnedVisibleWindowTitle(uint target, long expectedCreated) {
+            if (!SnapshotOwnedJob().Any(member => member.Pid == target && member.CreatedFileTime == expectedCreated)) throw new InvalidOperationException("Window target is not an exact owned job member");
+            IntPtr handle = Native.OpenProcess(0x1000, false, target);
+            if (handle == IntPtr.Zero) throw Native.Error("Open exact owned window target");
+            try {
+                long created, ignored1, ignored2, ignored3;
+                if (!Native.GetProcessTimes(handle, out created, out ignored1, out ignored2, out ignored3) || created != expectedCreated) throw new InvalidOperationException("Window target creation changed");
+                IntPtr window = FindWindow(target);
+                var title = new StringBuilder(1024);
+                if (window != IntPtr.Zero) Native.GetWindowTextW(window, title, title.Capacity);
+                if (!SnapshotOwnedJob().Any(member => member.Pid == target && member.CreatedFileTime == expectedCreated)) throw new InvalidOperationException("Window target exited during observation");
+                return title.ToString();
+            } finally { Native.CloseHandle(handle); }
+        }
         public void Kill(bool entireProcessTree) {
             if (!entireProcessTree) throw new ArgumentException("Native qualification always terminates the whole owned job");
             StopAndObserve(5000);
@@ -327,6 +343,15 @@ namespace Portcove.NativeQualification {
 
     public static class AccountLauncher {
         public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
+        public const string PublicProofCredentialTarget = "Portcove/public-update-proof/local-account/v1";
+        public static string CredentialTargetFor(AccountConfiguration config) {
+            if (config == null) throw new ArgumentNullException("config");
+            switch(config.CredentialPurpose) {
+                case AccountCredentialPurpose.NativeQualification: return CredentialTarget;
+                case AccountCredentialPurpose.OrdinaryPublicProof: return PublicProofCredentialTarget;
+                default: throw new ArgumentException("Unknown fixed account credential purpose");
+            }
+        }
         public static AccountGroup CreateGroup(AccountConfiguration config) {
             if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User) || config.BrokerSid == config.AccountSid)
                 throw new ArgumentException("Distinct configured account and actual broker required");
@@ -337,7 +362,7 @@ namespace Portcove.NativeQualification {
         public static SecureString ReadAccountCredential(AccountConfiguration config) {
             if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User)) throw new ArgumentException("Wrong credential owner");
             IntPtr record;
-            if (!Native.CredReadW(CredentialTarget, 1, 0, out record)) throw Native.Error("fixed local account credential unavailable");
+            if (!Native.CredReadW(CredentialTargetFor(config), 1, 0, out record)) throw Native.Error("fixed local account credential unavailable");
             Native.Credential credential = new Native.Credential();
             try {
                 credential = Marshal.PtrToStructure<Native.Credential>(record);

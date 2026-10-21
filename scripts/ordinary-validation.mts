@@ -609,6 +609,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
   [
+    "scripts/release-native-windows-public-continuation.mts",
+    [
+      "scripts/release-native-windows-public-continuation.test.mts",
+      "scripts/release-native-windows-driver.test.mts",
+    ],
+  ],
+  [
     "scripts/fixtures/native-authority-configuration-fixture.mts",
     ["scripts/release-native-parent.test.mts"],
   ],
@@ -1073,6 +1080,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-native-public-compiler.test.mts",
   "scripts/release-native-attempt.test.mts",
   "scripts/release-native-windows-driver.test.mts",
+  "scripts/release-native-windows-public-continuation.test.mts",
   "scripts/release-native-source-contract.test.mts",
   "scripts/release-native-pre-sign-report.test.mts",
   "scripts/release-native-check-broker.test.mts",

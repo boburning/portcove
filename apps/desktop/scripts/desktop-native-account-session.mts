@@ -289,6 +289,22 @@ export class DesktopNativeAccountSession {
       processes: snapshot.processes,
     };
   }
+  readOwnedApplicationWindowTitle(target: CapturedNativeProcess) {
+    const view = this.#current;
+    assert.ok(view, "No owned account driver");
+    const before = this.observeRoot(view);
+    assert.ok(before.processes.some((member) => same(member, target)));
+    const value = object(
+      this.#client.invoke("window", view.rootId, null, {
+        pid: target.pid,
+        started_filetime: target.started_filetime,
+      }),
+    );
+    assert.deepEqual(Object.keys(value), ["title"]);
+    assert.ok(typeof value.title === "string" && value.title.length <= 1024);
+    assert.ok(this.observeRoot(view).processes.some((member) => same(member, target)));
+    return value.title;
+  }
   observe<Mode extends NativeSessionMode>(
     mode: Mode,
     file: string,

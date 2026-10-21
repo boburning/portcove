@@ -32,7 +32,10 @@ import {
   captureActualLinuxPublicJourney,
   requireActualLinuxPublicCapture,
 } from "./release-native-linux-public-capture.mts";
-import { collectActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
+import {
+  collectActualPublicWindowsCompilerIdentity,
+  recoverActualPublicWindowsCompilerIdentity,
+} from "./release-native-public-compiler.mts";
 import {
   prepareActualNativeStageReport,
   retainActualFailedNativeStage,
@@ -74,12 +77,11 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     if (
       progress.phase !== "initial-v0-v1" &&
       progress.phase !== "park-v0-with-v1" &&
-      !(linux && progress.phase === "continue-with-v2")
+      progress.phase !== "continue-with-v2"
     )
       return {
         decision: "hold",
-        reason:
-          "selected public phase has no connected Windows continuation; no invocation claimed",
+        reason: "selected public phase is not claimable; no invocation claimed",
         progress,
         authority: "none",
       };
@@ -92,8 +94,14 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     const compiler = linux
       ? undefined
       : {
-          prior: await collectActualPublicWindowsCompilerIdentity(pair, "prior"),
+          prior:
+            progress.phase === "continue-with-v2"
+              ? await recoverActualPublicWindowsCompilerIdentity(pair, "prior")
+              : await collectActualPublicWindowsCompilerIdentity(pair, "prior"),
           candidate: await collectActualPublicWindowsCompilerIdentity(pair, "candidate"),
+          ...(progress.phase === "continue-with-v2"
+            ? { parked: await recoverActualPublicWindowsCompilerIdentity(pair, "parked") }
+            : {}),
         };
     const claim = await claimActualPublicJourneyInvocation(progress, {
       pair,

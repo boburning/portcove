@@ -4,6 +4,44 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
+  "closed credential purpose keeps primary default and separately names public proof without reading credentials",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Add-Type -TypeDefinition (Get-Content -LiteralPath $env:PORTCOVE_TEST_NATIVE_HELPER -Raw)
+$config=[Portcove.NativeQualification.AccountConfiguration]::new()
+if([Portcove.NativeQualification.AccountLauncher]::CredentialTargetFor($config) -cne 'Portcove/native-qualification/local-account/v1'){throw 'primary credential target changed'}
+$config.CredentialPurpose=[Portcove.NativeQualification.AccountCredentialPurpose]::OrdinaryPublicProof
+if([Portcove.NativeQualification.AccountLauncher]::CredentialTargetFor($config) -cne 'Portcove/public-update-proof/local-account/v1'){throw 'public credential target not distinct'}
+$config.CredentialPurpose=[Enum]::ToObject([Portcove.NativeQualification.AccountCredentialPurpose],99)
+$refused=$false;try{[Portcove.NativeQualification.AccountLauncher]::CredentialTargetFor($config)|Out-Null}catch{$refused=$true}
+if(-not $refused){throw 'unknown credential target accepted'}
+Write-Output 'closed-credential-purpose-pass'
+`;
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        maxBuffer: 128 * 1024,
+        windowsHide: true,
+        env: {
+          SystemRoot: process.env.SystemRoot,
+          PATH: process.env.PATH,
+          PORTCOVE_TEST_NATIVE_HELPER: fileURLToPath(
+            new URL("./native-qualification-account.cs.txt", import.meta.url),
+          ),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /closed-credential-purpose-pass/u);
+  },
+);
+
+void test(
   "bridge state retains actual root image and startup identity for partial or complete capture",
   { skip: process.platform !== "win32" },
   () => {

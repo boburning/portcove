@@ -826,3 +826,49 @@ not established. No staging, installation, candidate execution or private key is
 involved. The public test fixture uses a deliberately altered signature; it does
 not establish an actual publicly released V0/V1 pair or native error subtype.
 The existing missing/wrong/valid packaged staging modes retain their behavior.
+
+### Dedicated Windows public-proof account
+
+The proposed schema-2 Windows `public_journey` pins a separate
+`public_account_boundary: {path, sha256}` inside the protected controller tree.
+The referenced schema-2 boundary has the original account-boundary fields plus
+`purpose: ordinary-public-proof`. Its target SID, profile and work root must be
+distinct from the primary native qualification account and from each other in
+both ancestry directions. Broker SID, controller, capture root and helper digest
+remain identical. The schema-1 primary account and native Check issuer identity
+retain their existing meaning; a public factory requires the separate actual
+public boundary rather than reinterpreting the native producer's SID.
+
+The installed scheduler pins and reads the additional boundary file under its
+existing owner/ACL guard. Its public-account projection additionally verifies
+actual local SID/name, enabled state, registered profile, protected isolated
+profile/work ACLs and observed HKU-loaded state. An unloaded hive is allowed
+before logon; the existing profile keeper and live HKU lookup remain mandatory
+inside the actual capture. Candidates in either account cannot be granted
+access to the other account's roots or to owner-only source credentials,
+issuer material or capture files.
+
+The same fixed broker/helper uses a closed credential-purpose enum. Primary
+schema-1 calls retain `Portcove/native-qualification/local-account/v1`; only the
+protected public-purpose branch selects
+`Portcove/public-update-proof/local-account/v1`. Neither accepts an arbitrary
+credential target, supplied password or candidate role selection. This is a
+single initial setup proposal: account/profile creation, isolated ACLs, the
+distinct broker-owned Credential Manager entry, pinned configuration/task/source
+and actual negative cross-write checks need the consolidated setup grant.
+No account, credential, ACL or task is created or changed by these parsers.
+The existing ordinary signed-in broker session is still required; the public
+account uses the maintained credentialed private-desktop logon/profile keeper,
+not a new recurring interactive-owner approval.
+
+The fixed Windows public continuation reuses only the original positively
+settled B work/install/runtime under that selected public SID, with a fresh
+supervised invocation and no profile reconstruction or V0 reinstall. Current
+registration/V0/uninstaller checks precede startup. The ordinary parked-V1
+Restart must leave pre-native state and genuine V0 bytes, followed by ordinary
+V2 forward staging/Retry Restart, actual new V2 process/bytes and same-profile
+readback before owned uninstall. Same-image helper processes remain in the
+owned group and cannot substitute for a visible shipping-title GUI generation.
+Source wiring and controlled fixtures do not establish actual native behavior
+or the helper's unexposed failure subtype; initial setup/grant and host evidence
+remain required.

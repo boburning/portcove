@@ -42,6 +42,10 @@ void test("public initial-cohort profile is a separate protected setup proposal 
     schema_version: 2,
     public_journey: {
       profile: "ordinary-public-initial-cohort-v1",
+      public_account_boundary: {
+        path: "C:\\Owned\\controller\\public-account.json",
+        sha256: "e".repeat(64),
+      },
       public_build_inputs: {
         configuration_revision: "a".repeat(40),
         manifest_sha256: "b".repeat(64),
@@ -51,6 +55,15 @@ void test("public initial-cohort profile is a separate protected setup proposal 
   const parsed = inspectLocalNativeSetup(raw);
   assert.equal(parsed.public_journey?.profile, "ordinary-public-initial-cohort-v1");
   assert.equal(inspectLocalNativeSetup(fixture()).public_journey, undefined);
+  assert.throws(() =>
+    inspectLocalNativeSetup({
+      ...raw,
+      public_journey: {
+        profile: raw.public_journey.profile,
+        public_build_inputs: raw.public_journey.public_build_inputs,
+      },
+    }),
+  );
   assert.throws(() => inspectLocalNativeSetup({ ...raw, schema_version: 1 }));
   assert.throws(() =>
     inspectLocalNativeSetup({

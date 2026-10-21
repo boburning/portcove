@@ -61,9 +61,15 @@ function processIdentity(value: unknown) {
   };
 }
 function inspectExpected(raw: unknown) {
+  const hasPublic =
+    isRecord(raw) &&
+    isRecord(raw.protected_paths) &&
+    Object.hasOwn(raw.protected_paths, "public_boundary");
   exact(
     raw,
-    "action,action_sha256,broker_sid,helper_sha256,powershell,protected_paths,task_path,task_security_descriptor_sha256,task_xml_sha256",
+    hasPublic
+      ? "action,action_sha256,broker_sid,helper_sha256,powershell,protected_paths,public_account,task_path,task_security_descriptor_sha256,task_xml_sha256"
+      : "action,action_sha256,broker_sid,helper_sha256,powershell,protected_paths,task_path,task_security_descriptor_sha256,task_xml_sha256",
   );
   const taskPath = text(raw.task_path, 184),
     broker = text(raw.broker_sid, 184);
@@ -83,13 +89,36 @@ function inspectExpected(raw: unknown) {
   exact(raw.powershell, "path,sha256");
   exact(
     raw.protected_paths,
-    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
+    isRecord(raw.protected_paths) && Object.hasOwn(raw.protected_paths, "public_boundary")
+      ? "authorities,boundary,capture,controller,descriptor,installation,native_issuer,public_boundary,source_reader,source_tool"
+      : "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
   );
   const protectedPaths = Object.fromEntries(
     Object.entries(raw.protected_paths).map(([key, value]) => [key, winPath(value)]),
   );
-  if (new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !== 9)
+  if (
+    new Set(Object.values(protectedPaths).map((value) => value.toLowerCase())).size !==
+    Object.keys(protectedPaths).length
+  )
     throw new Error("native scheduler custody paths overlap");
+  let publicAccount;
+  if (hasPublic) {
+    exact(raw.public_account, "account_name,account_sid,profile_root,work_root");
+    const accountSid = text(raw.public_account.account_sid, 184),
+      accountName = text(raw.public_account.account_name, 32);
+    if (
+      !/^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u.test(accountSid) ||
+      accountSid === broker ||
+      !/^[A-Za-z][A-Za-z0-9_-]{1,31}$/u.test(accountName)
+    )
+      throw new Error("fixed public scheduler account differs");
+    publicAccount = {
+      account_sid: accountSid,
+      account_name: accountName,
+      profile_root: winPath(raw.public_account.profile_root),
+      work_root: winPath(raw.public_account.work_root),
+    };
+  }
   return {
     task_path: taskPath,
     broker_sid: broker,
@@ -100,6 +129,7 @@ function inspectExpected(raw: unknown) {
     action_sha256: sha(raw.action_sha256),
     protected_paths: protectedPaths,
     powershell: { path: winPath(raw.powershell.path), sha256: sha(raw.powershell.sha256) },
+    ...(publicAccount ? { public_account: publicAccount } : {}),
   };
 }
 
@@ -110,13 +140,15 @@ export function inspectNativeSchedulerObservation(
   parentPid: number,
 ) {
   const expected = inspectExpected(structuredClone(rawExpected));
-  exact(raw, "chain,current_sid,custody,elevated,observed_at,reader,schema_version,task");
+  exact(
+    raw,
+    expected.public_account
+      ? "chain,current_sid,custody,elevated,observed_at,public_account,reader,schema_version,task"
+      : "chain,current_sid,custody,elevated,observed_at,reader,schema_version,task",
+  );
   if (raw.schema_version !== 1 || raw.current_sid !== expected.broker_sid || raw.elevated !== false)
     throw new Error("native scheduler reader identity/elevation differs");
-  exact(
-    raw.custody,
-    "authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool",
-  );
+  exact(raw.custody, Object.keys(expected.protected_paths).sort().join(","));
   for (const [key, pathname] of Object.entries(expected.protected_paths)) {
     const observed = raw.custody[key];
     exact(observed, "directory,owner_sid,path,private,protected");
@@ -130,6 +162,34 @@ export function inspectNativeSchedulerObservation(
       (directory && !observed.protected)
     )
       throw new Error("native scheduler actual protected path custody differs");
+  }
+  if (expected.public_account) {
+    const value = raw.public_account;
+    exact(value, "account_name,account_sid,enabled,hku_loaded,profile,profile_registered,work");
+    if (
+      value.account_sid !== expected.public_account.account_sid ||
+      value.account_name !== expected.public_account.account_name ||
+      value.enabled !== true ||
+      value.profile_registered !== true ||
+      typeof value.hku_loaded !== "boolean"
+    )
+      throw new Error("actual public account/profile registration differs");
+    for (const [key, expectedPath] of [
+      ["profile", expected.public_account.profile_root],
+      ["work", expected.public_account.work_root],
+    ] as const) {
+      const directory = value[key];
+      exact(directory, "isolated,owner_sid,path,protected");
+      if (
+        directory.path !== expectedPath ||
+        ![expected.broker_sid, expected.public_account.account_sid].includes(
+          String(directory.owner_sid),
+        ) ||
+        directory.isolated !== true ||
+        directory.protected !== true
+      )
+        throw new Error("public account root permits cross-account access or replacement");
+    }
   }
   exact(
     raw.task,
@@ -218,6 +278,7 @@ export function inspectNativeSchedulerObservation(
     reader,
     chain,
     custody: structuredClone(raw.custody),
+    ...(expected.public_account ? { public_account: structuredClone(raw.public_account) } : {}),
     current_sid: expected.broker_sid,
     elevated: false as const,
     observed_at: observed,

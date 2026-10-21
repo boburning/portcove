@@ -88,8 +88,10 @@ Assert-OwnerFile $PSCommandPath
 Assert-OwnerFile $Configuration
 if ((Get-FileHash -LiteralPath $Configuration -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ExpectedConfigurationSha256) { throw 'Bridge configuration changed' }
 $configurationValue = Get-Content -LiteralPath $Configuration -Raw | ConvertFrom-Json
-Assert-ExactMembers $configurationValue @('schema_version','broker_sid','account_sid','account_name','profile_root','work_root','capture_root','helper_sha256','controller_root')
-if ($configurationValue.schema_version -ne 1 -or $configurationValue.broker_sid -cne $owner -or $configurationValue.account_sid -eq $owner) { throw 'Unratified bridge account boundary' }
+$boundaryNames=@('schema_version','broker_sid','account_sid','account_name','profile_root','work_root','capture_root','helper_sha256','controller_root')
+if($configurationValue.schema_version -eq 2){$boundaryNames+=@('purpose');if($configurationValue.purpose -cne 'ordinary-public-proof'){throw 'Unknown public account purpose'}}
+Assert-ExactMembers $configurationValue $boundaryNames
+if ($configurationValue.schema_version -notin @(1,2) -or $configurationValue.broker_sid -cne $owner -or $configurationValue.account_sid -eq $owner) { throw 'Unratified bridge account boundary' }
 Assert-OwnerFile $configurationValue.controller_root
 if (-not (Get-Acl -LiteralPath $configurationValue.controller_root).AreAccessRulesProtected -or
     -not [string]::Equals([IO.Path]::GetFullPath((Join-Path $configurationValue.controller_root 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) {
@@ -105,6 +107,7 @@ if (Test-Path -LiteralPath (Join-Path $configurationValue.capture_root 'bridge-s
 Add-Type -TypeDefinition (Get-Content -LiteralPath $helper -Raw)
 $config = [Portcove.NativeQualification.AccountConfiguration]::new()
 $config.UserName=$configurationValue.account_name; $config.AccountSid=$configurationValue.account_sid; $config.BrokerSid=$owner
+if($configurationValue.schema_version -eq 2){$config.CredentialPurpose=[Portcove.NativeQualification.AccountCredentialPurpose]::OrdinaryPublicProof}
 $config.ProfileRoot=$configurationValue.profile_root; $config.WorkRoot=$configurationValue.work_root
 $config.PrivateDesktop='PortcoveNative_' + $InvocationId.Substring(0,32) + '\Qualification'
 $roots = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
@@ -141,7 +144,7 @@ try {
         Assert-ExactMembers $request @('schema_version','invocation_id','sequence','operation','id','launch','target')
         if ($request.schema_version -ne 1 -or $request.invocation_id -cne $InvocationId -or $request.sequence -ne $sequence -or $request.id -cnotmatch '^[a-z][a-z0-9-]{0,63}$') { throw 'Bridge command identity mismatch' }
         Assert-CaptureHealthy
-        if ($request.operation -cne 'close' -and $null -ne $request.target) { throw 'Only close accepts an exact owned child target' }
+        if ($request.operation -cnotin @('close','window') -and $null -ne $request.target) { throw 'Only close/window accepts an exact owned child target' }
         $value = $null
         switch -CaseSensitive ($request.operation) {
             'start' {
@@ -170,6 +173,13 @@ try {
                 $identities=@($process.SnapshotOwnedJob() | ForEach-Object { [ordered]@{ pid=$_.Pid; path=$_.Path; started_filetime=$_.CreatedFileTime.ToString() } })
                 $value=[ordered]@{ exited=$exited; exit_code=$(if ($exited) {$process.ExitCode} else {$null}); processes=$identities;
                     responding=$process.Responding; window_title=$process.MainWindowTitle; window_handle=$process.MainWindowHandle.ToInt64().ToString() }
+            }
+            'window' {
+                if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id) -or $null -eq $request.target) { throw 'Unknown native window root/target' }
+                Assert-ExactMembers $request.target @('pid','started_filetime')
+                if (($request.target.pid -isnot [long] -and $request.target.pid -isnot [int]) -or
+                    $request.target.pid -lt 1 -or $request.target.pid -gt [int]::MaxValue -or $request.target.started_filetime -cnotmatch '^[1-9][0-9]+$') { throw 'Invalid window identity' }
+                $value=[ordered]@{ title=$roots[$request.id].OwnedVisibleWindowTitle([uint32]$request.target.pid,[long]$request.target.started_filetime) }
             }
             'close' {
                 if ($null -ne $request.launch -or -not $roots.ContainsKey($request.id)) { throw 'Unknown native root' }
