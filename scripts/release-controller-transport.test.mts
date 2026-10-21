@@ -37,9 +37,10 @@ void test("concurrent marker readers see complete published bytes and duplicate 
   const directory = path.join(root, "key");
   await mkdir(directory);
   const marker = path.join(root, "controller-transport-payload-role-key.json");
-  let publicationFailure: unknown;
+  let publicationFailure: Error | undefined;
   const publishing = retainControllerRoleKey(root, "payload", directory).catch((error: unknown) => {
-    publicationFailure = error;
+    publicationFailure =
+      error instanceof Error ? error : new Error("marker publication refused", { cause: error });
   });
   const deadline = performance.now() + 5000;
   let observed: Buffer | undefined;
