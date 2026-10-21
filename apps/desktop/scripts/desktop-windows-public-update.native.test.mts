@@ -155,6 +155,7 @@ void test("V2 continuation has a separate exact schema with parent-retained B pa
     release_sha256: continuation.parked_release_sha256,
     release: {
       version: continuation.parked_version,
+      target: "windows-x86_64",
       artifact: {
         sha256: continuation.parked_installer_sha256,
         bytes: continuation.parked_installer_bytes,
@@ -202,6 +203,15 @@ void test("V2 continuation has a separate exact schema with parent-retained B pa
     },
     (a: typeof apply) => {
       a.intent.candidate.release_sha256 = "9".repeat(64);
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release_path = "releases/another.json";
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release.artifact.bytes++;
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release.target = "linux-x86_64";
     },
   ]) {
     const changed = structuredClone(apply);
