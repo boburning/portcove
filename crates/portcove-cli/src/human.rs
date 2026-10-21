@@ -1,6 +1,19 @@
 use std::path::Path;
 
-pub(crate) fn game_file_query(snapshot: &portcove_core::GameFileQuerySnapshot) -> String {
+mod phases;
+mod task_results;
+mod transfers;
+pub(crate) use phases::phase_name;
+pub(crate) use task_results::*;
+pub(crate) use transfers::*;
+
+pub(crate) fn game_file_query(
+    snapshot: &portcove_core::GameFileQuerySnapshot,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    if snapshot.routes.is_empty() {
+        return "No game-file routes were requested.".into();
+    }
     snapshot
         .routes
         .iter()
@@ -20,7 +33,10 @@ pub(crate) fn game_file_query(snapshot: &portcove_core::GameFileQuerySnapshot) -
                 portcove_core::GameFileRouteKind::ManagedLaunch => "managed launch",
                 portcove_core::GameFileRouteKind::ExternalLaunch => "existing installation launch",
             };
-            format!("{} ({selected}): {state}", clean(&route.port_id))
+            format!(
+                "{} ({selected}): {state}",
+                port_name(catalog, &route.port_id)
+            )
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -41,7 +57,7 @@ use serde::Serialize;
 use serde_json::Value;
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-fn utc_time(seconds: i64) -> String {
+pub(crate) fn utc_time(seconds: i64) -> String {
     OffsetDateTime::from_unix_timestamp(seconds)
         .ok()
         .and_then(|instant| instant.format(&Rfc3339).ok())
@@ -155,9 +171,10 @@ fn diagnostic_phase(capture: &portcove_core::ActivityDiagnostic) -> String {
         ""
     };
     format!(
-        "Activity: {}\nPhase: {}\n{status}{truncation}\n\nStandard output:\n{}\n\nStandard error:\n{}",
+        "Activity: {}\nPhase: {}\nPhase ID: {}\n{status}{truncation}\n\nStandard output:\n{}\n\nStandard error:\n{}",
         clean(&capture.activity_id),
-        clean(&capture.phase),
+        phase_name(&capture.phase),
+        clean(&portcove_core::redact_diagnostic_text(&capture.phase)),
         diagnostic_text(&capture.stdout.text),
         diagnostic_text(&capture.stderr.text)
     )
@@ -180,11 +197,6 @@ fn diagnostic_text(text: &str) -> String {
 pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> String {
     use portcove_core::{FailureRecoveryTarget, FailureTone, MutationState, RecoveryAction};
     let presentation = &error.presentation;
-    let tone = if presentation.tone == FailureTone::Neutral {
-        "cancelled"
-    } else {
-        "error"
-    };
     let outcome = match presentation.mutation_state {
         MutationState::NotStarted => "This operation did not start.",
         MutationState::NoChanges => "No files were changed by this operation.",
@@ -196,12 +208,22 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
             "Portcove couldn't confirm whether anything changed. Check the result before trying again."
         }
     };
-    let mut output = format!("{tone}: {}\n{outcome}", presentation.summary);
+    let mut output = if presentation.tone == FailureTone::Neutral {
+        format!(
+            "Operation cancelled.\n{}\n{outcome}",
+            diagnostic_text(&presentation.summary)
+        )
+    } else {
+        format!(
+            "Error: {}\n{outcome}",
+            diagnostic_text(&presentation.summary)
+        )
+    };
     if presentation
         .recovery_actions
         .contains(&RecoveryAction::ReviewPreparation)
     {
-        output.push_str("\nReview game preparation before starting a new attempt.");
+        output.push_str("\nNext step: Review game preparation before starting a new attempt.");
         if let Some(FailureRecoveryTarget::Preparation { port_id }) = &presentation.recovery_target
             && !port_id.is_empty()
             && port_id
@@ -214,6 +236,11 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
         {
             output.push_str(&format!("\nUsing the same library selection (including any --library option), inspect the current state with: portcove status {port_id}"));
         }
+    } else if presentation
+        .recovery_actions
+        .contains(&RecoveryAction::ReviewCurrentState)
+    {
+        output.push_str("\nNext step: Using the same library selection, inspect portcove status and portcove activity before trying again.");
     }
     if technical {
         let details = serde_json::json!({"code": error.code, "phase": presentation.phase,
@@ -224,7 +251,7 @@ pub(crate) fn failure(error: &portcove_core::FailureReport, technical: bool) -> 
                 .unwrap_or_else(|_| "Details could not be formatted.".into()),
         );
     } else {
-        output.push_str("\nUse --technical-details when requesting human output to include redacted technical error details.");
+        output.push_str("\nTechnical details: Add --technical-details to human output to include redacted diagnostic context.");
     }
     output
 }
@@ -239,9 +266,13 @@ pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
         format!(
             "GitHub: {}",
             if status.authenticated {
-                status.login.as_deref().unwrap_or("authenticated")
+                status
+                    .login
+                    .as_deref()
+                    .map(clean)
+                    .unwrap_or_else(|| "authenticated".into())
             } else {
-                "anonymous"
+                "anonymous".into()
             }
         ),
         format!("Credential source: {source}"),
@@ -256,7 +287,7 @@ pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
     ];
     if let Some(rate) = &status.rate_limit {
         lines.push(format!(
-            "API allowance: {}/{} (resets at {})",
+            "GitHub requests: {}/{} (resets {})",
             rate.remaining,
             rate.limit,
             utc_rate_reset(rate.resets_at)
@@ -266,12 +297,14 @@ pub(crate) fn auth_status(status: &GithubAuthStatus) -> String {
 }
 
 pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
+    if ports.is_empty() {
+        return "The active catalog contains no ports.".into();
+    }
     let rows = ports
         .iter()
         .map(|port| {
             vec![
-                port.id.clone(),
-                port.name.clone(),
+                format!("{} ({})", clean(&port.name), clean(&port.id)),
                 support_tier(port.support_tier).into(),
                 port.channels
                     .iter()
@@ -284,7 +317,7 @@ pub(crate) fn catalog_list(ports: &[PortDefinition]) -> String {
     format!(
         "Ports ({})\n{}",
         ports.len(),
-        table(&["ID", "NAME", "TIER", "CHANNELS"], rows)
+        table(&["PORT", "SUPPORT TIER", "CHANNELS"], rows)
     )
 }
 
@@ -296,8 +329,11 @@ pub(crate) fn catalog_status(status: &CatalogStatus) -> String {
         CatalogOrigin::DefinitionSelected => "selected definition catalog",
     };
     let mut lines = vec![
-        format!("Effective catalog: {origin}"),
-        format!("Catalog SHA-256: {}", status.provenance.catalog_sha256),
+        format!("Active catalog: {origin}"),
+        format!(
+            "Catalog SHA-256: {}",
+            clean(&status.provenance.catalog_sha256)
+        ),
     ];
     if let Some(key_id) = &status.provenance.key_id {
         lines.push(format!("Publisher: {}", clean(key_id)));
@@ -347,14 +383,14 @@ pub(crate) fn catalog_status(status: &CatalogStatus) -> String {
     for reason in &status.provenance.fallback_reasons {
         lines.push(format!("Fallback reason: {}", clean(reason)));
     }
-    lines.push(format!("State SHA-256: {}", status.state_sha256));
+    lines.push(format!("State SHA-256: {}", clean(&status.state_sha256)));
     lines.join("\n")
 }
 
 pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     let mut lines = vec![
         format!("{} ({})", clean(&port.name), clean(&port.id)),
-        format!("Support: {}", support_tier(port.support_tier)),
+        format!("Support tier: {}", support_tier(port.support_tier)),
         format!(
             "Channels: {}",
             port.channels
@@ -420,8 +456,9 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
                     clean(&runtime.version)
                 ),
                 format!(
-                    "Package: {} ({} bytes)",
+                    "Package: {} ({}; {} bytes)",
                     clean(&runtime.archive_name),
+                    format_bytes(runtime.archive_size),
                     runtime.archive_size
                 ),
                 format!("Package SHA-256: {}", clean(&runtime.archive_sha256)),
@@ -443,12 +480,16 @@ pub(crate) fn catalog_show(port: &PortDefinition) -> String {
     lines.join("\n")
 }
 
-pub(crate) fn backup_list(port_id: &str, inventory: &BackupInventory) -> String {
+pub(crate) fn backup_list(
+    port_id: &str,
+    inventory: &BackupInventory,
+    catalog: &portcove_core::Catalog,
+) -> String {
     format!(
         "{}\n{}\n{}",
         status_action(&inventory.create_assessment),
         status_action(&inventory.restore_assessment),
-        backup_history(port_id, inventory)
+        backup_history(&port_name(catalog, port_id), inventory)
     )
 }
 
@@ -575,7 +616,7 @@ fn backup_problem_kind(kind: BackupProblemKind) -> &'static str {
     }
 }
 
-pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
+pub(crate) fn source_list(sources: &[SourceRecord], catalog: &portcove_core::Catalog) -> String {
     if sources.is_empty() {
         return "No saved game-file or BIOS locations yet.".into();
     }
@@ -583,7 +624,7 @@ pub(crate) fn source_list(sources: &[SourceRecord]) -> String {
         .iter()
         .map(|source| {
             vec![
-                source.profile_id.clone(),
+                profile_name(catalog, &source.profile_id),
                 format_bytes(source.storage_size),
                 utc_time(source.updated_at),
                 source.path.display().to_string(),
@@ -711,7 +752,7 @@ pub(crate) fn source_discovery(
                 format!("Selection details: {}", clean(&selection.message)),
             ]);
         }
-        lines.push("Review a chosen preliminary selection with source inspect PROFILE_ID PATH before deciding whether to register it. A selection does not prove compatibility.".into());
+        lines.push("Next step: Review a chosen preliminary selection without registration using source inbox import PROFILE_ID PATH --mode use-current-location. Apply only its returned review plan if you want to save that location; source inspect PROFILE_ID reads an already registered location. Preliminary selection does not prove compatibility or run the port's validator.".into());
     }
     lines.push(
         "No sources were registered by this search. Discovery does not install or launch games."
@@ -732,7 +773,11 @@ pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
         .map(|root| {
             vec![
                 root.id.clone(),
-                format!("{:?}", root.availability).to_ascii_lowercase(),
+                match root.availability {
+                    portcove_core::GameFileRootAvailability::Available => "Available",
+                    portcove_core::GameFileRootAvailability::Unavailable => "Unavailable",
+                }
+                .into(),
                 root.path.display().to_string(),
             ]
         })
@@ -753,12 +798,12 @@ pub(crate) fn game_file_scan_snapshot(snapshot: &Option<GameFileScanSnapshot>) -
 
 pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
     let mut output = format!(
-        "Game-file folder scan\nFreshness: {}\nCompleted (Unix): {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
+        "Game-file folder scan\nFreshness: {}\nCompleted: {}\nFolders: {}\nCandidates: {}\nEntries examined: {}\nFiles hashed: {}",
         match snapshot.freshness {
-            portcove_core::GameFileScanFreshness::InputsMatch => "inputs_match",
-            portcove_core::GameFileScanFreshness::InputsChanged => "inputs_changed",
+            portcove_core::GameFileScanFreshness::InputsMatch => "Recorded inputs match",
+            portcove_core::GameFileScanFreshness::InputsChanged => "Recorded inputs changed",
         },
-        snapshot.completed_at,
+        utc_time(snapshot.completed_at),
         snapshot.roots.len(),
         snapshot.report.candidates.len(),
         snapshot.report.entries_examined,
@@ -846,7 +891,15 @@ pub(crate) fn game_file_scan(snapshot: &GameFileScanSnapshot) -> String {
 
 pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
     let mut lines = vec![
-        format!("Source inspection: {}", clean(&report.profile_id)),
+        format!(
+            "Source inspection: {} ({})",
+            report
+                .expected_identity
+                .as_ref()
+                .map(|identity| clean(&identity.label))
+                .unwrap_or_else(|| "Game-file profile; label unavailable".into()),
+            clean(&report.profile_id)
+        ),
         format!("State: {}", clean(&report.state_code)),
         clean(&report.summary),
     ];
@@ -883,28 +936,31 @@ pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
         lines.push("Observed identities:".into());
         for digest in &inspection.observed_digests {
             lines.push(format!(
-                "- {:?} {:?}: {} ({} bytes)",
-                digest.algorithm,
-                digest.scope,
+                "- {} of {}: {} ({}; {} bytes)",
+                digest_algorithm(digest.algorithm),
+                digest_scope(digest.scope),
                 clean(&digest.value),
+                format_bytes(digest.size),
                 digest.size
             ));
         }
         for component in &inspection.components {
             lines.push(format!(
-                "- component {}{}",
-                clean(&component.id),
+                "- Required component: {} ({})",
                 component
                     .name
                     .as_deref()
-                    .map_or_else(String::new, |name| format!(" ({})", clean(name)))
+                    .map(clean)
+                    .unwrap_or_else(|| "Name unavailable".into()),
+                clean(&component.id),
             ));
             for digest in &component.digests {
                 lines.push(format!(
-                    "  {:?} {:?}: {} ({} bytes)",
-                    digest.algorithm,
-                    digest.scope,
+                    "  {} of {}: {} ({}; {} bytes)",
+                    digest_algorithm(digest.algorithm),
+                    digest_scope(digest.scope),
                     clean(&digest.value),
+                    format_bytes(digest.size),
                     digest.size
                 ));
             }
@@ -1006,8 +1062,31 @@ pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
     if report.legacy.registration_identity_not_recorded {
         lines.push("Legacy coverage: the registration predates structured source identity.".into());
     }
-    lines.push(format!("Next: {}", clean(&report.next_action)));
+    lines.push(format!("Next step: {}", clean(&report.next_action)));
     lines.join("\n")
+}
+
+fn digest_algorithm(algorithm: portcove_core::SourceDigestAlgorithm) -> &'static str {
+    match algorithm {
+        portcove_core::SourceDigestAlgorithm::Sha1 => "SHA-1",
+        portcove_core::SourceDigestAlgorithm::Sha256 => "SHA-256",
+        portcove_core::SourceDigestAlgorithm::Crc32 => "CRC32",
+    }
+}
+
+fn digest_scope(scope: portcove_core::DigestScope) -> &'static str {
+    use portcove_core::DigestScope;
+    match scope {
+        DigestScope::OriginalFile => "original file",
+        DigestScope::OriginalContainer => "original container",
+        DigestScope::NormalizedContent => "normalized content",
+        DigestScope::CanonicalN64BigEndian => "normalized N64 content",
+        DigestScope::ArchiveMember => "archive member",
+        DigestScope::GamecubeNormalizedIso => "normalized GameCube disc",
+        DigestScope::PsxNormalizedTrackSet => "normalized PlayStation track set",
+        DigestScope::FileSetMember => "file-set member",
+        DigestScope::DiscSetMember => "disc-set member",
+    }
 }
 
 fn collect_expected_digests(value: &Value, lines: &mut Vec<String>, indent: &str) {
@@ -1050,21 +1129,21 @@ fn platform_list(platforms: &[Platform]) -> String {
     }
 }
 
-pub(crate) fn status(status: &PortStatus) -> String {
-    statuses(std::slice::from_ref(status))
+pub(crate) fn status(status: &PortStatus, catalog: &portcove_core::Catalog) -> String {
+    statuses(std::slice::from_ref(status), catalog)
 }
 
-pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
+pub(crate) fn statuses(statuses: &[PortStatus], catalog: &portcove_core::Catalog) -> String {
     if statuses.is_empty() {
-        return "No catalog ports.".into();
+        return "The active catalog contains no ports.".into();
     }
     let rows = statuses
         .iter()
         .map(|status| {
             vec![
-                status.port_id.clone(),
+                port_name(catalog, &status.port_id),
                 release_channel(status.channel).into(),
-                status.update_policy.to_string(),
+                update_policy_name(status.update_policy).into(),
                 status
                     .active
                     .as_ref()
@@ -1103,7 +1182,7 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
         .map(|status| {
             format!(
                 "{}:\n{}",
-                clean(&status.port_id),
+                port_name(catalog, &status.port_id),
                 status
                     .port_actions
                     .iter()
@@ -1114,61 +1193,94 @@ pub(crate) fn statuses(statuses: &[PortStatus]) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    if actions.is_empty() {
+    let mut output = if actions.is_empty() {
         summary
     } else {
         format!("{summary}\nActions:\n{actions}")
+    };
+    for status in statuses {
+        if let Some(readiness) = &status.readiness {
+            if readiness.blockers.contains(&LaunchBlocker::MissingRuntime) {
+                output.push_str(&format!("\nNext step for {}: Using the same library, run portcove update {} to acquire the required catalog runtime. Core checks current eligibility before applying it.", port_name(catalog, &status.port_id), clean(&status.port_id)));
+            }
+            if readiness
+                .blockers
+                .contains(&LaunchBlocker::InvalidInstallation)
+            {
+                output.push_str(&format!("\nNext step for {}: Using the same library, run portcove verify {} and preserve local files before reviewing replacement or recovery.", port_name(catalog, &status.port_id), clean(&status.port_id)));
+            }
+        }
+    }
+    output
+}
+
+pub(crate) fn definition_reason(
+    reason: portcove_core::DefinitionEligibilityReason,
+) -> &'static str {
+    use portcove_core::DefinitionEligibilityReason as Definition;
+    match reason {
+        Definition::MandatoryChecksPassed => "Required definition checks passed.",
+        Definition::PublisherRevoked => "The definition publisher's authority was revoked.",
+        Definition::CuratedArtifactRevoked => {
+            "This exact release file was revoked; installed files and saves are retained."
+        }
+        Definition::CuratedDistributionWithdrawn => {
+            "Distribution of this release file was withdrawn; permitted installed use remains available."
+        }
+        Definition::UnknownSafetySemantics => {
+            "This client cannot interpret the definition's safety requirements."
+        }
+        Definition::PublisherScopeRequired => {
+            "The definition requires accepted publisher authority."
+        }
+        Definition::EngineCapabilityRequired => "This client lacks a required engine capability.",
+        Definition::OwnershipMigrationRequired => {
+            "The definition requires a reviewed ownership migration."
+        }
+        Definition::MetadataReplay => "The accepted catalog metadata was replayed.",
+        Definition::RefreshIncomplete => "The catalog refresh is incomplete.",
+        Definition::MetadataStale => "The accepted catalog metadata is stale.",
+        Definition::RecordedIdentityChanged => "Bytes changed under a recorded release identity.",
+        Definition::AuthenticatedIntegrityRequired => {
+            "The release needs accepted authenticated integrity evidence."
+        }
+        Definition::LocalIntegrityFailed => "Local release integrity verification failed.",
+        Definition::MandatoryCheckFailed => "A required definition check failed.",
+        Definition::SourceIdentityMismatch => {
+            "Required source files do not match the accepted identity."
+        }
+        Definition::RequiredSourceMissing => "Required source files are missing.",
     }
 }
 
 fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
-    use portcove_core::{DefinitionEligibilityReason as Definition, PortAction, PortActionReason};
+    use portcove_core::{PortAction, PortActionReason};
 
     let value = serde_json::to_value(assessment).unwrap_or_default();
-    let action = value["action"].as_str().unwrap_or("unknown");
-    let availability = value["availability"].as_str().unwrap_or("unknown");
+    let action_code = value["action"].as_str().unwrap_or("unknown");
+    let action = match assessment.action {
+        PortAction::Install => "Install",
+        PortAction::RegisterExternal => "Register existing installation",
+        PortAction::Launch => "Launch",
+        PortAction::RemoveManaged => "Remove managed versions",
+        PortAction::RemoveExternal => "Remove existing installation registration",
+        PortAction::Rollback => "Restore previous release",
+        PortAction::BackupCreate => "Create backup",
+        PortAction::BackupRestore => "Restore backup",
+        PortAction::Update => "Update",
+    };
+    let availability = match assessment.availability {
+        portcove_core::PortActionAvailability::NotOffered => "not offered",
+        portcove_core::PortActionAvailability::Waiting => "waiting for review",
+        portcove_core::PortActionAvailability::Held => "held",
+        portcove_core::PortActionAvailability::Allowed => "allowed",
+    };
     let reason = value["definition"]["reason"]
         .as_str()
         .or_else(|| value["reason"].as_str())
         .unwrap_or("unknown");
     let explanation = if let Some(definition) = assessment.definition {
-        match definition.reason {
-            Definition::MandatoryChecksPassed => "Required definition checks passed.",
-            Definition::PublisherRevoked => "The definition publisher's authority was revoked.",
-            Definition::CuratedArtifactRevoked => {
-                "This exact release file was revoked; installed files and saves are retained."
-            }
-            Definition::CuratedDistributionWithdrawn => {
-                "Distribution of this release file was withdrawn; permitted installed use remains available."
-            }
-            Definition::UnknownSafetySemantics => {
-                "This client cannot interpret the definition's safety requirements."
-            }
-            Definition::PublisherScopeRequired => {
-                "The definition requires accepted publisher authority."
-            }
-            Definition::EngineCapabilityRequired => {
-                "This client lacks a required engine capability."
-            }
-            Definition::OwnershipMigrationRequired => {
-                "The definition requires a reviewed ownership migration."
-            }
-            Definition::MetadataReplay => "The accepted catalog metadata was replayed.",
-            Definition::RefreshIncomplete => "The catalog refresh is incomplete.",
-            Definition::MetadataStale => "The accepted catalog metadata is stale.",
-            Definition::RecordedIdentityChanged => {
-                "Bytes changed under a recorded release identity."
-            }
-            Definition::AuthenticatedIntegrityRequired => {
-                "The release needs accepted authenticated integrity evidence."
-            }
-            Definition::LocalIntegrityFailed => "Local release integrity verification failed.",
-            Definition::MandatoryCheckFailed => "A required definition check failed.",
-            Definition::SourceIdentityMismatch => {
-                "Required source files do not match the accepted identity."
-            }
-            Definition::RequiredSourceMissing => "Required source files are missing.",
-        }
+        definition_reason(definition.reason)
     } else {
         match assessment.reason {
             PortActionReason::Available => {
@@ -1268,14 +1380,17 @@ fn status_action(assessment: &portcove_core::PortActionAssessment) -> String {
             }
         }
     };
-    format!("  {action}: {availability} ({reason}): {explanation}")
+    format!("  {action} [{action_code}]: {availability} ({reason}): {explanation}")
 }
 
 #[cfg(feature = "qualification-fixtures")]
-pub(crate) fn game_update_plan(review: &portcove_core::GameUpdatePlan) -> String {
+pub(crate) fn game_update_plan(
+    review: &portcove_core::GameUpdatePlan,
+    catalog: &portcove_core::Catalog,
+) -> String {
     format!(
         "{}\nUpdate decision:\n{}",
-        plan(&review.plan),
+        plan(&review.plan, catalog),
         status_action(&review.assessment)
     )
 }
@@ -1302,8 +1417,13 @@ pub(crate) fn activities(
         )
     };
     format!(
-        "Recent activity ({})\nCurrent and actionable coverage: complete. Terminal history: {terminal_history}.\n\n{}",
+        "Recent activity ({})\nCurrent and actionable coverage: {}. Terminal history: {terminal_history}.\n\n{}",
         records.len(),
+        if feed.active_and_actionable_complete {
+            "complete"
+        } else {
+            "incomplete"
+        },
         entries.join("\n\n")
     )
 }
@@ -1316,25 +1436,43 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
         .target_id
         .as_deref()
         .and_then(|id| match record.target_kind {
-            ActivityTargetKind::Port => catalog.port(id).ok().map(|port| port.id.as_str()),
+            ActivityTargetKind::Port => catalog.port(id).ok().map(|_| port_name(catalog, id)),
             ActivityTargetKind::Source => catalog
                 .source_profile(id)
                 .ok()
-                .map(|profile| profile.id.as_str()),
+                .map(|_| profile_name(catalog, id)),
             ActivityTargetKind::Library => None,
         });
     let mut output = format!(
         "Activity: {}\nStatus: {}\nOperation: {}\nTarget: {}\nStarted (UTC): {}",
         clean(&record.id),
-        record.status,
-        record.operation,
-        clean(target.unwrap_or(match record.target_kind {
+        match record.status {
+            ActivityStatus::Running => "Running",
+            ActivityStatus::Succeeded => "Succeeded",
+            ActivityStatus::Failed => "Failed",
+            ActivityStatus::Cancelled => "Cancelled",
+        },
+        operation_name(record.operation),
+        target.as_deref().unwrap_or(match record.target_kind {
             ActivityTargetKind::Port => "port (not in current catalog)",
             ActivityTargetKind::Source => "source (not in current catalog)",
             ActivityTargetKind::Library => "library",
-        })),
+        }),
         utc_time(record.started_at),
     );
+    if let Some(finished_at) = record.finished_at {
+        output.push_str(&format!("\nFinished (UTC): {}", utc_time(finished_at)));
+    }
+    if let Some(cancellation) = &record.cancellation {
+        output.push_str(&format!(
+            "\nCancellation requested: {}\nCurrent phase: {}",
+            if cancellation.requested { "Yes" } else { "No" },
+            match cancellation.phase {
+                portcove_core::CancellationPhase::Preparing => "Preparing",
+                portcove_core::CancellationPhase::Finishing => "Finishing publication",
+            }
+        ));
+    }
     output.push('\n');
     if let Some(report) = &record.failure {
         output.push_str(&failure(report, technical));
@@ -1359,7 +1497,7 @@ fn activity(record: &ActivityRecord, catalog: &portcove_core::Catalog, technical
         output.push_str(&clean(&redact_diagnostic_text(id)));
     }
     output.push_str(&format!(
-        "\nRetained logs: activity log {}",
+        "\nRetained logs: portcove activity log {}",
         clean(&record.id)
     ));
     output
@@ -1374,13 +1512,13 @@ pub(crate) fn storage(summary: &StorageSummary) -> String {
     )
 }
 
-pub(crate) fn doctor(report: &DoctorReport) -> String {
+pub(crate) fn doctor(report: &DoctorReport, catalog: &portcove_core::Catalog) -> String {
     let tool_rows = report
         .host_tools
         .iter()
         .map(|tool| {
             vec![
-                tool.id.clone(),
+                format!("{} ({})", clean(&tool.display_name), clean(&tool.id)),
                 host_tool_state(tool.state).into(),
                 tool.source.map_or("-".into(), |source| match source {
                     HostToolSource::Environment => "environment".into(),
@@ -1394,7 +1532,7 @@ pub(crate) fn doctor(report: &DoctorReport) -> String {
         })
         .collect();
     let repairs = if report.repair.items.is_empty() {
-        "Repair review: no items".into()
+        "Repair review: no repairs needed.".into()
     } else {
         let rows = report
             .repair
@@ -1403,7 +1541,10 @@ pub(crate) fn doctor(report: &DoctorReport) -> String {
             .map(|item| {
                 vec![
                     repair_kind(item.kind).into(),
-                    item.port_id.as_deref().unwrap_or("-").into(),
+                    item.port_id
+                        .as_deref()
+                        .map(|id| port_name(catalog, id))
+                        .unwrap_or_else(|| "Library".into()),
                     item.message.clone(),
                     item.proposed_action.clone(),
                 ]
@@ -1432,8 +1573,7 @@ pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
         .iter()
         .map(|tool| {
             vec![
-                tool.id.clone(),
-                tool.display_name.clone(),
+                format!("{} ({})", clean(&tool.display_name), clean(&tool.id)),
                 host_tool_state(tool.state).into(),
                 tool.source.map_or("-".into(), |source| match source {
                     HostToolSource::Environment => "environment".into(),
@@ -1450,10 +1590,7 @@ pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
     format!(
         "Disc tools ({})\n{}",
         tools.len(),
-        table(
-            &["ID", "NAME", "STATUS", "SOURCE", "PATH", "OFFICIAL SITE"],
-            rows
-        )
+        table(&["TOOL", "STATUS", "SOURCE", "PATH", "OFFICIAL SITE"], rows)
     )
 }
 
@@ -1481,22 +1618,25 @@ pub(crate) fn host_tool_probe(result: &HostToolProbeResult) -> String {
     )
 }
 
-pub(crate) fn game_install_plan(review: &portcove_core::GameInstallPlan) -> String {
-    let mut text = plan(&review.plan);
+pub(crate) fn game_install_plan(
+    review: &portcove_core::GameInstallPlan,
+    catalog: &portcove_core::Catalog,
+) -> String {
+    let mut text = plan(&review.plan, catalog);
     if let Some(selected) = &review.selected_install {
         text.push_str(&format!(
             "\nExisting copy to activate: {}\nExisting copy version: {}\nExisting copy channel: {}\nNo artifact download.\n",
-            selected.path.display(), selected.version, release_channel(selected.channel),
+            clean(&selected.path.display().to_string()), clean(&selected.version), release_channel(selected.channel),
         ));
     }
     text.push_str(&format!(
         "\nReviewed plan SHA-256: {}\n",
-        review.plan_sha256
+        clean(&review.plan_sha256)
     ));
     text
 }
 
-pub(crate) fn plan(plan: &InstallPlan) -> String {
+pub(crate) fn plan(plan: &InstallPlan, catalog: &portcove_core::Catalog) -> String {
     let requirements = if plan.source_requirements.is_empty() {
         "none".into()
     } else {
@@ -1504,10 +1644,11 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
             .iter()
             .map(|requirement| {
                 format!(
-                    "{} ({}, {})",
+                    "{} ({}) — {}, {}",
                     clean(&requirement.label),
+                    clean(&requirement.profile_id),
                     match requirement.role {
-                        SourceRequirementRole::GameSource => "game source",
+                        SourceRequirementRole::GameSource => "required game files",
                         SourceRequirementRole::Bios => "BIOS",
                     },
                     if requirement.registered {
@@ -1524,9 +1665,10 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         || "none".to_owned(),
         |runtime| {
             format!(
-                "{} ({})",
+                "{} ({}; SHA-256 {})",
                 clean(&runtime.asset.name),
-                format_bytes(runtime.asset.size)
+                format_bytes(runtime.asset.size),
+                clean(&runtime.asset.sha256),
             )
         },
     );
@@ -1546,18 +1688,26 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
     let auxiliary = plan
         .auxiliary_downloads
         .iter()
-        .map(|asset| format!("{} ({})", clean(&asset.name), format_bytes(asset.size)))
+        .map(|asset| {
+            format!(
+                "{} ({}; SHA-256 {})",
+                clean(&asset.name),
+                format_bytes(asset.size),
+                clean(&asset.sha256)
+            )
+        })
         .collect::<Vec<_>>()
         .join("; ");
     format!(
-        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nBundled runtime: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nSources: {}\nOutput folder: {} ({})\nAvailable library storage: {}{}",
-        clean(&plan.port_id),
+        "Install plan for {}\nAction: {}\nChannel: {}\nPlatform: {}\nRelease: {}\nAsset: {} ({})\nRelease SHA-256: {}\nRequired runtime component: {}\nRequired build components: {}\nTotal cold download (cache reuse may reduce): {}\nTemporary free space: {}\nFinal installed size: unknown\nRequired game files and BIOS: {}\nOutput folder: {} ({})\nAvailable library storage: {}{}",
+        port_name(catalog, &plan.port_id),
         install_action(plan.action),
         release_channel(plan.channel),
         platform_name(plan.platform),
         clean(&plan.release.version),
         clean(&plan.release.asset.name),
         format_bytes(plan.release.asset.size),
+        clean(&plan.release.asset.sha256),
         runtime,
         if auxiliary.is_empty() {
             "none"
@@ -1579,45 +1729,54 @@ pub(crate) fn plan(plan: &InstallPlan) -> String {
         plan.preservation_notices
             .iter()
             .map(|notice| format!("\n{}", clean(notice)))
-            .collect::<String>() + &plan.shared_preferences.as_ref().map(|scope| format!("\n{}\nExplicit acceptance is required. For first installation, use installation run with --acknowledge-shared-preferences and the reviewed plan SHA-256. Desktop reviewed updates ask separately. --yes alone does not accept this scope.", scope.write_scope_disclosure())).unwrap_or_default(),
+            .collect::<String>() + &plan.shared_preferences.as_ref().map(|scope| format!("\n{}\nExplicit acceptance is required. For first installation, use installation run with --acknowledge-shared-preferences and the reviewed plan SHA-256. Desktop reviewed updates ask separately. --yes alone does not accept this scope.", clean(&scope.write_scope_disclosure()))).unwrap_or_default(),
     )
 }
 
 pub(crate) fn ghostship_recovery_plan(plan: &portcove_core::GhostshipRecoveryPlan) -> String {
     format!(
-        "Ghostship legacy recovery review\nSelected qualified backup: {}\nSnapshot folder: {}\nRetained 2.0.0 installation: {}\nCurrent 3.0.0 installation: {}\nOriginal: {}\nRequired free space: {} bytes\nPlan SHA-256: {}\nChanges: activate a fresh derivative of the retained 2.0.0 installation and replace canonical data with this qualified legacy snapshot.\nPreserved: both existing installations, the selected backup, other staged installations, and independent safety copies of current canonical data and newer-runtime persistent data.\nThe runtime safety copy is retained alongside the canonical safety backup; ordinary restore uses only its canonical data. Deleting that backup also deletes its runtime safety copy.\nPlanning does not launch a game or prove gameplay/save-load compatibility.",
+        "Ghostship legacy recovery review\nSelected qualified backup: {}\nSnapshot folder: {}\nRetained 2.0.0 installation: {}\nCurrent 3.0.0 installation: {}\nOriginal: {}\nRequired free space: {} ({} bytes)\nPlan SHA-256: {}\nChanges: activate a fresh derivative of the retained 2.0.0 installation and replace canonical data with this qualified legacy snapshot.\nPreserved: both existing installations, the selected backup, other staged installations, and independent safety copies of current canonical data and newer-runtime persistent data.\nThe runtime safety copy is retained alongside the canonical safety backup; ordinary restore uses only its canonical data. Deleting that backup also deletes its runtime safety copy.\nPlanning does not launch a game or prove gameplay/save-load compatibility.",
         clean(&plan.backup.id),
         clean(&plan.backup.path.display().to_string()),
         clean(&plan.legacy_install.path.display().to_string()),
         clean(&plan.active_install.path.display().to_string()),
         clean(&plan.source.path.display().to_string()),
+        format_bytes(plan.required_bytes),
         plan.required_bytes,
         clean(&plan.plan_sha256),
     )
 }
 
-pub(crate) fn preparation_plan(plan: &portcove_core::PreparationPlan) -> String {
+pub(crate) fn preparation_plan(
+    plan: &portcove_core::PreparationPlan,
+    catalog: &portcove_core::Catalog,
+) -> String {
     format!(
-        "Preparation: {}\nInstalled version: {}\nSource: {}\nSource assessment: {}\nSetup tool: {}\nReviewed copy: {} bytes\nPlan: {}\nPlanning starts no setup process and does not change launch readiness.",
-        clean(&plan.port_id),
+        "Preparation: {}\nInstalled version: {}\nRequired game files: {}\nSource assessment: {}\nSetup tool: {}\nReviewed copy: {} ({} bytes)\nPlan SHA-256: {}\nPlanning starts no setup process and does not change launch readiness.",
+        port_name(catalog, &plan.port_id),
         clean(&plan.inputs.install.version),
         clean(&plan.inputs.source.path.display().to_string()),
         clean(&plan.inputs.source_inspection.summary),
         clean(&plan.inputs.setup_tool.path.display().to_string()),
+        format_bytes(plan.copy.total_bytes),
         plan.copy.total_bytes,
         clean(&plan.plan_sha256),
     )
 }
 
-pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPreview) -> String {
+pub(crate) fn preparation_cleanup(
+    preview: &portcove_core::PreparationCleanupPreview,
+    catalog: &portcove_core::Catalog,
+) -> String {
     let mut entries = preview
         .retained
         .files
         .iter()
         .map(|file| {
             format!(
-                "File: {} ({} bytes, SHA-256 {})",
+                "File: {} ({}; {} bytes, SHA-256 {})",
                 clean(&file.relative_path.display().to_string()),
+                format_bytes(file.size),
                 file.size,
                 clean(&file.sha256),
             )
@@ -1643,7 +1802,7 @@ pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPre
     format!(
         "Preparation cleanup: {}\nGame: {}\nRetained private folder: {}\nAffected: {} files, {} folders, {} skipped links or special entries, {}\nAffected entries:\n{}\nPreserved original installation: {}\nPreserved registered source: {}\nPreserved saved data: {}\nPreserved backups: {}\nPreserved logs: {}\nReversibility: removed private files cannot be recovered\nInterruption: an accepted cleanup remains recorded and will be retried\nPreview: {}",
         clean(&preview.operation_id),
-        clean(&preview.port_id),
+        port_name(catalog, &preview.port_id),
         clean(&preview.retained_path.display().to_string()),
         preview.retained.files.len(),
         preview.retained.directories.len(),
@@ -1659,10 +1818,10 @@ pub(crate) fn preparation_cleanup(preview: &portcove_core::PreparationCleanupPre
     )
 }
 
-pub(crate) fn paths(paths: &PortPaths) -> String {
+pub(crate) fn paths(paths: &PortPaths, catalog: &portcove_core::Catalog) -> String {
     format!(
-        "Paths for {}\nLibrary: {}\nPersistent data: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",
-        clean(&paths.port_id),
+        "Paths for {}\nLibrary: {}\nSaves and settings: {}\nFuture install folder: {} ({})\nActive: {}\nPrevious: {}\nStaged: {}",
+        port_name(catalog, &paths.port_id),
         clean(&paths.library_root.display().to_string()),
         clean(&paths.user_data_root.display().to_string()),
         clean(
@@ -1679,10 +1838,13 @@ pub(crate) fn paths(paths: &PortPaths) -> String {
     )
 }
 
-pub(crate) fn output_location(location: &PortOutputLocation) -> String {
+pub(crate) fn output_location(
+    location: &PortOutputLocation,
+    catalog: &portcove_core::Catalog,
+) -> String {
     format!(
         "Install folder for {}\nEffective: {} ({})\nSaved custom folder: {}\nLibrary default: {}\nExisting installs are not moved when this setting changes.",
-        clean(&location.port_id),
+        port_name(catalog, &location.port_id),
         clean(&location.effective_output_directory.display().to_string()),
         output_location_source(location.selection_source),
         optional_path(location.configured_output_directory.as_deref()),
@@ -1690,7 +1852,10 @@ pub(crate) fn output_location(location: &PortOutputLocation) -> String {
     )
 }
 
-pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
+pub(crate) fn output_preview(
+    preview: &OutputDestinationPreview,
+    catalog: &portcove_core::Catalog,
+) -> String {
     let availability = match preview.availability {
         OutputDestinationAvailability::Available => "available",
         OutputDestinationAvailability::Full => "full",
@@ -1742,7 +1907,7 @@ pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
     };
     format!(
         "Install folder preview for {}\nProposed: {}\nAvailability: {}\nOwnership: {}\nCapacity: {}\nExisting installs: {}\nEffect: future placement only; existing installs will not move\nValidation: {}\nPreview fingerprint: {}",
-        clean(&preview.port_id),
+        port_name(catalog, &preview.port_id),
         clean(
             &preview
                 .proposed
@@ -1759,7 +1924,10 @@ pub(crate) fn output_preview(preview: &OutputDestinationPreview) -> String {
     )
 }
 
-pub(crate) fn output_relocation_plan(plan: &OutputRelocationPlan) -> String {
+pub(crate) fn output_relocation_plan(
+    plan: &OutputRelocationPlan,
+    catalog: &portcove_core::Catalog,
+) -> String {
     let availability = match plan.availability {
         OutputDestinationAvailability::Available => "available",
         OutputDestinationAvailability::Full => "full",
@@ -1798,7 +1966,7 @@ pub(crate) fn output_relocation_plan(plan: &OutputRelocationPlan) -> String {
     };
     format!(
         "Output relocation review for {}\nFrom: {}\nTo: {}\nInstalled versions: {}\nRequired space: {}\nDestination: {}\nSources: stay in place\nPersistent data: stays in place\nBackups: stay in place\nValidation: {}\nPlan fingerprint: {}",
-        clean(&plan.port_id),
+        port_name(catalog, &plan.port_id),
         clean(
             &plan
                 .current
@@ -1875,7 +2043,7 @@ fn render_value(value: &Value, indent: usize, output: &mut String) {
     }
 }
 
-fn release_channel(channel: ReleaseChannel) -> &'static str {
+pub(crate) fn release_channel(channel: ReleaseChannel) -> &'static str {
     match channel {
         ReleaseChannel::Stable => "Stable",
         ReleaseChannel::Beta => "Preview",
@@ -1893,7 +2061,17 @@ fn field_scalar(key: &str, value: &Value) -> String {
     }
     if matches!(
         key,
-        "created_at" | "updated_at" | "started_at" | "finished_at" | "resets_at"
+        "created_at"
+            | "updated_at"
+            | "started_at"
+            | "finished_at"
+            | "resets_at"
+            | "expires_at"
+            | "issued_at"
+            | "registered_at"
+            | "verified_at"
+            | "completed_at"
+            | "exported_at"
     ) && let Value::Number(number) = value
     {
         if let Some(seconds) = number.as_i64() {
@@ -1967,7 +2145,7 @@ fn table(headers: &[&str], rows: Vec<Vec<String>>) -> String {
     lines.join("\n")
 }
 
-fn clean(value: &str) -> String {
+pub(crate) fn clean(value: &str) -> String {
     value
         .chars()
         .filter_map(|character| match character {
@@ -1978,7 +2156,67 @@ fn clean(value: &str) -> String {
         .collect::<String>()
 }
 
-fn format_bytes(bytes: u64) -> String {
+pub(crate) fn port_name(catalog: &portcove_core::Catalog, id: &str) -> String {
+    catalog.port(id).map_or_else(
+        |_| format!("Port ({}; name unavailable)", clean(id)),
+        |port| format!("{} ({})", clean(&port.name), clean(id)),
+    )
+}
+
+pub(crate) fn profile_name(catalog: &portcove_core::Catalog, id: &str) -> String {
+    catalog.source_profile(id).map_or_else(
+        |_| format!("Game-file profile ({}; label unavailable)", clean(id)),
+        |profile| format!("{} ({})", clean(&profile.label), clean(id)),
+    )
+}
+
+pub(crate) fn operation_name(operation: portcove_core::ActivityOperation) -> &'static str {
+    use portcove_core::ActivityOperation as Operation;
+    match operation {
+        Operation::Prepare => "Prepare game data",
+        Operation::UpdateCatalog => "Update catalog",
+        Operation::DiscoverSources => "Find game files",
+        Operation::ImportSource => "Import game files",
+        Operation::ImportLibrary => "Restore library",
+        Operation::MoveLibrary => "Move library",
+        Operation::RelocateOutput => "Relocate installed versions",
+        Operation::Launch => "Launch game",
+        Operation::CheckUpdate => "Check for game updates",
+        Operation::Backup => "Back up saves and settings",
+        Operation::Restore => "Restore saves and settings",
+        Operation::DeleteBackup => "Delete backup",
+        Operation::Install => "Install game port",
+        Operation::Update => "Update game port",
+        Operation::Reconcile => "Apply game update policy",
+        Operation::VerifyInstall => "Check installed files",
+        Operation::Activate => "Activate staged release",
+        Operation::Rollback => "Restore previous release",
+        Operation::Adopt => "Copy existing installation",
+        Operation::Remove => "Remove managed versions",
+        Operation::RemoveSource => "Remove saved game-file location",
+        Operation::RegisterExternal => "Register existing installation",
+        Operation::RelinkExternal => "Change existing installation location",
+        Operation::RemoveExternal => "Remove existing installation registration",
+        Operation::RegisterSource => "Save game-file location",
+        Operation::VerifySource => "Check saved game files",
+    }
+}
+
+pub(crate) fn operation_event_name(operation: &str) -> &'static str {
+    operation
+        .parse::<portcove_core::ActivityOperation>()
+        .map_or("Other operation", operation_name)
+}
+
+pub(crate) fn update_policy_name(policy: portcove_core::UpdatePolicy) -> &'static str {
+    match policy {
+        portcove_core::UpdatePolicy::Notify => "Notify about updates",
+        portcove_core::UpdatePolicy::Stage => "Download and check without activation",
+        portcove_core::UpdatePolicy::Automatic => "Apply updates automatically",
+    }
+}
+
+pub(crate) fn format_bytes(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
     let mut value = bytes as f64;
     let mut unit = 0;
@@ -2004,7 +2242,7 @@ fn readiness(status: &PortStatus) -> String {
     };
     if readiness.launchable {
         return if readiness.pending_setup {
-            "ready; setup pending"
+            "Ready to launch; setup runs during launch"
         } else {
             "ready"
         }
@@ -2015,29 +2253,28 @@ fn readiness(status: &PortStatus) -> String {
             && assessment.eligibility.outcome
                 != portcove_core::DefinitionEligibilityOutcome::Eligible
     }) {
-        let reason = serde_json::to_value(assessment.eligibility.reason)
-            .ok()
-            .and_then(|value| value.as_str().map(str::to_owned))
-            .unwrap_or_else(|| "unknown_policy_result".into());
-        return format!("definition {reason}");
+        return format!(
+            "Definition restriction: {}",
+            definition_reason(assessment.eligibility.reason)
+        );
     }
     let blockers = readiness
         .blockers
         .iter()
         .map(|blocker| match blocker {
-            LaunchBlocker::MissingSource => "missing source",
-            LaunchBlocker::UnreadableSource => "unreadable source",
-            LaunchBlocker::ChangedSource => "changed source",
+            LaunchBlocker::MissingSource => "Required game files are missing",
+            LaunchBlocker::UnreadableSource => "Required game files cannot be read",
+            LaunchBlocker::ChangedSource => "Required game files changed",
             LaunchBlocker::IncompatibleSource => "incompatible source representation",
             LaunchBlocker::MissingBios => "missing BIOS",
             LaunchBlocker::UnreadableBios => "unreadable BIOS",
             LaunchBlocker::ChangedBios => "changed BIOS",
             LaunchBlocker::IncompatibleBios => "unsupported BIOS edition",
-            LaunchBlocker::MissingRuntime => "needs verified runtime (update port)",
+            LaunchBlocker::MissingRuntime => "Update required before playing",
             LaunchBlocker::PreparationRequired => "needs game data preparation",
             LaunchBlocker::SharedPreferencesReviewRequired => "needs a fresh shared preferences review after preserving local data and removing managed versions",
             LaunchBlocker::SharedPreferencesUnavailable => "shared preferences cannot be checked safely; leave them unchanged and inspect Windows profile access",
-            LaunchBlocker::InvalidInstallation => "installation needs verification or repair",
+            LaunchBlocker::InvalidInstallation => "Blocked by a local installation that does not match the expected files",
         })
         .collect::<Vec<_>>()
         .join(", ");
@@ -2085,12 +2322,12 @@ fn upstream_status(status: portcove_core::UpstreamStatus) -> &'static str {
     }
 }
 
-fn platform_name(platform: Platform) -> &'static str {
+pub(crate) fn platform_name(platform: Platform) -> &'static str {
     match platform {
-        Platform::WindowsX86_64 => "windows-x86_64",
-        Platform::LinuxX86_64 => "linux-x86_64",
-        Platform::MacosX86_64 => "macos-x86_64",
-        Platform::MacosAarch64 => "macos-aarch64",
+        Platform::WindowsX86_64 => "Windows (x64)",
+        Platform::LinuxX86_64 => "Linux (x64)",
+        Platform::MacosX86_64 => "macOS (Intel)",
+        Platform::MacosAarch64 => "macOS (Apple silicon)",
     }
 }
 
@@ -2120,8 +2357,10 @@ fn install_action(action: InstallPlanAction) -> &'static str {
         InstallPlanAction::AlreadyActive => "already active",
         InstallPlanAction::UseStaged => "activate staged release",
         InstallPlanAction::ReuseRetained => "reuse retained release",
-        InstallPlanAction::BlockedUnverified => "blocked by unverified install",
-        InstallPlanAction::Download => "download",
+        InstallPlanAction::BlockedUnverified => {
+            "Blocked by a local installation that does not match the expected files"
+        }
+        InstallPlanAction::Download => "Download the catalog release",
     }
 }
 
@@ -2210,7 +2449,7 @@ mod tests {
             "plan_sha256": "b".repeat(64)
         })).unwrap();
         let before = serde_json::to_value(&review).unwrap();
-        let text = super::game_install_plan(&review);
+        let text = super::game_install_plan(&review, &portcove_core::Catalog::embedded().unwrap());
         assert!(text.contains("Channel: Preview"));
         assert!(text.contains("Existing copy channel: Preview"));
         assert!(text.contains("Existing copy version: Upstream Beta 12"));
@@ -2236,7 +2475,7 @@ mod tests {
                 "configured_output_directory": "external/game", "effective_output_directory": "external/game", "selection_source": "port_setting", "user_data_root": "owned/user"}
         })).unwrap();
         let before = serde_json::to_value(&plan).unwrap();
-        let text = super::plan(&plan);
+        let text = super::plan(&plan, &portcove_core::Catalog::embedded().unwrap());
         assert!(text.contains("auxiliary.zip"));
         assert!(text.contains("Total cold download (cache reuse may reduce): 1.0 KiB"));
         assert!(
@@ -2334,7 +2573,9 @@ mod tests {
         assert!(text.contains(
             "Preliminary selections: 1. These are not exact matches; validation has not run."
         ));
-        assert!(text.contains("source inspect PROFILE_ID PATH"));
+        assert!(text.contains("source inbox import PROFILE_ID PATH --mode use-current-location"));
+        assert!(text.contains("source inspect PROFILE_ID"));
+        assert!(!text.contains("source inspect PROFILE_ID PATH"));
         assert!(!text.contains("To register a chosen candidate"));
         assert!(text.contains("No sources were registered by this search."));
         assert!(service.library().sources().unwrap().is_empty());
@@ -2698,7 +2939,7 @@ mod tests {
             stream_limit_bytes: 2048,
         };
         let rendered = super::activity_diagnostic(&[capture.clone(), capture]);
-        assert!(rendered.contains("Activity: owned-id[31m header\nPhase: preparation.setup phase"));
+        assert!(rendered.contains("Activity: owned-id[31m header\nPhase: Other operation phase"));
         assert_eq!(
             rendered
                 .matches("Both output streams ended. Saved output is shown below.")
@@ -2714,6 +2955,52 @@ mod tests {
             super::activity_diagnostic(&[]),
             "No retained diagnostic capture is available for this activity."
         );
+    }
+
+    #[test]
+    fn cartridge_diagnostics_preserve_batch_identity_and_redact_phase_details() {
+        use portcove_core::{ActivityDiagnostic, DiagnosticStream};
+        let stream = DiagnosticStream {
+            text: "captured output".into(),
+            observed_bytes: 15,
+            truncated: false,
+        };
+        let phases = [
+            "install.cartridge.render96.extract.0",
+            "install.cartridge.render96.extract.1",
+            "install.cartridge.cvlod.configure.4",
+            "install.cartridge.source.AWRE.objects.2",
+            "token=private-fixture-value\nphase\u{1b}",
+        ];
+        let captures = phases
+            .iter()
+            .map(|phase| ActivityDiagnostic {
+                activity_id: "owned-activity".into(),
+                phase: (*phase).into(),
+                stdout: stream.clone(),
+                stderr: stream.clone(),
+                complete: false,
+                updated_at: 42,
+                stream_limit_bytes: 2048,
+            })
+            .collect::<Vec<_>>();
+        let before = serde_json::to_value(&captures).unwrap();
+        let rendered = super::activity_diagnostic(&captures);
+        assert_eq!(
+            rendered
+                .matches("Phase: Extracting Render96 game data")
+                .count(),
+            2
+        );
+        for phase in &phases[..4] {
+            assert!(rendered.contains(&format!("\nPhase ID: {phase}\n")));
+        }
+        assert!(rendered.contains("Phase: Configuring the Legacy of Darkness build"));
+        assert!(rendered.contains("Phase: Compiling cartridge game code from source"));
+        assert!(rendered.contains("Phase ID: token=[REDACTED] phase"));
+        assert!(!rendered.contains("private-fixture-value"));
+        assert!(!rendered.contains('\u{1b}'));
+        assert_eq!(serde_json::to_value(&captures).unwrap(), before);
     }
 
     #[test]
@@ -2737,7 +3024,7 @@ mod tests {
             }),
             device_login_available: false,
         };
-        assert!(super::auth_status(&status).contains("resets at 1970-01-01T00:00:42Z"));
+        assert!(super::auth_status(&status).contains("resets 1970-01-01T00:00:42Z"));
         let source = portcove_core::SourceRecord {
             profile_id: "fixture".into(),
             path: PathBuf::from("fixture.iso"),
@@ -2748,7 +3035,7 @@ mod tests {
             updated_at: 42,
             observed_identity: None,
         };
-        let sources = super::source_list(&[source]);
+        let sources = super::source_list(&[source], &portcove_core::Catalog::embedded().unwrap());
         assert!(sources.contains("UPDATED (UTC)"));
         assert!(sources.contains("1970-01-01T00:00:42Z"));
         let document = document(&serde_json::json!({
@@ -2809,7 +3096,7 @@ mod tests {
             state_sha256: "c".repeat(64),
         };
         let output = super::catalog_status(&status);
-        assert!(output.contains("Effective catalog: previous signed catalog"));
+        assert!(output.contains("Active catalog: previous signed catalog"));
         assert!(output.contains("Catalog SHA-256: "));
         assert!(output.contains(&"a".repeat(64)));
         assert!(output.contains("Publisher: publisher-id"));
@@ -2848,7 +3135,7 @@ mod tests {
             state_sha256: "b".repeat(64),
         };
         let output = super::catalog_status(&status);
-        assert!(output.contains("Effective catalog: built-in catalog"));
+        assert!(output.contains("Active catalog: built-in catalog"));
         assert!(output.contains("Trusted publishers: 0"));
         assert!(output.contains("Catalog updates: disabled"));
         assert!(output.contains("Rollback: unavailable"));
@@ -2892,7 +3179,8 @@ mod tests {
             preview_sha256: "b".repeat(64),
         };
 
-        let output = super::preparation_cleanup(&preview);
+        let output =
+            super::preparation_cleanup(&preview, &portcove_core::Catalog::embedded().unwrap());
         assert!(output.contains("File: payload/private.bin (4 bytes, SHA-256"));
         assert!(output.contains("Folder: empty"));
         assert!(output.contains("Folder: payload"));
@@ -2940,6 +3228,19 @@ mod tests {
     }
 
     #[test]
+    fn activity_does_not_promote_incomplete_coverage_and_shows_finished_time() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        let mut record = failed_activity(std::path::Path::new("owned-fixture"));
+        record.finished_at = Some(84);
+        let mut feed = activity_feed(record);
+        feed.active_and_actionable_complete = false;
+        let rendered = super::activities(&feed, &catalog, false);
+        assert!(rendered.contains("Current and actionable coverage: incomplete."));
+        assert!(rendered.contains("Finished (UTC): 1970-01-01T00:01:24Z"));
+        assert!(rendered.contains(&super::port_name(&catalog, "opengoal-jak1")));
+    }
+
+    #[test]
     fn activity_reports_use_core_outcomes_and_opt_in_redacted_details() {
         use portcove_core::{ActivityStatus, Catalog, ErrorCode, MutationState, PortcoveError};
         let catalog = Catalog::embedded().unwrap();
@@ -2964,7 +3265,10 @@ mod tests {
             let plain = super::activities(&activity_feed(record.clone()), &catalog, false);
             assert!(plain.contains(expected));
             assert!(plain.contains("Started (UTC): 1970-01-01T00:00:42Z"));
-            assert!(plain.contains("Target: opengoal-jak1"));
+            assert!(plain.contains(&format!(
+                "Target: {}",
+                super::port_name(&catalog, "opengoal-jak1")
+            )));
             assert!(plain.contains("activity log owned-activity-id"));
             assert!(!plain.contains(&temporary.path().display().to_string()));
             assert!(!plain.contains("owned-secret"));
@@ -2975,8 +3279,8 @@ mod tests {
             assert!(!technical.contains("owned-secret"));
             assert!(!technical.contains('\u{1b}'));
             if status == ActivityStatus::Cancelled {
-                assert!(plain.contains("cancelled: The operation was cancelled."));
-                assert!(!plain.contains("error:"));
+                assert!(plain.contains("Operation cancelled."));
+                assert!(!plain.contains("Error:"));
             }
         }
     }
@@ -3209,6 +3513,7 @@ mod tests {
                     proposed_action: "restart Portcove, then review doctor output".into(),
                 }],
             },
+            &portcove_core::Catalog::embedded().unwrap(),
         );
         assert!(degraded.contains("Backup inventory: recovery required (1 problem)"));
         assert!(degraded.contains("backup_create"));
@@ -3254,6 +3559,38 @@ mod tests {
     }
 
     #[test]
+    fn readiness_keeps_setup_during_launch_distinct_from_blocked_preparation() {
+        let mut status = status_disclosure_fixture();
+        for (launchable, pending_setup, blockers, expected) in [
+            (true, false, vec![], "ready"),
+            (
+                true,
+                true,
+                vec![],
+                "Ready to launch; setup runs during launch",
+            ),
+            (
+                false,
+                true,
+                vec![portcove_core::LaunchBlocker::PreparationRequired],
+                "needs game data preparation",
+            ),
+        ] {
+            status.readiness = Some(
+                serde_json::from_value(serde_json::json!({
+                    "launchable": launchable,
+                    "pending_setup": pending_setup,
+                    "blockers": blockers
+                }))
+                .unwrap(),
+            );
+            let before = serde_json::to_value(&status).unwrap();
+            assert_eq!(super::readiness(&status), expected);
+            assert_eq!(serde_json::to_value(&status).unwrap(), before);
+        }
+    }
+
+    #[test]
     fn status_disclosure_keeps_managed_staged_and_external_versions_separate() {
         // Supplied records test formatting only; no runtime is registered or executed.
         let managed_path = PathBuf::from("fixture-managed");
@@ -3285,20 +3622,23 @@ mod tests {
             shared_preferences: None,
         });
         let before = serde_json::to_value((&managed, &external)).unwrap();
-        let output = super::statuses(&[managed.clone(), external.clone()]);
+        let output = super::statuses(
+            &[managed.clone(), external.clone()],
+            &portcove_core::Catalog::embedded().unwrap(),
+        );
         assert!(output.contains("ACTIVE"));
         assert!(output.contains("STAGED"));
         assert!(output.contains("EXTERNAL (USER-OWNED)"));
         let managed_row = output
             .lines()
-            .find(|line| line.starts_with("fixture-port"))
+            .find(|line| line.starts_with("Port (fixture-port; name unavailable)"))
             .unwrap();
         assert!(managed_row.contains("managed-v1"));
         assert!(managed_row.contains("staged-v2"));
         assert!(!managed_row.contains("external v3"));
         let external_row = output
             .lines()
-            .find(|line| line.starts_with("external port "))
+            .find(|line| line.starts_with("Port (external port ; name unavailable)"))
             .unwrap();
         assert!(external_row.contains("external v3 "));
         assert!(!external_row.contains("managed-v1"));
@@ -3307,7 +3647,10 @@ mod tests {
         assert!(!output.contains('\u{1b}'));
         assert!(!output.contains('\t'));
         assert_eq!(before, serde_json::to_value((&managed, &external)).unwrap());
-        assert_eq!(super::status(&external), super::statuses(&[external]));
+        assert_eq!(
+            super::status(&external, &portcove_core::Catalog::embedded().unwrap()),
+            super::statuses(&[external], &portcove_core::Catalog::embedded().unwrap())
+        );
     }
 
     #[test]
@@ -3350,13 +3693,19 @@ mod tests {
                 };
                 let before = serde_json::to_value(assessment).unwrap();
                 let rendered = super::status_action(&assessment);
-                let prefix = format!(
-                    "  {}: {} ({}): ",
-                    before["action"].as_str().unwrap(),
-                    before["availability"].as_str().unwrap(),
-                    before["reason"].as_str().unwrap()
-                );
-                let explanation = rendered.strip_prefix(&prefix).unwrap();
+                assert!(rendered.contains(&format!("[{}]", before["action"].as_str().unwrap())));
+                let state_label = match state {
+                    State::Allowed => "allowed",
+                    State::Waiting => "waiting for review",
+                    State::Held => "held",
+                    State::NotOffered => "not offered",
+                };
+                let (_, explanation) = rendered
+                    .split_once(&format!(
+                        "]: {state_label} ({}): ",
+                        before["reason"].as_str().unwrap()
+                    ))
+                    .unwrap();
                 assert!(!explanation.is_empty());
                 assert_eq!(before, serde_json::to_value(assessment).unwrap());
                 match reason {
@@ -3407,7 +3756,7 @@ mod tests {
             let value = serde_json::to_value(assessment).unwrap();
             let rendered = super::status_action(&assessment);
             let prefix = format!(
-                "  launch: held ({}): ",
+                "  Launch [launch]: held ({}): ",
                 value["definition"]["reason"].as_str().unwrap()
             );
             assert!(!rendered.strip_prefix(&prefix).unwrap().is_empty());
@@ -3419,9 +3768,21 @@ mod tests {
     #[test]
     fn status_disclosure_omits_legacy_empty_actions_and_keeps_groups_with_their_ports() {
         let empty = status_disclosure_fixture();
-        assert!(!super::status(&empty).contains("Actions:"));
-        assert!(!super::statuses(&[empty.clone(), empty.clone()]).contains("Actions:"));
-        assert_eq!(super::statuses(&[]), "No catalog ports.");
+        assert!(
+            !super::status(&empty, &portcove_core::Catalog::embedded().unwrap())
+                .contains("Actions:")
+        );
+        assert!(
+            !super::statuses(
+                &[empty.clone(), empty.clone()],
+                &portcove_core::Catalog::embedded().unwrap()
+            )
+            .contains("Actions:")
+        );
+        assert_eq!(
+            super::statuses(&[], &portcove_core::Catalog::embedded().unwrap()),
+            "The active catalog contains no ports."
+        );
         let mut assessed = status_disclosure_fixture();
         assessed.port_id = "assessed\nport\u{1b}".into();
         assessed
@@ -3432,14 +3793,20 @@ mod tests {
                 reason: portcove_core::PortActionReason::ReviewRequired,
                 definition: None,
             });
-        let output = super::statuses(&[empty, assessed.clone()]);
+        let output = super::statuses(
+            &[empty, assessed.clone()],
+            &portcove_core::Catalog::embedded().unwrap(),
+        );
         assert!(!output.contains("\nfixture-port:\n"));
-        assert!(output.contains("\nassessed port:\n"));
+        assert!(output.contains("\nPort (assessed port; name unavailable):\n"));
         assert!(output.contains("external files are kept"));
         assert_eq!(
-            output.split_once("\nassessed port:\n").unwrap().1,
-            super::status(&assessed)
-                .split_once("\nassessed port:\n")
+            output
+                .split_once("\nPort (assessed port; name unavailable):\n")
+                .unwrap()
+                .1,
+            super::status(&assessed, &portcove_core::Catalog::embedded().unwrap())
+                .split_once("\nPort (assessed port; name unavailable):\n")
                 .unwrap()
                 .1
         );
@@ -3590,12 +3957,14 @@ mod catalog_detail_tests {
         let runtime = &port.release.user_prepared[&Platform::WindowsX86_64];
         let output = catalog_show(&port);
         assert!(output.contains(&format!(
-            "Accepted runtime (windows-x86_64): {}",
+            "Accepted runtime (Windows (x64)): {}",
             runtime.version
         )));
         assert!(output.contains(&format!(
-            "Package: {} ({} bytes)",
-            runtime.archive_name, runtime.archive_size
+            "Package: {} ({}; {} bytes)",
+            runtime.archive_name,
+            super::format_bytes(runtime.archive_size),
+            runtime.archive_size
         )));
         assert!(output.contains(&format!("Package SHA-256: {}", runtime.archive_sha256)));
         assert!(output.contains(&format!("Executable: {}", runtime.executable)));
@@ -3607,7 +3976,7 @@ mod catalog_detail_tests {
             "Maintenance: user-owned; Portcove does not download or update this runtime"
         ));
         assert!(output.contains("Presentation details: unavailable in this catalog"));
-        assert!(!output.contains("Accepted runtime (linux"));
+        assert!(!output.contains("Accepted runtime (Linux"));
         assert_eq!(serde_json::to_value(&port).unwrap(), before);
     }
 
@@ -3625,16 +3994,18 @@ mod catalog_detail_tests {
             .user_prepared
             .insert(Platform::LinuxX86_64, linux);
         let output = catalog_show(&port);
-        let windows_heading = "Accepted runtime (windows-x86_64): v1.0.2";
-        let linux_heading = "Accepted runtime (linux-x86_64): v7.2.1";
+        let windows_heading = "Accepted runtime (Windows (x64)): v1.0.2";
+        let linux_heading = "Accepted runtime (Linux (x64)): v7.2.1";
         let windows_position = output.find(windows_heading).unwrap();
         let linux_position = output.find(linux_heading).unwrap();
         assert!(windows_position < linux_position);
         let windows = &output[windows_position..linux_position];
-        assert!(windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (17397538 bytes)"));
+        assert!(
+            windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (16.6 MiB; 17397538 bytes)")
+        );
         assert!(!windows.contains("fixture-linux-runtime"));
         let linux = &output[linux_position..];
-        assert!(linux.contains("Package: fixture-linux-runtime.zip (321 bytes)"));
+        assert!(linux.contains("Package: fixture-linux-runtime.zip (321 B; 321 bytes)"));
         assert!(linux.contains(&format!("Package SHA-256: {}", "a".repeat(64))));
         assert!(linux.contains("Executable: bin/fixture-game"));
         assert!(!linux.contains("WaveRace64Recomp.exe"));
@@ -3689,5 +4060,94 @@ mod catalog_detail_tests {
             assert!(!output.contains("portcove external preview"));
             assert!(!output.contains("Maintenance: user-owned"));
         }
+    }
+
+    #[test]
+    fn human_labels_preserve_platform_and_phase_machine_values() {
+        for (platform, label, encoded) in [
+            (Platform::WindowsX86_64, "Windows (x64)", "windows-x86-64"),
+            (Platform::LinuxX86_64, "Linux (x64)", "linux-x86-64"),
+            (Platform::MacosX86_64, "macOS (Intel)", "macos-x86-64"),
+            (
+                Platform::MacosAarch64,
+                "macOS (Apple silicon)",
+                "macos-aarch64",
+            ),
+        ] {
+            assert_eq!(super::platform_name(platform), label);
+            assert_eq!(serde_json::to_value(platform).unwrap(), encoded);
+        }
+        assert_eq!(
+            super::phase_name("psx-toolchain-download"),
+            "Downloading PlayStation build tools"
+        );
+        assert_eq!(
+            super::phase_name("preparation.setup"),
+            "Preparing game data"
+        );
+        assert_eq!(
+            super::phase_name("unknown/private\u{1b}phase"),
+            "Other operation phase"
+        );
+        assert_eq!(
+            super::operation_event_name("check_update"),
+            "Check for game updates"
+        );
+        assert_eq!(
+            super::operation_event_name("unknown/private-operation"),
+            "Other operation"
+        );
+    }
+
+    #[test]
+    fn failure_summary_keeps_committed_unknown_and_cancelled_outcomes_independent() {
+        use portcove_core::{ErrorCode, MutationState, PortcoveError};
+        for (state, expected) in [
+            (MutationState::Committed, "The change was saved."),
+            (
+                MutationState::Unknown,
+                "couldn't confirm whether anything changed",
+            ),
+            (MutationState::RecoveryRequired, "unfinished work"),
+            (MutationState::NoChanges, "No files were changed"),
+            (MutationState::NotStarted, "did not start"),
+        ] {
+            let report = PortcoveError::state("token=private-fixture-value")
+                .with_mutation_state(state)
+                .report();
+            let before = serde_json::to_value(&report).unwrap();
+            let rendered = super::failure(&report, false);
+            assert!(rendered.starts_with("Error:"));
+            assert!(rendered.contains(expected));
+            assert!(!rendered.contains("private-fixture-value"));
+            assert!(!rendered.contains("Technical details (redacted):"));
+            assert_eq!(serde_json::to_value(&report).unwrap(), before);
+        }
+        let report = PortcoveError::new(ErrorCode::Cancelled, "token=private-fixture-value")
+            .with_mutation_state(MutationState::NoChanges)
+            .report();
+        let rendered = super::failure(&report, false);
+        assert!(rendered.starts_with("Operation cancelled."));
+        assert!(!rendered.contains("Error:"));
+        assert!(!rendered.contains("private-fixture-value"));
+    }
+
+    #[test]
+    fn zero_counts_and_named_long_unicode_values_remain_readable() {
+        let catalog = portcove_core::Catalog::embedded().unwrap();
+        assert_eq!(
+            super::catalog_list(&[]),
+            "The active catalog contains no ports."
+        );
+        assert!(super::source_list(&[], &catalog).starts_with("No saved game-file"));
+        assert!(super::port_name(&catalog, "starship").ends_with("(starship)"));
+        let unknown = format!("{}\u{1b}\nend", "長い名前π".repeat(40));
+        let rendered = super::port_name(&catalog, &unknown);
+        assert!(rendered.contains("長い名前π"));
+        assert!(rendered.contains("name unavailable"));
+        assert!(!rendered.chars().any(char::is_control));
+        assert_eq!(super::format_bytes(0), "0 B");
+        assert_eq!(super::format_bytes(1), "1 B");
+        assert_eq!(super::format_bytes(1024), "1.0 KiB");
     }
 }

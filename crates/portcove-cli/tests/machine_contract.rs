@@ -17,6 +17,9 @@ mod artwork_contract;
 #[path = "machine_contract/definition_capabilities.rs"]
 mod definition_capability_contract;
 
+#[path = "machine_contract/human_presentation.rs"]
+mod human_presentation;
+
 #[cfg(all(windows, feature = "qualification-fixtures"))]
 #[path = "machine_contract/source_discovery.rs"]
 mod source_discovery_contract;
@@ -54,6 +57,7 @@ fn startup_observations_preserve_pending_recovery_and_recovering_command_consume
             "portrait-cover",
         ],
         vec!["--json", "status"],
+        vec!["launch", "show", "19c66cf0-656f-4a02-9c0b-dba89767ab4e"],
     ] {
         let output = portcove(&library, &arguments);
         assert!(output.status.success(), "{output:?}");
@@ -149,7 +153,7 @@ fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
     assert!(output.status.success(), "{output:?}");
     let progress = std::str::from_utf8(&output.stderr).unwrap();
     assert_eq!(progress.lines().count(), 1);
-    assert!(progress.starts_with("verify_source "));
+    assert!(progress.starts_with("Check saved game files:"));
     let human = std::str::from_utf8(&output.stdout).unwrap();
     assert!(human.contains("Files missing"));
     assert!(!human.contains("Ready to play"));
@@ -347,7 +351,7 @@ fn first_use_help_identifies_player_and_external_client_routes() {
         ),
         (
             &["install", "--help"][..],
-            "without making it the current installed version",
+            "without activating it as the current version",
         ),
         (&["backup", "restore", "--help"][..], "managed saved data"),
     ] {
@@ -1784,8 +1788,12 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
     let human = portcove(&library, &["source", "inspect", "star-fox-64"]);
     assert!(human.status.success(), "{human:?}");
     let human = String::from_utf8(human.stdout).unwrap();
+    let profile_name = format!(
+        "Source inspection: {} (star-fox-64)",
+        json["data"]["expected_identity"]["label"].as_str().unwrap()
+    );
     for text in [
-        "Source inspection: star-fox-64",
+        &profile_name,
         "State: accepted_identity_unknown",
         "Observed identities:",
         "Expected identity:",
@@ -2341,8 +2349,10 @@ fn port_status_has_human_output_snapshot() {
     assert!(status.contains("lighthouse"));
     assert!(status.contains("Stable"));
     assert!(status.contains("Actions:"));
-    assert!(status.contains("launch: waiting (not_installed)"));
-    assert!(status.contains("remove_managed: not_offered (not_installed)"));
+    assert!(status.contains("Launch [launch]: waiting for review (not_installed)"));
+    assert!(
+        status.contains("Remove managed versions [remove_managed]: not offered (not_installed)")
+    );
     assert!(!status.trim_start().starts_with('{'));
     let machine = json_stdout(&portcove(root.path(), &["--json", "status", "lighthouse"]));
     assert_eq!(machine["schema_version"], portcove_core::API_SCHEMA_VERSION);
@@ -2363,7 +2373,7 @@ fn empty_library_lists_has_human_output_snapshot() {
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["backup", "list", "lighthouse"])),
-        "  backup_create: waiting (missing_data): No owned saves or settings are currently available to back up.\n  backup_restore: waiting (missing_backup): No usable backup is currently available to review for restore.\nNo backups for lighthouse.\n",
+        "  Create backup [backup_create]: waiting for review (missing_data): No owned saves or settings are currently available to back up.\n  Restore backup [backup_restore]: waiting for review (missing_backup): No usable backup is currently available to review for restore.\nNo backups for Lighthouse (lighthouse).\n",
     );
     assert_eq!(
         human_stdout(&portcove(root.path(), &["activity"])),
@@ -2375,8 +2385,8 @@ fn empty_library_lists_has_human_output_snapshot() {
 fn paths_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let paths = human_stdout(&portcove(root.path(), &["paths", "lighthouse"])).to_owned();
-    assert!(paths.starts_with("Paths for lighthouse\nLibrary:"));
-    assert!(paths.contains("\nPersistent data:"));
+    assert!(paths.starts_with("Paths for Lighthouse (lighthouse)\nLibrary:"));
+    assert!(paths.contains("\nSaves and settings:"));
 }
 
 #[test]
@@ -2392,7 +2402,7 @@ fn doctor_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let doctor = human_stdout(&portcove(root.path(), &["doctor"])).to_owned();
     assert!(doctor.starts_with("Portcove doctor\nPlatform:"));
-    assert!(doctor.contains("\nRepair review: no items"));
+    assert!(doctor.contains("\nRepair review: no repairs needed."));
 }
 
 #[test]
@@ -2492,7 +2502,7 @@ fn output_preview_agrees_across_modes() {
         &["output", "preview", "lighthouse", destination_text],
     ))
     .to_owned();
-    assert!(human_preview.starts_with("Install folder preview for lighthouse"));
+    assert!(human_preview.starts_with("Install folder preview for Lighthouse (lighthouse)\n"));
     assert!(human_preview.contains(fingerprint));
     let jsonl_preview = json_stdout(&portcove(
         library,
@@ -2533,7 +2543,7 @@ fn output_set_rejects_stale_review_and_show_agrees_across_modes() {
 
     let show = portcove(library, &["output", "show", "lighthouse"]);
     let human = human_stdout(&show);
-    assert!(human.starts_with("Install folder for lighthouse\nEffective:"));
+    assert!(human.starts_with("Install folder for Lighthouse (lighthouse)\nEffective:"));
     assert!(human.contains("Existing installs are not moved"));
     let json_show = json_stdout(&portcove(
         library,
@@ -2883,7 +2893,7 @@ fn status_disclosure_explains_real_core_decisions_without_changing_machine_outpu
     let human = human_stdout(&output);
     assert!(
         human.contains(
-            "install: waiting (missing_source): Add the required game files with source add."
+            "Install [install]: waiting for review (missing_source): Add the required game files with source add."
         ),
         "actual CLI output has no explanation for the core's missing-game-files decision:\n{human}"
     );
@@ -2902,9 +2912,11 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
     let human = human_stdout(&output);
     let statuses = machine["data"].as_array().unwrap();
     assert!(!statuses.is_empty());
+    let catalog = portcove_core::Catalog::embedded().unwrap();
     for status in statuses {
         let id = status["port_id"].as_str().unwrap();
-        let heading = format!("\n{id}:\n");
+        let name = &catalog.port(id).unwrap().name;
+        let heading = format!("\n{name} ({id}):\n");
         let assessments = status["port_actions"].as_array();
         if assessments.is_none_or(|assessments| assessments.is_empty()) {
             assert!(!human.contains(&heading), "{id}: {human}");
@@ -2921,11 +2933,27 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
                 .as_str()
                 .or_else(|| assessment["reason"].as_str())
                 .unwrap();
-            let prefix = format!(
-                "  {}: {} ({reason}): ",
-                assessment["action"].as_str().unwrap(),
-                assessment["availability"].as_str().unwrap()
-            );
+            let action_code = assessment["action"].as_str().unwrap();
+            let action = match action_code {
+                "install" => "Install",
+                "register_external" => "Register existing installation",
+                "launch" => "Launch",
+                "remove_managed" => "Remove managed versions",
+                "remove_external" => "Remove existing installation registration",
+                "rollback" => "Restore previous release",
+                "backup_create" => "Create backup",
+                "backup_restore" => "Restore backup",
+                "update" => "Update",
+                unknown => panic!("unexpected machine action {unknown:?}"),
+            };
+            let availability = match assessment["availability"].as_str().unwrap() {
+                "not_offered" => "not offered",
+                "waiting" => "waiting for review",
+                "held" => "held",
+                "allowed" => "allowed",
+                unknown => panic!("unexpected machine availability {unknown:?}"),
+            };
+            let prefix = format!("  {action} [{action_code}]: {availability} ({reason}): ");
             let explanation = group
                 .lines()
                 .find_map(|line| line.strip_prefix(&prefix))
@@ -2936,9 +2964,13 @@ fn status_disclosure_all_ports_keeps_each_real_action_attached_to_its_port() {
     let single = portcove(root.path(), &["status", "lighthouse"]);
     let single = human_stdout(&single);
     assert_eq!(
-        single.split_once("\nlighthouse:\n").unwrap().1.trim(),
+        single
+            .split_once("\nLighthouse (lighthouse):\n")
+            .unwrap()
+            .1
+            .trim(),
         human
-            .split_once("\nlighthouse:\n")
+            .split_once("\nLighthouse (lighthouse):\n")
             .unwrap()
             .1
             .split("\n\n")
@@ -2980,11 +3012,7 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
     let human = human_stdout(&output);
     let runtime = &port.release.user_prepared[&portcove_core::Platform::WindowsX86_64];
     for fact in [
-        format!("Accepted runtime (windows-x86_64): {}", runtime.version),
-        format!(
-            "Package: {} ({} bytes)",
-            runtime.archive_name, runtime.archive_size
-        ),
+        format!("Accepted runtime (Windows (x64)): {}", runtime.version),
         format!("Package SHA-256: {}", runtime.archive_sha256),
         format!("Executable: {}", runtime.executable),
         format!("portcove external preview {id} \"<extracted-folder>\""),
@@ -2994,6 +3022,19 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
             "catalog detail omitted {fact:?}:\n{human}"
         );
     }
+    let package_prefix = format!("Package: {} (", runtime.archive_name);
+    let package = human
+        .lines()
+        .find_map(|line| line.strip_prefix(&package_prefix))
+        .expect("accepted runtime package must retain its exact archive name");
+    let readable_size = package
+        .strip_suffix(&format!("; {} bytes)", runtime.archive_size))
+        .expect("accepted runtime package must retain its exact byte size");
+    let (count, unit) = readable_size
+        .split_once(' ')
+        .expect("package size must include a readable count and unit");
+    assert!(count.parse::<f64>().unwrap().is_finite());
+    assert!(matches!(unit, "B" | "KiB" | "MiB" | "GiB" | "TiB"));
     assert!(human.contains("matching platform"));
     assert!(
         human
@@ -3002,8 +3043,8 @@ fn catalog_detail_shows_accepted_runtime_and_return_command_without_changing_mac
     assert!(human.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
     assert!(human.contains("create an empty portable.txt"));
     assert!(human.contains("Saves and settings: user-owned"));
-    assert!(!human.contains("Accepted runtime (linux"));
-    assert!(!human.contains("Accepted runtime (macos"));
+    assert!(!human.contains("Accepted runtime (Linux"));
+    assert!(!human.contains("Accepted runtime (macOS"));
     assert!(!human.contains("n64-recomp-portable"));
     assert_eq!(std::fs::read(&player_file).unwrap(), player_bytes);
 }

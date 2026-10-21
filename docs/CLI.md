@@ -27,9 +27,12 @@ changes command names, serialized fields, IDs, timestamps or permission checks.
 
 ## Using the CLI
 
-Run `portcove --help` to see commands and `portcove COMMAND --help` to check
-arguments before a consequential action. Help is human discovery, not a stable
-parsing contract; machine clients use capabilities, schemas and JSON/JSONL.
+Run `portcove --help` for four task groups: **Everyday commands**, **Game files
+and library**, **Updates and recovery**, and **Advanced and integration**.
+Use `portcove COMMAND --help` for the selected command's arguments, required
+review inputs and examples before a consequential action. Help is human
+discovery, not a stable parsing contract; machine clients use capabilities,
+schemas and JSON/JSONL.
 The commands below use `PORT_ID` from
 `catalog list`. For a source command, `portcove catalog show PORT_ID` displays the
 declared `Game-file profile ID` and `BIOS profile ID` when present; use the
@@ -93,9 +96,19 @@ in the upstream ZIP. It is part of the exact accepted tree; without it, review
 fails. Portable mode keeps game-owned settings, the copied source, and saves
 beside the executable. Portcove does not back up, remove, or restore those files.
 
-Human Created, Updated, Started, and API reset times are shown in UTC. A value
-outside the supported timestamp range is labeled unknown. `--json` and
-`--jsonl` retain their Unix timestamp fields for integrations.
+Human results lead with the task and its actual outcome, followed by relevant
+review fingerprints, retained locations and the next supported action. Ports
+and game-file profiles use display names with their operational IDs when the
+catalog supplies a name; a missing name does not create a new identity. Batch
+summaries count successful items separately from items that did not succeed,
+while retaining each failure or cancellation outcome. Byte quantities use IEC
+units, such as KiB and MiB, while unknown observations stay explicit.
+
+Timestamps are labeled by meaning, such as Created, Started, Finished, Expires
+or Resets, and include an explicit offset (`Z` denotes UTC). A value outside
+the supported timestamp range is labeled unknown. Review fingerprints,
+consequential file hashes and publisher keys remain complete. `--json` and
+`--jsonl` retain their original IDs, byte counts and timestamp fields.
 
 ## Path rules
 
@@ -126,7 +139,13 @@ document and compatibility change. Current task sections retain operation
 preconditions and recovery; a historical API number does not imply a published
 package or authorize an operation.
 
-Without a machine-output flag, Portcove renders concise human output. Catalog, status, source, backup, activity, storage, doctor, plan, paths, authentication-status, and capability reads use labeled summaries or tables; other results use a control-character-safe labeled document rather than exposing transport JSON. `portcove about` prints a compact product name, version, functional description, repository, and license without opening the library. Repeated operational commands never print banners or raster/ASCII artwork.
+Without a machine-output flag, reads and mutations use task-specific human
+summaries or tables. Installation, updates, adoption, source changes, backups,
+library transfers and catalog changes describe the returned outcome rather than
+printing a generic field tree. Full documents remain available through
+JSON/JSONL and explicit export commands. `portcove about` prints the product,
+version, description, repository and license without opening a library.
+Repeated operational commands do not print banners or artwork.
 
 Human operation progress goes to standard error. An interactive terminal receives an updating inline byte counter. When standard error is redirected, Portcove emits a bounded line for each phase start and its final observed byte count instead of carriage-return updates for every chunk. A partial final count does not imply success; read the command result or retained activity for the authoritative outcome. Machine clients should use `--jsonl` for the full versioned event stream.
 
@@ -204,11 +223,19 @@ the selected runtime's actual version before decoding):
 }
 ```
 
-Human error output now uses the core summary and explicit mutation outcome.
-`--technical-details` includes the redacted technical message and context when
-human output is requested, including retained activity history. Human activity
-entries show their stable ID, catalog-known target, shared failure summary and
-observed mutation outcome. Older entries without a structured report do not infer
+Human errors use `Error: {safe summary}` and an actual `Next step:` when one
+is available, preserving Core's explicit mutation outcome. A stopped operation
+uses neutral `Operation cancelled.` wording with any known retained changes or
+recovery state. An accepted cancellation request is an acknowledgement; it does
+not establish that work has stopped. A failed readback after a known mutation
+keeps that mutation outcome separate from the unavailable refreshed state.
+
+`--technical-details` includes redacted technical error context and retained
+activity detail. For inert catalog proposal and publication inspections, it
+also includes the checked definition or file identities and full hashes. It
+does not turn every result into an unrestricted raw diagnostic document.
+Human activity entries show their stable ID, catalog-known target, shared
+failure summary and observed mutation outcome. Older entries without a structured report do not infer
 unchanged files or a resumable operation. Their recorded message and targets no
 longer in the current catalog are available only as requested redacted technical
 details. Use `activity log <activity-id>` to read any retained phase captures.
@@ -232,7 +259,7 @@ that retry will succeed. Unclassified failures retain the generic presentation.
 
 Errors use the same envelope with `ok: false`, `data: null`, and a stable error code. `--jsonl` emits versioned operation events followed by one final `type: "result"` object. Each event carries `operation_id`, `sequence`, `timestamp_ms`, operation name, optional typed target and parent ID, plus a terminal `result` for success, failure, or cancellation. Event delivery is best-effort; the activity ledger is authoritative after reconnect or restart. Diagnostics never contaminate JSON stdout.
 
-Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
+Argument-parser failures also use the machine envelope when `--json` or `--jsonl` is present. Their stable command name is `cli`, their error code is `usage`, and they exit with code 2. The parser's descriptive message may include generated help, so its prose follows help revisions; clients must not parse that wording. Help and version output remain intentionally human-readable even when a machine-output flag is supplied.
 
 The compiled-binary machine contract is exercised on both Windows and Linux CI. These tests treat stdout line count, envelope fields, nested command names, JSONL completion, parser behavior, and exit codes as public integration behavior rather than implementation details.
 
@@ -422,6 +449,12 @@ different objects; none alone grants installation or launch permission.
 | Forget a registered file             | `source remove PROFILE_ID`                                   | Requires confirmation and removes only the reference.                        |
 
 ### Register and inspect
+
+`source inspect PROFILE_ID` inspects an already registered source and takes no
+path argument. To review an unregistered candidate, use
+`source inbox import PROFILE_ID PATH` with the intended mode, then apply only
+its returned plan; use `source add PROFILE_ID PATH` for deliberate current-location
+registration. Discovery itself does not register a candidate.
 
 `source add` validates the configured extension plus any exact SHA-1 and SHA-256 allowlists before recording the source reference. A source that matches the game name but not the required revision fails with `source_invalid` and exit code 5. An `upstream-validated-disc` profile is deliberately two-stage: registration records and later rechecks the local ISO/CHD container, while exact retail-revision admission is delegated during setup to a checksum-verified upstream extractor with fixed catalog arguments. Extractor rejection is returned as the same structured `source_invalid` failure before the game can launch.
 
@@ -1116,11 +1149,18 @@ API schema 7 adds catalog provenance to `doctor`, public-key trust and selection
 - `catalog status`: current effective provenance, trusted public keys, highest accepted sequence, valid rollback/cache availability, and `state_sha256`.
 - `catalog trust-key <64-character-public-key-hex> [--yes]`: explicitly trust a publisher. Non-interactive callers need `--yes`; verify its fingerprint independently first.
 - `catalog revoke-key <key-id> --expected-state <state_sha256>`: remove trust and immediately recompute fallback.
-- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan, including changed port IDs, candidate display names, validity, publisher fingerprint, and `plan_sha256`. The existing `changed_port_ids` field remains available to JSON consumers.
+- `catalog update --file <signed.json>` or `--url <https-address>`: verify and return a read-only plan with added or changed port IDs, candidate display names, validity, publisher fingerprint, and `plan_sha256`. That list does not enumerate removed entries. The existing `changed_port_ids` field remains available to JSON consumers.
 - The same command with `--apply --expected-plan <plan_sha256>`: reread, reverify, and atomically publish only the reviewed candidate against unchanged trust/selection state.
 - `catalog rollback --expected-state <state_sha256>`: select the still-trusted, unexpired previous catalog. The replay floor never decreases, and the rejected newer version is not retained as fallback.
 - `catalog use-embedded --expected-state <state_sha256>`: choose the built-in catalog without discarding trust, cached versions, or replay history.
 - `catalog use-cached --expected-state <state_sha256>`: reverify and select the cached signed catalog without downloading or admitting an older external candidate.
+
+Human catalog reviews show the active source, exact publisher/key identities,
+full catalog and review hashes, issued/expiry times and rollback/replay facts.
+Trust a public key only after verifying it through a trusted channel. Completed
+catalog operations report the resulting active catalog and fallback state;
+they do not install or update game files. Definition refresh keeps policy and
+launch-assessment changes separate from selection and eligibility.
 
 Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
 
