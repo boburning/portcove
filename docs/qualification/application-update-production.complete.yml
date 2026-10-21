@@ -22,7 +22,6 @@ permissions:
 concurrency:
   group: application-update-production-controller
   cancel-in-progress: false
-  queue: max
 jobs:
   admission:
     runs-on: ubuntu-22.04

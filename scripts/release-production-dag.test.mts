@@ -170,7 +170,7 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
     },
   });
   assert.equal(workflow.concurrency["cancel-in-progress"], false);
-  assert.equal(workflow.concurrency.queue, "max");
+  assert.equal(workflow.concurrency.queue, undefined);
   const jobs = workflow.jobs;
   assert.equal(workflow["run-name"], "Portcove application release wake ${{ inputs.wake_run_id }}");
   const inputs = (name: string) =>

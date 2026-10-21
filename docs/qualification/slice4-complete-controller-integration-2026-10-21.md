@@ -114,3 +114,12 @@ Normal cleanup uses the already selected seven-day provider retention and positi
 owned process/namespace teardown. No early DELETE permission or cleanup App is
 added. Expiry is not successor custody or capacity. Actual cleanup observations
 remain acceptance evidence to collect in the authorized journey.
+
+The first installed-source CI (`39547918663/1`) retained two failures: an obsolete
+whole-workflow assertion prohibited even the isolated observer, and pinned
+Actionlint did not recognize the provider's optional `queue: max` syntax. The
+assertion now checks actual per-job observer credential isolation. Both workflows
+use the ordinary one-pending-run concurrency behavior, with unchanged groups and
+`cancel-in-progress: false`; bounded wake coalescing cannot cancel a running
+controller, replace durable coordinator intent or authorize a retry. No linter
+suppression, tool migration or increased queue/resource ceiling is introduced.

@@ -409,10 +409,23 @@ void test("held controller uses a parallel tiny-artifact handshake and isolates 
     new URL("../.github/workflows/application-update-production.yml", import.meta.url),
     "utf8",
   );
-  assert.doesNotMatch(
-    live,
-    /permission-administration|release-reviewed-inputs.mts observe-production/,
-  );
+  const installed: unknown = parse(live);
+  assert.ok(isRecord(installed) && isRecord(installed.jobs));
+  const jobs = Object.entries(installed.jobs);
+  const observers = jobs.filter(([name]) => name.endsWith("protection_observation"));
+  assert.equal(observers.length, 7);
+  for (const [name, job] of jobs) {
+    assert.ok(isRecord(job));
+    if (name.endsWith("protection_observation")) {
+      assert.equal(job.environment, "production-release-protection-observer");
+      assert.match(JSON.stringify(job), /PORTCOVE_PROTECTION_APP_PRIVATE_KEY/);
+    } else {
+      assert.doesNotMatch(
+        JSON.stringify(job),
+        /permission-administration|PORTCOVE_PROTECTION_APP_PRIVATE_KEY/,
+      );
+    }
+  }
 });
 
 void test("payload reader and observer are fresh distinct fixed jobs and cannot reuse admission source", async () => {
