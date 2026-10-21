@@ -170,6 +170,47 @@ void test("source policy selects protected admission identity only in complete w
   );
 });
 
+void test("source policy selects protected admission identity only in complete workflow mode", async () => {
+  const runtime = liveControlRuntimeFixture(protectionFixture("a".repeat(40)));
+  const policy: unknown = JSON.parse(runtime.environment.PORTCOVE_CONTROLLER_ADMISSION);
+  assert.ok(isRecord(policy));
+  const environment = {
+    ...runtime.environment,
+    PORTCOVE_CONTROLLER_ADMISSION: JSON.stringify({
+      ...policy,
+      schema_version: 2,
+      mode: "bounded-application-release",
+      authority_configuration_sha256: "a".repeat(64),
+      grant_sha256: "b".repeat(64),
+    }),
+  };
+  await assert.rejects(
+    authenticateControlReaderJob(environment, runtime.workflow, runtime.options),
+  );
+  const protectedRuntime = liveControlRuntimeFixture(
+    protectionFixture("a".repeat(40)),
+    config,
+    "admission",
+    true,
+  );
+  const protectedOptions = protectedRuntime.options;
+  const result = await authenticateControlReaderJob(
+    environment,
+    runtime.workflow,
+    protectedOptions,
+  );
+  assert.equal(result.admitted.mode, "bounded-application-release");
+  assert.equal(result.identity.evidence_scope, "injected-provider");
+  await assert.rejects(
+    authenticateControlReaderJob(runtime.environment, runtime.workflow, protectedOptions),
+  );
+  assert.equal(
+    (await authenticateControlReaderJob(runtime.environment, runtime.workflow, runtime.options))
+      .admitted.mode,
+    "admission-only",
+  );
+});
+
 function publicationProtection(commit: string, enabled = true) {
   const original = protectionFixture(commit);
   const inventory = {

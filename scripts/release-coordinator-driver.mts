@@ -49,6 +49,7 @@ import {
 import {
   authenticateControlReaderJob,
   authenticateReleaseControlSource,
+  authenticateReleaseControlRound,
 } from "./release-live-control-admission.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
@@ -61,7 +62,11 @@ import {
   verifiedControllerToolPaths,
 } from "./release-controller-tool-admission.mts";
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
-import { materializePublishedApplicationComponent } from "./release-site-readback.mts";
+import {
+  materializePublishedCompleteSite,
+  requirePublishedCompleteSite,
+  readPublicApplicationSiteMarker,
+} from "./release-site-readback.mts";
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
@@ -83,11 +88,163 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
+const metadataPreparations = new WeakMap<
+  object,
+  {
+    preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataRenewal>>;
+    tools: Awaited<ReturnType<typeof receiveControllerTools>>;
+    complete_site: Awaited<ReturnType<typeof materializePublishedCompleteSite>>["receipt"];
+    controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>;
+    reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>;
+    repository: string;
+    namespace: string;
+    checkpoint: string;
+    deadline: number;
+    seed: NonNullable<ReturnType<typeof inspectPublishedMetadata>>;
+    descriptor_sha256: string;
+    control_identity_sha256: string;
+    next_controls: (
+      phaseDeadline?: number,
+    ) => Promise<Awaited<ReturnType<typeof authenticateReleaseControlSource>>>;
+  }
+>();
 const project = fileURLToPath(new URL("..", import.meta.url));
+/** Actual public-byte custody only, not TUF/controller acceptance. Keep the
+ * opaque receipt distinct from its returned verified path/projection wrapper. */
+export async function materializeCoordinatorPublishedSite(
+  ...args: Parameters<typeof materializePublishedCompleteSite>
+) {
+  const materialized = await materializePublishedCompleteSite(...args);
+  return {
+    receipt: materialized.receipt,
+    verified: await requirePublishedCompleteSite(materialized.receipt),
+  };
+}
+export function coordinatorContinuationDeadline(current: number, requested?: number) {
+  if (!Number.isFinite(current) || (requested !== undefined && !Number.isFinite(requested)))
+    throw new Error("finite coordinator continuation deadline required");
+  const effective = Math.min(current, requested ?? current);
+  if (effective <= performance.now())
+    throw new Error("coordinator continuation deadline exhausted");
+  return effective;
+}
+function metadataContinuationApi(repository: string, deadline: () => number) {
+  return new GitHubApiClient((args, input) => {
+    const effective = coordinatorContinuationDeadline(deadline());
+    const response = createGitHubRunner({
+      cwd: repository,
+      maxBuffer: 256 * 1024,
+      timeoutMs: Math.max(1, Math.floor(Math.min(15000, effective - performance.now()))),
+    })([...args, "--hostname", "github.com"], input);
+    coordinatorContinuationDeadline(deadline());
+    return response;
+  });
+}
+/** Integrity comparison only: caller JSON never establishes authenticated
+ * controls. Every source is authenticated and freshness-checked separately. */
+export function coordinatorMaintenanceIdentity(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    raw.phase !== "coordinator" ||
+    raw.purpose !== "metadata-coordinator-controls" ||
+    raw.resource_policy_matches_controller !== true ||
+    !isRecord(raw.reader) ||
+    !isRecord(raw.protection) ||
+    !isRecord(raw.pause) ||
+    raw.pause.publication_paused !== false ||
+    !isRecord(raw.capacity)
+  )
+    throw new Error("eligible coordinator maintenance facts required");
+  const stable = structuredClone(raw);
+  // Only freshness/handshake fields vary. Preserve all other policy, source,
+  // exact reader-job and configuration fields, including future additions.
+  delete stable.facts_sha256;
+  if (!isRecord(stable.reader) || !isRecord(stable.protection))
+    throw new Error("coordinator maintenance identity unavailable");
+  delete stable.reader.expires_at;
+  delete stable.reader.round;
+  delete stable.protection.observed_at;
+  return capacityDigest(stable);
+}
+/** Budget derivation only, never job/source authorization. The actual fixed
+ * coordinator OIDC and controls are still authenticated before journal writes. */
+export function coordinatorOriginalJobDeadline(
+  raw: unknown,
+  expected: { run_id: string; controller_revision: string },
+  now = Date.now(),
+  monotonic = performance.now(),
+) {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.jobs) ||
+    !Number.isSafeInteger(raw.total_count) ||
+    Number(raw.total_count) < 1 ||
+    Number(raw.total_count) > 100 ||
+    raw.jobs.length !== raw.total_count
+  )
+    throw new Error("complete coordinator job inventory required");
+  const ids = new Set<number>();
+  for (const job of raw.jobs as unknown[]) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      ids.has(job.id)
+    )
+      throw new Error("coordinator job inventory duplicated or incomplete");
+    ids.add(job.id);
+  }
+  const matches = raw.jobs.filter(
+    (job: unknown) => isRecord(job) && job.name === "Coordinate application release",
+  );
+  const job: unknown = matches[0];
+  if (
+    matches.length !== 1 ||
+    !isRecord(job) ||
+    String(job.run_id) !== expected.run_id ||
+    job.run_attempt !== 1 ||
+    job.head_sha !== expected.controller_revision ||
+    job.status !== "in_progress" ||
+    typeof job.started_at !== "string"
+  )
+    throw new Error("actual coordinator original job start unavailable");
+  const remaining = Date.parse(job.started_at) + 170000 - now;
+  if (
+    !Number.isFinite(remaining) ||
+    remaining <= 0 ||
+    remaining > 170000 ||
+    !Number.isFinite(monotonic)
+  )
+    throw new Error("original coordinator job budget exhausted or future dated");
+  return monotonic + remaining;
+}
 function coordinatorDeadline() {
   const monotonicStart = performance.now();
-  const monotonicDeadline = monotonicStart + 170000;
-  const deadline = Date.now() + 170000;
+  const run = process.env.GITHUB_RUN_ID;
+  const revision = process.env.GITHUB_SHA;
+  if (
+    !run ||
+    !/^[1-9][0-9]{0,15}$/u.test(run) ||
+    !revision ||
+    !/^[a-f0-9]{40}$/u.test(revision) ||
+    process.env.GITHUB_RUN_ATTEMPT !== "1"
+  )
+    throw new Error("fixed first-attempt coordinator job budget identity required");
+  const runner = createGitHubRunner({ cwd: project, timeoutMs: 10000, maxBuffer: 1024 * 1024 });
+  const response = new GitHubApiClient((args, input) =>
+    runner([...args, "--hostname", "github.com"], input),
+  ).request(
+    "GET",
+    `repos/boburning/portcove/actions/runs/${run}/jobs?filter=all&per_page=100&page=1`,
+  );
+  if (response.status !== 200)
+    throw new Error("actual coordinator original job budget unavailable");
+  const monotonicDeadline = Math.min(
+    monotonicStart + 170000,
+    coordinatorOriginalJobDeadline(response.body, { run_id: run, controller_revision: revision }),
+  );
+  const deadline = Date.now() + Math.floor(monotonicDeadline - performance.now());
   return {
     deadline,
     monotonicDeadline,
@@ -99,7 +256,7 @@ function coordinatorDeadline() {
       return left;
     },
     check() {
-      if (Date.now() >= deadline || performance.now() - monotonicStart >= 170000)
+      if (Date.now() >= deadline || performance.now() >= monotonicDeadline)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
     },
   };
@@ -919,7 +1076,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       tools.identity.run_attempt !== reader.admitted.run_attempt
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
-    const component = await materializePublishedApplicationComponent(
+    const site = await materializeCoordinatorPublishedSite(
       {
         site_generation_sha256: published.publication.site_generation_sha256,
         root_sha256: published.root_sha256,
@@ -928,6 +1085,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       directory,
       budget.monotonicDeadline,
     );
+    const siteReceipt = site.receipt;
+    const component = site.verified;
     const existing = recovered.input.metadata_renewal;
     const generatedAt =
       isRecord(existing) &&
@@ -941,7 +1100,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       verifier_sha256: createHash("sha256").update(verifierBytes).digest("hex"),
       trusted_root: component.root_path,
       trusted_root_sha256: published.root_sha256,
-      previous_repository: component.directory,
+      previous_repository: component.application,
       prior_repository_sha256: published.repository_sha256,
       generated_at: generatedAt,
       output_parent: directory,
@@ -1053,7 +1212,7 @@ async function prepareTrustedCoordinatorRenewalAt(
         }),
       },
     );
-    return {
+    const result = Object.freeze({
       decision: "metadata-prepared",
       directory,
       checkpoint,
@@ -1064,7 +1223,63 @@ async function prepareTrustedCoordinatorRenewalAt(
       authority: "none",
       evidence_scope: "actual-tool-and-public-feed",
       automatic_retry: false,
+    });
+    const controlIdentity = coordinatorMaintenanceIdentity(initial);
+    let nextRound = 0;
+    let refreshing = false;
+    let refreshFailed = false;
+    const nextControls = async (phaseDeadline?: number) => {
+      const session = metadataPreparations.get(result);
+      if (!session) throw new Error("actual metadata continuation session required");
+      session.deadline = coordinatorContinuationDeadline(session.deadline, phaseDeadline);
+      if (refreshing || refreshFailed)
+        throw new Error("coordinator maintenance continuation already active or refused");
+      refreshing = true;
+      try {
+        budget.check();
+        const index = ++nextRound;
+        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
+        const next = await authenticateReleaseControlRound(
+          path.join(directory, `metadata-control-round-${index}`),
+          capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
+          "coordinator",
+          index,
+          { deadline: session.deadline },
+        );
+        const fresh = next.readMaintenance(
+          metadataContinuationApi(recovered.repository, () => session.deadline),
+        );
+        if (
+          next.evidence_scope !== "github.com" ||
+          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
+        )
+          throw new Error("coordinator maintenance authority changed across control rounds");
+        budget.check();
+        coordinatorContinuationDeadline(session.deadline);
+        return next;
+      } catch (error) {
+        refreshFailed = true;
+        throw error;
+      } finally {
+        refreshing = false;
+      }
     };
+    metadataPreparations.set(result, {
+      preparation,
+      tools: receipt,
+      complete_site: siteReceipt,
+      controls,
+      reader,
+      repository: recovered.repository,
+      namespace: authorities.namespace,
+      checkpoint,
+      deadline: budget.monotonicDeadline,
+      seed: structuredClone(published),
+      descriptor_sha256: capacityDigest(prepared.descriptor),
+      control_identity_sha256: controlIdentity,
+      next_controls: nextControls,
+    });
+    return result;
   } catch (error) {
     throw new CoordinatorRemoteError(
       "coordinator metadata preparation stopped; retain exact state",
@@ -1078,6 +1293,70 @@ async function prepareTrustedCoordinatorRenewalAt(
       },
     );
   }
+}
+
+/** Same-process continuation for the fixed coordinator context producer. Public
+ * JSON output and a copied descriptor cannot reconstruct any of these brands.
+ * The original role deadline continues across the context/upload handoff. */
+export async function requireActualCoordinatorMetadataPreparation(
+  result: object,
+  phaseDeadline?: number,
+) {
+  const retained = metadataPreparations.get(result);
+  if (!retained) throw new Error("actual same-process coordinator metadata preparation required");
+  retained.deadline = coordinatorContinuationDeadline(retained.deadline, phaseDeadline);
+  return withCoordinatorDeadline(retained.deadline, async () => {
+    await verifiedControllerToolPaths(retained.tools);
+    const prepared = await inspectPreparedMetadataRenewal(retained.preparation);
+    const site = await requirePublishedCompleteSite(retained.complete_site);
+    if (
+      capacityDigest(prepared.descriptor) !== retained.descriptor_sha256 ||
+      site.pins.site_generation_sha256 !== retained.seed.publication.site_generation_sha256 ||
+      site.pins.root_sha256 !== retained.seed.root_sha256 ||
+      site.pins.repository_sha256 !== retained.seed.repository_sha256
+    )
+      throw new Error("coordinator metadata public inputs changed");
+    const current = await recoverReleaseOpportunity(retained.repository, retained.checkpoint);
+    if (
+      capacityDigest(current.input.published_metadata) !== capacityDigest(retained.seed) ||
+      capacityDigest(current.input.metadata_renewal) !== retained.descriptor_sha256 ||
+      coordinatorHasUnresolvedEffect(current.input)
+    )
+      throw new Error("coordinator metadata seed or checkpoint changed");
+    const api = metadataContinuationApi(retained.repository, () => retained.deadline);
+    // The original observer may have aged while the authenticated feed/tool
+    // custody was checked. Obtain a new fixed-job round before reading it.
+    const controls = await retained.next_controls();
+    const fresh = controls.readMaintenance(api);
+    if (coordinatorMaintenanceIdentity(fresh) !== retained.control_identity_sha256)
+      throw new Error("coordinator maintenance controls changed before continuation");
+    await readPublicApplicationSiteMarker(site.generation, retained.deadline);
+    const remote = await readRemoteCoordinatorSnapshot(
+      retained.repository,
+      { schema_version: 1, namespace: retained.namespace },
+      { transport: { cwd: retained.repository, deadline: retained.deadline } },
+    );
+    if (remote.checkpoint !== retained.checkpoint)
+      throw new Error("remote coordinator metadata checkpoint changed");
+    if (
+      coordinatorMaintenanceIdentity(controls.readMaintenance(api)) !==
+      retained.control_identity_sha256
+    )
+      throw new Error("coordinator maintenance controls changed after readback");
+    return Object.freeze({
+      mode: "renewal" as const,
+      preparation: retained.preparation,
+      tools: retained.tools,
+      complete_site: retained.complete_site,
+      controls,
+      next_controls: retained.next_controls,
+      reader: retained.reader,
+      repository: retained.repository,
+      namespace: retained.namespace,
+      checkpoint: retained.checkpoint,
+      deadline: retained.deadline,
+    });
+  });
 }
 
 /** Scheduling only; the actual fixed tool must authenticate the public feed
@@ -1520,7 +1799,7 @@ async function continueTrustedSemanticReview(
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function runCoordinatorCli() {
   const [directory, selectionFile] = process.argv.slice(2);
   if (process.argv.length !== 4 || !directory || !selectionFile)
     throw new Error("usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json");
@@ -1534,32 +1813,42 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     Object.keys(selection).sort().join(",") !== "opportunity,remote_configuration,tools"
   )
     throw new Error("fixed metadata coordinator selection fields differ");
-  console.log(
-    JSON.stringify(
-      ["remote_configuration", "remote_configuration,tools"].includes(
-        Object.keys(selection).sort().join(","),
-      )
-        ? await requestTrustedSemanticReview(path.resolve(directory), {
-            remote_configuration: selection.remote_configuration,
-            ...(selection.tools === undefined
-              ? {}
-              : {
-                  tools: selection.tools as Parameters<
-                    typeof prepareTrustedCoordinatorRenewal
-                  >[1]["tools"],
-                }),
-          })
-        : selection.opportunity === null
-          ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {
-              remote_configuration: selection.remote_configuration,
+  const actualResult = ["remote_configuration", "remote_configuration,tools"].includes(
+    Object.keys(selection).sort().join(","),
+  )
+    ? await requestTrustedSemanticReview(path.resolve(directory), {
+        remote_configuration: selection.remote_configuration,
+        ...(selection.tools === undefined
+          ? {}
+          : {
               tools: selection.tools as Parameters<
                 typeof prepareTrustedCoordinatorRenewal
               >[1]["tools"],
-            })
-          : await coordinateTrustedRelease(
-              path.resolve(directory),
-              selection as Parameters<typeof coordinateTrustedRelease>[1],
-            ),
-    ),
-  );
+            }),
+      })
+    : selection.opportunity === null
+      ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {
+          remote_configuration: selection.remote_configuration,
+          tools: selection.tools as Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+        })
+      : await coordinateTrustedRelease(
+          path.resolve(directory),
+          selection as Parameters<typeof coordinateTrustedRelease>[1],
+        );
+  // Preserve the actual module-private renewal session across the existing
+  // fixed artifact handoff; serialized paths cannot reconstruct this receipt.
+  const result = metadataPreparations.has(actualResult)
+    ? await (
+        await import("./release-metadata-signing-controller.mts")
+      ).completeCoordinatorSigningContext(actualResult, path.resolve(directory))
+    : actualResult;
+  console.log(JSON.stringify(result));
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void runCoordinatorCli().catch(() => {
+    console.error(
+      "usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json; fixed coordinator refused, retain evidence",
+    );
+    process.exitCode = 1;
+  });
 }

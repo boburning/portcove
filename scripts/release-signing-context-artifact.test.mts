@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import vm from "node:vm";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
@@ -16,6 +18,8 @@ import {
   prepareSigningContextArtifact,
   prepareSigningContextPredicate,
   receiveSigningContextArtifact,
+  receiveMetadataSigningContextArtifact,
+  prepareMetadataSigningContextArtifact,
   requireReceivedSigningContext,
   requireRetainedSigningContext,
   signingContextPredicateType,
@@ -23,6 +27,52 @@ import {
 } from "./release-signing-context-artifact.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("retained context rechecks its original deadline after asynchronous full-tree read", async () => {
+  // Execute the actual private function in an inert closure. This does not mint
+  // a module-owned receipt or bypass the production receiver's private brand.
+  const source = await readFile(
+    new URL("./release-signing-context-artifact.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function readReceivedSigningContext("),
+    end = source.indexOf("\nexport function requireReceivedSigningContext", start);
+  assert.ok(start > 0 && end > start);
+  for (const provider of ["retained", "fresh"] as const) {
+    let clock = 0;
+    const receipt = {},
+      received = new WeakMap([
+        [
+          receipt,
+          {
+            public_evidence: [],
+            context: "fixture",
+            directory: "fixture",
+            files: [],
+            manifest: {},
+            active() {
+              if (clock >= 10) throw new Error("fixture deadline exhausted");
+            },
+            refresh() {},
+          },
+        ],
+      ]);
+    const run = vm.runInNewContext(
+      `${stripTypeScriptTypes(source.slice(start, end))}\nreadReceivedSigningContext`,
+      {
+        received,
+        digest,
+        identities: (value: unknown) => value,
+        readBoundedReleaseContextFiles: async () => {
+          clock = 11;
+          return [];
+        },
+        structuredClone,
+        Object,
+      },
+    ) as (receipt: object, deadline: undefined, provider: string) => Promise<unknown>;
+    await assert.rejects(run(receipt, undefined, provider), /deadline exhausted/);
+  }
+});
 void test("context upload handoff cannot start from imported custody or renew an expired phase", async () => {
   const pending = { checkpoint: "a".repeat(40), operation_id: "b".repeat(64) };
   await assert.rejects(
@@ -34,8 +84,11 @@ void test("context upload handoff cannot start from imported custody or renew an
     /deadline/,
   );
 });
-function fixture() {
-  const files = new Map(
+function fixture(
+  kind: "release-signing-context" | "metadata-signing-context" = "release-signing-context",
+) {
+  const metadata = kind === "metadata-signing-context";
+  let files = new Map(
     [
       ["context.json", Buffer.from("{}")],
       ["trusted-root.json", Buffer.from("public root")],
@@ -46,6 +99,36 @@ function fixture() {
       ["records/releases/1.0.0/windows-x86_64/nsis.json", Buffer.from("record fixture")],
     ].sort(([a], [b]) => (String(a) < String(b) ? -1 : 1)) as [string, Buffer][],
   );
+  const recordDigest = digest(
+    [...files]
+      .filter(([name]) => name.startsWith("records/releases/"))
+      .map(([name, bytes]) => ({ path: name.slice(8), bytes: bytes.length, sha256: hash(bytes) })),
+  );
+  const roles = ["targets", "releases", "preview", "stable", "snapshot", "timestamp"];
+  const descriptor = {
+    schema_version: 1,
+    kind: "application-tuf-metadata-renewal",
+    generated_at: "2026-10-20T00:00:00Z",
+    root_sha256: "3".repeat(64),
+    offline_targets_sha256: "6".repeat(64),
+    prior_repository_sha256: "4".repeat(64),
+    prior_timestamp_sha256: "7".repeat(64),
+    prior_snapshot_sha256: "8".repeat(64),
+    unchanged_records_sha256: recordDigest,
+    current_versions: Object.fromEntries(roles.map((role) => [role, "1"])),
+    next_versions: Object.fromEntries(roles.map((role) => [role, role === "targets" ? "1" : "2"])),
+    current_expires: Object.fromEntries(roles.map((role) => [role, "2026-10-21T00:00:00Z"])),
+    next_expires: Object.fromEntries(
+      roles.map((role) => [
+        role,
+        role === "targets" ? "2026-10-21T00:00:00Z" : "2026-10-22T00:00:00Z",
+      ]),
+    ),
+  };
+  if (metadata) {
+    files.set("renewal.json", Buffer.from(JSON.stringify(descriptor)));
+    files = new Map([...files].sort(([a], [b]) => (a < b ? -1 : 1)));
+  }
   const identities = [...files].map(([name, bytes]) => ({
     path: name,
     bytes: bytes.length,
@@ -58,27 +141,48 @@ function fixture() {
     run_id: "123",
     run_attempt: 1,
   };
-  const binding = {
-    aggregate_sha256: "c".repeat(64),
-    native_checks: [{ id: 11 }, { id: 22 }],
-    pending_obligations: ["post-sign-native-compatible-update-rollback-journal"],
-    records_sha256: digest(
-      identities
-        .filter((entry) => entry.path.startsWith("records/releases/"))
-        .map((entry) => ({ ...entry, path: entry.path.slice(8) })),
-    ),
-    run_attempt: 1,
-    run_id: "456",
-    sbom_sha256: "d".repeat(64),
-    signatures_sha256: "e".repeat(64),
-    source_commit: "f".repeat(40),
-    source_tree: "1".repeat(40),
-    version: "1.0.0",
+  const binding = metadata
+    ? {
+        kind: "metadata-renewal",
+        descriptor_sha256: digest(descriptor),
+        records_sha256: recordDigest,
+      }
+    : {
+        aggregate_sha256: "c".repeat(64),
+        native_checks: [{ id: 11 }, { id: 22 }],
+        pending_obligations: ["post-sign-native-compatible-update-rollback-journal"],
+        records_sha256: digest(
+          identities
+            .filter((entry) => entry.path.startsWith("records/releases/"))
+            .map((entry) => ({ ...entry, path: entry.path.slice(8) })),
+        ),
+        run_attempt: 1,
+        run_id: "456",
+        sbom_sha256: "d".repeat(64),
+        signatures_sha256: "e".repeat(64),
+        source_commit: "f".repeat(40),
+        source_tree: "1".repeat(40),
+        version: "1.0.0",
+      };
+  const previous_site_pins = {
+    root_sha256: "3".repeat(64),
+    repository_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
   };
-  const facts = { checkpoint: "2".repeat(40), fixture: true };
+  const facts = metadata
+    ? {
+        mode: "renewal",
+        descriptor,
+        namespace: "portcove-fixture",
+        checkpoint: "2".repeat(40),
+        previous_site_pins,
+        setup_plan_sha256: "9".repeat(64),
+        public_source_commit: "c".repeat(40),
+      }
+    : { checkpoint: "2".repeat(40), fixture: true };
   const manifest = {
     schema_version: 1,
-    kind: "release-signing-context",
+    kind,
     controller,
     control_facts: { fixture: true },
     previous_site_pins: {
@@ -115,23 +219,21 @@ function fixture() {
   const producer = { run_id: "123", run_attempt: 1, job_id: 501, check_run_id: "777" };
   const predicate = {
     schema_version: 1,
-    role: "release-signing-context",
+    role: kind,
     controller,
     producer,
     artifact: artifactIdentity,
     manifest_sha256: hash(manifestBytes),
     binding,
     facts_sha256: digest(facts),
-    stage: "payload-signing",
+    stage: metadata ? "coordinator" : "payload-signing",
     publication_admission: "not-established",
     authority: "none",
   };
   const statement = {
     _type: "https://in-toto.io/Statement/v1",
     predicateType: signingContextPredicateType,
-    subject: [
-      { name: "release-signing-context-manifest", digest: { sha256: hash(manifestBytes) } },
-    ],
+    subject: [{ name: `${kind}-manifest`, digest: { sha256: hash(manifestBytes) } }],
     predicate,
   };
   const certificate = {
@@ -155,7 +257,7 @@ function fixture() {
     path: productionControllerWorkflow,
     event: "workflow_dispatch",
     status: "in_progress",
-    conclusion: null,
+    conclusion: null as string | null,
     repository: { id: 1354613114, full_name: "boburning/portcove" },
     head_repository: { id: 1354613114 },
   };
@@ -180,9 +282,14 @@ function fixture() {
               run_id: 123,
               run_attempt: 1,
               head_sha: controller.controller_revision,
-              name: "Sign admitted updater payloads",
+              name:
+                faults.value === "wrong-role-job"
+                  ? "Sign admitted updater payloads"
+                  : metadata
+                    ? "Coordinate application release"
+                    : "Sign admitted updater payloads",
               status: "completed",
-              conclusion: "success",
+              conclusion: faults.value === "job-failure" ? "failure" : "success",
               check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "job" ? "778" : "777"}`,
             },
           };
@@ -194,7 +301,7 @@ function fixture() {
             headers: new Map<string, string>(),
             body: {
               id: isBundle ? 202 : 101,
-              name: `trusted-payload-signing-context${isBundle ? "-attestation" : ""}-123-1`,
+              name: `trusted-${metadata ? "coordinator" : "payload"}-signing-context${isBundle ? "-attestation" : ""}-123-1`,
               expired: false,
               digest: `sha256:${faults.value === "drift" && requests > 7 ? "0".repeat(64) : hash(bytes)}`,
               size_in_bytes: bytes.length,
@@ -250,6 +357,7 @@ function fixture() {
     expected,
     options,
     faults,
+    run,
     counts: () => ({ requests, downloads }),
   };
 }
@@ -265,6 +373,115 @@ void test("bounded context ZIP has exactly two fixed members and complete packed
     createAuditZip([["context.json", Buffer.from("{}")]]),
   ])
     assert.throws(() => inspectSigningContextArchive(archive));
+});
+void test("coordinator metadata context reuses complete bounded custody and fixed attestation without release/native claims", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "metadata-context-transport-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const f = fixture("metadata-signing-context");
+  const inspected = inspectSigningContextArchive(f.archive);
+  assert.equal(inspected.manifest.kind, "metadata-signing-context");
+  assert.deepEqual(inspected.manifest.binding, f.manifest.binding);
+  assert.deepEqual([...inspected.files], [...f.files]);
+  const receipt = await receiveMetadataSigningContextArtifact(
+    parent,
+    f.expected,
+    performance.now() + 5000,
+    f.options,
+  );
+  assert.equal(receipt.evidence_scope, "injected-provider");
+  assert.equal(receipt.kind, "attested-metadata-signing-context");
+  assert.equal(receipt.authority, "none");
+  await assert.rejects(requireReceivedSigningContext(receipt), /actual authenticated/);
+  assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
+  const wrongJob = fixture("metadata-signing-context");
+  wrongJob.faults.value = "wrong-role-job";
+  await assert.rejects(
+    receiveMetadataSigningContextArtifact(
+      parent,
+      wrongJob.expected,
+      performance.now() + 5000,
+      wrongJob.options,
+    ),
+    /retain/,
+  );
+  await assert.rejects(
+    receiveSigningContextArtifact(parent, f.expected, performance.now() + 5000, f.options),
+    /retain/,
+  );
+  const release = fixture();
+  await assert.rejects(
+    receiveMetadataSigningContextArtifact(
+      parent,
+      release.expected,
+      performance.now() + 5000,
+      release.options,
+    ),
+    /retain/,
+  );
+  await assert.rejects(prepareMetadataSigningContextArtifact({}, parent), /actual coordinator/);
+  for (const replacement of [
+    { ...f.manifest, kind: "release-signing-context" },
+    { ...f.manifest, binding: { ...f.manifest.binding, version: "1.0.0" } },
+    {
+      ...f.manifest,
+      facts: { ...f.manifest.facts, mode: "bootstrap" },
+      facts_sha256: digest({ ...f.manifest.facts, mode: "bootstrap" }),
+    },
+    {
+      ...f.manifest,
+      previous_site_pins: { ...f.manifest.previous_site_pins, root_sha256: "0".repeat(64) },
+    },
+  ])
+    assert.throws(() =>
+      inspectSigningContextArchive(f.archiveFor(Buffer.from(JSON.stringify(replacement)))),
+    );
+  const changed = Buffer.from(f.packed);
+  const declaration = f.files.get("renewal.json")!;
+  const at = changed.indexOf(declaration);
+  assert.ok(at >= 0);
+  changed[at] = "[".charCodeAt(0);
+  assert.throws(() => inspectSigningContextArchive(f.archiveFor(f.manifestBytes, changed)));
+});
+void test("successful exact payload context survives a later sibling workflow failure but not a failed producer", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-completed-component-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  f.run.status = "completed";
+  f.run.conclusion = "failure";
+  const result = await receiveSigningContextArtifact(
+    root,
+    f.expected,
+    performance.now() + 5000,
+    f.options,
+  );
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  for (const fault of ["job-failure", "job"]) {
+    const failed = fixture();
+    failed.run.status = "completed";
+    failed.run.conclusion = "failure";
+    failed.faults.value = fault;
+    await assert.rejects(
+      receiveSigningContextArtifact(
+        root,
+        failed.expected,
+        performance.now() + 5000,
+        failed.options,
+      ),
+      /retain/,
+    );
+  }
+  const impossible = fixture();
+  impossible.run.conclusion = "failure";
+  await assert.rejects(
+    receiveSigningContextArtifact(
+      root,
+      impossible.expected,
+      performance.now() + 5000,
+      impossible.options,
+    ),
+    /retain/,
+  );
 });
 void test("injected complete provider/attestation path proves data association but cannot mint actual context brand", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-fixture-"));
