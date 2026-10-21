@@ -65,14 +65,20 @@ function configuration() {
     },
   };
 }
-function runtime() {
+function runtime(catalogCoverage = true) {
   const control = releaseControlInputsFixture(capacityDocumentFixture());
-  const actual = liveControlRuntimeFixture(
-    protectionFixture(control.head()),
-    undefined,
-    "coordinator",
-    true,
-  );
+  const observation = protectionFixture(control.head());
+  if (catalogCoverage) {
+    observation.coverage = "current-repository-catalog-maintenance-only";
+    observation.inventory.branches = observation.inventory.branches.filter(
+      (row) => row.branch === "portcove-release-pause",
+    );
+    observation.inventory.rulesets = observation.inventory.rulesets.filter(
+      (rule) => rule.conditions.ref_name.include[0] === "refs/heads/portcove-release-pause",
+    );
+    observation.inventory_sha256 = digest(observation.inventory);
+  }
+  const actual = liveControlRuntimeFixture(observation, undefined, "coordinator", true);
   const config = configuration();
   config.apps.dispatch.actor_id = actual.policy.actor_id;
   const policy = {
@@ -86,7 +92,7 @@ function runtime() {
     PORTCOVE_CATALOG_CONTROLLER_ADMISSION: JSON.stringify(policy),
     PORTCOVE_CATALOG_AUTHORITIES: JSON.stringify(config),
   };
-  return { actual, config, policy, environment, control };
+  return { actual, config, policy, environment, control, observation };
 }
 void test("catalog configuration appoints only distinct minimal roles and never application authorities", () => {
   const config = configuration();
@@ -248,6 +254,30 @@ void test("catalog OIDC control source is purpose-separated and retains existing
     authenticateCatalogReleaseControlSource(changed, f.actual.workflow, f.actual.options),
     /changed after ratification/,
   );
+});
+void test("catalog live controls reject application-coverage observations rather than requiring its classification ref", async () => {
+  const oldAppObservation = runtime(false);
+  await assert.rejects(
+    authenticateCatalogReleaseControlSource(
+      oldAppObservation.environment,
+      oldAppObservation.actual.workflow,
+      oldAppObservation.actual.options,
+    ),
+    /protection inventory unavailable/,
+  );
+  const catalog = runtime();
+  const source = await authenticateCatalogReleaseControlSource(
+    catalog.environment,
+    catalog.actual.workflow,
+    catalog.actual.options,
+  );
+  const facts = source.readMaintenance(catalog.control.api);
+  assert.equal(facts.purpose, "catalog-coordinator-controls");
+  assert.deepEqual(
+    catalog.observation.inventory.branches.map((row) => row.branch),
+    ["portcove-release-pause"],
+  );
+  assert.equal(facts.authority, "none");
 });
 void test("catalog actual getter refuses missing protected configuration before any OIDC effect", async () => {
   const saved = process.env.PORTCOVE_CATALOG_AUTHORITIES;

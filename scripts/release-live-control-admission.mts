@@ -14,6 +14,7 @@ import {
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
+  requireCatalogMaintenancePolicy,
   requireReleaseImmutabilityPolicy,
 } from "./release-input-protections.mts";
 import {
@@ -304,11 +305,10 @@ async function authenticateControlSource(
     remaining();
     if (now() >= Date.parse(identity.expires_at))
       throw new Error("control reader identity expired");
-    const policy = requireReleaseInputWriterPolicy(
-      handoff.observation,
-      config.writer_app_id,
-      now(),
-    );
+    const policy =
+      purpose === "catalog-publication"
+        ? requireCatalogMaintenancePolicy(handoff.observation, now())
+        : requireReleaseInputWriterPolicy(handoff.observation, config.writer_app_id, now());
     return {
       ...policy,
       ...(phase === "release-publication"
