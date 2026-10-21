@@ -81,6 +81,13 @@ export async function runFixedSiteConfiguration(
   phaseDeadline?: number,
 ) {
   const input: unknown = structuredClone(raw);
+  if (isRecord(input) && input.mode === "metadata-renewal") {
+    const deadline = Math.min(started + 290000, phaseDeadline ?? Infinity);
+    remaining(deadline);
+    return (
+      await import("./release-metadata-site-controller.mts")
+    ).runFixedMetadataSiteConfiguration(input, parent, deadline);
+  }
   if (
     !isRecord(input) ||
     Object.keys(input).sort().join(",") !== "context,identity,publication_result,roles,tools" ||

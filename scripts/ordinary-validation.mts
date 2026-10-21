@@ -321,6 +321,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-run-artifact-inventory.mts",
     ["scripts/release-run-artifact-inventory.test.mts"],
   ],
+  [
+    "scripts/release-metadata-site-controller.mts",
+    ["scripts/release-metadata-site-controller.test.mts"],
+  ],
   ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
@@ -335,6 +339,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/release-run-artifact-inventory.mts",
     ["scripts/release-run-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/release-metadata-site-controller.mts",
+    ["scripts/release-metadata-site-controller.test.mts"],
   ],
   ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
@@ -825,6 +833,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-metadata-signing-context.test.mts",
   "scripts/release-metadata-context-recovery.test.mts",
   "scripts/release-run-artifact-inventory.test.mts",
+  "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-signing-context.test.mts",
   "scripts/release-signing-context-artifact.test.mts",
   "scripts/release-publication-controller.test.mts",
