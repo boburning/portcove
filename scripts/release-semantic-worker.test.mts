@@ -311,6 +311,9 @@ void test("actual worker entry dispatches the initial probe before all credentia
       if(spec==='./resource-command.mts')return {url:data('export const runResourceCommand=(...a)=>globalThis.__probe.resource(...a);'),shortCircuit:true};
     }return next(spec,context);}});
     const m=await import(worker); Object.defineProperty(process,'platform',{value:'linux'}); process.getuid=()=>1000; process.env.GH_TOKEN='MUST_NOT_REACH_CHILD';process.env.OPENAI_API_KEY='MUST_NOT_REACH_CHILD';
+    process.env.GITHUB_ACTIONS='true';
+    await assert.rejects(m.runSemanticWorkerOnce('/private/semantic-setup-probe.json',hash),/ordinary dedicated Linux parent/);assert.equal(launches,0);
+    delete process.env.GITHUB_ACTIONS;
     const output=await m.runSemanticWorkerOnce('/private/semantic-setup-probe.json',hash);
     assert.equal(output.decision,'initial-setup-probe-settled');assert.equal(output.semantic_acceptance,false);assert.equal(launches,1);assert.ok(files.has('/private/output/initial-setup-probe/probe-settlement.json'));
     await assert.rejects(m.runSemanticWorkerOnce('/private/semantic-setup-probe.json',hash),/exists/);assert.equal(launches,1);
