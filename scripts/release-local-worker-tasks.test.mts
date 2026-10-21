@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createHash } from "node:crypto";
+import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import {
   renderNativeWorkerTask,
+  prepareLocalWorkerTasks,
   renderSemanticWslWorkerTask,
 } from "./release-local-worker-tasks.mts";
 const base = {
@@ -93,6 +98,15 @@ void test("fixed native tasks match the maintained worker argv and ordinary sche
     assert.doesNotMatch(task.recovery_readback_proposal, /RegisterTask\(|CreateFolder\(/u);
     assert.match(task.recovery_readback_proposal, /GetTask\(/u);
     assert.match(task.registration_proposal, /FileMode\]::CreateNew/u);
+    assert.equal(task.initial_enabled, false);
+    assert.match(
+      task.xml,
+      /<RunOnlyIfNetworkAvailable>false<\/RunOnlyIfNetworkAvailable><Enabled>false<\/Enabled>/u,
+    );
+    assert.match(task.activation_proposal, /Inspect-FixedTask \$task \$false/);
+    assert.match(task.activation_proposal, /\$task.Enabled=\$true/);
+    assert.doesNotMatch(task.activation_readback_proposal, /\$task.Enabled=/);
+    assert.doesNotMatch(task.registration_proposal, /ReadAllBytes/);
   }
 });
 void test("semantic WSL task starts only the existing bounded oneshot, with no direct Node fallback", async () => {
@@ -167,7 +181,16 @@ if((ReadValue '/t:Task/t:Triggers/t:CalendarTrigger/t:Repetition/t:Interval') -c
 if((ReadValue '/t:Task/t:Principals/t:Principal/t:LogonType') -cne 'InteractiveToken'){throw 'principal'}
 if((ReadValue '/t:Task/t:Settings/t:MultipleInstancesPolicy') -cne 'IgnoreNew'){throw 'instances'}
 if((ReadValue '/t:Task/t:Actions/t:Exec/t:Arguments') -cne $env:TEST_ARGUMENTS){throw 'argv XML roundtrip'}
-foreach($name in @('TEST_REGISTER','TEST_RECOVERY')){$tokens=$null;$errors=$null;$code=$utf8.GetString([Convert]::FromBase64String([Environment]::GetEnvironmentVariable($name)));$null=[Management.Automation.Language.Parser]::ParseInput($code,[ref]$tokens,[ref]$errors);if($errors.Count){throw ($errors|Out-String)}}
+$temp=[IO.Path]::GetTempFileName()
+try{
+ $XmlPath=$temp;[IO.File]::WriteAllBytes($temp,[Convert]::FromBase64String($env:TEST_TASK_XML))
+ $reader=$utf8.GetString([Convert]::FromBase64String($env:TEST_READER))
+ Invoke-Expression $reader
+ [IO.File]::WriteAllBytes($temp,[byte[]]::new(16385));$refused=$false
+ try{Invoke-Expression $reader}catch{if($_.Exception.Message -notmatch 'size differs'){throw};$refused=$true}
+ if(-not $refused){throw 'oversized XML reader did not refuse'}
+}finally{[IO.File]::Delete($temp)}
+foreach($name in @('TEST_REGISTER','TEST_RECOVERY','TEST_ENABLE','TEST_ENABLED_READBACK')){$tokens=$null;$errors=$null;$code=$utf8.GetString([Convert]::FromBase64String([Environment]::GetEnvironmentVariable($name)));$null=[Management.Automation.Language.Parser]::ParseInput($code,[ref]$tokens,[ref]$errors);if($errors.Count){throw ($errors|Out-String)}}
 Write-Output 'xml-and-proposal-parse-pass'
 `;
       const result = spawnSync(
@@ -182,6 +205,16 @@ Write-Output 'xml-and-proposal-parse-pass'
             TEST_TASK_XML: Buffer.from(task.xml).toString("base64"),
             TEST_REGISTER: Buffer.from(task.registration_proposal).toString("base64"),
             TEST_RECOVERY: Buffer.from(task.recovery_readback_proposal).toString("base64"),
+            TEST_ENABLE: Buffer.from(task.activation_proposal).toString("base64"),
+            TEST_ENABLED_READBACK: Buffer.from(task.activation_readback_proposal).toString(
+              "base64",
+            ),
+            TEST_READER: Buffer.from(
+              task.registration_proposal.slice(
+                task.registration_proposal.indexOf("$xmlInput="),
+                task.registration_proposal.indexOf("$service="),
+              ),
+            ).toString("base64"),
             TEST_BROKER: base.broker_sid,
             TEST_ARGUMENTS: task.action.arguments,
           },
@@ -192,3 +225,74 @@ Write-Output 'xml-and-proposal-parse-pass'
     }
   },
 );
+
+void test("maintained prepare CLI writes exactly three disabled Tasks and bounded oneshot proposals without running them", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-task-prep-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const { platform: _platform, broker_sid: _broker, start_utc: _start, ...native } = base;
+  const { broker_sid: _semanticBroker, start_utc: _semanticStart, ...semantic_wsl } = semantic;
+  const raw = {
+    schema_version: 1,
+    broker_sid: base.broker_sid,
+    start_utc: base.start_utc,
+    candidate_roots: ["C:\\qualification\\work", "C:\\Users\\Native"],
+    native_windows: native,
+    native_linux: { ...native, descriptor: "C:\\Portcove Private\\linux.json" },
+    semantic_wsl,
+  };
+  const bytes = Buffer.from(JSON.stringify(raw)),
+    hash = createHash("sha256").update(bytes).digest("hex"),
+    input = path.join(root, "plan.json"),
+    output = path.join(root, "new-proposal");
+  await writeFile(input, bytes);
+  const result = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./release-local-worker-tasks.mts", import.meta.url)),
+      "prepare",
+      input,
+      hash,
+      output,
+    ],
+    { encoding: "utf8", timeout: 15000, windowsHide: true },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const names = await readdir(output);
+  assert.equal(names.length, 19);
+  assert.deepEqual(names.filter((name) => name.endsWith(".xml")).sort(), [
+    "NativeQualification.xml",
+    "NativeQualificationLinux.xml",
+    "SemanticReview.xml",
+  ]);
+  const manifest: unknown = JSON.parse(await readFile(path.join(output, "manifest.json"), "utf8"));
+  assert.ok(
+    manifest &&
+      typeof manifest === "object" &&
+      "files" in manifest &&
+      Array.isArray(manifest.files),
+  );
+  assert.equal(manifest.files.length, 18);
+  const files: readonly unknown[] = manifest.files;
+  for (const file of files) {
+    assert.ok(
+      file &&
+        typeof file === "object" &&
+        "path" in file &&
+        typeof file.path === "string" &&
+        "sha256" in file,
+    );
+    const captured = await readFile(path.join(output, file.path));
+    assert.equal(createHash("sha256").update(captured).digest("hex"), file.sha256);
+  }
+  await assert.rejects(prepareLocalWorkerTasks(input, hash, output), /EEXIST/);
+  assert.deepEqual(await readdir(output), names);
+  const wrongOutput = path.join(root, "wrong-hash");
+  await assert.rejects(prepareLocalWorkerTasks(input, "f".repeat(64), wrongOutput), /hash differs/);
+  assert.ok(!(await readdir(root)).includes("wrong-hash"));
+  const oversized = path.join(root, "oversized.json");
+  await writeFile(oversized, Buffer.alloc(65537));
+  await assert.rejects(
+    prepareLocalWorkerTasks(oversized, "f".repeat(64), wrongOutput),
+    /size\/type/,
+  );
+});
