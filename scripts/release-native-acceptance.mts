@@ -16,6 +16,7 @@ import {
   inspectNativeQualificationJourney,
   inspectNativeQualificationCandidate,
   inspectNativeQualificationHarnessPath,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
 
@@ -151,8 +152,13 @@ export function inspectNativeQualificationExpectation(
   digest(value.host.machine_id_sha256);
   bounded(value.host.minimum_platform, 128);
   bounded(value.host.qualification_profile, 128);
-  exact(value.host.account, "broker,kind,qualification");
-  for (const part of Object.values(value.host.account)) bounded(part, 184);
+  const expectedAccount = inspectNativeQualificationAccount(value.host.account);
+  if (
+    value.platform_label === "windows-x86_64"
+      ? expectedAccount.kind !== "windows-sid"
+      : !["linux-uid", "windows-wsl-uid"].includes(expectedAccount.kind)
+  )
+    throw new Error("native expected platform/account identity differs");
   exact(value.host.engine, "minimum_version,name");
   bounded(value.host.engine.name, 64);
   version(value.host.engine.minimum_version);

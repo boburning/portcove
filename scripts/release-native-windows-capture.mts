@@ -10,6 +10,7 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { remainingNativeParentBudget } from "./release-native-parent.mts";
 
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const captures = new WeakMap<
@@ -102,9 +103,23 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
   if (
     process.platform !== "win32" ||
     parent.descriptor.platform_label !== "windows-x86_64" ||
-    selected.request.request.stage !== "payload-signing"
+    (selected.request.request.stage !== "payload-signing" &&
+      selected.request.request.stage !== "release-publication")
   )
-    throw new Error("fixed Windows pre-sign capture required");
+    throw new Error("fixed Windows native stage capture required");
+  const request = selected.request.request;
+  if (request.stage === "release-publication") {
+    if (
+      request.native_report_schema_version !== 2 ||
+      !request.journey ||
+      !selected.payload_cryptography ||
+      selected.payload_cryptography.signed_context_sha256 !==
+        request.journey.signed_context_sha256 ||
+      selected.payload_cryptography.signatures_sha256 !== request.journey.signatures_sha256 ||
+      ("predecessor" in request.journey ? !selected.predecessor : selected.predecessor !== null)
+    )
+      throw new Error("fixed post-sign package capture lacks original crypto/predecessor custody");
+  }
   const tools = parent.transport_configuration.windows_tools;
   if (!tools) throw new Error("initial Windows native runtime/driver tool pins are unavailable");
   if (
@@ -117,7 +132,9 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
     throw new Error("appointed native account identity absent");
   const plan = {
     schema_version: 1,
-    stage: "payload-signing",
+    stage: selected.request.request.stage,
+    journey: selected.request.request.journey,
+    predecessor: selected.predecessor,
     invocation_id: selected.request.request.invocation_id,
     request_sha256: selected.request.request_sha256,
     boundary: parent.descriptor.native_boundary_configuration,
@@ -175,7 +192,10 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
               const lease = await options.acquireLock(metadata, admission);
               try {
                 await requireActualNativeInvocation(claim);
-                timer = setTimeout(() => signal.emit("SIGTERM"), 1800000);
+                timer = setTimeout(
+                  () => signal.emit("SIGTERM"),
+                  remainingNativeParentBudget(1800000),
+                );
                 return lease;
               } catch (error) {
                 await lease.release();

@@ -108,7 +108,30 @@ function unique<T>(raw: unknown, inspect: (value: unknown) => T, maximum = 32, m
     throw new Error("native qualification inventory repeats");
   return values;
 }
-function account(raw: unknown) {
+export function inspectNativeQualificationAccount(raw: unknown) {
+  if (isRecord(raw) && raw.kind === "windows-wsl-uid") {
+    exact(raw, "broker,distribution,kind,qualification");
+    exact(raw.distribution, "name,registration_id,wsl_version");
+    const broker = text(raw.broker, 184),
+      qualification = text(raw.qualification, 10);
+    const name = text(raw.distribution.name, 64),
+      registration = text(raw.distribution.registration_id, 36);
+    if (
+      !/^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u.test(broker) ||
+      !/^[1-9][0-9]{0,9}$/u.test(qualification) ||
+      BigInt(qualification) > 4294967294n ||
+      !/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(name) ||
+      !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/u.test(registration) ||
+      raw.distribution.wsl_version !== 2
+    )
+      throw new Error("native Windows broker / WSL qualification identity differs");
+    return {
+      kind: "windows-wsl-uid" as const,
+      broker,
+      qualification,
+      distribution: { name, registration_id: registration, wsl_version: 2 as const },
+    };
+  }
   exact(raw, "broker,kind,qualification");
   if (raw.kind !== "windows-sid" && raw.kind !== "linux-uid")
     throw new Error("native account identity kind differs");
@@ -233,8 +256,12 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   );
   exact(raw.host.loaded_engine, "name,sha256,version");
   if (raw.host.architecture !== "x86_64") throw new Error("native host architecture differs");
-  const isolatedAccount = account(raw.host.account);
-  if (isolatedAccount.kind !== (platform === "windows-x86_64" ? "windows-sid" : "linux-uid"))
+  const isolatedAccount = inspectNativeQualificationAccount(raw.host.account);
+  if (
+    platform === "windows-x86_64"
+      ? isolatedAccount.kind !== "windows-sid"
+      : !["linux-uid", "windows-wsl-uid"].includes(isolatedAccount.kind)
+  )
     throw new Error("native platform/account identity differs");
   const host = {
     machine_id_sha256: hex(raw.host.machine_id_sha256),
