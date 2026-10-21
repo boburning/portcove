@@ -156,7 +156,7 @@ export async function materializeReleaseQualificationSource(
     throw new Error("candidate source qualification approval baseline unavailable");
   // Verify the deterministic transform before importing its one exact parent.
   // These depth-one roots do not copy unrelated history or mutate the source.
-  const preparation = inspectRiskVersionPreparation706(commit, (args) =>
+  const preparation = await inspectRiskVersionPreparation706(commit, (args) =>
     git(sourceRepository, [...args], 16 * 1024 ** 2).toString("utf8"),
   );
   const baselines = new Set([approval.reconfirmedHead, preparation?.source_commit]);

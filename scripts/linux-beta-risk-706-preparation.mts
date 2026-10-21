@@ -1,7 +1,6 @@
 /** Exact version-only projection, never a security reassessment or approval. */
-import { inspectPreparedReleaseVersionObjects } from "../apps/desktop/scripts/prepare-release-version.mts";
 
-export function inspectRiskVersionPreparation706(
+export async function inspectRiskVersionPreparation706(
   head: string,
   read: (args: readonly string[]) => string,
 ) {
@@ -25,6 +24,10 @@ export function inspectRiskVersionPreparation706(
     version: match[3]!,
     intent_sha256: match[4]!,
   };
+  // Literal internal import is bundled by the fixed packer. Lightweight source
+  // readers need no release-policy packages until a real preparation claim.
+  const { inspectPreparedReleaseVersionObjects } =
+    await import("../apps/desktop/scripts/prepare-release-version.mts");
   inspectPreparedReleaseVersionObjects((args) => read(args), candidate);
   return candidate;
 }

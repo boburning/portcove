@@ -199,7 +199,7 @@ export async function materializePublicationSourceRepository(
     await writeFile(path.join(repository, "shallow"), [...roots.keys()].join("\n") + "\n", {
       flag: "wx",
     });
-    inspectRiskVersionPreparation706(identity.candidate_commit, (args) =>
+    await inspectRiskVersionPreparation706(identity.candidate_commit, (args) =>
       git(["--git-dir", repository, ...args]),
     );
   }

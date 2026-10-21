@@ -252,7 +252,7 @@ void test("actual prepared source survives bounded provider import and depth-one
       assert.equal(output.status, 0, output.stderr);
       return output.stdout;
     };
-    const proof = inspectRiskVersionPreparation706(f.candidate, read);
+    const proof = await inspectRiskVersionPreparation706(f.candidate, read);
     assert.equal(proof?.source_commit, f.originalSource);
     assert.equal(proof?.prepared_tree, f.tree);
     assert.equal(read(["rev-parse", "HEAD"]).trim(), f.candidate);

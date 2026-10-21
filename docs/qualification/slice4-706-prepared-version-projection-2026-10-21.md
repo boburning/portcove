@@ -55,6 +55,43 @@ Validation and retained failures:
 - Separate non-writing review covered both the full change and shallow-boundary
   repair. Hosted checks and final delivery identities belong to the linked PR.
 
+The initial hosted source `ea2f7d1182e913b700aebd1cd25578fc225a091e`
+passed four required contexts and tool fixture
+[39557593548/1](https://github.com/boburning/portcove/actions/runs/39557593548),
+but [CI 39557593672/1](https://github.com/boburning/portcove/actions/runs/39557593672)
+failed its Windows helper producer (job `119081025346`) and dependent catalog
+aggregate (`119081744271`). An eager verifier import pulled `semver` into the
+intentionally dependency-free discovery reader-sharing test. The repair uses
+one literal internal dynamic import after an actual preparation claim. Existing
+security acquisition, Audit, Roadmap, finalizer, CLI and source materializers await
+that result. It does not install dependencies or bypass the helper lane. An
+isolated child imports the exact helper bytes with no verifier or dependency
+tree, proving ordinary reads remain dependency-free. An intermediate synchronous
+filesystem-loader attempt passed source tests but independent review correctly
+rejected it because raw source is absent from the packed controller; it was never
+delivered or exercised with protected authority.
+
+The new packed regression uses a synthetic existing entry slot through the
+unchanged actual production packer, exact maintained seven-module closure and
+real disposable Git objects. It removes raw source and build dependencies before
+the isolated child verifies the exact genuine six-field identity, returns null
+for ordinary source, and refuses a forged third-party dependency edit. One case
+passes, zero skips (5.775 seconds payload, 8.498 seconds admission wait). The first
+fixture execution failed before object reading because Windows's device form
+of the null path was unsuitable as Git's global configuration; an owned empty
+configuration and hooks directory repair only that fixture environment. Both
+logs and original closure identities are retained under
+`work/risk706-packed-verifier/`. This proves the packing edge, not a complete
+finalizer, dependency scan or provider execution. Queued source/typing checks
+that observed the tracked regression changing refused before payload; they
+supply no execution evidence. The original hosted failure also remains retained.
+
+After the asynchronous repair and packed regression froze, the complete affected
+risk/import/qualification selection passed 22/22 with zero skips. Type-aware lint
+passed all ten changed acquisition/caller/regression files. Separate source
+review checked every concrete asynchronous consumer, and independent test review
+checked the synthetic packed-entry scope and owned Git configuration repair.
+
 No provider protection, signing, publication, native execution or semantic
 acceptance follows from these tests. The existing approved risk is still too
 narrow to supply the complete multi-version public updater proof. Any actual

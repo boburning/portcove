@@ -6,6 +6,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
+import { pathToFileURL } from "node:url";
 import {
   approval706,
   expiry706,
@@ -19,6 +20,32 @@ import { createHash } from "node:crypto";
 import { parseDependencyScan } from "./dependency-security.mts";
 
 const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+
+void test("ordinary risk readers do not load optional release-policy dependencies", (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-import-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const helper = path.join(dir, "reader.mts");
+  writeFileSync(
+    helper,
+    readFileSync(new URL("./linux-beta-risk-706-preparation.mts", import.meta.url)),
+  );
+  // Exact helper bytes in a fresh directory with no dependency tree or parent
+  // verifier. A future eager import fails before the actual ordinary assertion.
+  execFileSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import assert from 'node:assert/strict'; const m=await import(${JSON.stringify(pathToFileURL(helper).href)}); assert.equal(await m.inspectRiskVersionPreparation706('a'.repeat(40),()=> 'ordinary commit\\n'),null);`,
+    ],
+    {
+      cwd: dir,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 15000,
+    },
+  );
+});
 
 void test("only the complete deterministic version transform projects native review to its actual source", async (t) => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-prepared-"));
@@ -71,10 +98,10 @@ void test("only the complete deterministic version transform projects native rev
     },
     ["0.1.0"],
   );
-  const projected = inspectRiskVersionPreparation706(prepared.prepared_commit, git);
+  const projected = await inspectRiskVersionPreparation706(prepared.prepared_commit, git);
   assert.equal(projected?.source_commit, source);
   assert.equal(projected?.prepared_commit, prepared.prepared_commit);
-  assert.equal(inspectRiskVersionPreparation706(source, git), null);
+  assert.equal(await inspectRiskVersionPreparation706(source, git), null);
   assert.match(git(["diff", "--name-only", baseline, prepared.prepared_commit]), /Cargo.lock/u);
   assert.equal(
     git([
@@ -93,7 +120,7 @@ void test("only the complete deterministic version transform projects native rev
   const inheritedSha = process.env.GITHUB_SHA;
   process.env.GITHUB_SHA = prepared.prepared_commit;
   try {
-    const actual = candidate706(dir, (name, args) => {
+    const actual = await candidate706(dir, (name, args) => {
       if (name === "git") {
         const result = git(args);
         return ["show", "cat-file"].includes(args[0]!) ? result : result.trim();
@@ -140,7 +167,10 @@ void test("only the complete deterministic version transform projects native rev
     `tree ${forgedTree}`,
   );
   const forged = git(["hash-object", "-w", "-t", "commit", "--stdin"], raw).trim();
-  assert.throws(() => inspectRiskVersionPreparation706(forged, git), /prepared|version|differ/u);
+  await assert.rejects(
+    () => inspectRiskVersionPreparation706(forged, git),
+    /prepared|version|differ/u,
+  );
 
   // A genuinely changed original source remains visible, even with a valid
   // deterministic preparation. There is no approval-baseline advancement.
@@ -160,7 +190,7 @@ void test("only the complete deterministic version transform projects native rev
     },
     ["0.1.0"],
   );
-  const changedProjection = inspectRiskVersionPreparation706(second.prepared_commit, git);
+  const changedProjection = await inspectRiskVersionPreparation706(second.prepared_commit, git);
   assert.match(
     git(["diff", "--name-only", baseline, changedProjection!.source_commit]),
     /native.rs/u,
@@ -486,7 +516,7 @@ void test("qualification cannot allocate a publication and the second tag is alw
   assert.throws(() => decide706(value), /inventory/);
 });
 
-void test("release source review compares the exact candidate against a named reviewed commit", (t) => {
+void test("release source review compares the exact candidate against a named reviewed commit", async (t) => {
   const inheritedSha = process.env.GITHUB_SHA;
   process.env.GITHUB_SHA = candidate.head;
   t.after(() => {
@@ -525,12 +555,12 @@ void test("release source review compares the exact candidate against a named re
     assert.equal(args[2], approval.reconfirmedHead);
     return changes;
   };
-  const before = candidate706(dir, execute);
+  const before = await candidate706(dir, execute);
   process.env.GITHUB_SHA = "f".repeat(40);
-  assert.throws(() => candidate706(dir, execute), /workflow candidate/);
+  await assert.rejects(() => candidate706(dir, execute), /workflow candidate/);
   process.env.GITHUB_SHA = candidate.head;
   changes = "crates/portcove-core/src/lib.rs";
-  const after = candidate706(dir, execute);
+  const after = await candidate706(dir, execute);
   assert.deepEqual(after.native, before.native);
   assert.equal(after.productionChanges, changes);
   assert.equal(after.reviewedHead, approval.reconfirmedHead);

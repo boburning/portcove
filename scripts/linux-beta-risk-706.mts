@@ -116,7 +116,7 @@ function cargoMetadata706(value: unknown): { packages: CargoPackage706[]; nodes:
   return { packages, nodes };
 }
 
-export function candidate706(cwd = root, execute: Execute706 = command) {
+export async function candidate706(cwd = root, execute: Execute706 = command) {
   const head = execute("git", ["rev-parse", "HEAD"], cwd);
   if (!sha.test(head)) throw new Error("#706 candidate lacks exact source identity");
   if (
@@ -142,7 +142,7 @@ export function candidate706(cwd = root, execute: Execute706 = command) {
     !sha.test(approval.reconfirmedHead)
   )
     throw new Error("#706 source review baseline missing");
-  const versionPreparation = inspectRiskVersionPreparation706(head, (args) =>
+  const versionPreparation = await inspectRiskVersionPreparation706(head, (args) =>
     execute("git", [...args], cwd),
   );
   const productionChanges = execute(
@@ -394,14 +394,15 @@ export function decide706({
   };
 }
 
-export function decisionInputs706(
+export async function decisionInputs706(
   cwd: string,
   scan: unknown,
   now: string | undefined,
   purpose = "release",
   publicationTag = process.env.GITHUB_REF_NAME,
-  candidate = candidate706(cwd),
+  candidate?: Awaited<ReturnType<typeof candidate706>>,
 ) {
+  const selectedCandidate = candidate ?? (await candidate706(cwd));
   const approval: unknown = JSON.parse(readFileSync(path.join(cwd, approvalPath), "utf8"));
   if (!isRecord(approval) || typeof approval.approvedAt !== "string")
     throw new Error("#706 approval is absent or out of scope");
@@ -428,7 +429,7 @@ export function decisionInputs706(
   }
   return {
     approval,
-    candidate,
+    candidate: selectedCandidate,
     scan,
     releases,
     ...(now === undefined ? {} : { now }),
@@ -438,13 +439,13 @@ export function decisionInputs706(
 }
 
 // Fresh, fail-closed check at distribution boundaries; a development decision is never an input.
-export function releaseSecurity(
+export async function releaseSecurity(
   cwd: string,
   scan: unknown,
   publicationTag = process.env.GITHUB_REF_NAME,
 ) {
   const development = developmentSecurity(scan, readFileSync(path.join(cwd, "deny.toml"), "utf8"));
-  const candidate = candidate706(cwd);
+  const candidate = await candidate706(cwd);
   if (!isRecord(scan) || typeof scan.completedAt !== "string")
     throw new Error("Linux release requires fresh exact-candidate scanner evidence");
   const age = Date.now() - Date.parse(scan.completedAt);
@@ -461,34 +462,45 @@ export function releaseSecurity(
       throw new Error("Affected Linux release lacks the expected full-scope advisory evidence");
     return { disposition: "clean-scan", candidate: candidate.head, publicationTag };
   }
-  return decide706(decisionInputs706(cwd, scan, undefined, "release", publicationTag, candidate));
+  return decide706(
+    await decisionInputs706(cwd, scan, undefined, "release", publicationTag, candidate),
+  );
 }
 
-export function authorizeLinuxRelease(cwd = root, publicationTag = process.env.GITHUB_REF_NAME) {
+export async function authorizeLinuxRelease(
+  cwd = root,
+  publicationTag = process.env.GITHUB_REF_NAME,
+) {
   const { scan, output } = scanDependencies(cwd);
-  const decision = releaseSecurity(cwd, scan, publicationTag);
+  const decision = await releaseSecurity(cwd, scan, publicationTag);
   writeFileSync(`${output}.release.json`, `${JSON.stringify(decision, null, 2)}\n`, { flag: "wx" });
   return decision;
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    const [mode] = process.argv.slice(2);
-    if (mode === "candidate") console.log(JSON.stringify(candidate706(), null, 2));
-    else if (mode === "check") {
-      const decision = authorizeLinuxRelease();
-      console.log(JSON.stringify(decision));
-      if (process.env.GITHUB_OUTPUT)
-        appendFileSync(
-          process.env.GITHUB_OUTPUT,
-          `expires_at=${"expiresAt" in decision ? decision.expiresAt : ""}\nauthorized_at=${new Date().toISOString()}\n`,
+async function settleDirectCli() {
+  if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+    try {
+      const [mode] = process.argv.slice(2);
+      if (mode === "candidate") console.log(JSON.stringify(await candidate706(), null, 2));
+      else if (mode === "check") {
+        const decision = await authorizeLinuxRelease();
+        console.log(JSON.stringify(decision));
+        if (process.env.GITHUB_OUTPUT)
+          appendFileSync(
+            process.env.GITHUB_OUTPUT,
+            `expires_at=${"expiresAt" in decision ? decision.expiresAt : ""}\nauthorized_at=${new Date().toISOString()}\n`,
+          );
+      } else
+        throw new Error(
+          "usage: linux-beta-risk-706.mts check|candidate (Linux release authorization)",
         );
-    } else
-      throw new Error(
-        "usage: linux-beta-risk-706.mts check|candidate (Linux release authorization)",
-      );
-  } catch (error) {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
+    } catch (error) {
+      console.error(errorMessage(error));
+      process.exitCode = 1;
+    }
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(errorMessage(error));
+  process.exitCode = 1;
+});
