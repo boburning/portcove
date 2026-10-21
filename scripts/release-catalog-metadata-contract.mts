@@ -16,7 +16,14 @@ function sha(raw: unknown): asserts raw is string {
     throw new Error("catalog metadata/site identity required");
 }
 function text(raw: unknown): asserts raw is string {
-  if (typeof raw !== "string" || !raw || raw.length > 512 || /[\u0000-\u001f\u007f]/u.test(raw))
+  if (
+    typeof raw !== "string" ||
+    !raw ||
+    raw.length > 512 ||
+    Array.from(raw).some(
+      (character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127,
+    )
+  )
     throw new Error("catalog metadata/site text invalid");
 }
 function roleValues(raw: unknown, expiry: boolean) {

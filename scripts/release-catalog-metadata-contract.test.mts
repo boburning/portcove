@@ -172,6 +172,15 @@ void test("catalog publication advances global cursor while preserving applicati
   assert.throws(() =>
     inspectPublishedSite({
       ...f.after.published_site,
+      publication: {
+        ...f.after.published_site.publication,
+        remote_identity: "fixture:\u0000hidden",
+      },
+    }),
+  );
+  assert.throws(() =>
+    inspectPublishedSite({
+      ...f.after.published_site,
       components: {
         ...f.after.published_site.components,
         catalog: { ...f.after.published_site.components.catalog, root_sha256: f.app.root_sha256 },
