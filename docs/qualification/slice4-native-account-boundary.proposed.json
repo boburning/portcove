@@ -59,13 +59,12 @@
     "appointment": "prepared for the final consolidated setup grant; no creation or provisioning authorized here"
   },
   "remaining_engineering": [
-    "connect fixed account process objects to the existing trusted outer installer harness and its exact process journal",
-    "read the qualification account's real HKCU registration while its loaded profile is positively available; do not substitute the broker HKCU",
-    "bind fixed native producer capture, host/loaded-engine/protocol and stage scenarios to the shared native qualification contract",
-    "Execute conditional account/profile/ACL/Credential Manager setup only after the consolidated grant; actual host capabilities and exact protected ancestry remain unobserved."
+    "Execute the conditional account/profile/ACL/Credential Manager setup only after the consolidated grant. Outer installer and native producer capture/HKU paths are implemented; actual host capabilities and exact protected ancestry remain unobserved.",
+    "Run the fixed one-time capability caller for each appointed account after explicit enable; actual SID/non-admin token, loaded HKU access, private GUI and positive owned-group teardown must be observed.",
+    "Install and independently read back the protected source/tool/configuration closure, disabled automatic tasks and final installation pins before automatic activation."
   ],
   "single_post_setup_capability_test": {
-    "credential": "the narrowly scoped local qualification account credential, not a GitHub or signing credential",
+    "credential": "The fixed local credential for each appointed native qualification/public-proof account, tested separately; no GitHub or signing credential.",
     "operation": "one fixed inert cross-account GUI/profile/process-tree probe under the same private-desktop and JobObject boundary",
     "required_observations": [
       "actual SID and non-admin token",
@@ -74,7 +73,8 @@
       "owner-side capture route",
       "bounded descendant termination and zero job PID readback"
     ],
-    "failure": "retain the original attempt and partial effects; no blind retry or successful native Check"
+    "failure": "retain the original attempt and partial effects; no blind retry or successful native Check",
+    "entry": "scripts/release-native-account-capability.mts ABSOLUTE_CONFIGURATION_PATH CONFIGURATION_SHA256; one original 60-second resource/descendant bound per actual appointed SID in the fixed protected capture root"
   },
   "authority": "none; no account creation, logon, credential provisioning, ACL mutation, package execution, signing, publication or issue closure",
   "public_proof_account": {
