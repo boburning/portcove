@@ -21,6 +21,7 @@ import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { reconcileCoordinatorSigningContext } from "./release-metadata-context-recovery.mts";
 
 export async function completeCoordinatorSigningContext(
   actualPreparation: object,
@@ -32,6 +33,30 @@ export async function completeCoordinatorSigningContext(
     deadline = context.deadline;
   return withCoordinatorDeadline(deadline, async () => {
     signingContextRemaining(deadline, 15000);
+    const reconciliation = await reconcileCoordinatorSigningContext(receipt, parent);
+    if (reconciliation.decision === "reused") {
+      const result = Object.freeze({
+        decision: "metadata-context-reused",
+        mode: "renewal",
+        context_locator: reconciliation.locator,
+        original_operation_id: reconciliation.operation_id,
+        attestation_required: false,
+        evidence_directory: reconciliation.directory,
+        pending_obligations: [
+          "five-separate-online-role-envelopes",
+          "keyless-Tough-assembly",
+          "metadata-publication",
+          "public-readback",
+        ],
+        authority: "none",
+      });
+      await writeFile(path.join(parent, "metadata-context-result.json"), JSON.stringify(result), {
+        flag: "wx",
+        mode: 0o600,
+      });
+      signingContextRemaining(deadline, 15000);
+      return result;
+    }
     const authorities = await requireControllerPublicationAuthorities("coordinator"),
       identity = {
         audience: "portcove-capacity-executor",
@@ -64,6 +89,9 @@ export async function completeCoordinatorSigningContext(
           checkpoint: current.checkpoint,
           remote_configuration: { schema_version: 1, namespace: current.namespace },
           metadata_renewal: current.descriptor,
+          ...(reconciliation.decision === "transient-recovery"
+            ? { recovery: reconciliation.recovery }
+            : {}),
           request: {
             kind: "upload",
             destination: "github-actions:boburning/portcove:metadata-renewal-context",
@@ -90,6 +118,7 @@ export async function completeCoordinatorSigningContext(
       const result = Object.freeze({
         decision: "metadata-context-prepared",
         mode: "renewal",
+        attestation_required: true,
         directory,
         artifact: { id: handoff.artifact_id, sha256: handoff.sha256 },
         manifest_sha256: handoff.manifest_sha256,
