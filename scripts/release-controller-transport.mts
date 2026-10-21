@@ -541,6 +541,15 @@ export function controllerTransportClock(
   return monotonic + left;
 }
 async function originalDeadline(root: string, phase: Phase) {
+  if (
+    process.env.GITHUB_RUN_ATTEMPT !== "1" ||
+    !/^[1-9][0-9]{0,15}$/u.test(process.env.GITHUB_RUN_ID ?? "") ||
+    !/^[a-f0-9]{40}$/u.test(process.env.GITHUB_SHA ?? "") ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      process.env.GITHUB_REF ?? "",
+    )
+  )
+    throw new Error("fixed transport source/run/ref unavailable");
   const file = filename(root, phase, "clock"),
     old = await optional(file);
   if (old !== undefined) {

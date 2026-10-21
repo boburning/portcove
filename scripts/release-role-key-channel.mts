@@ -196,6 +196,8 @@ export async function supplyIsolatedRoleKey(
       socket.once("error", () => reject(new Error("isolated role key handoff refused")));
       socket.on("data", (chunk: Buffer) => {
         try {
+          if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
+            throw new Error("original role key client deadline exhausted");
           if (buffer.length + chunk.length > 4096)
             throw new Error("role worker response exceeds bound");
           buffer = Buffer.concat([buffer, chunk]);
