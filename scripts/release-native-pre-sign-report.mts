@@ -12,6 +12,11 @@ import { serializeNativeStageCapture } from "./release-native-stage-capture.mts"
 import type { NativeStageRequest } from "./release-native-stage-capture.mts";
 import type { inspectNativeCompatibilitySources } from "./release-native-source-contract.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import { readNativeCapturedStream } from "./release-native-capture-files.mts";
+import {
+  isActualLinuxNativeStageReport,
+  requireActualLinuxNativeStageReport,
+} from "./release-native-linux-report.mts";
 
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 function record(value: unknown) {
@@ -521,8 +526,10 @@ export async function prepareActualNativeStageReport(captured: object) {
   }
 
   const stream = async (id: string, name: string) => {
-    const value = await bytes(`${id}.${name}.bin`, 4 * 1024 * 1024);
-    return { path: `${id}.${name}.bin`, bytes: value.byteLength, sha256: hash(value) };
+    const filename = `${id}.${name}.bin`,
+      value = await readNativeCapturedStream(directory, filename);
+    files.push({ name: filename, sha256: hash(value), bytes: value.byteLength });
+    return { path: filename, bytes: value.byteLength, sha256: hash(value) };
   };
   if (!Array.isArray(bridge.roots) || bridge.roots.length > 64)
     throw new Error("native bridge root inventory incomplete");
@@ -677,16 +684,19 @@ export async function prepareActualNativeStageReport(captured: object) {
 }
 
 export async function requireActualNativeStageReport(receipt: object) {
+  if (isActualLinuxNativeStageReport(receipt)) return requireActualLinuxNativeStageReport(receipt);
   const retained = reports.get(receipt);
   if (!retained) throw new Error("actual direct native stage report required");
   const actual = await requireActualWindowsNativeCapture(retained.capture);
   await readActualNativeSourceDeclarations(actual.source_selection);
   for (const file of retained.files) {
-    const bytes = await readBoundedPublicBuildInputFile(
-      retained.directory,
-      file.name,
-      Math.max(file.bytes, 1),
-    );
+    const bytes = /\.(?:stdout|stderr)\.bin$/u.test(file.name)
+      ? await readNativeCapturedStream(retained.directory, file.name)
+      : await readBoundedPublicBuildInputFile(
+          retained.directory,
+          file.name,
+          Math.max(file.bytes, 1),
+        );
     if (bytes.byteLength !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("actual native report input changed");
   }
@@ -708,7 +718,8 @@ export async function prepareActualNativePreSignReport(captured: object) {
   return prepareActualNativeStageReport(captured);
 }
 export async function requireActualNativePreSignReport(receipt: object) {
-  if (!reports.has(receipt)) throw new Error("actual direct native pre-sign report required");
+  if (!reports.has(receipt) && !isActualLinuxNativeStageReport(receipt))
+    throw new Error("actual direct native pre-sign report required");
   const actual = await requireActualNativeStageReport(receipt);
   if (actual.report.stage !== "payload-signing")
     throw new Error("actual direct native pre-sign report required");
@@ -748,7 +759,7 @@ export async function retainActualFailedNativeStage(captured: object, failure: s
     );
   const stream = async (id: string, kind: string) => {
     const file = `${id}.${kind}.bin`,
-      bytes = await readBoundedPublicBuildInputFile(directory, file, 4 * 1024 * 1024);
+      bytes = await readNativeCapturedStream(directory, file);
     return { path: file, bytes: bytes.byteLength, sha256: hash(bytes) };
   };
   const roots = [];

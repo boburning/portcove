@@ -175,6 +175,80 @@ void test("pure native parent wiring cannot appoint imported provenance and bind
   }
 });
 
+void test("a fixed Windows task for a Linux package retains Windows broker and actual guest identity domains", async () => {
+  const f = fixture();
+  f.descriptor.platform_label = "linux-x86_64";
+  f.descriptor.scheduler_identity.name = "\\Portcove\\NativeQualificationLinux";
+  f.installation_record.scheduler.task_path = f.descriptor.scheduler_identity.name;
+  const distribution = {
+    name: "Ubuntu",
+    registration_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    wsl_version: 2,
+  };
+  Object.assign(f.authority_configuration.native["linux-x86_64"]!.host.account, {
+    kind: "windows-wsl-uid",
+    broker: f.boundary_configuration.broker_sid,
+    qualification: "1002",
+    distribution,
+  });
+  const root = "/home/portcove-native/portcove-native";
+  const value = {
+    ...f,
+    boundary_configuration: {
+      schema_version: 1,
+      broker_sid: f.boundary_configuration.broker_sid,
+      distribution: { ...distribution },
+      qualification_uid: "1002",
+      qualification_gid: "1002",
+      qualification_user: "portcove-native",
+      controller_root: f.controller_root,
+      capture_root: f.descriptor.capture_root,
+      linux_root: root,
+      supervisor_sha256: "7".repeat(64),
+      tools: Object.fromEntries(
+        Object.entries({
+          bwrap: "/usr/bin/bwrap",
+          git: "/usr/bin/git",
+          python: "/usr/bin/python3",
+          systemctl: "/usr/bin/systemctl",
+          systemd_run: "/usr/bin/systemd-run",
+          xvfb: "/usr/bin/Xvfb",
+          webkit_driver: "/usr/bin/WebKitWebDriver",
+          node: `${root}/tools/node`,
+          tauri_driver: `${root}/tools/tauri-driver`,
+          wsl: String.raw`C:\Windows\System32\wsl.exe`,
+        }).map(([name, filename]) => [name, { path: filename, sha256: "8".repeat(64) }]),
+      ),
+    },
+  };
+  const observed = inspectWindowsNativeParentSetup(value);
+  assert.equal(observed.authority, "none");
+  assert.equal(observed.boundary.broker_sid, f.boundary_configuration.broker_sid);
+  assert.equal(observed.scheduler.task_path, "\\Portcove\\NativeQualificationLinux");
+  await assert.rejects(requireActualNativeParent(observed), /provenance/);
+  for (const modify of [
+    (input: typeof value) => {
+      input.boundary_configuration.qualification_uid = "1003";
+    },
+    (input: typeof value) => {
+      input.boundary_configuration.distribution.name = "Other";
+    },
+    (input: typeof value) => {
+      input.installation_record.scheduler.task_path = "\\Portcove\\NativeQualification";
+    },
+    (input: typeof value) => {
+      input.boundary_configuration.broker_sid = "1000";
+    },
+    (input: typeof value) => {
+      input.descriptor.scheduler_identity.kind = "systemd-user-unit";
+    },
+  ]) {
+    const changed = structuredClone(value);
+    modify(changed);
+    assert.throws(() => inspectWindowsNativeParentSetup(changed));
+  }
+});
+
 void test("initial native transport separates source read custody and native issuer; cannot supply App identities or credential values", () => {
   const f = fixture(),
     transport = f.transport_configuration;
