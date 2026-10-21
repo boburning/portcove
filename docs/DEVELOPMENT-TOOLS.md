@@ -158,6 +158,13 @@ review; missing command records fail. #1973 still needs a naturally occurring
 hosted proposal/artifact readback, and full lockfile maintenance remains outside
 this scoped transitive-age guarantee.
 
+Playnite build-package updates use the existing
+[manual reviewed MSBuild route](../integrations/playnite/README.md#build-package-maintenance).
+The [NuGet compatibility investigation](qualification/playnite-nuget-renovate-2026-10-21.md)
+records why the classic project/lock pairs remain outside NuGet-manager coverage
+and the evidence required before adopting it. PSScriptAnalyzer's custom NuGet
+datasource remains independently configured in `renovate.json`.
+
 ## Frontend workflow
 
 ### TypeScript execution and compatibility files
