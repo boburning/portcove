@@ -36,7 +36,7 @@ function envelope(signed: object, keys: readonly TestKey[]) {
     })),
   });
 }
-export async function disposableTufWorkerFixture(root: string) {
+export async function disposableTufWorkerFixture(root: string, suppliedPayloadPublic?: Buffer) {
   await mkdir(root, { mode: 0o700 });
   const roots = [key(), key(), key()],
     names = ["targets", "snapshot", "timestamp", "releases", "preview", "stable"] as const;
@@ -78,12 +78,15 @@ export async function disposableTufWorkerFixture(root: string) {
     },
     roots.slice(0, 2),
   );
-  // Existing public-only disposable Minisign key. It has no private counterpart
-  // in this fixture and no payload is manufactured or signed here.
-  const payloadPublic = Buffer.from(
-    "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgRTc2MjBGMTg0MkI0RTgxRgpSV1FmNkxSQ0dBOWk1M21sWWVjTzRJelQ1MVRHUHB2V3VjTlNDaDFDQk0wUVRhTG43M1k3R0ZPMwo=",
-    "base64",
-  );
+  // Default public-only disposable Minisign key. The connected qualification
+  // may instead supply its generated public bytes; no private payload material
+  // enters this anchor factory or any TUF role.
+  const payloadPublic =
+    suppliedPayloadPublic ??
+    Buffer.from(
+      "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgRTc2MjBGMTg0MkI0RTgxRgpSV1FmNkxSQ0dBOWk1M21sWWVjTzRJelQ1MVRHUHB2V3VjTlNDaDFDQk0wUVRhTG43M1k3R0ZPMwo=",
+      "base64",
+    );
   const payload = bytes({
     schema_version: 1,
     keys: [{ id: hash(payloadPublic), tauri_public_key: payloadPublic.toString("base64") }],
