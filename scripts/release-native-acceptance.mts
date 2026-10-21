@@ -42,6 +42,12 @@ export type NativeQualificationExpectation = {
   compatibility: NativeReleaseQualification["compatibility"];
   journey: NativeReleaseQualification["journey"];
 };
+export type NativeQualificationTemplate = Omit<
+  NativeQualificationExpectation,
+  "check_id" | "producer"
+> & {
+  producer: Omit<NativeQualificationExpectation["producer"], "invocation_id">;
+};
 type BoundReceipt = {
   directory: string;
   files: { path: string; bytes: number; sha256: string }[];
@@ -86,15 +92,17 @@ function version(value: unknown): bigint[] {
     throw new Error("observed native engine version is unavailable");
   return value.split(".").map((part) => BigInt(part));
 }
-export function inspectNativeQualificationExpectation(
-  raw: unknown,
-): NativeQualificationExpectation {
+function inspectNativeExpectation(raw: unknown, locator: boolean) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    isRecord(value) && value.schema_version === 2
+    (isRecord(value) && value.schema_version === 2
       ? "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,native_prepublication_profile,platform_label,producer,schema_version,semantic_app_id,stage"
-      : "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage",
+      : "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage"
+    )
+      .split(",")
+      .filter((key) => locator || key !== "check_id")
+      .join(","),
   );
   if (
     Buffer.byteLength(JSON.stringify(value)) > 16 * 1024 ||
@@ -109,12 +117,8 @@ export function inspectNativeQualificationExpectation(
       value.native_prepublication_profile !== nativePrepublicationProfile)
   )
     throw new Error("native expected ratified prepublication profile differs");
-  for (const key of [
-    "check_id",
-    "native_app_id",
-    "semantic_app_id",
-    "classification_app_id",
-  ] as const)
+  if (locator) positive(value.check_id);
+  for (const key of ["native_app_id", "semantic_app_id", "classification_app_id"] as const)
     positive(value[key]);
   if (
     new Set([value.native_app_id, value.semantic_app_id, value.classification_app_id, 15368])
@@ -140,8 +144,13 @@ export function inspectNativeQualificationExpectation(
       throw new Error("native candidate path is unsafe");
   };
   candidate(value.candidate);
-  exact(value.producer, "harness,invocation_id,source_commit,source_tree");
-  digest(value.producer.invocation_id);
+  exact(
+    value.producer,
+    locator
+      ? "harness,invocation_id,source_commit,source_tree"
+      : "harness,source_commit,source_tree",
+  );
+  if (locator) digest(value.producer.invocation_id);
   digest(value.producer.source_commit, 40);
   digest(value.producer.source_tree, 40);
   exact(value.producer.harness, "path,sha256");
@@ -203,7 +212,16 @@ export function inspectNativeQualificationExpectation(
   );
   // Every member is explicitly validated above; the actual report inspector
   // additionally validates the complete observed fields before any receipt.
-  return value as unknown as NativeQualificationExpectation;
+  return value;
+}
+export function inspectNativeQualificationExpectation(
+  raw: unknown,
+): NativeQualificationExpectation {
+  return inspectNativeExpectation(raw, true) as unknown as NativeQualificationExpectation;
+}
+/** Integrity-only fixed inputs; no dynamic Check/invocation identity or acceptance. */
+export function inspectNativeQualificationTemplate(raw: unknown): NativeQualificationTemplate {
+  return inspectNativeExpectation(raw, false) as unknown as NativeQualificationTemplate;
 }
 export function prepareNativeQualificationCheck(raw: unknown) {
   const report = inspectNativeReleaseQualification(raw),
@@ -325,6 +343,14 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
     completed_at: raw.completed_at,
     report_sha256: releaseCanonicalDigest(report),
     report,
+  };
+}
+
+/** Integrity-only Check wire inspection. No provider/native receipt is minted. */
+export function inspectNativeQualificationCheck(raw: unknown, expected: unknown) {
+  return {
+    ...checkIdentity(raw, inspectNativeQualificationExpectation(expected)),
+    authority: "none" as const,
   };
 }
 
