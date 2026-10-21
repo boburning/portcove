@@ -212,7 +212,9 @@ async function siteUploadBridge(mode: "--ready" | "--uploaded") {
 
 if (
   process.argv[1] &&
-  /^release-site-controller[.](?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  /^release-site-controller(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(
+    path.basename(process.argv[1]),
+  ) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {

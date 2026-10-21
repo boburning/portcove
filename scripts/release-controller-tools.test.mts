@@ -129,6 +129,19 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(publication.status, 1, publication.stderr);
   assert.match(publication.stderr, /fixed publication controller refused/);
   assert.doesNotMatch(publication.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const site = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-site-controller.bundle.mjs")],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(site.status, 1, site.stderr);
+  assert.match(site.stderr, /fixed site upload bridge refused/);
+  assert.doesNotMatch(site.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
