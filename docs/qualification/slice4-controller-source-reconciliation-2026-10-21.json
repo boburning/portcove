@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "authority": "none",
+  "scope": "exact public Git source reconciliation; retained locked graph reused after exact Cargo/toolchain input projection; new native source requires source-bound risk decision; no scanner, production tool, runtime or protected acceptance",
+  "source_commit": "0bd69c01513da9d16c7a5acbcb73dc8a064255cd",
+  "source_tree": "59c09c10ea67a143eb3dbc87fe2f918c8ef867b7",
+  "native_inputs_sha256": "d6c06816f42debe374cf6084e50de01b9ccfa8511363423e55b857a0370e6df7",
+  "dependency_graph_sha256": "bdb48d394c746352c66768830ae9a78f8fe3209fa20ee90eadeb3d65b6286d0a",
+  "lock_sha256": "f7620f82bff8c12ff688cdf5784df512a56397da4968a2a5ebc9f66621d831cf",
+  "production_build_packages": 458,
+  "reused_graph": {
+    "source_commit": "5086e11aebbd5c378f084db6bd12128949470df8",
+    "native_paths": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml",
+      ".cargo",
+      "apps/desktop/src-tauri",
+      "crates/portcove-core"
+    ],
+    "graph_input_paths": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "rust-toolchain.toml",
+      ".cargo",
+      "apps/.cargo",
+      "apps/desktop/.cargo",
+      "apps/desktop/src-tauri/.cargo",
+      "crates/.cargo",
+      "crates/portcove-cli/.cargo",
+      "apps/desktop/src-tauri/Cargo.toml",
+      "crates/portcove-cli/Cargo.toml",
+      "crates/portcove-core/Cargo.toml",
+      "crates/portcove-release-tools/Cargo.toml"
+    ],
+    "changed_graph_input_paths": [],
+    "native_source_changed_paths": [
+      "apps/desktop/src-tauri/tauri.conf.json",
+      "crates/portcove-core/src/cancellation.rs",
+      "crates/portcove-core/src/cartridge_build.rs",
+      "crates/portcove-core/src/cartridge_build_tests.rs",
+      "crates/portcove-core/src/cvlod_build.rs",
+      "crates/portcove-core/src/cvlod_build/archives.rs",
+      "crates/portcove-core/src/cvlod_build/cleanup.rs",
+      "crates/portcove-core/src/cvlod_build/compiler_options.rs",
+      "crates/portcove-core/src/cvlod_build/fixtures/a14-shader-prerequisites.txt",
+      "crates/portcove-core/src/cvlod_build/fixtures/a16-rmlui-batch.txt",
+      "crates/portcove-core/src/cvlod_build/fixtures/rmlui-LICENSE.txt",
+      "crates/portcove-core/src/cvlod_build/fixtures/rmlui-utilities.cmake",
+      "crates/portcove-core/src/cvlod_build/generation.json",
+      "crates/portcove-core/src/cvlod_build/helpers.json",
+      "crates/portcove-core/src/cvlod_build/llvm.json",
+      "crates/portcove-core/src/cvlod_build/local-profile.json",
+      "crates/portcove-core/src/cvlod_build/local_profile.rs",
+      "crates/portcove-core/src/cvlod_build/local_profile_timing_tests.rs",
+      "crates/portcove-core/src/cvlod_build/object-aliases.json",
+      "crates/portcove-core/src/cvlod_build/objects.json",
+      "crates/portcove-core/src/cvlod_build/overlay-error.txt",
+      "crates/portcove-core/src/cvlod_build/pipeline.rs",
+      "crates/portcove-core/src/cvlod_build/pipeline_timings.rs",
+      "crates/portcove-core/src/cvlod_build/plan.rs",
+      "crates/portcove-core/src/cvlod_build/sdk-sources.json",
+      "crates/portcove-core/src/cvlod_build/sources.json",
+      "crates/portcove-core/src/cvlod_build/sources.rs",
+      "crates/portcove-core/src/cvlod_build/tests.rs",
+      "crates/portcove-core/src/cvlod_download_tests.rs",
+      "crates/portcove-core/src/definition_capabilities.rs",
+      "crates/portcove-core/src/definition_entry.rs",
+      "crates/portcove-core/src/definition_entry_tests.rs",
+      "crates/portcove-core/src/definition_projection_tests.rs",
+      "crates/portcove-core/src/install.rs",
+      "crates/portcove-core/src/lib.rs",
+      "crates/portcove-core/src/process.rs",
+      "crates/portcove-core/src/providers.rs",
+      "crates/portcove-core/src/recovery.rs",
+      "crates/portcove-core/src/render96_build.rs",
+      "crates/portcove-core/src/runtime_path_policy.rs",
+      "crates/portcove-core/src/service.rs",
+      "crates/portcove-core/src/test_fixture.rs",
+      "crates/portcove-core/src/testdata/host_tool_probe.rs.txt",
+      "crates/portcove-core/src/tool_process.rs",
+      "crates/portcove-core/src/tool_process/windows.rs",
+      "crates/portcove-core/src/tool_process/windows/diagnostics.rs"
+    ],
+    "prior_native_inputs_sha256": "3b5cc911a97a781b407eddc92c3e8176d0c5726813d00de74b7cdf7a3afcefde",
+    "public_graph_record": "docs/qualification/slice4-706-final-source-reconciliation-2026-10-21.json",
+    "public_graph_record_sha256": "89a7d21906655c2e7c1d158c0f3c131b11128113b1b3420c77643395ef79449a",
+    "public_graph_record_source": "356ef4db879205b7a78a5dc187b1550e131fd143",
+    "retained_capture_sha256": "684ee2d2a5b7450310b7fe4eefa6af7ee05d22a61fa674990ce0294a94fc907b"
+  },
+  "files": [
+    {
+      "path": ".github/workflows/application-update-production.yml",
+      "bytes": 62560,
+      "sha256": "3c4985361df22afbd3a83e3238ee220375f6198b7ceb86c789686073f2916ec0"
+    },
+    {
+      "path": ".github/workflows/application-update-wake.yml",
+      "bytes": 4082,
+      "sha256": "55785021aefd968316c719dd67cc5f9ee00c4b15f8fd1f737f405ff00fc35988"
+    },
+    {
+      "path": "scripts/release-local-worker-accounts.ps1",
+      "bytes": 33482,
+      "sha256": "ef2f88896f33f49053c367aa1621234527b9ba1306681776287fb5d2ba532c10"
+    },
+    {
+      "path": "docs/qualification/slice4-local-worker-accounts.proposed.json",
+      "bytes": 149,
+      "sha256": "67c28f511ddb23f6826d7025e8bc012727608b8b7d3df9beaab3b0e282e3467b"
+    },
+    {
+      "path": "scripts/release-local-worker-tasks.mts",
+      "bytes": 24672,
+      "sha256": "d2ad6748215b51b1091e46a349c94452104dc5ff11244ff66210d6a683ab030f"
+    },
+    {
+      "path": "scripts/release-semantic-worker.mts",
+      "bytes": 36237,
+      "sha256": "c356cce9c2adcd6a4fd4d46b96ae75a354847e01e139f72e068f5b989e940791"
+    },
+    {
+      "path": "scripts/qualify-semantic-linux.mts",
+      "bytes": 8886,
+      "sha256": "01646156e2960ebc93242b9b203ecd04664636665f4f40241028737e179b7622"
+    },
+    {
+      "path": "scripts/release-native-account-capability.mts",
+      "bytes": 39665,
+      "sha256": "541820b3ace8952a48a45bf99a125461f561737ef908d52ec45b8c0a25f3e13b"
+    },
+    {
+      "path": "scripts/native-qualification-account-registry.ps1",
+      "bytes": 3103,
+      "sha256": "02cfe20199d5a4c7e1fde474ac4e21bfa3a03a9ab8b48ee7f254e3f249558b0e"
+    },
+    {
+      "path": "scripts/release-local-native-setup.mts",
+      "bytes": 28834,
+      "sha256": "8d56067611dab266eed08fa5a3f3c1f7a245cdf8e1e5b71446b2ad648306af37"
+    },
+    {
+      "path": "deny.toml",
+      "bytes": 889,
+      "sha256": "7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525"
+    },
+    {
+      "path": "scripts/install-linux-desktop-prerequisites.sh",
+      "bytes": 5174,
+      "sha256": "05f5678d404a8b50238a6669e187cc5f2c59e02c430987842f31cec9ed4aabc6"
+    }
+  ],
+  "compiler_source_closure": {
+    "schema_version": 1,
+    "source_commit": "0bd69c01513da9d16c7a5acbcb73dc8a064255cd",
+    "source_tree": "59c09c10ea67a143eb3dbc87fe2f918c8ef867b7",
+    "paths": [
+      {
+        "path": "scripts",
+        "entry": {
+          "mode": "040000",
+          "type": "tree",
+          "sha": "3d7b7f4fe14e8b0860172de0e9c53bdb3f53fa19"
+        }
+      },
+      {
+        "path": "apps/desktop/scripts",
+        "entry": {
+          "mode": "040000",
+          "type": "tree",
+          "sha": "36802162c9b5a32f7df41ce5c5bd0a76e28d0cc7"
+        }
+      },
+      {
+        "path": ".github/workflows/release.yml",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "3ff595d708f51c6c7495044e32f6902d172232e5"
+        }
+      },
+      {
+        "path": ".github/actions",
+        "entry": {
+          "mode": "040000",
+          "type": "tree",
+          "sha": "0bd06f4f285c09865a908b6cb6a7f1a0e587d106"
+        }
+      },
+      {
+        "path": "apps/desktop/src-tauri/tauri.release-public.conf.json",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "5a17d5294bbdf188deb4f70e50d5a9738cd091d4"
+        }
+      },
+      {
+        "path": "apps/desktop/package.json",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "ad3e1e9ed1907bea946af5d56fac7bbf643810ad"
+        }
+      },
+      {
+        "path": "package.json",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "b66227459b24a8d8d27cda071761c5db5df522bb"
+        }
+      },
+      {
+        "path": "pnpm-workspace.yaml",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "506dc51f0dad415bc5d4b2542236b1c2e4c3c4b1"
+        }
+      },
+      {
+        "path": "pnpm-lock.yaml",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "190c8d7cea752f5f685e5a44e2e2c7bbd909cc8f"
+        }
+      },
+      {
+        "path": ".node-version",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "ce62013c39aed63f656bb7ae41bdd45d81163ffe"
+        }
+      },
+      {
+        "path": ".npmrc",
+        "entry": null
+      },
+      {
+        "path": ".pnpmfile.cjs",
+        "entry": null
+      },
+      {
+        "path": "rust-toolchain.toml",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "124e241a3b57ad302eb8fcdb228b47dc786cf016"
+        }
+      },
+      {
+        "path": "Cargo.lock",
+        "entry": {
+          "mode": "100644",
+          "type": "blob",
+          "sha": "da7e2464494a031afe4cac446372bc33ece53b7a"
+        }
+      },
+      {
+        "path": ".cargo",
+        "entry": null
+      },
+      {
+        "path": "apps/.cargo",
+        "entry": null
+      },
+      {
+        "path": "apps/desktop/.cargo",
+        "entry": null
+      },
+      {
+        "path": "apps/desktop/src-tauri/.cargo",
+        "entry": null
+      },
+      {
+        "path": "crates/.cargo",
+        "entry": null
+      },
+      {
+        "path": "crates/portcove-cli/.cargo",
+        "entry": null
+      }
+    ]
+  },
+  "compiler_source_closure_sha256": "e1dff337d3c496ddf54ddc8edff0195cd875e91ef16405ea6d50b1f060a8479e",
+  "ordinary_hosted_tool_evidence": {
+    "run_id": 39660171988,
+    "run_attempt": 1,
+    "url": "https://github.com/boburning/portcove/actions/runs/39660171988",
+    "artifact_id": 12373751511,
+    "artifact_sha256": "0198d79d3cddc42515048c14649ba9fc0bc9eee63c7295e61e441e37c91dc38e",
+    "artifact_readback": "bounded four-leaf ZIP, exact SHA256 and CRC verified",
+    "schema_version": 1,
+    "status": "pass",
+    "phase": "complete",
+    "node_runtime": {
+      "expected": "24.22.1",
+      "observed": "24.22.1"
+    },
+    "built_directory": "/home/runner/work/_temp/controller-tool-build-fixture/build-work/controller-tool-build-hAkMhg",
+    "build_work": "/home/runner/work/_temp/controller-tool-build-fixture/build-work",
+    "build_milliseconds": 95381,
+    "build_allowance_milliseconds": 210000,
+    "build_profile": "controller-tools",
+    "tool_expanded_bytes": 231140668,
+    "core_cli_bytes": 56240888,
+    "core_cli_smoke": "version-and-inert-empty-bundle-inspection-with-extra-file-refusal; no library or admission",
+    "source": {
+      "commit": "1685fb2a1d105da90b5251486c17497bd186a6d9",
+      "tree": "59c09c10ea67a143eb3dbc87fe2f918c8ef867b7"
+    },
+    "evidence_scope": "ordinary-hosted-fixture",
+    "rust_smoke": "usage-refusal-only",
+    "tauri_smoke": "version-and-supported-sign-build-flags-only",
+    "connected_release": "actual-disposable-payload-and-five-role-Tough; controlled-provider-site-renewal-journal-recovery; no hosted authorization or native execution",
+    "node_bundles": [
+      "production-controller-admission",
+      "release-control-ready",
+      "release-reviewed-inputs",
+      "release-payload-preparation",
+      "release-signing-controller",
+      "release-role-key-channel",
+      "release-coordinator-driver",
+      "release-publication-controller",
+      "release-site-controller",
+      "release-tuf-controller",
+      "release-controller-job"
+    ],
+    "production_tool_acceptance": "not-established",
+    "authority": "none"
+  },
+  "ordinary_delivery": {
+    "pull_request": 2363,
+    "reviewed_source": "0bd69c01513da9d16c7a5acbcb73dc8a064255cd",
+    "reviewed_tree": "59c09c10ea67a143eb3dbc87fe2f918c8ef867b7",
+    "merged_commit": "0a6c6336147f90ff4c119106a7156b133195b674",
+    "merged_tree": "59c09c10ea67a143eb3dbc87fe2f918c8ef867b7",
+    "remote_readback": true,
+    "required_ci": {
+      "run_id": 39660172192,
+      "attempt": 1,
+      "result": "success",
+      "contexts": ["catalog", "dependency-review", "frontend", "rust", "rust-quality"]
+    },
+    "acceptance_scope": "ordinary engineering delivery only; protected execution and actual public/native acceptance remain pending"
+  }
+}
