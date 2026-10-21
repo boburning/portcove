@@ -29,7 +29,13 @@ import {
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");
 async function fixture(
-  options: { wrongSid?: boolean; noHive?: boolean; loseStop?: boolean; wrongWindow?: boolean } = {},
+  options: {
+    wrongSid?: boolean;
+    noHive?: boolean;
+    loseStop?: boolean;
+    wrongWindow?: boolean;
+    registry?: Record<string, unknown>;
+  } = {},
 ) {
   const directory = await mkdtemp(path.join(os.tmpdir(), "inert-account-capability-"));
   const runtime = path.join(directory, "pinned-inert-powershell.exe");
@@ -132,6 +138,19 @@ async function fixture(
             profile,
             child_pid: child.pid,
             authority: "none",
+            registry: {
+              schema_version: 1,
+              invocation: binding.invocation_id,
+              pid: identity.pid,
+              account_sid: accountSid,
+              profile,
+              hive_present: !options.noHive,
+              provenance: "target-account-HKCU",
+              authority: "none",
+              uninstall: [],
+              webview: [],
+              ...options.registry,
+            },
           }),
         );
         writeFileSync(path.join(directory, "inert-capability.stderr.bin"), Buffer.alloc(0));
@@ -223,7 +242,9 @@ async function fixture(
   };
   const observations = {
     stdout: () => readNativeCapturedStream(directory, "inert-capability.stdout.bin"),
-    hive: async () => ({ account_sid: accountSid, present: !options.noHive }),
+    checkBroker: async () => {
+      assert.equal(state.broker_pid, binding.broker_pid);
+    },
     pause: async () => {
       throw new Error("controlled unavailable GUI; no sleep/host operation");
     },
@@ -254,7 +275,9 @@ void test("fixed capability protocol joins actual client framing, retained fixtu
       ["start", "observe", "window", "close", "stop", "readback", "finish"],
     );
     assert.equal(result.descendant.pid, 1002);
-    assert.equal(result.hive.present, true);
+    assert.equal(result.hive.hive_present, true);
+    assert.equal(result.hive.pid, result.launch.pid);
+    assert.equal(result.hive.provenance, "target-account-HKCU");
     assert.equal(f.client.readState().phase, "settled");
     assert.equal(
       (await readNativeCapturedStream(f.directory, "inert-capability.stderr.bin")).length,
@@ -264,7 +287,7 @@ void test("fixed capability protocol joins actual client framing, retained fixtu
     await f.dispose();
   }
 });
-void test("fixture SID JSON alone cannot pass absent real-hive or private-owned-window observations", async () => {
+void test("GUI SID JSON requires matching loaded own-HKCU data and a private-owned window", async () => {
   for (const options of [{ wrongSid: true }, { noHive: true }, { wrongWindow: true }]) {
     const f = await fixture(options);
     try {
@@ -281,6 +304,82 @@ void test("fixture SID JSON alone cannot pass absent real-hive or private-owned-
     }
   }
 });
+void test("own-HKCU projection must belong to the exact held GUI root and appointed profile", async () => {
+  for (const registry of [
+    { pid: 1002 },
+    { invocation: "b".repeat(64) },
+    { account_sid: "S-1-5-21-1-2-3-9999" },
+    { profile: path.resolve("foreign-profile") },
+    { hive_present: false },
+    { provenance: "broker-HKU" },
+    { authority: "accepted" },
+    { schema_version: 2 },
+    { uninstall: {} },
+    { webview: Array.from({ length: 129 }, () => ({})) },
+    { hive_present: undefined },
+    { padding: "x".repeat(128 * 1024) },
+  ]) {
+    const f = await fixture({ registry });
+    try {
+      await assert.rejects(
+        exerciseAccountCapability(f.client, f.input, performance.now() + 60000, f.observations),
+        /capability refused/u,
+      );
+      assert.deepEqual(
+        f.calls.map((entry) => entry.operation),
+        ["start", "observe", "finish"],
+      );
+    } finally {
+      await f.dispose();
+    }
+  }
+  assert.doesNotMatch(accountCapabilityCustodyScript, /HKEY_USERS|Registry::|hive_present/u);
+  assert.ok(capabilitySources.includes("scripts/native-qualification-account-registry.ps1"));
+});
+void test(
+  "actual GUI registry assignment invokes the fixed sibling reader in-process with original invocation",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "capability-registry-fixture-"));
+    try {
+      await mkdir(path.join(directory, "fixtures"));
+      const source = fileURLToPath(
+        new URL("./fixtures/native-account-gui-probe.ps1", import.meta.url),
+      );
+      const quote = (value: string) => `'${value.replaceAll("'", "''")}'`;
+      const invocation = "a".repeat(64);
+      await writeFile(
+        path.join(directory, "native-qualification-account-registry.ps1"),
+        `param([string]$Invocation) [ordered]@{invocation=$Invocation;pid=$PID;hive_present=$true;provenance='target-account-HKCU';authority='none'} | ConvertTo-Json -Compress`,
+      );
+      const output = path.join(directory, "fixtures", "assignment.ps1");
+      const result = spawnSync(
+        "pwsh",
+        [
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          `
+      $ErrorActionPreference='Stop';$tokens=$null;$errors=$null;
+      $tree=[Management.Automation.Language.Parser]::ParseFile(${quote(source)},[ref]$tokens,[ref]$errors);if($errors.Count){throw 'Fixture parse failed'};
+      $assignment=$tree.Find({param($n)$n -is [Management.Automation.Language.AssignmentStatementAst] -and $n.Left.Extent.Text -ceq '$registry'},$true);
+      if(-not $assignment){throw 'Actual registry source assignment absent'};
+      [IO.File]::WriteAllText(${quote(output)}, ('param([string]$Invocation)' + [Environment]::NewLine + $assignment.Extent.Text + [Environment]::NewLine + '$registry | ConvertTo-Json -Compress'));
+      $observed=& ${quote(output)} -Invocation '${invocation}' | ConvertFrom-Json;
+      if($observed.pid -ne $PID -or $observed.invocation -cne '${invocation}' -or $observed.provenance -cne 'target-account-HKCU'){throw 'Reader launched separately or invocation changed'};
+      'fixed-reader-assignment-passed'
+    `,
+        ],
+        { encoding: "utf8", timeout: 15000, windowsHide: true },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.trim(), "fixed-reader-assignment-passed");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
 void test("lost stop remains ambiguous with no repeated stop or launch; only fixed finish recovery", async () => {
   const f = await fixture({ loseStop: true });
   try {

@@ -6,6 +6,15 @@ param(
 
 # Fixed inert capability fixture, never a package/host acceptance producer.
 $ErrorActionPreference = 'Stop'
+$registry = & (Join-Path $PSScriptRoot '../native-qualification-account-registry.ps1') -Invocation $Invocation | ConvertFrom-Json
+if ($registry.pid -ne $PID -or
+    $registry.account_sid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value -or
+    -not [string]::Equals($registry.profile,
+        [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile),
+        [StringComparison]::OrdinalIgnoreCase) -or
+    $registry.hive_present -ne $true -or
+    $registry.provenance -cne 'target-account-HKCU' -or
+    $registry.authority -cne 'none') { throw 'Actual own-account registry observation differs' }
 Add-Type -AssemblyName System.Windows.Forms
 $child = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') `
     -ArgumentList @('-NoProfile', '-NonInteractive', '-Command', 'Start-Sleep -Seconds 60') `
@@ -27,8 +36,9 @@ try {
         account_sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
         profile = [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
         child_pid = $child.Id
+        registry = $registry
         authority = 'none'
-    } | ConvertTo-Json -Compress | Write-Output
+    } | ConvertTo-Json -Depth 8 -Compress | Write-Output
     $form.ShowDialog() | Out-Null
 } finally {
     $timer.Stop()

@@ -28,6 +28,7 @@ export const capabilitySources = Object.freeze([
   "scripts/native-qualification-account-client.ps1",
   "scripts/native-qualification-account-bridge.ps1",
   "scripts/native-qualification-account.cs.txt",
+  "scripts/native-qualification-account-registry.ps1",
   "scripts/fixtures/native-account-gui-probe.ps1",
 ]);
 const sha = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
@@ -249,7 +250,7 @@ export async function exerciseAccountCapability(
   deadline: number,
   observation: {
     stdout: () => Promise<Buffer>;
-    hive: () => Promise<unknown>;
+    checkBroker: () => Promise<void>;
     pause?: () => Promise<void>;
   },
 ) {
@@ -300,6 +301,7 @@ export async function exerciseAccountCapability(
     );
     assert.ok(samePath(launch.path, input.runtime.path));
     let fixture: Record<string, unknown> | undefined,
+      hive: Record<string, unknown> | undefined,
       visible: Record<string, unknown> | undefined,
       child: ReturnType<typeof identity> | undefined;
     const observationDeadline = Math.min(deadline - 15000, performance.now() + 25000);
@@ -319,6 +321,7 @@ export async function exerciseAccountCapability(
       const bytes = await observation.stdout();
       active(deadline);
       if (bytes.length) {
+        assert.ok(bytes.length <= 128 * 1024, "inert GUI registry observation exceeds bound");
         fixture = object(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)));
         exact(fixture, [
           "schema_version",
@@ -329,6 +332,7 @@ export async function exerciseAccountCapability(
           "profile",
           "child_pid",
           "authority",
+          "registry",
         ]);
         assert.equal(fixture.schema_version, 1);
         assert.equal(fixture.invocation, input.invocation);
@@ -337,6 +341,29 @@ export async function exerciseAccountCapability(
         assert.equal(fixture.pid, launch.pid);
         assert.equal(fixture.account_sid, input.account_sid);
         assert.ok(samePath(String(fixture.profile), input.profile_root));
+        hive = object(fixture.registry);
+        exact(hive, [
+          "schema_version",
+          "invocation",
+          "pid",
+          "account_sid",
+          "profile",
+          "hive_present",
+          "provenance",
+          "authority",
+          "uninstall",
+          "webview",
+        ]);
+        assert.equal(hive.schema_version, 1);
+        assert.equal(hive.invocation, input.invocation);
+        assert.equal(hive.pid, launch.pid);
+        assert.equal(hive.account_sid, input.account_sid);
+        assert.ok(typeof hive.profile === "string" && samePath(hive.profile, input.profile_root));
+        assert.equal(hive.hive_present, true);
+        assert.equal(hive.provenance, "target-account-HKCU");
+        assert.equal(hive.authority, "none");
+        assert.ok(Array.isArray(hive.uninstall) && hive.uninstall.length <= 128);
+        assert.ok(Array.isArray(hive.webview) && hive.webview.length <= 128);
         const children = members.filter(
           (member) =>
             member.pid === fixture!.child_pid &&
@@ -363,10 +390,11 @@ export async function exerciseAccountCapability(
       }
       await (observation.pause ?? (() => new Promise((resolve) => setTimeout(resolve, 100))))();
     }
-    assert.ok(fixture && visible && child, "inert GUI/profile/descendant observation unavailable");
-    const hive = object(await observation.hive());
-    assert.equal(hive.account_sid, input.account_sid);
-    assert.equal(hive.present, true);
+    assert.ok(
+      fixture && hive && visible && child,
+      "inert GUI/profile/own-HKCU/descendant observation unavailable",
+    );
+    await observation.checkBroker();
     active(deadline);
     const close = object(
       call("close", "inert-capability", null, {
@@ -470,7 +498,7 @@ if($inputValue.leaf){
 }
 $created=$null
 if($inputValue.pid){$created=(Get-Process -Id $inputValue.pid -ErrorAction Stop).StartTime.ToFileTimeUtc().ToString()}
-[ordered]@{broker_sid=$owner;created_filetime=$created;hive_present=$(if($inputValue.sid){Test-Path -LiteralPath ('Registry::HKEY_USERS\'+$inputValue.sid)}else{$false});powershell_major=$PSVersionTable.PSVersion.Major}|ConvertTo-Json -Compress
+[ordered]@{broker_sid=$owner;created_filetime=$created;powershell_major=$PSVersionTable.PSVersion.Major}|ConvertTo-Json -Compress
 `;
 function closedEnvironment(temp: string): NodeJS.ProcessEnv {
   return {
@@ -906,15 +934,14 @@ async function actualCapability(file: string, expected: string, deadline: number
       deadline,
       {
         stdout: () => readNativeCapturedStream(directory, "inert-capability.stdout.bin"),
-        hive: async () => {
+        checkBroker: async () => {
           const value = observe(
             config.tools.powershell,
-            { paths: custodyPaths, leaf: null, pid: brokerPid, sid: boundary.account_sid },
+            { paths: custodyPaths, leaf: null, pid: brokerPid },
             deadline,
             directory,
           );
           assert.equal(value.created_filetime, binding.broker_created_filetime);
-          return { account_sid: boundary.account_sid, present: value.hive_present };
         },
       },
     );
