@@ -13,6 +13,8 @@ import {
 import {
   admitProductionCatalogInputReader,
   admitProductionInputReader,
+  admitProductionController,
+  admitProductionCatalogController,
 } from "./production-controller-admission.mts";
 import {
   authenticateCatalogControlReaderJob,
@@ -118,6 +120,22 @@ void test("catalog configuration appoints only distinct minimal roles and never 
 });
 void test("catalog source policy and complete configuration digest refuse app grants, changed scope and mismatched dispatch", () => {
   const f = runtime();
+  const bootstrap = { ...f.environment, GITHUB_JOB: "admission" };
+  assert.equal(
+    admitProductionCatalogController(
+      f.environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+      bootstrap,
+      f.actual.workflow,
+    ).mode,
+    "bounded-catalog-publication",
+  );
+  assert.throws(() =>
+    admitProductionController(
+      f.environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
+      bootstrap,
+      f.actual.workflow,
+    ),
+  );
   const admitted = admitProductionCatalogInputReader(
     f.environment.PORTCOVE_CATALOG_CONTROLLER_ADMISSION,
     f.environment,

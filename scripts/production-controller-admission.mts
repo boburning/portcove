@@ -129,6 +129,22 @@ export function admitProductionController(
 ) {
   return admitController(productionControllerWorkflow, rawPolicy, environment, workflowBytes);
 }
+/** Secret-free bootstrap of the same immutable workflow, under the distinct
+ * catalog grant. This source check confers no role or publication acceptance. */
+export function admitProductionCatalogController(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "admission",
+    "catalog-publication",
+  );
+}
 /** Fixed read-only consumer of the same reviewed controller and needs graph. */
 export function admitProductionInputReader(
   rawPolicy: string | undefined,
