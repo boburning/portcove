@@ -1160,7 +1160,21 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults
             .check(LifecycleFaultPoint::InstallMetadataCommitted)?;
-        if let Err(error) = fs::remove_dir_all(&lifecycle.operation_root) {
+        let cleanup = (|| -> Result<()> {
+            #[cfg(windows)]
+            if lifecycle.record.port_id == "cvlod-recomp"
+                && lifecycle.record.preparation_process_quiesced.is_some()
+            {
+                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                    &self.library,
+                    &lifecycle.record,
+                    &lifecycle.operation_root,
+                )?;
+            }
+            fs::remove_dir_all(&lifecycle.operation_root)?;
+            Ok(())
+        })();
+        if let Err(error) = cleanup {
             lifecycle.record.phase = LifecyclePhase::CleanupPending;
             lifecycle.record.last_error = Some(error.to_string());
             lifecycle.store.put(&mut lifecycle.record)?;
@@ -5932,6 +5946,111 @@ mod tests {
             false,
         )
         .await;
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cvlod_legacy_publication_and_recovery_preserve_untracked_cleanup() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+        for interrupted in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let archive_path = temporary.path().join("legacy.zip");
+            let mut writer = zip::ZipWriter::new(File::create(&archive_path).unwrap());
+            writer
+                .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"verified legacy fixture").unwrap();
+            writer.finish().unwrap();
+            let archive_bytes = fs::read(&archive_path).unwrap();
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let response = archive_bytes.clone();
+            let server = thread::spawn(move || {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0u8; 1024];
+                let _ = stream.read(&mut request);
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    response.len()
+                )
+                .unwrap();
+                stream.write_all(&response).unwrap();
+            });
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let installer = if interrupted {
+                Installer::with_faults(
+                    library.clone(),
+                    Arc::new(FailOnce {
+                        point: LifecycleFaultPoint::InstallMetadataCommitted,
+                        fired: AtomicBool::new(false),
+                    }),
+                )
+                .unwrap()
+            } else {
+                Installer::new(library.clone()).unwrap()
+            };
+            let request = InstallRequest {
+                port_id: "cvlod-recomp".into(),
+                output_root: library.versions_dir().join("cvlod-recomp"),
+                release: ResolvedRelease {
+                    version: "legacy-fixture".into(),
+                    channel: crate::ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: "legacy.zip".into(),
+                        url: format!("http://{address}/legacy.zip"),
+                        size: archive_bytes.len() as u64,
+                        sha256: hex::encode(Sha256::digest(&archive_bytes)),
+                    },
+                },
+                activate: true,
+                managed: None,
+                qualification: InstallQualification::test("sample-game.exe"),
+            };
+            let result = installer
+                .install(request, &OperationCoordinator::new("install", None), |_| {})
+                .await;
+            server.join().unwrap();
+            let store = OperationStore::new(library.clone());
+            if interrupted {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("injected lifecycle failure")
+                );
+                let retained = store.all().unwrap();
+                assert_eq!(retained.len(), 1);
+                assert_eq!(retained[0].phase, LifecyclePhase::MetadataCommitted);
+                assert_eq!(retained[0].preparation_process_quiesced, None);
+                crate::PortcoveService::new(library.clone()).unwrap();
+            } else {
+                assert!(result.unwrap().verified);
+            }
+            assert!(store.all().unwrap().is_empty());
+            assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+            let install = library
+                .install_by_version("cvlod-recomp", "legacy-fixture")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                fs::read(install.path.join("sample-game.exe")).unwrap(),
+                b"verified legacy fixture"
+            );
+            assert!(
+                Installer::new(library.clone())
+                    .unwrap()
+                    .verify(&install)
+                    .unwrap()
+                    .valid
+            );
+            assert_eq!(fs::read(&archive_path).unwrap(), archive_bytes);
+        }
     }
 
     async fn assert_external_install_recovery(point: LifecycleFaultPoint) {

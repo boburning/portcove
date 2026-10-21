@@ -6,7 +6,7 @@ use std::{fs, os::windows::fs::MetadataExt, path::Path};
 
 pub(crate) const CACHE: &str = "cartridge-build/home/AppData/Local/Microsoft/Windows/INetCache";
 
-/// Caller must validate the unpublished CVLoD staging ownership/phase and hold
+/// Caller must validate CVLoD staging ownership/phase and hold
 /// durable Some(true) builder quiescence before allowing this exception.
 pub(crate) fn unlink_private_wininet_junction(staging: &Path) -> Result<()> {
     let cache = staging.join(CACHE);
@@ -76,4 +76,44 @@ fn normalized_target(path: &Path) -> Result<String> {
         .unwrap_or(&text)
         .replace('\\', "/")
         .to_ascii_lowercase())
+}
+
+/// Published cleanup has a different journal shape from cancellation. Validate
+/// that shape before reusing the same single-entry Windows cache exception.
+pub(crate) fn unlink_published_private_wininet_junction(
+    library: &crate::Library,
+    operation: &crate::operation::LifecycleOperation,
+    staging: &Path,
+) -> Result<()> {
+    use crate::operation::{LifecycleOperationKind, LifecyclePhase};
+    let install = operation.install.as_ref().ok_or_else(|| {
+        PortcoveError::conflict("published CVLoD cleanup requires its install record")
+    })?;
+    if operation.port_id != "cvlod-recomp"
+        || operation.kind != LifecycleOperationKind::Install
+        || !matches!(
+            operation.phase,
+            LifecyclePhase::MetadataCommitted | LifecyclePhase::CleanupPending
+        )
+        || operation.preparation_process_quiesced != Some(true)
+        || operation.paths.staging.as_deref() != Some(staging)
+        || install.id != operation.id
+        || install.port_id != operation.port_id
+        || operation.paths.final_path.as_ref() != Some(&install.path)
+    {
+        return Err(PortcoveError::conflict(
+            "published CVLoD cleanup ownership or builder quiescence is unproven",
+        ));
+    }
+    crate::output_root::validate_staging_path(library, &operation.port_id, &operation.id, staging)?;
+    crate::output_root::validate_install_path(library, &operation.port_id, &install.path)?;
+    let connection = crate::database::connect(library.root())?;
+    let committed = crate::Library::install_by_id(&connection, Some(&install.id))?
+        .ok_or_else(|| PortcoveError::conflict("published CVLoD install is not committed"))?;
+    if serde_json::to_value(&committed)? != serde_json::to_value(install)? {
+        return Err(PortcoveError::conflict(
+            "published CVLoD install differs from committed metadata",
+        ));
+    }
+    unlink_private_wininet_junction(staging)
 }

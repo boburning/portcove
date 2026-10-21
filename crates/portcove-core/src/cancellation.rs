@@ -598,6 +598,151 @@ mod managed_builder_tests {
         }
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn cvlod_published_cleanup_and_recovery_unlink_only_the_owned_cache_junction() {
+        for recovery in [false, true] {
+            let (_temporary, service, _worker, mut journal) = published_fixture();
+            let library = service.library();
+            let staging = journal.paths.staging.clone().unwrap();
+            let destination = journal.install.as_ref().unwrap().path.clone();
+            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            let store = OperationStore::new(library.clone());
+            if recovery {
+                journal.phase = LifecyclePhase::CleanupPending;
+                store.put(&mut journal).unwrap();
+                let _lock = library
+                    .try_lock_port("cvlod-recomp", "test-recovery")
+                    .unwrap();
+                crate::recovery::recover_published_install(&service, &store, &mut journal).unwrap();
+                assert!(!staging.exists());
+                assert!(store.get(&journal.id).unwrap().is_none());
+            } else {
+                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                    library, &journal, &staging,
+                )
+                .unwrap();
+                assert!(fs::symlink_metadata(cache.join("Content.IE5")).is_err());
+                assert_eq!(
+                    fs::read(cache.join("IE/sentinel")).unwrap(),
+                    b"preserve target"
+                );
+                fs::remove_dir_all(&staging).unwrap();
+            }
+            assert_eq!(
+                fs::read(destination.join("sentinel")).unwrap(),
+                b"published payload"
+            );
+            assert_eq!(
+                library
+                    .status("cvlod-recomp", crate::ReleaseChannel::Stable)
+                    .unwrap()
+                    .active
+                    .unwrap()
+                    .id,
+                journal.id
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn cvlod_published_cleanup_refuses_unproven_ownership_before_unlinking() {
+        for changed in [
+            "quiescence",
+            "unknown_quiescence",
+            "phase",
+            "kind",
+            "owner",
+            "install",
+            "staging",
+            "install_owner",
+            "install_id",
+            "final",
+            "committed",
+        ] {
+            let (_temporary, service, _worker, mut journal) = published_fixture();
+            let staging = journal.paths.staging.clone().unwrap();
+            let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+            // These malformed publication records must refuse before any filesystem mutation.
+            match changed {
+                "quiescence" => journal.preparation_process_quiesced = Some(false),
+                "phase" => journal.phase = LifecyclePhase::Preparing,
+                "kind" => journal.kind = LifecycleOperationKind::Adopt,
+                "owner" => journal.port_id = "sample".into(),
+                "staging" => journal.paths.staging = None,
+                "install" => journal.install = None,
+                "unknown_quiescence" => journal.preparation_process_quiesced = None,
+                "install_owner" => journal.install.as_mut().unwrap().port_id = "sample".into(),
+                "install_id" => journal.install.as_mut().unwrap().id = "changed".into(),
+                "final" => journal.paths.final_path = None,
+                "committed" => journal.install.as_mut().unwrap().manifest_sha256 = "f".repeat(64),
+                _ => unreachable!(),
+            }
+            assert!(
+                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                    service.library(),
+                    &journal,
+                    &staging,
+                )
+                .is_err()
+            );
+            assert!(
+                fs::symlink_metadata(cache.join("Content.IE5"))
+                    .unwrap()
+                    .file_type()
+                    .is_symlink()
+            );
+            assert_eq!(
+                fs::read(cache.join("IE/sentinel")).unwrap(),
+                b"preserve target"
+            );
+            fs::remove_dir(cache.join("Content.IE5")).unwrap();
+        }
+    }
+
+    #[cfg(windows)]
+    fn published_fixture() -> (
+        tempfile::TempDir,
+        PortcoveService,
+        OperationCoordinator,
+        LifecycleOperation,
+    ) {
+        let (temporary, service, worker, mut journal) = fixture(
+            ActivityOperation::Install,
+            LifecyclePhase::MetadataCommitted,
+            Some(true),
+        );
+        let library = service.library();
+        journal.port_id = "cvlod-recomp".into();
+        let staging = journal.paths.staging.clone().unwrap();
+        let destination = library.versions_dir().join("cvlod-recomp/test");
+        fs::create_dir_all(&destination).unwrap();
+        fs::write(destination.join("sentinel"), b"published payload").unwrap();
+        let install = crate::InstallRecord {
+            id: journal.id.clone(),
+            port_id: journal.port_id.clone(),
+            version: "test".into(),
+            path: destination.clone(),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: Default::default(),
+            runtime: None,
+            manifest_sha256: "0".repeat(64),
+            selected_executable: "sentinel".into(),
+        };
+        library.register_install(&install, true).unwrap();
+        journal.paths.final_path = Some(destination.clone());
+        journal.install = Some(install);
+        let cache = staging.join(crate::cartridge_build::cvlod::cleanup::CACHE);
+        cvlod_junction_fixture(&staging, &cache.join("IE"));
+        let store = OperationStore::new(library.clone());
+        store.put(&mut journal).unwrap();
+        (temporary, service, worker, journal)
+    }
+
     fn fixture(
         activity_kind: ActivityOperation,
         phase: LifecyclePhase,

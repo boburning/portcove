@@ -675,6 +675,11 @@ An explicitly ignored Windows SDK timing probe separately measures existing
 SDK functions in a fresh private directory; its single uncontrolled-cache run
 does not establish whole-build attribution or cold-cache throughput.
 Cancellation and the separate process-tree closure deadline are unchanged.
+On Windows, successful CVLoD publication and its cleanup retry reuse the exact
+private WinINet junction unlink used by cancellation. The exception requires
+durable builder quiescence, matching committed install metadata and validated
+journal staging and output ownership. It never follows the junction or changes
+its ACL; a changed target or unproven owner retains the staging tree and journal.
 Both captured private SDK inventories must exactly match the compiled profile
 before execution. Existing post-execution checks still rehash every captured
 input and compare its full path, size and hash inventory. The immediately
