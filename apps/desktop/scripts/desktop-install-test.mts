@@ -84,22 +84,115 @@ async function waitForFixture(predicate: () => boolean | undefined, message: str
 }
 
 function readStagedLayout(version: string) {
-  const buttons = [...document.querySelectorAll<HTMLButtonElement>(".primary-actions button")];
+  const detail = document.querySelector("[data-detail-workspace]");
+  const buttons = [
+    ...(detail?.querySelectorAll<HTMLButtonElement>(".primary-actions button") ?? []),
+  ];
   const play = buttons.find((item) => item.textContent?.trim() === "Play");
   const activate = buttons.find((item) => item.textContent?.trim() === `Use update · ${version}`);
+  const group = play?.closest(".primary-actions");
+  const summary = group?.closest(".detail-summary");
+  const controls = [
+    ...(group?.querySelectorAll("button, a[href], input, select, textarea, [tabindex]") ?? []),
+  ];
   const rect = (element: Element) => {
     const { left, right, top, bottom } = element.getBoundingClientRect();
     return { left, right, top, bottom };
   };
+  const visible = (element: Element) => {
+    if (getComputedStyle(element).visibility !== "visible" || element.getClientRects().length === 0)
+      return false;
+    for (let current: Element | null = element; current; current = current.parentElement) {
+      const style = getComputedStyle(current);
+      if (style.display === "none" || Number(style.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const action = (element: HTMLButtonElement) => ({
+    ...rect(element),
+    enabled: !element.disabled && element.getAttribute("aria-disabled") !== "true",
+    visible: visible(element),
+  });
+  const spacing = group ? getComputedStyle(group) : undefined;
+  const updates = [...(detail?.querySelectorAll("h2, h3") ?? [])].find(
+    (item) => item.textContent?.trim() === "Updates",
+  );
   return {
-    play: play && { ...rect(play), enabled: !play.disabled },
-    activate: activate && { ...rect(activate), enabled: !activate.disabled },
-    state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
-    reason: document.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
-    attention: document.querySelector(".detail-hero [data-update-attention]")?.textContent?.trim(),
+    play: play && action(play),
+    activate: activate && action(activate),
+    group: group && rect(group),
+    orderedNeighbors: Boolean(
+      play &&
+      activate &&
+      group &&
+      activate.closest(".primary-actions") === group &&
+      controls.indexOf(activate) === controls.indexOf(play) + 1,
+    ),
+    inSummary: Boolean(summary && activate && summary.contains(activate)),
+    rowGap: Number.parseFloat(spacing?.rowGap ?? ""),
+    columnGap: Number.parseFloat(spacing?.columnGap ?? ""),
+    viewport: { width: innerWidth, height: innerHeight },
+    updatesTop: updates?.getBoundingClientRect().top,
+    state: detail?.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
+    reason: detail?.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
+    attention: detail?.querySelector(".detail-hero [data-update-attention]")?.textContent?.trim(),
     documentOverflow:
       document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
   };
+}
+
+function assertStagedActionPlacement(layout: ReturnType<typeof readStagedLayout>) {
+  const message = JSON.stringify(layout);
+  assert.ok(layout.play && layout.activate && layout.group, message);
+  const { play, activate, group, viewport } = layout;
+  assert.equal(layout.orderedNeighbors, true, message);
+  assert.equal(layout.inSummary, true, message);
+  assert.equal(layout.documentOverflow, false, message);
+  assert.ok(
+    Number.isFinite(viewport.width) &&
+      viewport.width > 0 &&
+      Number.isFinite(viewport.height) &&
+      viewport.height > 0,
+    message,
+  );
+  for (const gap of [layout.rowGap, layout.columnGap]) {
+    assert.ok(Number.isFinite(gap) && Math.abs(gap - 8) <= 1, message);
+  }
+  for (const box of [group, play, activate]) {
+    assert.ok([box.left, box.right, box.top, box.bottom].every(Number.isFinite), message);
+    assert.ok(box.right > box.left && box.bottom > box.top, message);
+  }
+  for (const action of [play, activate]) {
+    assert.equal(action.enabled, true, message);
+    assert.equal(action.visible, true, message);
+    assert.ok(
+      action.left >= Math.max(0, group.left) - 1 &&
+        action.right <= Math.min(viewport.width, group.right) + 1,
+      message,
+    );
+    assert.ok(
+      action.top >= Math.max(0, group.top) - 1 &&
+        action.bottom <= Math.min(viewport.height, group.bottom) + 1,
+      message,
+    );
+  }
+  assert.ok(
+    layout.updatesTop !== undefined &&
+      Number.isFinite(layout.updatesTop) &&
+      Math.max(play.bottom, activate.bottom) <= layout.updatesTop + 1,
+    message,
+  );
+  const horizontalGap = activate.left - play.right;
+  const verticalGap = activate.top - play.bottom;
+  const sameRow =
+    Math.abs(activate.top - play.top) <= 1 &&
+    horizontalGap >= -1 &&
+    horizontalGap <= layout.columnGap + 1;
+  const immediateWrap =
+    Math.abs(activate.left - play.left) <= 1 &&
+    verticalGap >= -1 &&
+    verticalGap <= layout.rowGap + 1;
+  assert.ok(sameRow || immediateWrap, message);
 }
 
 export async function installScenarios({
@@ -539,6 +632,23 @@ export async function installScenarios({
         ]) {
           await browser.manage().window().setRect({ width, height });
           const layout = await executeBrowserScript(browser, readStagedLayout, version);
+          const geometry = path.join(
+            output,
+            `native-staged-update-${theme}-${width}x${height}.json`,
+          );
+          await writeFile(geometry, JSON.stringify({ theme, width, height, ...layout }, null, 2), {
+            flag: "wx",
+          });
+          artifacts.push(geometry);
+          const screenshot = path.join(
+            output,
+            `native-staged-update-${theme}-${width}x${height}.png`,
+          );
+          await writeFile(screenshot, await browser.takeScreenshot(), {
+            encoding: "base64",
+            flag: "wx",
+          });
+          artifacts.push(screenshot);
           assert.ok(layout.play && layout.activate, JSON.stringify(layout));
           assert.equal(layout.play.enabled, true, JSON.stringify(layout));
           assert.equal(layout.activate.enabled, true, JSON.stringify(layout));
@@ -553,16 +663,7 @@ export async function installScenarios({
           assert.ok(layout.play.left >= 0 && layout.play.right <= width + 1);
           assert.ok(layout.play.top >= 0 && layout.play.bottom <= height);
           assert.ok(layout.activate.top >= 0 && layout.activate.bottom <= height);
-          assert.ok(Math.abs(layout.activate.top - layout.play.top) <= 1);
-          const screenshot = path.join(
-            output,
-            `native-staged-update-${theme}-${width}x${height}.png`,
-          );
-          await writeFile(screenshot, await browser.takeScreenshot(), {
-            encoding: "base64",
-            flag: "wx",
-          });
-          artifacts.push(screenshot);
+          assertStagedActionPlacement(layout);
           layouts.push({ theme, width, height, ...layout });
         }
       }
