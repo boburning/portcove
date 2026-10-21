@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { SettingsView } from "./Chrome";
 import { UpdateCenter } from "./UpdateCenter";
 import { portDefinition, portStatus } from "../test-fixtures";
@@ -109,6 +110,7 @@ describe("update destination links", () => {
   it("opens application and catalog update settings from Activity", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     const host = document.createElement("div");
+    document.body.append(host);
     const root = createRoot(host);
     const onOpenSettings = vi.fn();
     try {
@@ -138,18 +140,25 @@ describe("update destination links", () => {
           '[role="tablist"][aria-label="Activity sections"] [role="tab"]',
         ),
       ].find((button) => button.textContent === "Updates")!;
-      await act(async () => section.click());
-      expect(tasks.hidden).toBe(true);
-      expect(updates.hidden).toBe(false);
-      expect(section.getAttribute("aria-selected")).toBe("true");
+      await page.getByRole("tab", { name: "Updates", exact: true }).click();
+      await expect.poll(() => section.getAttribute("aria-selected")).toBe("true");
+      // Base UI settles the outgoing panel's hidden state after its animation
+      // frame; keep both panels mounted while waiting for that transition.
+      await expect.poll(() => tasks.hidden).toBe(true);
+      await expect.poll(() => updates.hidden).toBe(false);
+      expect(host.querySelector('[aria-label="Tasks and history"]')).toBe(tasks);
+      expect(host.querySelector('[aria-label="Game updates"]')).toBe(updates);
       const link = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === "Open Portcove update settings",
       );
       expect(link?.closest(".update-center")).not.toBeNull();
-      await act(async () => link!.click());
+      await page
+        .getByRole("button", { name: "Open Portcove update settings", exact: true })
+        .click();
       expect(onOpenSettings).toHaveBeenCalledExactlyOnceWith("application-updates");
     } finally {
       await act(async () => root.unmount());
+      host.remove();
       vi.unstubAllGlobals();
     }
   });
