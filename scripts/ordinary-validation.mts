@@ -571,6 +571,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ),
   [
+    "scripts/release-compiler-report-archive.mts",
+    [
+      "scripts/release-compiler-evidence.test.mts",
+      "scripts/release-native-public-compiler.test.mts",
+    ],
+  ],
+  [
     "scripts/release-native-source-contract.mts",
     ["scripts/release-native-source-contract.test.mts"],
   ],

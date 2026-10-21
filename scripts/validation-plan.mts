@@ -440,6 +440,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-publication-admission.mts",
   "scripts/release-native-public-pair.mts",
   "scripts/release-native-public-compiler.mts",
+  "scripts/release-compiler-report-archive.mts",
   "scripts/release-native-public-signature.mts",
   "scripts/release-native-public-attempt-contract.mts",
   "scripts/release-controller-wake.mts",
