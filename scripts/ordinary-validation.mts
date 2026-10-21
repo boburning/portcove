@@ -546,6 +546,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-native-stage-capture.mts", ["scripts/release-native-stage-capture.test.mts"]],
   ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
+  ["scripts/release-local-worker-tasks.mts", ["scripts/release-local-worker-tasks.test.mts"]],
   ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
   ["scripts/release-native-wsl-boundary.mts", ["scripts/release-native-wsl-boundary.test.mts"]],
   [
@@ -1035,6 +1036,7 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-local-worker-tasks.test.mts",
   "scripts/release-native-public-pair.test.mts",
   "scripts/release-native-public-compiler.test.mts",
   "scripts/release-native-public-signature.test.mts",
