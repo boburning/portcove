@@ -1059,7 +1059,7 @@ function LibraryEntry({
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-            "[&.ready]:text-pc-muted-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            "[&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
           )}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
