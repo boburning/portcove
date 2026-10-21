@@ -1805,3 +1805,12 @@ content and retained history. The fixed controller binds this actual tool output
 to the private assembly session, independently reads back the published bytes,
 then attaches the actual operation and provider/whole-site receipt for
 `recordPublishedMetadata`. An imported report alone is not publication evidence.
+
+The Windows installer harness has an explicit ordinary-public updater mode,
+connected to the existing separate-account driver and normal shipped updater UI.
+Its [prepared journey and proof scopes](qualification/slice4-windows-public-update-preparation-2026-10-21.md)
+cover exact V0/V1 bytes, automatic relaunch identity, real favorite and preference
+preservation, raw local fault preimages, and named recovery. Controlled tests do
+not establish the actual Windows public journey or native acceptance. The proposed
+signature-subtype component/native proof split requires the single consolidated
+conditional grant; no negative public feed or verifier bypass is prepared.

@@ -706,6 +706,8 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ...[
     "apps/desktop/scripts/desktop-application-update-journey.mts",
     "apps/desktop/scripts/desktop-installed-update-harness.mts",
+    "apps/desktop/scripts/desktop-windows-public-update.mts",
+    "apps/desktop/scripts/desktop-windows-public-update-files.mts",
   ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
   ...[
     "scripts/validation-plan.mts",
@@ -774,7 +776,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/observe-configured-upstream.mts", ["scripts/discovery-checkpoint.test.mts"]],
   [
     "scripts/test-windows-installer.ps1",
-    ["scripts/repository-skills.test.mts", "scripts/native-qualification-account-adapter.test.mts"],
+    [
+      "scripts/repository-skills.test.mts",
+      "scripts/native-qualification-account-adapter.test.mts",
+      "scripts/desktop-scenarios.test.mts",
+    ],
   ],
   [
     "scripts/native-qualification-account.cs.txt",
