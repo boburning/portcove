@@ -544,3 +544,56 @@ void test("actual recovery journal checks REST and GraphQL mutations synchronous
   assert.throws(() => asynchronous.request("POST"), /complete synchronously/);
   assert.equal(writes, 2);
 });
+
+void test("named catalog recovery requires both actual caller guard functions before any journal handoff", async () => {
+  const source = await readFile(new URL("./release-site-deployment.mts", import.meta.url), "utf8"),
+    start = source.indexOf("export async function recoverPublishedCatalogSiteHandoff("),
+    end = source.indexOf("/** Bind actual", start);
+  const session = {},
+    raw = { repository: "controlled", checkpoint: "retained", remote_configuration: {} };
+  let refreshes = 0,
+    handoffs = 0;
+  const run = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
+      "\nrecoverPublishedCatalogSiteHandoff",
+    {
+      sessions: new Map([
+        [
+          session,
+          {
+            catalog: { recovery_only: true, recovery_intent: { checkpoint: "retained" } },
+            archive_bytes: 0,
+          },
+        ],
+      ]),
+      recoverOwnedPublishedCatalogMetadata: async (
+        _executor: object,
+        _raw: unknown,
+        _readback: unknown,
+        beforeMutation: unknown,
+      ) => {
+        assert.equal(typeof beforeMutation, "function");
+        handoffs++;
+        return {};
+      },
+    },
+  ) as (...args: unknown[]) => Promise<unknown>;
+  const refresh = async () => {
+    refreshes++;
+  };
+  for (const guards of [
+    undefined,
+    null,
+    {},
+    { refresh },
+    { refresh, beforeMutation: null },
+    { refresh, beforeMutation: false },
+    { refresh: true, beforeMutation: () => {} },
+  ])
+    await assert.rejects(run(session, {}, raw, guards), /current control mutation guards/);
+  assert.equal(refreshes, 0);
+  assert.equal(handoffs, 0);
+  await run(session, {}, raw, { refresh, beforeMutation: () => {} });
+  assert.equal(refreshes, 1);
+  assert.equal(handoffs, 1);
+});

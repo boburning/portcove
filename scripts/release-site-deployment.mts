@@ -831,7 +831,12 @@ export async function recoverPublishedCatalogSiteHandoff(
     prepared.archive_bytes !== 0
   )
     throw new Error("actual GET-only catalog site recovery session required");
-  if (!guards) throw new Error("catalog recovery requires current control mutation guards");
+  if (
+    !guards ||
+    typeof guards.refresh !== "function" ||
+    typeof guards.beforeMutation !== "function"
+  )
+    throw new Error("catalog recovery requires current control mutation guards");
   await guards.refresh();
   return recoverOwnedPublishedCatalogMetadata(
     executor,
