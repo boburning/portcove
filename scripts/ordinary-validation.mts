@@ -599,6 +599,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-publication-handoff.mts", ["scripts/release-publication-controller.test.mts"]],
   ["scripts/release-publication-inputs.mts", ["scripts/release-publication-inputs.test.mts"]],
   ["scripts/release-publication-source.mts", ["scripts/release-publication-source.test.mts"]],
+  [
+    "scripts/linux-beta-risk-706-preparation.mts",
+    ["scripts/linux-beta-risk-706.test.mts", "scripts/release-publication-source.test.mts"],
+  ],
   ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
   [
     "scripts/release-native-publication-admission.mts",

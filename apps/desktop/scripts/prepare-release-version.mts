@@ -209,18 +209,32 @@ export function reproducePreparedReleaseVersionFiles(
 
 /** Export an already allocated preparation. No checkout, ref write, reallocation
  * or network access occurs. The caller must authenticate the reservation. */
+type PreparedVersionIdentity = {
+  source_commit: string;
+  source_tree: string;
+  prepared_commit: string;
+  prepared_tree: string;
+  version: string;
+  intent_sha256: string;
+};
+
 export function exportPreparedReleaseVersion(
   repository: string,
-  candidate: {
-    source_commit: string;
-    source_tree: string;
-    prepared_commit: string;
-    prepared_tree: string;
-    version: string;
-    intent_sha256: string;
-  },
+  candidate: PreparedVersionIdentity,
 ) {
   const read = repositoryGit(repository);
+  if (read(["rev-parse", "--is-bare-repository"]).trim() !== "true")
+    throw new Error("prepared export requires a caller-owned bare repository");
+  return inspectPreparedReleaseVersionObjects(read, candidate);
+}
+
+/** Data-only verification of the maintained transform against actual Git
+ * objects. The reader must supply inert raw objects; this grants no review,
+ * reservation or publication authority and never changes a repository. */
+export function inspectPreparedReleaseVersionObjects(
+  read: (args: readonly string[], input?: string) => string,
+  candidate: PreparedVersionIdentity,
+) {
   const started = performance.now();
   let reads = 0;
   const git: Git = (args, input) => {
@@ -231,8 +245,6 @@ export function exportPreparedReleaseVersion(
       throw new Error("prepared export Git response was late");
     return result;
   };
-  if (git(["rev-parse", "--is-bare-repository"]).trim() !== "true")
-    throw new Error("prepared export requires a caller-owned bare repository");
   for (const oid of [
     candidate.source_commit,
     candidate.source_tree,

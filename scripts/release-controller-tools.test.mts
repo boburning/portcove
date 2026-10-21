@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { parseDocument } from "yaml";
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { isBuiltin } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
   controllerBootstrapEnvironment,
@@ -41,6 +41,191 @@ import { launchFixedPayloadController } from "./release-controller-tool-launch.m
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+void test("actual fixed pack keeps the marked preparation verifier after raw source and dependencies are removed", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-prepared-pack-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repository = path.join(root, "candidate"),
+    staged = path.join(root, "source"),
+    output = path.join(root, "packed"),
+    isolated = path.join(root, "isolated"),
+    hooks = path.join(root, "empty-hooks"),
+    gitConfig = path.join(root, "empty-gitconfig");
+  for (const directory of [repository, staged, isolated, hooks]) await mkdir(directory);
+  await writeFile(gitConfig, "");
+  const git = (args: readonly string[], input?: string) =>
+    execFileSync(
+      "git",
+      ["-C", repository, "-c", "core.fsmonitor=false", "-c", `core.hooksPath=${hooks}`, ...args],
+      {
+        encoding: "utf8",
+        input,
+        windowsHide: true,
+        timeout: 15000,
+        env: {
+          PATH: process.env.PATH,
+          SystemRoot: process.env.SystemRoot,
+          HOME: root,
+          USERPROFILE: root,
+          GIT_CONFIG_NOSYSTEM: "1",
+          GIT_CONFIG_GLOBAL: gitConfig,
+          GIT_TERMINAL_PROMPT: "0",
+          GIT_NO_LAZY_FETCH: "1",
+          GIT_NO_REPLACE_OBJECTS: "1",
+        },
+      },
+    );
+  git(["init", "-q"]);
+  git(["config", "user.name", "Disposable packed preparation fixture"]);
+  git(["config", "user.email", "fixture@portcove.invalid"]);
+  git(["config", "core.autocrlf", "false"]);
+  const inputs = {
+    "Cargo.toml":
+      '[workspace]\nmembers = ["apps/desktop/src-tauri"]\n[workspace.package]\nversion = "0.1.0"\n',
+    "apps/desktop/src-tauri/Cargo.toml":
+      '[package]\nname = "portcove-desktop"\nversion.workspace = true\n',
+    "Cargo.lock":
+      'version = 4\n\n[[package]]\nname = "portcove-desktop"\nversion = "0.1.0"\n\n[[package]]\nname = "third-party"\nversion = "0.1.0"\nsource = "registry+https://example.invalid"\n',
+    "apps/desktop/package.json": '{\n  "name": "fixture",\n  "version": "0.1.0"\n}\n',
+    "apps/desktop/src-tauri/tauri.conf.json":
+      '{\n  "version": "0.1.0",\n  "identifier": "fixture.example"\n}\n',
+  };
+  for (const [name, bytes] of Object.entries(inputs)) {
+    await mkdir(path.dirname(path.join(repository, name)), { recursive: true });
+    await writeFile(path.join(repository, name), bytes);
+  }
+  git(["add", "."]);
+  git(["commit", "-qm", "Disposable source opportunity"]);
+  const source = git(["rev-parse", "HEAD"]).trim();
+  const sourceTree = git(["rev-parse", `${source}^{tree}`]).trim();
+  const { prepareReleaseVersion } =
+    await import("../apps/desktop/scripts/prepare-release-version.mts");
+  const prepared = await prepareReleaseVersion(
+    repository,
+    {
+      source_commit: source,
+      reviewed_commit: source,
+      base_version: "0.1.0",
+      change: "patch",
+      compatibility: "compatible",
+    },
+    ["0.1.0"],
+  );
+  git(["read-tree", prepared.prepared_commit]);
+  const oldLock = git(["show", `${prepared.prepared_commit}:Cargo.lock`]);
+  const forgedLock = oldLock.replace(
+    'name = "third-party"\nversion = "0.1.0"',
+    'name = "third-party"\nversion = "9.9.9"',
+  );
+  assert.notEqual(forgedLock, oldLock);
+  const blob = git(["hash-object", "-w", "--stdin"], forgedLock).trim();
+  git(["update-index", "--cacheinfo", `100644,${blob},Cargo.lock`]);
+  const forgedTree = git(["write-tree"]).trim();
+  const forgedRaw = git(["cat-file", "commit", prepared.prepared_commit]).replace(
+    /^tree [a-f0-9]{40}/u,
+    `tree ${forgedTree}`,
+  );
+  const forged = git(["hash-object", "-w", "-t", "commit", "--stdin"], forgedRaw).trim();
+
+  // Synthetic entry in an existing fixed slot, not a production diagnostic API.
+  // Every reached maintained module is copied unchanged, including the literal
+  // lazy preparation import. The production packer/configuration is unchanged.
+  const copied = new Set<string>();
+  const closure: { path: string; sha256: string; bytes: number }[] = [];
+  const copy = async (relative: string): Promise<void> => {
+    assert.ok(!path.isAbsolute(relative) && !relative.startsWith("../"));
+    if (copied.has(relative)) return;
+    copied.add(relative);
+    assert.ok(copied.size <= 80);
+    const sourceBytes = await readFile(path.join(sourceRoot, relative));
+    closure.push({ path: relative, sha256: hash(sourceBytes), bytes: sourceBytes.length });
+    await mkdir(path.dirname(path.join(staged, relative)), { recursive: true });
+    await writeFile(path.join(staged, relative), sourceBytes);
+    const text = sourceBytes.toString("utf8");
+    for (const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*)["']([^"']+)["']/gu)) {
+      const specifier = match[1]!;
+      if (specifier.startsWith("."))
+        await copy(path.posix.normalize(path.posix.join(path.posix.dirname(relative), specifier)));
+      else
+        assert.ok(
+          isBuiltin(specifier) || specifier === "semver",
+          `unexpected prepared verifier dependency: ${specifier}`,
+        );
+    }
+  };
+  await copy("scripts/linux-beta-risk-706-preparation.mts");
+  assert.ok(copied.has("apps/desktop/scripts/prepare-release-version.mts"));
+  const desktop = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
+  await cp(
+    path.dirname(desktop.resolve("semver/package.json")),
+    path.join(staged, "node_modules/semver"),
+    { recursive: true },
+  );
+  await mkdir(path.join(staged, "scripts"), { recursive: true });
+  for (const name of controllerToolEntries)
+    await writeFile(
+      path.join(staged, "scripts", `${name}.mts`),
+      name === "release-publication-controller"
+        ? 'export { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";\n'
+        : "export {};\n",
+    );
+  await bundleControllerEntries(staged, output);
+  const packed = path.join(isolated, "release-publication-controller.bundle.mjs");
+  await copyFile(path.join(output, "scripts/release-publication-controller.bundle.mjs"), packed);
+  assert.equal(path.relative(root, staged), "source");
+  await rm(staged, { recursive: true, force: true });
+  assert.deepEqual(await readdir(isolated), ["release-publication-controller.bundle.mjs"]);
+  assert.ok(!(await readdir(root)).includes("source"));
+  t.diagnostic(
+    JSON.stringify({
+      scope: "synthetic fixed entry through actual production packer; no finalizer or approval",
+      source,
+      source_tree: sourceTree,
+      prepared_commit: prepared.prepared_commit,
+      forged_commit: forged,
+      packed_sha256: hash(await readFile(packed)),
+      closure: closure.sort((a, b) => a.path.localeCompare(b.path)),
+    }),
+  );
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    import {execFileSync} from 'node:child_process';
+    const {inspectRiskVersionPreparation706}=await import(${JSON.stringify(pathToFileURL(packed).href)});
+    const read=(args)=>execFileSync('git',['-C',${JSON.stringify(repository)},'-c','core.fsmonitor=false','-c',${JSON.stringify(`core.hooksPath=${hooks}`)},...args],{encoding:'utf8',windowsHide:true,timeout:15000});
+    const valid=await inspectRiskVersionPreparation706(${JSON.stringify(prepared.prepared_commit)},read);
+    assert.deepEqual(valid,${JSON.stringify({ source_commit: prepared.source_commit, source_tree: sourceTree, prepared_commit: prepared.prepared_commit, prepared_tree: prepared.prepared_tree, version: prepared.version, intent_sha256: prepared.intent_sha256 })});
+    assert.equal(await inspectRiskVersionPreparation706(${JSON.stringify(source)},read),null);
+    await assert.rejects(()=>inspectRiskVersionPreparation706(${JSON.stringify(forged)},read),/prepared|version|differ/u);
+    process.stdout.write('packed-verifier-positive-and-forged-refusal');
+  `,
+    ],
+    {
+      cwd: isolated,
+      encoding: "utf8",
+      timeout: 30000,
+      maxBuffer: 128 * 1024,
+      env: {
+        PATH: process.env.PATH,
+        SystemRoot: process.env.SystemRoot,
+        HOME: root,
+        USERPROFILE: root,
+        GIT_CONFIG_NOSYSTEM: "1",
+        GIT_CONFIG_GLOBAL: gitConfig,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_NO_LAZY_FETCH: "1",
+        GIT_NO_REPLACE_OBJECTS: "1",
+      },
+    },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.doesNotMatch(child.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/u);
+  assert.equal(child.stdout, "packed-verifier-positive-and-forged-refusal");
+});
 void test("complete job composite has fixed worker syntax, exclusive key transport and settled outputs", async () => {
   const bytes = await readFile(
       path.join(sourceRoot, ".github/actions/release-controller-job/action.yml"),

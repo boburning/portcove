@@ -2,7 +2,7 @@
  * checkout, filters, hooks, network Git transport or candidate code is run. */
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -12,6 +12,7 @@ import {
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 
 const base = "repos/boburning/portcove";
 const hash = (kind: string, bytes: Buffer) =>
@@ -51,13 +52,13 @@ export async function materializePublicationSourceRepository(
       input,
       encoding: null,
       timeout: coordinatorCommandTimeout(),
-      maxBuffer: 1024 ** 2,
+      maxBuffer: 16 * 1024 ** 2,
       windowsHide: true,
     });
     checkCoordinatorDeadline();
     if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout))
       throw new Error(`publication source import refused; retain ${directory}`);
-    return result.stdout.toString("utf8").trim();
+    return result.stdout.toString("utf8");
   };
   git(["init", "--bare", "--template", home, repository]);
   let calls = 0,
@@ -75,7 +76,10 @@ export async function materializePublicationSourceRepository(
     total += bytes.length;
     if (total > 256 * 1024 ** 2 || objects.size >= 20000 || bytes.length > 16 * 1024 ** 2)
       throw new Error("publication source closure exceeds finite bounds");
-    if (git(["--git-dir", repository, "hash-object", "-w", "-t", kind, "--stdin"], bytes) !== id)
+    if (
+      git(["--git-dir", repository, "hash-object", "-w", "-t", kind, "--stdin"], bytes).trim() !==
+      id
+    )
       throw new Error("publication Git import differs");
     objects.set(id, { kind, bytes: bytes.length });
     if (kind === "blob") blobs.set(id, bytes);
@@ -97,11 +101,15 @@ export async function materializePublicationSourceRepository(
   };
   const commits = new Map<string, ReturnType<typeof inspectReleaseSourceTree>>();
   const roots = new Map<string, string>();
+  const rawCommits = new Map<string, string>();
   const load = (id: string) => {
     if (commits.has(id)) return commits.get(id)!;
-    if (commits.size >= 3) throw new Error("publication source commit closure exceeded");
+    // Candidate, fixed controller, exact version-preparation parent, and #706
+    // baseline only. The shared object/byte/deadline bounds remain unchanged.
+    if (commits.size >= 4) throw new Error("publication source commit closure exceeded");
     const commit = inspectRemoteCommitObject(get(`git/commits/${id}`), id);
     roots.set(id, commit.tree);
+    rawCommits.set(id, commit.object.bytes.toString("utf8"));
     add("commit", id, commit.object.bytes);
     const tree = inspectReleaseSourceTree(get(`git/trees/${commit.tree}?recursive=1`), commit.tree);
     for (const object of tree.objects) add(object.kind, object.oid, object.bytes);
@@ -181,6 +189,20 @@ export async function materializePublicationSourceRepository(
   if (roots.get(identity.candidate_commit) !== identity.candidate_tree)
     throw new Error("publication prepared tree differs");
   load(identity.controller_commit);
+  const rawCandidate = rawCommits.get(identity.candidate_commit)!;
+  if (rawCandidate.includes("\nPortcove-Preparation-SHA256:")) {
+    const parent = /^tree [a-f0-9]{40}\nparent ([a-f0-9]{40})\n/u.exec(rawCandidate)?.[1];
+    if (!parent) throw new Error("publication preparation parent unavailable");
+    load(parent);
+    // These are exact object roots, not a complete ancestry traversal. Tell Git
+    // where history deliberately stops before asking it for commit metadata.
+    await writeFile(path.join(repository, "shallow"), [...roots.keys()].join("\n") + "\n", {
+      flag: "wx",
+    });
+    await inspectRiskVersionPreparation706(identity.candidate_commit, (args) =>
+      git(["--git-dir", repository, ...args]),
+    );
+  }
   const approval = candidate.entries.get(".github/linux-beta-risk-706.json");
   const bytes = approval && blobs.get(approval.oid);
   if (!bytes || bytes.length > 65536) throw new Error("source qualification baseline unavailable");
@@ -192,6 +214,7 @@ export async function materializePublicationSourceRepository(
   )
     throw new Error("source qualification baseline identity differs");
   load(risk.reconfirmedHead);
+  await writeFile(path.join(repository, "shallow"), [...roots.keys()].join("\n") + "\n");
   git(["--git-dir", repository, "update-ref", "HEAD", identity.controller_commit]);
   return { repository, directory, calls, bytes: total, authority: "none" as const };
 }
