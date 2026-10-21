@@ -1,3 +1,12 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { readCatalogPublicationSourceBytes } from "./release-catalog-source.mts";
+import { inspectCatalogSemanticRequestCheckMatches } from "./release-semantic-disposition-reader.mts";
+import { reviewFrozenCatalogCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
+import {
+  materializePublishedCatalogCompleteSite,
+  requirePublishedCatalogCompleteSite,
+} from "./release-site-readback.mts";
+import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { execFileSync, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -34,6 +43,32 @@ import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipel
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { claimSemanticTechnicalAttempt } from "./release-semantic-worker-recovery.mts";
+
+/** Inert routing only; simultaneous requests or malformed history cannot select a fallback. */
+export function inspectSemanticWorkerRequest(input: unknown) {
+  if (!isRecord(input)) throw new Error("semantic journal input unavailable");
+  const catalog = inspectCatalogReviewRequest(input.catalog_review_request),
+    application = inspectReleaseReviewRequest(input.review_request);
+  if (catalog && application)
+    throw new Error("simultaneous catalog/application requests require reconciliation");
+  if (catalog)
+    return {
+      purpose: "catalog" as const,
+      request: catalog,
+      source_commit: catalog.opportunity.source_commit,
+      source_tree: catalog.opportunity.source_tree,
+      base_commit: catalog.opportunity.base_commit,
+    };
+  if (application)
+    return {
+      purpose: "application" as const,
+      request: application,
+      source_commit: application.source_commit,
+      source_tree: application.source_tree,
+      base_commit: application.base_commit,
+    };
+  return null;
+}
 
 const entryStarted = performance.now();
 const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
@@ -513,14 +548,15 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   const snapshot = await readRemoteCoordinatorSnapshot(directory, namespace, {
     transport,
   });
-  const request = inspectReleaseReviewRequest(snapshot.input.review_request);
-  if (!request)
+  const selected = inspectSemanticWorkerRequest(snapshot.input);
+  if (!selected)
     return {
       decision: "no-review-request",
       checkpoint: snapshot.checkpoint,
       directory,
       authority: "none",
     };
+  const request = selected.request;
   const runner = createGitHubRunner({
     cwd: directory,
     maxBuffer: 16 * 1024 * 1024,
@@ -558,8 +594,12 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
   }
   if (existingLocators.length > 1)
     throw new Error("multiple original Check requests require reconciliation");
-  const inventory = readIndependentSemanticCheckInventory(api, producer, request.source_commit);
-  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  const inventory = readIndependentSemanticCheckInventory(api, producer, selected.source_commit);
+  const matches = (
+    selected.purpose === "catalog"
+      ? inspectCatalogSemanticRequestCheckMatches
+      : inspectSemanticRequestCheckMatches
+  )(inventory.records, request);
   if (matches.accepted.length || matches.negative.length) {
     const row = inventory.records.find(
       (item) => item.id === (matches.accepted[0]?.check_run_id ?? matches.negative[0]),
@@ -572,7 +612,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     )
       throw new Error("existing semantic Check lacks an exact reconciliation locator");
     const expected = {
-      head: request.source_commit,
+      head: selected.source_commit,
       external_id: row.external_id,
       summary: row.output.summary,
     };
@@ -670,10 +710,7 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     const fresh = await readRemoteCoordinatorSnapshot(directory, namespace, {
       transport,
     });
-    if (
-      capacityDigest(inspectReleaseReviewRequest(fresh.input.review_request)) !==
-      capacityDigest(request)
-    )
+    if (capacityDigest(inspectSemanticWorkerRequest(fresh.input)) !== capacityDigest(selected))
       throw new Error(
         "frozen coordinator request changed during semantic attempt; retain capture without POST",
       );
@@ -683,29 +720,33 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     const recovered = await recoverRemoteCoordinator(attempt, namespace, {
       transport,
     });
-    if (capacityDigest(recovered.input.review_request) !== capacityDigest(request))
+    if (capacityDigest(inspectSemanticWorkerRequest(recovered.input)) !== capacityDigest(selected))
       throw new Error("journal changed during full request recovery");
     await guard();
-    const tag = api.request(
-      "GET",
-      `${repository}/git/ref/tags/${encodeURIComponent(`v${request.base_version}`)}`,
-    ).body;
-    if (
-      !isRecord(tag) ||
-      tag.ref !== `refs/tags/v${request.base_version}` ||
-      !isRecord(tag.object) ||
-      !/^[a-f0-9]{40}$/u.test(String(tag.object.sha))
-    )
-      throw new Error("existing publication tag unavailable");
-    if (!["commit", "tag"].includes(String(tag.object.type)))
-      throw new Error("unsupported publication object");
+    let publishedObject = selected.base_commit;
+    if (selected.purpose === "application") {
+      const app = inspectReleaseReviewRequest(request)!;
+      const tag = api.request(
+        "GET",
+        `${repository}/git/ref/tags/${encodeURIComponent(`v${app.base_version}`)}`,
+      ).body;
+      if (
+        !isRecord(tag) ||
+        tag.ref !== `refs/tags/v${app.base_version}` ||
+        !isRecord(tag.object) ||
+        !/^[a-f0-9]{40}$/u.test(String(tag.object.sha)) ||
+        !["commit", "tag"].includes(String(tag.object.type))
+      )
+        throw new Error("existing publication tag unavailable");
+      publishedObject = String(tag.object.sha);
+    }
     const acquired = await materializeSemanticSource(
       attempt,
       {
-        source_commit: request.source_commit,
-        source_tree: request.source_tree,
-        base_commit: request.base_commit,
-        published_object: String(tag.object.sha),
+        source_commit: selected.source_commit,
+        source_tree: selected.source_tree,
+        base_commit: selected.base_commit,
+        published_object: publishedObject,
       },
       api,
       { git_sha256: config.source_git_sha256, python_sha256: config.runtime.tools_sha256.python },
@@ -713,22 +754,22 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     await retain("bounded-source-materialized-no-runtime", acquired);
     const source = acquired.repository;
     await guard();
-    const outcome = await reviewFrozenCoordinatorRequest(api, source, request, {
+    const pipelineConfiguration = {
       namespace: config.namespace,
       issuer: config.issuer,
       runtime: {
         ...config.runtime,
-        backend: "linux-rootless",
+        backend: "linux-rootless" as const,
         output_parent: attempt,
         auth_cache: config.auth_cache,
         requireIsolationReady: guard,
-        onInvocationPrepared: async (value) => {
+        onInvocationPrepared: async (value: { root: string; invocation_sha256: string }) => {
           invocations.push(structuredClone(value));
           await retain("runtime-prepared-no-process-yet", value);
         },
       },
       requireCurrentRequestAndProvisioning: guard,
-      retainOriginalCheckRequest: async (value) => {
+      retainOriginalCheckRequest: async (value: { root: string; proposed_request: unknown }) => {
         await writeFile(path.join(attempt, "expected-check.json"), JSON.stringify(value), {
           flag: "wx",
           mode: 0o600,
@@ -738,7 +779,60 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
           request_sha256: capacityDigest(value.proposed_request),
         });
       },
-    });
+    };
+    let outcome: unknown;
+    if (selected.purpose === "catalog") {
+      const catalog = inspectCatalogReviewRequest(request)!;
+      const retainedSource = readCatalogPublicationSourceBytes(
+        api,
+        selected.source_commit,
+        performance.now() + 120000,
+      );
+      if (
+        retainedSource.source.tree !== selected.source_tree ||
+        retainedSource.bundle_sha256 !== catalog.opportunity.bundle_sha256 ||
+        !retainedSource.request ||
+        capacityDigest(retainedSource.request.compatibility) !==
+          capacityDigest(catalog.opportunity.compatibility)
+      )
+        throw new Error("catalog frozen source/request differs");
+      let prior: Map<string, Buffer> | null = null;
+      let priorReceipt: object | null = null;
+      const baseline = catalog.opportunity.baseline;
+      if (baseline.catalog_repository_sha256 !== null) {
+        if (baseline.site_generation_sha256 === null)
+          throw new Error("catalog prior generation absent");
+        const site = await materializePublishedCatalogCompleteSite(
+          {
+            repository_sha256: baseline.catalog_repository_sha256,
+            root_sha256: baseline.catalog_root_sha256,
+            site_generation_sha256: baseline.site_generation_sha256,
+          },
+          attempt,
+          performance.now() + 120000,
+        );
+        priorReceipt = site.receipt;
+        prior = await readBoundedReleaseContextFiles(site.catalog);
+        await requirePublishedCatalogCompleteSite(priorReceipt);
+      }
+      await retain("catalog-frozen-inputs-no-runtime", {
+        source: retainedSource.source,
+        bundle_sha256: retainedSource.bundle_sha256,
+        core_inspection_sha256: catalog.opportunity.core_inspection_sha256,
+        prior_repository_sha256: baseline.catalog_repository_sha256,
+      });
+      await guard();
+      // Immutable raw files are frozen by the builder before the runtime or issuer runs.
+      outcome = await reviewFrozenCatalogCoordinatorRequest(
+        api,
+        source,
+        catalog,
+        { files: retainedSource.files, prior_repository: prior },
+        pipelineConfiguration,
+      );
+      if (priorReceipt) await requirePublishedCatalogCompleteSite(priorReceipt);
+    } else
+      outcome = await reviewFrozenCoordinatorRequest(api, source, request, pipelineConfiguration);
     await retain("provider-result-verified", outcome);
     return { decision: "review-result-published", directory: attempt, outcome, authority: "none" };
   } catch (error) {

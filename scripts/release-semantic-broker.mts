@@ -1,3 +1,5 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { readIndependentCatalogSemanticDisposition } from "./release-semantic-disposition-reader.mts";
 import { open, readFile } from "node:fs/promises";
 import path from "node:path";
 import { capacityDigest } from "./release-capacity.mts";
@@ -317,7 +319,11 @@ export async function publishSemanticDispositionCapture(
       !Number.isSafeInteger(response.body.id)
     )
       throw new Error("negative Check POST outcome requires readback");
-    const proof = readIndependentSemanticDisposition(
+    const proof = (
+      frozen.wire.kind === "catalog-publication-semantic-disposition"
+        ? readIndependentCatalogSemanticDisposition
+        : readIndependentSemanticDisposition
+    )(
       clients.installation,
       {
         schema_version: 1,
@@ -366,7 +372,11 @@ export function readbackSemanticDispositionCheck(
     matches[0]!.output.summary !== expected.summary
   )
     throw new Error("negative semantic POST remains ambiguous; retain original attempt, no retry");
-  const proof = readIndependentSemanticDisposition(api, producer, request, Number(matches[0]!.id));
+  const catalog = isRecord(request) && request.kind === "catalog-publication-semantic-review";
+  if (catalog) inspectCatalogReviewRequest(request);
+  const proof = (
+    catalog ? readIndependentCatalogSemanticDisposition : readIndependentSemanticDisposition
+  )(api, producer, request, Number(matches[0]!.id));
   if (
     proof.wire_sha256 !== capacityDigest(JSON.parse(expected.summary) as unknown) ||
     proof.summary_sha256 !== capacityDigest(expected.summary)

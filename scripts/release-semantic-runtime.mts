@@ -1,3 +1,5 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
+import { prepareNegativeCatalogSemanticDispositionCheck } from "./release-semantic-disposition.mts";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdtemp, mkdir, writeFile, copyFile, readFile, chmod } from "node:fs/promises";
 import path from "node:path";
@@ -604,21 +606,26 @@ export async function requireDirectSemanticRefusalCapture(error: unknown) {
  * proposal refusal carries no invented classification or full-review coverage. */
 export async function prepareCapturedSemanticDisposition(
   input:
-    | { kind: "complete-opportunity"; error: unknown; request: unknown }
+    | {
+        kind: "complete-opportunity" | "complete-catalog-publication-opportunity";
+        error: unknown;
+        request: unknown;
+      }
     | { kind: "classification-proposal"; capture: unknown },
 ) {
   const actual =
-    input.kind === "complete-opportunity"
+    input.kind !== "classification-proposal"
       ? await requireDirectSemanticRefusalCapture(input.error)
       : await requireDirectSemanticProposalCapture(input.capture);
-  const request = inspectReleaseReviewRequest(
-    input.kind === "complete-opportunity"
+  const catalog = input.kind === "complete-catalog-publication-opportunity";
+  const request = (catalog ? inspectCatalogReviewRequest : inspectReleaseReviewRequest)(
+    input.kind !== "classification-proposal"
       ? input.request
       : (actual as Awaited<ReturnType<typeof runSemanticProposalRuntime>>).request,
   );
   if (!request) throw new Error("negative runtime disposition lacks exact neutral request");
   const full =
-    input.kind === "complete-opportunity"
+    input.kind !== "classification-proposal"
       ? (actual as Awaited<ReturnType<typeof requireDirectSemanticRefusalCapture>>)
       : null;
   const proposal =
@@ -628,9 +635,15 @@ export async function prepareCapturedSemanticDisposition(
   if (proposal && proposal.review.outcome !== "refused")
     throw new Error("proposed classification is not a negative disposition");
   const report = actual.review.report;
-  const handoff = prepareNegativeSemanticDispositionCheck({
+  const handoff = (
+    catalog
+      ? prepareNegativeCatalogSemanticDispositionCheck
+      : prepareNegativeSemanticDispositionCheck
+  )({
     schema_version: 1,
-    kind: "application-release-semantic-disposition",
+    kind: catalog
+      ? "catalog-publication-semantic-disposition"
+      : "application-release-semantic-disposition",
     stage: input.kind,
     disposition: full ? full.review.result.outcome : "refused",
     request,
@@ -643,7 +656,11 @@ export async function prepareCapturedSemanticDisposition(
     isolation_sha256: capacityDigest(actual.isolation),
     review: {
       runtime: "codex-independent-local-review",
-      scope: full ? "complete-release-opportunity" : "release-classification-proposal",
+      scope: catalog
+        ? "complete-catalog-publication-opportunity"
+        : full
+          ? "complete-release-opportunity"
+          : "release-classification-proposal",
       session_ref: `codex:${actual.review.session};invocation:${actual.invocation.id}`,
       completed_at: actual.completed_at,
       coverage: full?.review.result.coverage ?? null,

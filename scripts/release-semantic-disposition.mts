@@ -3,6 +3,7 @@ import { capacityDigest } from "./release-capacity.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { isRecord } from "./runtime-values.mts";
 
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
@@ -19,7 +20,7 @@ function digest(value: unknown) {
  * direct runtime capture, cleanup, issuer identity or request retirement. The
  * actual parent/broker must establish those before publishing this failure.
  * This deliberately cannot be consumed as accepted schema-2 classification. */
-export function inspectNegativeSemanticDisposition(raw: unknown) {
+function inspectDisposition(raw: unknown, catalog: boolean) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
@@ -27,16 +28,28 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
   );
   if (
     value.schema_version !== 1 ||
-    value.kind !== "application-release-semantic-disposition" ||
+    value.kind !==
+      (catalog
+        ? "catalog-publication-semantic-disposition"
+        : "application-release-semantic-disposition") ||
     (value.disposition !== "changes-required" && value.disposition !== "refused") ||
-    (value.stage !== "classification-proposal" && value.stage !== "complete-opportunity")
+    (catalog
+      ? value.stage !== "complete-catalog-publication-opportunity"
+      : value.stage !== "classification-proposal" && value.stage !== "complete-opportunity")
   )
     throw new Error("only explicit negative semantic outcomes are dispositions");
-  const request = inspectReleaseReviewRequest(value.request);
+  const request = catalog
+    ? inspectCatalogReviewRequest(value.request)
+    : inspectReleaseReviewRequest(value.request);
   if (!request || value.request_id !== request.request_id)
     throw new Error("negative disposition differs from exact neutral request");
-  const opportunity =
-    value.stage === "complete-opportunity" ? validateOpportunity(value.opportunity) : null;
+  const opportunity = catalog
+    ? inspectCatalogReviewRequest(value.request)!.opportunity
+    : value.stage === "complete-opportunity"
+      ? validateOpportunity(value.opportunity)
+      : null;
+  if (catalog && capacityDigest(value.opportunity) !== capacityDigest(opportunity))
+    throw new Error("negative catalog disposition opportunity differs from request");
   if (
     value.stage === "classification-proposal" &&
     (value.disposition !== "refused" ||
@@ -44,18 +57,24 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
       value.opportunity_sha256 !== null)
   )
     throw new Error("proposal refusal cannot manufacture a classified opportunity");
-  if (
-    opportunity &&
-    (opportunity.base_commit !== request.base_commit ||
-      opportunity.source_commit !== request.source_commit ||
-      opportunity.source_tree !== request.source_tree ||
-      opportunity.change_set_sha256 !== request.change_set_sha256 ||
-      opportunity.requested_channel !== request.requested_channel ||
-      opportunity.classification.base_version !== request.base_version ||
-      opportunity.classification.change_set_scope !== request.change_set_scope ||
-      value.opportunity_sha256 !== capacityDigest(opportunity))
-  )
-    throw new Error("negative disposition differs from exact neutral request/opportunity");
+  if (catalog) {
+    if (value.opportunity_sha256 !== capacityDigest(opportunity))
+      throw new Error("negative catalog opportunity digest differs");
+  } else if (opportunity) {
+    const application = validateOpportunity(value.opportunity),
+      applicationRequest = inspectReleaseReviewRequest(value.request)!;
+    if (
+      application.base_commit !== applicationRequest.base_commit ||
+      application.source_commit !== applicationRequest.source_commit ||
+      application.source_tree !== applicationRequest.source_tree ||
+      application.change_set_sha256 !== applicationRequest.change_set_sha256 ||
+      application.requested_channel !== applicationRequest.requested_channel ||
+      application.classification.base_version !== applicationRequest.base_version ||
+      application.classification.change_set_scope !== applicationRequest.change_set_scope ||
+      value.opportunity_sha256 !== capacityDigest(application)
+    )
+      throw new Error("negative disposition differs from exact neutral request/opportunity");
+  }
   const review = value.review;
   exact(review, "completed_at,coverage,report,report_sha256,runtime,scope,session_ref");
   let coverage: {
@@ -63,7 +82,7 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
     classification: boolean;
     compatibility: boolean;
   } | null = null;
-  if (value.stage === "complete-opportunity") {
+  if (catalog || value.stage === "complete-opportunity") {
     exact(review.coverage, "accumulated_changes,classification,compatibility");
     if (
       typeof review.coverage.accumulated_changes !== "boolean" ||
@@ -78,8 +97,9 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
     };
   } else if (review.coverage !== null)
     throw new Error("proposal refusal has no invented full-review coverage");
-  const scope =
-    value.stage === "classification-proposal"
+  const scope = catalog
+    ? "complete-catalog-publication-opportunity"
+    : value.stage === "classification-proposal"
       ? "release-classification-proposal"
       : "complete-release-opportunity";
   if (
@@ -106,7 +126,9 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
     throw new Error("negative semantic report bytes changed");
   const result = {
     schema_version: 1 as const,
-    kind: "application-release-semantic-disposition" as const,
+    kind: catalog
+      ? ("catalog-publication-semantic-disposition" as const)
+      : ("application-release-semantic-disposition" as const),
     stage: value.stage,
     disposition: value.disposition,
     request,
@@ -131,12 +153,23 @@ export function inspectNegativeSemanticDisposition(raw: unknown) {
     throw new Error("negative semantic wire exceeds provider bound");
   return result;
 }
+export function inspectNegativeSemanticDisposition(raw: unknown) {
+  const result = inspectDisposition(raw, false);
+  return {
+    ...result,
+    request: inspectReleaseReviewRequest(result.request)!,
+    opportunity: result.opportunity === null ? null : validateOpportunity(result.opportunity),
+  };
+}
+export function inspectNegativeCatalogSemanticDisposition(raw: unknown) {
+  return inspectDisposition(raw, true);
+}
 export type NegativeSemanticDisposition = ReturnType<typeof inspectNegativeSemanticDisposition>;
 
 /** Inert request serialization only; this function never posts or authenticates
  * any issuer. Failure conclusion plus the distinct wire cannot clear D1 holds. */
-export function prepareNegativeSemanticDispositionCheck(raw: unknown) {
-  const wire = inspectNegativeSemanticDisposition(raw);
+function prepareDispositionCheck(raw: unknown, catalog: boolean) {
+  const wire = inspectDisposition(raw, catalog);
   const wire_sha256 = capacityDigest(wire);
   return {
     authority: "none" as const,
@@ -147,16 +180,28 @@ export function prepareNegativeSemanticDispositionCheck(raw: unknown) {
       endpoint: "repos/boburning/portcove/check-runs",
       body: {
         name: semanticReviewCheckName,
-        head_sha: wire.request.source_commit,
-        external_id: `portcove-release-review-negative-v1:${wire_sha256}`,
+        head_sha:
+          "opportunity" in wire.request
+            ? wire.request.opportunity.source_commit
+            : wire.request.source_commit,
+        external_id: `${catalog ? "portcove-catalog-review-negative-v1" : "portcove-release-review-negative-v1"}:${wire_sha256}`,
         status: "completed" as const,
         conclusion: "failure" as const,
         completed_at: wire.review.completed_at,
         output: {
-          title: "Portcove independent release review disposition v1",
+          title: catalog
+            ? "Portcove independent catalog review disposition v1"
+            : "Portcove independent release review disposition v1",
           summary: JSON.stringify(wire),
         },
       },
     },
   };
+}
+
+export function prepareNegativeSemanticDispositionCheck(raw: unknown) {
+  return prepareDispositionCheck(raw, false);
+}
+export function prepareNegativeCatalogSemanticDispositionCheck(raw: unknown) {
+  return prepareDispositionCheck(raw, true);
 }
