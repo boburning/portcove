@@ -3179,13 +3179,31 @@ mod tests {
             preview_sha256: "b".repeat(64),
         };
 
+        let before = serde_json::to_value(&preview).unwrap();
         let output =
             super::preparation_cleanup(&preview, &portcove_core::Catalog::embedded().unwrap());
-        assert!(output.contains("File: payload/private.bin (4 bytes, SHA-256"));
-        assert!(output.contains("Folder: empty"));
-        assert!(output.contains("Folder: payload"));
-        assert!(output.contains("Folder: payload/generated"));
-        assert!(output.contains("Skipped link or special entry: linked-save (symbolic link)"));
+        let file = format!(
+            "File: payload/private.bin (4 B; 4 bytes, SHA-256 {})",
+            "a".repeat(64)
+        );
+        assert!(output.lines().any(|line| line == file));
+        for entry in [
+            "Folder: empty",
+            "Folder: payload",
+            "Folder: payload/generated",
+            "Skipped link or special entry: linked-save (symbolic link)",
+        ] {
+            assert!(
+                output.lines().any(|line| line == entry),
+                "missing {entry}: {output}"
+            );
+        }
+        assert!(
+            output
+                .contains("Affected: 1 files, 3 folders, 1 skipped links or special entries, 4 B")
+        );
+        assert!(output.contains(&format!("Preview: {}", "b".repeat(64))));
+        assert_eq!(serde_json::to_value(&preview).unwrap(), before);
     }
 
     fn failed_activity(private_path: &std::path::Path) -> portcove_core::ActivityRecord {

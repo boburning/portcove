@@ -153,7 +153,7 @@ fn game_file_query_uses_core_refresh_and_truthful_operation_events() {
     assert!(output.status.success(), "{output:?}");
     let progress = std::str::from_utf8(&output.stderr).unwrap();
     assert_eq!(progress.lines().count(), 1);
-    assert!(progress.starts_with("Check saved game files:"));
+    assert_eq!(progress, "Check saved game files\n");
     let human = std::str::from_utf8(&output.stdout).unwrap();
     assert!(human.contains("Files missing"));
     assert!(!human.contains("Ready to play"));
@@ -1792,13 +1792,17 @@ fn source_inspect_is_read_only_complete_and_equivalent_across_output_modes() {
         "Source inspection: {} (star-fox-64)",
         json["data"]["expected_identity"]["label"].as_str().unwrap()
     );
+    let next_step = format!(
+        "Next step: {}",
+        json["data"]["next_action"].as_str().unwrap()
+    );
     for text in [
         &profile_name,
         "State: accepted_identity_unknown",
         "Observed identities:",
         "Expected identity:",
         "Reviewed port requirements:",
-        "Next:",
+        &next_step,
         &actual_sha256,
     ] {
         assert!(human.contains(text), "missing {text:?} in {human}");
@@ -2336,8 +2340,16 @@ fn catalog_list_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let catalog = human_stdout(&portcove(root.path(), &["catalog", "list"])).to_owned();
     assert!(catalog.starts_with("Ports ("));
-    assert!(catalog.contains("ID"));
-    assert!(catalog.contains("lighthouse"));
+    assert_eq!(
+        catalog
+            .lines()
+            .nth(1)
+            .unwrap()
+            .split_whitespace()
+            .collect::<Vec<_>>(),
+        ["PORT", "SUPPORT", "TIER", "CHANNELS"]
+    );
+    assert!(catalog.contains("Lighthouse (lighthouse)"));
     assert!(!catalog.trim_start().starts_with('['));
 }
 
@@ -2409,7 +2421,7 @@ fn doctor_has_human_output_snapshot() {
 fn catalog_show_has_human_output_snapshot() {
     let root = tempfile::tempdir().unwrap();
     let port = human_stdout(&portcove(root.path(), &["catalog", "show", "lighthouse"])).to_owned();
-    assert!(port.starts_with("Lighthouse (lighthouse)\nSupport:"));
+    assert!(port.starts_with("Lighthouse (lighthouse)\nSupport tier:"));
     assert!(port.contains("\nProject: https://"));
 }
 
@@ -2859,7 +2871,7 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert!(!human_library.exists());
     let human_stdout = std::str::from_utf8(&human.stdout).unwrap();
     assert!(human_stdout.starts_with("Portcove "));
-    assert!(human_stdout.contains("Install, update, and play native game ports."));
+    assert!(human_stdout.contains("Manage native game ports from a local Portcove library."));
 
     let machine_library = root.path().join("machine-library");
     let machine = portcove(&machine_library, &["--json", "about"]);
@@ -2871,6 +2883,10 @@ fn about_is_branded_for_people_and_structured_for_automation_without_opening_a_l
     assert_eq!(response["ok"], true);
     assert_eq!(response["command"], "about");
     assert_eq!(response["data"]["product"], "Portcove");
+    assert_eq!(
+        response["data"]["description"],
+        "Install, update, and play native game ports."
+    );
 }
 
 #[test]
@@ -3060,7 +3076,10 @@ fn catalog_detail_preserves_managed_output_machine_reads_and_a_player_file() {
     for id in ["shipwright", "lighthouse"] {
         let output = portcove(&library, &["catalog", "show", id]);
         let human = human_stdout(&output);
-        assert!(human.contains("Support:"));
+        assert!(human.starts_with(&format!(
+            "{} ({id})\nSupport tier:",
+            catalog.port(id).unwrap().name
+        )));
         assert!(human.contains("Project: https://"));
         assert!(!human.contains("Accepted runtime ("));
         assert!(!human.contains("portcove external preview"));

@@ -446,7 +446,7 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         return output;
     }
     let mut output = human::failure(&error.report(), technical);
-    if error.code == ErrorCode::Usage && !output.contains("Next step:") {
+    if error.code == ErrorCode::Usage {
         // The command comes only from this adapter's fixed command-name map.
         let help = match command {
             "remove.preview" => "remove-preview".into(),
@@ -462,8 +462,13 @@ pub(crate) fn error(command: &str, error: &PortcoveError, technical: bool) -> St
         } else {
             format!("portcove {help}")
         };
+        let label = if output.contains("Next step:") {
+            "Command help"
+        } else {
+            "Next step"
+        };
         output.push_str(&format!(
-            "\nNext step: Run {command} --help to review the accepted arguments."
+            "\n{label}: Run {command} --help to review the accepted arguments."
         ));
     }
     output
@@ -601,12 +606,32 @@ mod tests {
             false,
         );
         assert!(text.contains("restore") && text.contains("without --apply"));
-        let text = error(
-            "library.resume_import",
-            &PortcoveError::usage("other valid usage error"),
-            false,
-        );
-        assert!(text.contains("portcove library resume-import --help"));
-        assert!(!text.contains("resume_import --help"));
+        for (command, route) in [
+            ("library.resume_import", "library resume-import"),
+            ("library.abort_import", "library abort-import"),
+            ("library.resume_move", "library resume-move"),
+            ("library.abort_move", "library abort-move"),
+            ("remove.preview", "remove-preview"),
+        ] {
+            let failure = PortcoveError::usage("private-usage-detail-canary");
+            let original = serde_json::to_value(failure.report()).unwrap();
+            let text = error(command, &failure, false);
+            assert!(text.contains(&format!("portcove {route} --help")), "{text}");
+            assert!(
+                text.contains("inspect portcove status and portcove activity"),
+                "{text}"
+            );
+            assert!(
+                text.contains("couldn't confirm whether anything changed"),
+                "{text}"
+            );
+            assert!(!text.contains("private-usage-detail-canary"), "{text}");
+            assert!(
+                !text.contains("_import --help") && !text.contains("_move --help"),
+                "{text}"
+            );
+            assert_eq!(serde_json::to_value(failure.report()).unwrap(), original);
+            assert_eq!(crate::exit_code(&failure), 2);
+        }
     }
 }

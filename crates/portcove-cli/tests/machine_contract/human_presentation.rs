@@ -261,7 +261,7 @@ fn invalid_target_input_is_not_repeated_in_primary_human_progress_or_error() {
 }
 
 #[test]
-fn missing_subcommand_keeps_machine_parser_envelope_while_help_remains_human_prose() {
+fn missing_subcommand_keeps_machine_parser_envelope_and_actionable_help_guidance() {
     let temporary = tempfile::tempdir().unwrap();
     let mut reports = Vec::new();
     for format in ["--json", "--jsonl"] {
@@ -275,7 +275,9 @@ fn missing_subcommand_keeps_machine_parser_envelope_while_help_remains_human_pro
         assert!(value["data"].is_null());
         assert_eq!(value["error"]["code"], "usage");
         let diagnostic = value["error"]["message"].as_str().unwrap();
-        assert!(diagnostic.contains("Everyday commands:"), "{diagnostic}");
+        assert!(diagnostic.contains("requires a subcommand"), "{diagnostic}");
+        assert!(diagnostic.contains("[OPTIONS] <COMMAND>"), "{diagnostic}");
+        assert!(diagnostic.contains("try '--help'"), "{diagnostic}");
         reports.push(value["error"].clone());
     }
     assert_eq!(reports[0], reports[1]);
