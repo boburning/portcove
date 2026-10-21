@@ -196,6 +196,7 @@ export async function composeSiteFiles(request: {
     )
       throw new Error("prior site has an unowned component; preserve and reconcile");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
+
   if (
     prior &&
     prior.application_root_sha256 !== request.application_root_sha256 &&
@@ -318,6 +319,13 @@ export async function composeCatalogSiteFiles(request: {
     )
       throw new Error("prior site has an unowned component");
   const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
+  if (
+    [...old.keys()].some((name) => name.startsWith("catalog/")) &&
+    (prior?.schema_version !== 2 || prior.catalog_root_sha256 === null)
+  )
+    throw new Error(
+      "existing catalog bytes require independently reconciled catalog root and history",
+    );
   if (
     prior?.schema_version === 2 &&
     prior.catalog_root_sha256 !== null &&

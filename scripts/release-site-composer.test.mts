@@ -269,6 +269,16 @@ void test("file composition preserves exact catalog subtree and application hist
     path.join(initial.output, "publication.json"),
     JSON.stringify({ ...base, generation: expected }),
   );
+  await assert.rejects(
+    composeCatalogSiteFiles({
+      previous: initial.output,
+      expected_previous_generation: expected,
+      catalog: f.app,
+      catalog_root_sha256: "c".repeat(64),
+      output_parent: f.output,
+    }),
+    /independently reconciled catalog root/u,
+  );
   await writeFile(path.join(f.app, "metadata", "timestamp.json"), "inert timestamp2");
   await writeFile(path.join(f.app, "metadata", "2.snapshot.json"), "inert snapshot2");
   const next = await composeSiteFiles({
