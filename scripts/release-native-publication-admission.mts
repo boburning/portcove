@@ -2,7 +2,7 @@
  * not native acceptance. Only the existing current native consumer mints that
  * private qualification after all independently expected inputs match. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -15,7 +15,10 @@ import {
 import { requireActualTufPublication } from "./release-tuf-publication.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
-import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import {
+  readRemoteCoordinatorSnapshot,
+  hydrateRetainedCoordinatorCheckpoint,
+} from "./release-coordinator-recovery.mts";
 import {
   requireReservedAggregate,
   inspectReservedPublicationReadback,
@@ -23,7 +26,9 @@ import {
 import {
   inspectMetadataBootstrapDescriptor,
   inspectPublishedMetadata,
+  inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
   deriveNativeQualificationExpectations,
@@ -114,11 +119,21 @@ export function inspectNativeInitialPublicationJourney(raw: {
   signed_context_sha256: string;
   signatures_sha256: string;
   prior_records_sha256: string;
+  authority_schema_version?: unknown;
 }) {
-  const selected = structuredClone(raw),
-    bootstrap = inspectMetadataBootstrapDescriptor(selected.bootstrap),
+  const selected = structuredClone(raw);
+  if (
+    selected.authority_schema_version !== undefined &&
+    selected.authority_schema_version !== 1 &&
+    selected.authority_schema_version !== 2
+  )
+    throw new Error("native publication authority schema differs");
+  const bootstrap = inspectMetadataBootstrapDescriptor(selected.bootstrap),
     published = inspectPublishedMetadata(selected.published),
-    pins = inspectPublicationAuthorities(selected.public_pins),
+    pins = inspectPublicationAuthorities(
+      selected.public_pins,
+      selected.authority_schema_version ?? 1,
+    ),
     groups = inspectCompactCapacityOperations(selected.capacity_groups),
     bootstrapSha = digest(bootstrap);
   if (
@@ -157,8 +172,247 @@ export function inspectNativeInitialPublicationJourney(raw: {
   });
 }
 
-/** The seven argument fixed entry deliberately cannot accept a journey,
- * expected-report JSON, caller trust boolean or injected provider. */
+/** Journey association only. The caller must establish actual Tough/source custody;
+ * this shared calculation cannot mint a qualification or local/hosted authority. */
+export function deriveNativePublicationJourneys(input: {
+  files: ReadonlyMap<string, Buffer>;
+  coordinator_input: Record<string, unknown>;
+  manifest: Record<string, unknown>;
+  namespace: string;
+  signed_context_sha256: string;
+  platform_labels: readonly string[];
+  public_pins: ReturnType<typeof inspectPublicationAuthorities>;
+  authority_schema_version?: unknown;
+  api: Pick<GitHubApiClient, "request" | "graphql">;
+}) {
+  const {
+    files,
+    manifest,
+    namespace,
+    api,
+    platform_labels,
+    public_pins: publicPins,
+    signed_context_sha256: signedContext,
+  } = input;
+  if (
+    !isRecord(manifest.facts) ||
+    !isRecord(manifest.facts.opportunity) ||
+    !isRecord(manifest.binding)
+  )
+    throw new Error("native journey context incomplete");
+  const schemaVersion = input.authority_schema_version ?? 1;
+  if (schemaVersion !== 1 && schemaVersion !== 2)
+    throw new Error("native publication authority schema differs");
+  const binding = manifest.binding;
+  const before = { input: input.coordinator_input };
+  const required = (name: string) => {
+    const bytes = files.get(name);
+    if (!bytes) throw new Error("post-sign native authenticated input missing");
+    return bytes;
+  };
+  const prior = new Map(
+    [...files]
+      .filter(([name]) => name.startsWith("prior/") && name !== "prior/repository-manifest.json")
+      .map(([name, bytes]) => [name.slice(6), bytes]),
+  );
+  const priorRecords = new Map<string, Record<string, unknown>>();
+  for (const [name, bytes] of prior) {
+    if (!name.startsWith("targets/")) continue;
+    const match = /^targets\/([a-f0-9]{64})\.((?:releases|channels)\/.+\.json)$/u.exec(name);
+    if (!match) continue;
+    if (hash(bytes) !== match[1]) throw new Error("prior hashed target bytes differ");
+    const record: unknown = JSON.parse(bytes.toString("utf8"));
+    if (!isRecord(record) || priorRecords.has(match[2]!))
+      throw new Error("prior authenticated record inventory differs");
+    priorRecords.set(match[2]!, record);
+  }
+  const published = inspectPublishedMetadata(before.input.published_metadata);
+  if (
+    !published ||
+    !isRecord(manifest.previous_site_pins) ||
+    published.repository_sha256 !== digest(inventory(prior)) ||
+    published.repository_sha256 !== manifest.previous_site_pins.repository_sha256 ||
+    published.root_sha256 !== manifest.previous_site_pins.root_sha256 ||
+    published.publication.site_generation_sha256 !==
+      manifest.previous_site_pins.site_generation_sha256
+  )
+    throw new Error("post-sign native prior differs from actual current published seed");
+  let journeys: unknown[];
+  if (priorRecords.size === 0) {
+    const controller = before.input.controller;
+    if (
+      !isRecord(controller) ||
+      !isRecord(controller.capacity_attempt) ||
+      controller.capacity_attempt.schema_version !== 2
+    )
+      throw new Error("initial native branch requires actual bounded bootstrap history");
+    if (typeof binding.signatures_sha256 !== "string")
+      throw new Error("actual payload signature binding missing");
+    const journey = inspectNativeInitialPublicationJourney({
+      bootstrap: before.input.metadata_bootstrap,
+      published,
+      capacity_groups: controller.capacity_attempt.prior_operations,
+      public_pins: publicPins,
+      authority_schema_version: schemaVersion,
+      payload_sha256: hash(required("payload.json")),
+      signed_context_sha256: signedContext,
+      signatures_sha256: binding.signatures_sha256,
+      prior_records_sha256: digest(inventory(priorRecords.size === 0 ? new Map() : prior)),
+    });
+    journeys = platform_labels.map(() => journey);
+  } else {
+    const reader = createReleasePublicationReader(api),
+      releases = reader.releases(),
+      tags = reader.tags();
+    const versions = [
+      ...new Set(
+        [...priorRecords.values()]
+          .filter((record) => typeof record.version === "string" && record.artifact !== undefined)
+          .map((record) => String(record.version)),
+      ),
+    ];
+    // The authenticated current Tough seed defines predecessor eligibility.
+    // A recovered invocation may already have published this candidate's
+    // immutable Release while its Pages effect is still pending; that new
+    // Release cannot become its own predecessor. All provider rows remain
+    // bracketed, and publication admission separately verifies the full set.
+    const baseline = selectCoordinatorPublicationBaseline(
+        releases.filter((release) => versions.includes(release.tag_name.slice(1))),
+        versions,
+      ),
+      tag = tags.find((item) => item.name === `v${baseline.version}`);
+    if (!tag) throw new Error("actual publication baseline tag absent");
+    const prepared = peelReleaseReference(tag),
+      response = api.request("GET", `repos/boburning/portcove/git/commits/${prepared}`);
+    if (
+      response.status !== 200 ||
+      !isRecord(response.body) ||
+      !isRecord(response.body.tree) ||
+      typeof response.body.tree.sha !== "string"
+    )
+      throw new Error("actual baseline source tree absent");
+    const source = inspectPublishedApplicationSource(
+      api,
+      { schema_version: 1, namespace: namespace },
+      {
+        id: baseline.release.id,
+        version: baseline.version,
+        prepared_commit: prepared,
+        prepared_tree: response.body.tree.sha,
+      },
+    );
+    if (source.source_baseline.commit !== manifest.facts.opportunity.base_commit)
+      throw new Error(
+        "native predecessor differs from independently established publication baseline",
+      );
+    journeys = platform_labels.map((platform_label) => {
+      const records = [...priorRecords.values()].filter(
+        (record) =>
+          record.version === baseline.version &&
+          record.target === platform_label &&
+          record.source_commit === prepared &&
+          isRecord(record.artifact),
+      );
+      if (records.length !== 1)
+        throw new Error("exact admitted predecessor package absent or ambiguous");
+      const record = records[0]!;
+      if (!Array.isArray(record.evidence_ids))
+        throw new Error("prior native evidence reference absent");
+      const refs = record.evidence_ids.filter(
+        (entry: unknown) =>
+          typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
+      );
+      if (refs.length !== 1 || typeof refs[0] !== "string")
+        throw new Error("prior native evidence reference ambiguous");
+      const id = refs[0].split(":")[1],
+        check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
+      if (check.status !== 200)
+        throw new Error("authenticated historical native attribution unavailable");
+      return {
+        predecessor: inspectNativePublicationPredecessor(record, check.body),
+        signed_context_sha256: signedContext,
+        signatures_sha256: binding.signatures_sha256,
+      };
+    });
+    if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
+      throw new Error("publication baseline changed during native attribution");
+  }
+  return journeys;
+}
+
+/** Select only the exact temporal branch; subsequent old/new repository checks
+ * remain mandatory. A failed old-seed derivation never falls back to history. */
+export function nativeCompletionUsesHistoricalLineage(rawCurrent: unknown, rawManifest: unknown) {
+  if (
+    !isRecord(rawCurrent) ||
+    !isRecord(rawManifest) ||
+    !isRecord(rawManifest.previous_site_pins) ||
+    typeof rawManifest.previous_site_pins.repository_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(rawManifest.previous_site_pins.repository_sha256)
+  )
+    throw new Error("native completion prior repository identity missing");
+  const published = inspectPublishedMetadata(rawCurrent.published_metadata);
+  if (!published) throw new Error("native completion current published repository missing");
+  return published.repository_sha256 !== rawManifest.previous_site_pins.repository_sha256;
+}
+
+/** Completion-only historical association. The fixed caller must separately
+ * authenticate both the original context and the actual current signed TUF result. */
+export function inspectNativeCompletionLineage(
+  rawCurrent: unknown,
+  rawHistorical: unknown,
+  rawManifest: unknown,
+  rawPublication: unknown,
+) {
+  if (
+    !isRecord(rawCurrent) ||
+    !isRecord(rawHistorical) ||
+    !isRecord(rawManifest) ||
+    !isRecord(rawCurrent.active_candidate) ||
+    rawCurrent.active_candidate.phase !== "promoting" ||
+    !isRecord(rawHistorical.active_candidate) ||
+    !isRecord(rawManifest.facts) ||
+    !isRecord(rawManifest.facts.opportunity)
+  )
+    throw new Error(
+      "native completion requires exact promoting/current and original candidate lineage",
+    );
+  const current = rawCurrent.active_candidate,
+    prior = rawHistorical.active_candidate;
+  for (const name of [
+    "prepared_commit",
+    "prepared_tree",
+    "source_commit",
+    "version",
+    "release_run",
+    "transient_retries",
+    "substantive_repairs",
+    "frozen_opportunity",
+  ])
+    if (digest(current[name]) !== digest(prior[name]))
+      throw new Error("native historical candidate/reservation lineage differs");
+  if (digest(prior.frozen_opportunity) !== digest(rawManifest.facts.opportunity))
+    throw new Error("native original checkpoint opportunity differs from authenticated context");
+  const publication = inspectTufPublicationFacts(rawPublication),
+    published = inspectPublishedMetadata(rawCurrent.published_metadata);
+  if (
+    !published ||
+    digest(
+      Object.fromEntries(
+        Object.keys(publication).map((name) => [name, published[name as keyof typeof published]]),
+      ),
+    ) !== digest(publication)
+  )
+    throw new Error(
+      "native completion current published repository differs from actual signed candidate",
+    );
+  return {
+    input: structuredClone(rawHistorical),
+    authority: "none" as const,
+    scope: "original context lineage only" as const,
+  };
+}
+
 type NativePublicationPairArguments = [
   parent: string,
   locators: unknown,
@@ -206,7 +460,7 @@ async function collectNativePublicationPair(
   const context = await requireReceivedSigningContext(receivedContext, deadline),
     manifest = context.manifest,
     authorities = await requireControllerNativePrepublicationAuthorities(),
-    publicPins = inspectPublicationAuthorities(authorities.publication);
+    publicPins = inspectPublicationAuthorities(authorities.publication, authorities.schema_version);
   if (
     !isRecord(manifest.facts) ||
     !isRecord(manifest.facts.configuration) ||
@@ -217,7 +471,6 @@ async function collectNativePublicationPair(
     digest(manifest.facts.archives) !== digest(archives)
   )
     throw new Error("post-sign native acquired candidate differs from authenticated context");
-  const binding = manifest.binding;
   const signedContext = tuf.publication.repository_sha256;
   if (typeof signedContext !== "string")
     throw new Error("actual signed repository identity missing");
@@ -240,22 +493,6 @@ async function collectNativePublicationPair(
     hash(required("payload.json")) !== publicPins.public_source.payload_key_registry.sha256
   )
     throw new Error("post-sign native public anchors differ from ratified setup");
-  const prior = new Map(
-    [...files]
-      .filter(([name]) => name.startsWith("prior/") && name !== "prior/repository-manifest.json")
-      .map(([name, bytes]) => [name.slice(6), bytes]),
-  );
-  const priorRecords = new Map<string, Record<string, unknown>>();
-  for (const [name, bytes] of prior) {
-    if (!name.startsWith("targets/")) continue;
-    const match = /^targets\/([a-f0-9]{64})\.((?:releases|channels)\/.+\.json)$/u.exec(name);
-    if (!match) continue;
-    if (hash(bytes) !== match[1]) throw new Error("prior hashed target bytes differ");
-    const record: unknown = JSON.parse(bytes.toString("utf8"));
-    if (!isRecord(record) || priorRecords.has(match[2]!))
-      throw new Error("prior authenticated record inventory differs");
-    priorRecords.set(match[2]!, record);
-  }
   const directory = await mkdtemp(path.join(parent, "native-publication-inputs-"));
   let phase = "current-reservation";
   try {
@@ -284,16 +521,6 @@ async function collectNativePublicationPair(
     )
       throw new Error("post-sign native frozen opportunity changed");
     const published = inspectPublishedMetadata(before.input.published_metadata);
-    if (
-      !published ||
-      !isRecord(manifest.previous_site_pins) ||
-      published.repository_sha256 !== digest(inventory(prior)) ||
-      published.repository_sha256 !== manifest.previous_site_pins.repository_sha256 ||
-      published.root_sha256 !== manifest.previous_site_pins.root_sha256 ||
-      published.publication.site_generation_sha256 !==
-        manifest.previous_site_pins.site_generation_sha256
-    )
-      throw new Error("post-sign native prior differs from actual current published seed");
     await writeFile(
       path.join(directory, "reservation-before.json"),
       JSON.stringify({ checkpoint: before.checkpoint, published }),
@@ -343,105 +570,74 @@ async function collectNativePublicationPair(
       },
     };
     phase = "independent-native-journey";
-    let journeys: unknown[];
-    if (priorRecords.size === 0) {
-      const controller = before.input.controller;
-      if (
-        !isRecord(controller) ||
-        !isRecord(controller.capacity_attempt) ||
-        controller.capacity_attempt.schema_version !== 2
-      )
-        throw new Error("initial native branch requires actual bounded bootstrap history");
-      if (typeof binding.signatures_sha256 !== "string")
-        throw new Error("actual payload signature binding missing");
-      const journey = inspectNativeInitialPublicationJourney({
-        bootstrap: before.input.metadata_bootstrap,
-        published,
-        capacity_groups: controller.capacity_attempt.prior_operations,
-        public_pins: publicPins,
-        payload_sha256: hash(required("payload.json")),
-        signed_context_sha256: signedContext,
-        signatures_sha256: binding.signatures_sha256,
-        prior_records_sha256: digest(inventory(priorRecords.size === 0 ? new Map() : prior)),
-      });
-      journeys = expectedBefore.map(() => journey);
-    } else {
-      const reader = createReleasePublicationReader(api),
-        releases = reader.releases(),
-        tags = reader.tags();
-      const versions = [
-        ...new Set(
-          [...priorRecords.values()]
-            .filter((record) => typeof record.version === "string" && record.artifact !== undefined)
-            .map((record) => String(record.version)),
-        ),
-      ];
-      // The authenticated current Tough seed defines predecessor eligibility.
-      // A recovered invocation may already have published this candidate's
-      // immutable Release while its Pages effect is still pending; that new
-      // Release cannot become its own predecessor. All provider rows remain
-      // bracketed, and publication admission separately verifies the full set.
-      const baseline = selectCoordinatorPublicationBaseline(
-          releases.filter((release) => versions.includes(release.tag_name.slice(1))),
-          versions,
-        ),
-        tag = tags.find((item) => item.name === `v${baseline.version}`);
-      if (!tag) throw new Error("actual publication baseline tag absent");
-      const prepared = peelReleaseReference(tag),
-        response = api.request("GET", `repos/boburning/portcove/git/commits/${prepared}`);
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        !isRecord(response.body.tree) ||
-        typeof response.body.tree.sha !== "string"
-      )
-        throw new Error("actual baseline source tree absent");
-      const source = inspectPublishedApplicationSource(
-        api,
-        { schema_version: 1, namespace: authorities.namespace },
+    let journeyInput = before.input;
+    if (
+      purpose === "completion-readback" &&
+      nativeCompletionUsesHistoricalLineage(before.input, manifest)
+    ) {
+      const checkpoint = manifest.facts.checkpoint;
+      if (typeof checkpoint !== "string" || !/^[a-f0-9]{40}$/u.test(checkpoint))
+        throw new Error("authenticated original native context checkpoint missing");
+      const historicalRepository = path.join(directory, "historical-coordinator.git");
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "core.hooksPath=" + (process.platform === "win32" ? "NUL" : "/dev/null"),
+          "init",
+          "--bare",
+          "--template=",
+          "--quiet",
+          historicalRepository,
+        ],
         {
-          id: baseline.release.id,
-          version: baseline.version,
-          prepared_commit: prepared,
-          prepared_tree: response.body.tree.sha,
+          cwd: directory,
+          env: {
+            PATH: process.env.PATH,
+            SystemRoot: process.env.SystemRoot,
+            GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+            GIT_NO_LAZY_FETCH: "1",
+            GIT_NO_REPLACE_OBJECTS: "1",
+            GIT_TERMINAL_PROMPT: "0",
+          },
+          timeout: remaining(),
+          maxBuffer: 65536,
+          windowsHide: true,
         },
       );
-      if (source.source_baseline.commit !== manifest.facts.opportunity.base_commit)
-        throw new Error(
-          "native predecessor differs from independently established publication baseline",
-        );
-      journeys = expectedBefore.map((expected) => {
-        const records = [...priorRecords.values()].filter(
-          (record) =>
-            record.version === baseline.version &&
-            record.target === expected.platform_label &&
-            record.source_commit === prepared &&
-            isRecord(record.artifact),
-        );
-        if (records.length !== 1)
-          throw new Error("exact admitted predecessor package absent or ambiguous");
-        const record = records[0]!;
-        if (!Array.isArray(record.evidence_ids))
-          throw new Error("prior native evidence reference absent");
-        const refs = record.evidence_ids.filter(
-          (entry: unknown) =>
-            typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
-        );
-        if (refs.length !== 1 || typeof refs[0] !== "string")
-          throw new Error("prior native evidence reference ambiguous");
-        const id = refs[0].split(":")[1],
-          check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
-        if (check.status !== 200)
-          throw new Error("authenticated historical native attribution unavailable");
-        return {
-          predecessor: inspectNativePublicationPredecessor(record, check.body),
-          signed_context_sha256: signedContext,
-          signatures_sha256: binding.signatures_sha256,
-        };
-      });
-      if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
-        throw new Error("publication baseline changed during native attribution");
+      const historical = await withCoordinatorDeadline(deadline, () =>
+        hydrateRetainedCoordinatorCheckpoint(historicalRepository, checkpoint, { api }),
+      );
+      journeyInput = inspectNativeCompletionLineage(
+        before.input,
+        historical.input,
+        manifest,
+        tuf.publication,
+      ).input;
+      await writeFile(
+        path.join(directory, "historical-native-lineage.json"),
+        JSON.stringify({
+          checkpoint,
+          current_checkpoint: before.checkpoint,
+          historical_published_sha256: digest(historical.input.published_metadata),
+          signed_repository_sha256: signedContext,
+          authority: "none",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
     }
+    const journeys = deriveNativePublicationJourneys({
+      files,
+      coordinator_input: journeyInput,
+      manifest,
+      namespace: authorities.namespace,
+      signed_context_sha256: signedContext,
+      platform_labels: expectedBefore.map((item) => item.platform_label),
+      public_pins: publicPins,
+      authority_schema_version: authorities.schema_version,
+      api,
+    });
     const expected = expectedBefore.map((item, index) =>
       inspectNativeQualificationExpectation({
         ...item,

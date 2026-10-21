@@ -3,14 +3,14 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { establishActualNativeParent } from "./release-native-parent.mts";
-import { acquireActualNativeCandidate } from "./release-native-candidate.mts";
+import { acquireActualNativeStageCandidate } from "./release-native-candidate.mts";
 import { claimActualNativeInvocation } from "./release-native-attempt.mts";
 import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
 import {
-  prepareActualNativePreSignReport,
+  prepareActualNativeStageReport,
   retainActualFailedNativeStage,
 } from "./release-native-pre-sign-report.mts";
-import { publishActualNativePreSignReport } from "./release-native-check-broker.mts";
+import { publishActualNativeStageReport } from "./release-native-check-broker.mts";
 
 export async function runInstalledNativeWorker(configuration: string, configurationSha256: string) {
   const parent = await establishActualNativeParent(configuration, configurationSha256);
@@ -18,7 +18,7 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     throw new Error(
       "separate-account Linux backend is not connected; no native invocation claimed",
     );
-  const candidate = await acquireActualNativeCandidate(parent);
+  const candidate = await acquireActualNativeStageCandidate(parent);
   const claim = await claimActualNativeInvocation(candidate);
   if (claim.decision === "readback-only")
     return {
@@ -30,7 +30,7 @@ export async function runInstalledNativeWorker(configuration: string, configurat
   const capture = await captureActualWindowsNativeInvocation(claim);
   let report;
   try {
-    report = await prepareActualNativePreSignReport(capture);
+    report = await prepareActualNativeStageReport(capture);
   } catch (error) {
     const failure = error instanceof Error ? error.message : "native stage report refused";
     // If serialization itself cannot establish original identity/settlement,
@@ -38,11 +38,11 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     const retained = await retainActualFailedNativeStage(capture, failure);
     return { decision: "hold", reason: failure, capture, retained, authority: "none" };
   }
-  const handoff = await publishActualNativePreSignReport(report);
+  const handoff = await publishActualNativeStageReport(report);
   return {
     decision: "hold",
     reason:
-      "native pre-sign Check handoff retained; independent hosted acceptance and later stages remain required",
+      "native stage Check handoff retained; independent hosted acceptance and pending ordinary public proof remain required",
     capture,
     report,
     handoff,

@@ -10,6 +10,7 @@ import {
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import {
   reconstructNativePreSignReport,
+  reconstructNativePostSignReport,
   prepareActualNativePreSignReport,
   requireActualNativePreSignReport,
   retainActualFailedNativeStage,
@@ -147,7 +148,7 @@ async function fixture() {
       executable: { sha256: installedSha },
     },
   };
-  return { prepared, evidence, source };
+  return { prepared, evidence, source, config };
 }
 
 void test("pre-sign reconstruction joins exact installed/host/runtime facts and source declarations without direct provenance", async () => {
@@ -252,4 +253,158 @@ void test("pre-sign report refuses metadata-only success, wrong host/source/pack
       cli_protocol: { min: 76, max: 76 },
     }),
   );
+});
+
+void test("post-sign report2 preserves initial versus predecessor package scope and pending ordinary public obligations", async () => {
+  const f = await fixture();
+  const config = {
+    ...f.config,
+    schema_version: 2,
+    native_prepublication_profile: "signed-package-compatibility-v1",
+  };
+  const journey = {
+    kind: "initial-empty-feed",
+    metadata_bootstrap_sha256: "a".repeat(64),
+    setup_plan_sha256: "b".repeat(64),
+    initial_site_preimage_sha256: "c".repeat(64),
+    empty_records_sha256: "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    signed_context_sha256: "d".repeat(64),
+    signatures_sha256: "e".repeat(64),
+  };
+  const request = {
+    schema_version: 1,
+    stage: "release-publication",
+    platform_label: "windows-x86_64",
+    candidate: f.prepared.request.candidate,
+    journey,
+    invocation_id: f.prepared.request.invocation_id,
+    setup_descriptor_sha256: f.prepared.request.setup_descriptor_sha256,
+  };
+  const prepared = prepareNativeStageRequest(request, config);
+  const evidence = structuredClone(f.evidence);
+  Object.assign(evidence.installer.details, {
+    upgrade: null,
+    package_rollback: null,
+    update_path: "explicit_bootstrap_destination",
+  });
+  const crypto = {
+    signed_context_sha256: journey.signed_context_sha256,
+    signatures_sha256: journey.signatures_sha256,
+    result_sha256: "f".repeat(64),
+    sha256: request.candidate.package.sha256,
+    bytes: request.candidate.package.bytes,
+    predecessor_version: null,
+  };
+  const output = reconstructNativePostSignReport(prepared, evidence, f.source, crypto);
+  assert.equal(output.authority, "none");
+  assert.equal(output.report.schema_version, 2);
+  assert.equal(output.report.stage, "release-publication");
+  assert.deepEqual(
+    output.report.scenarios.map((item) => item.name),
+    ["fresh-install", "candidate-launch", "retained-state", "signature-cryptography"],
+  );
+  assert.ok("pending_obligations" in output.report);
+  assert.deepEqual(output.report.pending_obligations, [
+    "ordinary-public-discovery-and-download",
+    "ordinary-updater-journal-and-recovery",
+    "ordinary-public-manifest-journey",
+  ]);
+  assert.throws(() => reconstructNativePreSignReport(prepared, evidence, f.source));
+  for (const changed of [
+    { ...crypto, signed_context_sha256: "0".repeat(64) },
+    { ...crypto, signatures_sha256: "0".repeat(64) },
+    { ...crypto, sha256: "0".repeat(64) },
+    { ...crypto, bytes: crypto.bytes + 1 },
+    { ...crypto, result_sha256: "unknown" },
+  ])
+    assert.throws(() => reconstructNativePostSignReport(prepared, evidence, f.source, changed));
+  const claimed = structuredClone(evidence);
+  Object.assign(claimed.installer.details, {
+    upgrade: { predecessor_smoke: { responding: true } },
+  });
+  assert.throws(() => reconstructNativePostSignReport(prepared, claimed, f.source, crypto));
+  const predecessor = {
+    ...request.candidate,
+    source_commit: "1".repeat(40),
+    source_tree: "2".repeat(40),
+    run_id: "55",
+    artifact_id: 99,
+    package: {
+      ...request.candidate.package,
+      filename: "Portcove_0.0.1_x64-setup.exe",
+      sha256: "3".repeat(64),
+    },
+  };
+  const ordinary = prepareNativeStageRequest(
+    {
+      ...request,
+      journey: {
+        predecessor,
+        signed_context_sha256: journey.signed_context_sha256,
+        signatures_sha256: journey.signatures_sha256,
+      },
+    },
+    config,
+  );
+  const next = structuredClone(evidence),
+    preserved = next.installer.details.preservation_manifest_before_uninstall;
+  Object.assign(next.installer.details, {
+    update_path: "registered_nsis_update",
+    upgrade: {
+      predecessor_installer_sha256: predecessor.package.sha256,
+      predecessor_executable_sha256: "4".repeat(64),
+      predecessor_smoke: { responding: true, exit_code: 0 },
+    },
+    package_rollback: {
+      predecessor_installer_sha256: predecessor.package.sha256,
+      executable_sha256: "4".repeat(64),
+      install_exit_code: 0,
+      registration_count: 1,
+      registration_path: next.installer.details.registration_path,
+      registered_version: "0.0.1",
+      smoke: { responding: true, exit_code: 0 },
+      database_present: true,
+      sentinel_sha256: "5".repeat(64),
+      manifest_before_install: preserved,
+      manifest_after_install: preserved,
+      manifest_after_launch: preserved,
+      scope: "signed-package compatibility only; ordinary public updater journey remains pending",
+    },
+  });
+  const predecessorRoot = structuredClone(next.capture.roots[0]!);
+  predecessorRoot.id = "predecessor";
+  predecessorRoot.image.pid = 122;
+  predecessorRoot.image.sha256 = predecessor.package.sha256;
+  next.capture.roots.push(predecessorRoot);
+  const ordinaryCrypto = { ...crypto, predecessor_version: "0.0.1" };
+  const ordinaryOutput = reconstructNativePostSignReport(ordinary, next, f.source, ordinaryCrypto);
+  assert.deepEqual(
+    ordinaryOutput.report.scenarios.map((item) => item.name),
+    ["install-over-prior", "candidate-launch", "retained-state", "package-rollback"],
+  );
+  for (const mutation of [
+    "wrong-version",
+    "wrong-package",
+    "wrong-executable",
+    "changed-state",
+    "missing-root",
+    "wrong-hive",
+    "failed-smoke",
+  ]) {
+    const altered = structuredClone(next) as typeof next & {
+      installer: { details: { package_rollback: Record<string, unknown> } };
+    };
+    const details = altered.installer.details as unknown as Record<string, unknown>,
+      rollback = details.package_rollback as Record<string, unknown>;
+    if (mutation === "wrong-version") rollback.registered_version = "0.0.11";
+    if (mutation === "wrong-package") rollback.predecessor_installer_sha256 = "6".repeat(64);
+    if (mutation === "wrong-executable") rollback.executable_sha256 = "6".repeat(64);
+    if (mutation === "changed-state") rollback.manifest_after_install = { library: [] };
+    if (mutation === "missing-root") altered.capture.roots = altered.capture.roots.slice(0, 1);
+    if (mutation === "wrong-hive") rollback.registration_path = "HKCU\\Other";
+    if (mutation === "failed-smoke") rollback.smoke = { responding: false, exit_code: 0 };
+    assert.throws(() =>
+      reconstructNativePostSignReport(ordinary, altered, f.source, ordinaryCrypto),
+    );
+  }
 });
