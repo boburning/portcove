@@ -556,7 +556,7 @@ export function inspectCatalogAuthorityConfiguration(raw: unknown) {
 export function inspectBoundCatalogControllerAuthorities(
   raw: unknown,
   source: {
-    mode: string;
+    mode: unknown;
     authority_configuration_sha256?: string;
     grant_sha256?: string;
     actor_id: string;
@@ -568,6 +568,8 @@ export function inspectBoundCatalogControllerAuthorities(
     !source.grant_sha256
   )
     throw new Error("explicit catalog controller grant required");
+  hex(source.grant_sha256, 64);
+  hex(source.authority_configuration_sha256, 64);
   const configuration = inspectCatalogAuthorityConfiguration(raw),
     configuration_sha256 = releaseCanonicalDigest(configuration);
   if (

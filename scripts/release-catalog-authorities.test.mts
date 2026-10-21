@@ -214,13 +214,19 @@ void test("catalog actual getter refuses missing protected configuration before 
   }
 });
 
-void test("catalog actual getter respects the inherited expired phase before source or provider reads", async () => {
-  await assert.rejects(
-    withCoordinatorDeadline(performance.now() - 1, () =>
-      requireControllerCatalogPublicationAuthorities("coordinator"),
-    ),
-    /phase deadline/,
-  );
+void test("catalog actual getter respects the inherited expired phase before source or provider reads", async (t) => {
+  const started = performance.now();
+  await withCoordinatorDeadline(started + 1000, async () => {
+    const clock = t.mock.method(performance, "now", () => started + 2000);
+    try {
+      await assert.rejects(
+        requireControllerCatalogPublicationAuthorities("coordinator"),
+        /phase deadline/,
+      );
+    } finally {
+      clock.mock.restore();
+    }
+  });
 });
 void test("appointed catalog scope limits exact Core-bound titles/templates/schema and managed capabilities without granting acceptance", () => {
   const config = configuration();
