@@ -834,7 +834,7 @@ for (const id of ["native-late-listener-disposal", "native-rejected-listener-reg
         );
   });
 
-void test("backup review requires identity-bound Windows cleanup under the existing deadline", () => {
+void test("backup review requires identity-bound Windows cleanup within its lifecycle deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-reviewed-backup-restore-and-delete"],
@@ -843,7 +843,7 @@ void test("backup review requires identity-bound Windows cleanup under the exist
     const plan = planDesktopExecution(selection, { platform });
     assert.equal(plan.session.identityBoundSession, platform === "win32");
     assert.equal(plan.session.cleanupName, platform === "win32" ? "backup-review" : "backup-focus");
-    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+    assert.equal(desktopHarnessDeadlineMs(selection), 600000);
   }
 });
 
