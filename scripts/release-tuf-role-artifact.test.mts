@@ -312,17 +312,26 @@ void test("default gh metadata/archive/verifier transports pin host and share on
     if (previous === undefined) delete process.env.GH_HOST;
     else process.env.GH_HOST = previous;
   });
-  const deadline = performance.now() + 5000;
+  let now = 100.25;
+  t.mock.method(performance, "now", () => now);
+  const deadline = now + 5000;
+  let effectiveDeadline = deadline;
+  const recordTimeout = (timeout: unknown, commandCap: number) => {
+    assert.ok(typeof timeout === "number" && Number.isSafeInteger(timeout));
+    // Transports retain their own caps and floor/ceil millisecond rounding.
+    // Their common invariant is the same shrinking absolute phase deadline,
+    // rather than a globally nonincreasing sequence across different commands.
+    assert.ok(timeout > 0 && timeout <= Math.min(commandCap, Math.ceil(effectiveDeadline - now)));
+    timeouts.push(timeout);
+    now += 0.125; // The mocked child consumes original-clock time, never resets it.
+  };
   const result = await readAttestedTufRoleArtifact(root, f.expected, deadline, {
     spawn: (command, argv, settings) => {
       assert.equal(command, "gh");
       assert.equal(settings.env?.GH_HOST, "github.com");
       assert.equal(settings.env?.NODE_OPTIONS, undefined);
       assert.equal(settings.env?.HTTPS_PROXY, undefined);
-      assert.ok(
-        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 5000,
-      );
-      timeouts.push(settings.timeout);
+      recordTimeout(settings.timeout, argv[0] === "attestation" ? 30000 : 15000);
       if (argv[0] === "attestation") return f.options.spawn!(command, argv, settings);
       assert.equal(argv[argv.indexOf("--hostname") + 1], "github.com");
       assert.equal(argv[argv.indexOf("--method") + 1], "GET");
@@ -338,10 +347,7 @@ void test("default gh metadata/archive/verifier transports pin host and share on
       assert.equal(command, "gh");
       assert.equal(argv[argv.indexOf("--hostname") + 1], "github.com");
       assert.equal(settings.env?.GH_HOST, "github.com");
-      assert.ok(
-        typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 5000,
-      );
-      timeouts.push(settings.timeout);
+      recordTimeout(settings.timeout, 30000);
       const endpoint = argv.find((value) => value.startsWith("repos/boburning/portcove/"));
       assert.ok(endpoint);
       return { status: 0, stdout: f.options.download(endpoint) };
@@ -355,8 +361,13 @@ void test("default gh metadata/archive/verifier transports pin host and share on
   });
   assert.equal(result.evidence_scope, "injected-provider");
   assert.equal(timeouts.length, 15);
-  assert.ok(timeouts.every((value, index) => index === 0 || value <= timeouts[index - 1]!));
-  const tight = performance.now() + 500;
+  assert.ok(timeouts.every((value) => value > 0 && value <= 5000));
+  assert.ok(
+    timeouts.some((value, index) => index > 0 && value > timeouts[index - 1]!),
+    "fractional clock exercises differing floor/ceil transport rounding",
+  );
+  const tight = now + 500;
+  effectiveDeadline = tight;
   const previousCalls = timeouts.length;
   recheckTufRoleArtifactCustody(result, tight);
   assert.ok(timeouts.length > previousCalls);
