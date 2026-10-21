@@ -637,6 +637,15 @@ export async function handoffPublicationResultArtifact(
     }),
     { flag: "wx", mode: 0o600 },
   );
+  if (process.env.RUNNER_TEMP) {
+    const { retainControllerUpload } = await import("./release-controller-transport.mts");
+    await retainControllerUpload(
+      process.env.RUNNER_TEMP,
+      "release-publication",
+      "result",
+      actual.directory,
+    );
+  }
   try {
     let uploaded: unknown;
     while (uploaded === undefined) {

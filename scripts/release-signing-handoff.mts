@@ -155,6 +155,15 @@ export async function handoffSigningOutput(
       JSON.stringify({ name, manifest_sha256: hash(manifest), files }),
       { flag: "wx", mode: 0o600 },
     );
+    if (process.env.RUNNER_TEMP) {
+      const { retainControllerUpload } = await import("./release-controller-transport.mts");
+      await retainControllerUpload(
+        process.env.RUNNER_TEMP,
+        producer.role === "payload-signing" ? "payload" : producer.role,
+        "signature",
+        directory,
+      );
+    }
     phase = "await-fixed-upload-action";
     let uploaded: unknown;
     while (uploaded === undefined) {
