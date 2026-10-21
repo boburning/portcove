@@ -82,7 +82,7 @@ function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
 async function controls(owned: Owned) {
   remaining(owned);
   if (!owned.source || performance.now() - owned.observed >= 45000) {
-    owned.source = await owned.session.next_controls();
+    owned.source = await owned.session.next_controls(owned.deadline);
     owned.observed = performance.now();
   }
   if (owned.source.evidence_scope !== "github.com")
@@ -164,7 +164,10 @@ export async function prepareCoordinatorSigningContext(
   phaseDeadline = Infinity,
 ) {
   if (phaseDeadline !== Infinity) remaining({ deadline: phaseDeadline });
-  const session = await requireActualCoordinatorMetadataPreparation(actualPreparation),
+  const session = await requireActualCoordinatorMetadataPreparation(
+      actualPreparation,
+      phaseDeadline === Infinity ? undefined : phaseDeadline,
+    ),
     deadline = Math.min(session.deadline, phaseDeadline);
   remaining({ deadline });
   const tools = await verifiedControllerToolPaths(session.tools),

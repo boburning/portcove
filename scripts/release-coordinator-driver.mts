@@ -1712,7 +1712,7 @@ async function continueTrustedSemanticReview(
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function runCoordinatorCli() {
   const [directory, selectionFile] = process.argv.slice(2);
   if (process.argv.length !== 4 || !directory || !selectionFile)
     throw new Error("usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json");
@@ -1726,32 +1726,42 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     Object.keys(selection).sort().join(",") !== "opportunity,remote_configuration,tools"
   )
     throw new Error("fixed metadata coordinator selection fields differ");
-  console.log(
-    JSON.stringify(
-      ["remote_configuration", "remote_configuration,tools"].includes(
-        Object.keys(selection).sort().join(","),
-      )
-        ? await requestTrustedSemanticReview(path.resolve(directory), {
-            remote_configuration: selection.remote_configuration,
-            ...(selection.tools === undefined
-              ? {}
-              : {
-                  tools: selection.tools as Parameters<
-                    typeof prepareTrustedCoordinatorRenewal
-                  >[1]["tools"],
-                }),
-          })
-        : selection.opportunity === null
-          ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {
-              remote_configuration: selection.remote_configuration,
+  const actualResult = ["remote_configuration", "remote_configuration,tools"].includes(
+    Object.keys(selection).sort().join(","),
+  )
+    ? await requestTrustedSemanticReview(path.resolve(directory), {
+        remote_configuration: selection.remote_configuration,
+        ...(selection.tools === undefined
+          ? {}
+          : {
               tools: selection.tools as Parameters<
                 typeof prepareTrustedCoordinatorRenewal
               >[1]["tools"],
-            })
-          : await coordinateTrustedRelease(
-              path.resolve(directory),
-              selection as Parameters<typeof coordinateTrustedRelease>[1],
-            ),
-    ),
-  );
+            }),
+      })
+    : selection.opportunity === null
+      ? await prepareTrustedCoordinatorRenewal(path.resolve(directory), {
+          remote_configuration: selection.remote_configuration,
+          tools: selection.tools as Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+        })
+      : await coordinateTrustedRelease(
+          path.resolve(directory),
+          selection as Parameters<typeof coordinateTrustedRelease>[1],
+        );
+  // Preserve the actual module-private renewal session across the existing
+  // fixed artifact handoff; serialized paths cannot reconstruct this receipt.
+  const result = metadataPreparations.has(actualResult)
+    ? await (
+        await import("./release-metadata-signing-controller.mts")
+      ).completeCoordinatorSigningContext(actualResult, path.resolve(directory))
+    : actualResult;
+  console.log(JSON.stringify(result));
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void runCoordinatorCli().catch(() => {
+    console.error(
+      "usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json; fixed coordinator refused, retain evidence",
+    );
+    process.exitCode = 1;
+  });
 }
