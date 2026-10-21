@@ -602,6 +602,7 @@ export async function runFixedCatalogRoleConfiguration(
 
 type Assembly = {
   recovery_only?: boolean;
+  recovery_intent?: { checkpoint: string; operation_sha256: string };
   phase: "coordinator" | "site-publication";
   context: object;
   tools: object;
@@ -803,6 +804,10 @@ async function verifyPublishedRepositoryForRecovery(
     const receipt = Object.freeze({ kind: "actual-catalog-read-only-recovery", authority: "none" });
     assemblies.set(receipt, {
       recovery_only: true,
+      recovery_intent: {
+        checkpoint: intent.checkpoint,
+        operation_sha256: digest(intent.operation),
+      },
       phase: "coordinator",
       context: contextReceipt,
       tools: toolsReceipt,
@@ -1027,6 +1032,7 @@ async function readRepository(receipt: object) {
     repository: actual.repository,
     report: structuredClone(actual.report),
     descriptor: admitted.facts.descriptor,
+    ...(actual.recovery_intent ? { recovery_intent: structuredClone(actual.recovery_intent) } : {}),
     context_receipt: actual.context,
     tools_receipt: actual.tools,
     deadline: actual.deadline,

@@ -169,6 +169,7 @@ interface PrivateDeployment {
   publication?: Composed["publication"];
   catalog?: {
     recovery_only?: true;
+    recovery_intent?: { checkpoint: string; operation_sha256: string };
     assembly: object;
     subject: ReturnType<typeof inspectCatalogPublicationDescriptor>;
     facts: ReturnType<typeof inspectCatalogTufPublicationFacts>;
@@ -748,6 +749,9 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
   if (
     !facts ||
     !operation ||
+    !actual.recovery_intent ||
+    actual.recovery_intent.checkpoint !== request.checkpoint ||
+    capacityDigest(operation) !== actual.recovery_intent.operation_sha256 ||
     capacityDigest(actual.descriptor) !== capacityDigest(subject) ||
     subject.publisher_configuration_sha256 !== authorities.configuration_sha256 ||
     facts.root_sha256 !== authorities.catalog.public_source.root.sha256 ||
@@ -793,7 +797,14 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
     );
   const session: DeploymentSession = Object.freeze({ kind: "prepared-catalog-site-deployment" });
   sessions.set(session, {
-    catalog: { assembly, subject, facts, prior, recovery_only: true },
+    catalog: {
+      assembly,
+      subject,
+      facts,
+      prior,
+      recovery_only: true,
+      recovery_intent: actual.recovery_intent,
+    },
     deadline,
     generation: structuredClone(current.generation),
     previous_generation: null,
@@ -811,10 +822,18 @@ export async function recoverPublishedCatalogSiteHandoff(
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
 ) {
   const prepared = sessions.get(session);
-  if (!prepared?.catalog || prepared.upload || prepared.archive_bytes !== 0)
+  if (
+    !prepared?.catalog?.recovery_only ||
+    !prepared.catalog.recovery_intent ||
+    prepared.catalog.recovery_intent.checkpoint !== raw.checkpoint ||
+    prepared.upload ||
+    prepared.archive_bytes !== 0
+  )
     throw new Error("actual GET-only catalog site recovery session required");
   return recoverOwnedPublishedCatalogMetadata(executor, raw, async (operation) => {
     const catalog = await recheckCatalogDeployment(prepared);
+    if (capacityDigest(operation) !== catalog.recovery_intent?.operation_sha256)
+      throw new Error("catalog recovery operation differs from original verified intent");
     const expected = inspectCatalogSitePublicationExpectation(operation.catalog_site_expectation);
     const effect: unknown = Array.isArray(operation.completed_effects)
       ? operation.completed_effects[0]

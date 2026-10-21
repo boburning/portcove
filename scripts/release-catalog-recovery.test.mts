@@ -174,6 +174,90 @@ void test("injected recovery join verifies existing public bytes and original ro
     const receipt = await invoke({}, {}, [{}, {}, {}, {}], parent, performance.now() + 30000);
     assert.equal(assemblies.get(receipt)!.recovery_only, true);
     assert.equal(commandCount, 1);
+    const deployment = await readFile(
+        new URL("./release-site-deployment.mts", import.meta.url),
+        "utf8",
+      ),
+      handoffStart = deployment.indexOf(
+        "export async function prepareCatalogSiteHandoffFromActualRepository(",
+      ),
+      handoffEnd = deployment.indexOf(
+        "export async function recoverPublishedCatalogSiteHandoff(",
+        handoffStart,
+      );
+    let publicReads = 0;
+    const actual = assemblies.get(receipt)!;
+    const handoff = runInNewContext(
+      stripTypeScriptTypes(
+        deployment
+          .slice(handoffStart, handoffEnd)
+          .replace("export ", "")
+          .replace('await import("./release-catalog-signing.mts")', "signing"),
+      ) + "\nprepareCatalogSiteHandoffFromActualRepository",
+      {
+        structuredClone,
+        Math,
+        Object,
+        isRecord,
+        capacityDigest: digest,
+        remaining: () => {},
+        withCoordinatorDeadline: (_deadline: number, fn: () => unknown) => fn(),
+        signing: {
+          requireActualCatalogRepositoryForRecovery: async () => ({
+            ...actual,
+            descriptor,
+            deadline: performance.now() + 30000,
+          }),
+        },
+        requireControllerCatalogPublicationAuthorities: async () => ({
+          configuration_sha256: descriptor.publisher_configuration_sha256,
+          catalog: {
+            public_source: {
+              root: { sha256: report.root_sha256 },
+              offline_targets: { sha256: report.offline_targets_sha256 },
+            },
+          },
+        }),
+        recoverReleaseOpportunity: async () => ({
+          input: {
+            catalog_publication: descriptor,
+            controller: { capacity_attempt: { operation } },
+          },
+        }),
+        inspectCatalogPublicationDescriptor: (raw: unknown) => raw,
+        assertCatalogPublicationBaseline: () => {},
+        inspectCatalogTufPublicationFacts: (raw: unknown) => raw,
+        inspectCatalogCapacitySubject: (raw: unknown) => raw,
+        inspectCatalogSitePublicationExpectation: (raw: unknown) => raw,
+        currentPublishedSite: () => null,
+        materializePublishedCatalogCompleteSite: async () => {
+          publicReads++;
+          return {
+            directory: repository,
+            generation: { previous_generation: null, application_root_sha256: null, files: [] },
+          };
+        },
+        sessions: new WeakMap(),
+        recheckCatalogDeployment: async () => {},
+      },
+    ) as (receipt: object, raw: unknown) => Promise<unknown>;
+    const request = {
+      repository: "controlled-journal",
+      checkpoint: "original",
+      output_parent: parent,
+      deadline: performance.now() + 30000,
+    };
+    await handoff(receipt, request);
+    assert.equal(publicReads, 1);
+    await assert.rejects(
+      handoff(receipt, { ...request, checkpoint: "different" }),
+      /exact settled catalog Pages subject/,
+    );
+    operation.catalog_site_expectation.archive_sha256 = "0".repeat(64);
+    await assert.rejects(handoff(receipt, request), /exact settled catalog Pages subject/);
+    assert.equal(publicReads, 1, "changed intent refuses before another public read");
+    operation.catalog_site_expectation.archive_sha256 = "9".repeat(64);
+
     assert.equal(
       assemblies.get(receipt)!.report.facts.repository_sha256,
       expected.catalog_repository_sha256,
