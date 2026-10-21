@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
@@ -334,4 +334,339 @@ void test("catalog-only initial metadata binds same-journal global prior, preser
         { input },
       ),
     );
+});
+
+void test("actual metadata controller boundary binds maintained Git pending before getter and refuses copied or foreign pending", async (t) => {
+  // Actual operation/Git + actual callback/binder/guard source in an inert VM.
+  // VM-owned receipts below are not production OIDC/tool/control admission.
+  const { execFileSync } = await import("node:child_process");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const { capacityFixture } = await import("./fixtures/release-capacity-fixture.mts");
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const { checkpointReleaseOpportunity, recoverReleaseOpportunity } =
+    await import("./release-coordinator-state.mts");
+  const { runBoundedMetadataBootstrapOperation } = await import("./release-capacity-operation.mts");
+  const { inspectCapacityOperation } = await import("./release-capacity.mts");
+  const { isRecord } = await import("./runtime-values.mts");
+  const repository = await mkdtemp(path.join(os.tmpdir(), "metadata-pending-"));
+  t.after(() => rm(repository, { recursive: true, force: true }));
+  execFileSync("git", ["init", "--bare", "--quiet", repository], {
+    windowsHide: true,
+    timeout: 10000,
+  });
+  const legacy: unknown = JSON.parse(
+    await readFile(new URL("./fixtures/release-coordinator-legacy.json", import.meta.url), "utf8"),
+  );
+  assert(
+    isRecord(legacy) &&
+      Array.isArray(legacy.rows) &&
+      isRecord(legacy.rows[0]) &&
+      isRecord(legacy.rows[0].input),
+  );
+  const input = structuredClone(legacy.rows[0].input),
+    capacity = { ...capacityFixture(), schema_version: 2 };
+  const { descriptor } = metadataBootstrapFixture();
+  input.schema_version = 2;
+  input.active_candidate = null;
+  input.now = new Date().toISOString();
+  assert(isRecord(input.publication));
+  input.publication.observed_at = input.now;
+  input.published_metadata = null;
+  input.metadata_bootstrap = descriptor;
+  input.controller = {
+    workflow: ".github/workflows/fixture.yml",
+    revision: "3".repeat(40),
+    publication_paused: false,
+    capacity_attempt: capacity,
+  };
+  const first = await checkpointReleaseOpportunity(repository, null, input);
+  const identity = {
+    actor_id: "1",
+    check_run_id: "2",
+    controller_revision: "3".repeat(40),
+    execution_ref: "refs/tags/fixture",
+    job_id: 4,
+    role: "coordinator",
+    run_attempt: 1,
+    run_id: "5",
+    workflow: ".github/workflows/fixture.yml",
+  };
+  const receipt = {},
+    executor = { kind: "authenticated-capacity-executor" };
+  const owned = {
+    session: { mode: "bootstrap", checkpoint: first.checkpoint, tools: {} },
+    descriptor,
+    facts: {
+      mode: "bootstrap",
+      descriptor,
+      namespace: "portcove-test",
+      checkpoint: first.checkpoint,
+      previous_site_pins: null,
+      setup_plan_sha256: descriptor.setup_plan_sha256,
+      public_source_commit: "2".repeat(40),
+    },
+    binding: {
+      kind: "metadata-bootstrap",
+      descriptor_sha256: digest(descriptor),
+      records_sha256: digest([]),
+    },
+    pending: undefined as
+      | undefined
+      | { executor: object; checkpoint: string; operation_id: string },
+  };
+  const contexts = new WeakMap([[receipt, owned]]),
+    sessions = new WeakMap([[executor, { deadline: performance.now() + 20000 }]]),
+    effectStates = new WeakMap([[executor, { busy: true }]]),
+    pendingBoundaries = new WeakMap<
+      object,
+      { session: object; checkpoint: string; operation: unknown }
+    >();
+  const source = await readFile(
+      new URL("./release-metadata-signing-context.mts", import.meta.url),
+      "utf8",
+    ),
+    executorSource = await readFile(
+      new URL("./release-capacity-executor.mts", import.meta.url),
+      "utf8",
+    ),
+    controllerSource = await readFile(
+      new URL("./release-metadata-signing-controller.mts", import.meta.url),
+      "utf8",
+    );
+  const take = (text: string, start: string, end: string) => {
+    const a = text.indexOf(start),
+      b = text.indexOf(end, a);
+    assert(a >= 0 && b > a);
+    return text.slice(a, b).replaceAll("export ", "");
+  };
+  let observedCheckpoint = first.checkpoint,
+    effects = 0;
+  let lastPrivate: object | undefined;
+  const sandbox = {
+    contexts,
+    sessions,
+    effectStates,
+    pendingBoundaries,
+    performance,
+    structuredClone,
+    inspectCapacityOperation,
+    inspectMetadataSigningReservation,
+    digest,
+    isRecord,
+    remaining: () => {},
+    requirePublishedCompleteSite: async () => {
+      throw new Error("not renewal");
+    },
+    refreshCapacityExecutor: async () => identity,
+    verifiedControllerToolPaths: async () => ({
+      identity: {
+        controller_revision: identity.controller_revision,
+        controller_ref: identity.execution_ref,
+        run_id: identity.run_id,
+        run_attempt: identity.run_attempt,
+      },
+    }),
+    snapshot: async () => recoverReleaseOpportunity(repository, observedCheckpoint),
+    requireCoordinatorSigningContext: async () => {
+      throw new Error("uninitialized test getter");
+    },
+  };
+  const code =
+    take(
+      executorSource,
+      "export function requireOwnedCapacityPendingBoundary(",
+      "\nasync function observe(",
+    ) +
+    "\n" +
+    take(
+      source,
+      "async function verifyState(",
+      "\nexport async function prepareCoordinatorSigningContext(",
+    ) +
+    "\n" +
+    take(
+      source,
+      "export async function bindCoordinatorSigningContextBoundary(",
+      "\nexport async function requireCoordinatorSigningContext(",
+    );
+  const bindings = runInNewContext(
+    stripTypeScriptTypes(code) +
+      "\n({bindCoordinatorSigningContextBoundary,bindCoordinatorSigningContextPending,verifyState})",
+    sandbox,
+  ) as {
+    bindCoordinatorSigningContextBoundary: (r: object, e: object, p: object) => Promise<void>;
+    bindCoordinatorSigningContextPending: (
+      r: object,
+      e: object,
+      p: { checkpoint: string; operation_id: string },
+    ) => Promise<void>;
+    verifyState: (
+      o: typeof owned,
+      state: Awaited<ReturnType<typeof recoverReleaseOpportunity>>,
+    ) => Promise<void>;
+  };
+  sandbox.requireCoordinatorSigningContext = async () => {
+    const state = await recoverReleaseOpportunity(repository, observedCheckpoint);
+    await bindings.verifyState(owned, state);
+    return { capacity_source: { capacity: { boundary: capacity.boundary } } } as never;
+  };
+  const boundaryStart = controllerSource.indexOf("async (pending) => {"),
+    boundaryEnd = controllerSource.indexOf("\n        async (pending) =>", boundaryStart);
+  assert(boundaryStart > 0 && boundaryEnd > boundaryStart);
+  const callback = runInNewContext(
+    stripTypeScriptTypes(
+      "const callback=" +
+        controllerSource.slice(boundaryStart, boundaryEnd).trim().replace(/,$/u, "") +
+        "; callback",
+    ),
+    {
+      ...bindings,
+      receipt,
+      executor,
+      deadline: performance.now() + 20000,
+      requireCoordinatorSigningContext: sandbox.requireCoordinatorSigningContext,
+    },
+  ) as (p?: object) => Promise<unknown>;
+  const wrapper = take(
+    executorSource,
+    "const readOwnedBoundary: CapacityBoundaryReader =",
+    "\n    // Existing transport checks",
+  );
+  let boundaryFailure: unknown;
+  const wrapped = runInNewContext(stripTypeScriptTypes(wrapper) + "\nreadOwnedBoundary", {
+    inspectCapacityOperation,
+    capacityDigest: digest,
+    executorIdentity: identity,
+    structuredClone,
+    session: executor,
+    pendingBoundaries,
+    readBoundary: async (p?: object) => {
+      if (p) {
+        lastPrivate = p;
+        const selected = pendingBoundaries.get(p);
+        assert(selected);
+        const original = selected.operation;
+        assert(isRecord(original));
+        for (const change of [
+          { before_checkpoint: "f".repeat(40) },
+          { outcome: "succeeded" },
+          {
+            completed_effects: [{ remote_identity: "unexpected", evidence_sha256: "a".repeat(64) }],
+          },
+          { destination: "github-actions:boburning/portcove:metadata-renewal-context" },
+          { metadata_bootstrap: { descriptor_sha256: "0".repeat(64) } },
+        ]) {
+          pendingBoundaries.set(p, { ...selected, operation: { ...original, ...change } });
+          await assert.rejects(
+            bindings.bindCoordinatorSigningContextBoundary(receipt, executor, p),
+            /original pending upload/,
+          );
+          assert.equal(owned.pending, undefined);
+        }
+        pendingBoundaries.set(p, selected);
+        await assert.rejects(
+          sandbox.requireCoordinatorSigningContext(),
+          /initial checkpoint changed/,
+        );
+      }
+      try {
+        return await callback(p);
+      } catch (error) {
+        boundaryFailure = error;
+        throw error;
+      }
+    },
+  }) as (pending?: { checkpoint: string; operation: unknown }) => Promise<unknown>;
+  await assert.rejects(
+    bindings.bindCoordinatorSigningContextBoundary(receipt, executor, {}),
+    /custody/,
+  );
+  await runBoundedMetadataBootstrapOperation(
+    repository,
+    first.checkpoint,
+    descriptor,
+    { kind: "upload", destination: "github-actions:boburning/portcove:metadata-bootstrap-context" },
+    async (pending) => {
+      if (pending) observedCheckpoint = pending.checkpoint;
+      return await wrapped(pending);
+    },
+    async (record, pending) => {
+      effects++;
+      await bindings.bindCoordinatorSigningContextPending(receipt, executor, {
+        checkpoint: pending.checkpoint,
+        operation_id: String(pending.operation.id),
+      });
+      await assert.rejects(
+        bindings.bindCoordinatorSigningContextPending(
+          receipt,
+          {},
+          { checkpoint: pending.checkpoint, operation_id: String(pending.operation.id) },
+        ),
+        /one exact/,
+      );
+      await record("fixture:metadata-context", "a".repeat(64));
+    },
+    { executorIdentity: identity, maximumReceipts: 1 },
+  ).catch((error: unknown) => {
+    throw boundaryFailure ?? error;
+  });
+  assert.equal(effects, 1);
+  assert(owned.pending);
+  assert.notEqual(owned.pending.checkpoint, first.checkpoint);
+  assert(lastPrivate);
+  await assert.rejects(
+    bindings.bindCoordinatorSigningContextBoundary(receipt, executor, lastPrivate),
+    /custody/,
+  );
+});
+
+void test("metadata context rechecks maintenance after slow current-state/public reads before returning boundary", async () => {
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-metadata-signing-context.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("export async function requireCoordinatorSigningContext("),
+    end = source.indexOf("\nexport async function readCoordinatorSigningContextFiles", start);
+  assert(start > 0 && end > start);
+  let clock = 59000;
+  const reads: number[] = [];
+  const receipt = {},
+    owned = {
+      deadline: 100000,
+      session: { mode: "bootstrap", tools: {}, preparation: {} },
+      descriptor: {},
+      directory: "inert",
+      files: [],
+      bootstrap_observed: 59000,
+    };
+  const getter = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end).replace("export ", "")) +
+      "\nrequireCoordinatorSigningContext",
+    {
+      contexts: new WeakMap([[receipt, owned]]),
+      performance: { now: () => clock },
+      remaining: () => {},
+      digest,
+      verifiedControllerToolPaths: async () => ({}),
+      inspectPreparedMetadataBootstrap: async () => ({ descriptor: {} }),
+      readBoundedReleaseContextFiles: async () => new Map(),
+      inventory: () => [],
+      controls: async () => {
+        reads.push(clock);
+        if (clock >= 60000) throw new Error("original maintenance observation expired");
+        return {};
+      },
+      snapshot: async () => {
+        clock = 61000;
+        return {};
+      },
+      verifyState: async () => {},
+      structuredClone,
+    },
+  ) as (r: object) => Promise<unknown>;
+  await assert.rejects(getter(receipt), /maintenance observation expired/);
+  assert.deepEqual(reads, [59000, 61000]);
 });

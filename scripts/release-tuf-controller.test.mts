@@ -711,3 +711,48 @@ void test("final role output projects the retained producer result into the main
     { mode: "release", stage: "building" },
   );
 });
+
+void test("actual TUF pre-key guard checks controls last after slow reservation read", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(new URL("./release-tuf-controller.mts", import.meta.url), "utf8");
+  const start = source.indexOf("const guard = async () => {"),
+    end = source.indexOf("\n    await guard();", start);
+  assert(start > 0 && end > start);
+  let clock = 59000,
+    keys = 0;
+  const controls: number[] = [];
+  const guard = runInNewContext(stripTypeScriptTypes(source.slice(start, end)) + "\nguard", {
+    active: () => {
+      if (clock >= 115000) throw new Error("original job exhausted");
+    },
+    verifiedControllerToolPaths: async () => {},
+    requireRetainedSigningContext: async () => {},
+    requireRetainedTufRoleArtifact: async () => {},
+    toolsReceipt: {},
+    contextReceipt: {},
+    capturedDependencies: [],
+    directory: "inert",
+    coordinator: {},
+    deadline: 115000,
+    readRemoteCoordinatorSnapshot: async () => {
+      clock = 61000;
+      return {};
+    },
+    reservation: async () => {},
+    fresh: async () => {
+      controls.push(clock);
+      if (clock >= 60000) throw new Error("original controls expired");
+    },
+  }) as () => Promise<void>;
+  await assert.rejects(
+    (async () => {
+      await guard();
+      keys++;
+    })(),
+    /original controls expired/,
+  );
+  assert.deepEqual(controls, [61000]);
+  assert.equal(keys, 0);
+});

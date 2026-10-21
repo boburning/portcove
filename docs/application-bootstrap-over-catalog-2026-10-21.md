@@ -76,3 +76,29 @@ error-message expectation mismatch; the next found the inert app fixture lacked
 its required timestamp. Those fixtures were corrected without weakening assertions.
 Initial lint also caught a no-longer-used local and later missing recovery locals;
 the final checked source includes those repairs. No production timeout was changed.
+
+## Follow-on pending and final-control repair
+
+The existing metadata upload controller, like the catalog controller, must bind
+its post-pending boundary before invoking the context getter. The new named
+binder consumes only the actual executor's callback-lifetime private pending
+receipt, validates the original checkpoint, exact metadata descriptor/destination,
+empty effects, and pending outcome, then rechecks the actual snapshot and executor.
+The effect's later bind is idempotent only for the same executor object, checkpoint
+and operation ID. Imported or expired callback receipts remain refused.
+
+Metadata context and TUF controller guards now perform their final maintenance
+check after slow state/custody reads. The shared isolated signer retains the first
+pre-key guard and all subsequent input/tool/dependency tamper checks, then repeats
+the appointed guard and original deadline check immediately before key material.
+No role, budget, retry count, clock lifetime or acceptance authority is expanded.
+
+The follow-on three suites passed 28 checks with one unchanged optional Rust-tool
+skip; seven changed TypeScript files passed type-aware lint. The pending regression
+uses the actual maintained capacity operation and a disposable bare Git journal,
+with actual callback/binder/private-guard source in an inert VM. Its VM receipts
+are not hosted authentication. Clock regressions exercise 59→61 seconds and an
+original signer deadline crossing, requiring zero key access. Earlier fixture
+feedback included a string-literal syntax error, stale declared publication time,
+and a missing VM structuredClone builtin; these were repaired before the passing
+candidate. An unnecessary test assertion was removed after type-aware feedback.

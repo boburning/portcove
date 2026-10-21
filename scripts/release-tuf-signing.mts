@@ -272,6 +272,10 @@ async function signIsolatedMetadataRole<Role extends TufSigningRole | CatalogSig
       if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
         throw new Error("TUF staged dependency changed before key release");
     }
+    // Full custody reads above may consume the current controls lifetime. The
+    // appointed guard must be fresh again immediately before exposing the key.
+    await beforeKey();
+    remaining(deadline);
     phase = "single-role-key";
     secret = await keyMaterial();
     if (!Buffer.isBuffer(secret) || secret.length < 1 || secret.length > 32768)

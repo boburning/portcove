@@ -6,6 +6,7 @@ import {
   prepareCoordinatorSigningContext,
   requireCoordinatorSigningContext,
   bindCoordinatorSigningContextPending,
+  bindCoordinatorSigningContextBoundary,
 } from "./release-metadata-signing-context.mts";
 import {
   prepareMetadataSigningContextArtifact,
@@ -99,9 +100,11 @@ export async function completeCoordinatorSigningContext(
             destination: `github-actions:boburning/portcove:metadata-${current.mode}-context`,
           },
         },
-        async () =>
-          (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source.capacity
-            .boundary,
+        async (pending) => {
+          if (pending) await bindCoordinatorSigningContextBoundary(receipt, executor, pending);
+          return (await requireCoordinatorSigningContext(receipt, deadline)).capacity_source
+            .capacity.boundary;
+        },
         async (pending) => {
           await bindCoordinatorSigningContextPending(receipt, executor, pending);
           phase = "fixed-public-context-upload";
