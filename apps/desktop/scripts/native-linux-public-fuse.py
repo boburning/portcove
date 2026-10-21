@@ -46,10 +46,19 @@ def decode(data):
 def inspect_policy(raw):
     require(
         isinstance(raw, dict)
-        and set(raw) == {"schema_version", "nonce", "uid", "gid", "packages", "deadline_utc", "python_sha256"}
-        and raw["schema_version"] == 1,
+        and raw.get("schema_version") in (1, 2)
+        and set(raw)
+        == (
+            {"schema_version", "nonce", "uid", "gid", "packages", "deadline_utc", "python_sha256"}
+            | ({"mount_limit"} if raw["schema_version"] == 2 else set())
+        ),
         "FUSE policy fields differ",
     )
+    if raw["schema_version"] == 2:
+        require(
+            type(raw["mount_limit"]) is int and 1 <= raw["mount_limit"] <= MOUNT_LIMIT,
+            "FUSE remaining mount budget differs",
+        )
     require(isinstance(raw["nonce"], str) and SHA.fullmatch(raw["nonce"]), "FUSE policy nonce differs")
     require(
         isinstance(raw["python_sha256"], str) and SHA.fullmatch(raw["python_sha256"]), "FUSE Python identity differs"
@@ -501,7 +510,9 @@ class NativeFuseBroker:
                 os.close(held)
             return
         require(
-            not self.stopping and target not in self.attempted and len(self.attempted) < MOUNT_LIMIT,
+            not self.stopping
+            and target not in self.attempted
+            and len(self.attempted) < self.policy.get("mount_limit", MOUNT_LIMIT),
             "FUSE mount attempt cannot repeat or start during settlement",
         )
         require(len(self.mounts) < 2, "FUSE concurrent mount limit reached")

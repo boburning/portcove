@@ -28,6 +28,77 @@ import { parseNamespacePacket, type NamespaceEvent } from "./desktop-linux-nativ
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 const fixedInit = fileURLToPath(new URL("./native-linux-isolated-init.py", import.meta.url));
 
+/** Conservative invocation-wide opaque wire limits, including framing overhead.
+ * A pure resource counter cannot appoint an invocation or native authority. */
+export function createNativePublicJourneyBudget() {
+  let mounts = 0,
+    sessions = 0,
+    opens = 0,
+    uploaded = 0,
+    downloaded = 0,
+    refused = false;
+  const snapshot = () =>
+    Object.freeze({
+      sessions,
+      mounts,
+      opens,
+      uploaded_wire_bytes: uploaded,
+      downloaded_wire_bytes: downloaded,
+    });
+  return {
+    start() {
+      assert.ok(!refused && sessions < 6, "public invocation namespace budget exhausted");
+      sessions++;
+    },
+    remainingMounts() {
+      assert.ok(!refused && mounts < 8, "public invocation FUSE mount budget exhausted");
+      return 8 - mounts;
+    },
+    chargeMount() {
+      assert.ok(!refused && mounts < 8, "public invocation FUSE mount budget exhausted");
+      mounts++;
+    },
+    charge(direction: "upload" | "download", bytes: number, newOpens = 0) {
+      assert.ok(!refused);
+      assert.ok(
+        Number.isSafeInteger(bytes) &&
+          bytes >= 0 &&
+          Number.isSafeInteger(newOpens) &&
+          newOpens >= 0,
+      );
+      if (direction === "upload") uploaded += bytes;
+      else downloaded += bytes;
+      opens += newOpens;
+      if (uploaded > 16 * 1024 * 1024 || downloaded > 1024 * 1024 * 1024 || opens > 64) {
+        refused = true;
+        throw new Error("original public invocation relay budget exhausted");
+      }
+    },
+    snapshot,
+  };
+}
+const publicBudgets = new Map<
+  string,
+  { identity: string; budget: ReturnType<typeof createNativePublicJourneyBudget> }
+>();
+function claimPublicBudget(binding: ReturnType<typeof inspectPublicNativeLinuxBinding>) {
+  const key = binding.session.invocation_id,
+    identity = createHash("sha256").update(JSON.stringify(binding)).digest("hex");
+  let retained = publicBudgets.get(key);
+  if (!retained) {
+    assert.equal(publicBudgets.size, 0, "a fixed guest driver owns one public invocation only");
+    retained = { identity, budget: createNativePublicJourneyBudget() };
+    publicBudgets.set(key, retained);
+  }
+  assert.equal(
+    retained.identity,
+    identity,
+    "public invocation inputs changed across namespace reopen",
+  );
+  retained.budget.start();
+  return retained.budget;
+}
+
 /** Raw group streams, not per-descendant output attribution or acceptance. */
 export function createNativeNamespaceStreamCapture(directory: string, id: string) {
   assert.match(id, /^namespace-[a-f0-9]{32}$/u);
@@ -166,6 +237,7 @@ async function launchFixedLinuxNativeSession(
   publicBinding?: ReturnType<typeof inspectPublicNativeLinuxBinding>,
 ) {
   assert.equal(process.platform, "linux");
+  const publicBudget = publicBinding ? claimPublicBudget(publicBinding) : undefined;
   const binding = inspectIsolatedNativeLinuxBinding(raw);
   const home = publicBinding?.state ?? binding.home;
   assert.equal(process.getuid?.(), binding.account.uid);
@@ -295,7 +367,8 @@ async function launchFixedLinuxNativeSession(
   if (publicBinding) {
     const policies = {
       fuse: {
-        schema_version: 1,
+        schema_version: 2,
+        mount_limit: publicBudget!.remainingMounts(),
         nonce: binding.invocation_id,
         uid: binding.account.uid,
         gid: binding.account.gid,
@@ -503,6 +576,12 @@ async function launchFixedLinuxNativeSession(
           assert.ok(
             receipt.public_events.length < 64 && Buffer.byteLength(JSON.stringify(packet)) <= 8192,
           );
+          if (
+            packet.kind === "native-private-fuse" &&
+            packet.action === "mount" &&
+            packet.stage === "intent"
+          )
+            publicBudget!.chargeMount();
           receipt.public_events.push(structuredClone(packet));
           if (packet.kind === "public-services-stopped") stopPublicRelay();
           continue;
@@ -561,6 +640,34 @@ async function launchFixedLinuxNativeSession(
       control.end(Buffer.from([0]));
     };
     control.on("error", refuse);
+    let uploadFrames = Buffer.alloc(0);
+    output.on("data", (chunk: Buffer) => {
+      try {
+        assert.ok(publicBudget);
+        uploadFrames = Buffer.concat([uploadFrames, chunk]);
+        let opens = 0;
+        for (let end = uploadFrames.indexOf(10); end >= 0; end = uploadFrames.indexOf(10)) {
+          assert.ok(end <= 100000);
+          const frame: unknown = JSON.parse(
+            new TextDecoder("utf-8", { fatal: true }).decode(uploadFrames.subarray(0, end)),
+          );
+          assert.ok(isRecord(frame));
+          if (frame.kind === "open") opens++;
+          uploadFrames = uploadFrames.subarray(end + 1);
+        }
+        assert.ok(uploadFrames.length <= 100000);
+        publicBudget.charge("upload", chunk.length, opens);
+      } catch (error) {
+        refuse(error);
+      }
+    });
+    relay.stdout.on("data", (chunk: Buffer) => {
+      try {
+        publicBudget!.charge("download", chunk.length);
+      } catch (error) {
+        refuse(error);
+      }
+    });
     output.pipe(relay.stdin);
     relay.stdout.pipe(input);
     for (const stream of [output, input, relay.stdin, relay.stdout]) stream.on("error", refuse);
@@ -613,7 +720,13 @@ async function launchFixedLinuxNativeSession(
         Number.isInteger(receipt.exit.code),
     );
     await recheck();
-    return { ...receipt, ready: receipt.ready, exit: receipt.exit, quiesced: true as const };
+    return {
+      ...receipt,
+      ready: receipt.ready,
+      exit: receipt.exit,
+      quiesced: true as const,
+      public_budget: publicBudget?.snapshot(),
+    };
   };
   let stopping: ReturnType<typeof custody> | undefined;
   return {

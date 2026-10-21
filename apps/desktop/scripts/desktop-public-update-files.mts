@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, rename } from "node:fs/promises";
+import { lstat, mkdir, open, rename, writeFile } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { errorCode } from "../../../scripts/runtime-values.mts";
@@ -227,4 +227,152 @@ export async function readPublicUpdateFile(file: string, maximumBytes = 512 * 10
   } finally {
     await handle.close();
   }
+}
+
+const preimageStores = new WeakMap<
+  object,
+  {
+    directory: string;
+    bytes: number;
+    entries: Map<string, { bytes: number; path: string }>;
+    observations: number;
+  }
+>();
+/** Fixed 192MiB of the existing 256MiB export envelope. This is retained byte
+ * custody only; the caller must positively settle candidate writers first. */
+export async function createPublicUpdatePreimageStore(directory: string) {
+  await directoryAncestry(path.dirname(directory));
+  await mkdir(directory, { mode: 0o700 });
+  const receipt = Object.freeze({ authority: "none" as const });
+  preimageStores.set(receipt, { directory, bytes: 0, entries: new Map(), observations: 0 });
+  return receipt;
+}
+async function rawStoreBytes(filename: string, limit: number, deadline: number) {
+  assert.ok(performance.now() < deadline);
+  const before = await regular(filename, limit),
+    handle = await open(filename, "r");
+  try {
+    const opened = await handle.stat();
+    assert.equal(opened.dev, before.dev);
+    assert.equal(opened.ino, before.ino);
+    const buffer = Buffer.alloc(before.size + 1);
+    let bytes = 0;
+    while (bytes < buffer.length) {
+      assert.ok(performance.now() < deadline);
+      const result = await handle.read(buffer, bytes, Math.min(65536, buffer.length - bytes), null);
+      if (!result.bytesRead) break;
+      bytes += result.bytesRead;
+    }
+    assert.equal(bytes, before.size, "Raw retained preimage grew during observation");
+    const current = await regular(filename, limit),
+      retained = await handle.stat();
+    for (const value of [current, retained])
+      for (const field of ["dev", "ino", "size", "mtimeMs", "ctimeMs", "nlink"] as const)
+        assert.equal(value[field], before[field]);
+    return buffer.subarray(0, bytes);
+  } finally {
+    await handle.close();
+  }
+}
+/** Re-reads every actual raw preimage and rehashes any reused retained bytes.
+ * Equal bytes share storage; observations and fault-byte preimages remain exact. */
+export async function retainDeduplicatedPublicUpdatePreimages(
+  runtime: string,
+  output: string,
+  storeReceipt: object,
+  deadline: number,
+) {
+  const store = preimageStores.get(storeReceipt);
+  assert.ok(store, "Original private preimage store required");
+  assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
+  assert.ok(store.observations < 10, "Public preimage observation count exhausted");
+  store.observations++;
+  await directoryAncestry(runtime);
+  await mkdir(output, { mode: 0o700 });
+  const files = [];
+  for (const [name, limit] of fixedStateFiles) {
+    const source = path.join(runtime, name);
+    const before = await regular(source, Math.min(limit, 192 * 1024 * 1024)).catch(
+      (error: unknown) => {
+        if (errorCode(error) !== "ENOENT") throw error;
+        return null;
+      },
+    );
+    if (!before) {
+      files.push({ path: name, absent: true });
+      continue;
+    }
+    const handle = await open(source, "r");
+    const chunks: { bytes: number; sha256: string; retained: string }[] = [];
+    const fullHash = createHash("sha256");
+    let total = 0;
+    try {
+      const opened = await handle.stat();
+      assert.equal(opened.dev, before.dev);
+      assert.equal(opened.ino, before.ino);
+      while (total < before.size) {
+        assert.ok(performance.now() < deadline);
+        const bytes = Buffer.alloc(Math.min(1024 * 1024, before.size - total));
+        let count = 0;
+        while (count < bytes.length) {
+          assert.ok(performance.now() < deadline);
+          const read = await handle.read(bytes, count, bytes.length - count, null);
+          assert.ok(read.bytesRead > 0, "Raw preimage shrank during observation");
+          count += read.bytesRead;
+        }
+        total += count;
+        fullHash.update(bytes);
+        const sha256 = createHash("sha256").update(bytes).digest("hex");
+        let entry: { bytes: number; path: string } | undefined = store.entries.get(sha256);
+        if (entry) {
+          assert.equal(entry.bytes, bytes.length);
+          const retained = await rawStoreBytes(entry.path, entry.bytes, deadline);
+          assert.ok(retained.equals(bytes), "Previously retained preimage bytes changed");
+        } else {
+          assert.ok(
+            store.entries.size < 384 && store.bytes + bytes.length <= 192 * 1024 * 1024,
+            "Original trusted preimage storage bound exhausted",
+          );
+          store.bytes += bytes.length; // Failed writes remain charged and retained.
+          const destination = path.join(store.directory, `${sha256}.bin`);
+          await writeFile(destination, bytes, { flag: "wx", mode: 0o600 });
+          const retained = await rawStoreBytes(destination, bytes.length, deadline);
+          assert.ok(retained.equals(bytes));
+          entry = { bytes: bytes.length, path: destination };
+          store.entries.set(sha256, entry);
+        }
+        chunks.push({
+          bytes: bytes.length,
+          sha256,
+          retained: path.relative(output, entry.path).split(path.sep).join("/"),
+        });
+      }
+      assert.equal(
+        (await handle.read(Buffer.alloc(1))).bytesRead,
+        0,
+        "Raw preimage grew during observation",
+      );
+      const current = await regular(source, limit),
+        retained = await handle.stat();
+      for (const value of [current, retained])
+        for (const field of ["dev", "ino", "size", "mtimeMs", "ctimeMs", "nlink"] as const)
+          assert.equal(value[field], before[field]);
+      assert.equal(total, before.size);
+      files.push({ path: name, bytes: total, sha256: fullHash.digest("hex"), chunks });
+    } finally {
+      await handle.close();
+    }
+  }
+  const result = {
+    schema_version: 1,
+    files,
+    retained_bytes: store.bytes,
+    authority: "none" as const,
+    scope: "raw preimages with reverified identical-byte storage reuse",
+  };
+  await writeFile(path.join(output, "preimages.json"), JSON.stringify(result) + "\n", {
+    flag: "wx",
+    mode: 0o600,
+  });
+  return result;
 }

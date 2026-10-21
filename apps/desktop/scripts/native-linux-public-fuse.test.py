@@ -35,6 +35,44 @@ def policy():
 
 
 class FusePolicy(unittest.TestCase):
+    def test_remaining_invocation_mount_budget_can_only_lower_original_ceiling(self):
+        selected = {**policy(), "schema_version": 2, "mount_limit": 3}
+        self.assertEqual(fuse.inspect_policy(selected)["mount_limit"], 3)
+        for limit in (0, 9, True, 1.5, "3"):
+            with self.subTest(limit=limit), self.assertRaises(RuntimeError):
+                fuse.inspect_policy({**selected, "mount_limit": limit})
+        with self.assertRaises(RuntimeError):
+            fuse.inspect_policy({**policy(), "mount_limit": 3})
+
+    def test_reopen_budget_refuses_an_extra_mount_before_any_kernel_effect(self):
+        raw = {**policy(), "schema_version": 2, "mount_limit": 1}
+        broker = object.__new__(fuse.NativeFuseBroker)
+        broker.policy, broker.deadline = raw, time.monotonic() + 30
+        broker.mounts, broker.attempted = {}, {"/tmp/.mount_original"}
+        broker.refused = broker.stopping = False
+        broker.devices, broker.owned_devices = [7], {7}
+        broker.emit = Mock()
+        peer = {"pid": 99, "parent_pid": 2, "creation_ticks": "100", "package": raw["packages"][0]}
+        channel = Mock()
+        channel.recvmsg.return_value = (
+            fuse.json.dumps(
+                {"schema_version": 1, "argv": ["-o", "ro,fsname=" + fuse.ACTIVE, "--", "/tmp/.mount_next"]}
+            ).encode(),
+            [],
+            0,
+            None,
+        )
+        with (
+            patch.object(fuse, "inspect_peer", return_value=peer),
+            patch.object(fuse, "read_process_identity", return_value=peer),
+            patch.object(fuse, "assert_broker_boundary"),
+            patch.object(fuse.ctypes, "CDLL") as syscall,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cannot repeat"):
+                broker.handle(channel)
+            syscall.assert_not_called()
+            broker.emit.assert_not_called()
+
     def test_fixed_mount_options_have_no_caller_kernel_or_privilege_flags(self):
         original = [
             "-o",
