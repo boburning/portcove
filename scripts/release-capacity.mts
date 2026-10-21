@@ -25,8 +25,8 @@ import {
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "18f22c73457e40a3909d312a6e1a9fba622200dedfbc09571b8ba873a8fecd4c",
-  input_workflow_sha256: "18f22c73457e40a3909d312a6e1a9fba622200dedfbc09571b8ba873a8fecd4c",
+  aggregate_workflow_sha256: "fcc126547aa7f5f3ad615092624e168f8b33a0146f11d308dac14b07f9543fb9",
+  input_workflow_sha256: "fcc126547aa7f5f3ad615092624e168f8b33a0146f11d308dac14b07f9543fb9",
   aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 10, 8, 6, 5]),
   wake_workflow_sha256: "2c0d724bcb34deb0a1662af6dbb374add24acd8906f139517ef1efedccbf2a06",

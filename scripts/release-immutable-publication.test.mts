@@ -38,6 +38,11 @@ void test("bounded immutable writes retain late successful responses as unresolv
     /phase deadline/,
   );
   assert.equal(calls, 1);
+  await assert.rejects(
+    performImmutableReleaseEffect(next.effect, null, "inert", transport, 5000, Date.now() - 1),
+    /risk authorization expired/u,
+  );
+  assert.equal(calls, 1, "expired waiver cannot start another provider mutation");
 });
 
 void test("copied completed releases cannot become owned settlement custody", async (t) => {

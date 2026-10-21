@@ -3,6 +3,9 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 import { gzipSync } from "node:zlib";
+import { readFileSync } from "node:fs";
+import { assessDispatchedBuild706 } from "./linux-beta-risk-706.mts";
+import { isRecord } from "./runtime-values.mts";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { compiledCliTarFixture } from "./fixtures/compiled-cli-fixture.mts";
@@ -208,6 +211,9 @@ async function fixture(t: test.TestContext) {
               ...(Object.hasOwn(item.raw, "desktop_executable")
                 ? { desktop_executable: null }
                 : {}),
+              ...(Object.hasOwn(item.raw, "linux_risk_assessment")
+                ? { linux_risk_assessment: null }
+                : {}),
               invocation: { ...item.raw.invocation, finished_at: null },
             }),
           ),
@@ -399,4 +405,93 @@ void test("missing matrix stays Unknown while changed CLI inner bytes and duplic
   await assert.rejects(f.collect(), /package bytes differ/);
   f.evidence.jobs.push({ ...f.evidence.jobs[0]!, id: 999 });
   await assert.rejects(f.collect(), /job identity missing or ambiguous/);
+});
+
+void test("existing bounded ZIP and attestation path carries same-job raw scanner FAIL without minting a private brand", async (t) => {
+  const f = await fixture(t);
+  const item = f.reports.find(
+    (entry) => entry.raw.platform === "linux-x86_64" && entry.raw.interface === "desktop",
+  )!;
+  const policy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+  const policyHash = hash(Buffer.from(policy.replaceAll("\r\n", "\n")));
+  const counts = { errors: 0, warnings: 0, notes: 0, helps: 0 };
+  const scan = {
+    head: item.raw.source_commit,
+    lockSha256: item.raw.tools.find((tool) => tool.role === "rust-lock")!.sha256,
+    completedAt: item.raw.invocation.finished_at,
+    complete: true,
+    signal: null,
+    error: null,
+    exitCode: 1,
+    unsoundAll: true,
+    scope: "workspace-default-all-targets-all-checks",
+    toolVersion: "cargo-deny 0.20.2",
+    sourceConfig: policy,
+    executionConfig: policy,
+    configSha256: policyHash,
+    sourceConfigSha256: policyHash,
+    stdout: "",
+    stderr: [
+      {
+        type: "diagnostic",
+        fields: {
+          severity: "error",
+          code: "unsound",
+          advisory: { id: "RUSTSEC-2024-0429", package: "glib" },
+          labels: [{ span: "glib 0.18.5 registry+https://github.com/rust-lang/crates.io-index" }],
+        },
+      },
+      {
+        type: "summary",
+        fields: {
+          advisories: { ...counts, errors: 1 },
+          bans: counts,
+          licenses: counts,
+          sources: counts,
+        },
+      },
+    ]
+      .map((row) => JSON.stringify(row))
+      .join("\n"),
+  };
+  const candidate = {
+    head: scan.head,
+    lockSha256: scan.lockSha256,
+    target: "x86_64-unknown-linux-gnu",
+    features: ["default", "tauri/custom-protocol"],
+    productionChanges: "genuine reviewed native change",
+    native: [
+      { id: "glib@0.18.5:registry+https://github.com/rust-lang/crates.io-index", features: [] },
+    ],
+    sourceNativeInputsSha256: "a".repeat(64),
+  };
+  const assessment = assessDispatchedBuild706({ candidate, scan, policy, now: scan.completedAt });
+  Object.assign(item.raw, { linux_risk_assessment: { candidate, scan, assessment } });
+  f.refresh();
+  // Measure the actual fixture reports sent through the unchanged ZIP parser;
+  // the new scanner tuple has no independent archive/member allowance.
+  const resultBytes = Buffer.byteLength(JSON.stringify(item.raw));
+  assert.ok(resultBytes < 128 * 1024);
+  t.diagnostic(
+    `same-job scanner result JSON ${resultBytes} bytes; unchanged complete expanded cap 524288 bytes`,
+  );
+  const received = await f.collect();
+  assert.equal(received.evidence_scope, "injected-provider");
+  const validated = inspectReleaseCompilerReport(item.raw, item.expected).linux_risk_assessment;
+  assert.ok(validated && isRecord(validated.assessment));
+  assert.equal(validated.assessment.scanPassed, false);
+  await assert.rejects(requireVerifiedReleaseCompilerEvidence(received), /actual same-process/u);
+  const changed = structuredClone(item.raw);
+  Object.assign(changed, {
+    linux_risk_assessment: { candidate, scan: { ...scan, lockSha256: "f".repeat(64) }, assessment },
+  });
+  assert.throws(() => inspectReleaseCompilerReport(changed, item.expected), /producing-job/u);
+  Object.assign(changed, {
+    linux_risk_assessment: {
+      candidate,
+      scan: { ...scan, completedAt: "2026-10-20T00:30:00Z" },
+      assessment,
+    },
+  });
+  assert.throws(() => inspectReleaseCompilerReport(changed, item.expected), /producing-job/u);
 });

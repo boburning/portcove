@@ -20,6 +20,7 @@ export const controllerToolEntries = Object.freeze([
   "release-controller-job",
 ] as const);
 export const controllerToolAssets = Object.freeze([
+  "deny.toml",
   ".github/workflows/application-update-production.yml",
   ".github/workflows/release.yml",
   ".github/repository-ruleset.json",

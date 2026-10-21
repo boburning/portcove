@@ -190,6 +190,23 @@ const acquiredSbomReceipts = new WeakMap<object, object>();
 const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
 const acquiredCoordinatorRepositories = new WeakMap<object, string>();
 const acquiredPublicInputReceipts = new WeakMap<object, object>();
+const acquiredCompilerReceipts = new WeakMap<object, object>();
+const actualRiskCompilerReceipts = new WeakMap<object, object>();
+
+/** Retain the original scanner subject through actual fixed admission. It is
+ * evidence custody only, never a replacement for owner risk authorization. */
+export async function requireActualAdmissionCompilerReceipt706(raw: object) {
+  if (actualPublicationCompletionContexts.has(raw)) requireActualPublicationControllerContext(raw);
+  else {
+    const retained = actualAdmissionContexts.get(raw);
+    if (!retained) throw new Error("actual fixed admission required for Linux risk assessment");
+    requireActualReleaseAdmissionContext(raw, retained.context.stage);
+  }
+  const receipt = actualRiskCompilerReceipts.get(raw);
+  if (!receipt) throw new Error("actual compiler scanner subject missing from admission");
+  await requireVerifiedReleaseCompilerEvidence(receipt);
+  return receipt;
+}
 /** Same-process authority continuation only. Serialization, imported snapshots,
  * fixture source brands and an assembly artifact cannot mint this context. Each
  * protected consumer must still perform its own fresh controls/reservation check. */
@@ -1066,6 +1083,11 @@ export async function acquireReleaseAdmission(
     if (result.evidence_scope === "github.com" && sbomEvidence.state === "verified-document") {
       await requireVerifiedReleaseSbomDocument(sbomEvidence);
       acquiredSbomReceipts.set(result, sbomEvidence);
+      if (
+        compilerEvidence?.state === "verified-compiler-output-bindings" &&
+        compilerEvidence.evidence_scope === "github.com"
+      )
+        acquiredCompilerReceipts.set(result, compilerEvidence);
       if (publicBuildInputs) {
         await requireVerifiedReleasePublicBuildInputs(publicBuildInputs);
         acquiredPublicInputReceipts.set(result, publicBuildInputs);
@@ -1303,6 +1325,8 @@ async function performAdmissionHandshake(
     if (publicationCompletion && candidate?.phase === "promoting")
       actualPublicationCompletionContexts.set(context, context);
     else actualAdmissionContexts.set(context, { context, phase });
+    const compilerReceipt = acquiredCompilerReceipts.get(admission);
+    if (compilerReceipt) actualRiskCompilerReceipts.set(context, compilerReceipt);
     await onAdmitted!(context);
   }
   return admission;

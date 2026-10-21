@@ -5,6 +5,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const hash = (text: string | Uint8Array) =>
@@ -13,13 +17,15 @@ const hash = (text: string | Uint8Array) =>
     .digest("hex");
 const canonicalText = (value: string) => value.replaceAll("\r\n", "\n");
 function scanCommand(name: string, args: string[], cwd: string) {
-  return execFileSync(name, args, {
+  const result = execFileSync(name, args, {
     cwd,
     encoding: "utf8",
-    timeout: 120_000,
+    timeout: coordinatorCommandTimeout(120_000),
     maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
   }).trim();
+  checkCoordinatorDeadline();
+  return result;
 }
 
 const groups = ["advisories", "bans", "licenses", "sources"] as const;
@@ -50,7 +56,7 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
       cwd,
       encoding: "utf8",
       windowsHide: true,
-      timeout: 120_000,
+      timeout: coordinatorCommandTimeout(120_000),
       maxBuffer: 32 * 1024 * 1024,
     },
   );
@@ -79,6 +85,16 @@ export function scanDependencies(cwd = root, filename = process.env.PORTCOVE_706
   process.stdout.write(scan.stdout);
   process.stderr.write(scan.stderr);
   console.log(`[dependency-policy] original cargo-deny exit ${scan.exitCode}; evidence ${output}`);
+  checkCoordinatorDeadline();
+  if (
+    scanCommand("git", ["rev-parse", "HEAD"], cwd) !== head ||
+    hash(readFileSync(path.join(cwd, "Cargo.lock"))) !== lockSha256 ||
+    canonicalText(readFileSync(policyPath, "utf8")) !== strictPolicy ||
+    scanCommand("cargo", ["deny", "--version"], cwd) !== toolVersion
+  )
+    throw new Error(
+      "scanner source/lock/policy/tool changed during execution; retain original raw scan",
+    );
   return { scan, output };
 }
 

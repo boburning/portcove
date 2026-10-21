@@ -130,6 +130,7 @@ interface DeploymentSession {
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
+  new_release_tuf?: object;
   bootstrap?: { tuf: object; descriptor_sha256: string; readback_sha256?: string };
   verifier: { path: string; sha256: string };
   release_binding?: { result: object; tools: object; report_sha256: string };
@@ -441,7 +442,7 @@ export async function prepareSiteDeploymentFromActualTufPublication(
   await requireActualTufPublication(publicationReceipt, deadline);
   await requirePublishedCompleteSite(priorSiteReceipt);
   remaining(deadline, 15000);
-  return retainPreparedSiteDeployment(
+  const prepared = await retainPreparedSiteDeployment(
     { ...composed, publication: actual.publication },
     {
       output_parent: outputParent,
@@ -453,6 +454,9 @@ export async function prepareSiteDeploymentFromActualTufPublication(
       deadline,
     },
   );
+  if (prepared.changed && actual.context.manifest.kind === "release-signing-context")
+    sessions.get(prepared.session)!.new_release_tuf = publicationReceipt;
+  return prepared;
 }
 
 async function retainPreparedSiteDeployment(
@@ -716,8 +720,11 @@ export async function publishPreparedSiteDeployment(
   const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
   if (!maintenance && !isRecord(frozen))
     throw new Error("release site requires the existing complete frozen opportunity");
+  let riskExpiresAt: number | undefined;
   const readRelease = async () => {
     if (maintenance) return null;
+    if (riskExpiresAt !== undefined && Date.now() >= riskExpiresAt)
+      throw new Error("new-candidate feed risk authorization expired before publication");
     const binding = prepared.release_binding;
     if (
       !binding ||
@@ -763,6 +770,22 @@ export async function publishPreparedSiteDeployment(
     remaining(prepared.deadline, 15000);
     return result.release;
   };
+  if (!maintenance) {
+    if (!prepared.new_release_tuf || !prepared.release_binding || prepared.deadline === undefined)
+      throw new Error("new-candidate feed requires actual TUF/result risk custody");
+    const risk = await (
+      await import("./linux-beta-risk-706-controller.mts")
+    ).authorizeActualSiteLinuxRisk706(
+      prepared.new_release_tuf,
+      prepared.release_binding.result,
+      currentControls,
+      input.checkpoint,
+      prepared.deadline,
+    );
+    riskExpiresAt = risk.expires_at === null ? undefined : Date.parse(risk.expires_at);
+    if (riskExpiresAt !== undefined && !Number.isFinite(riskExpiresAt))
+      throw new Error("new-candidate feed risk expiry unavailable");
+  }
   await readRelease();
   const api = new GitHubApiClient((args, body) =>
     createGitHubRunner({
@@ -825,6 +848,8 @@ export async function publishPreparedSiteDeployment(
         immutable_release: immutableRelease,
       });
       try {
+        if (riskExpiresAt !== undefined && Date.now() >= riskExpiresAt)
+          throw new Error("new-candidate feed risk authorization expired before sole Pages POST");
         const accepted = await provider.create(
           {
             artifact_id: prepared.upload!.artifact_id,
