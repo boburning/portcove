@@ -244,6 +244,7 @@ export async function inspectActualCatalogPublication(request: {
       }),
       { flag: "wx", mode: 0o600 },
     );
+    remaining(request.deadline);
     return receipt;
   } catch (error) {
     // execFile may have partial output even on timeout/refusal. Retain it without
