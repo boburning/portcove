@@ -7,6 +7,8 @@ import {
 } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
+  admitProductionClassificationWriter,
+  admitProductionClassificationObserver,
   readProductionControllerWorkflowBytes,
   admitReviewedInputsWriter,
   readReviewedInputsWorkflowBytes,
@@ -297,6 +299,28 @@ export function inspectNativePrepublicationAuthorities(raw: unknown) {
   )
     throw new Error("ratified signed package compatibility profile required");
   return authorities;
+}
+
+/** Named complete-controller D1 configuration. The writer and observer still
+ * authenticate distinct actual OIDC jobs before their respective App is used. */
+async function productionClassificationAuthorities(role: "writer" | "observer") {
+  const configuration = process.env.PORTCOVE_RELEASE_AUTHORITIES;
+  if (!configuration || Buffer.byteLength(configuration) > 32 * 1024)
+    throw new Error("protected release authority configuration unavailable");
+  const admit =
+    role === "writer" ? admitProductionClassificationWriter : admitProductionClassificationObserver;
+  const source = admit(
+    process.env.PORTCOVE_CONTROLLER_ADMISSION,
+    process.env,
+    await readProductionControllerWorkflowBytes(),
+  );
+  return inspectBoundControllerAuthorities(configuration, source);
+}
+export function requireProductionClassificationWriterAuthorities() {
+  return productionClassificationAuthorities("writer");
+}
+export function requireProductionClassificationObserverAuthorities() {
+  return productionClassificationAuthorities("observer");
 }
 
 /** Fixed classification writer only. Its separate workflow must be admitted

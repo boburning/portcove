@@ -1,6 +1,9 @@
 import type { CoordinatorRemoteApi } from "./release-coordinator-remote.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
-import { persistReviewedClassification } from "./release-control-inputs.mts";
+import {
+  persistReviewedClassification,
+  readReviewedClassificationForRequest,
+} from "./release-control-inputs.mts";
 import {
   readIndependentSemanticCheckInventory,
   inspectSemanticRequestCheckMatches,
@@ -42,5 +45,38 @@ export function persistReviewedClassificationForRequest(
     request_id: request.request_id,
     review_check_id: accepted.check_run_id,
     inventory_sha256: inventory.inventory_sha256,
+  };
+}
+
+/** Read-only discovery before either D1 App is released. Absence and a negative
+ * disposition are ordinary holds; changed or malformed evidence still refuses.
+ * This output is routing data, never classification or semantic acceptance. */
+export function inspectClassificationRequestReadiness(
+  api: CoordinatorRemoteApi,
+  producer: unknown,
+  rawRequest: unknown,
+) {
+  const request = inspectReleaseReviewRequest(rawRequest);
+  if (!request)
+    return { eligible: false, reason: "no-outstanding-request", authority: "none" } as const;
+  const inventory = readIndependentSemanticCheckInventory(api, producer, request.source_commit);
+  const matches = inspectSemanticRequestCheckMatches(inventory.records, request);
+  const current = readReviewedClassificationForRequest(api, producer, request);
+  inventory.assertUnchanged();
+  const eligible =
+    matches.accepted.length === 1 && matches.negative.length === 0 && current.status === "missing";
+  return {
+    eligible,
+    reason:
+      matches.negative.length > 0
+        ? "negative-or-conflicting-review"
+        : matches.accepted.length !== 1
+          ? "missing-or-ambiguous-review"
+          : current.status === "reviewed"
+            ? "already-persisted"
+            : "unique-independent-acceptance",
+    request_id: request.request_id,
+    inventory_sha256: inventory.inventory_sha256,
+    authority: "none" as const,
   };
 }

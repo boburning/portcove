@@ -9,6 +9,8 @@ import {
   admitProductionController,
   admitReviewedInputsController,
   admitReviewedInputsWriter,
+  admitProductionClassificationWriter,
+  admitProductionClassificationObserver,
 } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
@@ -359,4 +361,32 @@ void test("reviewed inputs source admission pins its own fixed workflow and reje
   );
   assert.throws(() => admitProductionController(raw, env, source));
   assert.throws(() => admitReviewedInputsController(raw, environment, source));
+});
+
+void test("complete controller classification jobs retain separate fixed source and roles", () => {
+  for (const [admit, job] of [
+    [admitProductionClassificationWriter, "classification_writer"],
+    [admitProductionClassificationObserver, "classification_protection_observation"],
+  ] as const) {
+    const env = { ...environment, GITHUB_JOB: job };
+    assert.equal(
+      admit(raw, env, source).workflow,
+      ".github/workflows/application-update-production.yml",
+    );
+    for (const changed of [
+      { GITHUB_JOB: "admission" },
+      {
+        GITHUB_JOB:
+          job === "classification_writer"
+            ? "classification_protection_observation"
+            : "classification_writer",
+      },
+      { GITHUB_RUN_ATTEMPT: "2" },
+      {
+        GITHUB_WORKFLOW_REF: `boburning/portcove/.github/workflows/release-reviewed-inputs.yml@${policy.execution_ref}`,
+      },
+    ])
+      assert.throws(() => admit(raw, { ...env, ...changed }, source));
+    assert.throws(() => admit(raw, env, Buffer.from("changed controller")));
+  }
 });
