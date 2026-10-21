@@ -23,6 +23,7 @@ import {
   controllerCompilerSourceAsset,
 } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { slice4CapacityResources } from "./release-capacity.mts";
 import {
   compilerProducerPaths,
   inspectReleaseCompilerSourceClosure,
@@ -1121,6 +1122,9 @@ void test("installed bootstrap clears inherited GitHub credentials only for comp
   assert.ok(isRecord(binding[0]) && isRecord(binding[0].env));
   assert.equal(binding[0].env.GH_TOKEN, "${{ github.token }}");
   assert.equal(document.getIn(["jobs", "tool_bootstrap", "timeout-minutes"]), 4);
+  const workflowSha = createHash("sha256").update(text).digest("hex");
+  assert.equal(slice4CapacityResources.aggregate_workflow_sha256, workflowSha);
+  assert.equal(slice4CapacityResources.input_workflow_sha256, workflowSha);
   assert.equal(
     await readFile(
       new URL("../docs/qualification/application-update-production.complete.yml", import.meta.url),
