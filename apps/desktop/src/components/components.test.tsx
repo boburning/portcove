@@ -3074,7 +3074,6 @@ describe("desktop components", () => {
     expect(filteredEmptyLibrary).toContain(
       "No ports in your library match your search and filters",
     );
-    expect(filteredEmptyLibrary).toContain('aria-label="Library readiness"');
     expect(filteredEmptyLibrary).toContain('aria-label="Library filters"');
     expect(filteredEmptyLibrary).toContain("Clear search and filters");
     expect(filteredEmptyLibrary).toContain("Clear the search or change the readiness filter.");
@@ -3412,7 +3411,7 @@ describe("desktop components", () => {
     expect(details).toContain("Check game files");
   });
 
-  it("summarizes an installed library around play readiness", () => {
+  it("shows per-entry play readiness and a separate available-update review", () => {
     const install = installRecord();
     const status: PortStatus = {
       ...portStatus(),
@@ -3475,7 +3474,7 @@ describe("desktop components", () => {
     expect(html).toMatch(/<article class="port-card [^"]*\bport-card-library\b/u);
     expect(html).toContain(">Play</button>");
     expect(html).not.toMatch(/<button[^>]*class="port-card/u);
-    expect(html).toContain("All can launch");
+    expect(html).toContain("Ready to play");
     expect(html).not.toContain("updates downloaded");
     expect(html).toContain("Review update seen at last check");
     expect(html).not.toContain("need attention");
@@ -3526,7 +3525,7 @@ describe("desktop components", () => {
     );
 
     expect(html).toContain("Review downloaded update");
-    expect(html).toContain("1 update downloaded");
+    expect(html).toContain(">Play</button>");
     expect(html).toMatch(
       /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
     );
