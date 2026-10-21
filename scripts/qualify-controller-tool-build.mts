@@ -225,6 +225,14 @@ async function main() {
       process.stderr.write(connected.stdout);
       throw new Error("connected disposable release fixture refused");
     }
+    phase = "cold-build-budget";
+    // The held production job retains its four-minute ceiling. Reserve thirty
+    // seconds for checkout/dependency setup/upload; this measured build is not
+    // a guarantee of later operation availability or full-job completion.
+    assert.ok(
+      buildMilliseconds <= 210000,
+      "cold fixed tool build exceeds its preparation allowance",
+    );
     phase = "complete";
     await record("result.json", {
       schema_version: 1,
@@ -234,6 +242,8 @@ async function main() {
       built_directory: builtDirectory,
       build_work: buildWork,
       build_milliseconds: buildMilliseconds,
+      build_allowance_milliseconds: 210000,
+      build_profile: "controller-tools",
       tool_expanded_bytes: built.manifest.files.reduce((total, file) => total + file.bytes, 0),
       core_cli_bytes: built.manifest.files.find((file) => file.path === "bin/portcove")!.bytes,
       core_cli_smoke:

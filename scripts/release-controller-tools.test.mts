@@ -639,13 +639,17 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.deepEqual(JSON.parse(argumentsSource), [
     "build",
     "--locked",
-    "--release",
+    "--profile",
+    "controller-tools",
     "-p",
     "portcove-release-tools",
     "-p",
     "portcove-cli",
   ]);
-  assert.match(buildSource, /\["portcove", path\.join\(target, "release", "portcove"\)\]/u);
+  assert.match(
+    buildSource,
+    /\["portcove", path\.join\(target, "controller-tools", "portcove"\)\]/u,
+  );
 });
 void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
   const make = (patch: Record<string, unknown> = {}) =>
