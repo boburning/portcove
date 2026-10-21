@@ -826,7 +826,8 @@ async function keyClientWorker(root: string, phase: Phase, slot: number, deadlin
       slot,
       role: event.name,
     });
-    const { supplyIsolatedRoleKey } = await import("./release-role-key-channel.mts");
+    const { supplyIsolatedRoleKey, isolatedRoleKeyEnvironment } =
+      await import("./release-role-key-channel.mts");
     await supplyIsolatedRoleKey(
       event.directory,
       event.name as import("./release-role-key-channel.mts").IsolatedSigningRole,
@@ -835,7 +836,7 @@ async function keyClientWorker(root: string, phase: Phase, slot: number, deadlin
             TAURI_SIGNING_PRIVATE_KEY: process.env.PORTCOVE_ROLE_KEY,
             TAURI_SIGNING_PRIVATE_KEY_PASSWORD: process.env.PORTCOVE_ROLE_PASSWORD,
           }
-        : { [`PORTCOVE_TUF_${event.name.toUpperCase()}_KEY`]: process.env.PORTCOVE_ROLE_KEY },
+        : { [isolatedRoleKeyEnvironment(event.name)]: process.env.PORTCOVE_ROLE_KEY },
       deadline,
     );
     active(deadline);
