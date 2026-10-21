@@ -107,6 +107,7 @@ interface WindowsUpdateReport extends InstalledUpdateFailure {
   embedded_listener?: EmbeddedSession["listener"];
   embedded_startup?: EmbeddedSession["startup"];
   staged?: Awaited<ReturnType<typeof verifyInstalledUpdateStaging>>;
+  ordinary_staging?: Awaited<ReturnType<typeof driveInstalledUpdateToRestart>>;
   native_processes_before_restart?: NativeProcessSnapshot;
   bootstrap_before_restart?: unknown;
   restart_action_attempted?: boolean;
@@ -321,7 +322,11 @@ try {
     await awaitInstalledUpdateDriver(driver);
     browser = await connectInstalledUpdateDriver(app, webviewProfile);
   }
-  await driveInstalledUpdateToRestart(browser, report.actions);
+  report.ordinary_staging = await driveInstalledUpdateToRestart(
+    browser,
+    report.actions,
+    candidateVersion,
+  );
   const staged = await verifyInstalledUpdateStaging({
     stagingRoot: staging,
     payloadName: "candidate-installer.exe",

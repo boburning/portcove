@@ -521,23 +521,28 @@ Pages/feed permissions remain disabled pending #534. The checked-in fixture test
 are nonproduction evidence, not proof that a subscription task or production
 credential path is active.
 
-### Inactive fixed-controller source admission
+### Configuration-held fixed-controller source admission
 
-`.github/workflows/application-update-production.yml` currently performs only
-source admission. It has no candidate input, schedule, reusable caller, production
-environment, credential, cache, dependency installation, signing or publication
-step. Its only token permission is `contents:read`. Missing configuration refuses
-before checkout. This workflow does not execute the planner or its plans.
+`.github/workflows/application-update-production.yml` contains the complete fixed
+controller. Its secret-free admission job starts only with the existing admission
+configuration and exact configured revision/ref; every downstream role retains its
+own authenticated admission. The separate automatic wake starts only with its
+existing wake configuration. Neither source installation activates these settings,
+credentials, protected environments, signing or publication. See the
+[current controller integration](qualification/slice4-complete-controller-integration-2026-10-21.md).
 
-The prospective operator configuration consists of three **public identity**
+The source-admission bootstrap uses three **public identity**
 variables: `PORTCOVE_CONTROLLER_REVISION`, `PORTCOVE_CONTROLLER_REF`, and
 `PORTCOVE_CONTROLLER_ADMISSION`. None is configured or authorized by this change.
 The first two bind an exact commit and a protected tag in the
 `refs/tags/portcove-production-controller-` namespace. No particular production
 tag or principal is selected here; the exhausted disposable canary is excluded.
-The JSON policy has exactly `schema_version:1`, `mode:"admission-only"`,
-`execution_ref`, `revision`, `workflow_sha256`, and string `actor_id`. Its ref and
-revision must match those bootstrap variables. The digest is SHA-256 of the
+The complete-controller JSON policy has exactly `schema_version:2`,
+`mode:"bounded-application-release"`, `execution_ref`, `revision`,
+`workflow_sha256`, string `actor_id`, `authority_configuration_sha256` and
+`grant_sha256`. Historical schema-1 admission-only records cannot authorize the
+complete role operations. Its ref and revision must match the bootstrap variables.
+The workflow digest is SHA-256 of the
 reviewed workflow's raw bytes. Policy must come from separately ratified operator
 configuration, never candidate data or a dispatch input.
 
@@ -557,13 +562,11 @@ Contract fixtures execute bootstrap refusal paths and the CLI without installed
 dependencies. They establish source admission only. `GITHUB_REF_PROTECTED=true`
 does not prove immutable tag rules, absence of bypass actors or production secret
 isolation. Actual platform enforcement must be independently provisioned and
-proven before any secret-bearing job is added. This change activates no dispatch,
-environment, variable, credential, protected tag, signing or publication.
-Trusted live inventory/check acquisition, producer job/attempt/artifact binding,
-candidate-runner/cache isolation, protected durable coordination, role operations,
-custody and real Windows/Linux public recovery proof remain under #534. The
-existing canonical owner packet must acquire the separately reviewed controller
-identities and those proofs before an exact production-authority request.
+proven before any secret-bearing job executes. Installed role sources are not
+provider enforcement or grants. Actual host and issuer qualification, protected
+configuration, custody, eligible coordinator state and real Windows/Linux public
+recovery proof remain under #534. The existing canonical owner packet binds the
+final reviewed controller, configuration and exact protected grant before use.
 
 ### Durable local coordinator checkpoints
 
@@ -1722,6 +1725,19 @@ remains necessary for #534 acceptance after publication. These contracts prepare
 the consolidated conditional setup selection. They grant no signing, host,
 credential, publication or native acceptance authority and do not clear current
 holds without genuine fixed producer and consumer evidence.
+
+The shared installed-updater UI driver additionally reads the shipping sanitized
+`get_application_update_status` command before any UI mutation and after staging.
+Unconfigured/package-managed installations, earlier staged/apply state and pending
+recovery refuse. A restart control alone cannot qualify a candidate: staged
+version, Preview channel, positive byte count and install eligibility must match.
+All maintained NSIS/AppImage/macOS adapters retain both status observations in
+their existing report. The macOS adapter remains outside the initial-beta gate.
+This read-only command requires no qualification feature, IPC hook or loopback
+feed. Controlled driver tests establish harness behavior only; actual public
+origins, payload hashes, restart/process ownership, retained user state, signature
+refusal, withdrawal/forward repair and recovery remain independently observed
+obligations. Existing qualification-marker restart harnesses retain their scope.
 
 The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
 the current journal at the settled payload checkpoint and derives the complete

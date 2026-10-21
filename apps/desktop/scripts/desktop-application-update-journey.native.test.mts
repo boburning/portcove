@@ -1,0 +1,200 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { runInNewContext } from "node:vm";
+import { readFile, mkdtemp, mkdir, copyFile, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { stripTypeScriptTypes } from "node:module";
+import type { WebDriver } from "selenium-webdriver";
+import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
+import { isRecord } from "../../../scripts/runtime-values.mts";
+
+// The frontend-free native contract lane deliberately has no Selenium package.
+// Execute the maintained UI function with controlled locator/driver adapters;
+// import and execute the actual dependency-free status reader and its callback.
+const source = await readFile(
+  new URL("./desktop-application-update-journey.mts", import.meta.url),
+  "utf8",
+);
+const start = source.indexOf("export async function driveInstalledUpdateToRestart(");
+assert.ok(start >= 0);
+const driveInstalledUpdateToRestart = runInNewContext(
+  stripTypeScriptTypes(source.slice(start).replace(/^export /u, "")) +
+    "\ndriveInstalledUpdateToRestart;",
+  {
+    assert,
+    isRecord,
+    readInstalledUpdateStatus,
+    By: { css: (value: string) => ({ value }), xpath: (value: string) => ({ value }) },
+    until: { elementLocated: (value: unknown) => value },
+  },
+) as (
+  browser: WebDriver,
+  actions: string[],
+  version: string,
+) => Promise<{
+  before: unknown;
+  staged: unknown;
+  authority: string;
+}>;
+
+void test("shipping status reader imports and executes outside dependency ancestry with Selenium unavailable", async (t) => {
+  const parent = path.resolve(tmpdir());
+  const root = await mkdtemp(path.join(parent, "portcove-ordinary-updater-status-"));
+  assert.equal(path.dirname(path.resolve(root)), parent);
+  t.after(async () => {
+    await rm(root, { recursive: true, force: true });
+  });
+  await mkdir(path.join(root, "apps/desktop/scripts"), { recursive: true });
+  await mkdir(path.join(root, "scripts"));
+  await copyFile(
+    new URL("./desktop-installed-update-harness.mts", import.meta.url),
+    path.join(root, "apps/desktop/scripts/desktop-installed-update-harness.mts"),
+  );
+  await copyFile(
+    new URL("../../../scripts/runtime-values.mts", import.meta.url),
+    path.join(root, "scripts/runtime-values.mts"),
+  );
+  const probe = path.join(root, "probe.mjs");
+  await writeFile(
+    probe,
+    `
+    import assert from 'node:assert/strict';
+    assert.throws(() => import.meta.resolve('selenium-webdriver'), {code:'ERR_MODULE_NOT_FOUND'});
+    const {readInstalledUpdateStatus} = await import('./apps/desktop/scripts/desktop-installed-update-harness.mts');
+    const status = await readInstalledUpdateStatus({executeAsyncScript:async()=>JSON.stringify({ok:true,value:{recovery_required:[],apply:null,staged:null}})});
+    assert.equal(status.staged,null);
+    console.log('frontend-free actual reader executed');
+  `,
+    { flag: "wx" },
+  );
+  const output = execFileSync(process.execPath, [probe], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 15000,
+  });
+  assert.match(output, /frontend-free actual reader executed/u);
+});
+
+/** Controlled driver/IPC only, never an installed or public-feed observation. */
+function fixture() {
+  const before = {
+    install_eligibility: "eligible",
+    staged: null,
+    apply: null,
+    recovery_required: [],
+  };
+  const after = {
+    ...before,
+    staged: { version: "0.1.0-beta.2", channel: "preview", bytes: 123 },
+  };
+  const responses: unknown[] = [before, after];
+  const calls: string[] = [];
+  const browser = {
+    manage: () => ({ setTimeouts: async () => {} }),
+    wait: async () => {},
+    findElement: (locator: { value: string }) => ({
+      click: async () => {
+        calls.push(`click:${locator.value}`);
+      },
+    }),
+    executeAsyncScript: (script: (...args: unknown[]) => unknown) =>
+      new Promise<string>((resolve) => {
+        runInNewContext(`(${script.toString()})(done)`, {
+          done: resolve,
+          window: {
+            __TAURI_INTERNALS__: {
+              invoke: async (command: string) => {
+                calls.push(`invoke:${command}`);
+                assert.equal(command, "get_application_update_status");
+                return responses.shift();
+              },
+            },
+          },
+        });
+      }),
+  } as unknown as WebDriver;
+  return { browser, responses, calls, before, after };
+}
+
+void test("actual ordinary updater driver reads exact staged version through the unmodified shipping status command", async () => {
+  const f = fixture(),
+    actions: string[] = [];
+  const result = await driveInstalledUpdateToRestart(f.browser, actions, "0.1.0-beta.2");
+  assert.equal(result.authority, "none");
+  assert.deepEqual(result.before, f.before);
+  assert.deepEqual(result.staged, f.after);
+  assert.deepEqual(
+    f.calls.filter((call) => call.startsWith("invoke:")),
+    ["invoke:get_application_update_status", "invoke:get_application_update_status"],
+  );
+  assert.equal(f.calls.filter((call) => call.includes("Download and verify update")).length, 1);
+  assert.ok(!f.calls.some((call) => call.includes("Restart to update")));
+  assert.equal(actions.at(-1), "exact-installed-candidate-status-read-back");
+});
+
+void test("unconfigured, package-managed and retained-state holds refuse before the first UI mutation", async () => {
+  for (const change of [
+    { install_eligibility: "not-configured" },
+    { install_eligibility: "package-managed-deb" },
+    { staged: { version: "0.1.0-beta.2" } },
+    { apply: { revision: 1 } },
+    { recovery_required: [{ area: "staging" }] },
+  ]) {
+    const f = fixture();
+    f.responses[0] = { ...f.before, ...change };
+    await assert.rejects(driveInstalledUpdateToRestart(f.browser, [], "0.1.0-beta.2"));
+    assert.equal(f.calls.filter((call) => call.startsWith("click:")).length, 0);
+    assert.equal(f.responses.length, 1);
+  }
+});
+
+void test("a restart control alone cannot qualify wrong, absent, incompatible or damaged staged state", async () => {
+  for (const change of [
+    { staged: null },
+    { staged: { ...fixture().after.staged, version: "0.1.0-beta.3" } },
+    { staged: { ...fixture().after.staged, channel: "stable" } },
+    { staged: { ...fixture().after.staged, bytes: 0 } },
+    { install_eligibility: "unavailable" },
+    { apply: { revision: 1 } },
+    { recovery_required: [{ area: "apply" }] },
+  ]) {
+    const f = fixture(),
+      actions: string[] = [];
+    f.responses[1] = { ...f.after, ...change };
+    await assert.rejects(driveInstalledUpdateToRestart(f.browser, actions, "0.1.0-beta.2"));
+    assert.ok(!actions.includes("exact-installed-candidate-status-read-back"));
+    assert.ok(!f.calls.some((call) => call.includes("Restart to update")));
+  }
+});
+
+void test("actual read-only callback refuses missing bridge, command failure and oversized status without exposing errors", async () => {
+  for (const mode of ["missing", "rejected", "oversized"]) {
+    let retained = "";
+    const browser = {
+      executeAsyncScript: (script: (...args: unknown[]) => unknown) =>
+        new Promise<string>((resolve) => {
+          runInNewContext(`(${script.toString()})(done)`, {
+            done: (value: string) => {
+              retained = value;
+              resolve(value);
+            },
+            window:
+              mode === "missing"
+                ? {}
+                : {
+                    __TAURI_INTERNALS__: {
+                      invoke: async () => {
+                        if (mode === "rejected") throw new Error("private backend details");
+                        return { unbounded: "x".repeat(17000) };
+                      },
+                    },
+                  },
+          });
+        }),
+    } as unknown as WebDriver;
+    await assert.rejects(readInstalledUpdateStatus(browser));
+    assert.equal(retained, '{"ok":false}');
+  }
+});
