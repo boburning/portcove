@@ -8,6 +8,11 @@ on:
       - scripts/assembler-job-identity.mts
       - scripts/github-*.mts
       - scripts/qualify-controller-tool-build.mts
+      - scripts/fixtures/tuf-worker-fixture.mts
+      - scripts/fixtures/trusted-assembly-fixture.mts
+      - scripts/reconstruct-application-update-records.mts
+      - scripts/updater-artifact-inventory.mts
+      - apps/desktop/scripts/prepare-release-version.mts
       - scripts/resource-*.mts
       - scripts/run-rust-tests.mts
       - scripts/heavy-rust-test-lock.mts
@@ -26,6 +31,12 @@ on:
       - .github/workflows/controller-tool-build-fixture.yml
       - scripts/release-controller-tool*.mts
       - scripts/qualify-controller-tool-build.mts
+      - scripts/release-connected-fixture.test.mts
+      - scripts/fixtures/tuf-worker-fixture.mts
+      - scripts/fixtures/trusted-assembly-fixture.mts
+      - scripts/reconstruct-application-update-records.mts
+      - scripts/updater-artifact-inventory.mts
+      - apps/desktop/scripts/prepare-release-version.mts
       - crates/portcove-release-tools/**
       - Cargo.toml
       - Cargo.lock

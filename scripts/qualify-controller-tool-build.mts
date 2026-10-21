@@ -141,6 +141,32 @@ async function main() {
     assert.equal(rust.error, undefined);
     assert.equal(rust.status, 1);
     assert.match(rust.stderr, /usage: portcove-release-tools/u);
+    phase = "actual-connected-disposable-release";
+    const rustFile = built.manifest.files.find(
+      (file) => file.path === "bin/portcove-release-tools",
+    );
+    const addonFile = built.manifest.files.find((file) => file.path === "bin/tauri-addon.node");
+    assert.ok(rustFile && addonFile);
+    const connected = spawnSync(node, ["--test", "scripts/release-connected-fixture.test.mts"], {
+      cwd: source,
+      env: {
+        ...env,
+        PATH: "/usr/bin:/bin",
+        PORTCOVE_REQUIRE_CONNECTED_RELEASE_FIXTURE: "1",
+        PORTCOVE_CONNECTED_RELEASE_TOOL: path.join(built.tools, rustFile.path),
+        PORTCOVE_CONNECTED_RELEASE_TOOL_SHA256: rustFile.sha256,
+        PORTCOVE_CONNECTED_RELEASE_ADDON: addon,
+        PORTCOVE_CONNECTED_RELEASE_ADDON_SHA256: addonFile.sha256,
+      },
+      encoding: "utf8",
+      timeout: 125000,
+      maxBuffer: 128 * 1024,
+    });
+    if (connected.error || connected.status !== 0) {
+      process.stderr.write(connected.stderr);
+      process.stderr.write(connected.stdout);
+      throw new Error("connected disposable release fixture refused");
+    }
     phase = "complete";
     await record("result.json", {
       schema_version: 1,
@@ -152,6 +178,8 @@ async function main() {
       evidence_scope: "ordinary-hosted-fixture",
       rust_smoke: "usage-refusal-only",
       tauri_smoke: "version-and-supported-sign-build-flags-only",
+      connected_release:
+        "actual-disposable-payload-and-five-role-Tough; controlled-provider-site-renewal-journal-recovery; no hosted authorization or native execution",
       node_bundles: controllerToolEntries,
       production_tool_acceptance: "not-established",
       authority: "none",
