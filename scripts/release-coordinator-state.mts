@@ -1,3 +1,4 @@
+import { validatePublicationReportRepairTransition } from "./release-report-repair-contract.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   validateCapacityTransition,
@@ -286,6 +287,17 @@ function transition(
   const old = active(previous.input);
   const candidate = active(next);
   validateCandidateStageTransition(old, candidate, checkpoint);
+  const capacity =
+    isRecord(previous.input.controller) && isRecord(previous.input.controller.capacity_attempt)
+      ? previous.input.controller.capacity_attempt
+      : null;
+  validatePublicationReportRepairTransition(
+    old,
+    candidate,
+    checkpoint,
+    capacity?.operation,
+    capacity?.prior_operations,
+  );
   const controller = next.controller;
   if ((old || candidate) && canonical(controller) !== canonical(previous.input.controller)) {
     // Pause/capacity may change, but execution policy identity cannot drift.

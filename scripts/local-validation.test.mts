@@ -52,10 +52,19 @@ void test("pending Release modules select complete test paths and serialize actu
   const files = [
     "scripts/release-pending-release-recovery.mts",
     "scripts/release-effect-contract.mts",
+    "scripts/release-pending-result-recovery.mts",
+    "scripts/release-report-repair-contract.mts",
+    "scripts/release-report-repair-identity.mts",
   ];
   for (const file of files) {
     const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
-    assert.ok(selection.nodeTests.has("scripts/release-pending-release-recovery.test.mts"));
+    assert.ok(
+      selection.nodeTests.has(
+        file === "scripts/release-effect-contract.mts"
+          ? "scripts/release-pending-release-recovery.test.mts"
+          : file.replace(/\.mts$/u, ".test.mts"),
+      ),
+    );
     assert.ok(!selection.unknown.has(file));
     assert.ok(
       [...selection.nodeTests].every(

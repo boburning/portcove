@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
+import { inspectConsumedPublicationReportRepair } from "./release-report-repair-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
   acquireActualAdmittedAggregateEligibility,
@@ -129,6 +130,8 @@ export async function runFixedAdmittedAggregateConfiguration(
         deadline,
       );
       const admitted = await requireActualAdmittedAggregateEligibility(proof);
+      const reportRepair = admitted.candidate.report_repair !== undefined;
+      if (reportRepair) inspectConsumedPublicationReportRepair(admitted.candidate);
       const selection = inspectAdmittedAggregateResume(admitted.candidate);
       let checkpoint = admitted.checkpoint;
       if (admitted.aggregate_readback_only && selection === "advance")
@@ -447,7 +450,7 @@ export async function runFixedAdmittedAggregateConfiguration(
         // No package assembly or artifact upload is repeated.
         return finishBinding(origin);
       }
-      if (admitted.aggregate_readback_only)
+      if (admitted.aggregate_readback_only || reportRepair)
         throw new Error("readback-only aggregate proof cannot upload");
       const assembled = await assembleReleaseArtifacts(
         directory,

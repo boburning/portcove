@@ -209,7 +209,9 @@ export function assertCapacityExecutorEffectScope(
           ].includes(request.destination)
         : role === "coordinator"
           ? (request.kind === "dispatch" &&
-              request.destination === "github-actions:boburning/portcove:release.yml:dispatch") ||
+              /^github-actions:boburning\/portcove:release\.yml:dispatch(?::report-repair-[1-2]-[0-3]:[a-f0-9]{64})?$/u.test(
+                request.destination,
+              )) ||
             (request.kind === "upload" &&
               [
                 "github-actions:boburning/portcove:metadata-renewal-context",

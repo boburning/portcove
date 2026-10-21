@@ -170,6 +170,8 @@ export function prepareFixedControllerConfiguration(input: {
     throw new Error("ratified admission namespace required");
   if (operation === "coordinator")
     return { remote_configuration: { schema_version: 1, namespace: admission.namespace }, tools };
+  if (operation === "building" && output(needs, "coordinator").publication_custody === "reused")
+    throw new Error("retained publication cannot repeat aggregate preparation");
   if (operation === "building")
     return {
       configuration: admission,
@@ -206,10 +208,16 @@ export function prepareFixedControllerConfiguration(input: {
   };
   const coordinated = output(needs, "coordinator");
   const resumed = coordinated.signing_custody === "reused";
+  const reportRepair =
+    coordinated.report_only_repair === "true" &&
+    typeof coordinated.report_repair_sha256 === "string" &&
+    /^[a-f0-9]{64}$/u.test(coordinated.report_repair_sha256);
   if (
     resumed &&
     (coordinated.mode !== "release" ||
-      !["publishing", "promoting"].includes(String(coordinated.stage)))
+      ![...(reportRepair ? ["qualifying", "building"] : []), "publishing", "promoting"].includes(
+        String(coordinated.stage),
+      ))
   )
     throw new Error("original signing custody requires later candidate phase");
   if (operation === "payload" && coordinated.mode !== "release")
@@ -282,6 +290,8 @@ export function prepareFixedControllerConfiguration(input: {
   }
   const roles = ["releases", "preview", "stable", "snapshot", "timestamp"].map(roleLocator);
   if (operation === "release-publication") {
+    if (coordinated.publication_custody === "reused")
+      throw new Error("retained publication cannot repeat result production");
     if (coordinated.mode !== "release") throw new Error("metadata cannot publish a Release");
     return {
       configuration: {
@@ -296,14 +306,21 @@ export function prepareFixedControllerConfiguration(input: {
     };
   }
   if (coordinated.mode === "metadata") return { mode: "metadata", context, identity, roles, tools };
-  const result = json(output(needs, "release_publication").publication_locator);
+  const reusedPublication = coordinated.publication_custody === "reused";
+  if (reusedPublication && (!resumed || coordinated.stage !== "promoting"))
+    throw new Error("retained publication requires exact later signing custody");
+  const result = json(
+    output(needs, reusedPublication ? "coordinator" : "release_publication").publication_locator,
+  );
   if (
     Object.keys(result).sort().join(",") !==
       "artifact,bundle,controller_ref,controller_revision,report_sha256,run_attempt,run_id,source_tree" ||
     result.controller_revision !== fixed.controller_revision ||
     result.controller_ref !== fixed.controller_ref ||
     result.source_tree !== fixed.source_tree ||
-    result.run_id !== fixed.run_id ||
+    (!reusedPublication && result.run_id !== fixed.run_id) ||
+    typeof result.run_id !== "string" ||
+    !/^[1-9][0-9]{0,15}$/u.test(result.run_id) ||
     result.run_attempt !== 1
   )
     throw new Error("fixed DAG publication result differs");

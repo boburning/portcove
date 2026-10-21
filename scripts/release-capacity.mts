@@ -1,3 +1,4 @@
+import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
   inspectReleaseEffectExpectation,
   assertReleaseEffectBinding,
@@ -24,13 +25,17 @@ import {
 // ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "1747663fa3413e02e5d4f78612c167787bae9a0f14bf59c8ec9113a3ec96a0d9",
-  input_workflow_sha256: "1747663fa3413e02e5d4f78612c167787bae9a0f14bf59c8ec9113a3ec96a0d9",
+  aggregate_workflow_sha256: "18f22c73457e40a3909d312a6e1a9fba622200dedfbc09571b8ba873a8fecd4c",
+  input_workflow_sha256: "18f22c73457e40a3909d312a6e1a9fba622200dedfbc09571b8ba873a8fecd4c",
   aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5]),
   input_job_minutes: Object.freeze([2, 2, 3, 10, 10, 8, 6, 5]),
   wake_workflow_sha256: "2c0d724bcb34deb0a1662af6dbb374add24acd8906f139517ef1efedccbf2a06",
   wake_job_minutes: Object.freeze([1]),
   declared_job_minutes: 99,
+  // Separate candidate-workflow repair jobs; never enlarge the controller DAG.
+  report_repair_job_minutes: 2,
+  report_repair_attempts_per_candidate: 2,
+  report_repair_maximum_job_minutes_per_candidate: 4,
   aggregate_concurrency: "application-update-production-controller",
   input_concurrency: "application-update-production-controller",
   wake_concurrency: "portcove-application-controller-wake",
@@ -807,6 +812,14 @@ function validateCapacityV2(
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   if (
     newIntent &&
+    after.kind === "dispatch" &&
+    after.destination.startsWith("github-actions:boburning/portcove:release.yml:dispatch")
+  ) {
+    if (!isRecord(next.active_candidate)) throw new Error("dispatch candidate absent");
+    assertReportRepairDispatch(after.destination, next.active_candidate);
+  }
+  if (
+    newIntent &&
     after.executor_identity?.role === "release-publication" &&
     after.destination.startsWith("github-release:") &&
     !after.release_expectation
@@ -1035,6 +1048,14 @@ export function validateCapacityTransition(
       : [];
   const newIntent = after && (!before || before.id !== after.id);
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (
+    newIntent &&
+    after.kind === "dispatch" &&
+    after.destination.startsWith("github-actions:boburning/portcove:release.yml:dispatch")
+  ) {
+    if (!isRecord(next.active_candidate)) throw new Error("dispatch candidate absent");
+    assertReportRepairDispatch(after.destination, next.active_candidate);
+  }
   if (
     newIntent &&
     after.executor_identity?.role === "release-publication" &&

@@ -24,6 +24,7 @@ type Candidate = {
   prepared_commit: string;
   remote_configuration: unknown;
   dispatch_actor_id: string;
+  report_repair_sha256?: string;
 };
 export async function dispatchPreparedReleaseCandidate(
   raw: Candidate,
@@ -82,7 +83,9 @@ async function observePreparedReleaseCandidate(
   const input = structuredClone(raw);
   if (
     Object.keys(input).sort().join(",") !==
-      "dispatch_actor_id,prepared_commit,remote_configuration,version" ||
+      `dispatch_actor_id,prepared_commit,remote_configuration,${input.report_repair_sha256 === undefined ? "" : "report_repair_sha256,"}version` ||
+    (input.report_repair_sha256 !== undefined &&
+      !/^[a-f0-9]{64}$/u.test(input.report_repair_sha256)) ||
     !/^[a-f0-9]{40}$/u.test(input.prepared_commit) ||
     !/^[1-9][0-9]*$/u.test(input.dispatch_actor_id) ||
     typeof beforeDispatch !== "function" ||
@@ -171,7 +174,12 @@ async function observePreparedReleaseCandidate(
       attempted = true;
       const acknowledgment = await request("POST", `${workflowEndpoint}/dispatches`, {
         ref: ref.slice("refs/tags/".length),
-        inputs: { release_profile: "initial-beta-win-linux" },
+        inputs: {
+          release_profile: "initial-beta-win-linux",
+          ...(input.report_repair_sha256 === undefined
+            ? {}
+            : { report_only_repair: true, report_repair_sha256: input.report_repair_sha256 }),
+        },
       });
       positive(acknowledgment.workflow_run_id);
       runId = acknowledgment.workflow_run_id;
@@ -183,7 +191,13 @@ async function observePreparedReleaseCandidate(
     } else if (existingRunId > 0) runId = existingRunId;
     else {
       const route = `${workflowEndpoint}/runs?event=workflow_dispatch&head_sha=${input.prepared_commit}&per_page=100&page=`;
-      const identities: { id: number; actor: string; branch: string; attempt: number }[] = [];
+      const identities: {
+        id: number;
+        actor: string;
+        branch: string;
+        attempt: number;
+        title: unknown;
+      }[] = [];
       let total: number | null = null;
       let first: string | null = null;
       const pageIdentity = (record: Record<string, unknown>) => {
@@ -217,6 +231,7 @@ async function observePreparedReleaseCandidate(
             actor: String(raw.actor.id),
             branch: raw.head_branch,
             attempt: raw.run_attempt,
+            title: raw.display_title ?? null,
           };
         });
         return { total: Number(record.total_count), rows };
@@ -247,7 +262,9 @@ async function observePreparedReleaseCandidate(
         (row) =>
           row.actor === input.dispatch_actor_id &&
           row.branch === ref.slice("refs/tags/".length) &&
-          row.attempt === 1,
+          row.attempt === 1 &&
+          (input.report_repair_sha256 === undefined ||
+            row.title === `Report repair ${input.report_repair_sha256}`),
       );
       if (matches.length !== 1)
         throw new Error("lost dispatch acknowledgment remains absent or ambiguous");
@@ -262,6 +279,8 @@ async function observePreparedReleaseCandidate(
       run.run_attempt !== 1 ||
       run.head_sha !== input.prepared_commit ||
       run.head_branch !== ref.slice("refs/tags/".length) ||
+      (input.report_repair_sha256 !== undefined &&
+        run.display_title !== `Report repair ${input.report_repair_sha256}`) ||
       !isRecord(run.repository) ||
       run.repository.id !== repositoryId ||
       run.repository.full_name !== repository ||
@@ -285,6 +304,9 @@ async function observePreparedReleaseCandidate(
       actor_id: input.dispatch_actor_id,
       run_id: runId,
       run_attempt: 1,
+      ...(input.report_repair_sha256 === undefined
+        ? {}
+        : { report_repair_sha256: input.report_repair_sha256 }),
     };
     return {
       remote_identity: `github-actions:${repository}:run:${runId}:attempt:1`,

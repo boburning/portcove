@@ -374,6 +374,10 @@ jobs:
       stage: ${{ steps.job.outputs.stage }}
       context_locator: ${{ steps.job.outputs.context_locator }}
       signing_custody: ${{ steps.job.outputs.signing_custody }}
+      publication_custody: ${{ steps.job.outputs.publication_custody }}
+      publication_locator: ${{ steps.job.outputs.publication_locator }}
+      report_only_repair: ${{ steps.job.outputs.report_only_repair }}
+      report_repair_sha256: ${{ steps.job.outputs.report_repair_sha256 }}
       role_locators: ${{ steps.job.outputs.role_locators }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -461,7 +465,7 @@ jobs:
           installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   independent_admission:
     name: Authenticate release control inputs
-    if: ${{ needs.coordinator.outputs.mode == 'release' }}
+    if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
     needs:
       - admission
       - tool_bootstrap
@@ -525,7 +529,7 @@ jobs:
           phase: admission
   protection_observation:
     name: Observe production release input protections
-    if: ${{ needs.coordinator.outputs.mode == 'release' }}
+    if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
     needs:
       - admission
       - tool_bootstrap
@@ -651,7 +655,7 @@ jobs:
           if-no-files-found: warn
           overwrite: false
           retention-days: 7
-    if: ${{ needs.coordinator.outputs.mode == 'release' }}
+    if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' }}
   payload_signing:
     name: Sign admitted updater payloads
     if: ${{ needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.signing_custody != 'reused' }}
@@ -1152,7 +1156,7 @@ jobs:
   release_publication:
     name: Publish immutable application release
     if:
-      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.attest.result == 'success' &&
+      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' && needs.attest.result == 'success' &&
       (needs.tuf_timestamp.result == 'success' || needs.coordinator.outputs.signing_custody == 'reused') }}
     needs: &a3
       - admission
@@ -1236,7 +1240,7 @@ jobs:
   release_protection_observation:
     name: Observe immutable application release publication protections
     if:
-      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.attest.result == 'success' &&
+      ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.coordinator.outputs.publication_custody != 'reused' && needs.attest.result == 'success' &&
       (needs.tuf_timestamp.result == 'success' || needs.coordinator.outputs.signing_custody == 'reused') }}
     needs: *a3
     runs-on: ubuntu-22.04
@@ -1268,7 +1272,7 @@ jobs:
     name: Publish authenticated application site
     if:
       ${{ always() && ((needs.coordinator.outputs.mode == 'metadata' && needs.tuf_timestamp.result == 'success') ||
-      (needs.coordinator.outputs.mode == 'release' && needs.release_publication.result == 'success')) }}
+      (needs.coordinator.outputs.mode == 'release' && (needs.release_publication.result == 'success' || needs.coordinator.outputs.publication_custody == 'reused'))) }}
     needs: &a4
       - admission
       - tool_bootstrap
@@ -1336,7 +1340,7 @@ jobs:
     name: Observe application site publication protections
     if:
       ${{ always() && ((needs.coordinator.outputs.mode == 'metadata' && needs.tuf_timestamp.result == 'success') ||
-      (needs.coordinator.outputs.mode == 'release' && needs.release_publication.result == 'success')) }}
+      (needs.coordinator.outputs.mode == 'release' && (needs.release_publication.result == 'success' || needs.coordinator.outputs.publication_custody == 'reused'))) }}
     needs: *a4
     runs-on: ubuntu-22.04
     timeout-minutes: 5

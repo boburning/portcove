@@ -1,3 +1,4 @@
+import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
   inspectReleaseEffectExpectation,
   assertReleaseEffectBinding,
@@ -278,6 +279,14 @@ async function runOperation(
       else metadataCounters.substantive_repairs++;
     } else if (metadataRecovery !== undefined)
       throw new Error("metadata new effect cannot manufacture a recovery increment");
+  }
+  if (
+    request.kind === "dispatch" &&
+    request.destination.startsWith("github-actions:boburning/portcove:release.yml:dispatch")
+  ) {
+    if (!candidate || executor?.role !== "coordinator")
+      throw new Error("report dispatch requires actual coordinator/candidate");
+    assertReportRepairDispatch(request.destination, candidate);
   }
   if (releaseExpectation) {
     assertReleaseEffectBinding(releaseExpectation, expected, candidate, request.destination);

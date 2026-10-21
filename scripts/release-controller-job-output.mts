@@ -68,8 +68,14 @@ export function projectFixedControllerJobOutputs(
     result = record(rawResult);
   if (typeof result.decision !== "string") throw new Error("fixed output decision unavailable");
   if (selected === "coordinator" && result.decision === "candidate-signing-custody-reused") {
+    const reportRepair =
+      result.report_only_repair === true &&
+      typeof result.report_repair_sha256 === "string" &&
+      /^[a-f0-9]{64}$/u.test(result.report_repair_sha256);
     if (
-      !["publishing", "promoting"].includes(String(result.candidate_phase)) ||
+      ![...(reportRepair ? ["qualifying", "building"] : []), "publishing", "promoting"].includes(
+        String(result.candidate_phase),
+      ) ||
       !Array.isArray(result.role_locators) ||
       result.role_locators.length !== 5 ||
       result.role_locators.some(
@@ -85,6 +91,19 @@ export function projectFixedControllerJobOutputs(
       signing_custody: "reused",
       context_locator: JSON.stringify(record(result.context_locator)),
       role_locators: JSON.stringify(result.role_locators),
+      ...(result.publication_result_locator === undefined
+        ? {}
+        : (() => {
+            if (result.candidate_phase !== "promoting")
+              throw new Error("retained publication requires promoting candidate");
+            return {
+              publication_custody: "reused",
+              publication_locator: JSON.stringify(record(result.publication_result_locator)),
+            };
+          })()),
+      ...(reportRepair
+        ? { report_only_repair: "true", report_repair_sha256: String(result.report_repair_sha256) }
+        : {}),
     };
   }
   if (selected === "coordinator" && result.decision === "metadata-context-reused")
