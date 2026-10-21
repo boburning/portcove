@@ -53,8 +53,12 @@ it("keeps an unknown external installation's folder and maintenance facts distin
     />,
   );
   const facts = page.getByRole("region", { name: "Existing installation", exact: true });
-  await expect.element(facts).toHaveTextContent(status.external_runtime.path);
-  await expect.element(facts).toHaveTextContent("You maintain this folder and its updates.");
+  await expect
+    .element(facts.getByText(status.external_runtime.path, { exact: true }))
+    .toBeVisible();
+  await expect
+    .element(facts.getByText("You maintain this folder and its updates.", { exact: true }))
+    .toBeVisible();
   expect(
     document.querySelector('[data-confirmed-play]:not(:disabled):not([aria-disabled="true"])'),
   ).toBeNull();

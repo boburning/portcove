@@ -392,9 +392,9 @@ function DetailHero({
       <ArtworkImage
         port={port}
         quietFallback
-        className="detail-cover aspect-[2/3] w-[80px] flex-none rounded-pc-md bg-[var(--art-color)] @min-[24rem]/detail:w-[120px] @min-[48rem]/detail:w-[160px]"
+        className="detail-cover aspect-[2/3] w-[80px] flex-none rounded-pc-md border border-pc-border bg-[var(--art-color)] @min-[24rem]/detail:w-[120px] @min-[48rem]/detail:w-[160px]"
       />
-      <div className="min-w-0 flex-1 self-center [overflow-wrap:anywhere]">
+      <div className="w-full min-w-0 flex-1 [overflow-wrap:anywhere] @min-[32rem]/detail:self-center">
         <p className="mb-1 text-xs text-[var(--color-text-secondary)]">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>

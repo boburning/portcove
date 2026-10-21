@@ -89,7 +89,9 @@ it("plays the distinct duplicate port from details and returns to its filtered r
     .getByRole("button", { name: /View details for Super Mario 64 Port: Mario modern port/ })
     .click();
   const detail = page.getByRole("region", { name: "Super Mario 64", exact: true });
-  await expect.element(detail).toHaveTextContent("Mario modern port · Modern renderer");
+  await expect
+    .element(detail.getByText("Port project: Mario modern port · Modern renderer", { exact: true }))
+    .toBeVisible();
   await detail.getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-1", "", 1]);
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
