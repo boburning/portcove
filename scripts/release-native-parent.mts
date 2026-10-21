@@ -76,6 +76,7 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     if (
       !transport.post_sign_verifier ||
       !contained(transport.post_sign_verifier.path) ||
+      (transport.public_signature_control && !contained(transport.public_signature_control.path)) ||
       (descriptor.platform_label === "windows-x86_64" &&
         (!transport.windows_tools?.git || !contained(transport.windows_tools.git.path)))
     )
