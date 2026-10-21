@@ -41,6 +41,9 @@ One details button owns artwork/title/port identity. Favorite, Play/review,
 update review and menus are siblings, never nested controls. Routine Stable and
 maintenance facts stay out of ordinary entries. Play remains beside a secondary
 downloaded-update review link. Steam bulk selection uses its existing chooser.
+The Ready to play checkmark and label use the semantic success foreground in
+both covers and rows, without an additional badge background. Text and icon
+continue to convey readiness independently of color.
 Counts are library entries, including separate ports for one game. Details put
 current update decisions after identity/readiness/actions; Future update
 preferences are disclosed and saving them does not execute an update.
