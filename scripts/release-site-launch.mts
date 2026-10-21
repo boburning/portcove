@@ -69,7 +69,7 @@ export async function launchFixedSiteController(
 }
 if (
   process.argv[1] &&
-  /^release-site-launch[.](?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  /^release-site-launch(?:[.]mts|(?:[.]bundle)?[.]mjs)$/u.test(path.basename(process.argv[1])) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {

@@ -109,7 +109,7 @@ export async function bundleControllerEntries(sourceRoot: string, outputRoot: st
                 )
               )
                 throw new Error(
-                  `controller bundle retained runtime dependencies: ${[...item.imports, ...item.dynamicImports].filter((name) => !isBuiltin(name)).join(",")}`,
+                  `controller bundle retained runtime dependencies: ${JSON.stringify({ file: item.fileName, imports: item.imports, dynamic_imports: item.dynamicImports })}`,
                 );
           },
         },

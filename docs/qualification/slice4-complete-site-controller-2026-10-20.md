@@ -17,3 +17,38 @@ After verified public bytes and durable metadata handoff, the continuation uses 
 ## Remaining integration
 
 The controller callable is not yet the complete held workflow DAG. Exact Pages ambiguous-POST recovery/readback integration, metadata bootstrap and renewal continuation, registered attested site bundle, dynamic observer loops, cleanup and consolidated real setup/proof remain work. A unique Pages build identity needs reconciliation with the actual provider contract; a fixed controller commit cannot uniquely identify several site generations. Public matching bytes alone do not establish provider terminality. These facts must not be described as completed recovery or observed provider enforcement.
+
+## Fixed readiness step connection
+
+The trusted reader now retains a CreateNew locator after its initial and continuation ready files are frozen. The fixed Actions step bridge binds phase/ordinal, source/ref/run/attempt and ready-byte digest, refuses linked ancestors and changed bytes, and emits only the exact fixed upload path/name. It does not mint a control proof: the independent consumer still verifies actual provider artifacts, producer jobs and signed OIDC. A trusted producer terminal marker skips unused rounds; original provider job start caps every wait, so another step cannot reset the job budget. The held workflow must write its exact terminal marker and verify the original process exit separately; a skipped unused upload is not success evidence.
+
+Four focused bridge cases and the existing acquisition/coordinator/live-control cases passed together: 45 tests, zero skips. Type-aware lint passed for the five changed modules/tests. Initial lint caught an unsafe test JSON access and an optional environment-value closure; both were repaired without changing acceptance behavior. No actual Actions upload or observer credential was exercised by these tests.
+
+## Main composition and bundle entry
+
+The site entry is registered after the delivered immutable Release entry. Merging current main preserved native worker-path, report-transport and exact Release completion changes. One automatic merge duplicated a native profile import; four import-only failures were retained, the duplicate was removed and those four affected files passed 25 cases with no skips. The bounded context counter from main remains 384, and the reviewed retained getter's post-read deadline and known terminal-workflow handling remain in place. No failed test or installed/native evidence was relabelled.
+
+## Callable tool packaging repair
+
+The first expanded hosted tool fixture (`39523816069`, attempt 1) failed before
+Rust assembly: the pinned Pack emitted a sibling `release-candidate-progress`
+chunk despite `codeSplitting: false`. The strict runtime-dependency guard
+correctly refused it. Local diagnostic attempts and the initial required CI
+`39523816147` failure remain retained under `work/slice4`; none supplied
+production authority or execution.
+
+The repair removes CLI-only top-level awaits from the imported release tools,
+retains their exact direct-entry conditions and existing sanitized refusal paths,
+and explicitly settles each asynchronous CLI failure. Imported helpers and
+validation functions remain at module scope. The immutable publisher uses
+static named imports whose actual phase/input checks still run only at the
+existing operation boundary. This avoids both sibling dynamic chunks and
+cyclic asynchronous module initialization without admitting runtime dependencies.
+The dependency guard now names the exact failing chunk/import list.
+
+The resource-admitted final local qualification passed all 25 cases across tool
+packaging, site controller, readiness bridge and publication controller suites,
+including actual nine-entry Pack builds and isolated CLI refusal execution.
+Typed lint passed on all 23 changed source modules. Earlier diagnostic failures
+and a temporary helper-scope type failure remain retained. Hosted exact-source
+CI/tool timing, public provider behavior and protected execution remain distinct.

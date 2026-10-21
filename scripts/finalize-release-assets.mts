@@ -227,8 +227,14 @@ function parseArguments(argv: readonly string[]) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await finalizeReleaseAssets(options.assets, options.inventory, options);
-  console.log(`Finalized ${result.assets.length} public assets with an SPDX SBOM.`);
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const options = parseArguments(process.argv.slice(2));
+    const result = await finalizeReleaseAssets(options.assets, options.inventory, options);
+    console.log(`Finalized ${result.assets.length} public assets with an SPDX SBOM.`);
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

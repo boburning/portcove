@@ -340,6 +340,22 @@ export function deriveNativePublicationJourneys(input: {
   return journeys;
 }
 
+/** Select only the exact temporal branch; subsequent old/new repository checks
+ * remain mandatory. A failed old-seed derivation never falls back to history. */
+export function nativeCompletionUsesHistoricalLineage(rawCurrent: unknown, rawManifest: unknown) {
+  if (
+    !isRecord(rawCurrent) ||
+    !isRecord(rawManifest) ||
+    !isRecord(rawManifest.previous_site_pins) ||
+    typeof rawManifest.previous_site_pins.repository_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(rawManifest.previous_site_pins.repository_sha256)
+  )
+    throw new Error("native completion prior repository identity missing");
+  const published = inspectPublishedMetadata(rawCurrent.published_metadata);
+  if (!published) throw new Error("native completion current published repository missing");
+  return published.repository_sha256 !== rawManifest.previous_site_pins.repository_sha256;
+}
+
 /** Completion-only historical association. The fixed caller must separately
  * authenticate both the original context and the actual current signed TUF result. */
 export function inspectNativeCompletionLineage(
@@ -555,7 +571,10 @@ async function collectNativePublicationPair(
     };
     phase = "independent-native-journey";
     let journeyInput = before.input;
-    if (purpose === "completion-readback") {
+    if (
+      purpose === "completion-readback" &&
+      nativeCompletionUsesHistoricalLineage(before.input, manifest)
+    ) {
       const checkpoint = manifest.facts.checkpoint;
       if (typeof checkpoint !== "string" || !/^[a-f0-9]{40}$/u.test(checkpoint))
         throw new Error("authenticated original native context checkpoint missing");

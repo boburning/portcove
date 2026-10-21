@@ -11,6 +11,8 @@ import {
   verifyClassificationWriterJobIdentity,
   verifyProtectionObserverJobIdentity,
   verifyProductionProtectionObserverJobIdentity,
+  verifyProductionClassificationWriterJobIdentity,
+  verifyProductionClassificationObserverJobIdentity,
 } from "./assembler-job-identity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -25,7 +27,23 @@ import {
   prepareProductionProtectionHandoff,
 } from "./release-input-protections.mts";
 
-async function main() {
+import {
+  coordinatorCommandTimeout,
+  withCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import { currentClassificationJobDeadline } from "./release-signing-job-budget.mts";
+import {
+  requireProductionClassificationWriterAuthorities,
+  requireProductionClassificationObserverAuthorities,
+} from "./release-authority-configuration.mts";
+
+type ClassificationAuthorities = Awaited<
+  ReturnType<typeof requireProductionClassificationWriterAuthorities>
+>;
+async function runOperation(classification?: {
+  authorities: ClassificationAuthorities;
+  deadline: number;
+}) {
   const mode = process.argv[2];
   if (
     (process.argv.length !== 3 &&
@@ -39,6 +57,10 @@ async function main() {
       "observe-production-release-publication",
       "persist",
       "persist-request",
+      "probe-production-request",
+      "probe-production-classification-observer",
+      "persist-production-request",
+      "observe-production-classification",
       "read",
     ].includes(mode ?? "") &&
       !mode?.startsWith("observe-production-"))
@@ -77,7 +99,11 @@ async function main() {
     process.argv[3] === undefined
       ? undefined
       : (await import("./release-control-handshake.mts")).inspectControlRound;
-  const productionObservation = mode?.startsWith("observe-production") === true;
+  const classificationObserver = mode === "observe-production-classification";
+  const classificationProbe =
+    mode === "probe-production-request" || mode === "probe-production-classification-observer";
+  const productionObservation =
+    !classificationObserver && mode?.startsWith("observe-production") === true;
   const roundIndex =
     process.argv[3] === undefined
       ? undefined
@@ -89,8 +115,9 @@ async function main() {
       : "admission",
   );
   const phaseProfile = releaseControlPhaseProfile(phase);
-  const observing = mode === "observe" || productionObservation;
-  const persisting = mode === "persist" || mode === "persist-request";
+  const observing = mode === "observe" || productionObservation || classificationObserver;
+  const persisting =
+    mode === "persist" || mode === "persist-request" || mode === "persist-production-request";
   const temp = process.env.RUNNER_TEMP;
   if (!temp || !path.isAbsolute(temp))
     throw new Error("private runner temporary directory unavailable");
@@ -109,29 +136,31 @@ async function main() {
     const appToken = observing || persisting ? process.env.PORTCOVE_CONTROL_APP_TOKEN : undefined;
     if ((observing || persisting) && (!appToken || appToken.length > 16384))
       throw new Error("isolated App installation token unavailable");
-    const runner = createGitHubRunner({
-      cwd: process.cwd(),
-      maxBuffer: 2 * 1024 * 1024,
-      timeoutMs: 15000,
-      spawn: (command, args, options) =>
-        spawnSync(command, args, {
-          ...options,
-          env: {
-            ...process.env,
-            GH_TOKEN: appToken ?? process.env.GH_TOKEN,
-            GITHUB_TOKEN: undefined,
-            PORTCOVE_CONTROL_APP_TOKEN: undefined,
-          },
-        }),
-    });
+    const runner = (args: readonly string[], input?: string) =>
+      createGitHubRunner({
+        cwd: process.cwd(),
+        maxBuffer: 2 * 1024 * 1024,
+        timeoutMs: coordinatorCommandTimeout(15000),
+        spawn: (command, args, options) =>
+          spawnSync(command, args, {
+            ...options,
+            env: {
+              ...process.env,
+              GH_TOKEN: appToken ?? process.env.GH_TOKEN,
+              GITHUB_TOKEN: undefined,
+              PORTCOVE_CONTROL_APP_TOKEN: undefined,
+            },
+          }),
+      })(args, input);
     const appApi = new GitHubApiClient((args, input) =>
       runner([...args, "--hostname", "github.com"], input),
     );
-    const readRunner = createGitHubRunner({
-      cwd: process.cwd(),
-      maxBuffer: 2 * 1024 * 1024,
-      timeoutMs: 15000,
-    });
+    const readRunner = (args: readonly string[], input?: string) =>
+      createGitHubRunner({
+        cwd: process.cwd(),
+        maxBuffer: 2 * 1024 * 1024,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })(args, input);
     const readApi = new GitHubApiClient((args, input) =>
       readRunner([...args, "--hostname", "github.com"], input),
     );
@@ -154,7 +183,11 @@ async function main() {
       const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
       if (!isRecord(policy)) throw new Error("ratified controller policy unavailable");
       const expected = inspectAssemblerIdentityExpectation({
-        audience: observing ? phaseProfile.observer_audience : "portcove-release-classification-v1",
+        audience: classificationObserver
+          ? "portcove-release-classification-protection-v1"
+          : observing
+            ? phaseProfile.observer_audience
+            : "portcove-release-classification-v1",
         subject: controllerOidcSubject(
           String(policy.execution_ref),
           observing
@@ -167,13 +200,32 @@ async function main() {
         run_id: process.env.GITHUB_RUN_ID,
         run_attempt: 1,
       });
-      const token = await requestAssemblerToken(expected.audience);
-      const verify = productionObservation
-        ? verifyProductionProtectionObserverJobIdentity
-        : mode === "observe"
-          ? verifyProtectionObserverJobIdentity
-          : verifyClassificationWriterJobIdentity;
-      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } }, phase);
+      const token = await requestAssemblerToken(
+        expected.audience,
+        process.env,
+        fetch,
+        classification?.deadline,
+      );
+      const verify = classificationObserver
+        ? verifyProductionClassificationObserverJobIdentity
+        : mode === "persist-production-request"
+          ? verifyProductionClassificationWriterJobIdentity
+          : productionObservation
+            ? verifyProductionProtectionObserverJobIdentity
+            : mode === "observe"
+              ? verifyProtectionObserverJobIdentity
+              : verifyClassificationWriterJobIdentity;
+      const identity = await verify(
+        token,
+        expected,
+        {
+          transport: {
+            cwd: process.cwd(),
+            ...(classification ? { deadline: classification.deadline } : {}),
+          },
+        },
+        phase,
+      );
       if (observing) observerIdentity = identity;
       await receipt.writeFile(
         JSON.stringify({
@@ -185,7 +237,35 @@ async function main() {
       );
     }
     let result: unknown;
-    if (observing) {
+    if (classificationProbe) {
+      if (!classification)
+        throw new Error("fixed classification source and original job budget unavailable");
+      const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
+      const { inspectClassificationRequestReadiness } =
+        await import("./release-classification-request.mts");
+      const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
+      const recovered = await recoverRemoteCoordinator(
+        temp,
+        { schema_version: 1, namespace: classification.authorities.namespace },
+        { transport: { cwd: process.cwd() } },
+      );
+      result = inspectClassificationRequestReadiness(
+        api,
+        {
+          schema_version: 1,
+          review_app_id: classification.authorities.apps.semantic.app_id,
+          writer_app_id: classification.authorities.apps.classification.app_id,
+          review_check_name: semanticReviewCheckName,
+        },
+        recovered.input.review_request,
+      );
+      if (!process.env.GITHUB_OUTPUT || !isRecord(result))
+        throw new Error("fixed classification routing channel unavailable");
+      await appendFile(
+        process.env.GITHUB_OUTPUT,
+        `eligible=${result.eligible === true ? "true" : "false"}\n`,
+      );
+    } else if (observing) {
       result = observeReleaseInputProtections(api, {
         releasePublication: phase === "release-publication",
       });
@@ -249,7 +329,7 @@ async function main() {
       const { persistReviewedClassification, readPublicationPause, readReviewedClassification } =
         await import("./release-control-inputs.mts");
       const config: unknown = JSON.parse(process.env.PORTCOVE_REVIEW_PRODUCER ?? "null");
-      if (mode === "persist-request") {
+      if (mode === "persist-request" || mode === "persist-production-request") {
         const { requireReviewedInputsReleaseAuthorities } =
           await import("./release-authority-configuration.mts");
         const { recoverRemoteCoordinator } = await import("./release-coordinator-recovery.mts");
@@ -257,7 +337,8 @@ async function main() {
         const { semanticReviewCheckName } = await import("./release-semantic-review.mts");
         const { persistReviewedClassificationForRequest } =
           await import("./release-classification-request.mts");
-        const authorities = await requireReviewedInputsReleaseAuthorities();
+        const authorities =
+          classification?.authorities ?? (await requireReviewedInputsReleaseAuthorities());
         const producer = {
           schema_version: 1,
           review_app_id: authorities.apps.semantic.app_id,
@@ -265,7 +346,7 @@ async function main() {
           review_check_name: semanticReviewCheckName,
         };
         const { inspectReviewProducerConfiguration } = await import("./release-control-inputs.mts");
-        const parsed = inspectReviewProducerConfiguration(config);
+        const parsed = classification ? producer : inspectReviewProducerConfiguration(config);
         if (
           parsed.review_app_id !== producer.review_app_id ||
           parsed.writer_app_id !== producer.writer_app_id ||
@@ -363,6 +444,36 @@ async function main() {
     await receipt.close();
   }
 }
+async function main() {
+  const mode = process.argv[2];
+  const role =
+    mode === "probe-production-request" || mode === "persist-production-request"
+      ? "writer"
+      : mode === "probe-production-classification-observer" ||
+          mode === "observe-production-classification"
+        ? "observer"
+        : null;
+  if (!role) return runOperation();
+  if (process.argv.length !== 3) throw new Error("fixed classification operation required");
+  const authorities = await (role === "writer"
+    ? requireProductionClassificationWriterAuthorities()
+    : requireProductionClassificationObserverAuthorities());
+  const policy: unknown = JSON.parse(process.env.PORTCOVE_CONTROLLER_ADMISSION ?? "null");
+  if (!isRecord(policy)) throw new Error("ratified classification source unavailable");
+  const deadline = currentClassificationJobDeadline(
+    role,
+    {
+      run_id: process.env.GITHUB_RUN_ID ?? "",
+      run_attempt: 1,
+      controller_revision: String(policy.revision),
+      controller_ref: String(policy.execution_ref),
+    },
+    process.cwd(),
+    performance.now() + 115000,
+  );
+  return withCoordinatorDeadline(deadline, () => runOperation({ authorities, deadline }));
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch(() => {
     console.error("reviewed input operation refused");

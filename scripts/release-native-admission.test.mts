@@ -19,6 +19,7 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   deriveNativePublicationJourneys,
   inspectNativeCompletionLineage,
+  nativeCompletionUsesHistoricalLineage,
   inspectNativePublicationPredecessor,
   inspectNativeInitialPublicationJourney,
   collectConfiguredNativePublicationQualificationPair,
@@ -542,6 +543,39 @@ void test("shared data-only journey derivation binds exact prior inventory and r
     publication: _publication,
     ...signedPublication
   } = nextPublished;
+  const beforePages = { ...current, published_metadata: published };
+  assert.equal(nativeCompletionUsesHistoricalLineage(beforePages, input.manifest), false);
+  assert.deepEqual(
+    deriveNativePublicationJourneys({ ...input, coordinator_input: beforePages }),
+    deriveNativePublicationJourneys(input),
+  );
+  assert.equal(nativeCompletionUsesHistoricalLineage(current, input.manifest), true);
+  const wrongSeed = {
+    ...current,
+    published_metadata: { ...nextPublished, repository_sha256: "0".repeat(64) },
+  };
+  assert.equal(nativeCompletionUsesHistoricalLineage(wrongSeed, input.manifest), true);
+  assert.throws(
+    () => inspectNativeCompletionLineage(wrongSeed, historical, input.manifest, signedPublication),
+    /signed candidate/,
+  );
+  const changedOldRoot = {
+    ...beforePages,
+    published_metadata: { ...published, root_sha256: "0".repeat(64) },
+  };
+  assert.equal(nativeCompletionUsesHistoricalLineage(changedOldRoot, input.manifest), false);
+  assert.throws(
+    () => deriveNativePublicationJourneys({ ...input, coordinator_input: changedOldRoot }),
+    /prior differs/,
+  );
+  assert.throws(
+    () =>
+      nativeCompletionUsesHistoricalLineage(current, {
+        ...input.manifest,
+        previous_site_pins: null,
+      }),
+    /identity missing/,
+  );
   const lineage = inspectNativeCompletionLineage(
     current,
     historical,

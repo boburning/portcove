@@ -228,38 +228,44 @@ export function describeDevelopmentSecurity(
   return `Development security policy: PASS; dependency scanner: ${decision.scanPassed ? "PASS" : "FAIL — existing RUSTSEC-2024-0429; remediation #706 outstanding"}; Linux release authorization: not evaluated.`;
 }
 
-if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv[2] === "--help") {
-      console.log(
-        "usage: dependency-security.mts [scan] — development policy by default; scan returns raw scanner status",
-      );
-    } else {
-      if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "scan"))
-        throw new Error("usage: dependency-security.mts [scan]");
-      const { scan, output } = scanDependencies(root);
-      if (process.argv[2] === "scan") {
-        process.exitCode = scan.exitCode ?? 1;
-      } else {
-        const decision = developmentSecurity(
-          scan,
-          readFileSync(path.join(root, "deny.toml"), "utf8"),
+async function settleDirectCli() {
+  if (path.resolve(process.argv[1] ?? "") === fileURLToPath(import.meta.url)) {
+    try {
+      if (process.argv[2] === "--help") {
+        console.log(
+          "usage: dependency-security.mts [scan] — development policy by default; scan returns raw scanner status",
         );
-        writeFileSync(`${output}.decision.json`, `${JSON.stringify(decision, null, 2)}\n`, {
-          flag: "wx",
-        });
-        console.log(describeDevelopmentSecurity(decision));
-        if (process.env.GITHUB_STEP_SUMMARY) {
-          const { appendFileSync } = await import("node:fs");
-          appendFileSync(
-            process.env.GITHUB_STEP_SUMMARY,
-            `${describeDevelopmentSecurity(decision)}\n`,
+      } else {
+        if (process.argv.length > 3 || (process.argv[2] && process.argv[2] !== "scan"))
+          throw new Error("usage: dependency-security.mts [scan]");
+        const { scan, output } = scanDependencies(root);
+        if (process.argv[2] === "scan") {
+          process.exitCode = scan.exitCode ?? 1;
+        } else {
+          const decision = developmentSecurity(
+            scan,
+            readFileSync(path.join(root, "deny.toml"), "utf8"),
           );
+          writeFileSync(`${output}.decision.json`, `${JSON.stringify(decision, null, 2)}\n`, {
+            flag: "wx",
+          });
+          console.log(describeDevelopmentSecurity(decision));
+          if (process.env.GITHUB_STEP_SUMMARY) {
+            const { appendFileSync } = await import("node:fs");
+            appendFileSync(
+              process.env.GITHUB_STEP_SUMMARY,
+              `${describeDevelopmentSecurity(decision)}\n`,
+            );
+          }
         }
       }
+    } catch (error) {
+      console.error(errorMessage(error));
+      process.exitCode = 1;
     }
-  } catch (error) {
-    console.error(errorMessage(error));
-    process.exitCode = 1;
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

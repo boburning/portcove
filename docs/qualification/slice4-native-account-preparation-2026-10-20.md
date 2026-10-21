@@ -461,9 +461,10 @@ parsed global configuration through every native publication parser. The
 schema-2 locator-to-initial-journey regression passes while default schema 1
 continues to refuse that locator. No source locator appoints authority.
 
-Completion readback now associates the original authenticated context checkpoint
-with the same candidate/source/build/counters/opportunity after published metadata
-advances. It imports exactly the original commit/tree/state blob through the
+Completion readback retains the full current-seed journey checks before Pages
+advances the public feed. Only after the published repository changes does it
+associate the original authenticated context checkpoint with the same
+candidate/source/build/counters/opportunity. It imports exactly the original commit/tree/state blob through the
 existing bounded read-only transport into a fresh private bare repository, with
 no ref mutation, parent traversal or lazy fetch. The current published metadata
 must independently equal the actual signed TUF result. Ordinary reserved native
@@ -474,3 +475,16 @@ sparse-Git case passed in 39.673 seconds with no skips; its original admitted
 attempt queued 664.967 seconds and completed in 730.068 seconds including setup.
 Type-aware lint passed for all five changed modules/tests. These are lineage and
 transport checks, with no native host or protected execution acceptance.
+
+Independent review caught the pre-Pages promoting recovery case in the first
+completion repair. The narrow fix selects history only when the current repository
+differs from the authenticated original prior repository; no caught failure can
+trigger fallback. Both pre-Pages and post-Pages promoting cases pass, with wrong
+new-seed and changed old-root refusals. The original review finding is retained.
+
+The delivery composition against main `2d81de8` passed 47 focused component cases
+with one optional real-crypto case skipped (its actual result remains bound above
+to `f090186`). Five routing/inventory cases passed, all 210 indexed test files are
+registered, and changed `.mts` files passed type-aware lint. Current main's
+whole-site, metadata recovery, tool-bundle and controller changes were retained;
+these checks do not add Task/account, hosted native or public journey evidence.

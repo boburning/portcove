@@ -25,7 +25,10 @@ import { prepareActualTufPublication } from "./release-tuf-publication.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
 import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { collectConfiguredNativePublicationQualificationPair } from "./release-native-publication-admission.mts";
+import {
+  collectConfiguredNativePublicationQualificationPair,
+  collectConfiguredNativePublicationCompletionPair,
+} from "./release-native-publication-admission.mts";
 import { inspectControllerAggregateLocator } from "./release-payload-preparation.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { readVerifiedReleasePublicBuildInputFiles } from "./release-public-build-provenance.mts";
@@ -674,8 +677,23 @@ export async function runReleasePublicationController(
             source_tree: closure.source_tree,
           },
         },
-        (facts) =>
-          collectConfiguredNativePublicationQualificationPair(
+        async (facts) => {
+          // This raw snapshot only selects a narrower GET-only collector. It
+          // cannot mint admission; that collector verifies its own exact
+          // promoting reservation and the actual Checks/TUF/context proofs.
+          const current = await readRemoteCoordinatorSnapshot(
+            directory,
+            { schema_version: 1, namespace: authorities.namespace },
+            { transport: { cwd: directory, deadline } },
+          );
+          if (current.checkpoint !== facts.checkpoint)
+            throw new Error("native publication checkpoint changed before collection");
+          const collect =
+            isRecord(current.input.active_candidate) &&
+            current.input.active_candidate.phase === "promoting"
+              ? collectConfiguredNativePublicationCompletionPair
+              : collectConfiguredNativePublicationQualificationPair;
+          return collect(
             directory,
             nativeLocators,
             facts.assembly,
@@ -683,7 +701,8 @@ export async function runReleasePublicationController(
             contextReceipt,
             tufPublication,
             deadline,
-          ),
+          );
+        },
         deadline,
       );
       checkCoordinatorDeadline();

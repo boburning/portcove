@@ -1624,6 +1624,19 @@ initial empty feed requires the separate bootstrap route. The original 170-secon
 role deadline continues through this handoff. Serialized CLI output cannot
 recreate the private session or reset that budget.
 
+On a later renewal wake, the context continuation first reconciles the existing
+settled context upload. Its exact original numeric coordinator job and complete
+artifact inventory must be terminal and unchanged across the read. A surviving
+context is reused only after the existing pinned attestation verifier, original
+receipt/predicate association and exact current Tough input inventory agree;
+its original checkpoint remains historical lineage. A missing or expired handoff,
+or a failed original producing job, may consume the existing bounded transient
+recovery counter before a new upload. Incomplete inventories, active producers,
+unavailable reads and failed context verification refuse rather than authorize
+another effect. Reuse emits an explicit `attestation_required: false` locator;
+fresh uploads retain the separate required attestation. Neither result is signing
+or publication authority, and neither resets the original coordinator deadline.
+
 `acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
 whole-opportunity control and pre-sign native evidence while the exact candidate
 is still qualifying. Its private same-process proof is exclusively for the

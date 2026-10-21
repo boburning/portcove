@@ -67,3 +67,60 @@ Actual provider, native, signing, public updater journey, and final candidate
 completion evidence remain outstanding until the selected setup and applicable
 execution grants are fulfilled. The post-publication ordinary client journey
 cannot be inferred from immutable Release presence or Pages byte identity.
+
+## GET-only continuation follow-up
+
+The promoting native branch now calls the named configured completion collector.
+Its source, actual TUF/context custody, native Check issuer and package identities
+remain mandatory. Only the exact promoting reservation uses this collector;
+ordinary aggregate and signing paths still refuse that phase. The controller
+brackets selection with the acquired checkpoint, and the collector independently
+checks its reservation before and after reading the issued Checks.
+
+Pages deployments now use the complete site generation digest as their unique
+build version and require the acknowledgement ID to equal that version. The
+[provider contract](https://docs.github.com/en/rest/pages/pages#create-a-github-pages-deployment)
+documents a unique build version and shows the matching deployment identifier.
+Actual provider mapping remains a conditional setup qualification, not a result
+of the inert transport tests.
+
+`recoverPendingPagesPublication` consumes the existing journal's exact
+`site_expectation`, never a replacement local pending file. The existing owned
+coordinator recovery verifies the original publisher is terminal and brackets
+the exact remote checkpoint. The reader requires provider success, complete
+journal-pinned public site acquisition including catalog bytes, and provider
+success again. It retains the real opaque custody receipt separately from the
+verified public projection. It performs no Pages POST, cancellation or retry;
+missing, failed and 404 status never establish that no effect happened. Existing
+completed receipts cannot be overwritten.
+
+This resolves only the existing effect/readback intent. Tough verification,
+published-metadata handoff, ordinary public journey and final candidate completion
+remain separate obligations. Local tests include the real default full-site
+materializer with controlled credential-free public responses, opaque receipt
+readback and refusal after retained catalog mutation; they do not establish a
+live deployment or production acceptance.
+
+## Coordinator wake and verified publication handoff
+
+The default coordinator wake now selects a durable pending Pages expectation
+before waiting on semantic or native work. Its independent coordinator verifies
+the original publisher is terminal, reads the exact expected provider/public
+generation, and settles the existing journal intent. A settled expectation with
+a missing published-metadata handoff remains discoverable on a later wake.
+
+With the actual verified controller tools, the continuation materializes the
+complete public site and runs the maintained Rust/Tough verifier against the
+journal-pinned root and component. The handoff records the authenticated
+**current** feed versions, expiry, records and metadata digests; the verifier's
+unused next renewal plan is retained but never signed or published. The existing
+owned journal helper rechecks the original terminal publisher and exact current
+checkpoint before recording that state. An expired feed refuses this ordinary
+verification path; no expiry bypass is introduced.
+
+The combined recovery uses at most four fresh coordinator control rounds within
+the original 170-second job budget. It issues no Pages POST and does not repeat
+the Release effect. A failure after effect settlement leaves that settled intent
+available for the next GET-only handoff attempt. Applicable public client journey
+and durable candidate completion remain pending. The local association and
+refusal tests do not establish a genuine protected provider invocation.
