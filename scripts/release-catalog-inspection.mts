@@ -20,6 +20,34 @@ import { isRecord } from "./runtime-values.mts";
 
 const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+/** Strict inert machine-response reader shared by the actual inspector and its
+ * real-CLI build fixture. It binds report bytes, never a private tool/inspection
+ * receipt, semantic acceptance or publisher authority. Future schemas refuse. */
+export function readCatalogCoreMachineEnvelope(
+  stdout: string,
+  stderr: string,
+  files: ReadonlyMap<string, Buffer>,
+) {
+  if (
+    stderr !== "" ||
+    Buffer.byteLength(stdout) > 4 * 1024 ** 2 ||
+    Buffer.from(stdout, "utf8").toString("utf8") !== stdout
+  )
+    throw new Error("actual Core machine response differs");
+  const envelope: unknown = JSON.parse(stdout);
+  if (
+    !isRecord(envelope) ||
+    Object.keys(envelope).sort().join(",") !== "command,data,error,ok,schema_version" ||
+    envelope.schema_version !== 78 ||
+    envelope.ok !== true ||
+    envelope.error !== null ||
+    envelope.command !== "catalog.inspect-definition-publication"
+  )
+    throw new Error("actual Core machine response differs");
+  return inspectCatalogCoreReport(envelope.data, files);
+}
+
 function remaining(deadline: number) {
   const left = Math.floor(deadline - performance.now());
   if (!Number.isFinite(deadline) || left < 1)
@@ -171,18 +199,7 @@ export async function inspectActualCatalogPublication(request: {
     });
     await writeFile(path.join(directory, "stderr.txt"), result.stderr, { flag: "wx", mode: 0o600 });
     phase = "bind-actual-report";
-    const envelope: unknown = JSON.parse(result.stdout);
-    if (
-      result.stderr ||
-      !isRecord(envelope) ||
-      Object.keys(envelope).sort().join(",") !== "command,data,error,ok,schema_version" ||
-      envelope.schema_version !== 77 ||
-      envelope.ok !== true ||
-      envelope.error !== null ||
-      envelope.command !== "catalog.inspect-definition-publication"
-    )
-      throw new Error("actual Core machine response differs");
-    const report = inspectCatalogCoreReport(envelope.data, original);
+    const report = readCatalogCoreMachineEnvelope(result.stdout, result.stderr, original);
     const inspection = Buffer.from(`${JSON.stringify(report)}\n`);
     await writeFile(path.join(directory, "inspection.json"), inspection, {
       flag: "wx",

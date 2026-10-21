@@ -13,6 +13,7 @@ import {
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { readCatalogCoreMachineEnvelope } from "./release-catalog-inspection.mts";
 import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 async function main() {
@@ -175,11 +176,12 @@ async function main() {
     const inspected = inspect();
     assert.equal(inspected.error, undefined);
     assert.equal(inspected.status, 0, inspected.stderr);
-    const inspectedJson: unknown = JSON.parse(inspected.stdout);
-    assert.ok(
-      typeof inspectedJson === "object" && inspectedJson !== null && "data" in inspectedJson,
+    const inspectedReport = readCatalogCoreMachineEnvelope(
+      inspected.stdout,
+      inspected.stderr,
+      new Map([["definitions/index.json", index]]),
     );
-    assert.deepEqual(inspectedJson.data, {
+    assert.deepEqual(inspectedReport, {
       publication_schema: 1,
       authority: "none",
       index_sha256: createHash("sha256").update(index).digest("hex"),
@@ -194,7 +196,7 @@ async function main() {
       scope: "inert-managed-definition-publication-inspection",
     });
     await assert.rejects(lstat(unopenedLibrary), { code: "ENOENT" });
-    await record("core-cli-inspection.json", inspectedJson);
+    await record("core-cli-inspection.json", JSON.parse(inspected.stdout) as unknown);
     await writeFile(path.join(bundle, "extra.json"), "{}", { flag: "wx", mode: 0o600 });
     const extra = inspect();
     assert.equal(extra.error, undefined);

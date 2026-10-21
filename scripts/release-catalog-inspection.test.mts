@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile, link } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile, link, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -9,8 +9,98 @@ import {
   inspectCatalogCoreReport,
   readCatalogPublicationBundle,
   requireActualCatalogInspection,
+  readCatalogCoreMachineEnvelope,
 } from "./release-catalog-inspection.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+void test("shared Core machine reader pins current78 and refuses old/future schemas, malformed envelopes and reflected authority", async () => {
+  const core = await readFile(
+    new URL("../crates/portcove-core/src/lib.rs", import.meta.url),
+    "utf8",
+  );
+  const declarations = [...core.matchAll(/^pub const API_SCHEMA_VERSION: u32 = ([0-9]+);\r?$/gmu)];
+  assert.deepEqual(
+    declarations.map((match) => Number(match[1])),
+    [78],
+  );
+  const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}');
+  const files = new Map([["definitions/index.json", index]]);
+  const report = {
+    publication_schema: 1,
+    authority: "none",
+    index_sha256: hash(index),
+    files: [{ target: "definitions/index.json", bytes: index.length, sha256: hash(index) }],
+    definitions: [],
+    scope: "inert-managed-definition-publication-inspection",
+  };
+  const envelope = {
+    schema_version: Number(declarations[0]![1]),
+    command: "catalog.inspect-definition-publication",
+    ok: true,
+    error: null,
+    data: report,
+  };
+  assert.deepEqual(readCatalogCoreMachineEnvelope(JSON.stringify(envelope), "", files), report);
+  for (const change of [
+    { schema_version: 77 },
+    { schema_version: 79 },
+    { schema_version: "78" },
+    { command: "catalog.list" },
+    { ok: false },
+    { ok: "true" },
+    { error: { code: "refused" } },
+    { authority: "accepted" },
+    { data: { ...report, authority: "publisher" } },
+    { data: { ...report, accepted: true } },
+  ])
+    assert.throws(() =>
+      readCatalogCoreMachineEnvelope(JSON.stringify({ ...envelope, ...change }), "", files),
+    );
+  const missing: Record<string, unknown> = { ...envelope };
+  delete missing.error;
+  for (const raw of [
+    "",
+    "not-json",
+    "null",
+    "[]",
+    JSON.stringify(missing),
+    " ".repeat(4 * 1024 ** 2 + 1),
+    JSON.stringify(envelope) + "\ud800",
+  ])
+    assert.throws(() => readCatalogCoreMachineEnvelope(raw, "", files));
+  assert.throws(() => readCatalogCoreMachineEnvelope(JSON.stringify(envelope), "warning", files));
+  assert.throws(() =>
+    readCatalogCoreMachineEnvelope(
+      JSON.stringify(envelope),
+      "",
+      new Map([["definitions/index.json", Buffer.from("{}")]]),
+    ),
+  );
+  const copied = {
+    ...readCatalogCoreMachineEnvelope(JSON.stringify(envelope), "", files),
+    kind: "actual-catalog-core-inspection" as const,
+  };
+  await assert.rejects(
+    requireActualCatalogInspection(copied, performance.now() + 1000),
+    /same-process/,
+  );
+  const fixture = await readFile(
+    new URL("./qualify-controller-tool-build.mts", import.meta.url),
+    "utf8",
+  );
+  const actual = await readFile(
+    new URL("./release-catalog-inspection.mts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    fixture,
+    /readCatalogCoreMachineEnvelope\(\s*inspected\.stdout,\s*inspected\.stderr,/u,
+  );
+  assert.match(
+    actual,
+    /const report = readCatalogCoreMachineEnvelope\(result\.stdout, result\.stderr, original\)/u,
+  );
+});
 
 void test("inert Core report binds full bytes; changed, extra and authority reports refuse", () => {
   const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}');
