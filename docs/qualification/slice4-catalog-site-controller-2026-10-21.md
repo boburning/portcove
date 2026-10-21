@@ -50,7 +50,7 @@ POST. Historical owner/user-site absence stays historical. Existing catalog or
 application sites use actual whole-site custody instead. Application bootstrap
 after catalog still needs its separately explicit setup-preimage variant.
 
-GET-only lost-handoff recovery uses an actual named coordinator recovery assembly,
+GET-only lost-handoff recovery uses the actual named read-only coordinator verification,
 the original settled catalog Pages expectation, an independent read of the
 already-public generation and the existing terminal original-job checks. It does
 not compose another generation, upload or POST again. It rechecks preserved
@@ -77,3 +77,5 @@ The existing complete-site 6000-file/256-MiB limit, archive limit, original job
 deadline, globally shared pending operation and bounded recovery counters remain.
 No account, host, credential, key, settings, namespace or provider operation was
 performed for this preparation.
+
+The [connected controller receipt](slice4-catalog-controller-connection-2026-10-21.md) records subsequent pending-boundary, final-controls, read-only delayed-recovery and exact-intent repairs with their actual evidence scopes.
