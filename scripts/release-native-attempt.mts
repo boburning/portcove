@@ -486,6 +486,91 @@ async function readPassiveNativeSettlement(parent: PublicParent, directory: stri
 }
 
 type PublicHistory = Awaited<ReturnType<typeof readPublicSettlement>>;
+async function readParentPublicHistory(parent: PublicParent, originalPrefix?: readonly string[]) {
+  const current = await inventory(
+    parent.descriptor.capture_root,
+    parent.descriptor.setup_grant_sha256,
+  );
+  const history: PublicHistory[] = [];
+  if (
+    originalPrefix &&
+    digest(current.invocations.slice(0, originalPrefix.length)) !== digest(originalPrefix)
+  )
+    throw new Error("original public custody prefix changed");
+  for (const id of originalPrefix ?? current.invocations) {
+    const directory = path.join(parent.descriptor.capture_root, name(id)),
+      marker = await json(directory, "claim.json");
+    if (isRecord(marker) && marker.kind === "ordinary-public-native-attempt")
+      history.push(await readPublicSettlement(parent, directory, id));
+    else await readPassiveNativeSettlement(parent, directory, id);
+  }
+  remainingNativeParentBudget();
+  return { current, history };
+}
+
+const retainedPublicCohorts = new WeakMap<
+  object,
+  { parent: object; originalPrefix: readonly string[]; cohort: string; parked_id: string }
+>();
+
+/** Historical local admission is recovered only from the setup-owned anchor and
+ * original positive A/B captures. Current remote policy is not evaluated here. */
+export async function readActualRetainedPublicCohort(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
+    throw new Error("actual protected initial public profile required");
+  const { current, history } = await readParentPublicHistory(parent);
+  if (history.length !== 2)
+    throw new Error("exact original completed A and parked B captures required");
+  const cohort = history[0]!.settled.cohort_sha256;
+  if (
+    inspectPublicJourneyProgress(
+      history.map((item) => item.settled),
+      cohort,
+    ) !== "await-published-v2"
+  )
+    throw new Error("retained public phase is not awaiting V2");
+  await parent.recheck();
+  const receipt = Object.freeze({
+    kind: "actual-retained-public-cohort",
+    authority: "none" as const,
+  });
+  retainedPublicCohorts.set(receipt, {
+    parent: parentReceipt,
+    originalPrefix: Object.freeze([...current.invocations]),
+    cohort,
+    parked_id: history[1]!.marker.invocation_id,
+  });
+  return receipt;
+}
+
+export async function requireActualRetainedPublicCohort(receipt: object) {
+  const retained = retainedPublicCohorts.get(receipt);
+  if (!retained) throw new Error("actual retained public cohort custody required");
+  const parent = await requireActualNativeParent(retained.parent),
+    { history } = await readParentPublicHistory(parent, retained.originalPrefix);
+  if (
+    history.length !== 2 ||
+    history[1]!.marker.invocation_id !== retained.parked_id ||
+    inspectPublicJourneyProgress(
+      history.map((item) => item.settled),
+      retained.cohort,
+    ) !== "await-published-v2"
+  )
+    throw new Error("original public custody changed before continuation");
+  remainingNativeParentBudget();
+  return {
+    parent,
+    parent_receipt: retained.parent,
+    cohort_sha256: retained.cohort,
+    initial: history[0]!,
+    parked: history[1]!,
+    authority: "none" as const,
+    scope:
+      "historically admitted local public input/capture custody only; current public policy and V2 claim required" as const,
+  };
+}
+
 const publicProgress = new WeakMap<
   object,
   {
@@ -505,18 +590,7 @@ export async function readActualPublicJourneyProgress(pairReceipt: object) {
   const journal = await selected.source.recover();
   if (journal.input.active_candidate !== null)
     throw new Error("active native candidate must settle before public proof");
-  const current = await inventory(
-    parent.descriptor.capture_root,
-    parent.descriptor.setup_grant_sha256,
-  );
-  const history: PublicHistory[] = [];
-  for (const id of current.invocations) {
-    const directory = path.join(parent.descriptor.capture_root, name(id));
-    const marker = await json(directory, "claim.json");
-    if (isRecord(marker) && marker.kind === "ordinary-public-native-attempt")
-      history.push(await readPublicSettlement(parent, directory, id));
-    else await readPassiveNativeSettlement(parent, directory, id);
-  }
+  const { current, history } = await readParentPublicHistory(parent);
   const cohort = digest(selected.pair);
   const phase = inspectPublicJourneyProgress(
     history.map((item) => item.settled),
