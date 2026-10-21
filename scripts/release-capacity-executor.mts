@@ -27,6 +27,7 @@ import {
   runBoundedMetadataBootstrapOperation,
   runBoundedCatalogPublicationOperation,
   recordPublishedApplicationSiteMetadata,
+  recordPublishedCatalogMetadata,
 } from "./release-capacity-operation.mts";
 import {
   inspectPublishedMetadata,
@@ -36,6 +37,10 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  inspectPublishedCatalogMetadata,
+  inspectPublishedSite,
+} from "./release-catalog-metadata-contract.mts";
 
 export interface CapacityExecutorIdentity {
   controller_revision: string;
@@ -723,17 +728,32 @@ async function recoverOwnedCapacityEffectWithinScope(
  * mutation. The separately authenticated coordinator must re-read the exact
  * public result after the original publisher has become terminal. */
 export async function recoverOwnedPublishedMetadata(
-  ...args: Parameters<typeof recoverOwnedPublishedMetadataWithinScope>
+  session: ExecutorSession,
+  raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+  readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
 ) {
-  const value = sessions.get(args[0]);
+  const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
-  const work = () => recoverOwnedPublishedMetadataWithinScope(...args);
+  const work = () => recoverOwnedPublishedMetadataWithinScope(session, raw, readback);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+/** Separate catalog-purpose handoff. The shared coordinator/terminal publisher
+ * gates remain identical; application metadata is never parsed as catalog. */
+export async function recoverOwnedPublishedCatalogMetadata(
+  session: ExecutorSession,
+  raw: { repository: string; checkpoint: string; remote_configuration: unknown },
+  readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
+) {
+  const value = sessions.get(session);
+  if (!value) throw new Error("an actual authenticated executor session is required");
+  const work = () => recoverOwnedPublishedMetadataWithinScope(session, raw, readback, "catalog");
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedPublishedMetadataWithinScope(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,
+  component: "application" | "catalog" = "application",
 ) {
   const value = sessions.get(session);
   if (!value || value.role !== "coordinator")
@@ -774,6 +794,13 @@ async function recoverOwnedPublishedMetadataWithinScope(
       operation.completed_effects.length !== 1
     )
       throw new Error("exact settled site operation required for published-state recovery");
+    if (
+      component === "catalog"
+        ? !isRecord(operation.catalog_publication) || operation.site_expectation !== undefined
+        : operation.catalog_publication !== undefined ||
+          operation.catalog_site_expectation !== undefined
+    )
+      throw new Error("settled site operation belongs to a different component purpose");
     const original = inspectCapacityExecutorIdentity(operation.executor_identity);
     if (
       original.role !== "site-publication" ||
@@ -802,7 +829,33 @@ async function recoverOwnedPublishedMetadataWithinScope(
         throw new Error("original exact publisher is not observed terminal");
     };
     terminal();
-    const published = inspectPublishedMetadata(await readback(structuredClone(operation)));
+    const observed = await readback(structuredClone(operation));
+    if (
+      component === "catalog" &&
+      (!isRecord(observed) || Object.keys(observed).sort().join(",") !== "metadata,site")
+    )
+      throw new Error("catalog metadata and whole-site cursor readback required");
+    const published =
+      component === "catalog"
+        ? inspectPublishedCatalogMetadata((observed as Record<string, unknown>).metadata)
+        : inspectPublishedMetadata(observed);
+    const site =
+      component === "catalog"
+        ? inspectPublishedSite((observed as Record<string, unknown>).site)
+        : null;
+    if (
+      component === "catalog" &&
+      (!published ||
+        !site ||
+        site.operation_id !== operation.id ||
+        site.generation_sha256 !== published.publication.site_generation_sha256 ||
+        capacityDigest(site.publication) !==
+          capacityDigest({
+            evidence_sha256: published.publication.evidence_sha256,
+            remote_identity: published.publication.remote_identity,
+          }))
+    )
+      throw new Error("catalog cursor differs from exact settled publication");
     const effect: unknown = operation.completed_effects[0];
     if (
       !published ||
@@ -817,14 +870,23 @@ async function recoverOwnedPublishedMetadataWithinScope(
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
       api: remote.api,
     });
-    const recovered = await recordPublishedApplicationSiteMetadata(
-      input.repository,
-      input.checkpoint,
-      published,
-      {
-        remote,
-      },
-    );
+    const recovered =
+      component === "catalog"
+        ? await recordPublishedCatalogMetadata(
+            input.repository,
+            input.checkpoint,
+            published,
+            site,
+            { remote },
+          )
+        : await recordPublishedApplicationSiteMetadata(
+            input.repository,
+            input.checkpoint,
+            published,
+            {
+              remote,
+            },
+          );
     if (
       !("durable_checkpoint" in recovered) ||
       recovered.durable_checkpoint !== recovered.checkpoint
