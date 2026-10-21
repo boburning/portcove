@@ -36,6 +36,7 @@ export function PreparationControl({
   const request = useRef(0);
   const completed = useRef(false);
   const reviewButton = useRef<HTMLButtonElement>(null);
+  const reviewTitle = useRef<HTMLHeadingElement>(null);
   useEffect(
     () => () => {
       request.current += 1;
@@ -78,7 +79,7 @@ export function PreparationControl({
       if (request.current === current)
         setMessage(
           result
-            ? "Game data is prepared. You can now play."
+            ? "Game data is prepared."
             : "Preparation did not complete. Review the current inputs before starting a new preparation.",
         );
     } catch (value) {
@@ -125,6 +126,7 @@ export function PreparationControl({
         >
           <DialogContent
             showCloseButton={false}
+            initialFocus={reviewTitle}
             finalFocus={() => {
               const fallback = focusFallback?.();
               if (focusFallback && !fallback?.isConnected) return false;
@@ -138,7 +140,13 @@ export function PreparationControl({
             reviewSize="standard"
             aria-describedby="preparation-review-description"
           >
-            <DialogTitle id="preparation-review-title" className="mb-2 text-xl">
+            <DialogTitle
+              ref={reviewTitle}
+              id="preparation-review-title"
+              tabIndex={-1}
+              data-autofocus
+              className="mb-2 text-xl"
+            >
               Prepare game data
             </DialogTitle>
             <DialogDescription id="preparation-review-description" className="mb-4 leading-relaxed">
@@ -147,13 +155,23 @@ export function PreparationControl({
             </DialogDescription>
             {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
             <div
-              className="preparation-plan mt-[16px] rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] [overflow-wrap:anywhere]"
+              className="preparation-plan mt-[16px] grid gap-4 rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] [overflow-wrap:anywhere]"
               aria-label="Preparation plan"
             >
-              <p className="m-0">
-                <strong>Installed version · {plan.inputs.install.version}</strong>
-              </p>
-              <p className="m-0">Selected game files: {plan.inputs.source.path}</p>
+              <dl className="m-0 grid gap-3">
+                <div>
+                  <dt className="text-pc-secondary-foreground">Installed version</dt>
+                  <dd className="m-0 font-semibold">{plan.inputs.install.version}</dd>
+                </div>
+                <div>
+                  <dt className="text-pc-secondary-foreground">Installed folder</dt>
+                  <dd className="m-0">{plan.inputs.install.path}</dd>
+                </div>
+                <div>
+                  <dt className="text-pc-secondary-foreground">Selected game files</dt>
+                  <dd className="m-0">{plan.inputs.source.path}</dd>
+                </div>
+              </dl>
               <p className="m-0">
                 Portcove needs at least{" "}
                 {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space
@@ -189,7 +207,6 @@ export function PreparationControl({
             <DialogFooter className="mt-4">
               <Button
                 data-focusable
-                data-autofocus
                 variant="primary"
                 disabled={disabled || Boolean(pending)}
                 onClick={() => {

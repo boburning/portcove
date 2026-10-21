@@ -254,11 +254,16 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   expect(document.body.textContent).toContain("E:/owned.iso");
   expect(document.body.textContent).toContain("Prepare game data");
   expect(document.body.textContent).toContain("Selected game files");
+  const reviewedFacts = document.body.querySelector(".preparation-plan dl");
+  expect(reviewedFacts?.textContent).toContain(plan.inputs.install.version);
+  expect(reviewedFacts?.textContent).toContain(plan.inputs.install.path);
+  expect(reviewedFacts?.textContent).toContain(plan.inputs.source.path);
   expect(document.body.textContent).toContain("of free space before the game generates output");
   expect(document.body.textContent).toContain("previous version remains available for rollback");
   expect(document.body.textContent).toContain("unfinished setup files kept for review");
   expect(document.body.textContent).toContain("Do not launch the game from that window");
   expect(document.activeElement?.textContent).toBe("Prepare game data");
+  expect(document.activeElement?.id).toBe("preparation-review-title");
   await pressEscape();
   expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   expect(document.activeElement?.textContent).toBe("Review game preparation");
@@ -266,6 +271,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
   await click("Prepare game data");
   expect(run).toHaveBeenCalledWith("reviewed-plan", expect.any(Function));
   expect(document.body.textContent).toContain("Game data is prepared");
+  expect(document.body.textContent).not.toContain("You can now play");
 });
 
 it("keeps the reviewed preparation and cancellation control available while setup starts", async () => {
