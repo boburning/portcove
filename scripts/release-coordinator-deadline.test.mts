@@ -7,6 +7,8 @@ import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { readFile } from "node:fs/promises";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
 import { orderedJsonValue } from "./json-values.mts";
 import { isRecord } from "./runtime-values.mts";
 import {
@@ -14,6 +16,64 @@ import {
   withCoordinatorDeadline,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
+
+void test("source hydration and four-file preparation stop after a late actual Git reply", async (t) => {
+  let clock = 1000,
+    calls = 0;
+  t.mock.method(performance, "now", () => clock);
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+  t.mock.method(
+    childProcess,
+    "execFileSync",
+    (
+      _command: string,
+      _args: readonly string[],
+      options: import("node:child_process").ExecFileSyncOptions,
+    ) => {
+      calls++;
+      assert.equal(options.timeout, 1000);
+      clock = 2001;
+      return "a".repeat(40);
+    },
+  );
+  syncBuiltinESMExports();
+  const classification = {
+    source_commit: "a".repeat(40),
+    reviewed_commit: "a".repeat(40),
+    source_tree: "b".repeat(40),
+    reviewed_tree: "b".repeat(40),
+    change_set_sha256: "c".repeat(64),
+    base_version: "0.1.0-alpha.2",
+    change: "prerelease",
+    compatibility: "compatible",
+  };
+  await assert.rejects(
+    withCoordinatorDeadline(2000, () =>
+      prepareReleaseVersion("unused-owned-fixture", classification, ["0.1.0-alpha.2"]),
+    ),
+    /deadline/,
+  );
+  assert.equal(calls, 1);
+  clock = 1000;
+  await assert.rejects(
+    withCoordinatorDeadline(2000, async () =>
+      hydrateReleasePreparationSource(
+        "unused-owned-fixture",
+        { source_commit: "a".repeat(40), source_tree: "b".repeat(40) },
+        {
+          request() {
+            assert.fail("late local reply must refuse before provider access");
+          },
+        },
+      ),
+    ),
+    /deadline/,
+  );
+  assert.equal(calls, 2);
+});
 
 void test("one coordinator role deadline survives async calls and nested work cannot extend it", async (t) => {
   let clock = 1000;

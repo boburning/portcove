@@ -10,6 +10,7 @@ import {
   serializeSiteTar,
   readBackSiteDeployment,
   inspectSiteArtifactArchive,
+  bindSiteDeploymentToPublicationResult,
 } from "./release-site-deployment.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 
@@ -84,6 +85,10 @@ void test("a serialized deployment receipt cannot be imported as an actual compo
   await assert.rejects(
     readBackSiteDeployment({ kind: "prepared-application-site-deployment" }),
     /imported deployment/u,
+  );
+  await assert.rejects(
+    bindSiteDeploymentToPublicationResult({ kind: "prepared-application-site-deployment" }, {}, {}),
+    /actual authenticated site composition/,
   );
 });
 

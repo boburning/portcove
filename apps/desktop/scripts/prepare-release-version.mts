@@ -1,4 +1,8 @@
 import { isRecord } from "../../../scripts/runtime-values.mts";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "../../../scripts/release-coordinator-deadline.mts";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
@@ -21,8 +25,8 @@ function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) 
   );
   // Link-based object creation preserves existing content when simultaneous
   // preparations write identical objects (including on Windows).
-  return (args: readonly string[], input?: string) =>
-    execFileSync(
+  return (args: readonly string[], input?: string) => {
+    const result = execFileSync(
       "git",
       [
         "-C",
@@ -44,11 +48,14 @@ function repositoryGit(repository: string, environment: NodeJS.ProcessEnv = {}) 
         input,
         env: { ...env, GIT_NO_REPLACE_OBJECTS: "1", GIT_NO_LAZY_FETCH: "1", ...environment },
         windowsHide: true,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(30_000),
         maxBuffer: 8 * 1024 * 1024,
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
+    checkCoordinatorDeadline();
+    return result;
+  };
 }
 
 type Git = ReturnType<typeof repositoryGit>;

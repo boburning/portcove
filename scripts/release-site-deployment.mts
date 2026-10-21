@@ -30,9 +30,11 @@ import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
-import { verifyPreparedImmutableRelease } from "./release-immutable-publication.mts";
-import type { PreparedReleasePublication } from "./release-immutable-publication.mts";
 import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
+import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
+import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function remaining(deadline: number | undefined, maximum: number) {
@@ -113,6 +115,8 @@ interface DeploymentSession {
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
+  verifier: { path: string; sha256: string };
+  release_binding?: { result: object; tools: object; report_sha256: string };
   deadline?: number;
   generation: Composed["generation"];
   publication: Composed["publication"];
@@ -359,12 +363,59 @@ export async function prepareSiteDeployment(
         );
   remaining(request.deadline, 15000);
   sessions.set(session, {
+    verifier: { path: request.verifier, sha256: request.verifier_sha256 },
     ...(request.deadline === undefined ? {} : { deadline: request.deadline }),
     ...retained,
     publication: structuredClone(composed.publication),
     previous_generation: prior ? structuredClone(prior.generation) : null,
   });
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
+}
+
+/** Bind actual keyless composition to the authenticated publisher's exact
+ * record set and the current fixed tool artifact. Valid TUF signatures alone
+ * cannot select different release records or appoint a different verifier. */
+export async function bindSiteDeploymentToPublicationResult(
+  session: DeploymentSession,
+  resultReceipt: object,
+  toolsReceipt: object,
+) {
+  const prepared = sessions.get(session);
+  if (!prepared?.publication) throw new Error("actual authenticated site composition required");
+  remaining(prepared.deadline, 15000);
+  const result = await requireReceivedPublicationResult(resultReceipt, prepared.deadline);
+  const tools = await verifiedControllerToolPaths(toolsReceipt);
+  const controller = result.record.controller;
+  if (
+    !isRecord(controller) ||
+    controller.revision !== tools.identity.controller_revision ||
+    controller.source_tree !== tools.identity.source_tree ||
+    controller.ref !== tools.identity.controller_ref ||
+    prepared.verifier.path !== tools.rust ||
+    prepared.verifier.sha256 !== hash(await readControllerToolFile(tools.rust)) ||
+    !isRecord(result.record.context.binding) ||
+    prepared.publication.records_sha256 !== result.record.context.binding.records_sha256
+  )
+    throw new Error(
+      "site composition differs from actual fixed tool or published exact record set",
+    );
+  if (
+    prepared.release_binding &&
+    (prepared.release_binding.result !== resultReceipt ||
+      prepared.release_binding.tools !== toolsReceipt)
+  )
+    throw new Error("site cannot switch its publisher binding");
+  prepared.release_binding = {
+    result: resultReceipt,
+    tools: toolsReceipt,
+    report_sha256: result.report_sha256,
+  };
+  remaining(prepared.deadline, 15000);
+  return {
+    records_sha256: prepared.publication.records_sha256,
+    report_sha256: result.report_sha256,
+    authority: "none" as const,
+  };
 }
 
 /** Public readback is necessary after provider completion. This alone cannot
@@ -409,7 +460,6 @@ export async function publishPreparedSiteDeployment(
     metadata_renewal?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
-  releaseSession?: PreparedReleasePublication,
 ) {
   const prepared = sessions.get(session);
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
@@ -419,14 +469,16 @@ export async function publishPreparedSiteDeployment(
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
-  if (input.metadata_renewal !== undefined)
+  if (input.metadata_renewal !== undefined) {
+    if (prepared.release_binding)
+      throw new Error("site requires one exact maintenance or release subject");
     input.metadata_renewal = assertMetadataRenewalPublication(
       input.metadata_renewal,
       prepared.publication,
     );
-  else
+  } else if (!prepared.release_binding)
     throw new Error(
-      "new release site requires privately reconstructed exact record-set binding; integration pending",
+      "new release site requires actual attested publisher and exact record-set binding",
     );
   const executorIdentity = capacityExecutorIdentity(executor);
   if (
@@ -452,13 +504,54 @@ export async function publishPreparedSiteDeployment(
   const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
   if (input.metadata_renewal === undefined && !isRecord(frozen))
     throw new Error("release site requires the existing complete frozen opportunity");
-  const readRelease = () => {
+  const readRelease = async () => {
     if (input.metadata_renewal !== undefined) return null;
-    if (!releaseSession)
-      throw new Error("actual immutable Release preparation required before feed publication");
-    return verifyPreparedImmutableRelease(releaseSession, candidate, prepared.deadline);
+    const binding = prepared.release_binding;
+    if (
+      !binding ||
+      !isRecord(candidate) ||
+      candidate.phase !== "promoting" ||
+      !isRecord(input.remote_configuration)
+    )
+      throw new Error(
+        "feed publication requires actual promoting reservation and publisher binding",
+      );
+    const result = await requireReceivedPublicationResult(binding.result, prepared.deadline);
+    const tools = await verifiedControllerToolPaths(binding.tools);
+    const context = result.context;
+    const record = result.record;
+    const controller = record.controller;
+    const facts = context.manifest.facts;
+    if (
+      !isRecord(record.candidate) ||
+      !isRecord(controller) ||
+      !isRecord(facts) ||
+      result.report_sha256 !== binding.report_sha256 ||
+      record.namespace !== input.remote_configuration.namespace ||
+      candidateProgressIdentity(candidate) !== candidateProgressIdentity(record.candidate) ||
+      capacityDigest([
+        candidate.release_run,
+        candidate.transient_retries,
+        candidate.substantive_repairs,
+      ]) !==
+        capacityDigest([
+          record.candidate.release_run,
+          record.candidate.transient_retries,
+          record.candidate.substantive_repairs,
+        ]) ||
+      capacityDigest(facts.opportunity) !== capacityDigest(frozen) ||
+      controller.revision !== executorIdentity.controller_revision ||
+      controller.ref !== executorIdentity.execution_ref ||
+      tools.identity.run_id !== executorIdentity.run_id ||
+      tools.identity.run_attempt !== executorIdentity.run_attempt
+    )
+      throw new Error(
+        "current feed reservation, frozen opportunity or fixed executor differs from published result",
+      );
+    remaining(prepared.deadline, 15000);
+    return result.release;
   };
-  readRelease();
+  await readRelease();
   const api = new GitHubApiClient((args, body) =>
     createGitHubRunner({
       cwd: prepared.directory,
@@ -497,7 +590,7 @@ export async function publishPreparedSiteDeployment(
       // before the sole POST. No provider CAS guarantee is inferred from them.
       await readPublicApplicationSiteMarker(prepared.previous_generation!, prepared.deadline);
       await readBoundary();
-      const immutableRelease = readRelease();
+      const immutableRelease = await readRelease();
       const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
       const write = async (name: string, value: unknown) =>
         writeFile(path.join(attempt, name), JSON.stringify(value), { flag: "wx", mode: 0o600 });

@@ -5,9 +5,49 @@ import {
   candidateProgressIdentity,
   inspectCandidateStageEvidence,
   validateCandidateStageTransition,
+  immutableReleaseProgressDigest,
 } from "./release-candidate-progress-contract.mts";
 
 const checkpoint = "a".repeat(40);
+void test("mutable Release observation evidence does not change immutable progress identity", () => {
+  const first = {
+    release_id: 123,
+    immutable: true as const,
+    source_commit: "a".repeat(40),
+    version: "0.19.0-preview.1",
+    assets: [
+      {
+        id: 456,
+        release_id: 123,
+        filename: "package.zip",
+        bytes: 1024,
+        sha256: "b".repeat(64),
+        download_url:
+          "https://github.com/boburning/portcove/releases/download/v0.19.0-preview.1/package.zip",
+      },
+    ],
+    evidence_sha256: "c".repeat(64),
+  };
+  const fresh = { ...first, evidence_sha256: "d".repeat(64) };
+  assert.equal(immutableReleaseProgressDigest(first), immutableReleaseProgressDigest(fresh));
+  assert.notEqual(first.evidence_sha256, fresh.evidence_sha256);
+  for (const patch of [
+    { id: 457 },
+    { release_id: 124 },
+    { filename: "other.zip" },
+    { bytes: 1025 },
+    { sha256: "e".repeat(64) },
+    { download_url: "https://example.invalid/changed" },
+  ])
+    assert.notEqual(
+      immutableReleaseProgressDigest(first),
+      immutableReleaseProgressDigest({ ...fresh, assets: [{ ...first.assets[0]!, ...patch }] }),
+    );
+  assert.notEqual(
+    immutableReleaseProgressDigest(first),
+    immutableReleaseProgressDigest({ ...fresh, source_commit: "f".repeat(40) }),
+  );
+});
 function candidate() {
   return {
     source_commit: "1".repeat(40),
@@ -118,5 +158,37 @@ void test("bounded public locators cannot hide altered bytes, counters or duplic
       ],
       c,
     ),
+  );
+});
+
+void test("all three phase proofs retain their original checkpoints and immutable publication locators", () => {
+  let current = {
+    ...candidate(),
+    stage_evidence: [] as { phase: string; attempts: ReturnType<typeof attempt>[] }[],
+  };
+  for (const [index, phase] of ["building", "publishing", "promoting"].entries()) {
+    const cp = String(index + 1).repeat(40);
+    const added = attempt(current, cp);
+    if (phase === "promoting") {
+      added.proof.locators = [{ kind: "immutable-release", id: "1234", sha256: "8".repeat(64) }];
+      added.evidence_sha256 = releaseCanonicalDigest(added.proof);
+    }
+    const next = {
+      ...current,
+      phase,
+      stage_evidence: [...current.stage_evidence, { phase, attempts: [added] }],
+    };
+    const old: Record<string, unknown> = { ...current };
+    if (old.phase === "qualifying") delete old.stage_evidence;
+    validateCandidateStageTransition(old, next, cp);
+    current = next;
+  }
+  assert.equal(inspectCandidateStageEvidence(current.stage_evidence, current).length, 3);
+  validateCandidateStageTransition(current, { ...current }, "a".repeat(40));
+  const rewritten = structuredClone(current);
+  rewritten.stage_evidence[0]!.attempts[0]!.previous_checkpoint = "b".repeat(40);
+  assert.throws(
+    () => validateCandidateStageTransition(current, rewritten, "a".repeat(40)),
+    /changed without phase advance/,
   );
 });

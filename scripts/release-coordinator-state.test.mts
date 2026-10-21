@@ -1,5 +1,6 @@
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { capacityDigest } from "./release-capacity.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import {
   runBoundedCapacityOperation,
   recordCapacityReadback,
@@ -56,6 +57,102 @@ import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+
+void test(
+  "candidate stage evidence survives real Git checkpoint custody and refuses backfill or same-phase rewrites",
+  { timeout: 60000 },
+  async (t) => {
+    const f = await remoteFixture(t);
+    const active = f.input.active_candidate!;
+    active.phase = "qualifying";
+    active.release_run = { run_id: 12345, attempt: 1, revision: active.prepared_commit };
+    const qualifying = await checkpointReleaseOpportunity(f.bare, f.saved.checkpoint, f.input);
+    const proof = {
+      schema_version: 1,
+      candidate_sha256: candidateProgressIdentity(active),
+      controller_revision: "3".repeat(40),
+      locators: [{ kind: "native-check", id: "101", sha256: "b".repeat(64) }],
+    };
+    active.phase = "building";
+    active.stage_evidence = [
+      {
+        phase: "building",
+        attempts: [
+          {
+            previous_checkpoint: qualifying.checkpoint,
+            evidence_sha256: capacityDigest(proof),
+            proof,
+            release_run: active.release_run,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      },
+    ];
+    const building = await checkpointReleaseOpportunity(f.bare, qualifying.checkpoint, f.input);
+    const recovered = await recoverReleaseOpportunity(f.bare, building.checkpoint);
+    assert.deepEqual(
+      isRecord(recovered.input.active_candidate) && recovered.input.active_candidate.stage_evidence,
+      active.stage_evidence,
+    );
+    assert.equal(
+      capacityDigest(
+        (await checkpointReleaseOpportunity(f.bare, qualifying.checkpoint, f.input)).plan,
+      ),
+      capacityDigest(building.plan),
+    );
+    let latest = building.checkpoint;
+    for (const phase of ["publishing", "promoting"]) {
+      const prior = latest;
+      active.phase = phase;
+      assert.ok(Array.isArray(active.stage_evidence));
+      active.stage_evidence.push({
+        phase,
+        attempts: [
+          {
+            previous_checkpoint: prior,
+            evidence_sha256: capacityDigest(proof),
+            proof,
+            release_run: active.release_run,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      });
+      latest = (await checkpointReleaseOpportunity(f.bare, prior, f.input)).checkpoint;
+    }
+    const final = await recoverReleaseOpportunity(f.bare, latest);
+    assert.deepEqual(
+      isRecord(final.input.active_candidate) && final.input.active_candidate.stage_evidence,
+      active.stage_evidence,
+    );
+    const exported = await exportCoordinatorCheckpoint(f.bare, latest);
+    assert.equal(exported.commit.oid, latest);
+    assert.ok(exported.blob.contents.includes('"stage_evidence"'));
+    const original = structuredClone(active.stage_evidence);
+    delete active.stage_evidence;
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.bare, latest, f.input),
+      /history cannot be removed/,
+    );
+    active.stage_evidence = original;
+    assert.ok(Array.isArray(active.stage_evidence));
+    const slot: unknown = active.stage_evidence[0];
+    assert.ok(isRecord(slot) && Array.isArray(slot.attempts));
+    slot.attempts.push(structuredClone(slot.attempts[0]));
+    await assert.rejects(
+      checkpointReleaseOpportunity(f.bare, latest, f.input),
+      /duplicated|regressed/,
+    );
+    assert.equal(
+      execFileSync("git", ["-C", f.bare, "rev-parse", coordinatorStateRef], {
+        encoding: "utf8",
+        windowsHide: true,
+      }).trim(),
+      latest,
+    );
+  },
+);
 
 void test(
   "initial metadata remote pending and exact readback preserve an existing candidate",
@@ -2506,6 +2603,58 @@ for (const outcome of ["pending", "capacity-refused", "succeeded"]) {
     },
   );
 }
+void test(
+  "metadata renewal remains available during a failed candidate without consuming its recovery counters",
+  { timeout: 120000 },
+  async (t) => {
+    const f = await remoteCapacityFixture(t);
+    const { descriptor, published } = metadataFixture();
+    const input = structuredClone(
+      (await recoverReleaseOpportunity(f.bare, f.migrated.checkpoint)).input,
+    );
+    assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+    assert.ok(isRecord(input.active_candidate));
+    input.controller.capacity_attempt.schema_version = 2;
+    input.active_candidate.phase = "failed";
+    input.active_candidate.failure_kind = "authority";
+    const failed = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    assert.equal(failed.plan.action, "pause-exception");
+    await publishCoordinatorCheckpoint(f.bare, failed.checkpoint, f.config, { api: f.api });
+    const seeded = await recordPublishedMetadata(f.bare, failed.checkpoint, published, f.options);
+    let effects = 0;
+    const operation = await runBoundedMetadataRenewalOperation(
+      f.bare,
+      seeded.checkpoint,
+      descriptor,
+      { kind: "upload", destination: "application-tuf:timestamp" },
+      async () => f.capacity.boundary,
+      async (record, pending) => {
+        effects++;
+        assert.equal(f.refs.get(f.stateRef), pending.checkpoint);
+        await record("qualification:timestamp-during-native-hold", "a".repeat(64));
+      },
+      { ...f.options, maximumReceipts: 1 },
+    );
+    assert.equal(effects, 1);
+    const saved = await recoverReleaseOpportunity(f.bare, operation.checkpoint);
+    assert.deepEqual(saved.input.active_candidate, input.active_candidate);
+    assert.deepEqual(saved.input.review_request, input.review_request);
+    assert.deepEqual(saved.input.review_disposition, input.review_disposition);
+    assert.equal(saved.plan.action, "pause");
+    assert.match(saved.plan.reason, /pending, refused or ambiguous operation/u);
+    assert.equal(operation.operation.outcome, "pending");
+    const settled = await recordCapacityReadback(
+      f.bare,
+      operation.checkpoint,
+      "effect-completed",
+      "b".repeat(64),
+      f.options,
+    );
+    const resolved = await recoverReleaseOpportunity(f.bare, settled.checkpoint);
+    assert.deepEqual(resolved.input.active_candidate, input.active_candidate);
+    assert.equal(resolved.plan.action, "pause-exception");
+  },
+);
 void test(
   "metadata renewal uses durable remote journal without allocating or changing an active candidate",
   { timeout: 120000 },

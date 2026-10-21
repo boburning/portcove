@@ -1,5 +1,30 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import type { verifyPreparedImmutableRelease } from "./release-immutable-publication.mts";
+
+/** Readback evidence may include mutable provider observations. This digest
+ * selects only the already-verified immutable identity, never authenticates it. */
+export function immutableReleaseProgressDigest(
+  value: Pick<
+    ReturnType<typeof verifyPreparedImmutableRelease>,
+    "release_id" | "immutable" | "source_commit" | "version" | "assets"
+  >,
+) {
+  return releaseCanonicalDigest({
+    release_id: value.release_id,
+    immutable: value.immutable,
+    source_commit: value.source_commit,
+    version: value.version,
+    assets: value.assets.map((asset) => ({
+      id: asset.id,
+      release_id: asset.release_id,
+      filename: asset.filename,
+      bytes: asset.bytes,
+      sha256: asset.sha256,
+      download_url: asset.download_url,
+    })),
+  });
+}
 
 const stages = ["building", "publishing", "promoting"] as const;
 const hash = (value: unknown, length: number): value is string =>
@@ -97,6 +122,7 @@ export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<st
             "records",
             "sbom",
             "site-generation",
+            "immutable-release",
           ].includes(String(locator.kind)) ||
           typeof locator.id !== "string" ||
           !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u.test(locator.id) ||
