@@ -299,11 +299,14 @@ const pairs = new WeakMap<
     site: object;
     preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataRenewal>>;
     seed: string;
-    pair: ReturnType<typeof inspectInitialPublicJourneyCohort>;
+    pair:
+      | ReturnType<typeof inspectInitialPublicJourneyCohort>
+      | ReturnType<typeof inspectPublicJourneyContinuation>;
+    historical?: object;
     deadline: number;
   }
 >();
-export async function acquireActualPublicJourneyPair(parentReceipt: object) {
+async function acquirePublicSnapshot(parentReceipt: object) {
   const session = await openActualNativePublicSource(parentReceipt);
   const { parent, source, directory } = session;
   const deadline = performance.now() + remainingNativeParentBudget();
@@ -353,26 +356,71 @@ export async function acquireActualPublicJourneyPair(parentReceipt: object) {
     reader.tags(),
     parent.descriptor.namespace,
   ).allocations;
-  const pair = inspectInitialPublicJourneyCohort(
-    allocations,
+  return {
+    session,
+    site: site.receipt,
+    preparation,
+    seed: digest(seed),
+    deadline,
     preparedFiles,
-    parent.descriptor.platform_label,
-  );
+    allocations,
+  };
+}
+
+async function retainActualPublicPair(
+  snapshot: Awaited<ReturnType<typeof acquirePublicSnapshot>>,
+  pair:
+    | ReturnType<typeof inspectInitialPublicJourneyCohort>
+    | ReturnType<typeof inspectPublicJourneyContinuation>,
+  historical?: object,
+) {
   const receipt = Object.freeze({
     kind: "actual-public-journey-pair",
     authority: "none",
     scope: "actual published source/Tough custody; native execution and public journey unobserved",
   });
   pairs.set(receipt, {
-    session,
-    site: site.receipt,
-    preparation,
-    seed: digest(seed),
+    session: snapshot.session,
+    site: snapshot.site,
+    preparation: snapshot.preparation,
+    seed: snapshot.seed,
     pair,
-    deadline,
+    deadline: snapshot.deadline,
+    ...(historical ? { historical } : {}),
   });
   await requireActualPublicJourneyPair(receipt);
   return receipt;
+}
+
+export async function acquireActualPublicJourneyPair(parentReceipt: object) {
+  const snapshot = await acquirePublicSnapshot(parentReceipt);
+  return retainActualPublicPair(
+    snapshot,
+    inspectInitialPublicJourneyCohort(
+      snapshot.allocations,
+      snapshot.preparedFiles,
+      snapshot.session.parent.descriptor.platform_label,
+    ),
+  );
+}
+
+/** No incoming version/pair/accepted data can choose the old graph: only the
+ * actual protected settled B receipt supplies its original cohort digest. */
+export async function acquireActualPublicJourneyContinuationPair(
+  parentReceipt: object,
+  historicalReceipt: object,
+) {
+  const { requireActualRetainedPublicCohort } = await import("./release-native-attempt.mts");
+  const historical = await requireActualRetainedPublicCohort(historicalReceipt);
+  assert.equal(historical.parent_receipt, parentReceipt);
+  const snapshot = await acquirePublicSnapshot(parentReceipt);
+  const pair = inspectPublicJourneyContinuation(
+    snapshot.allocations,
+    snapshot.preparedFiles,
+    snapshot.session.parent.descriptor.platform_label,
+    historical.cohort_sha256,
+  );
+  return retainActualPublicPair(snapshot, pair, historicalReceipt);
 }
 export async function requireActualPublicJourneyPair(receipt: object) {
   const retained = pairs.get(receipt);
@@ -397,21 +445,36 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     reader.tags(),
     retained.session.parent.descriptor.namespace,
   ).allocations;
-  const pair = inspectInitialPublicJourneyCohort(
-    allocations,
-    await readBoundedReleaseContextFiles(prepared.prepared_root),
-    retained.session.parent.descriptor.platform_label,
-  );
+  const files = await readBoundedReleaseContextFiles(prepared.prepared_root);
+  const historical = retained.historical
+    ? await (
+        await import("./release-native-attempt.mts")
+      ).requireActualRetainedPublicCohort(retained.historical)
+    : undefined;
+  if (historical) assert.equal(historical.parent_receipt, retained.session.parent_receipt);
+  const pair = historical
+    ? inspectPublicJourneyContinuation(
+        allocations,
+        files,
+        retained.session.parent.descriptor.platform_label,
+        historical.cohort_sha256,
+      )
+    : inspectInitialPublicJourneyCohort(
+        allocations,
+        files,
+        retained.session.parent.descriptor.platform_label,
+      );
   assert.equal(digest(pair), digest(retained.pair));
   assert.ok(performance.now() < retained.deadline, "original public parent lifetime exhausted");
   return {
-    pair,
+    pair: structuredClone(retained.pair),
     site,
     preparation: prepared,
     parent: retained.session.parent,
     parent_receipt: retained.session.parent_receipt,
     directory: retained.session.directory,
     deadline: retained.deadline,
+    ...(retained.historical ? { historical_cohort_receipt: retained.historical } : {}),
   };
 }
 
@@ -424,18 +487,30 @@ export async function requireActualPublicJourneySource(receipt: object) {
 
 const packages = new WeakMap<
   object,
-  { pair: object; slot: "prior" | "candidate"; path: string; provider: string; read: () => unknown }
+  {
+    pair: object;
+    slot: "prior" | "candidate" | "parked";
+    path: string;
+    provider: string;
+    read: () => unknown;
+  }
 >();
 /** Complete immutable Release association and opaque package acquisition only.
  * The fixed installed parent subsequently compares actual installed bytes. */
 export async function materializeActualPublicJourneyPackage(
   pairReceipt: object,
-  slot: "prior" | "candidate",
+  slot: "prior" | "candidate" | "parked",
 ) {
-  assert.ok(slot === "prior" || slot === "candidate");
+  assert.ok(slot === "prior" || slot === "candidate" || slot === "parked");
   const selected = await requireActualPublicJourneyPair(pairReceipt),
     retained = pairs.get(pairReceipt)!;
-  const identity = selected.pair[slot];
+  const identity =
+    slot === "parked"
+      ? "parked" in selected.pair
+        ? selected.pair.parked
+        : undefined
+      : selected.pair[slot];
+  assert.ok(identity, "parked package requires actual continuation custody");
   const read = () => {
     const release = record(
       retained.session.source.api.request(
@@ -474,17 +549,37 @@ export async function materializeActualPublicJourneyPackage(
     before.release,
     before.assets,
   );
-  const bytes = retained.session.source.downloadAsset(
-    `repos/boburning/portcove/releases/assets/${artifact.id}`,
-    {
-      cwd: selected.directory,
-      maxBytes: artifact.bytes,
-      timeoutMs: remainingNativeParentBudget(120000),
-    },
-  );
+  let bytes: Buffer, file: string;
+  if (retained.historical && slot !== "candidate") {
+    const { requireActualRetainedPublicCohort } = await import("./release-native-attempt.mts");
+    const historical = await requireActualRetainedPublicCohort(retained.historical),
+      proof = record(historical.parked.marker.request.proof_inputs);
+    assert.ok(typeof proof.source_directory === "string");
+    const originalSlot = slot === "parked" ? "candidate" : "prior";
+    assert.equal(proof[`${originalSlot}_package_sha256`], identity.package.sha256);
+    const root = path.join(historical.parent.descriptor.capture_root, proof.source_directory);
+    file = path.join(root, `${originalSlot}-${identity.package.filename}`);
+    // Missing original input is not permission to reconstruct it by downloading
+    // an expired or replacement artifact. Current immutable provider facts are
+    // still checked independently before/after this original-byte read.
+    bytes = await readBoundedPublicBuildInputFile(
+      root,
+      path.basename(file),
+      identity.package.bytes,
+    );
+  } else {
+    bytes = retained.session.source.downloadAsset(
+      `repos/boburning/portcove/releases/assets/${artifact.id}`,
+      {
+        cwd: selected.directory,
+        maxBytes: artifact.bytes,
+        timeoutMs: remainingNativeParentBudget(120000),
+      },
+    );
+    file = path.join(selected.directory, `${slot}-${identity.package.filename}`);
+    await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
+  }
   assert.ok(bytes.length === artifact.bytes && sha(bytes) === artifact.sha256);
-  const file = path.join(selected.directory, `${slot}-${identity.package.filename}`);
-  await writeFile(file, bytes, { flag: "wx", mode: 0o600 });
   assert.equal(
     digest(read()),
     digest(before),
@@ -503,7 +598,13 @@ export async function requireActualPublicJourneyPackage(receipt: object) {
   const retained = packages.get(receipt);
   if (!retained) throw new Error("actual public immutable package custody required");
   const selected = await requireActualPublicJourneyPair(retained.pair),
-    identity = selected.pair[retained.slot];
+    identity =
+      retained.slot === "parked"
+        ? "parked" in selected.pair
+          ? selected.pair.parked
+          : undefined
+        : selected.pair[retained.slot];
+  assert.ok(identity);
   const bytes = await readBoundedPublicBuildInputFile(
     path.dirname(retained.path),
     path.basename(retained.path),

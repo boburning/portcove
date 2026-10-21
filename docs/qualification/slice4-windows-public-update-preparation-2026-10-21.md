@@ -299,3 +299,15 @@ fact; a new resource claim must still establish its own complete current
 settlement and policy before execution. Imported-parent/cohort refusals and the
 existing phase contracts pass, with typed checks. The actual current-Tough/V2
 factory and its new invocation join remain unfinished.
+
+The current-source continuation factory now accepts only that private retained
+cohort receipt, acquires a fresh complete published site and actual keyless
+Tough preparation, and independently rederives the exact withdrawal/V2 graph.
+Its package custody reuses the original protected B input bytes for V0 and V1;
+missing old bytes refuse instead of downloading or rebuilding a replacement.
+V2 still uses fresh immutable Release association, and all three slots bracket
+provider readback and hash the exact retained bytes. Eleven pair/phase cases
+and six affected typed modules passed. These are source/refusal checks, not an
+actual provider or native continuation. Historical compiler provenance, the
+new execution claim, the Windows registration rendezvous and V2 capture remain
+required before this path can execute.
