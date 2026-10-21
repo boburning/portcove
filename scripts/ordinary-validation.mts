@@ -489,7 +489,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-capacity-operation.test.mts"],
   ],
   [
-    "scripts/release-catalog-publication-fixture.mts",
+    "scripts/fixtures/release-catalog-publication-fixture.mts",
     ["scripts/release-capacity-operation.test.mts"],
   ],
   [
