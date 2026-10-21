@@ -5,6 +5,7 @@ import { mkdtemp, mkdir, copyFile, writeFile, rm, readFile } from "node:fs/promi
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { parse } from "yaml";
 import {
   admitProductionController,
   admitReviewedInputsController,
@@ -270,10 +271,18 @@ const workflow = await readFile(
   "utf8",
 );
 
-void test("inactive workflow enforces bootstrap identities before checkout without a candidate lane", () => {
-  const marker = "      - uses: actions/checkout@";
-  const before = workflow.slice(0, workflow.indexOf(marker));
-  const script = before.split("        run: |\n")[1]?.replaceAll(/^ {10}/gmu, "");
+void test("configured held workflow enforces bootstrap identities before checkout or any credential role", () => {
+  const parsed = parse(workflow) as {
+    jobs: {
+      admission: {
+        environment?: string;
+        "timeout-minutes": number;
+        steps: { run?: string; uses?: string }[];
+      };
+    };
+  };
+  const bootstrap = parsed.jobs.admission;
+  const script = bootstrap.steps[0]?.run;
   assert.ok(script, "bootstrap script must precede checkout");
   const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "bash";
   const execute = (delta: Record<string, string | undefined>) =>
@@ -303,12 +312,13 @@ void test("inactive workflow enforces bootstrap identities before checkout witho
   assert.match(workflow, /package-manager-cache: false/u);
   assert.match(workflow, /contents: read/u);
   assert.match(workflow, /cancel-in-progress: false/u);
-  assert.match(workflow, /timeout-minutes: 5/u);
+  assert.equal(bootstrap["timeout-minutes"], 1);
   assert.match(workflow, /run: node scripts\/production-controller-admission\.mts/u);
-  assert.doesNotMatch(
-    workflow,
-    /^\s*(?:environment|secrets|inputs|schedule|push|pull_request|workflow_call|cache):|: write|pnpm |npm |uses: \.\//mu,
-  );
+  assert.equal(bootstrap.environment, undefined);
+  assert.ok(!JSON.stringify(bootstrap).includes("secrets."));
+  assert.ok(!JSON.stringify(bootstrap).includes("inputs."));
+  assert.ok(!bootstrap.steps.some((step) => step.uses?.startsWith("./")));
+  assert.ok(bootstrap.steps[1]?.uses?.startsWith("actions/checkout@"));
 });
 
 void test("CLI runs with only fixed source files and no installed dependencies", async (t) => {

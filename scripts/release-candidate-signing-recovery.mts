@@ -8,7 +8,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubReleaseAsset, readGitHubArtifactArchive } from "./github-binary.mts";
 import {
   capacityDigest as digest,
   inspectCapacityOperation,
@@ -46,6 +46,7 @@ import type { TufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
 import {
   prepareActualTufPublication,
   requireActualTufPublication,
+  requireRetainedActualTufPublication,
 } from "./release-tuf-publication.mts";
 import {
   readCompleteRunArtifactInventory,
@@ -55,6 +56,13 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
+
+import {
+  inspectPendingCandidateReleaseOperation,
+  inspectPendingReleaseProducer,
+  derivePendingReleaseAssets,
+  observePendingCandidateRelease,
+} from "./release-pending-release-recovery.mts";
 
 const base = "repos/boburning/portcove";
 const roles = ["releases", "preview", "stable", "snapshot", "timestamp"] as const;
@@ -304,6 +312,33 @@ export async function readCandidateSigningOperations(
   active: Record<string, unknown>,
   api?: GitHubRestReader,
 ) {
+  return readOriginalSigningOperations(repository, input, active, api);
+}
+/** Data-only original receipt discovery through one narrowly inspected pending
+ * Release intent. Every signing output must already be positively settled;
+ * this cannot settle that intent or authorize a new signing/Release effect. */
+export async function readSigningOperationsForPendingRelease(
+  repository: string,
+  input: unknown,
+  active: Record<string, unknown>,
+  api?: GitHubRestReader,
+) {
+  assert.ok(
+    isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
+  );
+  const pending = inspectPendingCandidateReleaseOperation(
+    input.controller.capacity_attempt.operation,
+    active,
+  );
+  return readOriginalSigningOperations(repository, input, active, api, pending);
+}
+async function readOriginalSigningOperations(
+  repository: string,
+  input: unknown,
+  active: Record<string, unknown>,
+  api?: GitHubRestReader,
+  pendingRelease?: Operation,
+) {
   assert.ok(
     isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
   );
@@ -313,7 +348,10 @@ export async function readCandidateSigningOperations(
     const allowed = ["payload", "context", ...roles].some(
       (output) => current.destination === destination(String(active.version), output as Output),
     );
-    assert.ok(allowed, "unrelated unresolved effect must settle before signing custody readback");
+    assert.ok(
+      allowed || pendingRelease?.id === current.id,
+      "unrelated unresolved effect must settle before signing custody readback",
+    );
   }
   const operations = new Map<Output, Operation>();
   for (const output of ["payload", "context", ...roles] as const) {
@@ -356,7 +394,13 @@ export async function readCandidateSigningOperations(
     }
     const latest = candidates.sort((a, b) => b.sequence - a.sequence)[0];
     assert.ok(latest, "original signing effect missing; do not sign/upload again from readback");
-    operations.set(output, inspectCandidateSigningOperation(latest, active, output));
+    const retained = inspectCandidateSigningOperation(latest, active, output);
+    if (pendingRelease)
+      assert.ok(
+        settled(retained),
+        "all seven signing effects must already be settled before Release readback",
+      );
+    operations.set(output, retained);
   }
   return operations;
 }
@@ -451,12 +495,21 @@ export async function recoverCandidateSigningCustody(
         signingContextRemaining(deadline, 15000);
       };
       await guard();
-      const operations = await readCandidateSigningOperations(
-        input.repository,
-        state.input,
-        active,
-        api,
+      assert.ok(
+        isRecord(state.input.controller) && isRecord(state.input.controller.capacity_attempt),
       );
+      const currentOperation = inspectCapacityOperation(
+        state.input.controller.capacity_attempt.operation,
+      );
+      const pendingRelease =
+        currentOperation &&
+        ["pending", "ambiguous", "capacity-refused"].includes(currentOperation.outcome) &&
+        currentOperation.destination.startsWith("github-release:boburning/portcove:")
+          ? inspectPendingCandidateReleaseOperation(currentOperation, active)
+          : undefined;
+      const operations = await (
+        pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
+      )(input.repository, state.input, active, api);
       const observe = (operation: Operation, output: Exclude<Output, "payload">) => {
         const producer = operation.executor_identity!;
         return inspectCandidateSigningProvider(
@@ -614,6 +667,77 @@ export async function recoverCandidateSigningCustody(
       );
       await requireActualTufPublication(publication, deadline);
       await requireRetainedSigningContext(context, deadline);
+      if (pendingRelease) {
+        phase = "original-pending-Release-readback";
+        const expected = await derivePendingReleaseAssets(
+          context,
+          publication,
+          toolsReceipt,
+          active,
+          deadline,
+        );
+        const producer = pendingRelease.executor_identity!;
+        const originalProducer = () =>
+          inspectPendingReleaseProducer(
+            get(`actions/runs/${String(producer.run_id)}`),
+            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
+            get(`actions/jobs/${String(producer.job_id)}`),
+            pendingRelease,
+          );
+        const observeRelease = () =>
+          observePendingCandidateRelease(api, pendingRelease, expected, (id, maximum) =>
+            readGitHubReleaseAsset(`${base}/releases/assets/${id}`, {
+              cwd: directory,
+              maxBytes: maximum,
+              timeoutMs: signingContextRemaining(deadline, 30000),
+              spawn: (command, args, settings) =>
+                spawnSync(command, args, { ...settings, env: environment }),
+            }),
+          );
+        await guard();
+        const producerBefore = originalProducer();
+        const before = await observeRelease();
+        await guard();
+        const recovered = await recoverOwnedCapacityEffect(
+          executor,
+          { ...input, checkpoint },
+          async (pending) => {
+            assert.equal(
+              digest(pending),
+              digest(pendingRelease),
+              "original Release intent changed",
+            );
+            await guard();
+            const again = await observeRelease();
+            await requireRetainedActualTufPublication(publication, deadline);
+            assert.equal(
+              digest(again.projection),
+              digest(before.projection),
+              "original Release readback drifted",
+            );
+            assert.equal(
+              digest(originalProducer()),
+              digest(producerBefore),
+              "original publisher changed around readback",
+            );
+            await guard();
+            return {
+              resolution: "effect-completed",
+              evidence_sha256: again.evidence_sha256,
+              ...(pendingRelease.completed_effects.length
+                ? {}
+                : {
+                    completed_effect: {
+                      remote_identity: again.remote_identity,
+                      evidence_sha256: again.evidence_sha256,
+                    },
+                  }),
+            };
+          },
+        );
+        checkpoint = recovered.checkpoint;
+        await guard();
+      }
       await guard();
       await refreshCapacityExecutor(executor);
       signingContextRemaining(deadline, 15000);
