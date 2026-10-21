@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { InstallRecord, OperationEvent, PreparationPlan } from "../types";
 import { errorText, formatBytes, isCancellation } from "../view-model";
@@ -39,6 +39,11 @@ export function PreparationControl({
   const reviewButton = useRef<HTMLButtonElement>(null);
   const reviewTitle = useRef<HTMLHeadingElement>(null);
   const actionRegion = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    // Confirmation disappears when the running view commits. Move focus in
+    // that commit, before popup focus recovery handles the removed button.
+    if (pending === "prepare" && plan) reviewTitle.current?.focus();
+  }, [pending, plan]);
   useEffect(
     () => () => {
       request.current += 1;
@@ -69,9 +74,6 @@ export function PreparationControl({
     if (!plan || !run) return;
     const current = ++request.current;
     setPending("prepare");
-    window.requestAnimationFrame(() => {
-      if (request.current === current) reviewTitle.current?.focus();
-    });
     setError(undefined);
     setMessage("Starting preparation…");
     try {
