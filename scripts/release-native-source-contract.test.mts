@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
@@ -16,7 +17,46 @@ void test("actual maintained source recipe supplies declarations without runtime
     ),
   );
   const result = inspectNativeCompatibilitySources(files);
-  assert.deepEqual(result.cli_protocol, { min: 78, max: 78 });
+  assert.ok(Number.isSafeInteger(result.cli_protocol.min) && result.cli_protocol.min > 0);
+  assert.equal(result.cli_protocol.max, result.cli_protocol.min);
+  const apiDeclaration = `pub const API_SCHEMA_VERSION: u32 = ${result.cli_protocol.min};`;
+  const lib = nativeCompatibilitySourcePaths[0],
+    db = nativeCompatibilitySourcePaths[1],
+    catalog = nativeCompatibilitySourcePaths[2],
+    windows = nativeCompatibilitySourcePaths[3];
+  // This is a source-derived protocol, not a second pin to update on every API
+  // revision. Bind the reported value and receipts to the actual input bytes.
+  assert.equal(
+    files[lib]!.toString("utf8")
+      .split(/\r?\n/u)
+      .filter((line) => line === apiDeclaration).length,
+    1,
+  );
+  assert.deepEqual(
+    result.files,
+    nativeCompatibilitySourcePaths.map((name) => ({
+      path: name,
+      sha256: createHash("sha256").update(files[name]!).digest("hex"),
+      bytes: files[name]!.byteLength,
+    })),
+  );
+  // Independently expected ranges exercise decoding across changing declarations;
+  // a hardcoded protocol result cannot satisfy these fixtures.
+  for (const protocol of [17, 821]) {
+    const revised = {
+      ...files,
+      [lib]: Buffer.from(
+        files[lib]!.toString("utf8").replace(
+          apiDeclaration,
+          `pub const API_SCHEMA_VERSION: u32 = ${protocol};`,
+        ),
+      ),
+    };
+    assert.deepEqual(inspectNativeCompatibilitySources(revised).cli_protocol, {
+      min: protocol,
+      max: protocol,
+    });
+  }
   assert.deepEqual(result.catalog_formats, [2]);
   assert.deepEqual(result.library, {
     read: { min: 1, max: 37 },
@@ -25,17 +65,14 @@ void test("actual maintained source recipe supplies declarations without runtime
   });
   assert.equal(result.authority, "none");
   assert.equal(result.files.length, 4);
-  const lib = nativeCompatibilitySourcePaths[0],
-    db = nativeCompatibilitySourcePaths[1],
-    catalog = nativeCompatibilitySourcePaths[2],
-    windows = nativeCompatibilitySourcePaths[3];
   for (const changed of [
     { ...files, [lib]: Buffer.from("invalid source") },
+    { ...files, [lib]: Buffer.concat([files[lib]!, Buffer.from(`\n${apiDeclaration}\n`)]) },
     {
       ...files,
       [lib]: Buffer.concat([
         files[lib]!,
-        Buffer.from("\npub const API_SCHEMA_VERSION: u32 = 78;\n"),
+        Buffer.from("\npub const API_SCHEMA_VERSION: u32 = 17;\n"),
       ]),
     },
     {

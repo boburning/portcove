@@ -2,17 +2,29 @@ param(
     [switch]$IncludeDeep,
     [switch]$Desktop,
     [Alias("Profile")][ValidateSet("standard", "frontend", "core", "daily", "native-desktop")][string]$CapabilityProfile = "standard",
-    [Alias("h")][switch]$Help
+    [Alias("h", "-help")][switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
 if ($Help) {
     @"
-usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Profile standard|frontend|core|daily|native-desktop] [-Help]
+Usage: ./scripts/bootstrap-quality-tools.ps1 [-IncludeDeep] [-Desktop] [-Profile standard|frontend|core|daily|native-desktop] [-Help]
 
 Installs repository-pinned tools into a shared user cache and writes checkout-local
 shims under work/tool-bin. It never changes persistent PATH or user environment
 variables. -Desktop also provisions tauri-driver and a matching EdgeDriver.
+
+Options:
+  -IncludeDeep  Also attempt optional deep-analysis tools; unavailable tools are reported.
+  -Desktop      Provision Windows desktop-test drivers in addition to standard tools.
+  -Profile      Select a capability profile; standard is the default. Selective profiles
+                cannot be combined with -IncludeDeep or -Desktop.
+  -Help, --help Show this help without reading manifests, creating caches or installing tools.
+
+Use the repository-pinned Node and pnpm on PATH. Native desktop setup requires Windows.
+
+Example:
+  ./scripts/bootstrap-quality-tools.ps1 -Profile frontend
 "@ | Write-Output
     exit 0
 }
@@ -117,7 +129,7 @@ if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend)) {
 }
 function Install-SelectedFrontend {
     & pnpm install --frozen-lockfile
-    if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
+    if ($LASTEXITCODE -ne 0) { throw "Could not install frontend dependencies: pnpm install --frozen-lockfile failed with exit code $LASTEXITCODE. See the command output above." }
     & node (Join-Path $PSScriptRoot "hooks-install.mts")
     if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
 }
@@ -138,7 +150,7 @@ if ($capabilityPlan -and $capabilityPlan.setup.rust) {
     if (-not $rustReady) {
         $componentArguments = @($components | ForEach-Object { "--component"; $_ })
         & rustup toolchain install $rustPin --profile minimal @componentArguments
-        if ($LASTEXITCODE -ne 0) { throw "Requested pinned Rust provisioning failed" }
+        if ($LASTEXITCODE -ne 0) { throw "Could not install Rust ${rustPin}: rustup toolchain install failed with exit code $LASTEXITCODE. See the command output above." }
     }
 }
 
@@ -229,7 +241,7 @@ function Install-PinnedAqua {
         catch { $receiptReady = $false }
     }
     if ($receiptReady -and (Test-ReportedVersion $aquaExecutable @("--version") $requiredAquaSemver)) {
-        Write-Information "Aqua cache hit: $aquaExecutable" -InformationAction Continue
+        Write-Information "Using cached Aqua $requiredAqua at $aquaExecutable." -InformationAction Continue
         return $aquaExecutable
     }
     $uri = "$($bootstrapManifest.aqua.release_base)/$requiredAqua/$($artifact.archive)"
@@ -259,7 +271,7 @@ function Install-PinnedAqua {
         Remove-Item -LiteralPath $archive -Force -ErrorAction SilentlyContinue
         Remove-Item -LiteralPath $extractRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Information "Aqua installed: $aquaExecutable" -InformationAction Continue
+    Write-Information "Installed Aqua $requiredAqua at $aquaExecutable." -InformationAction Continue
     return $aquaExecutable
 }
 
@@ -291,7 +303,7 @@ function Install-CachedCargoTool([object]$Definition) {
                 else {
                     & cargo install --locked --root $installRoot --version $Definition.version $Definition.crate
                 }
-                if ($LASTEXITCODE -ne 0) { throw "Could not install $($Definition.crate) $($Definition.version)" }
+                if ($LASTEXITCODE -ne 0) { throw "Could not install $($Definition.crate) $($Definition.version): the Cargo install command failed with exit code $LASTEXITCODE. See the command output above." }
                 Copy-Item -LiteralPath (Join-Path $installRoot "bin\$binaryName$suffix") -Destination $next -Force
             }
             finally {
@@ -300,12 +312,12 @@ function Install-CachedCargoTool([object]$Definition) {
         }
         if (-not (Test-ReportedVersion $next @("--version") ([string]$Definition.version))) {
             Remove-Item -LiteralPath $next -Force -ErrorAction SilentlyContinue
-            throw "$($Definition.crate) did not report required version $($Definition.version)"
+            throw "The installed $($Definition.crate) did not report required version $($Definition.version). Its temporary executable was not activated; inspect the install output before retrying."
         }
         Move-Item -LiteralPath $next -Destination $target -Force
-        Write-Information "$($Definition.crate) installed: $target" -InformationAction Continue
+        Write-Information "Installed $($Definition.crate) $($Definition.version) at $target." -InformationAction Continue
     }
-    else { Write-Information "$($Definition.crate) cache hit: $target" -InformationAction Continue }
+    else { Write-Information "Using cached $($Definition.crate) $($Definition.version) at $target." -InformationAction Continue }
     Write-CommandShim $binaryName $target
     return $target
 }
@@ -333,7 +345,7 @@ function Install-CachedTauriDriver([string]$Version) {
             else {
                 & cargo install --locked --root $installRoot --version $Version tauri-driver | Out-Host
             }
-            if ($LASTEXITCODE -ne 0) { throw "Could not install tauri-driver $Version" }
+            if ($LASTEXITCODE -ne 0) { throw "Could not install tauri-driver ${Version}: the Cargo install command failed with exit code $LASTEXITCODE. See the command output above." }
             $candidate = Join-Path $installRoot "bin\tauri-driver$suffix"
             if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) {
                 throw "tauri-driver installation did not produce $candidate"
@@ -350,9 +362,9 @@ function Install-CachedTauriDriver([string]$Version) {
         finally {
             Remove-Item -LiteralPath $installRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
-        Write-Information "tauri-driver installed: $target" -InformationAction Continue
+        Write-Information "Installed tauri-driver $Version at $target." -InformationAction Continue
     }
-    else { Write-Information "tauri-driver cache hit: $target" -InformationAction Continue }
+    else { Write-Information "Using cached tauri-driver $Version at $target." -InformationAction Continue }
     Write-CommandShim "tauri-driver" $target
     return $target
 }
@@ -402,9 +414,9 @@ function Install-CachedPowerShellAnalyzer([string]$Version, [string]$Repository)
         finally {
             Remove-Item -LiteralPath $stagingRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
-        Write-Information "PSScriptAnalyzer installed: $target" -InformationAction Continue
+        Write-Information "Installed PSScriptAnalyzer $Version at $target." -InformationAction Continue
     }
-    else { Write-Information "PSScriptAnalyzer cache hit: $target" -InformationAction Continue }
+    else { Write-Information "Using cached PSScriptAnalyzer $Version at $target." -InformationAction Continue }
 }
 
 function Get-WebViewRuntimeVersion {
@@ -526,7 +538,7 @@ try {
     $env:AQUA_ENFORCE_REQUIRE_CHECKSUM = "true"
     if ($wantsAqua) {
         & $resolvedAqua install
-        if ($LASTEXITCODE -ne 0) { throw "Aqua could not install the pinned quality tools" }
+        if ($LASTEXITCODE -ne 0) { throw "Could not install the pinned quality tools: aqua install failed with exit code $LASTEXITCODE. See the command output above." }
     }
 
     $selectedCargoTools = if ($capabilityPlan) { @($capabilityPlan.setup.cargo_tools) } else { @($qualityManifest.tools | Where-Object { $_.tier -eq "required" }) }
@@ -544,7 +556,7 @@ try {
     if ($IncludeDeep) {
         foreach ($tool in @($qualityManifest.tools | Where-Object { $_.tier -eq "deep" })) {
             try { Install-CachedCargoTool $tool | Out-Null }
-            catch { Write-Warning "$($tool.crate) remains unavailable: $($_.Exception.Message)" }
+            catch { Write-Warning "Optional quality tool $($tool.crate) remains unavailable: $($_.Exception.Message)" }
         }
     }
 

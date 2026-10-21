@@ -658,8 +658,11 @@ void test("pre-sign reconstruction joins exact installed/host/runtime facts and 
   assert.equal(result.authority, "none");
   assert.equal(result.report.stage, "payload-signing");
   assert.equal(result.report.host.loaded_engine.version, "155.0.4283.62");
-  assert.deepEqual(result.report.compatibility.cli_protocol, { min: 78, max: 78 });
   assert.deepEqual(result.report.compatibility.cli_protocol, f.source.cli_protocol);
+  assert.equal(
+    result.report.compatibility.cli_protocol.min,
+    f.evidence.runtime.core.schema_version,
+  );
   assert.deepEqual(
     result.report.scenarios.map((value) => value.name),
     f.prepared.request.required_scenarios,

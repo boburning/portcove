@@ -288,6 +288,81 @@ void describe("qualification report evidence preparation", () => {
     };
   }
 
+  void test("missing or nonregular report inputs explain the initialized-library remedy before capture", async (t) => {
+    for (const missing of ["cli", "library", "database"] as const) {
+      const f = fixture(t, []);
+      const input = missing === "database" ? path.join(f.library, "portcove.sqlite3") : f[missing];
+      rmSync(input, { recursive: true });
+      let executions = 0;
+      await assert.rejects(
+        f.capture(async () => {
+          executions++;
+          return { stdout: "{}" };
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof Error);
+          assert.match(
+            error.message,
+            /existing Portcove CLI executable verified for this session and an initialized test library containing portcove.sqlite3/u,
+          );
+          assert.ok(error.message.includes(JSON.stringify(f.cli)));
+          assert.ok(error.message.includes(JSON.stringify(f.library)));
+          assert.ok(error.cause instanceof Error && "code" in error.cause);
+          assert.equal(error.cause.code, "ENOENT");
+          return true;
+        },
+      );
+      assert.equal(executions, 0);
+      assert.equal(existsSync(f.output), false);
+    }
+    const f = fixture(t, []);
+    rmSync(f.cli);
+    mkdirSync(f.cli);
+    await assert.rejects(f.capture(), /Provide an existing Portcove CLI executable/u);
+    assert.equal(existsSync(f.output), false);
+  });
+
+  void test("unsupported report formats explain the mismatch without replacing known CLI failures", async (t) => {
+    const f = fixture(t, []);
+    for (const stdout of ["not json", "[]", "{}", '{"ok":"true"}', '{"ok":false}']) {
+      await assert.rejects(
+        f.capture(async () => ({ stdout })),
+        /report format this tool does not support \(doctor:/u,
+      );
+      assert.equal(existsSync(f.output), false);
+    }
+    for (const status of [null, [null], [{ port_id: "fixture", active: [] }]]) {
+      await assert.rejects(
+        f.capture(async (_cli, args) => ({
+          stdout: JSON.stringify({
+            ok: true,
+            data: args[4] === "catalog" ? { ports: [] } : args[4] === "status" ? status : {},
+          }),
+        })),
+        /report format this tool does not support/u,
+      );
+      assert.equal(existsSync(f.output), false);
+    }
+    await assert.rejects(
+      f.capture(async () => ({
+        stdout: JSON.stringify({ ok: false, error: { message: "Snapshot unavailable" } }),
+      })),
+      /^Error: doctor: Snapshot unavailable$/u,
+    );
+    const processFailure = new Error("CLI process exited with code 7");
+    await assert.rejects(
+      f.capture(async () => {
+        throw processFailure;
+      }),
+      (error: unknown) => error === processFailure,
+    );
+    assert.equal(existsSync(f.output), false);
+    assert.equal(
+      readFileSync(path.join(f.library, "portcove.sqlite3"), "utf8"),
+      "unchanged fixture database\n",
+    );
+  });
+
   void test("direct entry validates required arguments through resolved and aliased paths", async () => {
     const entries = [fileURLToPath(new URL("./qualification-report.mts", import.meta.url))];
     // Linux procfs supplies an alias without creating symlinks or invoking a real CLI.

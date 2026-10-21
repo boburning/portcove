@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import ruleset from "../.github/repository-ruleset.json" with { type: "json" };
 import security from "../.github/repository-security.json" with { type: "json" };
 import { isRecord } from "./runtime-values.mts";
@@ -29,6 +33,49 @@ import {
   rulesetMigration,
   validateRepositorySettings,
 } from "./repository-settings.mts";
+
+void test("repository-settings help does not read artifacts or contact GitHub", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-repository-help-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "scripts"));
+  for (const file of [
+    "repository-settings.mts",
+    "runtime-values.mts",
+    "github-api.mts",
+    "release-readonly-child-environment.mts",
+    "release-coordinator-deadline.mts",
+  ])
+    copyFileSync(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/repository-settings.mts"), "--help"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage:/u);
+  assert.match(result.stdout, /--plan.*JSON/u);
+  assert.match(result.stdout, /explicit owner authorization/u);
+  assert.match(result.stdout, /Example:/u);
+  assert.equal(result.stderr, "");
+  const invalid = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/repository-settings.mts"), "--help", "--apply"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(invalid.status, 1);
+  assert.match(invalid.stderr, /Usage:/u);
+  assert.doesNotMatch(invalid.stderr, /ENOENT/u);
+});
 
 void test("checked-in repository settings enforce the exact main contract", () => {
   assert.doesNotThrow(() => validateRepositorySettings(ruleset, security));

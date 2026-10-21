@@ -1217,6 +1217,14 @@ From the repository root, run the complete local gate before creating a tag:
 
 The gate verifies release metadata, a no-reuse `just audit --fresh`, the frontend production dependency audit, active catalog repositories, direct PS1 upstream ownership, the native Tauri bundle, and an isolated silent install/respond/uninstall lifecycle. Install the pinned audit tools with `scripts/bootstrap-quality-tools.ps1` before running it locally. It never uses or modifies the normal Portcove library. Network-backed catalog and dependency checks use the configured credentials or normal anonymous public access.
 
+`release-preflight.ps1`, `package-local.ps1`, and `test-windows-installer.ps1`
+accept `-Help` or `--help` before any storage, build, Registry, or installer work.
+`check-release-metadata.mts` and `check-retcomm-upstreams.mts` accept `--help`
+without reading release/catalog inputs or contacting upstreams. A failed preflight
+names the failing command and child exit code; retain its output and any reported
+log or evidence paths before retrying. Offline upstream checks only validate local
+mappings, and a scoped live check leaves unselected upstreams unassessed.
+
 After it passes, refresh the shareable local artifacts and checksum manifest:
 
 ```powershell
@@ -1249,6 +1257,13 @@ node scripts/qualification-report.mts --cli <portcove.exe> --library <qualificat
 ```
 
 The report captures versioned core diagnostics, catalog, sources, status, activity, capacity, and backup listings, plus the exact CLI hash. Its checklist leaves gameplay, audio, controller, and save/load observations unassessed. Keep these local reports private because source references contain local paths; they never contain source file contents or account credentials. The tool does not edit catalog qualification flags.
+
+Use an existing CLI executable verified for the session and an initialized test
+library containing `portcove.sqlite3`; the output directory must be new. Run
+`node scripts/qualification-report.mts --help` for the complete input contract
+without executing the CLI or writing evidence. Unsupported JSON/report shapes
+remain failures and identify the format mismatch; use the CLI and report tool
+from the same reviewed source instead of treating missing evidence as a pass.
 
 For a packaged Windows qualification session, first create an immutable build
 record from the exact clean candidate checkout. Put all package inputs below

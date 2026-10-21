@@ -10,6 +10,19 @@ import { promisify } from "node:util";
 const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const execFileAsync = promisify(execFile);
+const HELP = `Check Portcove release versions, required files, and brand/model integrity.
+
+Usage: node scripts/check-release-metadata.mts [options]
+
+Options:
+  --tag TAG                Require the release tag to match the central version.
+  --expect-version VALUE  Require this version across release metadata.
+  --print-version         Print only the verified version after all checks pass.
+  --help                  Show this help without reading metadata or running Cargo.
+
+Example:
+  node scripts/check-release-metadata.mts --tag v0.1.0
+`;
 const brandManifestRelativePath = "apps/desktop/assets/brand/manifest.json";
 const modelManifestRelativePath = "apps/desktop/assets/brand/models/v2/model-manifest.json";
 const semverPattern =
@@ -568,6 +581,7 @@ interface ReleaseOptions {
   expectedVersion?: string;
   tag?: string;
   printVersion?: boolean;
+  help?: boolean;
 }
 function releaseProjection(input: unknown) {
   const value = record(input);
@@ -869,6 +883,10 @@ export function parseArguments(argv: readonly string[]) {
     const argument = argv[index];
     if (argument === undefined) throw new Error("missing argument");
     const [name = "", inlineValue] = argument.split("=", 2);
+    if (argument === "--help") {
+      options.help = true;
+      continue;
+    }
     if (name === "--print-version") {
       options.printVersion = true;
       continue;
@@ -887,8 +905,22 @@ export function parseArguments(argv: readonly string[]) {
   return options;
 }
 
+export function formatReleaseMetadataSummary(
+  version: string | undefined,
+  tag: string | undefined,
+  counts: { requiredFiles: number; brandAssets: number; modelFiles: number },
+) {
+  const count = (value: number, singular: string) =>
+    `${value} ${singular}${value === 1 ? "" : "s"}`;
+  return `Release metadata passed for Portcove ${version}${tag ? ` (tag ${tag})` : ""}. Checked ${count(counts.requiredFiles, "required file")}, ${count(counts.brandAssets, "brand asset")}, and ${count(counts.modelFiles, "model file")}.`;
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
+  if (options.help) {
+    console.log(HELP);
+    return;
+  }
   const metadata = await collectReleaseMetadata();
   const errors = validateReleaseMetadata(metadata, options);
   if (errors.length) {
@@ -902,9 +934,12 @@ async function main() {
     console.log(metadata.cargo.version);
     return;
   }
-  const tagSuffix = options.tag ? ` for ${options.tag}` : "";
   console.log(
-    `Release metadata check passed: Portcove ${metadata.cargo.version}${tagSuffix}; ${requiredProjectFiles.length} required files present; ${metadata.brandAssetCount} brand assets and ${metadata.modelFileCount} model files verified.`,
+    formatReleaseMetadataSummary(metadata.cargo.version, options.tag, {
+      requiredFiles: requiredProjectFiles.length,
+      brandAssets: metadata.brandAssetCount,
+      modelFiles: metadata.modelFileCount,
+    }),
   );
 }
 

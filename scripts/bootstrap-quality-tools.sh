@@ -6,10 +6,30 @@ include_deep=false
 profile=standard
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --help|-h) printf 'usage: %s [--include-deep] [--profile standard|frontend|core|daily|native-desktop] [--help]\n' "$0"; exit 0 ;;
+    --help|-h)
+      printf 'Usage: %s [--include-deep] [--profile standard|frontend|core|daily|native-desktop] [--help]\n' "$0"
+      cat <<'HELP'
+
+Install repository-pinned quality tools for the selected development capabilities.
+Existing exact versions are reused. Aqua packages use the shared user cache.
+
+Options:
+  --include-deep  Also attempt optional deep-analysis tools and report unavailable tools.
+  --profile      Select standard (default), frontend, core, daily or native-desktop.
+                 Selective profiles cannot be combined with --include-deep.
+  --help, -h     Show this help without reading manifests, creating caches or installing tools.
+
+Provide the pinned Node and pnpm on PATH for frontend setup, and the pinned Aqua
+when the selected profile uses it. Selective native-desktop provisioning is not
+available in this POSIX bootstrap; use the existing approved platform setup.
+
+Example:
+  bash scripts/bootstrap-quality-tools.sh --profile frontend
+HELP
+      exit 0 ;;
     --include-deep) include_deep=true; shift ;;
-    --profile) [[ $# -ge 2 ]] || { printf '%s\n' '--profile requires a value' >&2; exit 2; }; profile="$2"; shift 2 ;;
-    *) printf 'unknown bootstrap option: %s\n' "$1" >&2; exit 2 ;;
+    --profile) [[ $# -ge 2 ]] || { printf '%s\n' '--profile requires a value. Run with --help for the supported profiles.' >&2; exit 2; }; profile="$2"; shift 2 ;;
+    *) printf 'Unknown bootstrap option: %s. Run with --help for the supported options.\n' "$1" >&2; exit 2 ;;
   esac
 done
 
@@ -125,21 +145,33 @@ install_tool() {
   IFS='|' read -r crate version command_line <<<"$spec"
 
   if has_exact_version "$version" "$command_line"; then
-    printf '%s already pinned: %s\n' "$crate" "$(reported_version "$command_line")"
+    printf 'Using installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
     return
   fi
 
   if command -v cargo-binstall >/dev/null 2>&1; then
-    cargo binstall --no-confirm --locked "$crate@$version"
+    if cargo binstall --no-confirm --locked "$crate@$version"; then
+      :
+    else
+      local install_status=$?
+      printf 'Could not install %s %s: cargo binstall failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
+      return "$install_status"
+    fi
   else
-    cargo install --locked --version "$version" "$crate"
+    if cargo install --locked --version "$version" "$crate"; then
+      :
+    else
+      local install_status=$?
+      printf 'Could not install %s %s: cargo install failed with exit code %s. See the command output above.\n' "$crate" "$version" "$install_status" >&2
+      return "$install_status"
+    fi
   fi
 
   if ! has_exact_version "$version" "$command_line"; then
-    printf '%s did not report required version %s\n' "$crate" "$version" >&2
+    printf 'The installed %s did not report required version %s. Run %s to inspect the installed version.\n' "$crate" "$version" "$command_line" >&2
     return 1
   fi
-  printf '%s installed: %s\n' "$crate" "$(reported_version "$command_line")"
+  printf 'Installed %s: %s.\n' "$crate" "$(reported_version "$command_line")"
 }
 
 for tool in "${required_tools[@]}"; do
@@ -155,7 +187,7 @@ if $include_deep; then
     crate="${tool%%|*}"
     if ! install_tool "$tool"; then
       optional_failures+=("$crate")
-      printf 'warning: optional %s remains unavailable\n' "$crate" >&2
+      printf 'Warning: optional tool %s remains unavailable.\n' "$crate" >&2
     fi
   done
 
@@ -166,5 +198,5 @@ if [[ "$profile" != standard ]]; then
 fi
 printf 'Requested pinned Portcove tools are ready (%s).\n' "$profile"
 if [[ ${#optional_failures[@]} -gt 0 ]]; then
-  printf 'warning: optional deep tools unavailable on this host: %s\n' "${optional_failures[*]}" >&2
+  printf 'Warning: optional deep tools remain unavailable on this host: %s.\n' "${optional_failures[*]}" >&2
 fi
