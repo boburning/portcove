@@ -99,6 +99,8 @@ jobs:
       - id: build
         name: Bundle fixed Node CLIs and build maintained Rust tool once
         env:
+          GH_TOKEN: ""
+          GITHUB_TOKEN: ""
           PORTCOVE_CONTROLLER_REVISION: ${{ vars.PORTCOVE_CONTROLLER_REVISION }}
         run: node scripts/release-controller-tool-bootstrap.mts build
       - id: upload
