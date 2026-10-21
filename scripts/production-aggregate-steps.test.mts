@@ -12,9 +12,82 @@ import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-b
 import {
   inspectAggregateDescriptor,
   requireReservedAggregate,
+  inspectReservedPublicationReadback,
   requestAssemblerToken,
   retainAggregateStepReceipt,
 } from "./production-aggregate-steps.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
+import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+
+void test("promoting GET-only association requires exact source/run and retained publishing/promoting locators without admitting an aggregate", async (t) => {
+  const { request } = await trustedAssemblyFixture(t);
+  const checkpoint = "c".repeat(40),
+    descriptor = JSON.stringify({
+      schema_version: 1,
+      checkpoint,
+      coordinator: { schema_version: 1, namespace: "portcove-fixture" },
+      assembly: request,
+      archives: [],
+      evidence: {},
+    });
+  const candidate = {
+    source_commit: "1".repeat(40),
+    source_tree: "2".repeat(40),
+    intent_sha256: "3".repeat(64),
+    prepared_commit: request.source_commit,
+    prepared_tree: request.source_tree,
+    version: request.version,
+    phase: "promoting",
+    transient_retries: 0,
+    substantive_repairs: 0,
+    release_run: { run_id: 12345, attempt: 1, revision: request.source_commit },
+  };
+  const proof = {
+    schema_version: 1,
+    candidate_sha256: candidateProgressIdentity(candidate),
+    controller_revision: "4".repeat(40),
+    locators: [{ kind: "native-check", id: "501", sha256: "5".repeat(64) }],
+  };
+  const attempt = {
+    previous_checkpoint: "6".repeat(40),
+    evidence_sha256: digest(proof),
+    proof,
+    release_run: candidate.release_run,
+    transient_retries: 0,
+    substantive_repairs: 0,
+  };
+  const active = {
+    ...candidate,
+    stage_evidence: [
+      { phase: "publishing", attempts: [attempt] },
+      { phase: "promoting", attempts: [attempt] },
+    ],
+  };
+  const state = { checkpoint, input: { active_candidate: active } };
+  assert.equal(
+    (await inspectReservedPublicationReadback(descriptor, state)).accepted.run_id,
+    "12345",
+  );
+  await assert.rejects(requireReservedAggregate(descriptor, state), /existing prepared candidate/);
+  for (const patch of [
+    { phase: "publishing" },
+    { prepared_commit: "0".repeat(40) },
+    { release_run: { ...active.release_run, attempt: 2 } },
+    { stage_evidence: undefined },
+    { stage_evidence: active.stage_evidence.slice(0, 1) },
+    { stage_evidence: active.stage_evidence.slice(1) },
+  ])
+    await assert.rejects(
+      inspectReservedPublicationReadback(descriptor, {
+        ...state,
+        input: { active_candidate: { ...active, ...patch } },
+      }),
+    );
+  await assert.rejects(
+    inspectReservedPublicationReadback(descriptor, { ...state, checkpoint: "0".repeat(40) }),
+    /checkpoint/,
+  );
+});
 
 void test("trusted assembler imports from a clean fixed source with no installed packages", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-clean-assembler-"));

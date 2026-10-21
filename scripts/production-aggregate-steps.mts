@@ -54,6 +54,34 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
 /** Association with the EXISTING reservation; never allocate or advance state.
  * Upstream acceptance and fresh policy/pause/capacity checks remain mandatory. */
 export async function requireReservedAggregate(rawDescriptor: string, rawState: unknown) {
+  return inspectReservedAggregate(rawDescriptor, rawState, ["building", "publishing"]);
+}
+/** Inert association for the fixed GET-only native readback collector. Neither
+ * these public locators nor a matching journal can authorize an effect. */
+export async function inspectReservedPublicationReadback(rawDescriptor: string, rawState: unknown) {
+  const association = await inspectReservedAggregate(rawDescriptor, rawState, ["promoting"]);
+  if (
+    !isRecord(rawState) ||
+    !isRecord(rawState.input) ||
+    !isRecord(rawState.input.active_candidate)
+  )
+    throw new Error("promoting reservation missing");
+  const candidate = rawState.input.active_candidate;
+  const { inspectCandidateStageEvidence } =
+    await import("./release-candidate-progress-contract.mts");
+  const history = inspectCandidateStageEvidence(candidate.stage_evidence, candidate);
+  if (
+    !history.some((slot) => slot.phase === "publishing") ||
+    !history.some((slot) => slot.phase === "promoting")
+  )
+    throw new Error("promoting readback requires retained publication stage locators");
+  return association;
+}
+async function inspectReservedAggregate(
+  rawDescriptor: string,
+  rawState: unknown,
+  phases: readonly string[],
+) {
   const descriptor = inspectAggregateDescriptor(rawDescriptor);
   const { accepted } = await inspectTrustedAssemblyInput(descriptor.assembly);
   if (accepted.release_profile === "initial-beta-win-linux" && !accepted.public_build_inputs)
@@ -67,7 +95,7 @@ export async function requireReservedAggregate(rawDescriptor: string, rawState: 
   const candidate = rawState.input.active_candidate;
   if (
     !isRecord(candidate) ||
-    !["building", "publishing"].includes(String(candidate.phase)) ||
+    !phases.includes(String(candidate.phase)) ||
     candidate.prepared_commit !== accepted.source_commit ||
     candidate.prepared_tree !== accepted.source_tree ||
     candidate.version !== accepted.version ||
