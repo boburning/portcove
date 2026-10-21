@@ -657,10 +657,11 @@ individual commands do not renew it. Other cartridge recipes retain their
 Cancellation and the separate process-tree closure deadline are unchanged.
 Each invocation preflights at most eight
 pure compiler targets, or two compiler targets when helpers are present, with
-at most eight helpers. A closure containing a fixed RmlUi source object instead
-admits only one compiler target, keeping its large output separate from other
-compiler output under the unchanged capture limit. Ninja still runs only two
-jobs. The exact pinned RmlUi compiler-options patch forwards its intended
+at most eight helpers. RmlUi uses those same bounds after its compiler-options
+correction; the temporary singleton workaround for unintended `-Weverything`
+output is removed. Every closure still receives complete preflight and bounded
+capture; fitting unit output does not waive a grouped command's output limit.
+Ninja still runs only two jobs. The exact pinned RmlUi compiler-options patch forwards its intended
 `-Wall -Wextra -pedantic` through clang-cl's `/clang:` interface for the MSVC
 frontend; bare `-Wall` otherwise enables `-Weverything` and bare `-pedantic` is
 ignored. Other compiler branches and warnings-as-errors stay intact. The

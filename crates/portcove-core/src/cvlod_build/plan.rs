@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn cvlod_rmlui_closures_isolate_compiler_output_before_execution() {
+    fn cvlod_corrected_rmlui_closures_use_existing_compiler_and_helper_limits() {
         let fixed: BTreeMap<String, Vec<String>> =
             serde_json::from_str(include_str!("objects.json")).unwrap();
         let aliases: BTreeMap<String, String> =
@@ -222,46 +222,52 @@ mod tests {
             .actions(include_str!("fixtures/a16-rmlui-batch.txt"), true)
             .unwrap();
         assert_eq!(actual.objects.len(), 8);
-        assert_eq!(actual.object_limit(), 1);
-        assert!(!actual.bounded());
-        assert_eq!(
-            actual.smaller_targets(&actual.objects).unwrap(),
-            actual.objects[..1]
-        );
-        assert!(actual.require_observed(&actual).is_err());
-        let noisy = &actual.objects[4..];
-        assert!(noisy.iter().all(|o| o.starts_with("lib/RmlUi/Source/")));
-        let mut singleton = Actions {
-            objects: noisy[..1].to_vec(),
+        assert_eq!(actual.object_limit(), 8);
+        assert!(actual.bounded());
+        assert!(actual.require_observed(&actual).is_ok());
+        assert!(actual.smaller_targets(&actual.objects).is_err());
+        let rmlui = &actual.objects[4..];
+        assert!(rmlui.iter().all(|o| o.starts_with("lib/RmlUi/Source/")));
+        let mut batch = Actions {
+            objects: rmlui[..1].to_vec(),
             helpers: vec![],
         };
-        assert!(singleton.bounded());
-        assert!(singleton.require_observed(&singleton).is_ok());
+        assert!(batch.bounded());
+        assert!(batch.require_observed(&batch).is_ok());
         let substituted = Actions {
-            objects: noisy[1..2].to_vec(),
+            objects: rmlui[1..2].to_vec(),
             helpers: vec![],
         };
-        assert!(singleton.require_observed(&substituted).is_err());
-        singleton.objects.push(noisy[1].clone());
-        assert!(!singleton.bounded());
-        assert_eq!(singleton.object_limit(), 1);
-        // Expanded compiler dependencies still split before helper requests.
-        singleton.helpers = plan.helpers[..8].to_vec();
-        assert_eq!(singleton.object_limit(), 1);
+        assert!(batch.require_observed(&substituted).is_err());
+        batch.objects = actual.objects.clone();
+        assert!(batch.bounded());
+        assert_eq!(batch.object_limit(), 8);
+        let ninth = plan
+            .objects
+            .iter()
+            .find(|o| !batch.objects.contains(o))
+            .unwrap();
+        batch.objects.push(ninth.clone());
+        assert!(!batch.bounded());
         assert_eq!(
-            singleton.smaller_targets(&singleton.objects).unwrap(),
-            noisy[..1]
+            batch.smaller_targets(&batch.objects).unwrap(),
+            actual.objects
         );
-        singleton.objects.truncate(1);
-        assert!(singleton.bounded());
-        singleton.helpers.push(plan.helpers[8].clone());
-        assert!(!singleton.bounded());
-        assert!(singleton.require_observed(&singleton).is_err());
-        let requests = singleton.smaller_targets(&singleton.objects).unwrap();
+        // Expanded compiler dependencies still split before helper requests.
+        batch.objects = rmlui.to_vec();
+        batch.helpers = plan.helpers[..8].to_vec();
+        assert_eq!(batch.object_limit(), 2);
+        assert_eq!(batch.smaller_targets(&batch.objects).unwrap(), rmlui[..2]);
+        batch.objects.truncate(2);
+        assert!(batch.bounded());
+        batch.helpers.push(plan.helpers[8].clone());
+        assert!(!batch.bounded());
+        assert!(batch.require_observed(&batch).is_err());
+        let requests = batch.smaller_targets(&batch.objects).unwrap();
         assert_eq!(requests.len(), 8);
-        assert!(singleton.smaller_targets(&requests).is_err());
-        singleton.helpers.clear();
-        assert!(singleton.smaller_targets(&singleton.objects).is_err());
+        assert!(batch.smaller_targets(&requests).is_err());
+        batch.helpers.clear();
+        assert!(batch.smaller_targets(&batch.objects).is_err());
     }
 
     #[test]
@@ -539,15 +545,7 @@ pub(super) struct Actions {
 }
 impl Actions {
     pub(super) fn object_limit(&self) -> usize {
-        // Retained RmlUi compiler output approaches the unchanged per-stream
-        // capture limit for one unit. Never combine it with another compiler.
-        if self
-            .objects
-            .iter()
-            .any(|object| object.starts_with("lib/RmlUi/Source/"))
-        {
-            1
-        } else if self.helpers.is_empty() {
+        if self.helpers.is_empty() {
             OBJECT_BATCH_LIMIT
         } else {
             2
