@@ -10,6 +10,8 @@ import {
   claimActualPublicJourneyInvocation,
   readActualPublicJourneyProgress,
   requireActualPublicJourneyInvocation,
+  readActualRetainedPublicCohort,
+  requireActualRetainedPublicCohort,
 } from "./release-native-attempt.mts";
 
 function fixture(platform_label = "windows-x86_64") {
@@ -172,4 +174,6 @@ void test("parsed and copied public records cannot mint actual parent, progress 
     /actual public progress/,
   );
   await assert.rejects(requireActualPublicJourneyInvocation(marker), /actual freshly claimed/);
+  await assert.rejects(readActualRetainedPublicCohort(marker), /actual installed native parent provenance/);
+  await assert.rejects(requireActualRetainedPublicCohort(marker), /actual retained public cohort custody/);
 });

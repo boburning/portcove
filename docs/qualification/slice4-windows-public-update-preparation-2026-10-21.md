@@ -223,3 +223,12 @@ pair cases and typed checks passed. The first new test wrongly expected the
 initial selector to refuse V0/V2 reselection; its corrected assertion explicitly
 proves that reselection changes the retained pair digest, which is why the
 continuation requires the original protected marker.
+
+The historical local getter separately recovers only an actual protected
+parent's completed A/parked-B prefix, rehashing original markers, capture roots,
+streams and retained files. It has no raw constructor or current-policy/native
+acceptance capability. Later appended attempts do not rewrite that historical
+fact; a new resource claim must still establish its own complete current
+settlement and policy before execution. Imported-parent/cohort refusals and the
+existing phase contracts pass, with typed checks. The actual current-Tough/V2
+factory and its new invocation join remain unfinished.
