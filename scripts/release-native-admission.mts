@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import path from "node:path";
 import { discoverNativeQualificationLocators } from "./release-native-check-discovery.mts";
 import { artifactName } from "./release-package-policy.mts";
@@ -144,6 +145,7 @@ export async function collectConfiguredNativeReleaseQualificationPair(
 ) {
   if (phase !== "admission" && phase !== "payload")
     throw new Error("fixed pre-sign native reader phase required");
+  const deadline = performance.now() + coordinatorCommandTimeout(120000);
   const capturedLocators: unknown = structuredClone(locators),
     capturedAssembly: unknown = structuredClone(assembly),
     capturedArchives: unknown = structuredClone(archives);
@@ -157,7 +159,7 @@ export async function collectConfiguredNativeReleaseQualificationPair(
   );
   const selectedLocators =
     capturedLocators === null
-      ? discoverNativeQualificationLocators(templates, performance.now() + 120000)
+      ? discoverNativeQualificationLocators(templates, deadline)
       : capturedLocators;
   const expected = bindNativeQualificationLocators(selectedLocators, templates);
   return collectNativeReleaseQualificationPair(
@@ -166,6 +168,7 @@ export async function collectConfiguredNativeReleaseQualificationPair(
     capturedAssembly,
     capturedArchives,
     "payload-signing",
+    deadline,
   );
 }
 

@@ -519,3 +519,13 @@ Type-aware lint passed for the eight changed TypeScript modules/tests, and all
 213 indexed tests are registered. The discovery checks include real default
 transport argument/environment construction with an inert injected child, not
 an actual provider or native acceptance observation.
+
+Independent review found that the first automatic pre-sign lookup could allocate
+120 seconds beyond an inherited coordinator phase deadline. The repair derives
+one bounded collection deadline from the existing coordinator clock, passes it
+through discovery and actual native collection, and intersects that clock before
+and after each GET and before returning locators. Sixteen focused discovery and
+association cases passed after the repair, including zero reads after an expired
+phase, no later GET after a delayed response exhausts the phase, and a default
+child timeout bounded by the tighter inherited budget. The original finding is
+retained; no new execution budget or authority is granted.

@@ -5,6 +5,7 @@ import { mkdtempSync, chmodSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { isDeepStrictEqual } from "node:util";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
@@ -44,7 +45,7 @@ export function discoverNativeQualificationLocators(
     const left = Math.floor(deadline - performance.now());
     if (!Number.isFinite(deadline) || left < 1)
       throw new Error("native discovery deadline exhausted");
-    return Math.min(left, 15000);
+    return coordinatorCommandTimeout(Math.min(left, 15000));
   };
   remaining();
   const temporaryRoot = path.resolve(os.tmpdir());

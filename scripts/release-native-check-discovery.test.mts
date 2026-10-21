@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import {
   prepareNativeQualificationCheck,
@@ -340,4 +341,56 @@ void test("native discovery distinguishes selected report2 initial and predecess
       2,
     );
   }
+});
+
+void test("native discovery never extends an expired inherited role clock or performs a later provider read", async () => {
+  const f = fixture();
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 20, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      discoverNativeQualificationLocators(f.templates, deadline(), { api: f.api });
+    }),
+    /deadline/,
+  );
+  assert.equal(f.calls.length, 0);
+  const g = fixture();
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() + 100, async () => {
+      discoverNativeQualificationLocators(g.templates, deadline(), {
+        api: {
+          request(method, route) {
+            const body = g.api.request(method, route);
+            const until = performance.now() + 150;
+            while (performance.now() < until) {
+              /* inert delayed provider response */
+            }
+            return body;
+          },
+        },
+      });
+    }),
+    /deadline/,
+  );
+  assert.equal(g.calls.length, 1);
+});
+void test("native discovery default child uses the tighter inherited phase budget", async () => {
+  const f = fixture();
+  await withCoordinatorDeadline(performance.now() + 1000, async () => {
+    const result = discoverNativeQualificationLocators(f.templates, deadline(), {
+      spawn: (_command, args, settings) => {
+        assert.ok(
+          typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 1000,
+        );
+        const route = args.find((v) => v.startsWith("repos/boburning/portcove/"));
+        assert.ok(route);
+        const body = f.api.request("GET", route).body;
+        return {
+          status: 0,
+          stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(body)}`,
+          stderr: "",
+        };
+      },
+    });
+    assert.equal(result.length, 2);
+  });
 });
