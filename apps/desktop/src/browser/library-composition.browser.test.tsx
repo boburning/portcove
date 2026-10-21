@@ -5,6 +5,7 @@ import App from "../App";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
+import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { ExternalRuntimeRecord } from "../types";
@@ -72,6 +73,22 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.element(page.getByRole("menuitem", { name: "Saves and storage" })).toHaveFocus();
   await userEvent.keyboard("{Escape}");
   await expect.element(more).toHaveFocus();
+});
+
+it("reopens Last played and restores its exact details trigger after Back", async () => {
+  await page.viewport(1366, 768);
+  const snapshot = workspace("collection");
+  snapshot.statuses[0]!.last_launched_at = 1;
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+  await mount();
+  await page.getByText("Last played", { exact: true }).click();
+  const origin = '[data-detail-origin="library:continue-details:collection-0"]';
+  await page.getByRole("button", { name: "View details", exact: true }).click();
+  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await expect.poll(() => document.activeElement?.matches(origin)).toBe(true);
+  const target = document.querySelector<HTMLElement>(origin)!;
+  expect(target.closest("details")?.open).toBe(true);
+  expect(target.getBoundingClientRect().bottom).toBeLessThanOrEqual(innerHeight);
 });
 
 for (const theme of ["dark", "light"]) {

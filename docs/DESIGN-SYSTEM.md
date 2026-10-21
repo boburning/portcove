@@ -52,8 +52,9 @@ controls. Both themes share semantic roles. This supersedes earlier Library
 card-density assumptions; Find games retains its discovery composition and
 dated audit/reference evidence remains retained.
 
-The workspace remains the full available width and the main element owns vertical
-scrolling. Below an effective workspace width of 80em, desktop navigation becomes
+The workspace remains the full available width. The desktop main element owns
+vertical scrolling; narrow navigation retains the existing document scroll owner.
+Below an effective workspace width of 80em, desktop navigation becomes
 a named icon rail; existing narrow top navigation remains. Query, view, selection,
 detail-return and operation eligibility retain their existing owners. This Library
 slice reuses the existing interface-size controller and does not establish new

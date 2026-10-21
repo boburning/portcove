@@ -48,15 +48,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .collection-identity:focus-visible .collection-title {
-    display: block;
-    overflow: visible;
-    -webkit-line-clamp: unset;
-  }
-  .collection-identity:focus-visible .collection-project {
-    overflow: visible;
-    white-space: normal;
-  }
+
   .collection-cover .collection-actions {
     justify-content: flex-start;
   }
@@ -110,6 +102,15 @@
   }
   .collection-row .artwork-fallback-label {
     display: none;
+  }
+  .collection-identity:focus-visible .collection-title {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+  }
+  .collection-identity:focus-visible .collection-project {
+    overflow: visible;
+    white-space: normal;
   }
   @media (max-height: 820px) {
     .collection-covers {

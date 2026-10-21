@@ -60,7 +60,6 @@ export function useDetailWorkspaceNavigation(
       setSelectedId(undefined);
       window.requestAnimationFrame(() => {
         if (sequence.current !== transition || current.current) return;
-        scrollWorkspaceTo(workspace.current, origin.scrollTop);
         const target = origin.originKey
           ? document.querySelector<HTMLElement>(
               `[data-detail-origin="${CSS.escape(origin.originKey)}"]`,
@@ -71,6 +70,16 @@ export function useDetailWorkspaceNavigation(
           document.querySelector<HTMLElement>(
             `[data-detail-game-id="${CSS.escape(origin.portId)}"]`,
           );
+        // The originating control may live inside a disclosure remounted closed.
+        // Restore its visibility before restoring scroll and keyboard focus.
+        for (
+          let disclosure = sameGame?.parentElement?.closest("details");
+          disclosure;
+          disclosure = disclosure.parentElement?.closest("details")
+        ) {
+          disclosure.open = true;
+        }
+        scrollWorkspaceTo(workspace.current, origin.scrollTop);
         if (sameGame) focusAndReveal(sameGame);
         else focusRegion("workspace");
       });

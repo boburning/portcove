@@ -495,9 +495,11 @@ export function PortBrowser({
               ? "Results unavailable"
               : `${visiblePorts.length} of ${overview.installed} library ${overview.installed === 1 ? "entry" : "entries"}`}
           </p>
-          <Button variant="ghost" onClick={reset}>
-            Clear search and filters
-          </Button>
+          {visiblePorts.length > 0 && (
+            <Button variant="ghost" onClick={reset}>
+              Clear search and filters
+            </Button>
+          )}
         </div>
       )}
       <BrowserResults
@@ -1043,7 +1045,7 @@ function LibraryEntry({
         <span
           role="heading"
           aria-level={2}
-          className="collection-title block text-base leading-snug font-semibold wrap-anywhere"
+          className="collection-title text-base leading-snug font-semibold wrap-anywhere"
         >
           {gameTitle(port)}
         </span>{" "}
