@@ -12,17 +12,35 @@ Other destructive reviews retain their own consent contracts.
 ## Library covers and compact rows
 
 Library defaults to covers; Compact rows presents the same entries and action
-selector. Columns derive from usable space: ordinary frames are 176–220 CSS
-pixels wide, with 112px artwork in short windows. Fixed 2:3 frames contain the
-whole image with neutral padding. Full game titles and port/variant labels grow
-below the frame without changing its height. Cover actions align within rows.
-Compact rows use 48×72px thumbnails and become an in-flow identity → state →
-actions sequence below 48rem.
+selector. The heading counts entries, including separate ports of one original
+game. Search, readiness, Favorites and declared filters share the retrieval area;
+Favorites is independent of readiness. View and Add games sit alongside them.
+Filtered results state the visible and total entry counts with one reset action.
+First-use Library omits retrieval controls. Last played is a disclosure; Collection
+commands states that Steam selection includes entries hidden by filters.
+
+Columns derive from usable space, with a 180px minimum column and a text-relative
+12rem preferred minimum. Fixed 2:3 frames contain the complete image on a neutral
+stage. Artwork caps at 260px ordinarily, 180px below 820px window height and
+160px below 680px; text enlargement independently reduces the cap toward 160px.
+Unclassified and user artwork retain intrinsic padding and proportions; no logo
+crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
+feedback remains outside the identity button. Cover titles show two lines and
+port labels one at ordinary widths, expanding on keyboard focus. At an effective
+collection width below 40em, identity wraps in full. Details and rows always expose
+the full distinguishing identity. Artwork geometry does not depend on title height.
+
+Compact rows use 32×48px contained thumbnails (up to 40×60px with text enlargement),
+10px block padding and 20px column gaps: approximately 69px for ordinary identity.
+The list caps at max(840px, 52.5rem), keeping actions near identity while allowing
+reading-size growth. Titles and port labels wrap without clipping. Below 46em,
+readiness stacks under identity with thumbnail alignment indentation; readiness
+in its own column has no indentation. Below 28em actions follow readiness.
 
 One details button owns artwork/title/port identity. Favorite, Play/review,
 update review and menus are siblings, never nested controls. Routine Stable and
 maintenance facts stay out of ordinary entries. Play remains beside a secondary
-downloaded-update review link. Steam bulk selection belongs to Integrations.
+downloaded-update review link. Steam bulk selection uses its existing chooser.
 Counts are library entries, including separate ports for one game. Details put
 current update decisions after identity/readiness/actions; Future update
 preferences are disclosed and saving them does not execute an update.
@@ -33,6 +51,14 @@ content-driven minima, not clipping limits. Enlargement/text spacing may grow
 controls. Both themes share semantic roles. This supersedes earlier Library
 card-density assumptions; Find games retains its discovery composition and
 dated audit/reference evidence remains retained.
+
+The workspace remains the full available width. The desktop main element owns
+vertical scrolling; narrow navigation retains the existing document scroll owner.
+Below an effective workspace width of 80em, desktop navigation becomes
+a named icon rail; existing narrow top navigation remains. Query, view, selection,
+detail-return and operation eligibility retain their existing owners. This Library
+slice reuses the existing interface-size controller and does not establish new
+native enlargement acceptance.
 
 ## Activity and contextual task feedback
 

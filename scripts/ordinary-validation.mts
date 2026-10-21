@@ -345,6 +345,12 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     `scripts/release-semantic-${name}.mts`,
     ["scripts/release-semantic-worker.test.mts"],
   ]),
+  ...[
+    "scripts/release-semantic-source.mts",
+    "scripts/semantic-source-git.py",
+    "scripts/semantic-source-git.test.py",
+    "scripts/qualify-semantic-source.mts",
+  ].map((name): [string, string[]] => [name, ["scripts/release-semantic-source.test.mts"]]),
   [
     "scripts/release-classification-request.mts",
     ["scripts/release-classification-request.test.mts"],

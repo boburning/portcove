@@ -87,14 +87,20 @@ it.for([
       canvas.width = id === "portrait-1" ? 600 : 200;
       canvas.height = id === "portrait-2" ? 200 : 300;
       const context = canvas.getContext("2d")!;
-      context.fillStyle = "#536a7a";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      // Actual source dimensions and alpha: padded square logo and transparent
+      // portrait diagnostic, alongside ordinary portrait and landscape inputs.
+      context.fillStyle = id === "portrait-2" ? "black" : "#536a7a";
+      if (id !== "portrait-3") context.fillRect(0, 0, canvas.width, canvas.height);
       context.strokeStyle = "white";
       context.lineWidth = 8;
-      context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+      if (id !== "portrait-2") context.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
       context.fillStyle = "white";
       context.font = "20px sans-serif";
-      context.fillText("Fixture artwork", 20, 50);
+      context.fillText(
+        id === "portrait-2" ? "Test logo" : "Fixture artwork",
+        20,
+        id === "portrait-2" ? 100 : 50,
+      );
       return {
         asset_sha256: "a".repeat(64),
         choice_revision: revision,
