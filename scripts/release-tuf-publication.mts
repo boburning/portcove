@@ -9,7 +9,11 @@ import { promisify } from "node:util";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
-import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
+import {
+  inspectTufPublicationFacts,
+  assertMetadataRenewalPublication,
+} from "./release-metadata-contract.mts";
+import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
@@ -234,6 +238,12 @@ export async function assembleIsolatedTufPublication(
       publication,
       records: report.records,
       files: inventory(files),
+      input_files: inventory(source),
+      signed_files: signed.map(({ filename, bytes, sha256 }) => ({
+        path: filename,
+        bytes,
+        sha256,
+      })),
       report_sha256: hash(reportBytes),
       authority: "none" as const,
     });
@@ -315,6 +325,14 @@ export async function prepareActualTufPublication(
   );
   if (result.publication.records_sha256 !== manifest.binding.records_sha256)
     throw new Error("actual assembled record set differs from private context");
+  if (manifest.kind === "metadata-signing-context") {
+    const metadata = inspectMetadataSigningBinding(
+      manifest.facts,
+      manifest.binding,
+      manifest.previous_site_pins,
+    );
+    assertMetadataRenewalPublication(metadata.facts.descriptor, result.publication);
+  }
   const receipt = Object.freeze({ kind: "actual-keyless-TUF-publication", authority: "none" });
   publications.set(receipt, {
     context: contextReceipt,
@@ -348,6 +366,16 @@ async function readActualTufPublication(
       actual.deadline,
     );
   if (
+    digest(
+      inventory(
+        await readBoundedReleaseContextFiles(path.join(actual.result.directory, "public-inputs")),
+      ),
+    ) !== digest(actual.result.input_files) ||
+    digest(
+      inventory(
+        await readBoundedReleaseContextFiles(path.join(actual.result.directory, "signed-roles")),
+      ),
+    ) !== digest(actual.result.signed_files) ||
     digest(inventory(await readBoundedReleaseContextFiles(actual.result.repository))) !==
       digest(actual.result.files) ||
     hash(
@@ -365,6 +393,9 @@ async function readActualTufPublication(
     context,
     tools,
     repository: actual.result.repository,
+    input_root: path.join(actual.result.directory, "public-inputs"),
+    context_path: path.join(actual.result.directory, "public-inputs", "context.json"),
+    signed_roles: path.join(actual.result.directory, "signed-roles"),
     publication: structuredClone(actual.result.publication),
     records: actual.result.records,
     provenance:

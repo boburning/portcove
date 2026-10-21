@@ -5,8 +5,169 @@ import {
   inspectPreparedReceiptInventoryAdvance,
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
+  requireActualCoordinatorMetadataPreparation,
+  coordinatorMaintenanceIdentity,
+  coordinatorContinuationDeadline,
+  coordinatorOriginalJobDeadline,
+  materializeCoordinatorPublishedSite,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { performance } from "node:perf_hooks";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
+import os from "node:os";
+import { capacityDigest } from "./release-capacity.mts";
+import { requirePublishedCompleteSite } from "./release-site-readback.mts";
+
+void test("coordinator keeps the real whole-site receipt through its default materialization seam", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "coordinator-public-site-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const files = new Map([
+    [".nojekyll", Buffer.alloc(0)],
+    ["application/metadata/1.root.json", Buffer.from("inert pinned root")],
+    ["application/metadata/timestamp.json", Buffer.from("inert metadata")],
+    ["catalog/targets/retained.json", Buffer.from("opaque independent catalog")],
+  ]);
+  const inventory = [...files].map(([path, bytes]) => ({
+    path,
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  }));
+  const root = inventory.find((file) => file.path === "application/metadata/1.root.json")!.sha256;
+  const unsigned = {
+    schema_version: 1,
+    previous_generation: null,
+    application_root_sha256: root,
+    files: inventory,
+  };
+  const marker = { ...unsigned, generation: capacityDigest(unsigned) };
+  files.set("publication.json", Buffer.from(JSON.stringify(marker)));
+  const pins = {
+    site_generation_sha256: marker.generation,
+    root_sha256: root,
+    repository_sha256: capacityDigest(
+      inventory
+        .filter((file) => file.path.startsWith("application/"))
+        .map((file) => ({ ...file, path: file.path.slice(12) })),
+    ),
+  };
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(init.credentials, "omit");
+    const result = new Response(
+      files.get(url.slice("https://boburning.github.io/portcove/".length)),
+    );
+    Object.defineProperty(result, "url", { value: url });
+    return result;
+  });
+  const acquired = await materializeCoordinatorPublishedSite(
+    pins,
+    parent,
+    performance.now() + 5000,
+  );
+  assert.equal(
+    (await requirePublishedCompleteSite(acquired.receipt)).generation.generation,
+    marker.generation,
+  );
+  await assert.rejects(requirePublishedCompleteSite(acquired));
+  await writeFile(
+    path.join(acquired.verified.directory, "catalog/targets/retained.json"),
+    "changed",
+  );
+  await assert.rejects(requirePublishedCompleteSite(acquired.receipt));
+});
+
+void test("coordinator budget includes original job setup and refuses missing duplicate or stale provider facts", () => {
+  const expected = { run_id: "123", controller_revision: "a".repeat(40) };
+  const now = Date.parse("2026-10-20T00:02:00Z");
+  const job = {
+    id: 1,
+    name: "Coordinate application release",
+    run_id: 123,
+    run_attempt: 1,
+    head_sha: expected.controller_revision,
+    status: "in_progress",
+    started_at: "2026-10-20T00:00:00Z",
+  };
+  const inventory = { total_count: 1, jobs: [job] };
+  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 50100);
+  for (const bad of [
+    { ...inventory, total_count: 2 },
+    { ...inventory, jobs: [job, job], total_count: 2 },
+    { ...inventory, jobs: [{ ...job, status: "completed" }] },
+    { ...inventory, jobs: [{ ...job, run_attempt: 2 }] },
+    { ...inventory, jobs: [{ ...job, head_sha: "b".repeat(40) }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-20T00:03:00Z" }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:59:00Z" }] },
+  ])
+    assert.throws(() => coordinatorOriginalJobDeadline(bad, expected, now, 100));
+});
+
+void test("coordinator continuation can only tighten its original finite deadline", () => {
+  const original = performance.now() + 10000;
+  assert.equal(coordinatorContinuationDeadline(original), original);
+  assert.equal(coordinatorContinuationDeadline(original, original + 1000), original);
+  assert.equal(coordinatorContinuationDeadline(original, original - 1000), original - 1000);
+  assert.throws(() => coordinatorContinuationDeadline(original, NaN), /finite/);
+  assert.throws(() => coordinatorContinuationDeadline(original, 0), /exhausted/);
+});
+
+void test("maintenance continuation permits only fresh observation fields to change", () => {
+  const original = {
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    reader: { job_id: 12, run_id: 13, check_run_id: "14", expires_at: "old" },
+    pause: { commit: "a".repeat(40), publication_paused: false },
+    capacity: { commit: "a".repeat(40), document_sha256: "b".repeat(64) },
+    protection: {
+      observed_at: "old",
+      inventory_sha256: "c".repeat(64),
+      authorization: "input-writer-policy-only",
+    },
+    resource_policy_matches_controller: true,
+    facts_sha256: "d".repeat(64),
+    authority: "none",
+  };
+  const refreshed = {
+    ...structuredClone(original),
+    reader: { ...original.reader, expires_at: "new", round: { index: 1, nonce: "e".repeat(64) } },
+    protection: { ...original.protection, observed_at: "new" },
+    facts_sha256: "f".repeat(64),
+  };
+  assert.equal(coordinatorMaintenanceIdentity(original), coordinatorMaintenanceIdentity(refreshed));
+  for (const changed of [
+    { ...refreshed, reader: { ...refreshed.reader, job_id: 15 } },
+    { ...refreshed, pause: { ...refreshed.pause, commit: "f".repeat(40) } },
+    { ...refreshed, capacity: { ...refreshed.capacity, document_sha256: "f".repeat(64) } },
+    { ...refreshed, protection: { ...refreshed.protection, inventory_sha256: "f".repeat(64) } },
+  ])
+    assert.notEqual(
+      coordinatorMaintenanceIdentity(original),
+      coordinatorMaintenanceIdentity(changed),
+    );
+  assert.throws(() =>
+    coordinatorMaintenanceIdentity({ ...original, resource_policy_matches_controller: false }),
+  );
+  assert.throws(() =>
+    coordinatorMaintenanceIdentity({
+      ...original,
+      pause: { ...original.pause, publication_paused: true },
+    }),
+  );
+});
+
+void test("serialized renewal output cannot reconstruct the coordinator's private continuation", async () => {
+  await assert.rejects(
+    requireActualCoordinatorMetadataPreparation({
+      decision: "metadata-prepared",
+      checkpoint: "a".repeat(40),
+      descriptor: metadataFixture().descriptor,
+      context: "/imported/context.json",
+      prepared_root: "/imported",
+    }),
+    /actual same-process coordinator metadata preparation/,
+  );
+});
 
 void test("default metadata scheduling preserves an unfinished descriptor and renews within the timestamp safety window", () => {
   const fixture = metadataFixture(Date.parse("2026-10-20T00:00:00Z"));
