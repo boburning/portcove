@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import vm from "node:vm";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
@@ -21,6 +23,52 @@ import {
 } from "./release-signing-context-artifact.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("retained context rechecks its original deadline after asynchronous full-tree read", async () => {
+  // Execute the actual private function in an inert closure. This does not mint
+  // a module-owned receipt or bypass the production receiver's private brand.
+  const source = await readFile(
+    new URL("./release-signing-context-artifact.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function readReceivedSigningContext("),
+    end = source.indexOf("\nexport function requireReceivedSigningContext", start);
+  assert.ok(start > 0 && end > start);
+  for (const provider of ["retained", "fresh"] as const) {
+    let clock = 0;
+    const receipt = {},
+      received = new WeakMap([
+        [
+          receipt,
+          {
+            public_evidence: [],
+            context: "fixture",
+            directory: "fixture",
+            files: [],
+            manifest: {},
+            active() {
+              if (clock >= 10) throw new Error("fixture deadline exhausted");
+            },
+            refresh() {},
+          },
+        ],
+      ]);
+    const run = vm.runInNewContext(
+      `${stripTypeScriptTypes(source.slice(start, end))}\nreadReceivedSigningContext`,
+      {
+        received,
+        digest,
+        identities: (value: unknown) => value,
+        readBoundedReleaseContextFiles: async () => {
+          clock = 11;
+          return [];
+        },
+        structuredClone,
+        Object,
+      },
+    ) as (receipt: object, deadline: undefined, provider: string) => Promise<unknown>;
+    await assert.rejects(run(receipt, undefined, provider), /deadline exhausted/);
+  }
+});
 void test("context upload handoff cannot start from imported custody or renew an expired phase", async () => {
   const pending = { checkpoint: "a".repeat(40), operation_id: "b".repeat(64) };
   await assert.rejects(

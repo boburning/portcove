@@ -922,6 +922,7 @@ async function readReceivedSigningContext(
   )
     throw new Error("authenticated signing context retained inventory changed");
   if (provider === "fresh") actual.refresh();
+  actual.active();
   return Object.freeze({
     directory: actual.directory,
     context: path.join(actual.context, "context.json"),
