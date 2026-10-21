@@ -682,12 +682,17 @@ void test(
       const renewedPublic = [...(await files(renewed.repository))].filter(
         ([name]) => name !== "repository-manifest.json",
       );
+      const renewedPublicPrior = path.join(root, "renewed-public-prior");
+      await cp(renewed.repository, renewedPublicPrior, {
+        recursive: true,
+        filter: (source) => path.basename(source) !== "repository-manifest.json",
+      });
       const withdrawal = await prepareAuthenticatedMetadataRenewal({
         verifier: tool,
         verifier_sha256: toolSha,
         trusted_root: path.join(context, "trusted-root.json"),
         trusted_root_sha256: rootSha,
-        previous_repository: renewed.repository,
+        previous_repository: renewedPublicPrior,
         prior_repository_sha256: digest(
           renewedPublic.map(([name, bytes]) => ({
             path: name,
