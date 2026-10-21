@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import type { WebDriver } from "selenium-webdriver";
 import { isRecord } from "../../../scripts/runtime-values.mts";
-import { selectPrimaryNavigation } from "./desktop-review-controls.mts";
 
 export interface PublicUserState {
   application_origin: string;
@@ -189,6 +188,7 @@ export async function seedPublicFavorite(browser: WebDriver, platform: "win32" |
 
 /** Ordinary Settings interaction shared by both packaged platform harnesses. */
 export async function selectPublicLightTheme(browser: WebDriver) {
+  const { selectPrimaryNavigation } = await import("./desktop-review-controls.mts");
   const { By } = await import("selenium-webdriver");
   await selectPrimaryNavigation(browser, "Settings");
   await browser

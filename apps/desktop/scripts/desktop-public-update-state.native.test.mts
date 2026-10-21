@@ -1,12 +1,48 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runInNewContext } from "node:vm";
+import { spawnSync } from "node:child_process";
 import type { WebDriver } from "selenium-webdriver";
 import {
   readPublicUserState,
   seedPublicFavorite,
   assertPublicUserStateChoicesPreserved,
 } from "./desktop-public-update-state.mts";
+
+void test("pure public update modules import without Selenium or accessibility dependencies", () => {
+  const modules = [
+    [new URL("./desktop-public-update-state.mts", import.meta.url).href, "readPublicUserState"],
+    [
+      new URL("./desktop-linux-public-update.mts", import.meta.url).href,
+      "inspectLinuxPublicRuntime",
+    ],
+    [
+      new URL("./desktop-windows-public-update.mts", import.meta.url).href,
+      "inspectWindowsPublicUpdateConfiguration",
+    ],
+  ];
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import { registerHooks } from 'node:module';
+    registerHooks({ resolve(name, context, next) {
+      if (['selenium-webdriver', 'axe-core'].some(pkg => name === pkg || name.startsWith(pkg + '/')))
+        throw new Error('Desktop dependency unavailable: ' + name);
+      return next(name, context);
+    } });
+    for (const [url, expected] of ${JSON.stringify(modules)}) {
+      const module = await import(url);
+      if (typeof module[expected] !== 'function') throw new Error('Missing pure export: ' + expected);
+    }
+  `,
+    ],
+    { encoding: "utf8", timeout: 15_000, maxBuffer: 65_536, windowsHide: true },
+  );
+  assert.equal(result.status, 0, result.stderr);
+});
 
 function fixture(platform: "win32" | "linux", href: string) {
   const commands: { command: string; args: object | undefined }[] = [];
