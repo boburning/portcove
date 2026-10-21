@@ -103,10 +103,32 @@ const metadataPreparations = new WeakMap<
     seed: NonNullable<ReturnType<typeof inspectPublishedMetadata>>;
     descriptor_sha256: string;
     control_identity_sha256: string;
-    next_controls: () => Promise<Awaited<ReturnType<typeof authenticateReleaseControlSource>>>;
+    next_controls: (
+      phaseDeadline?: number,
+    ) => Promise<Awaited<ReturnType<typeof authenticateReleaseControlSource>>>;
   }
 >();
 const project = fileURLToPath(new URL("..", import.meta.url));
+export function coordinatorContinuationDeadline(current: number, requested?: number) {
+  if (!Number.isFinite(current) || (requested !== undefined && !Number.isFinite(requested)))
+    throw new Error("finite coordinator continuation deadline required");
+  const effective = Math.min(current, requested ?? current);
+  if (effective <= performance.now())
+    throw new Error("coordinator continuation deadline exhausted");
+  return effective;
+}
+function metadataContinuationApi(repository: string, deadline: () => number) {
+  return new GitHubApiClient((args, input) => {
+    const effective = coordinatorContinuationDeadline(deadline());
+    const response = createGitHubRunner({
+      cwd: repository,
+      maxBuffer: 256 * 1024,
+      timeoutMs: Math.max(1, Math.floor(Math.min(15000, effective - performance.now()))),
+    })([...args, "--hostname", "github.com"], input);
+    coordinatorContinuationDeadline(deadline());
+    return response;
+  });
+}
 /** Integrity comparison only: caller JSON never establishes authenticated
  * controls. Every source is authenticated and freshness-checked separately. */
 export function coordinatorMaintenanceIdentity(raw: unknown) {
@@ -1119,7 +1141,10 @@ async function prepareTrustedCoordinatorRenewalAt(
     let nextRound = 0;
     let refreshing = false;
     let refreshFailed = false;
-    const nextControls = async () => {
+    const nextControls = async (phaseDeadline?: number) => {
+      const session = metadataPreparations.get(result);
+      if (!session) throw new Error("actual metadata continuation session required");
+      session.deadline = coordinatorContinuationDeadline(session.deadline, phaseDeadline);
       if (refreshing || refreshFailed)
         throw new Error("coordinator maintenance continuation already active or refused");
       refreshing = true;
@@ -1132,15 +1157,18 @@ async function prepareTrustedCoordinatorRenewalAt(
           capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
           "coordinator",
           index,
-          { deadline: budget.monotonicDeadline },
+          { deadline: session.deadline },
         );
-        const fresh = next.readMaintenance(api);
+        const fresh = next.readMaintenance(
+          metadataContinuationApi(recovered.repository, () => session.deadline),
+        );
         if (
           next.evidence_scope !== "github.com" ||
           coordinatorMaintenanceIdentity(fresh) !== controlIdentity
         )
           throw new Error("coordinator maintenance authority changed across control rounds");
         budget.check();
+        coordinatorContinuationDeadline(session.deadline);
         return next;
       } catch (error) {
         refreshFailed = true;
@@ -1183,9 +1211,13 @@ async function prepareTrustedCoordinatorRenewalAt(
 /** Same-process continuation for the fixed coordinator context producer. Public
  * JSON output and a copied descriptor cannot reconstruct any of these brands.
  * The original role deadline continues across the context/upload handoff. */
-export async function requireActualCoordinatorMetadataPreparation(result: object) {
+export async function requireActualCoordinatorMetadataPreparation(
+  result: object,
+  phaseDeadline?: number,
+) {
   const retained = metadataPreparations.get(result);
   if (!retained) throw new Error("actual same-process coordinator metadata preparation required");
+  retained.deadline = coordinatorContinuationDeadline(retained.deadline, phaseDeadline);
   return withCoordinatorDeadline(retained.deadline, async () => {
     await verifiedControllerToolPaths(retained.tools);
     const prepared = await inspectPreparedMetadataRenewal(retained.preparation);
@@ -1204,20 +1236,7 @@ export async function requireActualCoordinatorMetadataPreparation(result: object
       coordinatorHasUnresolvedEffect(current.input)
     )
       throw new Error("coordinator metadata seed or checkpoint changed");
-    const remaining = () =>
-      Math.max(1, Math.floor(Math.min(15000, retained.deadline - performance.now())));
-    const api = new GitHubApiClient((args, input) => {
-      if (performance.now() >= retained.deadline)
-        throw new Error("coordinator metadata phase deadline exhausted");
-      const response = createGitHubRunner({
-        cwd: retained.repository,
-        maxBuffer: 256 * 1024,
-        timeoutMs: remaining(),
-      })([...args, "--hostname", "github.com"], input);
-      if (performance.now() >= retained.deadline)
-        throw new Error("coordinator metadata phase deadline exhausted");
-      return response;
-    });
+    const api = metadataContinuationApi(retained.repository, () => retained.deadline);
     // The original observer may have aged while the authenticated feed/tool
     // custody was checked. Obtain a new fixed-job round before reading it.
     const controls = await retained.next_controls();

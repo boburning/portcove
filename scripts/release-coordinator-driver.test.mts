@@ -7,8 +7,19 @@ import {
   selectCoordinatorMetadataRenewal,
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
+  coordinatorContinuationDeadline,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+import { performance } from "node:perf_hooks";
+
+void test("coordinator continuation can only tighten its original finite deadline", () => {
+  const original = performance.now() + 10000;
+  assert.equal(coordinatorContinuationDeadline(original), original);
+  assert.equal(coordinatorContinuationDeadline(original, original + 1000), original);
+  assert.equal(coordinatorContinuationDeadline(original, original - 1000), original - 1000);
+  assert.throws(() => coordinatorContinuationDeadline(original, NaN), /finite/);
+  assert.throws(() => coordinatorContinuationDeadline(original, 0), /exhausted/);
+});
 
 void test("maintenance continuation permits only fresh observation fields to change", () => {
   const original = {
