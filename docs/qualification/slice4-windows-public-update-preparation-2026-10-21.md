@@ -385,3 +385,28 @@ supplies only that source-directory binding. Eight driver checks passed with
 zero skips on Windows, with typed lint. No account, installer or application ran.
 The V2 continuation still needs its exact retained-work invocation and the
 separate publication/registration rendezvous.
+
+## Shared Linux settlement connection
+
+The shared attempt module now records Linux public settlement only through the
+actual private Linux capture getter. It preserves the original group/root
+closure, separate full wire identity, all ordinary exported paths (prefixed
+only with guest-capture/), every profile manifest/chunk, and the fixed local
+plan/request/registration/host-readback inputs. Recognized hidden atomic JSON
+aliases stay covered by the original complete wire rather than invented normal
+filenames. Existing 512-file, 4 MiB ordinary-file and separate 272 MiB wire bounds
+remain unchanged; an oversized combined inventory refuses. Only exact observed
+or parked reports with actual driver status zero and no failure can advance.
+Other positively settled observations retain refused scope. The original
+CreateNew/fsynced settlement path is shared with Windows and rehashes retained
+files/wire before return; actual claim/capture getters are checked again.
+
+Parent phase routing separately inspects the complete setup-owned anchor before
+selecting initial/parked/await-V2/completed. Missing or contradictory history
+throws; it does not become a catch-and-fallback initial run. Eighteen focused
+contract/refusal checks and four typed modules passed; these do not establish a
+positive Linux host, namespace, GUI, public-origin or native acceptance run.
+The source dependency composition preserves the exact reviewed Windows caller
+and incorporates the reviewed Linux capture/forward-repair source, including
+root's still-separate safe restart-supersession patch. No remote or host effects
+were performed by this connection work.
