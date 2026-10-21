@@ -217,7 +217,7 @@ try {
     $bindingPath=Join-Path $capture 'account-binding.json';Write-NewDriverJson $bindingPath $binding
     $bindingSha=(Get-FileHash -LiteralPath $bindingPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $session=Open-PortcoveNativeAccountSession $bindingPath $bindingSha
-    $harnessArguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'test-windows-installer.ps1'),'-InstallerPath',$installer,'-TestBase',$work,'-EvidencePath',(Join-Path $capture 'installer.json'),'-ExpectedVersion',$planValue.version,'-NativeAccountBindingPath',$bindingPath,'-NativeAccountBindingSha256',$bindingSha,'-NativeParentOwnsFinish')
+    $harnessArguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'test-windows-installer.ps1'),'-InstallerPath',$installer,'-TestBase',(Join-Path $work 'installer'),'-EvidencePath',(Join-Path $capture 'installer.json'),'-ExpectedVersion',$planValue.version,'-NativeAccountBindingPath',$bindingPath,'-NativeAccountBindingSha256',$bindingSha,'-NativeParentOwnsFinish')
     if($publicMode) {
         $publicRemaining=[Math]::Floor(1750000-$clock.ElapsedMilliseconds)
         if($publicRemaining -lt 1) {throw 'Original public driver lifetime exhausted before installer'}

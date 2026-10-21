@@ -349,3 +349,20 @@ complete settlement file inventory. This preserves explicit component evidence
 for a later wake rather than relying on a vanished private receipt. Nine scoped
 contract/refusal cases and two typed modules passed; they did not invoke a real
 parent or exercise a positive native signature subtype.
+
+Independent composition review found and repaired a registration omission: the
+shared compiler ZIP decoder now selects both hosted and public compiler tests
+and release-security ownership. An actual helper-only classify/plan regression
+passes, along with twenty-two existing routing/plan checks and typed lint.
+
+A further cross-contract source trace found that the fixed Windows driver passed
+its work root as installer TestBase, while the maintained account adapter guard
+requires a strict descendant. The actual argv now selects only the fixed
+installer child; the guard remains unchanged. The regression evaluates the
+actual driver argument assignment against the actual installer guard and proves
+root equality/sibling refusal. Its first extraction lacked PowerShell's lexical
+script-directory binding and failed before guard evaluation; the fixture now
+supplies only that source-directory binding. Eight driver checks passed with
+zero skips on Windows, with typed lint. No account, installer or application ran.
+The V2 continuation still needs its exact retained-work invocation and the
+separate publication/registration rendezvous.

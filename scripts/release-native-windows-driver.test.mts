@@ -15,6 +15,75 @@ import {
   requireActualWindowsPublicCapture,
 } from "./release-native-windows-capture.mts";
 
+void test(
+  "actual fixed installer arguments satisfy the maintained strict account-work descendant guard",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "portcove-native-argv-"));
+    try {
+      const file = path.join(directory, "argv.ps1");
+      await writeFile(
+        file,
+        String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$driver=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_DRIVER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'driver parse failure'}
+$assignment=@($driver.FindAll({param($item)$item -is [Management.Automation.Language.AssignmentStatementAst] -and $item.Left.Extent.Text -ceq '$harnessArguments' -and $item.Operator -eq 'Equals'},$true))
+if($assignment.Count -ne 1){throw 'fixed installer argument source missing'}
+$work='C:\qualification\work\' + ('a'*64);$capture='C:\owner\capture\native-attempt-' + ('a'*64)
+$installer='C:\owner\inputs\prior.exe';$planValue=@{version='0.1.0-beta.1'};$bindingPath=Join-Path $capture 'account-binding.json';$bindingSha='b'*64
+$driverSourceRoot=[IO.Path]::GetDirectoryName($env:PORTCOVE_TEST_DRIVER)
+# Extracted AST text has no script-file automatic-variable binding in Invoke-Expression.
+# Supply that lexical source directory without changing any argument expression.
+Invoke-Expression ($assignment[0].Extent.Text.Replace('$PSScriptRoot','$driverSourceRoot'))
+$position=[Array]::IndexOf($harnessArguments,'-TestBase')
+if($position -lt 0){throw 'installer TestBase missing'}
+$TestBase=[string]$harnessArguments[$position+1]
+if($TestBase -cne (Join-Path $work 'installer')){throw 'fixed installer child differs'}
+$nativeAccount=[pscustomobject]@{binding=@{work_root=$work}}
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_INSTALLER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'installer parse failure'}
+$guard=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.IfStatementAst] -and $item.Extent.Text.StartsWith('if (-not $TestBase -or -not [IO.Path]::GetFullPath($TestBase).StartsWith(')},$true))
+if($guard.Count -ne 1){throw 'maintained strict TestBase guard missing'}
+Invoke-Expression $guard[0].Extent.Text
+$refused=0
+foreach($invalid in @($work,($work+'-sibling'))){$TestBase=$invalid;try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++}}
+if($refused -ne 2){throw 'root equality or sibling bypassed strict ownership'}
+Write-Output 'fixed-installer-descendant-pass'
+`,
+      );
+      const result = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", file],
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true,
+          env: {
+            ...process.env,
+            PORTCOVE_TEST_DRIVER: fileURLToPath(
+              new URL("./release-native-windows-driver.ps1", import.meta.url),
+            ),
+            PORTCOVE_TEST_INSTALLER: fileURLToPath(
+              new URL("./test-windows-installer.ps1", import.meta.url),
+            ),
+          },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /fixed-installer-descendant-pass/u);
+    } finally {
+      assert.ok(
+        path.isAbsolute(directory) &&
+          path.dirname(directory) === path.resolve(tmpdir()) &&
+          path.basename(directory).startsWith("portcove-native-argv-"),
+      );
+      await rm(directory, { recursive: true });
+    }
+  },
+);
+
 void test("retained proof hashing handles empty streams and bounded raw preimages, refusing aliases and an expired original clock", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "portcove-public-proof-"));
   try {
