@@ -7,10 +7,90 @@ import {
   requireActualNativeCandidate,
   inspectNativeSourceCommand,
   nativeInvocationIdentity,
+  inspectNativePostSignController,
+  readActualNativePostSignController,
+  requireActualNativePostSignController,
 } from "./release-native-candidate.mts";
+import { capacityDigest } from "./release-capacity.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
+
+void test("post-sign source run comes from exact completed timestamp candidate operation, not compiler or maintenance identity", async () => {
+  const candidate = {
+    phase: "publishing",
+    source_commit: "b".repeat(40),
+    prepared_commit: "c".repeat(40),
+    version: "0.1.0-beta.1",
+    transient_retries: 0,
+    substantive_repairs: 0,
+    release_run: { run_id: 999, attempt: 1, revision: "c".repeat(40) },
+  };
+  const { phase: _phase, release_run: _compiler, ...subject } = candidate;
+  const executor = {
+    actor_id: "123",
+    check_run_id: "456",
+    controller_revision: "a".repeat(40),
+    execution_ref: "refs/tags/portcove-production-controller-fixture",
+    job_id: 789,
+    role: "tuf-timestamp",
+    run_attempt: 1,
+    run_id: "12345",
+    workflow: ".github/workflows/application-update-production.yml",
+  };
+  const make = (changes: Record<string, unknown> = {}, state: Record<string, unknown> = {}) => {
+    const identity = {
+      before_checkpoint: "d".repeat(40),
+      candidate: subject,
+      destination: "github-actions:boburning/portcove:0.1.0-beta.1:tuf-timestamp-envelope",
+      executor_nonce: "e".repeat(64),
+      executor_identity: executor,
+      receipt_limit: 1,
+      kind: "upload",
+      sequence: 1,
+      policy_sha256: "f".repeat(64),
+      ratification_sha256: "1".repeat(64),
+      ...changes,
+    };
+    return {
+      ...identity,
+      id: capacityDigest(identity),
+      outcome: "succeeded",
+      completed_effects: [{ remote_identity: "artifact:fixture", evidence_sha256: "2".repeat(64) }],
+      recovery: null,
+      failure_evidence: null,
+      ...state,
+    };
+  };
+  const actual = inspectNativePostSignController(make(), candidate, "a".repeat(40));
+  assert.equal(actual.run_id, "12345");
+  assert.notEqual(actual.run_id, String(candidate.release_run.run_id));
+  assert.equal(actual.authority, "none");
+  for (const changed of [
+    make({ candidate: { ...subject, transient_retries: 1 } }),
+    make({ candidate: { ...subject, prepared_commit: "3".repeat(40) } }),
+    make({ executor_identity: { ...executor, role: "payload-signing" } }),
+    make({ executor_identity: { ...executor, run_attempt: 2 } }),
+    make({ executor_identity: { ...executor, controller_revision: "3".repeat(40) } }),
+    make({ executor_identity: { ...executor, execution_ref: "refs/tags/other-controller" } }),
+    make({
+      destination: "github-actions:boburning/portcove:metadata-renewal:tuf-timestamp-envelope",
+    }),
+    make({ receipt_limit: 2 }),
+    make({}, { outcome: "pending", completed_effects: [] }),
+    make({}, { outcome: "ambiguous" }),
+    make({}, { completed_effects: [] }),
+  ])
+    assert.throws(() => inspectNativePostSignController(changed, candidate, "a".repeat(40)));
+  assert.throws(() =>
+    inspectNativePostSignController(make(), { ...candidate, phase: "promoting" }, "a".repeat(40)),
+  );
+  await assert.rejects(readActualNativePostSignController({}), /actual installed native parent/);
+  await assert.rejects(
+    requireActualNativePostSignController({}),
+    /actual native post-sign controller source/,
+  );
+});
 
 void test("native duplicate identity binds the actual tuple and existing bounded recovery counters", () => {
   const report = nativeQualificationFixture();

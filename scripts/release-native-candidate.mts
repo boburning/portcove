@@ -19,6 +19,12 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
+import {
+  inspectCapacityOperation,
+  inspectCompactCapacityOperations,
+  verifyRetainedCapacityOperation,
+} from "./release-capacity.mts";
 import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
@@ -294,6 +300,196 @@ const selections = new WeakMap<
     api: GitHubApiClient;
   }
 >();
+
+/** Association only: the controller run is the producer of the final signed
+ * role, not the candidate compiler's different release_run. The actual parent
+ * below obtains this operation from its authenticated existing journal. */
+export function inspectNativePostSignController(
+  rawOperation: unknown,
+  rawCandidate: unknown,
+  controllerRevision: string,
+) {
+  const operation = inspectCapacityOperation(rawOperation);
+  if (!isRecord(rawCandidate)) throw new Error("post-sign native reservation absent");
+  const expected = Object.fromEntries(
+    ["prepared_commit", "source_commit", "version", "transient_retries", "substantive_repairs"].map(
+      (key) => [key, rawCandidate[key]],
+    ),
+  );
+  const executor = operation?.executor_identity;
+  if (
+    !operation ||
+    !operation.candidate ||
+    digest(operation.candidate) !== digest(expected) ||
+    !["building", "publishing"].includes(String(rawCandidate.phase)) ||
+    operation.kind !== "upload" ||
+    operation.destination !==
+      `github-actions:boburning/portcove:${String(rawCandidate.version)}:tuf-timestamp-envelope` ||
+    operation.receipt_limit !== 1 ||
+    operation.completed_effects.length !== 1 ||
+    !(
+      operation.outcome === "succeeded" ||
+      (operation.outcome === "recovered" &&
+        isRecord(operation.recovery) &&
+        operation.recovery.resolution === "effect-completed")
+    ) ||
+    !executor ||
+    executor.role !== "tuf-timestamp" ||
+    executor.run_attempt !== 1 ||
+    executor.controller_revision !== controllerRevision ||
+    executor.workflow !== ".github/workflows/application-update-production.yml" ||
+    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(
+      executor.execution_ref,
+    )
+  )
+    throw new Error("post-sign native run lacks exact completed candidate timestamp operation");
+  return Object.freeze({
+    controller_revision: executor.controller_revision,
+    controller_ref: executor.execution_ref,
+    run_id: executor.run_id,
+    run_attempt: executor.run_attempt,
+    operation_id: operation.id,
+    operation_sha256: digest(operation),
+    authority: "none" as const,
+  });
+}
+
+/** No incoming run locator or injected provider. Compact history is hydrated
+ * through its original retained Git checkpoints, never through latest-run
+ * heuristics or imported success flags. Still only public source provenance. */
+const postSignControllers = new WeakMap<
+  object,
+  {
+    parent: object;
+    source: Awaited<ReturnType<typeof sourceTransport>>;
+    directory: string;
+    checkpoint: string;
+    candidate: Record<string, unknown>;
+    controller: ReturnType<typeof inspectNativePostSignController>;
+    retainedBytes: Buffer;
+  }
+>();
+export async function readActualNativePostSignController(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  const directory = await mkdtemp(path.join(parent.descriptor.capture_root, "native-post-sign-"));
+  const source = await sourceTransport(parent, directory);
+  const before = await source.recover();
+  const input = before.input;
+  if (!isRecord(input.active_candidate) || !isRecord(input.controller))
+    throw new Error("actual post-sign reservation missing");
+  const candidate = input.active_candidate;
+  const capacity = input.controller.capacity_attempt;
+  if (!isRecord(capacity) || capacity.schema_version !== 2)
+    throw new Error("post-sign native requires existing bounded operation history");
+  const raws: { checkpoint: string; operation: unknown }[] = [];
+  if (capacity.operation !== null)
+    raws.push({ checkpoint: before.checkpoint, operation: capacity.operation });
+  const groups = inspectCompactCapacityOperations(capacity.prior_operations).filter(
+    (group) =>
+      group.subject.kind === "candidate" &&
+      group.subject.identity === candidate.prepared_commit &&
+      group.kind === "upload" &&
+      group.destination_sha256 ===
+        digest(
+          `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`,
+        ),
+  );
+  for (const group of groups) {
+    for (const proof of group.attempts) {
+      const historical = await recoverReleaseOpportunity(before.repository, proof.checkpoint);
+      if (
+        !isRecord(historical.input.controller) ||
+        !isRecord(historical.input.controller.capacity_attempt)
+      )
+        throw new Error("retained timestamp checkpoint lacks original operation");
+      const operation = verifyRetainedCapacityOperation(
+        historical.input.controller.capacity_attempt.operation,
+        proof,
+      );
+      raws.push({ checkpoint: proof.checkpoint, operation });
+    }
+  }
+  const matches = raws.flatMap((entry) => {
+    try {
+      return [
+        {
+          ...entry,
+          controller: inspectNativePostSignController(
+            entry.operation,
+            candidate,
+            parent.descriptor.controller_revision,
+          ),
+        },
+      ];
+    } catch {
+      return [];
+    }
+  });
+  if (matches.length !== 1)
+    throw new Error("exact post-sign controller operation missing or ambiguous; preserve history");
+  await source.recheck();
+  const after = await source.recover();
+  if (before.checkpoint !== after.checkpoint)
+    throw new Error("post-sign reservation changed during retained history acquisition");
+  const retained = {
+    checkpoint: before.checkpoint,
+    candidate: structuredClone(candidate),
+    timestamp: matches[0],
+    authority: "none",
+    scope: "parent-owned journal source only; signed context and native execution pending",
+  };
+  const retainedBytes = Buffer.from(JSON.stringify(retained));
+  await writeFile(path.join(directory, "original-controller-selection.json"), retainedBytes, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  const receipt = Object.freeze({
+    kind: "actual-native-post-sign-controller-source",
+    directory,
+    authority: "none",
+    scope: retained.scope,
+  });
+  postSignControllers.set(receipt, {
+    parent: parentReceipt,
+    source,
+    directory,
+    checkpoint: before.checkpoint,
+    candidate: structuredClone(candidate),
+    controller: matches[0]!.controller,
+    retainedBytes,
+  });
+  return receipt;
+}
+
+export async function requireActualNativePostSignController(receipt: object) {
+  const retained = postSignControllers.get(receipt);
+  if (!retained) throw new Error("actual native post-sign controller source required");
+  const parent = await requireActualNativeParent(retained.parent);
+  await retained.source.recheck();
+  const original = await readBoundedPublicBuildInputFile(
+    retained.directory,
+    "original-controller-selection.json",
+    256 * 1024,
+  );
+  if (!original.equals(retained.retainedBytes))
+    throw new Error("retained post-sign controller selection changed");
+  const current = await retained.source.recover();
+  if (
+    current.checkpoint !== retained.checkpoint ||
+    digest(current.input.active_candidate) !== digest(retained.candidate)
+  )
+    throw new Error("post-sign native reservation advanced; reconcile before execution");
+  await parent.recheck();
+  return {
+    parent,
+    directory: retained.directory,
+    checkpoint: retained.checkpoint,
+    candidate: structuredClone(retained.candidate),
+    controller: { ...retained.controller },
+    authority: "none" as const,
+    scope: "parent-owned journal source only; signed context and native execution pending" as const,
+  };
+}
 
 /** No injected transport or incoming candidate tuple can enter this factory.
  * It selects only the current reserved run, retaining a data-only request. */
