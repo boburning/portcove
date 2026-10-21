@@ -1446,13 +1446,15 @@ export async function runFixedBuildingConfiguration(raw: unknown, root: string, 
       await import("./release-candidate-progress.mts");
     const advanced = await advanceActualCandidateToBuilding(eligibility, { deadline });
     const actual = await requireActualCandidatePhaseAdvance(advanced, "building");
+    const { aggregateEvidenceRequestFromObservation } =
+      await import("./production-aggregate-steps.mts");
     const descriptor = {
       schema_version: 1,
       checkpoint: actual.checkpoint,
       coordinator: { schema_version: 1, namespace: actual.namespace },
       assembly: admitted.facts.assembly,
       archives: admitted.facts.archives,
-      evidence: admitted.facts.evidence,
+      evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
     };
     const encoded = JSON.stringify(descriptor);
     const { requireReservedAggregate } = await import("./production-aggregate-steps.mts");

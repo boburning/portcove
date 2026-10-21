@@ -51,6 +51,27 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
   };
 }
 
+/** Data projection only. API observations remain distinct from the exact
+ * request consumed by assembly; genuine building admission precedes this call. */
+export function aggregateEvidenceRequestFromObservation(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    raw.schema_version !== 1 ||
+    raw.kind !== "release-run-api-evidence" ||
+    !isRecord(raw.run)
+  )
+    throw new Error("actual release API observation required for request projection");
+  return inspectReleaseEvidenceRequest({
+    schema_version: 1,
+    repository_id: raw.repository_id,
+    run_id: raw.run.id,
+    attempt: raw.run.attempt,
+    revision: raw.run.revision,
+    tree: raw.source_tree,
+    workflow_sha256: raw.source_workflow_sha256,
+  });
+}
+
 /** Association with the EXISTING reservation; never allocate or advance state.
  * Upstream acceptance and fresh policy/pause/capacity checks remain mandatory. */
 export async function requireReservedAggregate(rawDescriptor: string, rawState: unknown) {

@@ -52,3 +52,11 @@ role-clock tests pass with no skips, including wrong-source, imported-proof,
 expired-clock and unrelated-hold preservation cases. These are engineering
 validation; no actual provider candidate was admitted. Final workflow joins remain
 under construction and protected execution remains held.
+
+The building-to-assembly handoff additionally projects the collected API
+observation into the existing exact `ReleaseEvidenceRequest` wire schema. A
+cross-contract regression collects the fixture through the actual API collector,
+shows that its full observation is rejected as an assembly request, and confirms
+the projected run/source/tree/workflow tuple passes the maintained consumer.
+Malformed run IDs, tree/workflow digests and imported report kinds refuse. The
+full API observation remains retained separately; projection grants no authority.

@@ -11,6 +11,7 @@ import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts"
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
 import {
   inspectAggregateDescriptor,
+  aggregateEvidenceRequestFromObservation,
   requireReservedAggregate,
   inspectReservedPublicationReadback,
   requestAssemblerToken,
@@ -424,4 +425,21 @@ void test("the actual held attester normalizes only a bounded completed bundle a
       assert.notEqual(refused.status, 0);
     },
   );
+});
+
+void test("building handoff projects the observed release run into the exact assembly evidence request", async (t) => {
+  const fixture = await releasePublicBuildProvenanceFixture(t);
+  const { collectReleaseRunEvidence, inspectReleaseEvidenceRequest } =
+    await import("./release-run-evidence.mts");
+  const observation = collectReleaseRunEvidence(fixture.expected, { api: fixture.api });
+  assert.throws(() => inspectReleaseEvidenceRequest(observation));
+  const request = aggregateEvidenceRequestFromObservation(observation);
+  assert.deepEqual(inspectReleaseEvidenceRequest(request), fixture.expected);
+  for (const changed of [
+    { ...observation, run: { ...observation.run, id: "12345" } },
+    { ...observation, source_tree: "wrong" },
+    { ...observation, source_workflow_sha256: "wrong" },
+    { ...observation, kind: "imported-acceptance" },
+  ])
+    assert.throws(() => aggregateEvidenceRequestFromObservation(changed));
 });
