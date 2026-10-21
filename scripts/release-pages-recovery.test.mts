@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
+import { createHash } from "node:crypto";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { requirePublishedCompleteSite } from "./release-site-readback.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { createPagesProviderTransport } from "./release-pages-provider.mts";
@@ -60,6 +65,72 @@ const response = (body: unknown, status = 200) => ({
   body,
   status,
   headers: new Map<string, string>(),
+});
+
+void test("default full-site materializer returns the genuine receipt used by recovery custody", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "pages-recovery-public-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const files = new Map([
+    [".nojekyll", Buffer.alloc(0)],
+    ["application/metadata/1.root.json", Buffer.from("inert independently pinned root")],
+    ["application/metadata/timestamp.json", Buffer.from("inert signed metadata")],
+    ["catalog/targets/retained.json", Buffer.from("preserved independent catalog")],
+  ]);
+  const inventory = [...files].map(([path, bytes]) => ({
+    path,
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  }));
+  const root = inventory.find((file) => file.path === "application/metadata/1.root.json")!.sha256;
+  const unsigned = {
+    schema_version: 1,
+    previous_generation: "2".repeat(64),
+    application_root_sha256: root,
+    files: inventory,
+  };
+  const marker = { ...unsigned, generation: capacityDigest(unsigned) };
+  files.set("publication.json", Buffer.from(JSON.stringify(marker)));
+  const pending = operation();
+  pending.site_expectation = {
+    ...pending.site_expectation,
+    site_generation_sha256: marker.generation,
+    root_sha256: root,
+    repository_sha256: capacityDigest(
+      inventory
+        .filter((file) => file.path.startsWith("application/"))
+        .map((file) => ({ ...file, path: file.path.slice(12) })),
+    ),
+  };
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...identity
+  } = pending;
+  pending.id = capacityDigest(identity);
+  const calls: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(init.credentials, "omit");
+    const member = url.slice("https://boburning.github.io/portcove/".length);
+    calls.push(member);
+    const result = new Response(files.get(member));
+    Object.defineProperty(result, "url", { value: url });
+    return result;
+  });
+  const provider = createPagesProviderTransport(parent, {
+    api: { request: () => response({ status: "succeed" }) },
+  });
+  const observed = await readPendingPagesPublication(parent, pending, performance.now() + 5000, {
+    provider,
+  });
+  const custody = await requirePublishedCompleteSite(observed.complete_site);
+  assert.equal(custody.generation.generation, marker.generation);
+  assert.ok(calls.includes("catalog/targets/retained.json"));
+  assert.equal(calls.filter((member) => member === "publication.json").length, 2);
+  await writeFile(path.join(custody.directory, "catalog/targets/retained.json"), "changed");
+  await assert.rejects(requirePublishedCompleteSite(observed.complete_site));
 });
 
 void test("lost Pages acknowledgement resolves only by exact generation GET/public bytes/GET without POST", async () => {

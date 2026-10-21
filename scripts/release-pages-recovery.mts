@@ -63,16 +63,22 @@ export async function readPendingPagesPublication(
   check();
   const publicReadback = options.readPublic
     ? await options.readPublic(structuredClone(expected))
-    : await materializePublishedCompleteSite(
-        {
-          site_generation_sha256: expected.site_generation_sha256,
-          root_sha256: expected.root_sha256,
-          repository_sha256: expected.repository_sha256,
-        },
-        directory,
-        phaseDeadline,
-      );
-  if (!options.readPublic) await requirePublishedCompleteSite(publicReadback);
+    : (
+        await materializePublishedCompleteSite(
+          {
+            site_generation_sha256: expected.site_generation_sha256,
+            root_sha256: expected.root_sha256,
+            repository_sha256: expected.repository_sha256,
+          },
+          directory,
+          phaseDeadline,
+        )
+      ).receipt;
+  let publicProjection: unknown = publicReadback;
+  if (!options.readPublic) {
+    const verified = await requirePublishedCompleteSite(publicReadback);
+    publicProjection = { generation: verified.generation, pins: verified.pins };
+  }
   check();
   const after = provider.observeByGeneration(identity);
   if (after.status !== "succeed")
@@ -83,7 +89,7 @@ export async function readPendingPagesPublication(
     expected,
     provider_before: before,
     provider_after: after,
-    public_readback: publicReadback,
+    public_readback: publicProjection,
     evidence_scope: options.provider || options.readPublic ? "injected-provider" : "github.com",
     authority: "none",
     provider_mutations: 0,
