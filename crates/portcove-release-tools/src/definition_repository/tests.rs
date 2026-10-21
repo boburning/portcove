@@ -201,6 +201,71 @@ async fn catalog_four_isolated_roles_and_zero_key_assembly_have_exact_tough_read
         ["official-definitions", "official-policy"]
     );
 }
+
+#[tokio::test]
+async fn catalog_read_only_public_verification_does_not_reopen_generation_or_keys() {
+    let fixture = Fixture::new().await;
+    fixture.sign_all().await;
+    let assembled = assemble_definition_repository(&fixture.assembly("published"))
+        .await
+        .unwrap();
+    let original = io::tree(&fixture.root().join("published"), 65536, 128 * 1024 * 1024).unwrap();
+    let mut historical = fixture.context_value();
+    historical["generated_at"] = json!(
+        Timestamp::now()
+            .checked_sub(Duration::from_secs(601))
+            .unwrap()
+            .to_string()
+    );
+    fixture.set_context(historical);
+    assert!(
+        assemble_definition_repository(&fixture.assembly("forbidden-reassembly"))
+            .await
+            .is_err()
+    );
+    assert!(!fixture.root().join("forbidden-reassembly").exists());
+    for index in 0..8 {
+        fs::remove_dir_all(fixture.root().join(format!("key-{index}"))).unwrap();
+    }
+    let config_value = json!({
+        "schema_version":1,
+        "trusted_root":"root.json",
+        "trusted_root_sha256":assembled.root_sha256,
+        "offline_targets":"targets.json",
+        "offline_targets_sha256":assembled.offline_targets_sha256,
+        "repository":"published"
+    });
+    let config = json_file(fixture.root(), "verify-public.json", config_value.clone());
+    let verified = verify_definition_repository(&config).await.unwrap();
+    assert!(!verified.changed);
+    assert_eq!(verified.authority, "none");
+    assert_eq!(verified.files, assembled.files);
+    assert_eq!(verified.repository_sha256, assembled.repository_sha256);
+    assert_eq!(verified.index_sha256, assembled.index_sha256);
+    assert_eq!(verified.versions, assembled.versions);
+    assert_eq!(verified.expires, assembled.expires);
+    assert_eq!(
+        io::tree(&fixture.root().join("published"), 65536, 128 * 1024 * 1024).unwrap(),
+        original
+    );
+    for field in ["generated_at", "signing_key", "output"] {
+        let mut changed = config_value.clone();
+        changed[field] = json!("not-an-admitted-verification-input");
+        let invalid = json_file(fixture.root(), "invalid-verify.json", changed);
+        assert!(verify_definition_repository(&invalid).await.is_err());
+    }
+    let target = verified
+        .files
+        .iter()
+        .find(|file| file.target.starts_with("targets/"))
+        .unwrap();
+    fs::write(
+        fixture.root().join("published").join(&target.target),
+        b"tampered",
+    )
+    .unwrap();
+    assert!(verify_definition_repository(&config).await.is_err());
+}
 #[tokio::test]
 async fn catalog_manifest_tamper_and_extra_file_refuse_before_missing_key_read() {
     let fixture = Fixture::new().await;
