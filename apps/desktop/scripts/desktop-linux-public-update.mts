@@ -20,6 +20,7 @@ import {
 import {
   readPublicUpdateFile,
   publicUpdateRawMetadataBytes,
+  publicUpdateApplySchemaVersion,
   readBoundedPublicUpdateBytes,
   createPublicUpdatePreimageStore,
   retainPublicUpdateProfile,
@@ -86,6 +87,19 @@ export function inspectLinuxPublicRuntime(
   };
 }
 
+/** A still-live original generation is pending, after all its identity checks.
+ * It cannot satisfy relaunch, and malformed identity never becomes not-ready. */
+export function selectLinuxPublicRelaunch(
+  raw: unknown,
+  identity: { bytes: number; sha256: string },
+  prior?: { pid: number; creation_ticks: string },
+) {
+  const observed = inspectLinuxPublicRuntime(raw, identity);
+  if (prior && observed.pid === prior.pid && observed.creation_ticks === prior.creation_ticks)
+    return null;
+  return observed;
+}
+
 export function assertLinuxPublicUserStatePreserved(
   before: PublicUserState,
   after: PublicUserState,
@@ -142,7 +156,9 @@ export function inspectRetainedLinuxPublicState(raw: unknown): PublicUserState {
 }
 /** Raw preimage integrity only; this cannot attest a native refusal on its own. */
 export function inspectLinuxPublicPreNativeRequest(raw: unknown) {
-  assert.ok(isRecord(raw) && isRecord(raw.intent) && raw.schema_version === 1);
+  assert.ok(
+    isRecord(raw) && isRecord(raw.intent) && raw.schema_version === publicUpdateApplySchemaVersion,
+  );
   assert.ok(Number.isSafeInteger(raw.revision) && Number(raw.revision) > 0);
   assert.equal(raw.intent.request, "restart-to-apply");
   assert.equal(raw.termination, "restart-to-apply");
@@ -350,7 +366,13 @@ export async function runLinuxPublicUpdateJourney(
           isRecord(raw.process.opaque_mount.runtime.package) &&
           raw.process.opaque_mount.runtime.package.sha256 === identity.sha256
         ) {
-          const result = inspectLinuxPublicRuntime(raw, identity, prior);
+          const result = selectLinuxPublicRelaunch(raw, identity, prior);
+          if (!result) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, Math.min(1000, Math.max(1, end - performance.now()))),
+            );
+            continue;
+          }
           const installed = await readPublicUpdateFile(binding.active_application);
           assert.equal(installed.sha256, identity.sha256);
           assert.equal(installed.bytes, identity.bytes);

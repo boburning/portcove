@@ -6,15 +6,17 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   inspectLinuxPublicRuntime,
   assertLinuxPublicUserStatePreserved,
   inspectLinuxPublicPreNativeRequest,
   inspectRetainedLinuxPublicState,
+  selectLinuxPublicRelaunch,
 } from "./desktop-linux-public-update.mts";
 void test("old restart preimage cannot conceal started, ambiguous or unrelated native effects", () => {
   const raw = {
-    schema_version: 1,
+    schema_version: 4,
     revision: 1,
     intent: { request: "restart-to-apply" },
     termination: "restart-to-apply",
@@ -26,6 +28,7 @@ void test("old restart preimage cannot conceal started, ambiguous or unrelated n
   assert.equal(parsed.authority, "none");
   assert.equal(parsed.revision, 1);
   for (const changed of [
+    { schema_version: 1 },
     { native_launch: "starting" },
     { native_launch: "failed" },
     { native_replacement: {} },
@@ -45,12 +48,22 @@ import {
   createPublicUpdatePreimageStore,
   readBoundedPublicUpdateBytes,
   publicUpdateRawMetadataBytes,
+  publicUpdateApplySchemaVersion,
   retainPublicUpdateProfile,
   restorePublicUpdateProfile,
   restoreParkedPublicUpdateCapture,
   retainDeduplicatedPublicUpdatePreimages,
   retainPublicContinuationPreimages,
 } from "./desktop-public-update-files.mts";
+void test("native raw apply inspector remains tied to the current shipping journal version", async () => {
+  const source = await readFile(
+    fileURLToPath(new URL("../src-tauri/src/application_update_apply.rs", import.meta.url)),
+    "utf8",
+  );
+  const declarations = [...source.matchAll(/^const APPLY_SCHEMA_VERSION: u32 = ([1-9][0-9]*);$/gm)];
+  assert.equal(declarations.length, 1);
+  assert.equal(publicUpdateApplySchemaVersion, Number(declarations[0]?.[1]));
+});
 void test("unchanged parked payload retains a new byte observation tied to original wire, while V2 is copied normally", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "public-old-payload-"));
   context.after(() => rm(root, { recursive: true, force: true }));
@@ -112,6 +125,28 @@ void test("ordinary relaunch observation requires exact original opaque package 
     },
   };
   assert.equal(inspectLinuxPublicRuntime(raw, identity).pid, 10);
+  const previous = { pid: 10, creation_ticks: "1234" };
+  assert.equal(selectLinuxPublicRelaunch(raw, identity, previous), null);
+  assert.equal(
+    selectLinuxPublicRelaunch({ ...raw, process: { ...raw.process, pid: 11 } }, identity, previous)
+      ?.pid,
+    11,
+  );
+  assert.equal(
+    selectLinuxPublicRelaunch(
+      { ...raw, process: { ...raw.process, creation_ticks: "1235" } },
+      identity,
+      previous,
+    )?.creation_ticks,
+    "1235",
+  );
+  assert.throws(() =>
+    selectLinuxPublicRelaunch(
+      { ...raw, process: { ...raw.process, role: "update-helper" } },
+      identity,
+      previous,
+    ),
+  );
   assert.throws(() =>
     inspectLinuxPublicRuntime(raw, identity, { pid: 10, creation_ticks: "1234" }),
   );
@@ -144,8 +179,10 @@ void test("ordinary relaunch observation requires exact original opaque package 
         },
       },
     },
-  ])
+  ]) {
     assert.throws(() => inspectLinuxPublicRuntime(changed, identity));
+    assert.throws(() => selectLinuxPublicRelaunch(changed, identity, previous));
+  }
 });
 
 void test("all namespace reopens share the original wire and connection ceilings", () => {

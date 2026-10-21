@@ -18,6 +18,9 @@ const fixedStateFiles = [
   ["staging/candidate-installer.exe", 512 * 1024 * 1024],
   ["staging/.candidate.payload.incoming", 512 * 1024 * 1024],
 ] as const;
+// Current shipping raw journal version. Legacy read/migration remains product
+// behavior; a new ordinary Restart must have persisted the current schema.
+export const publicUpdateApplySchemaVersion = 4;
 
 async function directoryAncestry(directory: string) {
   let cursor = path.resolve(directory);
