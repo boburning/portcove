@@ -72,3 +72,12 @@ lint after a resource-admitted queue; that queue did not reset product clocks.
 Separate non-writing review cleared the caller delta and existing atomic-marker
 and recovery interaction. Hosted qualification and actual protected execution are
 separate; no production credential, signing or publication occurred.
+
+The first hosted candidate `45a68c5` failed catalog startup-closure checks and a
+format check in run `39541011535`: the new output/configuration parser imported
+package-dependent code before tools existed; the explicit receiver fixture also
+omitted the new dependency-free read-only environment module. The repair extracts
+the unchanged public locator parsers into a builtin-only module, keeps existing
+exports, extends the fixture to the actual dependency and formats the merged
+binary helper. Three focused real subprocess/startup and locator checks passed.
+This repairs startup composition; it does not weaken the no-node_modules check.

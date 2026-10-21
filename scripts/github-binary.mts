@@ -55,7 +55,9 @@ function readOpaqueGitHubBytes(
     ],
     {
       cwd,
-      ...(readOnlyReleaseChildEnvironment() === undefined ? {} : { env: readOnlyReleaseChildEnvironment() }),
+      ...(readOnlyReleaseChildEnvironment() === undefined
+        ? {}
+        : { env: readOnlyReleaseChildEnvironment() }),
       encoding: null,
       timeout: coordinatorCommandTimeout(timeoutMs),
       maxBuffer: maxBytes,

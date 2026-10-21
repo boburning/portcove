@@ -1,4 +1,8 @@
-import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
+import {
+  inspectAggregateOriginalUpload,
+  inspectControllerAggregateLocator,
+} from "./release-aggregate-locator.mts";
+export { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 /** Read-only controller integration. Acquires existing authority observations;
  * it cannot create admission, sign, allocate or publish. */
 import { createHash } from "node:crypto";
@@ -80,52 +84,6 @@ interface PreparationConfig {
   aggregate: AggregateExpected;
   publicKey: string;
   public_key_sha256: string;
-}
-
-export function inspectControllerAggregateLocator(raw: unknown) {
-  const aggregate = structuredClone(raw);
-  if (
-    !isRecord(aggregate) ||
-    Object.keys(aggregate).sort().join(",") !==
-      (aggregate.original_upload === undefined
-        ? "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256"
-        : "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,original_upload,run_attempt,run_id,sha256") ||
-    typeof aggregate.controller_revision !== "string" ||
-    !/^[a-f0-9]{40}$/.test(aggregate.controller_revision) ||
-    typeof aggregate.controller_ref !== "string" ||
-    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(
-      aggregate.controller_ref,
-    ) ||
-    typeof aggregate.run_id !== "string" ||
-    !/^[1-9][0-9]{0,15}$/.test(aggregate.run_id) ||
-    typeof aggregate.sha256 !== "string" ||
-    !sha256.test(aggregate.sha256) ||
-    typeof aggregate.bundle_sha256 !== "string" ||
-    !sha256.test(aggregate.bundle_sha256) ||
-    typeof aggregate.artifact_id !== "number" ||
-    !Number.isSafeInteger(aggregate.artifact_id) ||
-    aggregate.artifact_id < 1 ||
-    typeof aggregate.bundle_artifact_id !== "number" ||
-    !Number.isSafeInteger(aggregate.bundle_artifact_id) ||
-    aggregate.bundle_artifact_id < 1 ||
-    typeof aggregate.run_attempt !== "number" ||
-    !Number.isSafeInteger(aggregate.run_attempt) ||
-    aggregate.run_attempt < 1
-  )
-    throw new Error("fixed payload aggregate identity is incomplete");
-  return {
-    controller_revision: aggregate.controller_revision,
-    controller_ref: aggregate.controller_ref,
-    run_id: aggregate.run_id,
-    run_attempt: aggregate.run_attempt,
-    artifact_id: aggregate.artifact_id,
-    sha256: aggregate.sha256,
-    bundle_artifact_id: aggregate.bundle_artifact_id,
-    bundle_sha256: aggregate.bundle_sha256,
-    ...(aggregate.original_upload === undefined
-      ? {}
-      : { original_upload: inspectAggregateOriginalUpload(aggregate.original_upload) }),
-  };
 }
 
 export function inspectPayloadPreparationConfiguration(raw: unknown): PreparationConfig {

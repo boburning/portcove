@@ -304,6 +304,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "release-controller-job",
     "release-controller-job-bootstrap",
     "release-controller-job-output",
+    "release-aggregate-locator",
     "release-coordinator-namespace",
   ].map((name): [string, string[]] => [
     `scripts/${name}.mts`,

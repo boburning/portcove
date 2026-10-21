@@ -8,7 +8,7 @@ import {
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { tufRoleDependencies } from "./release-tuf-signing.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
-import { inspectControllerAggregateLocator } from "./release-payload-preparation.mts";
+import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 
 type Fixed = {
   controller_revision: string;

@@ -289,6 +289,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-controller-job.mts",
   "scripts/release-controller-job-bootstrap.mts",
   "scripts/release-controller-job-output.mts",
+  "scripts/release-aggregate-locator.mts",
   "scripts/release-coordinator-namespace.mts",
   ".github/actions/release-controller-job/action.yml",
   "scripts/release-site-job-budget.mts",
