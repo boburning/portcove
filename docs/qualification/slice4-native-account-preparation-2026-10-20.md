@@ -401,3 +401,62 @@ component evidence, not an actual cross-account Task launch, App authentication,
 native Check, minimum-host qualification or public update journey. The temporal
 report-2 profile remains an explicit proposed consolidated setup selection;
 report-1 interpretation is preserved and no production workflow is activated.
+
+
+## Prepared local post-sign connection and actual keyless CLI qualification
+
+The installed worker now selects its stage from the current reserved candidate
+and the existing timestamp operation/history, including the existing recovery
+counters. Pending or ambiguous timestamp work selects readback/refusal rather
+than falling back to a repeated pre-sign run. The actual local parent retrieves
+the exact controller context and five signed-role artifacts, verifies their
+provider/Sigstore bindings, and runs the maintained keyless Rust/Tough assembly.
+The shared journey derivation preserves the hosted factory's actual guards;
+local provenance remains local and cannot import the hosted private brand.
+
+For report 2, the exact original compiler-run opaque platform archive is read
+before/after acquisition. The existing complete package/checksum/producer
+consumer retains the selected updater bytes. An ordinary predecessor additionally
+requires its exact Tough record/historical native tuple and an observed immutable
+Release with a complete asset inventory; the exact asset bytes are hash checked.
+Download counts are not treated as immutable identities. The fixed credential-free
+Rust verifier authenticates the selected payload signature and signed version.
+Its original streams, result, context manifest and complete signed repository
+remain retained and rechecked before native use.
+
+The Windows driver connects these inputs to the existing separate-account
+installer route. Initial-empty-feed qualification can report only fresh install,
+launch, retained state and signature cryptography. A later candidate requires
+an actual predecessor launch, install-over-prior, retained state and exact
+package rollback observations. The private parent report and isolated native
+App handoff support these distinct stages; legacy pre-sign APIs retain their
+original scope. Ordinary public discovery/download, updater journal/recovery
+and public manifest journey remain pending and cannot be satisfied by package
+compatibility. Actual Task/account, native App provisioning/authentication,
+Windows or Linux native acceptance and public updater observations remain absent.
+
+A separate resource-admitted disposable integration ran at source
+`f090186ca7d39784011b4be6ba33dbab8a9142c1` with fixed Node SHA-256
+`ba93f9a70bd86fce3ebbb39ec758501458453467aa92a34a0a3602d1e3fc2b9c`
+and the maintained Windows Rust tool SHA-256
+`b8a200fd447c052b1170cc8168746dffaed013948fdc847f642e33b3f2d71ecc`.
+The actual fixed Node CLI assembled a five-role disposable Tough repository,
+verified a real 180321-byte disposable Tauri-signed payload, and refused both
+a tampered payload and a corrupt signed envelope. One selected test passed
+with no skips in 17.746 seconds; resource queue was 5.572 seconds and total
+including supervisor setup was 56.883 seconds. The retained public fixture is
+`work/slice4/native-keyless-cli-0TSdzy`; `qualification.json` SHA-256 is
+`7da254ef22736ed98dd1b45450a49a4e5c2e379e7fd120f0d2267fac5e4952bd`.
+Disposable private files were removed and fixture role buffers zeroed. This is
+actual crypto/CLI integration evidence, with no production key or installed
+parent/native authority.
+
+Focused component verification subsequently passed 22 cases with one optional
+real-fixture case skipped; the real fixture above has its own exact source.
+A new inert driver test initially used a hashtable instead of the actual decoded
+JSON shape, and a stage-selection test initially inherited a publishing phase.
+Both failed outcomes remain retained; corrected wire/phase fixtures passed.
+The explicit schema-2 bootstrap locator is forwarded from the independently
+parsed global configuration through every native publication parser. The
+schema-2 locator-to-initial-journey regression passes while default schema 1
+continues to refuse that locator. No source locator appoints authority.
