@@ -153,7 +153,7 @@ function fixture() {
     path: productionControllerWorkflow,
     event: "workflow_dispatch",
     status: "in_progress",
-    conclusion: null,
+    conclusion: null as string | null,
     repository: { id: 1354613114, full_name: "boburning/portcove" },
     head_repository: { id: 1354613114 },
   };
@@ -180,7 +180,7 @@ function fixture() {
               head_sha: controller.controller_revision,
               name: "Sign admitted updater payloads",
               status: "completed",
-              conclusion: "success",
+              conclusion: faults.value === "job-failure" ? "failure" : "success",
               check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "job" ? "778" : "777"}`,
             },
           };
@@ -248,6 +248,7 @@ function fixture() {
     expected,
     options,
     faults,
+    run,
     counts: () => ({ requests, downloads }),
   };
 }
@@ -263,6 +264,47 @@ void test("bounded context ZIP has exactly two fixed members and complete packed
     createAuditZip([["context.json", Buffer.from("{}")]]),
   ])
     assert.throws(() => inspectSigningContextArchive(archive));
+});
+void test("successful exact payload context survives a later sibling workflow failure but not a failed producer", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-completed-component-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  f.run.status = "completed";
+  f.run.conclusion = "failure";
+  const result = await receiveSigningContextArtifact(
+    root,
+    f.expected,
+    performance.now() + 5000,
+    f.options,
+  );
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  for (const fault of ["job-failure", "job"]) {
+    const failed = fixture();
+    failed.run.status = "completed";
+    failed.run.conclusion = "failure";
+    failed.faults.value = fault;
+    await assert.rejects(
+      receiveSigningContextArtifact(
+        root,
+        failed.expected,
+        performance.now() + 5000,
+        failed.options,
+      ),
+      /retain/,
+    );
+  }
+  const impossible = fixture();
+  impossible.run.conclusion = "failure";
+  await assert.rejects(
+    receiveSigningContextArtifact(
+      root,
+      impossible.expected,
+      performance.now() + 5000,
+      impossible.options,
+    ),
+    /retain/,
+  );
 });
 void test("injected complete provider/attestation path proves data association but cannot mint actual context brand", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-fixture-"));
