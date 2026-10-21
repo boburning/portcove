@@ -108,4 +108,5 @@ opt-level = 3
 # without changing the release profile, feature set or production job timeout.
 [profile.controller-tools]
 inherits = "release"
-opt-level = 1
+opt-level = 0
+strip = "symbols"
