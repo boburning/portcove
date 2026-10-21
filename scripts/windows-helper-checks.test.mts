@@ -364,6 +364,15 @@ void test("native tool inputs retain affected Windows proof without frontend ins
 
 void test("Windows helper selection includes rename/delete sides and policy inputs without changing Rust selection", () => {
   for (const file of [
+    "scripts/release-local-worker-accounts.ps1",
+    "scripts/release-local-worker-accounts.test.mts",
+    "scripts/release-native-account-capability.mts",
+    "scripts/release-native-account-capability.test.mts",
+    "scripts/native-qualification-account-client.mts",
+    "scripts/native-qualification-account-client.ps1",
+    "scripts/native-qualification-account-bridge.ps1",
+    "scripts/native-qualification-account.cs.txt",
+    "scripts/fixtures/native-account-gui-probe.ps1",
     "scripts/daily-discovery-session.mts",
     "scripts/daily-discovery.test.mts",
     "apps/desktop/scripts/native-window-discovery.ps1",
