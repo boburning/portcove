@@ -229,8 +229,12 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_doctor_report: (args) => {
       requireArgs("get_doctor_report", args, { generation });
-      return journey === "collection"
-        ? { ...doctor, catalog_port_count: 12, installed_port_count: 12 }
+      return journey.startsWith("collection")
+        ? {
+            ...doctor,
+            catalog_port_count: workspace(journey).catalog.ports.length,
+            installed_port_count: workspace(journey).catalog.ports.length,
+          }
         : doctor;
     },
     get_activities: (args) => {
@@ -355,9 +359,9 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         id,
         args?.slot as ArtworkSlot,
         0,
-        journey === "collection" && id !== "collection-4",
+        journey.startsWith("collection") && id !== "collection-4",
       );
-      if (journey === "collection") {
+      if (journey.startsWith("collection")) {
         const port = workspace(journey).catalog.ports.find((port) => port.id === id)!;
         state.generated_fallback.initials =
           port.presentation?.original_game_title?.slice(0, 2).toUpperCase() ?? "PC";
@@ -377,7 +381,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_artwork_thumbnail: (args) => {
       if (
-        journey !== "collection" ||
+        !journey.startsWith("collection") ||
         !workspace(journey).catalog.ports.some((port) => port.id === args?.portId)
       )
         return unsupported("get_artwork_thumbnail");

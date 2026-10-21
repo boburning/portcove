@@ -61,7 +61,11 @@ export function ArtworkFrame({
         "artwork-image",
         styles.image,
         className,
-        image ? "bg-transparent" : palettes[fallback?.palette_index ?? 0],
+        identityArtwork
+          ? "[--art-color:var(--color-bg-subtle)]"
+          : image
+            ? "bg-transparent"
+            : palettes[fallback?.palette_index ?? 0],
       )}
       data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
       aria-hidden="true"
@@ -75,7 +79,9 @@ export function ArtworkFrame({
           onError={display.onImageError}
         />
       ) : identityArtwork ? (
-        <Gamepad2 aria-hidden="true" className="size-10 max-w-3/5 text-[var(--color-art-text)]" />
+        <span className="grid max-w-full justify-items-center gap-2 p-2 text-pc-muted-foreground">
+          <Gamepad2 aria-hidden="true" className="size-6 max-w-full" />
+        </span>
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}

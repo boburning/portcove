@@ -644,6 +644,7 @@ function Workspace({
         query={ui.query}
         setQuery={ui.setQuery}
         portCount={data.catalog?.ports.length ?? 0}
+        libraryCount={data.catalog ? model.overview.installed : undefined}
         onOpenCommands={() => commandSurface.setOpen(true)}
       />
     ));
@@ -762,7 +763,7 @@ function Workspace({
       pending={operations.pendingOperations}
     >
       <ArtworkProvider generation={bootstrap.generation} catalog={data.catalog}>
-        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)] max-[75rem]:grid-cols-[var(--layout-sidebar-compact)_minmax(0,_1fr)]">
+        <div className="app-shell grid h-[100vh] grid-cols-[var(--layout-sidebar)_minmax(0,_1fr)] bg-[var(--color-bg)]">
           <Sidebar
             view={ui.view}
             setView={setPrimaryView}
@@ -1285,6 +1286,7 @@ function CurrentView({
       recent={model.recent}
       filter={ui.filter}
       query={ui.query}
+      setQuery={ui.setQuery}
       catalogSort={ui.catalogSort}
       setCatalogSort={ui.setCatalogSort}
       setFilter={ui.setFilter}
