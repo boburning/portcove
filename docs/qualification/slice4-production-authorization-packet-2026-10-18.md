@@ -11,6 +11,18 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The October 20 [native account and pre-sign producer connection](slice4-native-account-preparation-2026-10-20.md)
+now implements private fixed-Task/source custody, exact reserved package
+selection, bounded separate-account Windows capture, six concrete pre-sign
+assertion joins and the distinct native App Check handoff with retained failure
+and GET-only recovery. Component fixtures and separate source review establish
+implementation scope only. Actual Task/account/App authentication and native
+host observations remain unobserved; post-sign package compatibility and the
+Linux separate-account backend remain independent engineering work. The
+report-2 temporal/initial-empty-feed profile requires explicit selection in the
+consolidated conditional setup grant and keeps ordinary public update acceptance
+pending. This checkpoint grants no setup, signing, publication or execution.
+
 The October 20 [owned publication result and feed binding](slice4-534-publication-result-integration-2026-10-20.md)
 was delivered through [#2291](https://github.com/boburning/portcove/pull/2291),
 source `eca252e577b15e2924273a68afc9bccb623ed9af`, merged as

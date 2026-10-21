@@ -119,6 +119,58 @@ void test("current attempt identity refuses older declared producer bytes in dis
   );
 });
 
+void test("native handoff retains only exact NSIS/AppImage after the entire selected platform inventory and checksum declaration pass", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  for (const platform of ["windows-x86_64", "linux-x86_64"]) {
+    const files = f.request.files.filter((file) => file.platform_label === platform);
+    const entries = files.map(
+      (file) => [file.filename, f.contents.get(`${platform}/${file.filename}`)!] as const,
+    );
+    const retained: string[] = [];
+    const options = {
+      retainDesktopPackage: async (
+        file: { platform_label: string; filename: string; bytes: number; sha256: string },
+        bytes: Buffer,
+      ) => {
+        assert.equal(file.platform_label, platform);
+        assert.equal(file.bytes, bytes.length);
+        assert.equal(file.sha256, hash(bytes));
+        assert.ok(file.filename.endsWith("-setup.exe") || file.filename.endsWith(".AppImage"));
+        retained.push(file.filename);
+      },
+    };
+    const archive = createAuditZip(entries);
+    const found = await discoverReleaseArtifactFiles(
+      archive,
+      identity(archive),
+      platform,
+      f.request,
+      options,
+    );
+    assert.equal(found.authority, "none");
+    assert.equal(retained.length, 1);
+    retained.length = 0;
+    for (const invalid of [
+      entries.slice(1),
+      entries.map(
+        ([name, bytes]) =>
+          [
+            name,
+            name.startsWith("SHA256SUMS-")
+              ? Buffer.from(bytes.toString().replace(/^[a-f0-9]{64}/u, "0".repeat(64)))
+              : bytes,
+          ] as const,
+      ),
+    ]) {
+      const rejected = createAuditZip(invalid);
+      await assert.rejects(
+        discoverReleaseArtifactFiles(rejected, identity(rejected), platform, f.request, options),
+      );
+      assert.equal(retained.length, 0);
+    }
+  }
+});
+
 void test("discovery refuses changed checksum declarations, producer identity and oversized metadata", async (t) => {
   const f = await fixture(t);
   for (const fault of ["checksum", "producer", "oversized"]) {
