@@ -39,7 +39,7 @@ async function requireCompleteSite(receipt: unknown, component: "application" | 
   const retained =
     typeof receipt === "object" && receipt !== null ? completeSiteCustody.get(receipt) : undefined;
   if (!retained || retained.component !== component)
-    throw new Error("actual matching component public site custody required");
+    throw new Error("actual complete matching component public site custody required");
   const { files, generation } = await (
     component === "application" ? readComposedSite : readComposedCatalogSite
   )(retained.directory, retained.pins.site_generation_sha256, retained.pins.root_sha256);
@@ -345,7 +345,11 @@ export async function observeInitialApplicationSite(
 }
 
 function marker(value: unknown, expected: string) {
-  return inspectSiteGeneration(value, expected);
+  try {
+    return inspectSiteGeneration(value, expected);
+  } catch (cause) {
+    throw new Error("public site generation differs", { cause });
+  }
 }
 
 function publicReader(deadline: number) {

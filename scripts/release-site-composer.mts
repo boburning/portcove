@@ -115,7 +115,12 @@ function inspectPrior(files: Files, expected: string) {
     throw new Error("prior site generation marker unavailable");
   if (!Buffer.from(marker.toString("utf8"), "utf8").equals(marker))
     throw new Error("prior site marker is not UTF-8");
-  const value = inspectSiteGeneration(JSON.parse(marker.toString("utf8")), expected);
+  let value;
+  try {
+    value = inspectSiteGeneration(JSON.parse(marker.toString("utf8")), expected);
+  } catch (cause) {
+    throw new Error("prior site generation differs", { cause });
+  }
   const original = new Map(files);
   original.delete("publication.json");
   if (JSON.stringify(value.files) !== JSON.stringify(identities(original)))
