@@ -1,0 +1,9 @@
+ninja: Entering directory `C:/pc6cv-a16/library/staging/22b34b02-2650-4961-816a-89b45414c021/cartridge-build/build-game'
+[1/8] Building CXX object rt64\CMakeFiles\rt64.dir\src\contrib\implot\implot_items.cpp.obj
+[2/8] Building C object rt64\CMakeFiles\rt64.dir\__\src\shaders\Im3DPS.hlsl.spirv.c.obj
+[3/8] Building C object rt64\CMakeFiles\rt64.dir\__\src\shaders\PostProcessPS.hlsl.dxil.c.obj
+[4/8] Building C object rt64\CMakeFiles\rt64.dir\__\src\shaders\PostProcessPS.hlsl.spirv.c.obj
+[5/8] Building CXX object lib\RmlUi\Source\Debugger\CMakeFiles\rmlui_debugger.dir\Debugger.cpp.obj
+[6/8] Building CXX object lib\RmlUi\Source\Debugger\CMakeFiles\rmlui_debugger.dir\DebuggerPlugin.cpp.obj
+[7/8] Building CXX object lib\RmlUi\Source\Debugger\CMakeFiles\rmlui_debugger.dir\DebuggerSystemInterface.cpp.obj
+[8/8] Building CXX object lib\RmlUi\Source\Debugger\CMakeFiles\rmlui_debugger.dir\ElementContextHook.cpp.obj

@@ -206,6 +206,17 @@ pub(crate) fn recover_published_install(
             }
         }
         if staging.exists() {
+            #[cfg(windows)]
+            if operation.port_id == "cvlod-recomp"
+                && operation.kind == LifecycleOperationKind::Install
+                && operation.preparation_process_quiesced.is_some()
+            {
+                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                    &service.library,
+                    operation,
+                    &staging,
+                )?;
+            }
             crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
             fs::remove_dir_all(&staging)?;
         }

@@ -642,6 +642,76 @@ sandbox or ownership of those external files. Four-input Advance Wars and
 EarthBound storage identities remain unchanged. Capability 14 does not imply
 catalog admission, actual offered-operation acceptance or protected delivery.
 
+N64 portable version 3 adds only the Windows x64 recipe
+`cvlod-n64-source-cb8548d145a1-ui-lifetime-v1`. It pins the Legacy of Darkness
+source, dependencies, toolchain, complete CMake package and official SDL/DXC
+packages. Source Git identities and official release-transport acquisitions
+remain distinct in the retained input manifest. The complete installed
+VC 14.44.35207 / Windows SDK 10.0.19041.0 profile is checked and privately copied;
+ambient compiler paths and catalog-provided scripts cannot select build tools.
+The independent staged-source version 11 Windows path requirement remains
+necessary. Linux/macOS retain their existing GitHub release routes.
+
+The recipe accepts only the existing North American original identity, canonical
+SHA256 `89e15df6042defddc48c61f7408f99d06fffdb845e2422cf8b5ba8e73d4d70fb`,
+as a raw `.z64`, `.n64` or `.v64` file. It retains an immutable canonical proof at
+`.portcove-cvlod-build-original.z64`; working `rom.z64` remains persistent and
+is checked/rematerialized through the existing exact runtime-source hash. The
+UI-context lifetime repair is exact-preimage bound. The fixed generated-byte
+oracle, sealed build graphs, process-tree drain and finite 40-minute build
+deadline precede atomic publication. CVLoD uses one clock from private SDK
+preparation through generation, compilation and pre-publication packaging;
+individual commands do not renew it. Other cartridge recipes retain their
+20-minute allowance.
+
+Bounded post-link diagnostics distinguish generated-source verification, full
+input verification, packaging, import inspection, final input verification,
+output inventory and receipt/activation. A failure preserves its original code,
+message and technical context while adding the failing stage, its elapsed time
+and at most seven completed stage timings without overwriting existing details.
+The immutable receipt records completed pre-activation timings only. These
+observations neither extend the clock nor prove accepted output or quiescence.
+An explicitly ignored Windows SDK timing probe separately measures existing
+SDK functions in a fresh private directory; its single uncontrolled-cache run
+does not establish whole-build attribution or cold-cache throughput.
+Cancellation and the separate process-tree closure deadline are unchanged.
+On Windows, successful CVLoD publication and its cleanup retry reuse the exact
+private WinINet junction unlink used by cancellation. The exception requires
+durable builder quiescence, matching committed install metadata and validated
+journal staging and output ownership. It never follows the junction or changes
+its ACL; a changed target or unproven owner retains the staging tree and journal.
+Both captured private SDK inventories must exactly match the compiled profile
+before execution. Existing post-execution checks still rehash every captured
+input and compare its full path, size and hash inventory. The immediately
+following SDK manifest comparison uses that same verified inventory instead of
+rehashing those bytes twice; it is not a new filesystem observation.
+Each invocation preflights at most eight
+pure compiler targets, or two compiler targets when helpers are present, with
+at most eight helpers. RmlUi uses those same bounds after its compiler-options
+correction; the temporary singleton workaround for unintended `-Weverything`
+output is removed. Every closure still receives complete preflight and bounded
+capture; fitting unit output does not waive a grouped command's output limit.
+Ninja still runs only two jobs. The exact pinned RmlUi compiler-options patch forwards its intended
+`-Wall -Wextra -pedantic` through clang-cl's `/clang:` interface for the MSVC
+frontend; bare `-Wall` otherwise enables `-Weverything` and bare `-pedantic` is
+ignored. Other compiler branches and warnings-as-errors stay intact. The
+preimage/postimage hashes bind storage identity and the receipt, before input
+capture. Individual stream and aggregate diagnostic retention limits stay
+unchanged. Oversized closures first
+split compiler dependencies, then request up to eight fixed helpers together.
+Every selected request group passes the same complete dry-run preflight again;
+an unfit group that cannot shrink refuses. Dependency expansion is
+split before execution; complete observed action identities must match the
+reviewed dry-run, and the sealed graph is rechecked around every invocation.
+Shader prerequisites are literal fixed outputs: 55 DXIL files, 56 SPIR-V files
+and one preprocessed header. They are bound to the pinned RT64 and project CMake
+calls and precede the already fixed generated-C outputs. They add no shader-name
+pattern, tool acquisition or larger execution closure. Raw-file cancellation
+also drains queued writes before private cleanup; ambiguous drain
+retains staging and its journal. Original-dependent output stays local. This
+capability establishes neither catalog admission nor actual operation acceptance
+or redistribution permission.
+
 Staged-source version 17 extends the printable-ASCII/MAX_PATH policy to a
 Windows-only user-prepared runtime with a positional original-file argument.
 The complete retained definition must require capability 17; managed version 11

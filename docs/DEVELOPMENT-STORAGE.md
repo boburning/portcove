@@ -69,6 +69,12 @@ See [retained input custody](adr/0001-retained-input-custody.md).
 
 ## Bootstrap and preflight
 
+Run `node scripts/dev-storage.mts --help` for the supported actions, options and
+examples. Help is also available after each action and exits without Cargo,
+storage checks, directory creation or cleanup. When wrapping a command with
+`run`, put storage options before `--`; every argument after it belongs to the
+child command, including the child's own `--help`.
+
 Clone or copy the repository to a deliberately selected development path on the spacious volume, such as `E:\Portcove-Development`. Do not copy an old `target`, `node_modules`, `dist`, or `src-tauri/gen` directory; they are reconstructed from `Cargo.lock` and the root `pnpm-lock.yaml`. Preserve ignored source inputs, qualification evidence, and final outputs unless each item has separately been proved disposable.
 
 From the new workspace, inspect the resolved layout and prerequisites before a
@@ -111,6 +117,9 @@ portcove-cli` remains independent of the frontend launcher and Node toolchain.
 Any selected filesystem with less than 20 GiB free blocks execution.
 `PORTCOVE_MIN_FREE_GIB` or `--minimum-free-gib` changes this configurable margin;
 use observed requirements rather than treating it as a precise build prediction.
+The command-line value takes precedence over the environment value. Both require
+a positive finite number; invalid values are reported with the effective input
+and a correction instruction.
 `preflight --json` returns the checked layout without creating output directories.
 
 For a stricter Windows profile, set `PORTCOVE_BLOCK_SYSTEM_DRIVE=1`, or keep this

@@ -18,6 +18,7 @@ function run(command: string, args: readonly string[]) {
 for (const [name, command, args] of [
   ["capability selection", process.execPath, ["scripts/development-capabilities.mts", "--help"]],
   ["doctor", process.execPath, ["scripts/dev-doctor.mts", "--help"]],
+  ["development storage", process.execPath, ["scripts/dev-storage.mts", "--help"]],
   ["local validation", process.execPath, ["scripts/local-validation.mts", "check", "--help"]],
   ["audit", process.execPath, ["scripts/audit.mts", "--help"]],
   ["desktop testing", process.execPath, ["scripts/desktop-test-cli.mts", "--help"]],

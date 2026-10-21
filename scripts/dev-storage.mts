@@ -33,6 +33,38 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const DEFAULT_MINIMUM_FREE_GIB = 20;
 const GIB = 1024 ** 3;
+const HELP = `Check development storage, run a command after preflight, or explicitly clean Cargo caches.
+
+usage: node scripts/dev-storage.mts [preflight] [options]
+       node scripts/dev-storage.mts run [options] -- command [arguments...]
+       node scripts/dev-storage.mts clean
+       node scripts/dev-storage.mts prune-incremental
+
+Actions:
+  preflight          Report physical storage paths and available space without creating directories (default).
+  run                Check storage, prepare scratch directories, then run the command after --.
+  clean              Ask Cargo to remove this workspace's ordinary target directory.
+  prune-incremental  Remove only this workspace's target/debug/incremental cache.
+
+Options:
+  --scope all|tooling|frontend|rust  Select preflight/run paths; all includes Cargo discovery.
+  --minimum-free-gib GiB            Require a positive finite free-space margin for preflight/run.
+  --json                            Print the preflight report as JSON (preflight only).
+  --help                            Print this help and exit before storage work.
+
+The free-space margin defaults to ${DEFAULT_MINIMUM_FREE_GIB} GiB. --minimum-free-gib overrides
+PORTCOVE_MIN_FREE_GIB. tooling and frontend scopes do not require Cargo.
+Place --help before -- to ask for storage help; arguments after -- belong to the child command.
+
+Cleanup requires Cargo and accepts only the exact ordinary target directory in this workspace;
+custom targets, symlinks, junctions and non-directories are refused. Cleanup remains available
+below the free-space margin. Stop processes using that target first and preserve source inputs,
+verification evidence and final outputs. See docs/DEVELOPMENT-STORAGE.md for path overrides.
+
+Examples:
+  node scripts/dev-storage.mts preflight --scope tooling --json
+  node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile`;
+
 export interface StoragePaths {
   workspace: string;
   temporary_directory: string;
@@ -210,9 +242,15 @@ export function storageVolumes<P extends object>(paths: { [K in keyof P]: string
 }
 
 export function minimumFreeGiB(value?: string | number) {
-  const parsed = Number(value ?? process.env.PORTCOVE_MIN_FREE_GIB ?? DEFAULT_MINIMUM_FREE_GIB);
+  const effectiveValue = value ?? process.env.PORTCOVE_MIN_FREE_GIB ?? DEFAULT_MINIMUM_FREE_GIB;
+  const parsed = Number(effectiveValue);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    throw new Error(`Minimum free space must be a positive GiB value, received ${value}`);
+    const received =
+      typeof effectiveValue === "string" ? JSON.stringify(effectiveValue) : String(effectiveValue);
+    throw new Error(
+      `Minimum free space must be a positive finite GiB value, received ${received}. ` +
+        "Set --minimum-free-gib or PORTCOVE_MIN_FREE_GIB to a number greater than 0.",
+    );
   }
   return parsed;
 }
@@ -509,11 +547,13 @@ export function parseArguments(argv: string[]) {
   let action = "preflight";
   if (remaining[0] && !remaining[0].startsWith("-")) action = remaining.shift() ?? action;
   let asJson = false;
+  let help = false;
   let requestedMinimum;
   let scope;
   while (remaining.length && remaining[0] !== "--") {
     const option = remaining.shift();
-    if (option === "--json") asJson = true;
+    if (option === "--help") help = true;
+    else if (option === "--json") asJson = true;
     else if (option === "--scope") {
       scope = remaining.shift();
       if (!scope || !["all", "tooling", "frontend", "rust"].includes(scope))
@@ -523,20 +563,21 @@ export function parseArguments(argv: string[]) {
       if (!requestedMinimum || requestedMinimum.startsWith("--")) {
         throw new Error("--minimum-free-gib requires a positive GiB value");
       }
-    } else throw new Error(`Unknown option: ${option}`);
+    } else throw new Error(`Unknown option: ${option}. See node scripts/dev-storage.mts --help.`);
   }
   if (remaining[0] === "--") remaining.shift();
   if (!["preflight", "run", "clean", "prune-incremental"].includes(action)) {
     throw new Error(
-      `Unknown action ${action}; expected preflight, run, clean, or prune-incremental`,
+      `Unknown action ${action}; expected preflight, run, clean, or prune-incremental. See node scripts/dev-storage.mts --help.`,
     );
   }
-  if (action === "run" && !remaining.length) throw new Error("run requires a command after --");
+  if (action === "run" && !remaining.length && !help)
+    throw new Error("run requires a command after --");
   if (action !== "run" && remaining.length) throw new Error(`${action} does not accept a command`);
   if (asJson && action !== "preflight") throw new Error("--json is only supported by preflight");
   if (scope && ["clean", "prune-incremental"].includes(action))
     throw new Error("cleanup always resolves complete Cargo storage");
-  return { action, asJson, requestedMinimum, scope, command: remaining };
+  return { action, asJson, requestedMinimum, scope, command: remaining, help };
 }
 
 export function isSideEffectFreeHelpCommand(command: readonly string[]) {
@@ -556,9 +597,13 @@ export function isSideEffectFreeHelpCommand(command: readonly string[]) {
 }
 
 function main() {
-  const { action, asJson, requestedMinimum, scope, command } = parseArguments(
+  const { action, asJson, requestedMinimum, scope, command, help } = parseArguments(
     process.argv.slice(2),
   );
+  if (help) {
+    console.log(HELP);
+    return 0;
+  }
   const executable = command[0];
   if (action === "run" && !executable) throw new Error("run requires a command after --");
   if (action === "run" && executable && isSideEffectFreeHelpCommand(command)) {

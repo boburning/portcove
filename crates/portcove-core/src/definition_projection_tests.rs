@@ -104,14 +104,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
         .release
         .managed_build
         .values()
-        .map(|recipe| match recipe {
-            crate::CartridgeBuildRecipe::YoshisCookieNesCycle110 => 6,
-            crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
-            crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
-            | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
-            crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
-            crate::CartridgeBuildRecipe::GundamWingSnesSourceV1 => 14,
-        })
+        .map(|recipe| recipe.minimum_template_version())
         .max()
     {
         version
@@ -147,7 +140,7 @@ fn entry(document: &Value, contract: &[u8], port_index: usize) -> Value {
     json!({
         "definition_schema": 1, "namespace": "official", "stable_id": port["id"],
         "revision": 1, "port": port,
-        "required_capabilities": [{"template":port["adapter"],"minimum_version":version,"maximum_version":version}],
+        "required_capabilities": crate::test_fixture::definition_requirements(&typed, version),
         "source_contracts": [reference], "execution_contract": reference,
         "persistence_contract": reference, "artifact_bindings": [], "evidence_references": []
     })

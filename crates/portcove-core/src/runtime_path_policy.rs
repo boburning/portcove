@@ -6,14 +6,32 @@ use crate::{
 };
 
 pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
+    // The fixed CV recipe retains N64 source/persistence on its other declared
+    // platforms. Only its Windows source build consumes this existing guard;
+    // the recipe validator separately fixes its complete route and byte facts.
+    let cvlod_source = port.id == "cvlod-recomp"
+        && port.adapter == AdapterKind::N64RecompPortable
+        && port.platforms
+            == [
+                Platform::WindowsX86_64,
+                Platform::LinuxX86_64,
+                Platform::MacosAarch64,
+            ]
+        && port.release.managed_build
+            == std::collections::BTreeMap::from([(
+                Platform::WindowsX86_64,
+                crate::CartridgeBuildRecipe::CvlodSourceV1,
+            )])
+        && port.setup_executable_hints.is_empty();
     if port.windows_runtime_path_policy.is_some()
+        && !cvlod_source
         && (port.platforms != [Platform::WindowsX86_64]
             || port.adapter != AdapterKind::StagedSourcePortable
             || !port.setup_executable_hints.is_empty()
             || !port.release.managed_build.is_empty())
     {
         return Err(PortcoveError::usage(
-            "Windows runtime path policy requires a Windows-only staged-source route without a setup executable or managed build",
+            "Windows runtime path policy requires a Windows-only staged-source route without a setup executable or managed build, or the fixed CVLoD source recipe",
         ));
     }
     if port.windows_runtime_path_policy.is_some()
