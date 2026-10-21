@@ -303,6 +303,58 @@ export function inspectNativeControllerVerificationCommand(
     throw new Error("native controller verifier flags or predicate differ");
 }
 
+/** Fixed same-job compiler provenance command only; it cannot issue a native
+ * result or appoint the prepared source supplied by the actual public pair. */
+export function inspectNativeReleaseVerificationCommand(
+  args: readonly string[],
+  directory: string,
+  expected: { source_commit: string; ref: string },
+) {
+  const filename = args[2];
+  if (
+    typeof filename !== "string" ||
+    !path.isAbsolute(directory) ||
+    !path.isAbsolute(filename) ||
+    path.resolve(filename) !== filename ||
+    !releasePathContains(directory, filename) ||
+    !/^compiler-result-(?:cli|desktop)-(?:linux|windows)-x86_64\.json$/u.test(
+      path.basename(filename),
+    ) ||
+    !/^[a-f0-9]{40}$/u.test(expected.source_commit) ||
+    !/^refs\/tags\/portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}-prepared\/v[0-9A-Za-z.+-]{1,128}$/u.test(
+      expected.ref,
+    ) ||
+    JSON.stringify(args) !==
+      JSON.stringify([
+        "attestation",
+        "verify",
+        filename,
+        "--hostname",
+        "github.com",
+        "--repo",
+        "boburning/portcove",
+        "--signer-workflow",
+        "boburning/portcove/.github/workflows/release.yml",
+        "--signer-digest",
+        expected.source_commit,
+        "--source-digest",
+        expected.source_commit,
+        "--source-ref",
+        expected.ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        "https://slsa.dev/provenance/v1",
+        "--limit",
+        "5",
+        "--format",
+        "json",
+      ])
+  )
+    throw new Error("native public compiler attestation command differs");
+}
+
 async function sourceTransport(parent: Parent, directory: string) {
   await parent.recheck();
   const fixed = parent.transport_configuration;
@@ -408,7 +460,29 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, downloadAsset, recover, recheck, verifier };
+  const releaseVerifier = (identity: { source_commit: string; ref: string }) => {
+    const expected = Object.freeze({ ...identity });
+    if (!expected.ref.startsWith(`refs/tags/${parent.descriptor.namespace}-prepared/v`))
+      throw new Error("public compiler source escaped installed namespace");
+    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
+      command,
+      args,
+      options,
+    ) => {
+      if (command !== "gh") throw new Error("native public verifier executable selection refused");
+      inspectNativeReleaseVerificationCommand(args, directory, expected);
+      checkToolIdentity();
+      const result = spawnSync(fixed.github_cli.path, args, {
+        ...options,
+        timeout: Math.min(options.timeout ?? 60000, remainingNativeParentBudget(60000)),
+        env,
+      });
+      checkToolIdentity();
+      return result;
+    };
+    return spawn;
+  };
+  return { api, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
 }
 
 /** The public journey uses the same installed parent's read-only source tool

@@ -43,7 +43,9 @@ function hex(raw: unknown, length: number): string {
 
 /** Association only. Inputs must independently come from complete allocated
  * raw-commit receipts and the actual Tough-verified retained records below.
- * Selects the first two allocations, never a caller-appointed version/tag. */
+ * Selects the first two allocations represented by eligible public records,
+ * never a caller-appointed version/tag. Failed allocations remain durable but
+ * cannot permanently consume a publication slot without public records. */
 export function inspectInitialPublicJourneyCohort(
   allocations: readonly Allocation[],
   files: ReadonlyMap<string, Buffer>,
@@ -87,7 +89,18 @@ export function inspectInitialPublicJourneyCohort(
         value.withdrawn === false,
     )
     .sort((a, b) => compareApplicationVersionPrecedence(a.value.version, b.value.version));
-  const selected = ordered.slice(0, 2).map((allocation) => {
+  const publicAllocations = ordered.filter(
+    (allocation) =>
+      records.some(
+        ({ entry }) =>
+          entry.kind === "release" &&
+          entry.target === platform &&
+          entry.package === format &&
+          entry.version === allocation.version,
+      ) && eligible.some(({ entry }) => entry.version === allocation.version),
+  );
+  assert.ok(publicAllocations.length >= 2, "initial public cohort publications absent");
+  const selected = publicAllocations.slice(0, 2).map((allocation) => {
     const found = records.filter(
       ({ entry }) =>
         entry.kind === "release" &&
@@ -179,7 +192,6 @@ const pairs = new WeakMap<
     site: object;
     preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataRenewal>>;
     seed: string;
-    allocations: string;
     pair: ReturnType<typeof inspectInitialPublicJourneyCohort>;
     deadline: number;
   }
@@ -249,7 +261,6 @@ export async function acquireActualPublicJourneyPair(parentReceipt: object) {
     site: site.receipt,
     preparation,
     seed: digest(seed),
-    allocations: digest(allocations),
     pair,
     deadline,
   });
@@ -279,11 +290,6 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     reader.tags(),
     retained.session.parent.descriptor.namespace,
   ).allocations;
-  assert.equal(
-    digest(allocations),
-    retained.allocations,
-    "initial public allocation inventory changed",
-  );
   const pair = inspectInitialPublicJourneyCohort(
     allocations,
     await readBoundedReleaseContextFiles(prepared.prepared_root),
@@ -299,6 +305,13 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     directory: retained.session.directory,
     deadline: retained.deadline,
   };
+}
+
+/** Trusted-parent continuation only. The returned functions retain the same
+ * read-only credential/tool custody and are never passed to candidate code. */
+export async function requireActualPublicJourneySource(receipt: object) {
+  const pair = await requireActualPublicJourneyPair(receipt);
+  return { ...pair, source: pairs.get(receipt)!.session.source };
 }
 
 const packages = new WeakMap<

@@ -94,6 +94,26 @@ void test("initial public pair associates first allocations with exact retained 
   f.allocations[1]!.prepared_tree = "c".repeat(40);
   assert.throws(() => inspectInitialPublicJourneyCohort(f.allocations, f.files, "windows-x86_64"));
 });
+void test("retired failed allocations do not consume either genuine published cohort slot", () => {
+  const f = fixture();
+  const failed = { ...f.allocations[0]!, version: "0.0.9", prepared_commit: "d".repeat(40) };
+  const pair = inspectInitialPublicJourneyCohort(
+    [failed, ...f.allocations],
+    f.files,
+    "windows-x86_64",
+  );
+  assert.equal(pair.prior.version, "0.1.0");
+  assert.equal(pair.candidate.version, "0.1.1");
+  const nextUnpublished = { ...failed, version: "0.1.2", prepared_commit: "e".repeat(40) };
+  assert.deepEqual(
+    inspectInitialPublicJourneyCohort(
+      [...f.allocations, nextUnpublished],
+      f.files,
+      "windows-x86_64",
+    ),
+    pair,
+  );
+});
 void test("missing prior, changed bytes, duplicate allocations and another current Preview refuse", () => {
   {
     const f = fixture();
