@@ -22,7 +22,7 @@ import {
   requireReservedPublicationCompletion,
 } from "./production-aggregate-steps.mts";
 import {
-  verifyUploadedAggregate,
+  verifyAdmittedUploadedAggregate as verifyUploadedAggregate,
   stageAggregatePackages,
 } from "./trusted-aggregate-attestation.mts";
 import { artifactName } from "./release-package-policy.mts";

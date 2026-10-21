@@ -61,6 +61,145 @@ import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+void test(
+  "admitted aggregate exact preimage survives remote pending/lost response and GET-only completion without repeat",
+  { timeout: 180000 },
+  async (t) => {
+    // Real local Git and injected provider transport only. No authenticated
+    // executor, network, protected effect, artifact or production proof is made.
+    const f = await remoteCapacityFixture(t, true);
+    const input = structuredClone(
+      (await recoverReleaseOpportunity(f.bare, f.migrated.checkpoint)).input,
+    );
+    assert.ok(isRecord(input.active_candidate));
+    const candidate = input.active_candidate;
+    candidate.phase = "qualifying";
+    candidate.release_run = { run_id: 12345, attempt: 1, revision: candidate.prepared_commit };
+    const qualifying = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    const proof = {
+      schema_version: 1,
+      candidate_sha256: candidateProgressIdentity(candidate),
+      controller_revision: "3".repeat(40),
+      locators: [{ kind: "native-check", id: "101", sha256: "b".repeat(64) }],
+    };
+    candidate.phase = "building";
+    candidate.stage_evidence = [
+      {
+        phase: "building",
+        attempts: [
+          {
+            previous_checkpoint: qualifying.checkpoint,
+            evidence_sha256: capacityDigest(proof),
+            proof,
+            release_run: candidate.release_run,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      },
+    ];
+    const building = await checkpointReleaseOpportunity(f.bare, qualifying.checkpoint, input);
+    await publishCoordinatorCheckpoint(f.bare, building.checkpoint, f.config, { api: f.api });
+    const expectation = {
+      assembly_sha256: "1".repeat(64),
+      files: [{ filename: "opaque.zip", bytes: 23, sha256: "2".repeat(64) }],
+    };
+    const executor = {
+      controller_revision: "a".repeat(40),
+      execution_ref: "refs/tags/portcove-production-controller-fixture",
+      workflow: productionControllerWorkflow,
+      run_id: "9988",
+      run_attempt: 1,
+      job_id: 501,
+      check_run_id: "777",
+      actor_id: "1122",
+      role: "aggregate-assembly",
+    };
+    const request = {
+      kind: "upload" as const,
+      destination: "github-actions:boburning/portcove:admitted-aggregate",
+      aggregate_expectation: expectation,
+    };
+    let effects = 0,
+      ambiguous = "";
+    try {
+      await runBoundedCapacityOperation(
+        f.bare,
+        building.checkpoint,
+        request,
+        async () => f.capacity.boundary,
+        async (_record, pending) => {
+          effects++;
+          const retained = await recoverReleaseOpportunity(f.bare, pending.checkpoint);
+          assert.ok(
+            isRecord(retained.input.controller) &&
+              isRecord(retained.input.controller.capacity_attempt),
+          );
+          const operation = retained.input.controller.capacity_attempt.operation;
+          assert.ok(isRecord(operation));
+          assert.deepEqual(operation.aggregate_expectation, expectation);
+          assert.equal(
+            f.refs.get(f.stateRef),
+            pending.checkpoint,
+            "remote pending was read back before effect",
+          );
+          assert.deepEqual(operation.completed_effects, []);
+          throw new Error("inert upload response lost before receipt");
+        },
+        { ...f.options, executorIdentity: executor, maximumReceipts: 1 },
+      );
+      assert.fail("lost response must stay ambiguous");
+    } catch (error) {
+      assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+      ambiguous = String(error.evidence.checkpoint);
+    }
+    const retained = await recoverReleaseOpportunity(f.bare, ambiguous);
+    assert.ok(
+      isRecord(retained.input.controller) && isRecord(retained.input.controller.capacity_attempt),
+    );
+    const original = retained.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(original));
+    assert.equal(original.outcome, "ambiguous");
+    assert.deepEqual(original.aggregate_expectation, expectation);
+    assert.deepEqual(retained.input.active_candidate, candidate);
+    const completed = {
+      remote_identity: "github-actions-artifact:123",
+      evidence_sha256: "4".repeat(64),
+    };
+    const recovered = await recordCapacityReadback(
+      f.bare,
+      ambiguous,
+      "effect-completed",
+      completed.evidence_sha256,
+      { ...f.options, completedEffect: completed },
+    );
+    assert.ok(
+      "durable_checkpoint" in recovered && recovered.durable_checkpoint === recovered.checkpoint,
+    );
+    const settled = await recoverReleaseOpportunity(f.bare, recovered.checkpoint);
+    assert.ok(
+      isRecord(settled.input.controller) && isRecord(settled.input.controller.capacity_attempt),
+    );
+    const operation = settled.input.controller.capacity_attempt.operation;
+    assert.ok(isRecord(operation));
+    assert.deepEqual(operation.completed_effects, [completed]);
+    assert.equal(operation.id, original.id);
+    assert.deepEqual(settled.input.active_candidate, candidate);
+    await assert.rejects(
+      runBoundedCapacityOperation(
+        f.bare,
+        recovered.checkpoint,
+        request,
+        async () => f.capacity.boundary,
+        async () => {
+          effects++;
+        },
+        { ...f.options, executorIdentity: executor, maximumReceipts: 1 },
+      ),
+    );
+    assert.equal(effects, 1);
+  },
+);
 void test("exact Pages expectation survives real pending checkpoint and ambiguous partial effect without replay", async (t) => {
   const f = await fixture(t);
   const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);

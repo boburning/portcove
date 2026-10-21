@@ -21,7 +21,15 @@ import {
 } from "./release-control-step-bridge.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 
-const kinds = ["role-key", "signature", "context", "result", "site", "attest"] as const;
+const kinds = [
+  "role-key",
+  "signature",
+  "context",
+  "result",
+  "site",
+  "aggregate",
+  "attest",
+] as const;
 type Kind = (typeof kinds)[number];
 type Phase = ReturnType<typeof inspectReleaseControlPhase>;
 const phaseBudgets: Record<Phase, number> = {
@@ -167,18 +175,20 @@ function role(phase: Phase) {
   return phase === "payload" ? "payload" : phase.startsWith("tuf-") ? phase.slice(4) : null;
 }
 function allowed(phase: Phase, kind: Kind) {
-  return kind === "role-key" || kind === "signature"
-    ? role(phase) !== null
-    : kind === "context"
-      ? phase === "payload" || phase === "coordinator"
-      : kind === "result"
-        ? phase === "release-publication"
-        : kind === "site"
-          ? phase === "site-publication"
-          : phase === "coordinator" ||
-            phase === "payload" ||
-            phase === "release-publication" ||
-            phase.startsWith("tuf-");
+  return kind === "aggregate"
+    ? phase === "admission"
+    : kind === "role-key" || kind === "signature"
+      ? role(phase) !== null
+      : kind === "context"
+        ? phase === "payload" || phase === "coordinator"
+        : kind === "result"
+          ? phase === "release-publication"
+          : kind === "site"
+            ? phase === "site-publication"
+            : phase === "coordinator" ||
+              phase === "payload" ||
+              phase === "release-publication" ||
+              phase.startsWith("tuf-");
 }
 const predicateType = (phase: Phase) =>
   `https://portcove.dev/attestations/${phase === "release-publication" ? "immutable-release-result" : phase.startsWith("tuf-") ? "tuf-role-output" : "release-signing-context"}/v1`;
@@ -236,15 +246,17 @@ export function inspectControllerTransportEvent(
     return { path: rootPath(directory, file.path), bytes: file.bytes, sha256: file.sha256 };
   });
   const maximum =
-    kind === "site"
-      ? 512 * 1024 ** 2
-      : kind === "context"
-        ? 128 * 1024 ** 2
-        : kind === "result"
-          ? 65536
-          : kind === "signature"
-            ? 2 * 1024 ** 2
-            : 1024 * 1024;
+    kind === "aggregate"
+      ? 2 * 1024 ** 3
+      : kind === "site"
+        ? 512 * 1024 ** 2
+        : kind === "context"
+          ? 128 * 1024 ** 2
+          : kind === "result"
+            ? 65536
+            : kind === "signature"
+              ? 2 * 1024 ** 2
+              : 1024 * 1024;
   if (
     files.reduce((total, file) => total + file.bytes, 0) > maximum ||
     (kind === "context" && files.length !== 2) ||
@@ -260,20 +272,24 @@ export function inspectControllerTransportEvent(
     (kind === "result" && relative.join(",") !== "upload/immutable-release-result.json") ||
     (kind === "site" &&
       !/^site-deployment-[A-Za-z0-9_-]+\/upload\/artifact[.]tar$/u.test(relative[0] ?? "")) ||
+    (kind === "aggregate" &&
+      relative.some((file) => !/^assets\/[A-Za-z0-9][A-Za-z0-9._+-]{0,191}$/u.test(file))) ||
     (kind === "signature" &&
       relative.some((file) => !/^output\/[A-Za-z0-9][A-Za-z0-9._+-]{0,191}$/u.test(file)))
   )
     throw new Error("fixed transport member paths differ");
   const ackName =
-    kind === "signature"
-      ? "uploaded.json"
-      : kind === "context"
-        ? "context-uploaded.json"
-        : kind === "result"
-          ? "result-uploaded.json"
-          : kind === "site"
-            ? "site-uploaded.json"
-            : null;
+    kind === "aggregate"
+      ? "aggregate-uploaded.json"
+      : kind === "signature"
+        ? "uploaded.json"
+        : kind === "context"
+          ? "context-uploaded.json"
+          : kind === "result"
+            ? "result-uploaded.json"
+            : kind === "site"
+              ? "site-uploaded.json"
+              : null;
   if (
     (ackName ? raw.ack !== path.join(directory, ackName) : raw.ack !== null) ||
     (kind === "role-key" ? files.length !== 0 || raw.name !== role(phase) : files.length < 1)
@@ -364,32 +380,36 @@ async function verifyEvent(root: string, event: Event) {
 export async function retainControllerUpload(
   root: string,
   rawPhase: unknown,
-  kind: "signature" | "context" | "result" | "site",
+  kind: "signature" | "context" | "result" | "site" | "aggregate",
   directory: string,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const readyName =
-    kind === "signature"
-      ? "ready.json"
-      : kind === "context"
-        ? "context-ready.json"
-        : kind === "result"
-          ? "result-ready.json"
-          : "site-upload-ready.json";
+    kind === "aggregate"
+      ? "aggregate-ready.json"
+      : kind === "signature"
+        ? "ready.json"
+        : kind === "context"
+          ? "context-ready.json"
+          : kind === "result"
+            ? "result-ready.json"
+            : "site-upload-ready.json";
   await assertOwnedUnlinkedPath(root, path.join(directory, readyName), "owned upload readiness");
   const ready = await json(path.join(directory, readyName), 65536);
   if (!isRecord(ready) || typeof ready.name !== "string")
     throw new Error("owned readiness unavailable");
   const prefix =
-    kind === "signature"
-      ? `trusted-${phase === "payload" ? "payload-signing" : phase}-output`
-      : kind === "context"
-        ? phase === "payload"
-          ? "trusted-payload-signing-context"
-          : "trusted-coordinator-signing-context"
-        : kind === "result"
-          ? "trusted-immutable-release-result"
-          : "application-update-site";
+    kind === "aggregate"
+      ? "trusted-release-final"
+      : kind === "signature"
+        ? `trusted-${phase === "payload" ? "payload-signing" : phase}-output`
+        : kind === "context"
+          ? phase === "payload"
+            ? "trusted-payload-signing-context"
+            : "trusted-coordinator-signing-context"
+          : kind === "result"
+            ? "trusted-immutable-release-result"
+            : "application-update-site";
   if (ready.name !== `${prefix}-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`)
     throw new Error("owned upload name differs from fixed job");
   let files: string[];
@@ -403,7 +423,13 @@ export async function retainControllerUpload(
         throw new Error("owned upload member differs");
       return path.join(
         directory,
-        kind === "signature" ? "output" : kind === "result" ? "upload" : "",
+        kind === "aggregate"
+          ? "assets"
+          : kind === "signature"
+            ? "output"
+            : kind === "result"
+              ? "upload"
+              : "",
         name,
       );
     });
@@ -417,18 +443,24 @@ export async function retainControllerUpload(
       name: ready.name,
       files: await Promise.all(
         files.map((file) =>
-          fileIdentity(root, file, kind === "site" ? 512 * 1024 ** 2 : 128 * 1024 ** 2),
+          fileIdentity(
+            root,
+            file,
+            kind === "site" || kind === "aggregate" ? 512 * 1024 ** 2 : 128 * 1024 ** 2,
+          ),
         ),
       ),
       ack: path.join(
         directory,
-        kind === "signature"
-          ? "uploaded.json"
-          : kind === "context"
-            ? "context-uploaded.json"
-            : kind === "result"
-              ? "result-uploaded.json"
-              : "site-uploaded.json",
+        kind === "aggregate"
+          ? "aggregate-uploaded.json"
+          : kind === "signature"
+            ? "uploaded.json"
+            : kind === "context"
+              ? "context-uploaded.json"
+              : kind === "result"
+                ? "result-uploaded.json"
+                : "site-uploaded.json",
       ),
       predicate: null,
       predicate_type: null,

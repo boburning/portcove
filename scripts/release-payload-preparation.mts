@@ -1,3 +1,4 @@
+import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
 /** Read-only controller integration. Acquires existing authority observations;
  * it cannot create admission, sign, allocate or publish. */
 import { createHash } from "node:crypto";
@@ -25,7 +26,10 @@ import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { performance } from "node:perf_hooks";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
-import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
+import {
+  verifyAdmittedUploadedAggregate,
+  verifyUploadedAggregate,
+} from "./trusted-aggregate-attestation.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
@@ -83,7 +87,9 @@ export function inspectControllerAggregateLocator(raw: unknown) {
   if (
     !isRecord(aggregate) ||
     Object.keys(aggregate).sort().join(",") !==
-      "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256" ||
+      (aggregate.original_upload === undefined
+        ? "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256"
+        : "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,original_upload,run_attempt,run_id,sha256") ||
     typeof aggregate.controller_revision !== "string" ||
     !/^[a-f0-9]{40}$/.test(aggregate.controller_revision) ||
     typeof aggregate.controller_ref !== "string" ||
@@ -116,6 +122,9 @@ export function inspectControllerAggregateLocator(raw: unknown) {
     sha256: aggregate.sha256,
     bundle_artifact_id: aggregate.bundle_artifact_id,
     bundle_sha256: aggregate.bundle_sha256,
+    ...(aggregate.original_upload === undefined
+      ? {}
+      : { original_upload: inspectAggregateOriginalUpload(aggregate.original_upload) }),
   };
 }
 
@@ -154,6 +163,7 @@ export function inspectPayloadPreparationConfiguration(raw: unknown): Preparatio
       sha256: aggregate.sha256,
       bundle_artifact_id: aggregate.bundle_artifact_id,
       bundle_sha256: aggregate.bundle_sha256,
+      ...(aggregate.original_upload ? { original_upload: aggregate.original_upload } : {}),
     },
   };
 }
@@ -455,7 +465,9 @@ async function preparePayloadSigning(
         };
         await retainReservation("reservation-before.json");
         phase = "verify-uploaded-aggregate";
-        const verification = await verifyUploadedAggregate(
+        const verification = await (
+          options.aggregate ? verifyUploadedAggregate : verifyAdmittedUploadedAggregate
+        )(
           directory,
           {
             ...config.aggregate,

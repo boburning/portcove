@@ -1,3 +1,4 @@
+import { inspectAggregateUploadExpectation } from "./release-aggregate-contract.mts";
 import { performance } from "node:perf_hooks";
 import {
   inspectAssemblerIdentityExpectation,
@@ -132,6 +133,7 @@ interface OwnedEffectRequest {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
   site_expectation?: unknown;
+  aggregate_expectation?: unknown;
 }
 
 /** Scope validation only. A matching destination cannot mint an executor session
@@ -142,11 +144,26 @@ export function assertCapacityExecutorEffectScope(
 ) {
   if (
     Object.keys(request).sort().join(",") !==
-    (request.site_expectation === undefined
-      ? "destination,kind"
-      : "destination,kind,site_expectation")
+    [
+      "destination",
+      "kind",
+      ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
+      ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+    ]
+      .sort()
+      .join(",")
   )
     throw new Error("executor effect request contains unsupported fields");
+  if (request.aggregate_expectation !== undefined) {
+    inspectAggregateUploadExpectation(request.aggregate_expectation);
+    if (
+      role !== "aggregate-assembly" ||
+      request.site_expectation !== undefined ||
+      request.kind !== "upload" ||
+      request.destination !== "github-actions:boburning/portcove:admitted-aggregate"
+    )
+      throw new Error("aggregate expectation is outside admitted assembler scope");
+  }
   if (request.site_expectation !== undefined) {
     inspectSitePublicationExpectation(request.site_expectation);
     if (
@@ -160,46 +177,50 @@ export function assertCapacityExecutorEffectScope(
   // metadata lifecycle. Regenerated artifact/run/descriptor IDs cannot reset
   // retry accounting; actual provider IDs belong in completed-effect receipts.
   const allowed =
-    role === "site-publication"
+    role === "aggregate-assembly"
       ? request.kind === "upload" &&
-        [
-          "github-pages:boburning/portcove:complete-site",
-          "github-actions:boburning/portcove:complete-site-artifact",
-        ].includes(request.destination)
-      : role === "coordinator"
-        ? (request.kind === "dispatch" &&
-            request.destination === "github-actions:boburning/portcove:release.yml:dispatch") ||
-          (request.kind === "upload" &&
-            [
-              "github-actions:boburning/portcove:metadata-renewal-context",
-              "github-actions:boburning/portcove:metadata-bootstrap-context",
-            ].includes(request.destination))
-        : role === "payload-signing"
-          ? request.kind === "upload" &&
-            /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
-              request.destination,
-            )
-          : role.startsWith("tuf-") &&
+        request.destination === "github-actions:boburning/portcove:admitted-aggregate" &&
+        request.aggregate_expectation !== undefined
+      : role === "site-publication"
+        ? request.kind === "upload" &&
+          [
+            "github-pages:boburning/portcove:complete-site",
+            "github-actions:boburning/portcove:complete-site-artifact",
+          ].includes(request.destination)
+        : role === "coordinator"
+          ? (request.kind === "dispatch" &&
+              request.destination === "github-actions:boburning/portcove:release.yml:dispatch") ||
+            (request.kind === "upload" &&
               [
-                "tuf-releases",
-                "tuf-preview",
-                "tuf-stable",
-                "tuf-snapshot",
-                "tuf-timestamp",
-              ].includes(role)
+                "github-actions:boburning/portcove:metadata-renewal-context",
+                "github-actions:boburning/portcove:metadata-bootstrap-context",
+              ].includes(request.destination))
+          : role === "payload-signing"
             ? request.kind === "upload" &&
-              new RegExp(
-                `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
-                "u",
-              ).test(request.destination)
-            : role === "release-publication" &&
-              request.kind === "upload" &&
-              (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+              /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
                 request.destination,
-              ) ||
-                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
+              )
+            : role.startsWith("tuf-") &&
+                [
+                  "tuf-releases",
+                  "tuf-preview",
+                  "tuf-stable",
+                  "tuf-snapshot",
+                  "tuf-timestamp",
+                ].includes(role)
+              ? request.kind === "upload" &&
+                new RegExp(
+                  `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
+                  "u",
+                ).test(request.destination)
+              : role === "release-publication" &&
+                request.kind === "upload" &&
+                (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                   request.destination,
-                ));
+                ) ||
+                  /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
+                    request.destination,
+                  ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
 }
 
@@ -414,11 +435,26 @@ async function executeOwnedCapacityEffectWithinScope(
  * it never inherits permission to re-POST the effect. Readback callbacks in the
  * immutable controller must positively establish the requested resolution. */
 export async function recoverOwnedCapacityEffect(
-  ...args: Parameters<typeof recoverOwnedCapacityEffectWithinScope>
+  ...args: [
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[0],
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
+  ]
 ) {
   const value = sessions.get(args[0]);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const work = () => recoverOwnedCapacityEffectWithinScope(...args);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+/** The same protected admitted-aggregate role may settle a previous terminal
+ * job's one exact upload. This route cannot resolve other roles or re-upload. */
+export async function recoverOwnedAdmittedAggregateEffect(
+  ...args: Parameters<typeof recoverOwnedCapacityEffect>
+) {
+  const value = sessions.get(args[0]);
+  if (!value || value.role !== "aggregate-assembly")
+    throw new Error("actual admitted aggregate recovery job required");
+  const work = () => recoverOwnedCapacityEffectWithinScope(...args, true);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedCapacityEffectWithinScope(
@@ -429,9 +465,13 @@ async function recoverOwnedCapacityEffectWithinScope(
     evidence_sha256: string;
     completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
+  admittedAggregate = false,
 ) {
   const value = sessions.get(session);
-  if (!value || value.role !== "coordinator")
+  if (
+    !value ||
+    (admittedAggregate ? value.role !== "aggregate-assembly" : value.role !== "coordinator")
+  )
     throw new Error("actual fixed coordinator recovery identity required");
   const input = structuredClone(raw);
   if (!/^[a-f0-9]{40}$/u.test(input.checkpoint))
@@ -475,6 +515,15 @@ async function recoverOwnedCapacityEffectWithinScope(
     )
       throw new Error("an unresolved identity-bound capacity operation is required");
     const original = inspectCapacityExecutorIdentity(operation.executor_identity);
+    if (
+      admittedAggregate &&
+      (original.role !== "aggregate-assembly" ||
+        operation.destination !== "github-actions:boburning/portcove:admitted-aggregate" ||
+        operation.kind !== "upload" ||
+        operation.receipt_limit !== 1 ||
+        !operation.aggregate_expectation)
+    )
+      throw new Error("admitted aggregate recovery cannot resolve another effect");
     if (original.job_id === executorIdentity.job_id && original.run_id === executorIdentity.run_id)
       throw new Error("live executor cannot appoint itself as terminal-job recovery");
     const terminal = () => {

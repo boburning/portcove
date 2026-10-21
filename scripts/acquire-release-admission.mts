@@ -85,7 +85,9 @@ const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 // A caller-supplied option/JSON field cannot activate qualifying acquisition.
 const qualifyingCollections = new WeakSet<object>();
+const aggregateCollections = new WeakSet<object>();
 const publicationCompletionCollections = new WeakSet<object>();
+const aggregateReadbacks = new WeakSet<object>();
 const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
 export interface ActualCandidateBuildingEligibility {
   stage: "candidate-building";
@@ -102,6 +104,7 @@ export interface ActualCandidateBuildingEligibility {
   sbom_receipt: object;
   public_build_inputs_receipt: object;
   pending_obligations: readonly string[];
+  aggregate_readback_only?: true;
 }
 const actualBuildingEligibility = new WeakMap<object, ActualCandidateBuildingEligibility>();
 /** Data-only stage association. Candidate building consumes pre-sign native
@@ -297,6 +300,7 @@ export async function acquireReleaseAdmission(
   } = {},
 ) {
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
+  const aggregateResume = aggregateCollections.has(rawOptions);
   const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
@@ -445,7 +449,11 @@ export async function acquireReleaseAdmission(
     const candidate = record(state.active_candidate);
     if (
       qualifyingOnly
-        ? candidate.phase !== "qualifying"
+        ? candidate.phase !== "qualifying" &&
+          !(
+            aggregateResume &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          )
         : ![
             "building",
             "publishing",
@@ -912,7 +920,24 @@ export async function acquireReleaseAdmission(
     }
     if (!capacitySource && !controlsBefore)
       holds.add("admitted-spending-boundary-source-unconfigured");
-    if (capacity.eligibility !== "eligible") holds.add("bounded-no-spend-attempt-ineligible");
+    const operation = isRecord(capacityInput.operation) ? capacityInput.operation : null;
+    const aggregatePendingReadback =
+      aggregateResume &&
+      candidate.phase === "building" &&
+      operation &&
+      operation.destination === "github-actions:boburning/portcove:admitted-aggregate" &&
+      operation.kind === "upload" &&
+      operation.receipt_limit === 1 &&
+      ["pending", "ambiguous", "capacity-refused"].includes(String(operation.outcome)) &&
+      isRecord(operation.executor_identity) &&
+      operation.executor_identity.role === "aggregate-assembly" &&
+      operation.aggregate_expectation !== undefined &&
+      assessBoundedCapacity({ ...capacityInput, operation: null }).eligibility === "eligible";
+    const aggregateReadback =
+      aggregatePendingReadback ||
+      (aggregateResume && ["publishing", "promoting"].includes(String(candidate.phase)));
+    if (capacity.eligibility !== "eligible" && !aggregatePendingReadback)
+      holds.add("bounded-no-spend-attempt-ineligible");
     if (!controlsBefore || !controlsAfter)
       holds.add(
         options.controls
@@ -1053,6 +1078,7 @@ export async function acquireReleaseAdmission(
       ) {
         acquiredCoordinatorRepositories.set(result, before.repository);
         acquiredCandidates.set(result, freezePreparedFacts(structuredClone(candidate)));
+        if (aggregateReadback) aggregateReadbacks.add(result);
       }
     }
     return result;
@@ -1095,7 +1121,12 @@ async function performAdmissionHandshake(
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
-  building?: { tools: object; namespace: string; receive: (proof: object) => Promise<void> },
+  building?: {
+    tools: object;
+    namespace: string;
+    receive: (proof: object) => Promise<void>;
+    aggregate?: true;
+  },
   deadline?: number,
   publicationCompletion = false,
 ) {
@@ -1161,6 +1192,7 @@ async function performAdmissionHandshake(
     if (phase !== "admission" || onAdmitted)
       throw new Error("building eligibility is separate from payload/publication admission");
     qualifyingCollections.add(collection);
+    if (building.aggregate) aggregateCollections.add(collection);
   }
   if (publicationCompletion) {
     if (phase !== "release-publication" || building || !onAdmitted || !compiler || !establishNative)
@@ -1218,7 +1250,14 @@ async function performAdmissionHandshake(
       if (phase !== "admission" || admission.decision !== "eligible-for-candidate-building")
         throw new Error("actual qualifying eligibility target differs");
       const candidate = acquiredCandidates.get(admission);
-      if (!candidate || candidate.phase !== "qualifying")
+      if (
+        !candidate ||
+        (candidate.phase !== "qualifying" &&
+          !(
+            building.aggregate &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          ))
+      )
         throw new Error("actual qualifying candidate custody missing");
       const proof = Object.freeze({
         kind: "actual-candidate-building-eligibility",
@@ -1227,6 +1266,7 @@ async function performAdmissionHandshake(
       });
       actualBuildingEligibility.set(proof, {
         stage: "candidate-building",
+        ...(aggregateReadbacks.has(admission) ? { aggregate_readback_only: true as const } : {}),
         repository: coordinatorRepository,
         checkpoint: admission.checkpoint,
         candidate,
@@ -1322,11 +1362,22 @@ export function acquirePublicationControllerAdmission(
 /** Read-only qualifying evidence under the fixed independent reader. It neither
  * advances the candidate nor creates payload/publication admission. */
 export async function acquireActualCandidateBuildingEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args);
+}
+export async function acquireActualAdmittedAggregateEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args, true);
+}
+async function acquireBuildingEligibility(
   root: string,
   rawConfiguration: unknown,
   controllerTools: object,
   rawNativeLocators: unknown,
   deadline?: number,
+  aggregate?: true,
 ) {
   const capturedConfiguration: unknown = structuredClone(rawConfiguration),
     nativeLocators: unknown = structuredClone(rawNativeLocators);
@@ -1372,6 +1423,7 @@ export async function acquireActualCandidateBuildingEligibility(
     {
       tools: controllerTools,
       namespace: authorities.namespace,
+      ...(aggregate ? { aggregate } : {}),
       receive: async (actual) => {
         proof = actual;
       },
@@ -1392,6 +1444,14 @@ export async function acquireActualCandidateBuildingEligibility(
 /** Exact private proof for the separate durable phase writer. A caller cannot
  * import a successful report, change a hold or reinterpret payload admission. */
 export async function requireActualCandidateBuildingEligibility(receipt: object) {
+  if (actualBuildingEligibility.get(receipt)?.aggregate_readback_only)
+    throw new Error("aggregate readback proof cannot authorize candidate building");
+  return requireAdmittedAggregateEligibility(receipt);
+}
+export async function requireActualAdmittedAggregateEligibility(receipt: object) {
+  return requireAdmittedAggregateEligibility(receipt);
+}
+async function requireAdmittedAggregateEligibility(receipt: object) {
   const actual = actualBuildingEligibility.get(receipt);
   if (!actual) throw new Error("actual same-process candidate building eligibility required");
   requireAuthenticatedReleaseControlSource(actual.controls, "admission");
