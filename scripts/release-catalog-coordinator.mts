@@ -25,6 +25,7 @@ import {
   deriveCoordinatorPublication,
   prepareActualCoordinatorCatalogSigning,
 } from "./release-coordinator-driver.mts";
+import { continueActualCatalogPublication } from "./release-catalog-recovery.mts";
 import { completeCoordinatorCatalogSigningContext } from "./release-catalog-signing-context.mts";
 import {
   requireControllerCatalogPublicationAuthorities,
@@ -286,8 +287,7 @@ export async function runFixedCatalogCoordinatorConfiguration(
         input.review_request != null ||
         input.review_disposition != null ||
         input.metadata_renewal != null ||
-        input.metadata_bootstrap != null ||
-        unresolved(input)
+        input.metadata_bootstrap != null
       )
         return held(
           directory,
@@ -295,10 +295,17 @@ export async function runFixedCatalogCoordinatorConfiguration(
           "existing application reservation or unresolved effect requires its existing recovery",
         );
       if (input.catalog_publication != null)
+        return continueActualCatalogPublication(
+          tools,
+          selected.remote_configuration,
+          parent,
+          deadline,
+        );
+      if (unresolved(input))
         return held(
           directory,
           recovered.checkpoint,
-          "existing catalog subject requires original context/site readback; no replay",
+          "unresolved effect requires its existing recovery",
         );
       const mainHead = () => {
         const repo = api.request("GET", repository),
