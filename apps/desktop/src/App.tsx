@@ -607,7 +607,12 @@ function Workspace({
     setAdoptOpen,
     setCommandOpen,
   ]);
-  const controller = useGamepadNavigation(handleBack);
+  const controller = useGamepadNavigation(handleBack, (offset) => {
+    const destinations = ["library", "catalog", "updates", "settings"] as const;
+    const index = destinations.indexOf(ui.view);
+    setPrimaryView(destinations[(index + offset + destinations.length) % destinations.length]!);
+    focusRegion("sidebar");
+  });
   const hostToolActions: HostToolActions = {
     locate: async (tool: HostToolStatus) => {
       const path = await pickHostToolExecutable(tool.display_name, tool.path ?? "");

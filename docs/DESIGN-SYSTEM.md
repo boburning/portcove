@@ -24,10 +24,10 @@ does not add duplicate keyboard stops. Both presentations use the same query own
 First-use Library omits retrieval controls. Last played is a disclosure; Collection
 commands states that Steam selection includes entries hidden by filters.
 
-Columns derive from usable space, with a 180px minimum column and a text-relative
-12rem preferred minimum. Fixed 2:3 frames contain the complete image on a neutral
-stage. Artwork caps at 260px ordinarily, 180px below 820px window height and
-160px below 680px; text enlargement independently reduces the cap toward 160px.
+Library and Find games share columns derived from usable space, with a 14rem
+preferred minimum (shrinking to the available width). Fixed 2:3 frames contain
+the complete image on a neutral stage. Artwork caps at 13.75rem independently
+of window height; narrow collection covers cap at 160px below 28em of collection width.
 Unclassified and user artwork retain intrinsic padding and proportions; no logo
 crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
 feedback remains outside the identity button. Cover titles show two lines and
@@ -71,7 +71,10 @@ content or give it a conflicting speech-input label.
 The workspace remains the full available width. The desktop main element owns
 vertical scrolling; narrow navigation retains the existing document scroll owner.
 Below an effective workspace width of 80em, desktop navigation becomes
-a named icon rail; existing narrow top navigation remains. Query, view, selection,
+a named icon rail. Below 48rem of viewport width, a compact header shows the current
+destination and a named Navigation trigger. The existing Base UI Dialog supplies
+the navigation sheet, focus containment, Escape and focus return; resizing to
+desktop closes it and returns focus to the visible destination. Query, view, selection,
 detail-return and operation eligibility retain their existing owners. This Library
 slice reuses the existing interface-size controller and does not establish new
 native enlargement acceptance.
@@ -81,9 +84,10 @@ native enlargement acceptance.
 Details keep the complete original-game title, port/project and distinguishing
 variant together with the current Core-derived action. The action follows identity
 inside the hero rather than occupying a distant right-hand column. Whole-image
-2:3 cover frames are bounded independently of text:80CSS pixels in the narrow
-reading flow,120at24rem of detail width,160at48rem; the hero becomes two columns
-at32rem. Enlarged reading and long identities grow the text/action block and may
+2:3 cover frames are bounded independently of text: 48 CSS pixels in the narrow
+reading flow, 64 at 20rem of detail width and 96 at 32rem. Identity and actions
+remain alongside the compact artwork. Details have a 64rem reading limit within
+the full scrolling workspace. Enlarged reading and long identities grow the text/action block and may
 require vertical scrolling. They never stretch or crop artwork.
 
 About, current installation/version facts and registered external-folder ownership
@@ -450,12 +454,12 @@ reference composition's fixed frame width or column count is not a window rule.
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
 does not impose a maximum collection width or column count. Catalog tracks are
-bounded at 13.75rem and can shrink below their 12.5rem preferred minimum when
-the available width requires it. Library covers retain their existing bounded
-tracks and short-window sizing. Text-heavy workspaces retain a readable inner
+bounded at 13.75rem and can shrink below the shared 14rem preferred track minimum
+when the available width requires it. Library and Catalog share artwork geometry
+independent of window height. Text-heavy workspaces retain a readable inner
 content width; that content limit must not constrain the scrolling viewport or
 leave an inactive scrolling area at the right of a wide window.
-Catalog identity wraps without title clipping;
+Catalog titles use the same two-line typography as Library, expanding at narrow reading widths;
 the recognizable original-game title leads. A separate wrapping project row
 follows it and precedes status. Relevant variants remain visible as wrapping
 labels in the state area, with the full identity in the accessible card name
@@ -725,9 +729,8 @@ opening another destination must not imply cancellation or task completion.
 ### Find games artwork and identity
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
-cover images use centered 2:3 frames capped at 160 CSS pixels wide; when the
-collection has at most 60rem of effective reading width, the cap becomes 120 CSS
-pixels. These caps are independent of text size. Missing artwork uses the same
+cover images use Library's centered 2:3 frame and semantic neutral padding.
+Artwork size is independent of title/status height and window height. Missing artwork uses the same
 quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the
 frame without reserving three empty title lines. The existing card activation

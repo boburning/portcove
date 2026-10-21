@@ -23,7 +23,7 @@
     isolation: isolate;
   }
   .bootstrap-recovery {
-    block-size: 100%;
+    block-size: 100dvh;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: clamp(var(--space-4), 5vw, var(--space-12));
@@ -51,8 +51,7 @@
   }
   .bootstrap-recovery-details textarea {
     inline-size: 100%;
-    min-inline-size: 0;
-    block-size: min(16rem, 35dvh);
+    block-size: 35dvh;
     max-block-size: 35dvh;
     overflow: auto;
     margin-block-start: var(--space-3);
@@ -60,6 +59,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background: var(--color-bg-elevated);
+    font-family: var(--font-mono);
     font-size: var(--text-sm);
   }
   h1,

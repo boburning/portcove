@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import { AppErrorBoundary } from "../ErrorBoundary";
+import "../styles/index.css";
 
 let root: HTMLDivElement | undefined;
 afterEach(async () => {
@@ -45,6 +46,10 @@ it.each([
     const recovery = document.querySelector<HTMLElement>(".bootstrap-recovery")!;
     const reload = page.getByRole("button", { name: "Reload Portcove" });
     const button = recovery.querySelector<HTMLButtonElement>("button")!;
+    expect(recovery.querySelector('[role="alert"]')!.contains(button)).toBe(false);
+    expect(
+      recovery.querySelector('[role="alert"]')!.contains(recovery.querySelector("details")),
+    ).toBe(false);
     expect(recovery.scrollWidth).toBeLessThanOrEqual(recovery.clientWidth + 1);
     // The action precedes the bounded diagnostic disclosure, even for enormous errors.
     expect(button.getBoundingClientRect().bottom).toBeLessThan(800);
@@ -61,8 +66,9 @@ it.each([
     expect(diagnostics.value).toBe(message);
     await userEvent.keyboard("{Tab}");
     expect(document.activeElement).toBe(diagnostics);
-    expect(diagnostics.scrollHeight >= diagnostics.clientHeight).toBe(true);
-    await userEvent.keyboard("{End}");
+    expect(diagnostics.scrollHeight - diagnostics.clientHeight).toBeGreaterThan(long ? 0 : -1);
+    await userEvent.keyboard("{Control>}{End}{/Control}");
+    await expect.poll(() => diagnostics.scrollTop).toBeGreaterThan(long ? 0 : -1);
     await userEvent.keyboard("{Shift>}{Tab}{Tab}{/Shift}");
     await expect.element(reload).toHaveFocus();
     expect(button.getBoundingClientRect().bottom).toBeLessThan(800);

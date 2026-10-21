@@ -30,9 +30,9 @@ export class AppErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundar
 function RenderRecovery({ error }: { error: Error }) {
   return (
     <main className="bootstrap-recovery" aria-labelledby="display-error-title">
-      <section className="bootstrap-recovery-content" role="alert">
+      <section className="bootstrap-recovery-content">
         <h1 id="display-error-title">Display error</h1>
-        <p>
+        <p role="alert">
           The Portcove window encountered an error. Reload it to reconnect and check the status of
           any active task.
         </p>

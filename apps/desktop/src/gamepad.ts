@@ -178,7 +178,11 @@ function controllerComboboxKey(input: HTMLInputElement, key: string) {
   document.documentElement.dataset.inputMode = "controller";
 }
 
-function controllerButton(buttons: Set<number>, back: () => void) {
+function controllerButton(
+  buttons: Set<number>,
+  back: () => void,
+  navigate: (offset: number) => void,
+) {
   if (buttons.has(1)) {
     if (!dismissActiveDialog()) back();
   } else if (buttons.has(0)) {
@@ -189,13 +193,14 @@ function controllerButton(buttons: Set<number>, back: () => void) {
         input.getAttribute("aria-expanded") === "true" ? "Enter" : "ArrowDown",
       );
     else activateFocusedControl();
-  } else if (buttons.has(4)) cyclePrimaryNavigation(-1);
-  else if (buttons.has(5)) cyclePrimaryNavigation(1);
+  } else if (buttons.has(4)) cyclePrimaryNavigation(-1, navigate);
+  else if (buttons.has(5)) cyclePrimaryNavigation(1, navigate);
 }
 
-export function useGamepadNavigation(onBack: () => void) {
+export function useGamepadNavigation(onBack: () => void, onNavigate?: (offset: number) => void) {
   const [controller, setController] = useState<string>();
   const back = useEffectEvent(onBack);
+  const navigate = useEffectEvent((offset: number) => onNavigate?.(offset));
   useEffect(() => {
     let frame = 0;
     const input = new ControllerInput();
@@ -218,7 +223,7 @@ export function useGamepadNavigation(onBack: () => void) {
           controllerComboboxKey(input, key);
         } else moveFocus(state.move);
       }
-      controllerButton(state.buttons, back);
+      controllerButton(state.buttons, back, navigate);
     };
     const keydown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;

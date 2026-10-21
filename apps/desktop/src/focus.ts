@@ -41,19 +41,26 @@ export function focusRegion(name: "sidebar" | "workspace") {
   const region = document.querySelector<HTMLElement>(`[data-focus-region=${name}]`);
   if (!region) return false;
   const previous = regionFocus.get(region);
+  const controls = focusableControls(region);
   const target =
-    previous && region.contains(previous) && visibleControl(previous)
+    previous && controls.includes(previous)
       ? previous
-      : (region.querySelector<HTMLElement>("[aria-current=page]") ?? focusableControls(region)[0]);
+      : (controls.find((item) => item.getAttribute("aria-current") === "page") ?? controls[0]);
   focusAndReveal(target);
   return Boolean(target);
 }
 
-export function cyclePrimaryNavigation(offset: number) {
+export function cyclePrimaryNavigation(offset: number, navigate?: (offset: number) => void) {
   if (navigationScope() !== document) return;
   const navigation = document.querySelector<HTMLElement>("nav[aria-label='Primary navigation']");
   if (!navigation) return;
   const items = focusableControls(navigation);
+  // Compact navigation exposes a dialog trigger instead of visible destination
+  // controls. Its owning app changes routes through the same callback as clicks.
+  if (items.length === 0) {
+    navigate?.(offset);
+    return;
+  }
   const current = items.findIndex((item) => item.getAttribute("aria-current") === "page");
   const target = items[(current + offset + items.length) % items.length];
   if (target) {

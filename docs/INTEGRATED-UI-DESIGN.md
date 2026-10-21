@@ -60,11 +60,32 @@ Primary guidance used for concrete decisions: [WCAG reflow](https://www.w3.org/W
 
 The compact Library readiness choice uses the query-area container, so it appears
 when that area's effective reading width is at most 46em. The wide choices and
-compact choice never compete in the keyboard order. Narrow navigation uses
-wrapping labeled destinations, with two columns when 320 CSS pixels permits it.
+compact choice never compete in the keyboard order. Narrow navigation uses a
+compact current-destination header and a named Base UI Dialog sheet. The full
+desktop sidebar and icon rail remain at desktop widths; resize closes the sheet
+and restores focus to the visible destination.
 Narrow collection art is capped at 160 CSS pixels; scrolling remains intentional.
 Activity rows keep one keyed parent across attention/running/recent grouping so
 settlement preserves focus and open diagnostics.
+
+Shared fields use Base UI Field/Fieldset associations, external labels, bounded
+wide controls and stacked narrow layouts. Field errors represent a specific
+validation result; operation failures remain separate notices. Required theme
+selection uses controlled radios, and shared checkboxes retain full label hit areas.
+Add games uses an editable Combobox keyed by port ID; search text and the selected
+port remain distinct drafts, including a selected port outside filtered results.
+
+Every production dialog selects its initial field, review heading or safe action
+through Base UI initialFocus. The old autofocus markers have no remaining role.
+Activity uses mounted Tabs for related task/update panels and reflows timestamps
+below their target at narrow widths. Supplemental tooltips preserve accessible
+names and existing descriptions. The latest newly settled successful invocation
+gets one dismissible Notice; repeat state updates and dismissals do not replay
+older completions. Persistent failures and Activity remain authoritative.
+
+Caught render errors have a bounded scroll owner, an early Reload action and
+disclosed read-only diagnostics. Error/report identity is preserved; diagnostics
+can be scrolled and copied with pointer or keyboard at narrow/enlarged sizes.
 
 Game-update entries keep identity, versions and independent actions inside one
 bounded panel. Their facts reflow against the entry's effective width. Activation
