@@ -65,6 +65,7 @@ import {
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { publicationUploadCommand } from "./release-publication-handoff.mts";
+import { candidateHasRetainedPromotion } from "./release-candidate-progress-contract.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import type { ParsedCapacityOperation } from "./release-capacity.mts";
 
@@ -273,7 +274,9 @@ async function runFixedPublicationEntry(filename: string) {
  * A refused/ambiguous step throws out of this finite sequence immediately. */
 export async function runDistinctPublicationEffects(
   step: (ordinal: number) => Promise<{ decision: string; effect?: { destination: string } }>,
+  candidate?: unknown,
 ) {
+  if (candidateHasRetainedPromotion(candidate)) return { effects: 0 };
   const seen = new Set<string>();
   for (let ordinal = 1; ordinal <= 12; ordinal++) {
     const result = await step(ordinal);
@@ -354,6 +357,7 @@ export async function runReleasePublicationController(
             admitted.coordinator_repository,
             admitted.checkpoint,
           );
+          const reportRepair = candidateHasRetainedPromotion(initialState.input.active_candidate);
           if (digest(context.manifest.facts) !== digest(admitted.facts)) {
             // Checkpoints and control observations legitimately advance after the
             // payload stage; only the exact frozen source/package/config inputs
@@ -435,6 +439,7 @@ export async function runReleasePublicationController(
           stage = "durable-publishing-phase";
           if (
             mode === "publication" &&
+            !reportRepair &&
             isRecord(initialState.input.active_candidate) &&
             initialState.input.active_candidate.phase === "building"
           ) {
@@ -466,28 +471,49 @@ export async function runReleasePublicationController(
           const effects =
             mode === "completion-only"
               ? { effects: 0 }
-              : await runDistinctPublicationEffects(async (ordinal) =>
-                  advanceOwnedImmutableReleasePublication(
-                    prepared,
-                    executor,
-                    actual,
-                    await fresh(ordinal),
-                    {
-                      repository: admitted.coordinator_repository,
-                      remote_configuration: coordinator,
-                    },
-                    deadline,
-                  ),
+              : await runDistinctPublicationEffects(
+                  async (ordinal) =>
+                    advanceOwnedImmutableReleasePublication(
+                      prepared,
+                      executor,
+                      actual,
+                      await fresh(ordinal),
+                      {
+                        repository: admitted.coordinator_repository,
+                        remote_configuration: coordinator,
+                      },
+                      deadline,
+                    ),
+                  initialState.input.active_candidate,
                 );
           stage = "actual-immutable-completion";
           await fresh(usedRound + 1);
-          const completion = await observeOwnedImmutableReleaseCompletion(
+          let completion = await observeOwnedImmutableReleaseCompletion(
             prepared,
             executor,
             actual,
             controls,
             deadline,
           );
+          if (
+            reportRepair &&
+            mode === "publication" &&
+            isRecord(initialState.input.active_candidate) &&
+            initialState.input.active_candidate.phase === "building"
+          ) {
+            // The immutable Release and its original settled operation were
+            // verified above before even advancing the repair's journal phase.
+            const phase = await advanceActualCandidateToPublishing(actual, { deadline });
+            await rebindPreparedImmutableReleaseAfterPhase(prepared, phase, deadline);
+            await fresh(usedRound + 1);
+            completion = await observeOwnedImmutableReleaseCompletion(
+              prepared,
+              executor,
+              actual,
+              controls,
+              deadline,
+            );
+          }
           let checkpoint = admitted.checkpoint;
           if (mode !== "completion-only") {
             const promoting = await advanceActualCandidateToPromoting(completion, { deadline });

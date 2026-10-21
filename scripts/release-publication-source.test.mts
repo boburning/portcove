@@ -78,7 +78,7 @@ async function fixture(t: test.TestContext) {
           return {
             name: match[1],
             email: match[2],
-            date: new Date(Number(match[3]) * 1000).toISOString(),
+            date: new Date(Number(match[3]) * 1000).toISOString().replace(".000Z", "Z"),
           };
         };
         body = {

@@ -126,7 +126,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     [path.join(root, "scripts/release-publication-controller.bundle.mjs")],
     { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
   );
-  assert.equal(publication.status, 1);
+  assert.equal(publication.status, 1, publication.stderr);
   assert.match(publication.stderr, /fixed publication controller refused/);
   assert.doesNotMatch(publication.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(

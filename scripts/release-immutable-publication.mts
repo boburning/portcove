@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import {
   requireRetainedPublishCandidate,
-  inspectCandidateStageEvidence,
+  candidateHasRetainedPromotion,
 } from "./release-candidate-progress-contract.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
@@ -61,7 +61,6 @@ import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
 } from "./release-coordinator-deadline.mts";
-import { materializePublicationUpdaterRoots } from "./release-publication-inputs.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 
@@ -412,7 +411,12 @@ export async function prepareImmutableReleasePublication(
   const directory = await mkdtemp(path.join(request.private_root, "immutable-release-"));
   let phase = "reservation-before";
   try {
-    const { descriptor, accepted } = await requireReservation(request.descriptor, await recover());
+    const before = await recover();
+    const retainedPromotion =
+      isRecord(before) &&
+      isRecord(before.input) &&
+      candidateHasRetainedPromotion(before.input.active_candidate);
+    const { descriptor, accepted } = await requireReservation(request.descriptor, before);
     if (
       accepted.release_profile !== "initial-beta-win-linux" ||
       !accepted.public_build_inputs ||
@@ -463,7 +467,9 @@ export async function prepareImmutableReleasePublication(
       throw new Error("actual publication context cannot mix supplied signer roots");
     const updaterRoots = [
       ...(controller
-        ? await materializePublicationUpdaterRoots(
+        ? await (
+            await import("./release-publication-inputs.mts")
+          ).materializePublicationUpdaterRoots(
             controller.context,
             controller.facts,
             packageRoot,
@@ -686,8 +692,10 @@ export async function prepareImmutableReleasePublication(
       descriptor: session.descriptor,
       checkpoint: session.checkpoint,
     });
-    if (readbackOnly) {
+    if (readbackOnly || retainedPromotion) {
       completionOnlySessions.add(session);
+    }
+    if (completionContext !== undefined) {
       publicationAdmissions.set(session, completionContext);
     }
     return session;
@@ -1456,12 +1464,7 @@ export async function observeOwnedImmutableReleaseCompletion(
     isRecord(controller) && isRecord(controller.capacity_attempt)
       ? inspectCapacityOperation(controller.capacity_attempt.operation)
       : null;
-  const retainedPromotion =
-    isRecord(candidate) &&
-    candidate.stage_evidence !== undefined &&
-    inspectCandidateStageEvidence(candidate.stage_evidence, candidate).some(
-      (slot) => slot.phase === "promoting",
-    );
+  const retainedPromotion = candidateHasRetainedPromotion(candidate);
   if (observationContext.mode === "completion-only" || retainedPromotion) {
     if (operation && !["succeeded", "recovered"].includes(operation.outcome))
       throw new Error(

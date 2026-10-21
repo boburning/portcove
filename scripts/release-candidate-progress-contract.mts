@@ -27,6 +27,13 @@ export function immutableReleaseProgressDigest(
 }
 
 const stages = ["building", "publishing", "promoting"] as const;
+/** Public history only; this can restrict effects, never grant eligibility. */
+export function candidateHasRetainedPromotion(candidate: unknown) {
+  if (!isRecord(candidate) || candidate.stage_evidence === undefined) return false;
+  return inspectCandidateStageEvidence(candidate.stage_evidence, candidate).some(
+    (slot) => slot.phase === "promoting",
+  );
+}
 const hash = (value: unknown, length: number): value is string =>
   typeof value === "string" && new RegExp(`^[a-f0-9]{${length}}$`, "u").test(value);
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {

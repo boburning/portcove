@@ -13,6 +13,8 @@ import {
 } from "./release-publication-controller.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
+import { proposeImmutableReleaseTransition } from "./release-immutable-publication.mts";
 import {
   inspectPublicationUploadHandoff,
   publicationUploadCommand,
@@ -97,6 +99,76 @@ void test("all publication modes retain the original provider job budget rather 
       publicationOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, now + 50000, 1000),
     /exhausted/,
   );
+});
+void test("a retained report-repair promotion never recreates a missing Release or uploads partial assets", async () => {
+  const candidate = {
+    source_commit: "a".repeat(40),
+    source_tree: "b".repeat(40),
+    prepared_commit: "c".repeat(40),
+    prepared_tree: "d".repeat(40),
+    intent_sha256: "e".repeat(64),
+    version: "0.19.0-preview.1",
+    phase: "building",
+    transient_retries: 1,
+    substantive_repairs: 0,
+    release_run: { run_id: 100, attempt: 1, revision: "c".repeat(40) },
+  };
+  const proof = {
+    schema_version: 1,
+    candidate_sha256: candidateProgressIdentity(candidate),
+    controller_revision: "f".repeat(40),
+    locators: [{ kind: "operation", id: "1".repeat(64), sha256: "2".repeat(64) }],
+  };
+  const retained = {
+    ...candidate,
+    stage_evidence: [
+      {
+        phase: "promoting",
+        attempts: [
+          {
+            previous_checkpoint: "3".repeat(40),
+            evidence_sha256: releaseCanonicalDigest(proof),
+            proof,
+            release_run: candidate.release_run,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      },
+    ],
+  };
+  const identity = {
+    version: candidate.version,
+    source_commit: candidate.prepared_commit,
+    assets: [{ filename: "package.zip", bytes: 1, sha256: "4".repeat(64) }],
+  };
+  const partial = {
+    id: 700,
+    tag_name: `v${candidate.version}`,
+    target_commitish: candidate.prepared_commit,
+    prerelease: true,
+    draft: true,
+    immutable: false,
+    url: "https://api.github.com/repos/boburning/portcove/releases/700",
+    html_url: "https://github.com/boburning/portcove/releases/tag/untagged-fixture",
+    upload_url:
+      "https://uploads.github.com/repos/boburning/portcove/releases/700/assets{?name,label}",
+  };
+  for (const release of [null, partial]) {
+    let mutations = 0;
+    assert.deepEqual(
+      await runDistinctPublicationEffects(async () => {
+        mutations++;
+        return { decision: "effect-observed", effect: { destination: "would-repeat-release" } };
+      }, retained),
+      { effects: 0 },
+    );
+    assert.throws(() => {
+      if (proposeImmutableReleaseTransition(identity, release, []).decision !== "complete")
+        throw new Error("complete immutable readback required");
+    }, /complete immutable/);
+    assert.equal(mutations, 0);
+  }
 });
 void test("completed result upload returns only its retained locator and a repair destination consumes actual counters", () => {
   const candidate = {
