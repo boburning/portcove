@@ -5,7 +5,11 @@ import {
   verifyCapacityExecutorJobIdentity,
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
-import { capacityDigest, inspectCapacityExecutorIdentity } from "./release-capacity.mts";
+import {
+  capacityDigest,
+  inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+} from "./release-capacity.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
@@ -127,6 +131,7 @@ export async function refreshCapacityExecutor(session: ExecutorSession) {
 interface OwnedEffectRequest {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
+  site_expectation?: unknown;
 }
 
 /** Scope validation only. A matching destination cannot mint an executor session
@@ -135,15 +140,32 @@ export function assertCapacityExecutorEffectScope(
   role: CapacityExecutorRole,
   request: OwnedEffectRequest,
 ) {
-  if (Object.keys(request).sort().join(",") !== "destination,kind")
+  if (
+    Object.keys(request).sort().join(",") !==
+    (request.site_expectation === undefined
+      ? "destination,kind"
+      : "destination,kind,site_expectation")
+  )
     throw new Error("executor effect request contains unsupported fields");
+  if (request.site_expectation !== undefined) {
+    inspectSitePublicationExpectation(request.site_expectation);
+    if (
+      role !== "site-publication" ||
+      request.kind !== "upload" ||
+      request.destination !== "github-pages:boburning/portcove:complete-site"
+    )
+      throw new Error("site expectation is outside the authenticated executor's fixed scope");
+  }
   // Destinations describe a stable logical effect within the candidate or
   // metadata lifecycle. Regenerated artifact/run/descriptor IDs cannot reset
   // retry accounting; actual provider IDs belong in completed-effect receipts.
   const allowed =
     role === "site-publication"
       ? request.kind === "upload" &&
-        request.destination === "github-pages:boburning/portcove:complete-site"
+        [
+          "github-pages:boburning/portcove:complete-site",
+          "github-actions:boburning/portcove:complete-site-artifact",
+        ].includes(request.destination)
       : role === "coordinator"
         ? (request.kind === "dispatch" &&
             request.destination === "github-actions:boburning/portcove:release.yml:dispatch") ||
@@ -175,7 +197,7 @@ export function assertCapacityExecutorEffectScope(
               (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                 request.destination,
               ) ||
-                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result$/u.test(
+                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
                   request.destination,
                 ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");

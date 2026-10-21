@@ -67,7 +67,11 @@ function Convert-Teardown($Value) {
 function Save-State([string]$Phase, [string]$Failure = '') {
     $records = @($roots.GetEnumerator() | ForEach-Object {
         Write-Capture $_.Key $_.Value
-        [ordered]@{ id=$_.Key; pid=$_.Value.Id; created_filetime=$_.Value.CreatedFileTime.ToString(); teardown=(Convert-Teardown $_.Value.LastTeardown) }
+        $launchIdentity=$launchIdentities[$_.Key]
+        [ordered]@{ id=$_.Key; pid=$_.Value.Id; created_filetime=$_.Value.CreatedFileTime.ToString();
+            path=$_.Value.Path; sha256=$(if ($launchIdentity) {$launchIdentity.sha256} else {$null});
+            started_at=$_.Value.StartTime.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ');
+            teardown=(Convert-Teardown $_.Value.LastTeardown) }
     })
     $state = [ordered]@{ schema_version=1; authority='none'; invocation_id=$InvocationId; configuration_sha256=$ExpectedConfigurationSha256;
         broker_pid=$PID; broker_created_filetime=([Diagnostics.Process]::GetCurrentProcess().StartTime.ToFileTimeUtc().ToString()); sequence=$sequence;
@@ -104,6 +108,7 @@ $config.UserName=$configurationValue.account_name; $config.AccountSid=$configura
 $config.ProfileRoot=$configurationValue.profile_root; $config.WorkRoot=$configurationValue.work_root
 $config.PrivateDesktop='PortcoveNative_' + $InvocationId.Substring(0,32) + '\Qualification'
 $roots = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+$launchIdentities = [Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
 $captureLengths = [Collections.Generic.Dictionary[string,long]]::new([StringComparer]::OrdinalIgnoreCase)
 $group = [Portcove.NativeQualification.AccountLauncher]::CreateGroup($config)
 $credential = $null; $pipe = $null; $groupStopped = $false; $finished = $false
@@ -152,6 +157,10 @@ try {
                 }
                 $process=[Portcove.NativeQualification.AccountLauncher]::StartVerifiedInGroup($group,$config,$credential,$launch.executable,$launch.sha256,[string[]]$launch.arguments,$launch.directory,$environment,$launch.nsis)
                 $roots.Add($request.id,$process)
+                # This digest is bound by StartVerifiedInGroup's deny-write /
+                # delete handle through suspended creation and resume. Retain
+                # it with the actual returned process identity, not a report.
+                $launchIdentities.Add($request.id,[ordered]@{sha256=$launch.sha256})
                 $value=[ordered]@{ pid=$process.Id; path=$process.Path; started_filetime=$process.CreatedFileTime.ToString(); started_at=$process.StartTime.ToUniversalTime().ToString('o') }
             }
             'observe' {

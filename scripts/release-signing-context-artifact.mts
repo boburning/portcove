@@ -689,7 +689,10 @@ async function receiveContextArtifact(
       );
     const get = (suffix: string) => {
       signingContextRemaining(deadline, 15000);
-      if (++requests > 48) throw new Error("context complete provider readback budget exceeded");
+      // One original phase only: initial12 + at most62 six-GET refreshes. The
+      // fixed five-role/assembly/native/Release graph requires more than48;
+      // neither later getters nor retained-proof reads reset this counter.
+      if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
       const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
       signingContextRemaining(deadline, 15000);
       if (response.status !== 200) throw new Error("context provider response unavailable");

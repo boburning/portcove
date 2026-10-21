@@ -56,6 +56,19 @@ export function inspectAggregateDescriptor(raw: string | undefined) {
 export async function requireReservedAggregate(rawDescriptor: string, rawState: unknown) {
   return inspectReservedAggregate(rawDescriptor, rawState, ["building", "publishing"]);
 }
+/** Readback-only association; ordinary aggregate/signing callers keep the
+ * existing phase guard. A copied context cannot enter this branch. */
+export async function requireReservedPublicationCompletion(
+  rawDescriptor: string,
+  rawState: unknown,
+  context: object,
+) {
+  const { requireActualPublicationControllerContext } =
+    await import("./acquire-release-admission.mts");
+  if (requireActualPublicationControllerContext(context).mode !== "completion-only")
+    throw new Error("actual promoting completion context required");
+  return inspectReservedAggregate(rawDescriptor, rawState, ["promoting"]);
+}
 /** Inert association for the fixed GET-only native readback collector. Neither
  * these public locators nor a matching journal can authorize an effect. */
 export async function inspectReservedPublicationReadback(rawDescriptor: string, rawState: unknown) {

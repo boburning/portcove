@@ -7,11 +7,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
+import {
+  requireRetainedPublishCandidate,
+  candidateHasRetainedPromotion,
+} from "./release-candidate-progress-contract.mts";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import {
   requireReservedAggregate,
   inspectAggregateDescriptor,
+  requireReservedPublicationCompletion,
 } from "./production-aggregate-steps.mts";
 import {
   verifyUploadedAggregate,
@@ -30,7 +35,10 @@ import { prepareReleasePublicBuildInputs } from "./release-public-build-inputs.m
 import { verifyUpdaterInventory } from "./updater-artifact-inventory.mts";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
-import { requireActualReleaseAdmissionContext } from "./acquire-release-admission.mts";
+import {
+  requireActualReleaseAdmissionContext,
+  requireActualPublicationControllerContext,
+} from "./acquire-release-admission.mts";
 import {
   capacityExecutorIdentity,
   executeOwnedCapacityEffect,
@@ -38,13 +46,23 @@ import {
 } from "./release-capacity-executor.mts";
 import type { authenticateCapacityExecutor } from "./release-capacity-executor.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
-import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import {
+  readRemoteCoordinatorSnapshot,
+  hydrateRetainedCoordinatorOperation,
+} from "./release-coordinator-recovery.mts";
+import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import { requireNativeReleaseQualificationPair } from "./release-native-admission.mts";
 import { requireVerifiedReleaseSbomDocument } from "./release-acceptance-evidence.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
-import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import {
+  withCoordinatorDeadline,
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
+import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 
 const repository = "boburning/portcove";
 const base = `repos/${repository}`;
@@ -63,6 +81,7 @@ const prepared = new WeakMap<
   { session: PreparedReleasePublication; descriptor: string; checkpoint: string }
 >();
 const active = new WeakSet<object>();
+const completionOnlySessions = new WeakSet<object>();
 const publicationAdmissions = new WeakMap<object, object>();
 const ownedCompletions = new WeakMap<
   object,
@@ -364,7 +383,23 @@ export async function prepareImmutableReleasePublication(
   },
   recover: () => Promise<unknown>,
   qualificationReadToken: string,
+  controller?: {
+    tools: object;
+    context: object;
+    facts: unknown;
+    source_repository: string;
+    deadline: number;
+    admission?: object;
+  },
 ) {
+  const completionContext = controller?.admission;
+  const readbackOnly =
+    completionContext !== undefined &&
+    requireActualPublicationControllerContext(completionContext).mode === "completion-only";
+  const requireReservation = (descriptor: string, state: unknown) =>
+    readbackOnly
+      ? requireReservedPublicationCompletion(descriptor, state, completionContext)
+      : requireReservedAggregate(descriptor, state);
   request = structuredClone(request);
   if (
     !path.isAbsolute(request.private_root) ||
@@ -376,10 +411,12 @@ export async function prepareImmutableReleasePublication(
   const directory = await mkdtemp(path.join(request.private_root, "immutable-release-"));
   let phase = "reservation-before";
   try {
-    const { descriptor, accepted } = await requireReservedAggregate(
-      request.descriptor,
-      await recover(),
-    );
+    const before = await recover();
+    const retainedPromotion =
+      isRecord(before) &&
+      isRecord(before.input) &&
+      candidateHasRetainedPromotion(before.input.active_candidate);
+    const { descriptor, accepted } = await requireReservation(request.descriptor, before);
     if (
       accepted.release_profile !== "initial-beta-win-linux" ||
       !accepted.public_build_inputs ||
@@ -426,9 +463,22 @@ export async function prepareImmutableReleasePublication(
     const verifier = path.join(directory, process.platform === "win32" ? "verify.exe" : "verify");
     await writeFile(verifier, executable, { mode: 0o700, flag: "wx" });
     const key = path.join(publicInputs.output, "updater-public.key");
-    const updaterRoots = [...request.updater_roots].sort((a, b) =>
-      a.platform.localeCompare(b.platform),
-    );
+    if (controller && request.updater_roots.length)
+      throw new Error("actual publication context cannot mix supplied signer roots");
+    const updaterRoots = [
+      ...(controller
+        ? await (
+            await import("./release-publication-inputs.mts")
+          ).materializePublicationUpdaterRoots(
+            controller.context,
+            controller.facts,
+            packageRoot,
+            directory,
+            await boundedBytes(key, 16384),
+            controller.deadline,
+          )
+        : request.updater_roots),
+    ].sort((a, b) => a.platform.localeCompare(b.platform));
     if (
       updaterRoots.length !== 2 ||
       updaterRoots[0]?.platform !== "linux-x86_64" ||
@@ -451,7 +501,7 @@ export async function prepareImmutableReleasePublication(
             ["verify", artifact, signature, publicKey, identity.sha256, String(identity.bytes)],
             {
               cwd: directory,
-              timeout: 120000,
+              timeout: coordinatorCommandTimeout(120000),
               maxBuffer: 64 * 1024,
               windowsHide: true,
               env: {
@@ -467,6 +517,7 @@ export async function prepareImmutableReleasePublication(
               },
             },
           );
+          checkCoordinatorDeadline();
           const result: unknown = JSON.parse(stdout);
           if (
             !isRecord(result) ||
@@ -555,11 +606,15 @@ export async function prepareImmutableReleasePublication(
     );
     phase = "exact-prepared-source-qualification";
     const qualification = await materializeReleaseQualificationSource(
-      project,
+      controller?.source_repository ?? project,
       request.qualification_parent,
       accepted.source_commit,
       accepted.source_tree,
     );
+    const fixedTools = controller ? await verifiedControllerToolPaths(controller.tools) : null;
+    const finalizerEntry = fixedTools
+      ? path.join(fixedTools.root, "scripts/release-publication-controller.bundle.mjs")
+      : null;
     const finalized = finalizeQualifiedReleaseCandidate(
       {
         qualification_root: qualification.root,
@@ -570,6 +625,13 @@ export async function prepareImmutableReleasePublication(
         sbom_subjects: path.join(directory, "sbom-subjects.txt"),
       },
       qualificationReadToken,
+      fixedTools && finalizerEntry
+        ? {
+            node: fixedTools.node,
+            entry: finalizerEntry,
+            sha256: sha(await readControllerToolFile(finalizerEntry, 32 * 1024 ** 2)),
+          }
+        : undefined,
     );
     for (const stream of ["stdout", "stderr"] as const)
       await writeFile(
@@ -603,7 +665,7 @@ export async function prepareImmutableReleasePublication(
       sha256: sha(manifest),
     });
     phase = "reservation-after";
-    await requireReservedAggregate(request.descriptor, await recover());
+    await requireReservation(request.descriptor, await recover());
     const session = Object.freeze({
       identity: expectedIdentity({
         version: accepted.version,
@@ -630,6 +692,12 @@ export async function prepareImmutableReleasePublication(
       descriptor: session.descriptor,
       checkpoint: session.checkpoint,
     });
+    if (readbackOnly || retainedPromotion) {
+      completionOnlySessions.add(session);
+    }
+    if (completionContext !== undefined) {
+      publicationAdmissions.set(session, completionContext);
+    }
     return session;
   } catch {
     const evidence = { directory, phase, authority: "none", automatic_retry: false };
@@ -1009,7 +1077,7 @@ export async function advanceImmutableReleasePublication(
   const sessionKey = session;
   publicationRemaining(options.deadline);
   const state = prepared.get(sessionKey);
-  if (!state || active.has(sessionKey))
+  if (!state || active.has(sessionKey) || completionOnlySessions.has(sessionKey))
     throw new Error("actual release preparation is required; imported receipts cannot execute");
   session = state.session;
   active.add(sessionKey);
@@ -1319,7 +1387,8 @@ export async function observeOwnedImmutableReleaseCompletion(
 ) {
   publicationRemaining(deadline);
   const state = prepared.get(session);
-  const admission = requireActualReleaseAdmissionContext(admissionContext, "release-publication");
+  const observationContext = requireActualPublicationControllerContext(admissionContext);
+  const admission = observationContext.context;
   if (!state || publicationAdmissions.get(session) !== admissionContext)
     throw new Error("actual owned publisher continuation required before completion");
   const identity = await refreshCapacityExecutor(executor);
@@ -1386,13 +1455,59 @@ export async function observeOwnedImmutableReleaseCompletion(
     throw new Error(
       "immutable publisher settlement checkpoint changed; reconcile before completion",
     );
-  await requireReservedAggregate(state.descriptor, snapshot);
+  if (observationContext.mode === "completion-only")
+    await requireReservedPublicationCompletion(state.descriptor, snapshot, admissionContext);
+  else await requireReservedAggregate(state.descriptor, snapshot);
   const candidate = snapshot.input.active_candidate;
   const controller = snapshot.input.controller;
-  const operation =
+  let operation =
     isRecord(controller) && isRecord(controller.capacity_attempt)
       ? inspectCapacityOperation(controller.capacity_attempt.operation)
       : null;
+  const retainedPromotion = candidateHasRetainedPromotion(candidate);
+  if (observationContext.mode === "completion-only" || retainedPromotion) {
+    if (operation && !["succeeded", "recovered"].includes(operation.outcome))
+      throw new Error(
+        "latest publisher effect unresolved; recover exact effect before readback continuation",
+      );
+    const destination = `github-release:${repository}:v${state.session.identity.version}:publish`;
+    if (operation?.destination !== destination) {
+      const capacity =
+        isRecord(controller) && isRecord(controller.capacity_attempt)
+          ? controller.capacity_attempt
+          : null;
+      const groups =
+        capacity?.schema_version === 2
+          ? inspectCompactCapacityOperations(capacity.prior_operations)
+          : [];
+      const matching = groups.filter(
+        (group) =>
+          group.completed &&
+          group.kind === "upload" &&
+          group.destination_sha256 === capacityDigest(destination) &&
+          group.subject.kind === "candidate" &&
+          isRecord(candidate) &&
+          group.subject.identity === candidate.prepared_commit,
+      );
+      if (matching.length !== 1)
+        throw new Error("original settled publisher receipt missing or ambiguous");
+      const attempts = [];
+      for (const proof of matching[0]!.attempts) {
+        const raw = await hydrateRetainedCoordinatorOperation(
+          admission.coordinator_repository,
+          proof,
+        );
+        if (
+          raw?.outcome === "recovered" &&
+          isRecord(raw.recovery) &&
+          raw.recovery.resolution === "effect-completed"
+        )
+          attempts.push(raw);
+      }
+      if (attempts.length !== 1) throw new Error("original immutable publish settlement ambiguous");
+      operation = attempts[0]!;
+    }
+  }
   const readback = verifyPreparedImmutableRelease(session, candidate, deadline);
   const effect = operation?.completed_effects[0];
   const original = operation?.executor_identity;
@@ -1416,21 +1531,10 @@ export async function observeOwnedImmutableReleaseCompletion(
     original.execution_ref !== identity.execution_ref ||
     original.workflow !== identity.workflow ||
     original.actor_id !== identity.actor_id ||
-    original.run_attempt !== 1 ||
-    capacityDigest(operation.candidate) !==
-      capacityDigest(
-        Object.fromEntries(
-          [
-            "source_commit",
-            "prepared_commit",
-            "version",
-            "transient_retries",
-            "substantive_repairs",
-          ].map((key) => [key, candidate[key]]),
-        ),
-      )
+    original.run_attempt !== 1
   )
     throw new Error("immutable Release lacks its exact settled owned publish operation");
+  requireRetainedPublishCandidate(candidate, operation, readback);
   if (original.job_id !== identity.job_id || original.run_id !== identity.run_id) {
     const response = api.request("GET", `${base}/actions/jobs/${String(original.job_id)}`);
     const job = response.body;
@@ -1487,7 +1591,7 @@ export async function requireOwnedImmutableReleaseCompletion(receipt: object) {
   const retained = ownedCompletions.get(receipt);
   if (!retained) throw new Error("actual owned immutable Release completion custody required");
   publicationRemaining(retained.deadline);
-  const admission = requireActualReleaseAdmissionContext(retained.admission, "release-publication");
+  const admission = requireActualPublicationControllerContext(retained.admission).context;
   const executor = await refreshCapacityExecutor(retained.executor_receipt);
   if (capacityDigest(executor) !== capacityDigest(retained.executor))
     throw new Error("owned completion executor changed");

@@ -160,6 +160,30 @@ void test("admission cannot relabel injected provenance when the caller mutates 
   assert.equal(result.descriptor, null);
   assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
 });
+void test("updater package custody retains the captured callback without granting native acceptance", async (t) => {
+  const f = await fixture(t, "initial-beta-win-linux");
+  const retained: string[] = [];
+  const originalRecover = f.options.recover;
+  assert.ok(originalRecover);
+  const options: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]> = {
+    ...f.options,
+    retainDesktopPackage: async (identity, bytes) => {
+      assert.equal(bytes.length, identity.bytes);
+      assert.equal(hash(bytes), identity.sha256);
+      assert.match(identity.filename, /(?:\.exe|\.AppImage)$/u);
+      retained.push(identity.platform_label);
+    },
+    recover: async (...args) => {
+      delete options.retainDesktopPackage;
+      return originalRecover(...args);
+    },
+  };
+  const result = await acquireReleaseAdmission(f.root, f.config, options);
+  assert.deepEqual(retained.sort(), ["linux-x86_64", "windows-x86_64"]);
+  assert.equal(result.decision, "hold");
+  assert.equal(result.descriptor, null);
+  assert.ok(result.holds.includes("strict-release-native-authorization-not-evaluated"));
+});
 import {
   releaseControlInputsFixture,
   config as reviewProducer,
