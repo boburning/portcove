@@ -9,8 +9,10 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 
 import { isRecord, errorCode } from "./runtime-values.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 function required<T>(value: T | null | undefined): T {
   assert.ok(value !== null && value !== undefined);
@@ -24,7 +26,7 @@ function record(value: unknown) {
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (name: string) => readFile(path.join(root, name), "utf8");
 
-void test("Rust Node and pnpm authorities are exact and workflow consumers do not copy them", async () => {
+void test("Rust Node and pnpm authorities and isolated runtime representations stay coordinated", async () => {
   const quality = qualityManifest;
   const toolchain = await read("rust-toolchain.toml");
   const cargo = await read("Cargo.toml");
@@ -37,6 +39,7 @@ void test("Rust Node and pnpm authorities are exact and workflow consumers do no
     quality.rust.channel.split(".").slice(0, 2).join("."),
   );
   assert.match(node, /^\d+\.\d+\.\d+$/u);
+  assert.equal(controllerNodeVersion, node, "compiled controller Node pin differs");
   assert.match(repositoryPackage.packageManager, /^pnpm@\d+\.\d+\.\d+$/u);
   assert.doesNotMatch(justfile, /\{\{storage\}\}\s+pnpm\b/u);
   assert.doesNotMatch(justfile, /\bcorepack\b/u);
@@ -53,6 +56,35 @@ void test("Rust Node and pnpm authorities are exact and workflow consumers do no
     const setupCount = (workflow.match(/uses: pnpm\/action-setup@/g) ?? []).length;
     assert.equal((workflow.match(/package_json_file: package\.json/g) ?? []).length, setupCount);
     assert.doesNotMatch(workflow, /uses: pnpm\/action-setup@[\s\S]{0,160}\n\s+version:/u);
+  }
+  for (const [filename, jobs] of [
+    [".github/workflows/application-update-production.yml", ["tool_attest", "attest"]],
+    ["docs/qualification/application-update-production.complete.yml", ["tool_attest", "attest"]],
+    ["docs/qualification/application-update-production.controller-tools.yml", ["tool_attest"]],
+  ] as const) {
+    const document = parseDocument(await read(filename), { uniqueKeys: true });
+    assert.deepEqual(document.errors, []);
+    const workflow = record(document.toJS());
+    for (const jobName of jobs) {
+      const job = record(record(workflow.jobs)[jobName]);
+      assert.ok(Array.isArray(job.steps));
+      const steps = job.steps.map(record);
+      const setup = steps.filter(
+        (step) => typeof step.uses === "string" && step.uses.startsWith("actions/setup-node@"),
+      );
+      assert.equal(setup.length, 1, `${filename}: ${jobName}`);
+      const inputs = record(required(setup[0]).with);
+      assert.equal(inputs["node-version"], node, `${filename}: ${jobName}`);
+      assert.equal(inputs["node-version-file"], undefined);
+      assert.equal(inputs["package-manager-cache"], false);
+      assert.equal(
+        steps.some(
+          (step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout@"),
+        ),
+        false,
+        `${filename}: ${jobName} must remain isolated from source checkout`,
+      );
+    }
   }
 });
 
@@ -512,7 +544,7 @@ void test("selective migration intake and security overrides preserve immediate 
     assert.deepEqual(rule.schedule, ["at any time"]);
 });
 
-void test("custom extraction records every exact identity once across supported whitespace and line endings", async () => {
+void test("canonical custom authorities extract each dependency identity once across line endings", async () => {
   const config = renovateConfig;
   const quality = qualityManifest;
   const expected = [
@@ -581,5 +613,37 @@ void test("custom extraction records every exact identity once across supported 
       "duplicate extracted identity",
     );
     assert.deepEqual(sort(actual), sort(expected));
+  }
+});
+
+void test("Node proposals update every maintained isolated pin without rewriting historical canaries", async () => {
+  const managers = renovateConfig.customManagers.filter(
+    (manager) => manager.depNameTemplate === "node",
+  );
+  assert.equal(managers.length, 1);
+  const manager = required(managers[0]);
+  const owns = (filename: string) =>
+    manager.managerFilePatterns.some((pattern) =>
+      new RegExp(pattern.slice(1, -1), "u").test(filename),
+    );
+  assert.equal(owns(".github/workflows/application-update-controller-canary.yml"), false);
+  assert.equal(owns("docs/qualification/application-update-production.aggregate.yml"), false);
+  for (const [filename, count] of [
+    [".node-version", 1],
+    ["scripts/controller-node-runtime.mts", 1],
+    [".github/workflows/application-update-production.yml", 2],
+    ["docs/qualification/application-update-production.complete.yml", 2],
+    ["docs/qualification/application-update-production.controller-tools.yml", 1],
+  ] as const) {
+    assert.equal(owns(filename), true, filename);
+    for (const newline of ["\n", "\r\n"]) {
+      const contents = (await read(filename)).replace(/\r?\n/gu, newline);
+      const matches = manager.matchStrings.flatMap((pattern) => [
+        ...contents.matchAll(new RegExp(pattern, "gu")),
+      ]);
+      assert.equal(matches.length, count, filename);
+      for (const match of matches)
+        assert.equal(required(match.groups).currentValue, controllerNodeVersion, filename);
+    }
   }
 });

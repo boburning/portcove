@@ -5,6 +5,7 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { inspectBoundedZip } from "./bounded-zip.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 export const controllerCompilerSourceAsset = "compiler-source-closure.json";
 export const controllerToolEntries = Object.freeze([
   "production-controller-admission",
@@ -81,7 +82,7 @@ export function inspectControllerToolManifest(raw: unknown) {
       "bundler,files,node_version,platform,schema_version,source_commit,source_tree,tauri_cli_version" ||
     value.schema_version !== 2 ||
     value.platform !== "linux-x86_64" ||
-    value.node_version !== "24.22.0" ||
+    value.node_version !== controllerNodeVersion ||
     value.bundler !== "vite-plus@1.3.0" ||
     value.tauri_cli_version !== "2.12.2" ||
     typeof value.source_commit !== "string" ||
@@ -115,7 +116,7 @@ export function inspectControllerToolManifest(raw: unknown) {
     source_commit: value.source_commit,
     source_tree: value.source_tree,
     platform: "linux-x86_64",
-    node_version: "24.22.0",
+    node_version: controllerNodeVersion,
     bundler: "vite-plus@1.3.0",
     tauri_cli_version: "2.12.2",
     files,

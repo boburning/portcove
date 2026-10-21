@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { isRecord } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { prepareReleaseCompilerSourceClosure } from "./release-compiler-source.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 import {
@@ -172,7 +173,8 @@ export async function buildControllerTools(
   expected: { commit: string; tree: string },
 ) {
   expected = structuredClone(expected);
-  if (process.versions.node !== "24.22.0") throw new Error("fixed Node runtime differs");
+  if (process.versions.node !== controllerNodeVersion)
+    throw new Error("fixed Node runtime differs");
   if (
     process.platform !== "linux" ||
     process.arch !== "x64" ||
@@ -264,7 +266,7 @@ export async function buildControllerTools(
       source_commit: expected.commit,
       source_tree: expected.tree,
       platform: "linux-x86_64",
-      node_version: "24.22.0",
+      node_version: controllerNodeVersion,
       bundler: "vite-plus@1.3.0",
       tauri_cli_version: "2.12.2",
       files,
