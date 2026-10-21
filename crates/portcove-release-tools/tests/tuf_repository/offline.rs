@@ -431,6 +431,22 @@ async fn offline_ceremony_refuses_duplicate_signers_body_changes_wrong_roles_and
             &format!("{name}-config.json"),
         );
     }
+    let complete: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture.root().join("partial-two.json")).unwrap())
+            .unwrap();
+    let raw = serde_json::to_string(&complete).unwrap();
+    let duplicate = raw.replacen("\"version\":1", "\"version\":1,\"version\":1", 1);
+    assert_ne!(duplicate, raw);
+    fs::write(fixture.root().join("duplicate-root-field.json"), duplicate).unwrap();
+    fixture.refuse(
+        "finalize-offline-root",
+        fixture.finalize(
+            "duplicate-root-field.json",
+            &body,
+            "duplicate-root-field-output.json",
+        ),
+        "duplicate-root-field-config.json",
+    );
     let before = fs::read(fixture.root().join("root-final.json")).unwrap();
     let result = fixture.cli(
         "finalize-offline-root",

@@ -228,7 +228,9 @@ fn parse_root(bytes: &[u8]) -> Result<Signed<Root>, TufRepositoryError> {
     for key in keys.values() {
         inspect_public_key(key)?;
     }
-    Ok(serde_json::from_value(value)?)
+    // Keep exact raw-byte struct parsing consistent with downstream Tough.
+    // Value inspection above must not collapse a duplicate Root struct field.
+    Ok(serde_json::from_slice(bytes)?)
 }
 
 fn generated(schema: u32, text: &str) -> Result<Timestamp, TufRepositoryError> {
