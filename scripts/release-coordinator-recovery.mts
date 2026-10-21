@@ -7,6 +7,11 @@ import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./g
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  withCoordinatorDeadline,
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const repository = "boburning/portcove";
 const maximumResponseBytes = 256 * 1024;
@@ -179,7 +184,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 export async function readRemoteCoordinatorSnapshot(
   _parentDirectory: string,
   configuration: unknown,
-  options: { transport?: { cwd: string; spawn?: Spawn } } = {},
+  options: { transport?: { cwd: string; spawn?: Spawn; deadline?: number } } = {},
 ) {
   if (
     !isRecord(configuration) ||
@@ -191,13 +196,21 @@ export async function readRemoteCoordinatorSnapshot(
   )
     throw new Error("recovery requires separately ratified destination configuration");
   if (!options.transport) throw new Error("remote recovery transport is unconfigured");
-  const runner = createGitHubRunner({
-    ...options.transport,
-    maxBuffer: maximumResponseBytes,
-    timeoutMs: 15_000,
-  });
+  const deadline = options.transport.deadline;
+  if (deadline !== undefined && (!Number.isFinite(deadline) || deadline <= performance.now()))
+    throw new Error("remote recovery phase deadline exhausted");
+  const remaining = () => {
+    const timeoutMs =
+      deadline === undefined ? 15000 : Math.floor(Math.min(15000, deadline - performance.now()));
+    if (timeoutMs < 1) throw new Error("remote recovery phase deadline exhausted");
+    return timeoutMs;
+  };
+  const transport = options.transport;
   const api = new GitHubApiClient((args, input) =>
-    runner([...args, "--hostname", "github.com"], input),
+    createGitHubRunner({ ...transport, maxBuffer: maximumResponseBytes, timeoutMs: remaining() })(
+      [...args, "--hostname", "github.com"],
+      input,
+    ),
   );
   const started = performance.now();
   let requests = 0;
@@ -205,7 +218,11 @@ export async function readRemoteCoordinatorSnapshot(
     if (++requests > 20 || performance.now() - started > duration)
       throw new Error("remote recovery request or duration bound exhausted");
     const response = api.request("GET", `repos/${repository}${endpoint}`);
-    if (response.status !== 200 || performance.now() - started > duration)
+    if (
+      response.status !== 200 ||
+      performance.now() - started > duration ||
+      (deadline !== undefined && performance.now() >= deadline)
+    )
       throw new Error("remote recovery response unavailable or late");
     return response.body;
   };
@@ -366,6 +383,21 @@ export async function recoverRemoteCoordinator(
   configuration: unknown,
   options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
 ) {
+  const captured = {
+    ...options,
+    ...(options.transport ? { transport: { ...options.transport } } : {}),
+  };
+  const work = () => recoverRemoteCoordinatorWithinScope(parentDirectory, configuration, captured);
+  return captured.transport?.deadline === undefined
+    ? work()
+    : withCoordinatorDeadline(captured.transport.deadline, work);
+}
+
+async function recoverRemoteCoordinatorWithinScope(
+  parentDirectory: string,
+  configuration: unknown,
+  options: Parameters<typeof readRemoteCoordinatorSnapshot>[2] = {},
+) {
   const snapshot = await readRemoteCoordinatorSnapshot(parentDirectory, configuration, options);
   const localRepository = await mkdtemp(
     path.join(path.resolve(parentDirectory), "coordinator-recovery-"),
@@ -388,11 +420,12 @@ export async function recoverRemoteCoordinator(
       ],
       {
         env,
-        timeout: 30_000,
+        timeout: coordinatorCommandTimeout(),
         maxBuffer: 128 * 1024,
         windowsHide: true,
       },
     );
+    checkCoordinatorDeadline();
     phase = "validate-and-import";
     const { importCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
     const state = await importCoordinatorCheckpoint(
@@ -400,6 +433,7 @@ export async function recoverRemoteCoordinator(
       snapshot.checkpoint,
       snapshot.objects,
     );
+    checkCoordinatorDeadline();
     return {
       ...state,
       repository: localRepository,

@@ -30,8 +30,16 @@ export async function dispatchPreparedReleaseCandidate(
   credential: string,
   beforeDispatch: () => Promise<void>,
   transport: typeof fetch = fetch,
+  deadline?: number,
 ) {
-  return observePreparedReleaseCandidate(raw, credential, beforeDispatch, transport, null);
+  return observePreparedReleaseCandidate(
+    raw,
+    credential,
+    beforeDispatch,
+    transport,
+    null,
+    deadline,
+  );
 }
 /** Exact GET-only continuation of an already retained provider identity. This
  * cannot discover an unknown run, resolve ambiguity by guessing, or re-POST. */
@@ -40,9 +48,17 @@ export async function readPreparedReleaseCandidate(
   runId: number,
   credential: string,
   transport: typeof fetch = fetch,
+  deadline?: number,
 ) {
   positive(runId);
-  return observePreparedReleaseCandidate(raw, credential, async () => {}, transport, runId);
+  return observePreparedReleaseCandidate(
+    raw,
+    credential,
+    async () => {},
+    transport,
+    runId,
+    deadline,
+  );
 }
 /** GET-only lost-ack recovery. A complete, bracketed exact-head inventory must
  * identify exactly one first-attempt run from the fixed principal/tag. Missing
@@ -51,8 +67,9 @@ export async function discoverPreparedReleaseCandidate(
   raw: Candidate,
   credential: string,
   transport: typeof fetch = fetch,
+  deadline?: number,
 ) {
-  return observePreparedReleaseCandidate(raw, credential, async () => {}, transport, 0);
+  return observePreparedReleaseCandidate(raw, credential, async () => {}, transport, 0, deadline);
 }
 async function observePreparedReleaseCandidate(
   raw: Candidate,
@@ -60,6 +77,7 @@ async function observePreparedReleaseCandidate(
   beforeDispatch: () => Promise<void>,
   transport: typeof fetch,
   existingRunId: number | null,
+  phaseDeadline?: number,
 ) {
   const input = structuredClone(raw);
   if (
@@ -79,6 +97,16 @@ async function observePreparedReleaseCandidate(
   const ref = `refs/tags/${namespace}-prepared/v${version}`;
   const workflowEndpoint = `/repos/${repository}/actions/workflows/release.yml`;
   const start = performance.now();
+  if (phaseDeadline !== undefined && !Number.isFinite(phaseDeadline))
+    throw new Error("prepared dispatch phase deadline invalid");
+  const deadline = Math.min(start + 120000, phaseDeadline ?? Infinity);
+  const remaining = () => {
+    const left = Math.floor(deadline - performance.now());
+    if (!Number.isFinite(deadline) || left < 1)
+      throw new Error("prepared dispatch phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   let requests = 0;
   const request = async (method: "GET" | "POST", endpoint: string, body?: unknown) => {
     if (++requests > 16 || performance.now() - start > 120000)
@@ -86,7 +114,7 @@ async function observePreparedReleaseCandidate(
     const response = await transport(`${origin}${endpoint}`, {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(remaining()),
       headers: {
         authorization: `Bearer ${credential}`,
         accept: "application/vnd.github+json",
@@ -95,6 +123,12 @@ async function observePreparedReleaseCandidate(
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
+    try {
+      remaining();
+    } catch (error) {
+      await response.body?.cancel();
+      throw error;
+    }
     if (response.status !== 200) throw new Error("prepared dispatch response status unsupported");
     if (!response.body) throw new Error("prepared dispatch response body absent");
     const reader = response.body.getReader();
@@ -103,6 +137,7 @@ async function observePreparedReleaseCandidate(
     try {
       for (;;) {
         const next = await reader.read();
+        remaining();
         if (next.done) break;
         const chunk: unknown = next.value;
         if (!(chunk instanceof Uint8Array)) throw new Error("prepared dispatch body chunk invalid");
@@ -132,6 +167,7 @@ async function observePreparedReleaseCandidate(
       throw new Error("fixed release workflow is unavailable");
     if (existingRunId === null) {
       await beforeDispatch();
+      remaining();
       attempted = true;
       const acknowledgment = await request("POST", `${workflowEndpoint}/dispatches`, {
         ref: ref.slice("refs/tags/".length),

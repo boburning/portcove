@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, GitHubApiError } from "./github-api.mts";
 import {
   inspectImmutableReleaseSettlement,
@@ -10,7 +11,61 @@ import {
   advanceImmutableReleasePublication,
   verifyPreparedImmutableRelease,
   advanceOwnedImmutableReleasePublication,
+  observeOwnedImmutableReleaseCompletion,
+  requireOwnedImmutableReleaseCompletion,
+  rebindPreparedImmutableReleaseAfterPhase,
 } from "./release-immutable-publication.mts";
+
+void test("bounded immutable writes retain late successful responses as unresolved and never start after expiry", async (t) => {
+  let clock = 1000,
+    calls = 0;
+  t.mock.method(performance, "now", () => clock);
+  const next = proposeImmutableReleaseTransition(fixture().identity, null, []);
+  assert.equal(next.decision, "effect");
+  if (next.decision !== "effect") return;
+  const transport = async () => {
+    calls++;
+    clock = 2001;
+    return new Response("{}", { status: 201 });
+  };
+  await assert.rejects(
+    performImmutableReleaseEffect(next.effect, null, "inert", transport, 999),
+    /phase deadline/,
+  );
+  assert.equal(calls, 0);
+  await assert.rejects(
+    performImmutableReleaseEffect(next.effect, null, "inert", transport, 2000),
+    /phase deadline/,
+  );
+  assert.equal(calls, 1);
+});
+
+void test("copied completed releases cannot become owned settlement custody", async (t) => {
+  t.mock.method(globalThis, "fetch", () => assert.fail("no actual publisher or credential"));
+  await assert.rejects(
+    requireOwnedImmutableReleaseCompletion({ kind: "actual-owned-immutable-release-completion" }),
+    /actual owned immutable/,
+  );
+  await assert.rejects(
+    observeOwnedImmutableReleaseCompletion({} as never, {} as never, {}, {} as never),
+    /actual same-process/,
+  );
+  await assert.rejects(
+    observeOwnedImmutableReleaseCompletion({} as never, {} as never, {}, {} as never, 0),
+    /phase deadline/,
+  );
+  await assert.rejects(
+    rebindPreparedImmutableReleaseAfterPhase({} as never, {
+      checkpoint: "a".repeat(40),
+      phase: "publishing",
+    }),
+    /actual idle immutable/,
+  );
+  await assert.rejects(
+    rebindPreparedImmutableReleaseAfterPhase({} as never, {}, 0),
+    /phase deadline/,
+  );
+});
 
 void test("owned publication refuses copied publication or signing-stage claims before any provider request", async (t) => {
   t.mock.method(globalThis, "fetch", () => assert.fail("no admitted publication context"));

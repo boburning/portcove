@@ -9,6 +9,7 @@ import {
   requestAssemblerToken,
   controllerOidcSubject,
   verifyReleaseControlReaderJobIdentity,
+  verifyReleaseInputReaderJobIdentity,
 } from "./assembler-job-identity.mts";
 import {
   requireReleaseInputWriterPolicy,
@@ -31,6 +32,7 @@ import {
 } from "./release-control-handshake.mts";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import path from "node:path";
 import { inspectControlRound } from "./release-control-handshake.mts";
 import type { ObservedControlArtifact } from "./release-control-handshake.mts";
@@ -70,6 +72,7 @@ type ReaderOptions = {
   phase?: ReleaseControlPhase;
   identity?: ReaderIdentityOptions;
   requestToken?: typeof requestAssemblerToken;
+  deadline?: number;
 };
 export async function authenticateControlReaderJob(
   environment: NodeJS.ProcessEnv,
@@ -85,22 +88,39 @@ export async function authenticateControlReaderJob(
     workflowBytes,
     phase,
   );
+  const readOnlyAdmission = phase === "admission" && admitted.mode === "admission-only";
   const expected = {
     audience: profile.reader_audience,
-    subject: controllerOidcSubject(admitted.execution_ref, profile.reader_environment),
+    subject: controllerOidcSubject(
+      admitted.execution_ref,
+      readOnlyAdmission ? undefined : profile.reader_environment,
+    ),
     controller_revision: admitted.revision,
     controller_ref: admitted.execution_ref,
     actor_id: admitted.actor_id,
     run_id: admitted.run_id,
     run_attempt: admitted.run_attempt,
   };
-  const token = await (options.requestToken ?? requestAssemblerToken)(expected.audience, env);
-  const identity = await verifyReleaseControlReaderJobIdentity(
-    phase,
-    token,
-    expected,
-    options.identity ?? { transport: { cwd: process.cwd() } },
+  const token = await (options.requestToken ?? requestAssemblerToken)(
+    expected.audience,
+    env,
+    fetch,
+    options.deadline,
   );
+  const identityOptions = {
+    ...options.identity,
+    transport: {
+      ...(options.identity?.transport ?? { cwd: process.cwd() }),
+      ...(options.deadline === undefined
+        ? {}
+        : {
+            deadline: Math.min(options.deadline, options.identity?.transport?.deadline ?? Infinity),
+          }),
+    },
+  };
+  const identity = readOnlyAdmission
+    ? await verifyReleaseInputReaderJobIdentity(token, expected, identityOptions)
+    : await verifyReleaseControlReaderJobIdentity(phase, token, expected, identityOptions);
   return { admitted, identity };
 }
 
@@ -121,8 +141,18 @@ export async function authenticateReleaseControlSource(
     now?: () => number;
     observedArtifact?: ObservedControlArtifact;
     round?: { index: number; nonce: string };
+    deadline?: number;
   } = {},
 ) {
+  const phaseDeadline = options.deadline;
+  const remaining = () => {
+    const left =
+      phaseDeadline === undefined ? 15000 : Math.floor(phaseDeadline - performance.now());
+    if (!Number.isFinite(left) || left < 1 || (phaseDeadline !== undefined && left > 600000))
+      throw new Error("release controls phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   const env = { ...environment };
   const phase = inspectReleaseControlPhase(options.phase);
   const profile = releaseControlPhaseProfile(phase);
@@ -168,24 +198,25 @@ export async function authenticateReleaseControlSource(
     throw new Error("protection handoff is not from this exact admitted controller attempt");
   if (identity.job_id === producer.job_id || identity.check_run_id === producer.check_run_id)
     throw new Error("protection observer and control reader must be separate jobs");
-  const observerRunner = createGitHubRunner({
-    ...options.observerTransport,
-    cwd: process.cwd(),
-    maxBuffer: 128 * 1024,
-    timeoutMs: 15000,
-  });
   const observerApi =
     options.observerApi ??
     new GitHubApiClient((args, input) =>
-      observerRunner([...args, "--hostname", "github.com"], input),
+      createGitHubRunner({
+        ...options.observerTransport,
+        cwd: process.cwd(),
+        maxBuffer: 128 * 1024,
+        timeoutMs: remaining(),
+      })([...args, "--hostname", "github.com"], input),
     );
   const producerJobId = producer.job_id;
   const producerCheckRunId = producer.check_run_id;
   const producerReadback = () => {
+    remaining();
     const response = observerApi.request(
       "GET",
       `repos/boburning/portcove/actions/jobs/${producerJobId}`,
     );
+    remaining();
     const job = response.body;
     if (
       response.status !== 200 ||
@@ -218,6 +249,7 @@ export async function authenticateReleaseControlSource(
   const producerIdentity = producerReadback();
   const now = options.now ?? Date.now;
   const guard = () => {
+    remaining();
     if (now() >= Date.parse(identity.expires_at))
       throw new Error("control reader identity expired");
     const policy = requireReleaseInputWriterPolicy(
@@ -423,6 +455,7 @@ export async function authenticateReleaseControlRound(
   factsSha256: string,
   rawPhase: unknown,
   index: number,
+  options: { deadline?: number } = {},
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const round = { index, nonce: randomBytes(32).toString("hex") };
@@ -430,8 +463,12 @@ export async function authenticateReleaseControlRound(
   if (!path.isAbsolute(directory) || !/^[a-f0-9]{64}$/u.test(factsSha256))
     throw new Error("private round directory and exact prepared facts required");
   const env = { ...process.env };
+  const deadlineOption = options.deadline === undefined ? {} : { deadline: options.deadline };
   const workflow = await readProductionControllerWorkflowBytes();
-  const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  const reader = await authenticateControlReaderJob(env, workflow, {
+    phase,
+    ...deadlineOption,
+  });
   if (reader.identity.evidence_scope !== "github.com") throw new Error("actual reader required");
   await mkdir(directory, { mode: 0o700 });
   await writeFile(
@@ -439,13 +476,23 @@ export async function authenticateReleaseControlRound(
     JSON.stringify(prepareControlReadiness(reader.identity, factsSha256, phase, round)),
     { flag: "wx", mode: 0o600 },
   );
-  const observedArtifact = await waitForControlArtifact(directory, "observation", {
+  const observedArtifact = await waitForControlArtifact(
+    directory,
+    "observation",
+    {
+      phase,
+      round,
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      run_id: String(reader.admitted.run_id),
+      run_attempt: reader.admitted.run_attempt,
+    },
+    options.deadline === undefined ? {} : { phaseDeadline: options.deadline },
+  );
+  return authenticateReleaseControlSource(env, workflow, {
     phase,
     round,
-    controller_revision: reader.admitted.revision,
-    controller_ref: reader.admitted.execution_ref,
-    run_id: String(reader.admitted.run_id),
-    run_attempt: reader.admitted.run_attempt,
+    observedArtifact,
+    ...deadlineOption,
   });
-  return authenticateReleaseControlSource(env, workflow, { phase, round, observedArtifact });
 }

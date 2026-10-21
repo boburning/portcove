@@ -54,6 +54,9 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 // A fixed payload job starts a fresh process before receiving trusted tools.
 // The receiver must not silently add time outside the role's total deadline.
 const payloadPhaseStarted = performance.now();
+export function payloadSigningPhaseDeadline() {
+  return payloadPhaseStarted + 570000;
+}
 type AggregateExpected = Omit<
   Parameters<typeof verifyUploadedAggregate>[1],
   "candidate" | "candidate_artifact_ids"
@@ -298,8 +301,15 @@ type PrivateSignatures = {
   signatures: Awaited<ReturnType<typeof signReleasePayload>>[];
   settlement: Awaited<ReturnType<typeof executeOwnedCapacityEffect>>;
   handoff: Awaited<ReturnType<typeof handoffSigningOutput>>;
+  control_round: number;
 };
 const actualSignatures = new WeakMap<object, PrivateSignatures>();
+export async function nextPreparedPayloadControlRound(receipt: object) {
+  await requirePreparedPayloadSignatures(receipt);
+  const actual = actualSignatures.get(receipt)!;
+  if (actual.control_round >= 12) throw new Error("fixed payload control rounds exhausted");
+  return ++actual.control_round;
+}
 
 /** Genuine local crypto, immutable output readback and existing journal
  * settlement. Cross-job attestation and post-sign qualification remain required;
@@ -618,9 +628,14 @@ export async function runPayloadSigningController(
     {},
     async (context, prepared, directory) => {
       requireActualReleaseAdmissionContext(context, "payload-signing");
-      const token = await requestAssemblerToken("portcove-payload-signing");
+      const token = await requestAssemblerToken(
+        "portcove-payload-signing",
+        process.env,
+        fetch,
+        deadline,
+      );
       const identity = await verifyPayloadSignerJobIdentity(token, identityExpected, {
-        transport: { cwd: directory },
+        transport: { cwd: directory, deadline },
       });
       if (identity.evidence_scope !== "github.com")
         throw new Error("actual payload signer required");
@@ -633,6 +648,7 @@ export async function runPayloadSigningController(
           audience: "portcove-capacity-executor",
         },
         directory,
+        deadline,
       );
       const actualExecutor = capacityExecutorIdentity(executor);
       if (
@@ -660,15 +676,18 @@ export async function runPayloadSigningController(
           factsDigest,
           "payload",
           round,
+          { deadline },
         );
-        const runner = createGitHubRunner({
-          cwd: directory,
-          maxBuffer: 2 * 1024 ** 2,
-          timeoutMs: 15000,
+        const api = new GitHubApiClient((args, input) => {
+          withinBudget();
+          const response = createGitHubRunner({
+            cwd: directory,
+            maxBuffer: 2 * 1024 ** 2,
+            timeoutMs: Math.max(1, Math.floor(Math.min(15000, deadline - performance.now()))),
+          })([...args, "--hostname", "github.com"], input);
+          withinBudget();
+          return response;
         });
-        const api = new GitHubApiClient((args, input) =>
-          runner([...args, "--hostname", "github.com"], input),
-        );
         let requests = 0;
         const bound = () => {
           if (++requests > 32) throw new Error("payload control read bound exhausted");
@@ -716,7 +735,7 @@ export async function runPayloadSigningController(
         await requireVerifiedReleaseSbomDocument(context.sbom_receipt);
         const coordinator = { schema_version: 1, namespace: authorities.namespace };
         const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
-          transport: { cwd: directory },
+          transport: { cwd: directory, deadline },
         });
         await requireReservedAggregate(
           JSON.stringify({
@@ -834,7 +853,15 @@ export async function runPayloadSigningController(
       );
       if (!handoff) throw new Error("actual immutable payload output custody missing");
       currentCheckpoint = settlement.checkpoint;
-      completed = { context, prepared, tools: toolsReceipt, directory, settlement, handoff };
+      completed = {
+        context,
+        prepared,
+        tools: toolsReceipt,
+        directory,
+        settlement,
+        handoff,
+        control_round: round,
+      };
     },
     {
       compiler: {

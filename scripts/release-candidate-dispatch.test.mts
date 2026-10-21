@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import {
   dispatchPreparedReleaseCandidate,
   readPreparedReleaseCandidate,
@@ -14,6 +15,50 @@ const input = {
   remote_configuration: { schema_version: 1, namespace: "portcove-fixture" },
   dispatch_actor_id: "1234",
 };
+void test("dispatch phase deadline refuses expired reads and a late guard before any POST", async (t) => {
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  const p = provider();
+  await assert.rejects(
+    dispatchPreparedReleaseCandidate(input, "secret", async () => {}, p.transport, 999),
+    /phase deadline/,
+  );
+  await assert.rejects(
+    readPreparedReleaseCandidate(input, 42, "secret", p.transport, 999),
+    /phase deadline/,
+  );
+  await assert.rejects(
+    discoverPreparedReleaseCandidate(input, "secret", p.transport, 999),
+    /phase deadline/,
+  );
+  assert.equal(p.calls.length, 0);
+  await assert.rejects(
+    dispatchPreparedReleaseCandidate(
+      input,
+      "secret",
+      async () => {
+        clock = 2001;
+      },
+      p.transport,
+      2000,
+    ),
+  );
+  assert.deepEqual(
+    p.calls.map((c) => c.method),
+    ["GET"],
+  );
+  clock = 1000;
+  const late: typeof fetch = async (url, options) => {
+    const result = await p.transport(url, options);
+    clock = 2001;
+    return result;
+  };
+  await assert.rejects(discoverPreparedReleaseCandidate(input, "secret", late, 2000));
+  assert.deepEqual(
+    p.calls.map((c) => c.method),
+    ["GET", "GET"],
+  );
+});
 function provider(mode = "success") {
   const calls: { url: string; method: string; body: unknown }[] = [];
   const transport: typeof fetch = async (raw, init) => {

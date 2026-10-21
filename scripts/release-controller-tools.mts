@@ -11,6 +11,7 @@ export const controllerToolEntries = Object.freeze([
   "release-control-ready",
   "release-reviewed-inputs",
   "release-payload-preparation",
+  "release-signing-controller",
   "release-role-key-channel",
   "release-coordinator-driver",
 ] as const);

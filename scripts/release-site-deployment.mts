@@ -30,11 +30,22 @@ import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
-import { verifyPreparedImmutableRelease } from "./release-immutable-publication.mts";
-import type { PreparedReleasePublication } from "./release-immutable-publication.mts";
 import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
+import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
+import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
+import { readControllerToolFile } from "./release-controller-tools.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+function remaining(deadline: number | undefined, maximum: number) {
+  if (deadline !== undefined && !Number.isFinite(deadline))
+    throw new Error("site deployment phase deadline exhausted; preserve actual effects");
+  const value =
+    deadline === undefined ? maximum : Math.floor(Math.min(maximum, deadline - performance.now()));
+  if (value < 1)
+    throw new Error("site deployment phase deadline exhausted; preserve actual effects");
+  return value;
+}
 const block = 512;
 function octal(header: Buffer, start: number, length: number, value: number) {
   const text = value.toString(8).padStart(length - 1, "0");
@@ -104,6 +115,9 @@ interface DeploymentSession {
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
+  verifier: { path: string; sha256: string };
+  release_binding?: { result: object; tools: object; report_sha256: string };
+  deadline?: number;
   generation: Composed["generation"];
   publication: Composed["publication"];
   previous_generation: Composed["generation"] | null;
@@ -181,6 +195,7 @@ export async function verifyUploadedSiteArchive(
 ) {
   const prepared = sessions.get(session);
   if (!prepared) throw new Error("actual prepared site session unavailable");
+  remaining(prepared.deadline, 15000);
   const expected = structuredClone(rawExpected);
   if (
     Object.keys(expected).sort().join(",") !==
@@ -191,17 +206,20 @@ export async function verifyUploadedSiteArchive(
     !/^[a-f0-9]{40}$/u.test(expected.controller_revision)
   )
     throw new Error("site artifact provider identity unavailable");
-  const runner = createGitHubRunner({
-    cwd: prepared.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 128 * 1024,
-  });
   const api =
     options.api ??
-    new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: prepared.directory,
+        timeoutMs: remaining(prepared.deadline, 15000),
+        maxBuffer: 128 * 1024,
+      })([...args, "--hostname", "github.com"], input),
+    );
   const endpoint = `repos/boburning/portcove/actions/artifacts/${expected.artifact_id}`;
   const identity = () => {
+    remaining(prepared.deadline, 15000);
     const response = api.request("GET", endpoint);
+    remaining(prepared.deadline, 15000);
     if (response.status !== 200) throw new Error("site artifact provider readback unavailable");
     const value = response.body;
     if (
@@ -239,9 +257,10 @@ export async function verifyUploadedSiteArchive(
     const bytes = (options.download ?? readGitHubArtifactArchive)(`${endpoint}/zip`, {
       cwd: prepared.directory,
       maxBytes: before.bytes,
-      timeoutMs: 120_000,
+      timeoutMs: remaining(prepared.deadline, 120000),
     });
     await writeFile(path.join(attempt, "uploaded.zip"), bytes, { flag: "wx", mode: 0o600 });
+    remaining(prepared.deadline, 15000);
     if (bytes.length !== before.bytes || hash(bytes) !== before.sha256)
       throw new Error("site artifact provider archive bytes differ");
     inspectSiteArtifactArchive(bytes, {
@@ -302,6 +321,7 @@ export async function prepareSiteDeployment(
     composed.output,
     composed.generation.generation,
     request.trusted_root_sha256,
+    request.deadline,
   );
   const archive = serializeSiteTar(files);
   const directory = await mkdtemp(path.join(request.output_parent, "site-deployment-"));
@@ -339,8 +359,12 @@ export async function prepareSiteDeployment(
           request.previous_site,
           request.expected_previous_generation!,
           request.trusted_root_sha256,
+          request.deadline,
         );
+  remaining(request.deadline, 15000);
   sessions.set(session, {
+    verifier: { path: request.verifier, sha256: request.verifier_sha256 },
+    ...(request.deadline === undefined ? {} : { deadline: request.deadline }),
     ...retained,
     publication: structuredClone(composed.publication),
     previous_generation: prior ? structuredClone(prior.generation) : null,
@@ -348,12 +372,58 @@ export async function prepareSiteDeployment(
   return { changed: true as const, session, archive: archivePath, ...receipt, authority: "none" };
 }
 
+/** Bind actual keyless composition to the authenticated publisher's exact
+ * record set and the current fixed tool artifact. Valid TUF signatures alone
+ * cannot select different release records or appoint a different verifier. */
+export async function bindSiteDeploymentToPublicationResult(
+  session: DeploymentSession,
+  resultReceipt: object,
+  toolsReceipt: object,
+) {
+  const prepared = sessions.get(session);
+  if (!prepared?.publication) throw new Error("actual authenticated site composition required");
+  remaining(prepared.deadline, 15000);
+  const result = await requireReceivedPublicationResult(resultReceipt, prepared.deadline);
+  const tools = await verifiedControllerToolPaths(toolsReceipt);
+  const controller = result.record.controller;
+  if (
+    !isRecord(controller) ||
+    controller.revision !== tools.identity.controller_revision ||
+    controller.source_tree !== tools.identity.source_tree ||
+    controller.ref !== tools.identity.controller_ref ||
+    prepared.verifier.path !== tools.rust ||
+    prepared.verifier.sha256 !== hash(await readControllerToolFile(tools.rust)) ||
+    !isRecord(result.record.context.binding) ||
+    prepared.publication.records_sha256 !== result.record.context.binding.records_sha256
+  )
+    throw new Error(
+      "site composition differs from actual fixed tool or published exact record set",
+    );
+  if (
+    prepared.release_binding &&
+    (prepared.release_binding.result !== resultReceipt ||
+      prepared.release_binding.tools !== toolsReceipt)
+  )
+    throw new Error("site cannot switch its publisher binding");
+  prepared.release_binding = {
+    result: resultReceipt,
+    tools: toolsReceipt,
+    report_sha256: result.report_sha256,
+  };
+  remaining(prepared.deadline, 15000);
+  return {
+    records_sha256: prepared.publication.records_sha256,
+    report_sha256: result.report_sha256,
+    authority: "none" as const,
+  };
+}
+
 /** Public readback is necessary after provider completion. This alone cannot
  * settle a remote pending intent or establish who deployed an artifact. */
 export async function readBackSiteDeployment(session: DeploymentSession) {
   const prepared = sessions.get(session);
   if (!prepared) throw new Error("imported deployment sessions cannot establish public completion");
-  return readPublicApplicationSite(prepared.generation);
+  return readPublicApplicationSite(prepared.generation, prepared.deadline);
 }
 
 /** Heavy acquisition precedes the fresh observer handshake. This receipt is
@@ -362,7 +432,7 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
   const prepared = sessions.get(session);
   if (!prepared?.previous_generation)
     throw new Error("actual prepared prior site session required");
-  const readback = await readPublicApplicationSite(prepared.previous_generation);
+  const readback = await readPublicApplicationSite(prepared.previous_generation, prepared.deadline);
   prepared.prior_public_readback = {
     generation: readback.generation,
     evidence_sha256: readback.evidence_sha256,
@@ -390,23 +460,25 @@ export async function publishPreparedSiteDeployment(
     metadata_renewal?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
-  releaseSession?: PreparedReleasePublication,
 ) {
   const prepared = sessions.get(session);
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
     throw new Error("actual authenticated composition and provider upload session required");
+  remaining(prepared.deadline, 15000);
   requireAuthenticatedReleaseControlSource(controls, "site-publication");
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
-  if (input.metadata_renewal !== undefined)
+  if (input.metadata_renewal !== undefined) {
+    if (prepared.release_binding)
+      throw new Error("site requires one exact maintenance or release subject");
     input.metadata_renewal = assertMetadataRenewalPublication(
       input.metadata_renewal,
       prepared.publication,
     );
-  else
+  } else if (!prepared.release_binding)
     throw new Error(
-      "new release site requires privately reconstructed exact record-set binding; integration pending",
+      "new release site requires actual attested publisher and exact record-set binding",
     );
   const executorIdentity = capacityExecutorIdentity(executor);
   if (
@@ -432,27 +504,69 @@ export async function publishPreparedSiteDeployment(
   const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
   if (input.metadata_renewal === undefined && !isRecord(frozen))
     throw new Error("release site requires the existing complete frozen opportunity");
-  const readRelease = () => {
+  const readRelease = async () => {
     if (input.metadata_renewal !== undefined) return null;
-    if (!releaseSession)
-      throw new Error("actual immutable Release preparation required before feed publication");
-    return verifyPreparedImmutableRelease(releaseSession, candidate);
+    const binding = prepared.release_binding;
+    if (
+      !binding ||
+      !isRecord(candidate) ||
+      candidate.phase !== "promoting" ||
+      !isRecord(input.remote_configuration)
+    )
+      throw new Error(
+        "feed publication requires actual promoting reservation and publisher binding",
+      );
+    const result = await requireReceivedPublicationResult(binding.result, prepared.deadline);
+    const tools = await verifiedControllerToolPaths(binding.tools);
+    const context = result.context;
+    const record = result.record;
+    const controller = record.controller;
+    const facts = context.manifest.facts;
+    if (
+      !isRecord(record.candidate) ||
+      !isRecord(controller) ||
+      !isRecord(facts) ||
+      result.report_sha256 !== binding.report_sha256 ||
+      record.namespace !== input.remote_configuration.namespace ||
+      candidateProgressIdentity(candidate) !== candidateProgressIdentity(record.candidate) ||
+      capacityDigest([
+        candidate.release_run,
+        candidate.transient_retries,
+        candidate.substantive_repairs,
+      ]) !==
+        capacityDigest([
+          record.candidate.release_run,
+          record.candidate.transient_retries,
+          record.candidate.substantive_repairs,
+        ]) ||
+      capacityDigest(facts.opportunity) !== capacityDigest(frozen) ||
+      controller.revision !== executorIdentity.controller_revision ||
+      controller.ref !== executorIdentity.execution_ref ||
+      tools.identity.run_id !== executorIdentity.run_id ||
+      tools.identity.run_attempt !== executorIdentity.run_attempt
+    )
+      throw new Error(
+        "current feed reservation, frozen opportunity or fixed executor differs from published result",
+      );
+    remaining(prepared.deadline, 15000);
+    return result.release;
   };
-  readRelease();
-  const runner = createGitHubRunner({
-    cwd: prepared.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
+  await readRelease();
   const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
+    createGitHubRunner({
+      cwd: prepared.directory,
+      timeoutMs: remaining(prepared.deadline, 15000),
+      maxBuffer: 2 * 1024 * 1024,
+    })([...args, "--hostname", "github.com"], body),
   );
   const readBoundary = async () => {
+    remaining(prepared.deadline, 15000);
     requireAuthenticatedReleaseControlSource(controls, "site-publication");
     const facts =
       input.metadata_renewal === undefined
         ? controls.read(api, frozen)
         : controls.readMaintenance(api);
+    remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
       facts.resource_policy_matches_controller !== true ||
@@ -461,7 +575,7 @@ export async function publishPreparedSiteDeployment(
       throw new Error("fresh actual publication controls hold the site attempt");
     return structuredClone(facts.capacity_source.capacity.boundary);
   };
-  const provider = createPagesProviderTransport(prepared.directory);
+  const provider = createPagesProviderTransport(prepared.directory, {}, prepared.deadline);
   if (provider.evidence_scope !== "github.com")
     throw new Error("actual Pages provider transport required");
   const result = await executeOwnedCapacityEffect(
@@ -474,9 +588,9 @@ export async function publishPreparedSiteDeployment(
     async (pending) => {
       // A complete independent prior readback and freshly guarded controls occur
       // before the sole POST. No provider CAS guarantee is inferred from them.
-      await readPublicApplicationSiteMarker(prepared.previous_generation!);
+      await readPublicApplicationSiteMarker(prepared.previous_generation!, prepared.deadline);
       await readBoundary();
-      const immutableRelease = readRelease();
+      const immutableRelease = await readRelease();
       const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
       const write = async (name: string, value: unknown) =>
         writeFile(path.join(attempt, name), JSON.stringify(value), { flag: "wx", mode: 0o600 });
@@ -500,7 +614,7 @@ export async function publishPreparedSiteDeployment(
           },
         );
         await write("acknowledgement.json", accepted);
-        const deadline = performance.now() + 150_000;
+        const deadline = Math.min(performance.now() + 150_000, prepared.deadline ?? Infinity);
         let status: ReturnType<typeof provider.observe> | null = null;
         for (let count = 0; count < 30; count++) {
           if (performance.now() >= deadline)
@@ -517,7 +631,7 @@ export async function publishPreparedSiteDeployment(
           if (status.status === "succeed") break;
           if (isTerminalPagesFailure(status.status))
             throw new Error("Pages provider stopped the affected attempt; retain all effects");
-          await new Promise((resolve) => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, remaining(deadline, 5000)));
         }
         if (status?.status !== "succeed")
           throw new Error("Pages acknowledgement has no completed result; retain pending intent");
@@ -556,6 +670,7 @@ export async function publishPreparedSiteDeployment(
     input.remote_configuration,
     { api },
   );
+  remaining(prepared.deadline, 15000);
   const settled = await recoverReleaseOpportunity(input.repository, result.checkpoint);
   const controller = settled.input.controller;
   const capacity =
@@ -590,6 +705,7 @@ export async function publishPreparedSiteDeployment(
     },
     { remote: { configuration: input.remote_configuration, api } },
   );
+  remaining(prepared.deadline, 15000);
   if (!("durable_checkpoint" in advanced) || advanced.durable_checkpoint !== advanced.checkpoint)
     throw new Error("published metadata handoff remains unresolved; do not deploy again");
   return {
@@ -610,6 +726,7 @@ export async function recoverPublishedSiteHandoff(
   const prepared = sessions.get(session);
   if (!prepared?.publication)
     throw new Error("actual authenticated public component required for site handoff recovery");
+  remaining(prepared.deadline, 15000);
   return recoverOwnedPublishedMetadata(executor, raw, async (operation) => {
     const effects = operation.completed_effects;
     const effect: unknown = Array.isArray(effects) ? effects[0] : null;

@@ -7,6 +7,37 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 
+void test("only the fixed publisher can persist its immutable result under the existing pending journal", () => {
+  const destination = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("release-publication", { kind: "upload", destination }),
+  );
+  for (const role of [
+    "payload-signing",
+    "coordinator",
+    "site-publication",
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+  ] as const)
+    assert.throws(
+      () => assertCapacityExecutorEffectScope(role, { kind: "upload", destination }),
+      /fixed scope/,
+    );
+  for (const request of [
+    { kind: "dispatch" as const, destination },
+    { kind: "retention" as const, destination },
+    { kind: "upload" as const, destination: destination + ":retry" },
+    { kind: "upload" as const, destination: destination.replace("boburning", "other-owner") },
+  ])
+    assert.throws(
+      () => assertCapacityExecutorEffectScope("release-publication", request),
+      /fixed scope/,
+    );
+});
+
 void test("serialized job claims or a copied kind cannot create an executor session", async () => {
   const imported = Object.freeze({ kind: "authenticated-capacity-executor" as const });
   assert.throws(() => capacityExecutorIdentity(imported), /actual fresh executor/u);
@@ -36,6 +67,40 @@ void test("serialized job claims or a copied kind cannot create an executor sess
 });
 
 void test("signing executors can hand off only their own immutable output, never another role or publication", () => {
+  const contextDestination =
+    "github-actions:boburning/portcove:0.1.0-beta.1:payload-signing-context";
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("payload-signing", {
+      kind: "upload",
+      destination: contextDestination,
+    }),
+  );
+  for (const role of [
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+    "coordinator",
+    "release-publication",
+    "site-publication",
+  ] as const)
+    assert.throws(
+      () =>
+        assertCapacityExecutorEffectScope(role, {
+          kind: "upload",
+          destination: contextDestination,
+        }),
+      /fixed scope/,
+    );
+  assert.throws(
+    () =>
+      assertCapacityExecutorEffectScope("payload-signing", {
+        kind: "upload",
+        destination: contextDestination + ":2",
+      }),
+    /fixed scope/,
+  );
   const roles = [
     "payload-signing",
     "tuf-releases",

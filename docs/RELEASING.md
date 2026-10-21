@@ -1614,6 +1614,108 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+`acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
+whole-opportunity control and pre-sign native evidence while the exact candidate
+is still qualifying. Its private same-process proof is exclusively for the
+separate qualifying-to-building journal CAS; it creates no aggregate, payload or
+publication admission. Ordinary acquisition still requires building/publishing,
+and caller flags or imported successful reports cannot select the earlier gate.
+`advanceActualCandidateToBuilding` consumes that same-process proof, rechecks the
+actual retained native/SPDX/public inputs and fresh controls, then advances the
+exact qualifying reservation through the existing local/remote checkpoint CAS.
+It uses the dedicated journal credential only after protected admission. An
+ambiguous remote handoff retains its local checkpoint and requires recovery;
+the helper never retries a mutation. Aggregation and payload admission still
+perform their own checks after the durable building checkpoint.
+The publishing writer separately requires the genuine post-sign
+`release-publication` context and its native journey/SPDX/public-input custody.
+`requireActualCandidatePhaseAdvance` rechecks the original private context,
+controls and exact local/remote checkpoint before exposing a same-process
+handoff. A prepared publication may bind that exact original context to the
+returned phase checkpoint; an imported receipt or caller-updated hash cannot
+rebind it. This handoff does not establish a published Release, a public TUF
+generation or candidate completion.
+The promoting writer separately consumes the actual owned immutable-Release
+completion receipt, retains the exact settled publish operation and Release
+identity in its projection, and rechecks post-sign custody and current controls
+before the same journal CAS. Public Release presence or an imported completion
+object cannot select this route. The active reservation remains intact for the
+later independently authenticated TUF/site publication and completion proof.
+
+Optional candidate `stage_evidence` retains at most three phase histories with
+six attempts each, matching the initial attempt plus two transient retries and
+three substantive repairs. Each attempt binds the preceding checkpoint, exact
+release run and consumed recovery counters to a public projection of immutable
+Check/artifact/operation locators and hashes. Prior entries cannot be changed,
+removed or backfilled; only the corresponding forward phase transition may
+append one entry. The existing 64KiB whole-checkpoint bound applies before any
+ref mutation. These projections support recollection after a crash; stored
+hashes or locators never authenticate a later action. Missing or expired actual
+proof remains held. Legacy candidates without this optional field retain their
+historical encoding and behavior.
+The complete workflow's existing `independent_admission` job requires the signed
+`production-release-admission` environment identity before that phase writer may
+release its journal credential. Consolidated setup must restrict this environment
+to the exact protected controller tag, disable administrator bypass and require
+no recurring human reviewers. This is preparation, with no environment settings
+or credentials activated. Schema-1 admission-only remains a separate read-only
+tag-bound identity and cannot mint this proof.
+
+`prepareReleaseSigningContext` connects the actual same-process pre-sign native,
+SPDX, payload signature and public build-input receipts to a Tough-authenticated
+prior repository. It reconstructs the selected Windows/Linux Preview records
+with the existing record factory, preserves every historical target byte, and
+refuses changed immutable paths, Root/key mismatches or a different verifier.
+The private getter rechecks the complete retained tree and original receipts;
+its full record digest and candidate/aggregate/signature binding are expected
+inputs for the later role and publication joins. Versions retain exact numeric
+`u64` JSON tokens. Initial empty-feed bootstrap, cross-job attestation, five-role
+execution and post-sign qualification remain separate requirements. This
+preparation neither publishes nor turns pre-sign qualification into publication
+admission, and it cannot accept imported context or qualification JSON.
+
+The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
+the current journal at the settled payload checkpoint and derives the complete
+public-site pins from its published seed. It acquires the whole site, invokes
+the authenticated Rust Tough verifier, checks the exact prior publication and
+ratified public Root/offline Targets/payload-registry bytes, then prepares new
+records and brackets the journal again. It shares the payload role's remaining
+deadline through provider, site and verifier reads. Missing prior publication
+refuses; it cannot manufacture bootstrap from an empty directory. The optional
+`publication` projection in the existing authority configuration binds these
+three immutable public JSON sources and the initial setup/preimage digests under
+the same ratified configuration/grant; the complete signing caller requires it.
+This source preparation neither fetches private keys nor changes settings.
+
+`release-signing-controller` is the fixed bundled payload/context continuation.
+After actual payload signatures settle, it derives that prior and record set,
+then opens a second existing pending upload operation for the fixed
+`payload-signing-context` output. Only then does it expose the exact two public
+upload files. Original opaque provider readback and fresh payload-job OIDC bind
+the resulting predicate before journal settlement. It keeps the payload role's
+single 570-second working deadline and allocates subsequent observer rounds from
+the same private counter, bounded at twelve. Executor identity and dedicated
+journal transports inherit that deadline; late write replies remain unresolved.
+The context still needs its fixed attestation step and actual five-role
+consumers. The sixth tool bundle has local isolated refusal smoke evidence;
+its new complete hosted artifact and consolidated job wiring remain pending.
+Secret jobs must launch the authenticated bundle rather than install checkout
+dependencies or execute the unbundled entry. No role settings are activated.
+
+The context artifact preparation additionally requires actual complete public-site
+custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded
+manifest and packed public bytes; the existing raw ZIP preflight, CRC and exact
+ordered file inventory bind the entire context. The producer rechecks the
+uploaded opaque archive against the private factory and obtains fresh signed
+payload-job identity before preparing the existing custom attestation predicate.
+The receiver invokes the pinned GitHub verifier, matches the exact source,
+run/attempt, manifest, artifact and completed numeric producer job, brackets
+provider readback, and rehashes all retained public proof and context files.
+Injected providers cannot mint a private receiver receipt. This transfers pre-sign
+context provenance only. Actual callable role orchestration, fresh role controls,
+post-sign qualification and publication admission remain separate joins; no
+workflow permissions or credential provisioning follow from this preparation.
+
 The actual `assemble-tuf` report additionally returns `publication`: root/offline
 anchor hashes, public-only repository/timestamp/snapshot/record hashes, six
 canonical decimal-string version floors and exact expirations. These facts are

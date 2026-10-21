@@ -612,7 +612,7 @@ function BrowserResults({
       className={
         view === "library"
           ? `port-grid collection-${layout} @container/collection grid w-full ${layout === "rows" ? "gap-0" : "gap-4"}`
-          : "port-grid @container/collection grid w-full max-w-[66.5rem] grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),1fr))] gap-4"
+          : "port-grid @container/collection grid w-full grid-cols-[repeat(auto-fill,minmax(min(100%,12.5rem),13.75rem))] gap-4"
       }
       aria-label={view === "library" ? "Library entries" : "Find games entries"}
       data-focus-group

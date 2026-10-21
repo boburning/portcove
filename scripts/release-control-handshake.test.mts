@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { performance } from "node:perf_hooks";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import {
   controlHandshakeArtifactName,
@@ -118,6 +119,39 @@ async function fixture(
     collect: () => waitForControlArtifact(root, role, input, options),
   };
 }
+
+void test("the caller's monotonic phase deadline survives handshake pagination and refuses before another read", async (t) => {
+  const f = await fixture(t);
+  const epoch = f.options.now();
+  for (const deadline of [epoch - 1, epoch + 240001, Infinity]) {
+    await assert.rejects(
+      waitForControlArtifact(f.root, "ready", f.input, { ...f.options, deadline }),
+      /must tighten/,
+    );
+    assert.equal(f.calls.length, 0);
+  }
+  let clock = 1000;
+  t.mock.method(performance, "now", () => clock);
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, { ...f.options, phaseDeadline: 999 }),
+    /phase deadline/u,
+  );
+  assert.equal(f.calls.length, 0);
+  await assert.rejects(
+    waitForControlArtifact(f.root, "ready", f.input, {
+      ...f.options,
+      phaseDeadline: 2000,
+      api: {
+        request(...args: Parameters<typeof f.options.api.request>) {
+          const result = f.options.api.request(...args);
+          clock = 2001;
+          return result;
+        },
+      },
+    }),
+  );
+  assert.equal(f.calls.length, 1);
+});
 
 void test("bounded rounds use distinct immutable names and reject missing, invalid or excess round identities", () => {
   for (const value of [
