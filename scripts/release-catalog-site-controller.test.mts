@@ -34,6 +34,7 @@ import {
 import {
   recoverOwnedPublishedCatalogMetadata,
   recoverOwnedPublishedMetadata,
+  requireOwnedCapacityPendingBoundary,
 } from "./release-capacity-executor.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
@@ -245,7 +246,7 @@ void test(
         requireOwnedCapacityPendingBoundary: (
           session: object,
           receipt: object,
-        ) => { checkpoint: string; operation: Record<string, unknown> };
+        ) => ReturnType<typeof requireOwnedCapacityPendingBoundary>;
       };
       const attempt = runBoundedCatalogPublicationOperation(
         repository,

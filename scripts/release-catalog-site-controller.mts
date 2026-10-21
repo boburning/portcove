@@ -71,7 +71,7 @@ export function inspectCatalogSiteReservation(
   snapshot: { checkpoint: string; input: Record<string, unknown> },
   checkpoint: string,
   rawDescriptor: unknown,
-  pending?: { checkpoint: string; operation: Record<string, unknown> },
+  pending?: ReturnType<typeof requireOwnedCapacityPendingBoundary>,
 ) {
   const descriptor = inspectCatalogPublicationDescriptor(rawDescriptor);
   if (
