@@ -14,11 +14,14 @@ export const controllerToolEntries = Object.freeze([
   "release-signing-controller",
   "release-role-key-channel",
   "release-coordinator-driver",
+  "release-publication-controller",
+  "release-site-controller",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   ".github/workflows/application-update-production.yml",
   ".github/workflows/release.yml",
   "release/package-policy.json",
+  "apps/desktop/src-tauri/tauri.release-public.conf.json",
 ] as const);
 export const controllerToolPaths = Object.freeze(
   [

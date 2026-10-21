@@ -1,0 +1,662 @@
+/** Actual local-parent candidate selection. Provider acquisition deliberately
+ * retains the admission collector's injected-provider scope: this module owns
+ * its fixed transport and package custody, never an admission/native result. */
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import { lstatSync, readFileSync } from "node:fs";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
+import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
+import { requireActualNativeParent } from "./release-native-parent.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
+import { artifactName } from "./release-package-policy.mts";
+import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
+import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import { isRecord } from "./runtime-values.mts";
+import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
+import {
+  prepareNativeQualificationCheck,
+  collectNativeReleaseQualification,
+} from "./release-native-acceptance.mts";
+import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
+import {
+  nativeCompatibilitySourcePaths,
+  inspectNativeCompatibilitySources,
+} from "./release-native-source-contract.mts";
+
+const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+type Parent = Awaited<ReturnType<typeof requireActualNativeParent>>;
+type Identity = { platform_label: string; filename: string; bytes: number; sha256: string };
+
+/** Duplicate identity only; these are the existing coordinator recovery
+ * counters, not a local permission to advance or retry them. */
+export function nativeInvocationIdentity(
+  prepared: ReturnType<typeof prepareNativeStageRequest>,
+  rawCounters: unknown,
+) {
+  if (
+    !isRecord(rawCounters) ||
+    Object.keys(rawCounters).sort().join(",") !== "substantive_repairs,transient_retries"
+  )
+    throw new Error("native invocation requires exact coordinator recovery counters");
+  const counters: Record<string, number> = {};
+  for (const [name, maximum] of [
+    ["transient_retries", 2],
+    ["substantive_repairs", 3],
+  ] as const) {
+    const value = rawCounters[name];
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 0 || value > maximum)
+      throw new Error("native invocation exceeds existing coordinator recovery limits");
+    counters[name] = value;
+  }
+  const { invocation_id: _discard, ...request } = prepared.request;
+  return Object.freeze({
+    invocation_id: digest({ kind: "native-qualification-invocation-v1", request, counters }),
+    counters: Object.freeze(counters),
+    authority: "none" as const,
+  });
+}
+
+/** Integrity reconstruction only. Exact bytes do not establish native success. */
+export async function inspectSelectedNativeCandidate(
+  facts: Readonly<Pick<PreparedReleaseAdmissionFacts, "assembly" | "archives" | "checkpoint">>,
+  platform: "windows-x86_64" | "linux-x86_64",
+  retained: { identity: Identity; bytes: Uint8Array },
+) {
+  const { accepted, policy, labels } = await inspectTrustedAssemblyInput(facts.assembly);
+  if (
+    accepted.release_profile !== "initial-beta-win-linux" ||
+    labels.length !== 2 ||
+    facts.archives.length !== 2 ||
+    facts.archives
+      .map((entry) => entry.platform)
+      .sort()
+      .join(",") !== [...labels].sort().join(",") ||
+    new Set(facts.archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    !/^[a-f0-9]{40}$/u.test(facts.checkpoint)
+  )
+    throw new Error("native selection requires the reserved complete beta pair");
+  const rule = policy.packages.find(
+    (entry) =>
+      entry.platform_label === platform &&
+      entry.interface === "desktop" &&
+      (entry.format === "nsis" || entry.format === "appimage"),
+  );
+  if (!rule) throw new Error("native selected updater rule absent");
+  const filename = artifactName(rule, accepted.version);
+  const file = accepted.files.find(
+    (entry) => entry.platform_label === platform && entry.filename === filename,
+  );
+  const archives = facts.archives.filter((entry) => entry.platform === platform);
+  if (
+    !file ||
+    archives.length !== 1 ||
+    !Number.isSafeInteger(archives[0]!.artifact_id) ||
+    archives[0]!.artifact_id < 1 ||
+    digest(file) !== digest(retained.identity) ||
+    retained.bytes.byteLength !== file.bytes ||
+    hash(retained.bytes) !== file.sha256
+  )
+    throw new Error("native retained updater differs from its exact immutable archive");
+  return Object.freeze({
+    candidate: Object.freeze({
+      source_commit: accepted.source_commit,
+      source_tree: accepted.source_tree,
+      run_id: accepted.run_id,
+      run_attempt: accepted.run_attempt,
+      artifact_id: archives[0]!.artifact_id,
+      package: Object.freeze({ filename, bytes: file.bytes, sha256: file.sha256 }),
+    }),
+    checkpoint: facts.checkpoint,
+    version: accepted.version,
+    authority: "none" as const,
+    scope: "integrity-only" as const,
+  });
+}
+
+function toolBytes(file: string, expected: string) {
+  const before = lstatSync(file);
+  if (
+    !before.isFile() ||
+    before.isSymbolicLink() ||
+    before.size < 1 ||
+    before.size > 128 * 1024 * 1024
+  )
+    throw new Error("native fixed source tool unavailable");
+  const bytes = readFileSync(file);
+  const after = lstatSync(file);
+  if (
+    before.dev !== after.dev ||
+    before.ino !== after.ino ||
+    before.size !== after.size ||
+    before.mtimeMs !== after.mtimeMs ||
+    bytes.length !== before.size ||
+    hash(bytes) !== expected
+  )
+    throw new Error("native fixed source tool changed");
+  return { dev: after.dev, ino: after.ino, size: after.size, mtimeMs: after.mtimeMs };
+}
+
+/** Data-only route guard used immediately before every credentialled child. */
+export function inspectNativeSourceCommand(args: readonly string[], input?: unknown) {
+  if (args[0] !== "api" || args.length > 16)
+    throw new Error("native source admits fixed read-only GitHub API operations only");
+  let endpoint: string | null = null,
+    method: string | null = null,
+    host: string | null = null,
+    stdin = false;
+  for (let index = 1; index < args.length; index++) {
+    const item = args[index];
+    if (item === "--include") continue;
+    if (item === "--hostname" && host === null) host = args[++index] ?? null;
+    else if (item === "--method" && method === null) method = args[++index] ?? null;
+    else if (item === "--input" && !stdin) {
+      if (args[++index] !== "-") throw new Error("native source forbids body files");
+      stdin = true;
+    } else if (typeof item === "string" && !item.startsWith("-") && endpoint === null)
+      endpoint = item;
+    else throw new Error("native source command shape differs");
+  }
+  if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
+  if (endpoint === "graphql") {
+    if (!stdin || input === undefined || (method !== null && method !== "POST"))
+      throw new Error("native source GraphQL body required");
+    const text = Buffer.isBuffer(input) ? input.toString("utf8") : input;
+    if (typeof text !== "string") throw new Error("native source query must be UTF-8 text");
+    if (Buffer.byteLength(text) > 128 * 1024) throw new Error("native source query bound exceeded");
+    const body: unknown = JSON.parse(text);
+    if (
+      !isRecord(body) ||
+      typeof body.query !== "string" ||
+      !/^\s*query(?:\s|\()/u.test(body.query) ||
+      /\bmutation\b/u.test(body.query)
+    )
+      throw new Error("native source GraphQL mutation refused");
+  } else if (
+    !/^repos\/boburning\/portcove(?:\/[A-Za-z0-9_./?=&%+-]+)?$/u.test(endpoint) ||
+    decodeURIComponent(endpoint.split("?")[0]!)
+      .split("/")
+      .some((part) => part === "." || part === ".." || !part) ||
+    (method !== null && method !== "GET") ||
+    stdin ||
+    input !== undefined
+  )
+    throw new Error("native source repository mutation/foreign route refused");
+  return { scope: "read-only-route-integrity", authority: "none" } as const;
+}
+
+async function sourceTransport(parent: Parent, directory: string) {
+  await parent.recheck();
+  const fixed = parent.transport_configuration;
+  const toolIdentity = toolBytes(fixed.github_cli.path, fixed.github_cli.sha256);
+  const checkToolIdentity = () => {
+    const observed = lstatSync(fixed.github_cli.path);
+    if (
+      !observed.isFile() ||
+      observed.isSymbolicLink() ||
+      observed.dev !== toolIdentity.dev ||
+      observed.ino !== toolIdentity.ino ||
+      observed.size !== toolIdentity.size ||
+      observed.mtimeMs !== toolIdentity.mtimeMs
+    )
+      throw new Error("native fixed source tool identity changed");
+  };
+  const tokenBytes = await readBoundedPublicBuildInputFile(
+    path.dirname(fixed.source_read_token),
+    path.basename(fixed.source_read_token),
+    16384,
+  );
+  const token = tokenBytes.toString("utf8").trim();
+  if (!/^[A-Za-z0-9_-]{20,16384}$/u.test(token))
+    throw new Error("native protected source credential has unsupported bytes");
+  tokenBytes.fill(0);
+  await parent.recheck();
+  const config = path.join(directory, "empty-gh-config");
+  await mkdir(config, { mode: 0o700 });
+  const env = Object.freeze({
+    ...(process.platform === "win32" && process.env.SystemRoot
+      ? { SystemRoot: process.env.SystemRoot }
+      : {}),
+    PATH: path.dirname(fixed.github_cli.path),
+    HOME: config,
+    USERPROFILE: config,
+    GH_CONFIG_DIR: config,
+    GH_HOST: "github.com",
+    GH_TOKEN: token,
+    GH_PROMPT_DISABLED: "1",
+    GH_NO_UPDATE_NOTIFIER: "1",
+  });
+  // The closure is never passed to candidate code or exported as a provenance
+  // constructor. Only maintained read-only collectors below receive adapters.
+  const textSpawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
+    command,
+    args,
+    options,
+  ) => {
+    if (command !== "gh") throw new Error("native source executable selection refused");
+    inspectNativeSourceCommand(args, options.input);
+    checkToolIdentity();
+    const result = spawnSync(fixed.github_cli.path, args, { ...options, env });
+    checkToolIdentity();
+    return result;
+  };
+  const api = new GitHubApiClient((args, input) =>
+    createGitHubRunner({ cwd: directory, maxBuffer: 2 * 1024 * 1024, spawn: textSpawn })(
+      [...args, "--hostname", "github.com"],
+      input,
+    ),
+  );
+  const download: typeof readGitHubArtifactArchive = (endpoint, options) =>
+    readGitHubArtifactArchive(endpoint, {
+      ...options,
+      spawn: (command, args, spawnOptions) => {
+        if (command !== "gh") throw new Error("native source executable selection refused");
+        inspectNativeSourceCommand(args);
+        checkToolIdentity();
+        const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
+        checkToolIdentity();
+        return result;
+      },
+    });
+  const recover = () =>
+    recoverRemoteCoordinator(
+      directory,
+      { schema_version: 1, namespace: parent.descriptor.namespace },
+      { transport: { cwd: directory, spawn: textSpawn } },
+    );
+  const recheck = async () => {
+    await parent.recheck();
+    checkToolIdentity();
+    toolBytes(fixed.github_cli.path, fixed.github_cli.sha256);
+  };
+  return { api, download, recover, recheck };
+}
+
+const selections = new WeakMap<
+  object,
+  {
+    parent: object;
+    directory: string;
+    packagePath: string;
+    packageSha256: string;
+    packageBytes: number;
+    version: string;
+    facts: Readonly<PreparedReleaseAdmissionFacts>;
+    request: ReturnType<typeof prepareNativeStageRequest>;
+    recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
+    recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
+    recheckSource: Awaited<ReturnType<typeof sourceTransport>>["recheck"];
+    api: GitHubApiClient;
+  }
+>();
+
+/** No injected transport or incoming candidate tuple can enter this factory.
+ * It selects only the current reserved run, retaining a data-only request. */
+export async function acquireActualNativeCandidate(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  const directory = await mkdtemp(path.join(parent.descriptor.capture_root, "native-selection-"));
+  const source = await sourceTransport(parent, directory);
+  const packages = new Map<string, { identity: Identity; bytes: Buffer }>();
+  let selected: {
+    facts: Readonly<PreparedReleaseAdmissionFacts>;
+    identity: Awaited<ReturnType<typeof inspectSelectedNativeCandidate>>;
+    bytes: Buffer;
+  } | null = null;
+  try {
+    await acquireReleaseAdmission(
+      directory,
+      {
+        schema_version: 2,
+        namespace: parent.descriptor.namespace,
+        release_profile: "initial-beta-win-linux",
+      },
+      {
+        api: source.api,
+        download: source.download,
+        recover: source.recover,
+        controlPhase: "payload",
+        retainDesktopPackage: async (identity, bytes) => {
+          if (identity.platform_label !== parent.descriptor.platform_label) return;
+          if (packages.has(identity.platform_label)) throw new Error("native package repeats");
+          packages.set(identity.platform_label, { identity: structuredClone(identity), bytes });
+        },
+        establishNative: async (facts) => {
+          await parent.recheck();
+          const retained = packages.get(parent.descriptor.platform_label);
+          if (!retained) throw new Error("native selected platform package absent");
+          const identity = await inspectSelectedNativeCandidate(
+            facts,
+            parent.descriptor.platform_label,
+            retained,
+          );
+          selected = { facts, identity, bytes: retained.bytes };
+          // Intentionally no native result. Existing pair validation refuses this
+          // empty return; selection cannot mint a successful admission context.
+          return [];
+        },
+      },
+    );
+    throw new Error("native selection unexpectedly passed admission");
+  } catch (error) {
+    if (
+      !selected ||
+      !(error instanceof CoordinatorRemoteError) ||
+      !isRecord(error.evidence) ||
+      error.evidence.phase !== "actual-stage-native-qualification"
+    )
+      throw error;
+  }
+  // Callback effects are retained privately; TypeScript does not track closure
+  // assignment across the collector's awaited invocation.
+  const value = selected as {
+    facts: Readonly<PreparedReleaseAdmissionFacts>;
+    identity: Awaited<ReturnType<typeof inspectSelectedNativeCandidate>>;
+    bytes: Buffer;
+  };
+  const current = await source.recover();
+  if (current.checkpoint !== value.facts.checkpoint)
+    throw new Error("native reservation changed after immutable acquisition");
+  await source.recheck();
+  if (!isRecord(current.input) || !isRecord(current.input.active_candidate))
+    throw new Error("native invocation lacks the actual active recovery counters");
+  const recovery = {
+    transient_retries: current.input.active_candidate.transient_retries,
+    substantive_repairs: current.input.active_candidate.substantive_repairs,
+  };
+  const prepared = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: "payload-signing",
+      platform_label: parent.descriptor.platform_label,
+      candidate: value.identity.candidate,
+      journey: null,
+      invocation_id: "0".repeat(64),
+      setup_descriptor_sha256: parent.descriptor_sha256,
+    },
+    parent.authority_configuration,
+  );
+  const invocation = nativeInvocationIdentity(prepared, recovery);
+  const request = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: prepared.request.stage,
+      platform_label: prepared.request.platform_label,
+      candidate: prepared.request.candidate,
+      journey: prepared.request.journey,
+      invocation_id: invocation.invocation_id,
+      setup_descriptor_sha256: parent.descriptor_sha256,
+    },
+    parent.authority_configuration,
+  );
+  const packagePath = path.join(directory, value.identity.candidate.package.filename);
+  await writeFile(packagePath, value.bytes, { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(directory, "request.json"), JSON.stringify(request), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await parent.recheck();
+  const receipt = Object.freeze({
+    kind: "actual-native-candidate-selection",
+    directory,
+    scope: "actual source/package selection only; native execution pending",
+    authority: "none",
+  });
+  selections.set(receipt, {
+    parent: parentReceipt,
+    directory,
+    packagePath,
+    packageSha256: value.identity.candidate.package.sha256,
+    packageBytes: value.identity.candidate.package.bytes,
+    version: value.identity.version,
+    facts: value.facts,
+    request,
+    recovery: invocation.counters,
+    recover: source.recover,
+    recheckSource: source.recheck,
+    api: source.api,
+  });
+  packages.clear();
+  return receipt;
+}
+
+/** Incoming files are locators/data only. Reconstruction binds the original
+ * request to the currently appointed producer, host and compatibility scope. */
+export function inspectNativeCheckRecoveryPlan(
+  rawRequest: unknown,
+  rawExpectedCheck: unknown,
+  rawAuthorities: unknown,
+) {
+  if (
+    !isRecord(rawRequest) ||
+    !isRecord(rawRequest.request) ||
+    !isRecord(rawExpectedCheck) ||
+    Object.keys(rawExpectedCheck).sort().join(",") !== "body,endpoint,method" ||
+    rawExpectedCheck.method !== "POST" ||
+    rawExpectedCheck.endpoint !== "repos/boburning/portcove/check-runs" ||
+    !isRecord(rawExpectedCheck.body) ||
+    !isRecord(rawExpectedCheck.body.output) ||
+    typeof rawExpectedCheck.body.output.summary !== "string" ||
+    Buffer.byteLength(rawExpectedCheck.body.output.summary) > 64 * 1024
+  )
+    throw new Error("native original Check request is missing or malformed");
+  const prior = rawRequest.request;
+  const prepared = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: prior.stage,
+      platform_label: prior.platform_label,
+      candidate: prior.candidate,
+      journey: prior.journey,
+      invocation_id: prior.invocation_id,
+      setup_descriptor_sha256: prior.setup_descriptor_sha256,
+    },
+    rawAuthorities,
+  );
+  if (
+    prepared.request_sha256 !== rawRequest.request_sha256 ||
+    digest(prepared.request) !== digest(prior)
+  )
+    throw new Error("native original Check request differs from current appointed inputs");
+  const summary: unknown = JSON.parse(rawExpectedCheck.body.output.summary);
+  if (!isRecord(summary)) throw new Error("native original Check report is absent");
+  const wire = prepareNativeQualificationCheck(summary.report);
+  const report = wire.report;
+  if (
+    digest(rawExpectedCheck.body) !== digest(wire.body) ||
+    report.stage !== prepared.request.stage ||
+    report.platform_label !== prepared.request.platform_label ||
+    digest(report.candidate) !== digest(prepared.request.candidate) ||
+    report.producer.invocation_id !== prepared.request.invocation_id ||
+    digest(report.journey) !== digest(prepared.request.journey)
+  )
+    throw new Error("native retained Check wire differs from its original invocation");
+  const schema = prepared.request.native_report_schema_version ?? 1;
+  if (
+    report.schema_version !== schema ||
+    (schema === 2 &&
+      report.native_prepublication_profile !== prepared.request.native_prepublication_profile)
+  )
+    throw new Error("native retained Check temporal profile differs from selected configuration");
+  return { prepared, wire, authority: "none" as const };
+}
+
+/** GET-only reconciliation through this parent's privately owned real source
+ * transport. The reused consumer remains injected-provider/unbranded, so these
+ * observations cannot clear admission or mint native acceptance. */
+export async function reconcileActualNativeCheck(
+  selection: object,
+  originalRequest: unknown,
+  expectedCheck: unknown,
+) {
+  const retained = selections.get(selection);
+  if (!retained) throw new Error("actual parent-owned native selection required for readback");
+  const value = await requireActualNativeCandidate(selection);
+  const plan = inspectNativeCheckRecoveryPlan(
+    originalRequest,
+    expectedCheck,
+    value.parent.authority_configuration,
+  );
+  const { report } = plan.wire;
+  const endpoint = `repos/boburning/portcove/commits/${report.candidate.source_commit}/check-runs?check_name=${encodeURIComponent(nativeQualificationCheckName)}&filter=all&per_page=100`;
+  const response = retained.api.request("GET", endpoint);
+  if (
+    response.status !== 200 ||
+    !isRecord(response.body) ||
+    !Number.isSafeInteger(response.body.total_count) ||
+    typeof response.body.total_count !== "number" ||
+    response.body.total_count < 0 ||
+    response.body.total_count > 100 ||
+    !Array.isArray(response.body.check_runs) ||
+    response.body.check_runs.length !== response.body.total_count
+  )
+    throw new Error("native Check readback inventory is incomplete; preserve original attempt");
+  const issuer = value.parent.authority_configuration.apps.native_qualification.app_id;
+  const matches = response.body.check_runs.filter(
+    (raw: unknown) =>
+      isRecord(raw) &&
+      isRecord(raw.app) &&
+      raw.app.id === issuer &&
+      raw.head_sha === report.candidate.source_commit &&
+      raw.name === nativeQualificationCheckName &&
+      raw.external_id === plan.wire.body.external_id,
+  );
+  if (matches.length !== 1 || !isRecord(matches[0]))
+    throw new Error("native Check outcome remains missing or ambiguous; no replay");
+  const id = matches[0].id;
+  if (typeof id !== "number" || !Number.isSafeInteger(id) || id < 1)
+    throw new Error("native Check readback identity is invalid");
+  const fixed = plan.prepared.request.expected;
+  const receipt = await collectNativeReleaseQualification(
+    retained.directory,
+    {
+      schema_version: plan.prepared.request.native_report_schema_version ?? 1,
+      ...(plan.prepared.request.native_report_schema_version === 2
+        ? {
+            native_prepublication_profile: plan.prepared.request.native_prepublication_profile,
+          }
+        : {}),
+      check_id: id,
+      native_app_id: issuer,
+      semantic_app_id: value.parent.authority_configuration.apps.semantic.app_id,
+      classification_app_id: value.parent.authority_configuration.apps.classification.app_id,
+      stage: report.stage,
+      platform_label: report.platform_label,
+      candidate: plan.prepared.request.candidate,
+      producer: { ...fixed.producer, invocation_id: plan.prepared.request.invocation_id },
+      host: fixed.host,
+      compatibility: fixed.compatibility,
+      journey: plan.prepared.request.journey,
+    },
+    { api: retained.api },
+  );
+  await retained.recheckSource();
+  return Object.freeze({
+    check_id: receipt.check_id,
+    report_sha256: receipt.report_sha256,
+    directory: receipt.directory,
+    consumer_scope: receipt.evidence_scope,
+    scope: "real parent-owned GET readback only; no admission/native acceptance",
+    authority: "none" as const,
+  });
+}
+
+export async function requireActualNativeCandidate(receipt: object) {
+  const value = selections.get(receipt);
+  if (!value) throw new Error("actual parent-owned native candidate selection required");
+  const parent = await requireActualNativeParent(value.parent);
+  await value.recheckSource();
+  const current = await value.recover();
+  if (current.checkpoint !== value.facts.checkpoint)
+    throw new Error("native selection reservation advanced; readback/recovery required");
+  const bytes = await readBoundedPublicBuildInputFile(
+    value.directory,
+    path.basename(value.packagePath),
+    512 * 1024 * 1024,
+  );
+  if (bytes.length !== value.packageBytes || hash(bytes) !== value.packageSha256)
+    throw new Error("native selected package changed after acquisition");
+  await parent.recheck();
+  await value.recheckSource();
+  return {
+    parent,
+    request: value.request,
+    package_path: value.packagePath,
+    version: value.version,
+    directory: value.directory,
+    checkpoint: value.facts.checkpoint,
+    recovery: value.recovery,
+    authority: "none" as const,
+    scope: "actual source/package selection only; native execution pending" as const,
+  };
+}
+
+/** The private local reader authenticates exact immutable candidate source data.
+ * This does not appoint source declarations as observed native acceptance. */
+export async function readActualNativeSourceDeclarations(receipt: object) {
+  const retained = selections.get(receipt);
+  if (!retained) throw new Error("actual native source selection required");
+  const selected = await requireActualNativeCandidate(receipt);
+  const files: Record<string, Buffer> = {};
+  for (const pathname of nativeCompatibilitySourcePaths) {
+    const response = retained.api.request(
+      "GET",
+      `repos/boburning/portcove/contents/${pathname}?ref=${selected.request.request.candidate.source_commit}`,
+    );
+    const raw = response.body;
+    if (
+      response.status !== 200 ||
+      !isRecord(raw) ||
+      raw.type !== "file" ||
+      raw.path !== pathname ||
+      raw.encoding !== "base64" ||
+      typeof raw.size !== "number" ||
+      raw.size < 1 ||
+      raw.size > 1024 * 1024 ||
+      typeof raw.content !== "string" ||
+      raw.content.length > 2 * 1024 * 1024 ||
+      typeof raw.sha !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(raw.sha)
+    )
+      throw new Error("native source provider declaration is incomplete");
+    const compact = raw.content.replace(/\n/gu, "");
+    if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(compact))
+      throw new Error("native source encoding is invalid");
+    const bytes = Buffer.from(compact, "base64");
+    if (
+      bytes.byteLength !== raw.size ||
+      bytes.toString("base64") !== compact ||
+      createHash("sha1")
+        .update(Buffer.from(`blob ${bytes.length}\0`))
+        .update(bytes)
+        .digest("hex") !== raw.sha
+    )
+      throw new Error("native immutable source bytes differ from provider identity");
+    files[pathname] = bytes;
+    const filename = `native-source-${nativeCompatibilitySourcePaths.indexOf(pathname)}.bin`;
+    try {
+      const original = await readBoundedPublicBuildInputFile(
+        retained.directory,
+        filename,
+        1024 * 1024,
+      );
+      if (!original.equals(bytes))
+        throw new Error("native retained source declaration changed; preserve original input");
+    } catch (error) {
+      if (!isRecord(error) || error.code !== "ENOENT") throw error;
+      await writeFile(path.join(retained.directory, filename), bytes, { flag: "wx", mode: 0o600 });
+    }
+  }
+  const declaration = inspectNativeCompatibilitySources(files);
+  await requireActualNativeCandidate(receipt);
+  return Object.freeze({
+    declaration,
+    candidate: selected.request.request.candidate,
+    scope: "actual source provider reads; declarations only, no native acceptance",
+    authority: "none" as const,
+  });
+}

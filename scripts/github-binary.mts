@@ -1,4 +1,8 @@
 import { spawnSync } from "node:child_process";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 import type { SpawnSyncOptionsWithBufferEncoding } from "node:child_process";
 
 type Spawn = (
@@ -39,13 +43,14 @@ export function readGitHubArtifactArchive(
   const result = spawn("gh", ["api", "--hostname", "github.com", endpoint], {
     cwd,
     encoding: null,
-    timeout: timeoutMs,
+    timeout: coordinatorCommandTimeout(timeoutMs),
     maxBuffer: maxBytes,
     killSignal: "SIGKILL",
     windowsHide: true,
     shell: false,
     stdio: ["ignore", "pipe", "pipe"],
   });
+  checkCoordinatorDeadline();
   if (
     result.error ||
     result.status !== 0 ||

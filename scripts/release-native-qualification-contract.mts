@@ -38,6 +38,18 @@ export const nativeQualificationScenarios = Object.freeze({
   ] as const),
 });
 export const nativeQualificationCheckName = "Portcove isolated native release qualification";
+export const nativeQualificationWorkerPath = "scripts/release-native-worker.mts";
+/** Preserve the legacy PowerShell harness inventory while admitting only the
+ * maintained fixed Node worker, not a caller-selected TypeScript script. */
+export function inspectNativeQualificationHarnessPath(raw: unknown) {
+  const value = text(raw, 192);
+  if (
+    value !== nativeQualificationWorkerPath &&
+    !/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(value)
+  )
+    throw new Error("native harness path is unsafe");
+  return value;
+}
 const sha = /^[a-f0-9]{64}$/u;
 const git = /^[a-f0-9]{40}$/u;
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
@@ -207,9 +219,7 @@ export function inspectNativeReleaseQualification(raw: unknown) {
   const journey = inspectNativeQualificationJourney(raw.journey, stage, candidate, temporal);
   exact(raw.producer, "harness,invocation_id,source_commit,source_tree,started_at");
   exact(raw.producer.harness, "path,sha256");
-  const harnessPath = text(raw.producer.harness.path, 192);
-  if (!/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(harnessPath))
-    throw new Error("native harness path is unsafe");
+  const harnessPath = inspectNativeQualificationHarnessPath(raw.producer.harness.path);
   const producer = {
     invocation_id: hex(raw.producer.invocation_id),
     source_commit: hex(raw.producer.source_commit, git),

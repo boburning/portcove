@@ -24,9 +24,11 @@ function fixture(
   stage: "payload-signing" | "release-publication" = "payload-signing",
   temporal = false,
   initial = false,
+  fixedWorker = false,
 ) {
   const harnessBytes = Buffer.from("inert native fixture source\n"),
     input = nativeQualificationFixture(stage);
+  if (fixedWorker) input.producer.harness.path = "scripts/release-native-worker.mts";
   input.producer.harness.sha256 = createHash("sha256").update(harnessBytes).digest("hex");
   const prepared = prepareNativeQualificationCheck(
     temporal
@@ -122,6 +124,35 @@ function fixture(
   };
   return { expected, check, suite, calls, api, prepared, harnessBytes };
 }
+void test("fixed maintained Node worker report traverses the exact harness source route without widening script selection", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-worker-consumer-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture("payload-signing", false, false, true);
+  const receipt = await collectNativeReleaseQualification(root, f.expected, { api: f.api });
+  assert.equal(receipt.evidence_scope, "injected-provider");
+  assert.ok(
+    f.calls.includes(
+      `repos/boburning/portcove/contents/scripts/release-native-worker.mts?ref=${f.expected.producer.source_commit}`,
+    ),
+  );
+  for (const path of [
+    "scripts/other-worker.mts",
+    "scripts/release-native-worker.mjs",
+    "scripts/sub/release-native-worker.mts",
+    "scripts/../release-native-worker.mts",
+  ])
+    assert.throws(
+      () =>
+        prepareNativeQualificationCheck({
+          ...f.prepared.report,
+          producer: {
+            ...f.prepared.report.producer,
+            harness: { ...f.prepared.report.producer.harness, path },
+          },
+        }),
+      /harness path/,
+    );
+});
 void test("injected native Check traversal binds exact distinct stage/producer/package and never mints acceptance", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-inert-"));
   t.after(() => rm(root, { recursive: true, force: true }));
