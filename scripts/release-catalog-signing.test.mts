@@ -471,6 +471,51 @@ void test("actual coordinator journal wrapper rechecks controls at every REST an
   assert.equal(observed.filter((value) => value !== "guard").length, before);
   guarded.request("GET");
   assert.equal(observed.at(-1), "GET");
+  // Run the actual producer callback too: a synchronous Check GET may consume
+  // the remaining control lifetime while the enclosing job is still live.
+  const callbackCall = source.indexOf("api: guardedCoordinatorJournal(directory, budget, () => {"),
+    callbackStart = source.indexOf("() => {", callbackCall),
+    callbackEnd = source.indexOf("\n            }),", callbackStart);
+  assert.ok(callbackCall > 0 && callbackEnd > callbackStart);
+  let clock = 59;
+  const order: string[] = [],
+    budget = {
+      monotonicDeadline: 170,
+      check() {
+        if (clock >= 170) throw new Error("job expired");
+      },
+    };
+  const actualCallback: unknown = runInNewContext(
+    `(${stripTypeScriptTypes(`${source.slice(callbackStart, callbackEnd)}\n}`)})`,
+    {
+      budget,
+      api: {},
+      authorities: {},
+      inputs: { opportunity: {}, check_id: 1 },
+      semantic: { proof_sha256: "same" },
+      stable: "stable",
+      readCatalogCoordinatorReview() {
+        order.push("Check GET");
+        clock += 2;
+        return { proof_sha256: "same" };
+      },
+      initialControls: {
+        readMaintenance() {
+          order.push("maintenance");
+          if (clock >= 60) throw new Error("original controls expired");
+          return "stable";
+        },
+      },
+      catalogCoordinatorMaintenanceIdentity: (value: unknown) => value,
+    },
+    { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
+  );
+  assert.equal(typeof actualCallback, "function");
+  const lastGuard = make("inert", budget, actualCallback as () => void),
+    writesBefore = observed.filter((value) => value === "POST").length;
+  assert.throws(() => lastGuard.request("POST"), /controls expired/);
+  assert.deepEqual(order, ["Check GET", "maintenance"]);
+  assert.equal(observed.filter((value) => value === "POST").length, writesBefore);
 });
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),

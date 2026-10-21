@@ -323,11 +323,6 @@ export async function prepareActualCoordinatorCatalogSigning(
           {
             api: guardedCoordinatorJournal(directory, budget, () => {
               budget.check();
-              if (
-                catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !==
-                stable
-              )
-                throw new Error("catalog controls changed before provider journal mutation");
               const currentProof = readCatalogCoordinatorReview(
                 api,
                 authorities,
@@ -336,6 +331,11 @@ export async function prepareActualCoordinatorCatalogSigning(
               );
               if (currentProof.proof_sha256 !== semantic.proof_sha256)
                 throw new Error("catalog selected Check changed before journal mutation");
+              if (
+                catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !==
+                stable
+              )
+                throw new Error("catalog controls changed before provider journal mutation");
               budget.check();
             }),
           },
