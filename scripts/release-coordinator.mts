@@ -1,4 +1,10 @@
 import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
+import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
+import {
+  inspectPublishedCatalogMetadata,
+  currentPublishedSite,
+  assertCatalogPublicationBaseline,
+} from "./release-catalog-metadata-contract.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import {
   inspectPublishedMetadata,
@@ -392,6 +398,9 @@ type Authority = {
   published_metadata_sha256?: string;
   metadata_renewal_sha256?: string;
   metadata_bootstrap_sha256?: string;
+  catalog_publication_sha256?: string;
+  published_catalog_metadata_sha256?: string;
+  published_site_sha256?: string;
 };
 function activePlan(
   active: NonNullable<ReturnType<typeof validateActive>>,
@@ -483,6 +492,9 @@ export function planReleaseOpportunity(input: unknown) {
       "metadata_bootstrap",
       "review_request",
       "review_disposition",
+      "catalog_publication",
+      "published_catalog_metadata",
+      "published_site",
     ],
     "release coordinator input",
   );
@@ -493,6 +505,9 @@ export function planReleaseOpportunity(input: unknown) {
   const publication = validatePublication(input.publication, now);
   const active = validateActive(input.active_candidate);
   const hasMetadata =
+    Object.hasOwn(input, "catalog_publication") ||
+    Object.hasOwn(input, "published_catalog_metadata") ||
+    Object.hasOwn(input, "published_site") ||
     Object.hasOwn(input, "published_metadata") ||
     Object.hasOwn(input, "metadata_renewal") ||
     Object.hasOwn(input, "metadata_bootstrap") ||
@@ -507,6 +522,20 @@ export function planReleaseOpportunity(input: unknown) {
   )
     throw new Error("metadata journal fields require bounded capacity schema2");
   const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
+  const publishedCatalog = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
+  const publishedSite = currentPublishedSite(input);
+  const catalogPublication =
+    input.catalog_publication == null
+      ? null
+      : inspectCatalogPublicationDescriptor(input.catalog_publication);
+  const siteAuthority = {
+    ...(Object.hasOwn(input, "published_site")
+      ? { published_site_sha256: capacityDigest(publishedSite) }
+      : {}),
+    ...(Object.hasOwn(input, "published_catalog_metadata")
+      ? { published_catalog_metadata_sha256: capacityDigest(publishedCatalog) }
+      : {}),
+  };
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const metadataRenewal =
@@ -517,17 +546,58 @@ export function planReleaseOpportunity(input: unknown) {
     input.metadata_bootstrap == null
       ? null
       : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
+  if (catalogPublication) {
+    const authority: Authority = {
+      ...siteAuthority,
+      controller_workflow: controller.workflow,
+      controller_revision: controller.revision,
+      publication_observed_at: publication.observed_at,
+      publication_sha256: capacityDigest(input.publication),
+      catalog_publication_sha256: capacityDigest(catalogPublication),
+      published_catalog_metadata_sha256: capacityDigest(publishedCatalog),
+      published_site_sha256: capacityDigest(publishedSite),
+      ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+    };
+    if (input.opportunity !== null) validateOpportunity(input.opportunity);
+    if (
+      controller.publication_paused ||
+      controller.capacity?.eligibility !== "eligible" ||
+      active ||
+      publication.reserved_versions.length ||
+      reviewRequest ||
+      reviewDisposition
+    )
+      return plan(
+        "pause",
+        "catalog scheduling held by existing pause/capacity/reservation/review recovery",
+        authority,
+      );
+    assertCatalogPublicationBaseline(catalogPublication, input);
+    return plan(
+      "catalog-publication",
+      "explicit catalog subject ready for independently authenticated catalog admission",
+      authority,
+      { catalog_publication: catalogPublication, admission: "required" as const },
+    );
+  }
   if (input.opportunity === null) {
-    if (!metadataBootstrap || active || publication.reserved_versions.length !== 0)
+    if (
+      (!metadataBootstrap && !publishedSite) ||
+      active ||
+      publication.reserved_versions.length !== 0
+    )
       throw new Error(
         "null semantic opportunity requires explicit initial metadata state without a reservation",
       );
     const authority: Authority = {
       controller_workflow: controller.workflow,
+      ...siteAuthority,
       controller_revision: controller.revision,
       publication_observed_at: publication.observed_at,
       publication_sha256: capacityDigest(input.publication),
-      metadata_bootstrap_sha256: capacityDigest(metadataBootstrap),
+      ...(metadataBootstrap
+        ? { metadata_bootstrap_sha256: capacityDigest(metadataBootstrap) }
+        : {}),
       ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
       ...(Object.hasOwn(input, "published_metadata")
         ? { published_metadata_sha256: capacityDigest(publishedMetadata) }
@@ -550,12 +620,15 @@ export function planReleaseOpportunity(input: unknown) {
         ? "publication emergency pause is active"
         : controller.capacity?.eligibility !== "eligible"
           ? "bounded initial metadata state is held"
-          : "explicit initial metadata state has no semantic release opportunity",
+          : metadataBootstrap
+            ? "explicit initial metadata state has no semantic release opportunity"
+            : "catalog-only published site has no application release opportunity",
       authority,
     );
   }
   const opportunity = validateOpportunity(input.opportunity);
   const authority = {
+    ...siteAuthority,
     ...(Object.hasOwn(input, "review_disposition")
       ? { review_disposition_sha256: capacityDigest(reviewDisposition) }
       : {}),

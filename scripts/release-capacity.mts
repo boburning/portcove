@@ -1,5 +1,10 @@
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
+  assertCatalogPublicationBaseline,
+  currentPublishedSite,
+  validatePublishedSiteTransition,
+} from "./release-catalog-metadata-contract.mts";
+import {
   inspectCatalogCapacitySubject,
   catalogPublicationLifecycle,
   assertCatalogSitePublicationBinding,
@@ -903,16 +908,19 @@ function validateCapacityV2(
   if (after?.catalog_publication && newIntent) {
     if (previous.active_candidate !== null || next.active_candidate !== null)
       throw new Error("catalog effect cannot bypass an application reservation");
-    const prior = after.catalog_publication.descriptor.prior;
-    const application = inspectPublishedMetadata(next.published_metadata);
+    assertCatalogPublicationBaseline(after.catalog_publication.descriptor, next);
     if (
-      application
-        ? prior.application_root_sha256 !== application.root_sha256 ||
-          prior.application_repository_sha256 !== application.repository_sha256 ||
-          prior.site_generation_sha256 !== application.publication.site_generation_sha256
-        : prior.application_root_sha256 !== null || prior.application_repository_sha256 !== null
+      next.catalog_publication != null &&
+      capacityDigest(next.catalog_publication) !== after.catalog_publication.descriptor_sha256
     )
-      throw new Error("catalog effect changed current application/site baseline");
+      throw new Error("catalog operation differs from scheduled descriptor");
+  }
+  if (newIntent && !after.catalog_publication && next.catalog_publication != null)
+    throw new Error("application effect cannot bypass active catalog publication");
+  if (newIntent && after.site_expectation) {
+    const cursor = currentPublishedSite(next);
+    if (after.site_expectation.prior_site_generation_sha256 !== (cursor?.generation_sha256 ?? null))
+      throw new Error("application Pages intent differs from current whole-site cursor");
   }
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   if (
@@ -960,6 +968,14 @@ function validateCapacityV2(
   )
     throw new Error("metadata readback must be durable before a new effect intent");
   validatePublishedMetadataTransition(previous, next, after);
+  validatePublishedSiteTransition(previous, next, after);
+  if (
+    before &&
+    !["succeeded", "recovered"].includes(before.outcome) &&
+    capacityDigest(previous.catalog_publication ?? null) !==
+      capacityDigest(next.catalog_publication ?? null)
+  )
+    throw new Error("unresolved effect cannot replace/retire catalog descriptor");
   const retained = inspectCompactCapacityOperations(capacity.prior_operations);
   if (
     capacityDigest(retained) !==

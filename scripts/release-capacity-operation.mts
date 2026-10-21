@@ -1,5 +1,10 @@
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
+  inspectPublishedCatalogMetadata,
+  inspectPublishedSite,
+  assertCatalogPublicationBaseline,
+} from "./release-catalog-metadata-contract.mts";
+import {
   inspectCatalogPublicationDescriptor,
   catalogPublicationLifecycle,
   assertCatalogSitePublicationBinding,
@@ -257,6 +262,7 @@ async function runOperation(
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
   if (catalog && candidate)
     throw new Error("catalog cannot bypass existing application reservation");
+  if (catalog) assertCatalogPublicationBaseline(catalog, input);
   if (aggregate) assertAggregateUploadCandidate(candidate);
   assertPublicationResultDestination(request.destination, candidate);
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
@@ -513,6 +519,7 @@ async function runOperation(
         inspectPublishedMetadata(input.published_metadata),
         metadataNow(),
       );
+    if (catalog) assertCatalogPublicationBaseline(catalog, owned.input);
     await effect(recordCompleted, {
       checkpoint: current,
       operation: structuredClone(inspectCapacityOperation(operation)!),
@@ -659,8 +666,55 @@ export async function recordPublishedMetadata(
   raw: unknown,
   options: Pick<CapacityOperationOptions, "remote"> = {},
 ) {
-  const published = inspectPublishedMetadata(structuredClone(raw));
+  return recordPublishedComponent(repository, expected, "application", raw, undefined, options);
+}
+export async function recordPublishedCatalogMetadata(
+  repository: string,
+  expected: string,
+  raw: unknown,
+  site: unknown,
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  return recordPublishedComponent(repository, expected, "catalog", raw, site, options);
+}
+/** One CAS updates the affected component plus the global site cursor. The
+ * other component's original publication provenance is preserved verbatim. */
+export async function recordPublishedSitePublication(
+  repository: string,
+  expected: string,
+  raw: { component: "application" | "catalog"; metadata: unknown; site: unknown },
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  const value = structuredClone(raw);
+  if (
+    Object.keys(value).sort().join(",") !== "component,metadata,site" ||
+    !["application", "catalog"].includes(value.component)
+  )
+    throw new Error("one exact site component/readback required");
+  return recordPublishedComponent(
+    repository,
+    expected,
+    value.component,
+    value.metadata,
+    value.site,
+    options,
+  );
+}
+async function recordPublishedComponent(
+  repository: string,
+  expected: string,
+  component: "application" | "catalog",
+  raw: unknown,
+  site: unknown,
+  options: Pick<CapacityOperationOptions, "remote">,
+) {
+  const published =
+    component === "catalog"
+      ? inspectPublishedCatalogMetadata(structuredClone(raw))
+      : inspectPublishedMetadata(structuredClone(raw));
   if (!published) throw new Error("published metadata result absent");
+  const cursor = site === undefined ? undefined : inspectPublishedSite(structuredClone(site));
+  if (site !== undefined && !cursor) throw new Error("actual site cursor absent");
   const remote = options.remote
     ? {
         configuration: structuredClone(options.remote.configuration),
@@ -680,7 +734,11 @@ export async function recordPublishedMetadata(
     throw new Error("published metadata requires existing bounded coordinator");
   const capacity = input.controller.capacity_attempt;
   capacity.schema_version = 2;
-  input.published_metadata = structuredClone(published);
+  if (component === "catalog") {
+    input.published_catalog_metadata = structuredClone(published);
+    input.catalog_publication = null;
+  } else input.published_metadata = structuredClone(published);
+  if (cursor) input.published_site = cursor;
   capacity.prior_operations = expectedCompactCapacityOperations(recovered.input, input, expected);
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {
@@ -694,6 +752,8 @@ export async function recordPublishedMetadata(
         {
           checkpoint: result.checkpoint,
           published_metadata: published,
+          ...(cursor ? { published_site: cursor } : {}),
+          component,
           checkpoint_transport_error:
             error instanceof CoordinatorRemoteError
               ? error.evidence
