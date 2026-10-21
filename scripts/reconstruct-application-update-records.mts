@@ -809,28 +809,36 @@ function parseArguments(argv: string[]) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const options = parseArguments(process.argv.slice(2));
-  const eligibilityFile = await assertOwnedUnlinkedPath(
-    options.projectRoot,
-    options.eligibility,
-    "eligibility input",
-  );
-  const eligibility: unknown = JSON.parse(
-    (await readBounded(eligibilityFile, limits.eligibility, "eligibility input")).toString("utf8"),
-  );
-  const { sources, inputPaths } = await loadSources(options.projectRoot, options.input);
-  for (const input of [eligibilityFile, ...inputPaths]) {
-    if (contains(options.output, input) || contains(input, options.output))
-      throw new Error("reconstruction output must not overlap an input path");
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const options = parseArguments(process.argv.slice(2));
+    const eligibilityFile = await assertOwnedUnlinkedPath(
+      options.projectRoot,
+      options.eligibility,
+      "eligibility input",
+    );
+    const eligibility: unknown = JSON.parse(
+      (await readBounded(eligibilityFile, limits.eligibility, "eligibility input")).toString(
+        "utf8",
+      ),
+    );
+    const { sources, inputPaths } = await loadSources(options.projectRoot, options.input);
+    for (const input of [eligibilityFile, ...inputPaths]) {
+      if (contains(options.output, input) || contains(input, options.output))
+        throw new Error("reconstruction output must not overlap an input path");
+    }
+    const reconstruction = await reconstructApplicationUpdateRecords(sources, eligibility, options);
+    const result = await writeApplicationUpdateReconstruction(
+      options.output,
+      reconstruction,
+      options,
+    );
+    console.log(
+      `${result.changed ? "Reconstructed" : "Verified"} ${reconstruction.manifest.records.length} application update records.`,
+    );
   }
-  const reconstruction = await reconstructApplicationUpdateRecords(sources, eligibility, options);
-  const result = await writeApplicationUpdateReconstruction(
-    options.output,
-    reconstruction,
-    options,
-  );
-  console.log(
-    `${result.changed ? "Reconstructed" : "Verified"} ${reconstruction.manifest.records.length} application update records.`,
-  );
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

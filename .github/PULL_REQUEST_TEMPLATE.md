@@ -5,6 +5,7 @@
 ## Outcome and scope
 
 <!-- Concrete behavior/outcome and material scope boundaries. -->
+<!-- Identify affected stable contracts, user documentation or release snapshots; explain if none needs updating. -->
 
 ## Verification
 

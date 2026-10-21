@@ -425,51 +425,57 @@ export async function signReleasePayload(
 }
 
 // CONFIG is trusted controller configuration, never candidate artifact content.
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv.length !== 3)
-      throw new Error("usage: release-payload-signing.mts TRUSTED_CONFIG");
-    const config = await open(
-      process.argv[2]!,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
-    let value: unknown;
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     try {
-      const metadata = await config.stat();
-      if (!metadata.isFile() || metadata.size > 64 * 1024)
+      if (process.argv.length !== 3)
+        throw new Error("usage: release-payload-signing.mts TRUSTED_CONFIG");
+      const config = await open(
+        process.argv[2]!,
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      );
+      let value: unknown;
+      try {
+        const metadata = await config.stat();
+        if (!metadata.isFile() || metadata.size > 64 * 1024)
+          throw new Error("invalid trusted signing configuration");
+        const buffer = Buffer.alloc(64 * 1024 + 1);
+        const { bytesRead } = await config.read(buffer);
+        if (bytesRead > 64 * 1024) throw new Error("signing configuration exceeds limit");
+        value = JSON.parse(buffer.subarray(0, bytesRead).toString("utf8"));
+      } finally {
+        await config.close();
+      }
+      if (
+        !isRecord(value) ||
+        !isRecord(value.tools) ||
+        !["projectRoot", "payload", "publicKey", "output"].every(
+          (key) => typeof value[key] === "string",
+        ) ||
+        !["node", "tauriAddon", "verifier"].every((name) => {
+          const tool = value.tools;
+          return (
+            isRecord(tool) &&
+            isRecord(tool[name]) &&
+            typeof tool[name].path === "string" &&
+            typeof tool[name].sha256 === "string"
+          );
+        })
+      )
         throw new Error("invalid trusted signing configuration");
-      const buffer = Buffer.alloc(64 * 1024 + 1);
-      const { bytesRead } = await config.read(buffer);
-      if (bytesRead > 64 * 1024) throw new Error("signing configuration exceeds limit");
-      value = JSON.parse(buffer.subarray(0, bytesRead).toString("utf8"));
-    } finally {
-      await config.close();
+      const result = await signReleasePayload(value as unknown as SignPayloadOptions);
+      await writeFile(
+        path.join(String(value.output), "payload-signing-receipt.json"),
+        `${JSON.stringify(result, null, 2)}\n`,
+        { flag: "wx", mode: 0o600 },
+      );
+    } catch {
+      console.error("isolated payload signing refused; no secret diagnostic output emitted");
+      process.exitCode = 1;
     }
-    if (
-      !isRecord(value) ||
-      !isRecord(value.tools) ||
-      !["projectRoot", "payload", "publicKey", "output"].every(
-        (key) => typeof value[key] === "string",
-      ) ||
-      !["node", "tauriAddon", "verifier"].every((name) => {
-        const tool = value.tools;
-        return (
-          isRecord(tool) &&
-          isRecord(tool[name]) &&
-          typeof tool[name].path === "string" &&
-          typeof tool[name].sha256 === "string"
-        );
-      })
-    )
-      throw new Error("invalid trusted signing configuration");
-    const result = await signReleasePayload(value as unknown as SignPayloadOptions);
-    await writeFile(
-      path.join(String(value.output), "payload-signing-receipt.json"),
-      `${JSON.stringify(result, null, 2)}\n`,
-      { flag: "wx", mode: 0o600 },
-    );
-  } catch {
-    console.error("isolated payload signing refused; no secret diagnostic output emitted");
-    process.exitCode = 1;
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -5,10 +5,12 @@ import {
   assembleAuthenticatedApplicationSite,
   isSafeSitePath,
   readComposedSite,
+  composeSiteFiles,
 } from "./release-site-composer.mts";
 import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
+  requirePublishedCompleteSite,
 } from "./release-site-readback.mts";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
@@ -35,6 +37,7 @@ import { requireReceivedPublicationResult } from "./release-publication-result-a
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
+import { requireActualTufPublication } from "./release-tuf-publication.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function remaining(deadline: number | undefined, maximum: number) {
@@ -316,6 +319,66 @@ export async function prepareSiteDeployment(
 ) {
   request = structuredClone(request);
   const composed = await assembleAuthenticatedApplicationSite(request);
+  return retainPreparedSiteDeployment(composed, request);
+}
+
+/** The fixed controller already verified all five attested envelopes and ran
+ * the keyless Rust assembler. Reuse that actual private result, preserving the
+ * independently acquired entire previous site, including its catalog. */
+export async function prepareSiteDeploymentFromActualTufPublication(
+  publicationReceipt: object,
+  priorSiteReceipt: object,
+  outputParent: string,
+  deadline: number,
+) {
+  remaining(deadline, 15000);
+  const actual = await requireActualTufPublication(publicationReceipt, deadline);
+  const previous = await requirePublishedCompleteSite(priorSiteReceipt);
+  const pins = actual.context.manifest.previous_site_pins;
+  if (
+    !isRecord(pins) ||
+    capacityDigest(pins) !== capacityDigest(previous.pins) ||
+    actual.publication.root_sha256 !== previous.pins.root_sha256
+  )
+    throw new Error("actual signed context differs from independently retained prior whole site");
+  const composed = await composeSiteFiles({
+    previous: previous.directory,
+    expected_previous_generation: previous.pins.site_generation_sha256,
+    application: actual.repository,
+    application_root_sha256: actual.publication.root_sha256,
+    output_parent: outputParent,
+    deadline,
+  });
+  await requireActualTufPublication(publicationReceipt, deadline);
+  await requirePublishedCompleteSite(priorSiteReceipt);
+  remaining(deadline, 15000);
+  return retainPreparedSiteDeployment(
+    { ...composed, publication: actual.publication },
+    {
+      output_parent: outputParent,
+      trusted_root_sha256: actual.publication.root_sha256,
+      verifier: actual.tools.rust,
+      verifier_sha256: hash(await readControllerToolFile(actual.tools.rust)),
+      previous_site: previous.directory,
+      expected_previous_generation: previous.pins.site_generation_sha256,
+      deadline,
+    },
+  );
+}
+
+async function retainPreparedSiteDeployment(
+  composed: Composed,
+  request: Pick<
+    Parameters<typeof assembleAuthenticatedApplicationSite>[0],
+    | "output_parent"
+    | "trusted_root_sha256"
+    | "verifier"
+    | "verifier_sha256"
+    | "previous_site"
+    | "expected_previous_generation"
+    | "deadline"
+  >,
+) {
   if (!composed.changed) return { changed: false as const, generation: composed.generation };
   const { files } = await readComposedSite(
     composed.output,
@@ -460,12 +523,22 @@ export async function publishPreparedSiteDeployment(
     metadata_renewal?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
+  refreshControls?: () => Promise<AuthenticatedReleaseControlSource>,
 ) {
   const prepared = sessions.get(session);
   if (!prepared || !prepared.upload || prepared.upload.evidence_scope !== "github.com")
     throw new Error("actual authenticated composition and provider upload session required");
   remaining(prepared.deadline, 15000);
   requireAuthenticatedReleaseControlSource(controls, "site-publication");
+  let currentControls = controls;
+  const renewControls = async () => {
+    if (!refreshControls) return;
+    const next = await refreshControls();
+    requireAuthenticatedReleaseControlSource(next, "site-publication");
+    if (next.evidence_scope !== "github.com")
+      throw new Error("site continuation requires actual refreshed provider controls");
+    currentControls = next;
+  };
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
@@ -561,11 +634,11 @@ export async function publishPreparedSiteDeployment(
   );
   const readBoundary = async () => {
     remaining(prepared.deadline, 15000);
-    requireAuthenticatedReleaseControlSource(controls, "site-publication");
+    requireAuthenticatedReleaseControlSource(currentControls, "site-publication");
     const facts =
       input.metadata_renewal === undefined
-        ? controls.read(api, frozen)
-        : controls.readMaintenance(api);
+        ? currentControls.read(api, frozen)
+        : currentControls.readMaintenance(api);
     remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
@@ -582,7 +655,18 @@ export async function publishPreparedSiteDeployment(
     executor,
     {
       ...input,
-      request: { kind: "upload", destination: "github-pages:boburning/portcove:complete-site" },
+      request: {
+        kind: "upload",
+        destination: "github-pages:boburning/portcove:complete-site",
+        site_expectation: {
+          artifact_id: prepared.upload.artifact_id,
+          archive_sha256: prepared.archive_sha256,
+          site_generation_sha256: prepared.generation.generation,
+          prior_site_generation_sha256: prepared.previous_generation.generation,
+          root_sha256: prepared.publication.root_sha256,
+          repository_sha256: prepared.publication.repository_sha256,
+        },
+      },
     },
     readBoundary,
     async (pending) => {
@@ -645,6 +729,10 @@ export async function publishPreparedSiteDeployment(
           authority: "none",
         };
         await write("public-readback.json", evidence);
+        // Public/provider observation can consume the original control window.
+        // Refresh before returning to the existing durable settlement writer.
+        await renewControls();
+        await readBoundary();
         return {
           remote_identity: `github-pages:boburning/portcove:${accepted.id}`,
           evidence_sha256: capacityDigest(evidence),
@@ -664,6 +752,8 @@ export async function publishPreparedSiteDeployment(
   // state-handoff failure cannot authorize another deployment; the coordinator
   // must recover this exact published generation through readback.
   await refreshCapacityExecutor(executor);
+  await renewControls();
+  await readBoundary();
   await publishCoordinatorCheckpoint(
     input.repository,
     result.checkpoint,

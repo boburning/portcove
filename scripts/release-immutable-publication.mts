@@ -1,3 +1,6 @@
+import { requireActualCandidatePhaseAdvance } from "./release-candidate-progress.mts";
+import { materializePublicationUpdaterRoots } from "./release-publication-inputs.mts";
+import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import { open, mkdtemp, mkdir, writeFile } from "node:fs/promises";
@@ -467,9 +470,7 @@ export async function prepareImmutableReleasePublication(
       throw new Error("actual publication context cannot mix supplied signer roots");
     const updaterRoots = [
       ...(controller
-        ? await (
-            await import("./release-publication-inputs.mts")
-          ).materializePublicationUpdaterRoots(
+        ? await materializePublicationUpdaterRoots(
             controller.context,
             controller.facts,
             packageRoot,
@@ -556,9 +557,7 @@ export async function prepareImmutableReleasePublication(
     phase = "finalized-package-and-SBOM-inventory";
     // Policy comes from the fixed checkout. The temporary project root is owned
     // storage for the maintained finalizer/inventory helpers, never candidate code.
-    const { policy } = await import("./trusted-release-assembly.mts").then((m) =>
-      m.inspectTrustedAssemblyInput(accepted),
-    );
+    const { policy } = await inspectTrustedAssemblyInput(accepted);
     const assetsRoot = path.join(directory, "assets");
     await mkdir(assetsRoot);
     const packages = [];
@@ -728,7 +727,6 @@ export async function rebindPreparedImmutableReleaseAfterPhase(
     const state = prepared.get(session);
     if (!state || active.has(session))
       throw new Error("actual idle immutable preparation required");
-    const { requireActualCandidatePhaseAdvance } = await import("./release-candidate-progress.mts");
     const phase = await requireActualCandidatePhaseAdvance(phaseReceipt, "publishing");
     const context = requireActualReleaseAdmissionContext(
       phase.original_context,

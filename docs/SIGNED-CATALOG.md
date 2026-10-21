@@ -42,11 +42,21 @@ All normal core catalog validation runs before admission. The schema-2 identity,
 
 ## Producing and reviewing an envelope
 
+Run `node scripts/sign-catalog.mts --help` for the required arguments, limits and
+an example. Help does not read signing inputs or create output files.
+
 With an existing publisher-controlled Ed25519 PKCS#8 PEM key, run:
 
 ```text
 node scripts/sign-catalog.mts --catalog catalog.json --key publisher-private.pem --sequence 1 --expires-at <unix-seconds> --output catalog-signed.json
 ```
+
+The key and catalog inputs must be regular files, limited to 64 KiB (65536 bytes)
+and 4 MiB (4194304 bytes), respectively. The escaped signed envelope has its own
+4 MiB limit, so a catalog within its input limit can still produce an oversized
+envelope. Refusals identify the affected argument, limit and observed size without
+including key or catalog contents. Sequence must be a positive safe integer;
+issuance and expiry use integer Unix seconds with validity of at most 366 days.
 
 The utility defaults issuance to the current time, accepts an explicit `--issued-at`, prints only the public key/fingerprint and output identity, and refuses to overwrite its output. It does not generate or choose a production key, upload anything, or replace core catalog validation. Private-key paths are inputs to this offline publisher utility, never Portcove runtime configuration. Publishers should validate the signed output through core before distributing it:
 

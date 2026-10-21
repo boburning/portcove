@@ -592,6 +592,10 @@ async function coordinateTrustedReleaseAt(
         },
       );
     phase = "actual-coordinator-control-observation";
+    if (!round?.admission)
+      await (
+        await import("./release-control-step-bridge.mts")
+      ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
     const artifact = round?.admission
       ? undefined
       : await waitForControlArtifact(
@@ -1141,6 +1145,9 @@ async function prepareTrustedCoordinatorRenewalAt(
       mode: 0o600,
     });
     phase = "actual-maintenance-controls";
+    await (
+      await import("./release-control-step-bridge.mts")
+    ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
     const artifact = await waitForControlArtifact(
       directory,
       "observation",
@@ -1720,6 +1727,9 @@ async function requestTrustedSemanticReviewAt(
       { flag: "wx", mode: 0o600 },
     );
     phase = "actual-neutral-request-controls";
+    await (
+      await import("./release-control-step-bridge.mts")
+    ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
     const artifact = await waitForControlArtifact(
       directory,
       "observation",
@@ -1852,6 +1862,9 @@ async function continueTrustedSemanticReview(
       { flag: "wx", mode: 0o600 },
     );
     phase = "actual-negative-semantic-controls";
+    await (
+      await import("./release-control-step-bridge.mts")
+    ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
     const artifact = await waitForControlArtifact(
       directory,
       "observation",
