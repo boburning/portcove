@@ -648,6 +648,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ]),
   ...[
+    "apps/desktop/scripts/desktop-application-update-journey.mts",
+    "apps/desktop/scripts/desktop-installed-update-harness.mts",
+  ].map((file): [string, string[]] => [file, ["scripts/desktop-scenarios.test.mts"]]),
+  ...[
     "scripts/validation-plan.mts",
     "scripts/validation-plan.test.mts",
     "scripts/local-validation.mts",
