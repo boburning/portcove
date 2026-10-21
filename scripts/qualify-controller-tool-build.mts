@@ -31,6 +31,7 @@ async function main() {
     return writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
   };
   let builtDirectory: string | null = null;
+  let buildMilliseconds: number | null = null;
   const nodeRuntime = { expected: controllerNodeVersion, observed: process.versions.node };
   try {
     const git = (argument: string) => {
@@ -64,7 +65,7 @@ async function main() {
     phase = "actual-fixed-build";
     const buildStarted = performance.now();
     const built = await buildControllerTools(source, buildWork, expected);
-    const buildMilliseconds = Math.ceil(performance.now() - buildStarted);
+    buildMilliseconds = Math.ceil(performance.now() - buildStarted);
     builtDirectory = built.directory;
     await record("manifest.json", built.manifest);
     phase = "opaque-tool-readback";
@@ -263,6 +264,9 @@ async function main() {
       schema_version: 1,
       status: "fail",
       phase,
+      build_milliseconds: buildMilliseconds,
+      build_allowance_milliseconds: 210000,
+      build_profile: "controller-tools",
       node_runtime: nodeRuntime,
       built_directory: builtDirectory,
       build_work: buildWork,
