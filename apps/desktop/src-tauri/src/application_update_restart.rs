@@ -49,35 +49,10 @@ use crate::application_update_windows::WindowsNsisUpdateAdmission;
 use crate::configure_independent_process;
 use crate::{DesktopResult, DesktopState};
 
-const HELPER_MODE: &str = "--portcove-apply-update";
-
-/// Configuration owned by the Portcove desktop process must survive the
-/// trusted update helper and a successful same-application relaunch. The
-/// general child-process policy intentionally carries only host session state,
-/// so keep this overlay exact rather than admitting arbitrary `PORTCOVE_*`
-/// variables.
 #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
-const DESKTOP_UPDATE_PROCESS_ENVIRONMENT: &[&str] = &[
-    "PORTCOVE_APPLICATION_RUNTIME_LOCK",
-    "PORTCOVE_APPLICATION_UPDATE_BUNDLED_ROOT_FILE",
-    "PORTCOVE_APPLICATION_UPDATE_METADATA_URL",
-    "PORTCOVE_APPLICATION_UPDATE_PREFERENCES",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_EXIT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_HELPER_PROCESS",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_INTERRUPT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_PROCESS",
-    "PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_STAGE",
-    "PORTCOVE_APPLICATION_UPDATE_SCHEDULE",
-    "PORTCOVE_APPLICATION_UPDATE_STAGING",
-    "PORTCOVE_APPLICATION_UPDATE_TARGETS_URL",
-    "PORTCOVE_CHDMAN",
-    "PORTCOVE_DOLPHIN_TOOL",
-    "PORTCOVE_GITHUB_CLIENT_ID",
-    "PORTCOVE_LIBRARY",
-    "PORTCOVE_PREFERENCES",
-    "PORTCOVE_TEMP_DIR",
-];
+use crate::application_update_process_environment::copy_desktop_update_environment;
+
+const HELPER_MODE: &str = "--portcove-apply-update";
 
 #[tauri::command]
 pub(crate) async fn restart_to_apply_application_update(
@@ -282,9 +257,7 @@ fn update_helper_command(
     executable: &std::path::Path,
     expected_revision: u64,
 ) -> DesktopResult<std::process::Command> {
-    let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)?;
-    copy_desktop_update_environment(&mut command, std::env::vars_os());
+    let mut command = desktop_update_process_command(executable, std::env::vars_os())?;
     command
         .arg(HELPER_MODE)
         .arg(expected_revision.to_string())
@@ -612,9 +585,7 @@ fn restart_executable_if_runtime_available(
     let runtime =
         portcove_core::ApplicationUpdateExclusivityGuard::acquire(&runtime_lock).map_err(|_| ())?;
     let mut command =
-        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)
-            .map_err(|_| ())?;
-    copy_desktop_update_environment(&mut command, std::env::vars_os());
+        desktop_update_process_command(executable, std::env::vars_os()).map_err(|_| ())?;
     #[cfg(feature = "application-update-qualification")]
     if std::env::var_os("PORTCOVE_APPLICATION_UPDATE_QUALIFICATION_RELAUNCH_EXIT").as_deref()
         == Some(OsStr::new("1"))
@@ -683,17 +654,14 @@ fn restart_executable_if_runtime_available(
 }
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
-fn copy_desktop_update_environment(
-    command: &mut std::process::Command,
+fn desktop_update_process_command(
+    executable: &std::path::Path,
     environment: impl IntoIterator<Item = (OsString, OsString)>,
-) {
-    command.envs(environment.into_iter().filter(|(name, _)| {
-        name.to_str().is_some_and(|name| {
-            DESKTOP_UPDATE_PROCESS_ENVIRONMENT
-                .iter()
-                .any(|candidate| name.eq_ignore_ascii_case(candidate))
-        })
-    }));
+) -> DesktopResult<std::process::Command> {
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, executable)?;
+    copy_desktop_update_environment(&mut command, environment);
+    Ok(command)
 }
 
 #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
@@ -934,6 +902,44 @@ mod tests {
         );
         assert!(!environment.contains_key("PORTCOVE_GITHUB_TOKEN"));
         assert!(!environment.contains_key("PORTCOVE_PORT_ID"));
+    }
+
+    #[test]
+    fn helper_and_relaunch_command_preserve_only_the_linux_fuse_helper_selection() {
+        let helper = OsString::from("/owned host helpers/fusermount3");
+        // This is the shared shipping command constructor used by both the
+        // update helper and the relaunched executable. No ambient mutation is
+        // needed to exercise its inherited-environment overlay.
+        let command = desktop_update_process_command(
+            std::path::Path::new("verified-application"),
+            [
+                (OsString::from("FUSERMOUNT_PROG"), helper.clone()),
+                (
+                    OsString::from("FUSERMOUNT_UNKNOWN"),
+                    OsString::from("ignored"),
+                ),
+                (
+                    OsString::from("PORTCOVE_GITHUB_TOKEN"),
+                    OsString::from("secret"),
+                ),
+            ],
+        )
+        .unwrap();
+        let value = command
+            .get_envs()
+            .find(|(key, _)| *key == OsStr::new("FUSERMOUNT_PROG"))
+            .and_then(|(_, value)| value);
+        #[cfg(target_os = "linux")]
+        assert_eq!(value, Some(helper.as_os_str()));
+        #[cfg(not(target_os = "linux"))]
+        assert_eq!(value, None);
+        assert!(
+            command
+                .get_envs()
+                .all(|(key, _)| { key != "FUSERMOUNT_UNKNOWN" && key != "PORTCOVE_GITHUB_TOKEN" })
+        );
+        assert_eq!(command.get_program(), OsStr::new("verified-application"));
+        assert_eq!(command.get_args().count(), 0);
     }
 
     #[test]

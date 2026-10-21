@@ -37,6 +37,9 @@ const browserProject = {
     browser: {
       enabled: true,
       headless: true,
+      // Bounded headroom for cold Windows browser startup on shared storage.
+      // This changes connection setup only, not test assertion deadlines.
+      connectTimeout: process.platform === "win32" ? 180_000 : 60_000,
       provider: playwright(),
       instances: [{ browser: "chromium" }],
       trace: {

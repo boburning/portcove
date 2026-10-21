@@ -368,6 +368,8 @@ export function UpdateCenter({
                         data-focusable
                         variant="primary"
                         disabled={Boolean(action.busy)}
+                        focusableWhenDisabled={Boolean(action.busy)}
+                        aria-busy={Boolean(action.busy)}
                         title={action.assessment.reason}
                         onClick={() => onLaunch(port.id)}
                       >

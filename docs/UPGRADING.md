@@ -227,6 +227,13 @@ their existing manual owner.
 
 #### Rootless AppImage lifecycle
 
+On Linux, the update helper and relaunched application preserve an inherited
+`FUSERMOUNT_PROG` value exactly so the AppImage runtime can use the same host
+FUSE helper. This variable selects external executable helper code; it is not
+an updater trust override. Hosts that isolate Portcove must appoint and protect
+that helper themselves. Portcove does not discover a replacement helper or
+relax its installed-path, ownership, signature or update-eligibility checks.
+
 For a rootless Portcove installation, keep the maintained AppImage as one direct
 file at a stable absolute path owned by the current user. Do not place that file
 behind a `current` symlink, a version-directory pointer, or a package-manager

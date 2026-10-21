@@ -3558,7 +3558,7 @@ describe("desktop components", () => {
     },
     { readiness: null, label: "Readiness unavailable", action: "Review game" },
   ] satisfies { readiness: PortStatus["readiness"]; label: string; action: string }[])(
-    "announces downloaded update attention beside $label on Catalog cards",
+    "keeps downloaded update attention beside $label and its action inside the Catalog card",
     ({ readiness, label, action }) => {
       const install = installRecord();
       const status: PortStatus = {
@@ -3580,7 +3580,15 @@ describe("desktop components", () => {
           loading={false}
         />,
       );
-      expect(html).toContain(`aria-label="Sample Port. ${label}. Update downloaded. ${action}."`);
+      const card = html.match(
+        /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/u,
+      )?.[0];
+      expect(card).toBeDefined();
+      expect(card).not.toContain("aria-label=");
+      expect(card).toContain("Sample Port");
+      expect(card).toContain(`${label}</span>`);
+      expect(card).toContain("Update downloaded</span>");
+      expect(card).toContain(`${action}<`);
       expect(html).toContain("Update downloaded</span>");
     },
   );

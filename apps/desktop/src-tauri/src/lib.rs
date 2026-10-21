@@ -17,6 +17,8 @@ mod application_update_network;
 pub mod application_update_operation;
 pub mod application_update_payload;
 pub mod application_update_preferences;
+#[cfg(any(windows, target_os = "linux", target_os = "macos", test))]
+mod application_update_process_environment;
 mod application_update_recovery;
 pub mod application_update_repository;
 mod application_update_restart;

@@ -36,9 +36,11 @@ it.each(["catalog", "library"] as const)(
       />,
     );
     const prefix = view === "library" ? "View details for " : "";
-    const separator = view === "library" ? " Port: " : " · ";
+    const separator = view === "library" ? " Port: " : " ";
     const first = page.getByRole("button", {
-      name: new RegExp(`^${prefix}A Familiar Adventure${separator}Cobalt Project · US edition`),
+      name: new RegExp(
+        `^${prefix}A Familiar Adventure${separator}Cobalt Project${view === "library" ? " · US edition" : ""}`,
+      ),
     });
     const second = page.getByRole("button", {
       name: new RegExp(`^${prefix}A Familiar Adventure${separator}Amber Recompiled`),
