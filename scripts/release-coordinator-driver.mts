@@ -155,10 +155,85 @@ export function coordinatorMaintenanceIdentity(raw: unknown) {
   delete stable.protection.observed_at;
   return capacityDigest(stable);
 }
+/** Budget derivation only, never job/source authorization. The actual fixed
+ * coordinator OIDC and controls are still authenticated before journal writes. */
+export function coordinatorOriginalJobDeadline(
+  raw: unknown,
+  expected: { run_id: string; controller_revision: string },
+  now = Date.now(),
+  monotonic = performance.now(),
+) {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.jobs) ||
+    !Number.isSafeInteger(raw.total_count) ||
+    Number(raw.total_count) < 1 ||
+    Number(raw.total_count) > 100 ||
+    raw.jobs.length !== raw.total_count
+  )
+    throw new Error("complete coordinator job inventory required");
+  const ids = new Set<number>();
+  for (const job of raw.jobs as unknown[]) {
+    if (
+      !isRecord(job) ||
+      typeof job.id !== "number" ||
+      !Number.isSafeInteger(job.id) ||
+      job.id < 1 ||
+      ids.has(job.id)
+    )
+      throw new Error("coordinator job inventory duplicated or incomplete");
+    ids.add(job.id);
+  }
+  const matches = raw.jobs.filter(
+    (job: unknown) => isRecord(job) && job.name === "Coordinate application release",
+  );
+  const job: unknown = matches[0];
+  if (
+    matches.length !== 1 ||
+    !isRecord(job) ||
+    String(job.run_id) !== expected.run_id ||
+    job.run_attempt !== 1 ||
+    job.head_sha !== expected.controller_revision ||
+    job.status !== "in_progress" ||
+    typeof job.started_at !== "string"
+  )
+    throw new Error("actual coordinator original job start unavailable");
+  const remaining = Date.parse(job.started_at) + 170000 - now;
+  if (
+    !Number.isFinite(remaining) ||
+    remaining <= 0 ||
+    remaining > 170000 ||
+    !Number.isFinite(monotonic)
+  )
+    throw new Error("original coordinator job budget exhausted or future dated");
+  return monotonic + remaining;
+}
 function coordinatorDeadline() {
   const monotonicStart = performance.now();
-  const monotonicDeadline = monotonicStart + 170000;
-  const deadline = Date.now() + 170000;
+  const run = process.env.GITHUB_RUN_ID;
+  const revision = process.env.GITHUB_SHA;
+  if (
+    !run ||
+    !/^[1-9][0-9]{0,15}$/u.test(run) ||
+    !revision ||
+    !/^[a-f0-9]{40}$/u.test(revision) ||
+    process.env.GITHUB_RUN_ATTEMPT !== "1"
+  )
+    throw new Error("fixed first-attempt coordinator job budget identity required");
+  const runner = createGitHubRunner({ cwd: project, timeoutMs: 10000, maxBuffer: 1024 * 1024 });
+  const response = new GitHubApiClient((args, input) =>
+    runner([...args, "--hostname", "github.com"], input),
+  ).request(
+    "GET",
+    `repos/boburning/portcove/actions/runs/${run}/jobs?filter=all&per_page=100&page=1`,
+  );
+  if (response.status !== 200)
+    throw new Error("actual coordinator original job budget unavailable");
+  const monotonicDeadline = Math.min(
+    monotonicStart + 170000,
+    coordinatorOriginalJobDeadline(response.body, { run_id: run, controller_revision: revision }),
+  );
+  const deadline = Date.now() + Math.floor(monotonicDeadline - performance.now());
   return {
     deadline,
     monotonicDeadline,
@@ -170,7 +245,7 @@ function coordinatorDeadline() {
       return left;
     },
     check() {
-      if (Date.now() >= deadline || performance.now() - monotonicStart >= 170000)
+      if (Date.now() >= deadline || performance.now() >= monotonicDeadline)
         throw new Error("coordinator attempt deadline exhausted; no subsequent effect");
     },
   };

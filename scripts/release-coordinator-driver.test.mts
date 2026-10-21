@@ -8,9 +8,36 @@ import {
   requireActualCoordinatorMetadataPreparation,
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
+  coordinatorOriginalJobDeadline,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
+
+void test("coordinator budget includes original job setup and refuses missing duplicate or stale provider facts", () => {
+  const expected = { run_id: "123", controller_revision: "a".repeat(40) };
+  const now = Date.parse("2026-10-20T00:02:00Z");
+  const job = {
+    id: 1,
+    name: "Coordinate application release",
+    run_id: 123,
+    run_attempt: 1,
+    head_sha: expected.controller_revision,
+    status: "in_progress",
+    started_at: "2026-10-20T00:00:00Z",
+  };
+  const inventory = { total_count: 1, jobs: [job] };
+  assert.equal(coordinatorOriginalJobDeadline(inventory, expected, now, 100), 50100);
+  for (const bad of [
+    { ...inventory, total_count: 2 },
+    { ...inventory, jobs: [job, job], total_count: 2 },
+    { ...inventory, jobs: [{ ...job, status: "completed" }] },
+    { ...inventory, jobs: [{ ...job, run_attempt: 2 }] },
+    { ...inventory, jobs: [{ ...job, head_sha: "b".repeat(40) }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-20T00:03:00Z" }] },
+    { ...inventory, jobs: [{ ...job, started_at: "2026-10-19T23:59:00Z" }] },
+  ])
+    assert.throws(() => coordinatorOriginalJobDeadline(bad, expected, now, 100));
+});
 
 void test("coordinator continuation can only tighten its original finite deadline", () => {
   const original = performance.now() + 10000;
