@@ -23,15 +23,96 @@ import {
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { remainingNativeParentBudget } from "./release-native-parent.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { inspectWindowsDesktopCompilerIdentity } from "./release-compiler-desktop.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const labels = ["linux-x86_64", "windows-x86_64"] as const;
 const interfaces = ["cli", "desktop"] as const;
+/** Data-only retained inventory. Its hash must come from an original protected
+ * claim; parsing this document never recreates compiler admission. */
+export function inspectPublicCompilerRetainedInput(raw: unknown) {
+  assert.ok(isRecord(raw));
+  assert.deepEqual(Object.keys(raw).sort(), ["files", "identity", "schema_version"]);
+  assert.equal(raw.schema_version, 1);
+  const identity = raw.identity;
+  assert.ok(isRecord(identity) && isRecord(identity.package));
+  assert.deepEqual(Object.keys(identity).sort(), [
+    "executable",
+    "package",
+    "producer_job_id",
+    "report_sha256",
+    "run_attempt",
+    "run_id",
+    "source_commit",
+    "source_tree",
+  ]);
+  const executable = inspectWindowsDesktopCompilerIdentity(identity.executable);
+  assert.deepEqual(Object.keys(identity.package).sort(), ["bytes", "filename", "sha256"]);
+  assert.ok(
+    typeof identity.package.filename === "string" &&
+      /^[A-Za-z0-9._-]+\.exe$/u.test(identity.package.filename),
+  );
+  assert.ok(
+    typeof identity.package.bytes === "number" &&
+      Number.isSafeInteger(identity.package.bytes) &&
+      identity.package.bytes > 0 &&
+      identity.package.bytes <= 512 * 1024 * 1024,
+  );
+  const hex = (value: unknown, length: number) => {
+    assert.ok(typeof value === "string" && new RegExp(`^[a-f0-9]{${length}}$`, "u").test(value));
+    return value;
+  };
+  const positive = (value: unknown) => {
+    assert.ok(typeof value === "number" && Number.isSafeInteger(value) && value > 0);
+    return value;
+  };
+  assert.ok(typeof identity.run_id === "string" && /^[1-9][0-9]*$/u.test(identity.run_id));
+  assert.ok(Array.isArray(raw.files) && raw.files.length > 0 && raw.files.length <= 64);
+  const names = new Set<string>();
+  const files = raw.files.map((file: unknown) => {
+    assert.ok(isRecord(file));
+    assert.deepEqual(Object.keys(file).sort(), ["bytes", "path", "sha256"]);
+    assert.ok(
+      typeof file.path === "string" &&
+        file.path.length <= 256 &&
+        /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/u.test(file.path) &&
+        file.path.split("/").every((part) => part !== "." && part !== ".."),
+    );
+    const folded = file.path.toLowerCase();
+    assert.ok(!names.has(folded));
+    names.add(folded);
+    assert.ok(
+      typeof file.bytes === "number" &&
+        Number.isSafeInteger(file.bytes) &&
+        file.bytes > 0 &&
+        file.bytes <= 4 * 1024 * 1024,
+    );
+    assert.ok(typeof file.sha256 === "string" && /^[a-f0-9]{64}$/u.test(file.sha256));
+    return { path: file.path, bytes: file.bytes, sha256: file.sha256 };
+  });
+  return {
+    identity: {
+      executable,
+      package: {
+        filename: identity.package.filename,
+        bytes: identity.package.bytes,
+        sha256: hex(identity.package.sha256, 64),
+      },
+      source_commit: hex(identity.source_commit, 40),
+      source_tree: hex(identity.source_tree, 40),
+      run_id: identity.run_id,
+      run_attempt: positive(identity.run_attempt),
+      producer_job_id: positive(identity.producer_job_id),
+      report_sha256: hex(identity.report_sha256, 64),
+    },
+    files,
+  };
+}
 const proofs = new WeakMap<
   object,
   {
     pair: object;
-    slot: "prior" | "candidate";
+    slot: "prior" | "candidate" | "parked";
     files: { path: string; bytes: number; sha256: string }[];
     identity: {
       executable: NonNullable<
@@ -44,6 +125,7 @@ const proofs = new WeakMap<
       run_attempt: number;
       producer_job_id: number;
       report_sha256: string;
+      retained_input_sha256: string;
     };
   }
 >();
@@ -56,6 +138,8 @@ export async function collectActualPublicWindowsCompilerIdentity(
 ) {
   assert.ok(slot === "prior" || slot === "candidate");
   const selected = await requireActualPublicJourneySource(pairReceipt);
+  if (selected.historical_cohort_receipt && slot === "prior")
+    throw new Error("historical public compiler input requires retained admission recovery");
   assert.equal(selected.parent.descriptor.platform_label, "windows-x86_64");
   const config = selected.parent.descriptor.public_journey;
   const git = selected.parent.transport_configuration.windows_tools?.git;
@@ -257,6 +341,31 @@ export async function collectActualPublicWindowsCompilerIdentity(
   await retain("provider-evidence.json", Buffer.from(JSON.stringify(evidence)));
   await requireActualPublicJourneySource(pairReceipt);
   assert.ok(windows?.desktop_executable && windowsJob && windowsReportSha);
+  const admittedIdentity = {
+    executable: windows.desktop_executable,
+    package: {
+      filename: identity.package.filename,
+      bytes: identity.package.bytes,
+      sha256: identity.package.sha256,
+    },
+    source_commit: identity.source_commit,
+    source_tree: identity.source_tree,
+    run_id: identity.run_id,
+    run_attempt: identity.run_attempt,
+    producer_job_id: windowsJob,
+    report_sha256: windowsReportSha,
+  };
+  const manifest = {
+    schema_version: 1,
+    identity: admittedIdentity,
+    files: retained.map((file) => ({
+      ...file,
+      path: path.relative(directory, file.path).split(path.sep).join("/"),
+    })),
+  };
+  inspectPublicCompilerRetainedInput(manifest);
+  const manifestBytes = Buffer.from(JSON.stringify(manifest));
+  await retain("retained-compiler-input.json", manifestBytes);
   const receipt = Object.freeze({
     kind: "actual-local-public-compiler-input",
     authority: "none",
@@ -268,19 +377,69 @@ export async function collectActualPublicWindowsCompilerIdentity(
     slot,
     files: retained,
     identity: structuredClone({
-      executable: windows.desktop_executable,
-      package: {
-        filename: identity.package.filename,
-        bytes: identity.package.bytes,
-        sha256: identity.package.sha256,
-      },
-      source_commit: identity.source_commit,
-      source_tree: identity.source_tree,
-      run_id: identity.run_id,
-      run_attempt: identity.run_attempt,
-      producer_job_id: windowsJob,
-      report_sha256: windowsReportSha,
+      ...admittedIdentity,
+      retained_input_sha256: hash(manifestBytes),
     }),
+  });
+  await requireActualPublicWindowsCompilerIdentity(receipt);
+  return receipt;
+}
+
+/** Original protected B admission is the authority for these historical local
+ * inputs. Current Tough/source is checked separately; expired reports are never
+ * downloaded again and a document alone cannot enter this private map. */
+export async function recoverActualPublicWindowsCompilerIdentity(
+  pairReceipt: object,
+  slot: "prior" | "parked",
+) {
+  assert.ok(slot === "prior" || slot === "parked");
+  const selected = await requireActualPublicJourneySource(pairReceipt);
+  assert.equal(selected.parent.descriptor.platform_label, "windows-x86_64");
+  assert.ok(selected.historical_cohort_receipt && "parked" in selected.pair);
+  const { requireActualRetainedPublicCohort } = await import("./release-native-attempt.mts");
+  const historical = await requireActualRetainedPublicCohort(selected.historical_cohort_receipt);
+  assert.equal(historical.parent_receipt, selected.parent_receipt);
+  const proof = historical.parked.marker.request.proof_inputs;
+  assert.ok(isRecord(proof) && typeof proof.source_directory === "string");
+  const oldSlot = slot === "parked" ? "candidate" : "prior";
+  const directory = path.join(
+    selected.parent.descriptor.capture_root,
+    proof.source_directory,
+    `compiler-${oldSlot}`,
+  );
+  const raw = await readBoundedPublicBuildInputFile(
+    directory,
+    "retained-compiler-input.json",
+    64 * 1024,
+  );
+  const parsed = inspectPublicCompilerRetainedInput(JSON.parse(raw.toString("utf8")));
+  const identity = { ...parsed.identity, retained_input_sha256: hash(raw) };
+  assert.equal(
+    digest(identity),
+    proof[`${oldSlot}_compiler_sha256`],
+    "original protected compiler admission differs",
+  );
+  const receipt = Object.freeze({
+    kind: "actual-local-public-compiler-input",
+    authority: "none",
+    scope:
+      "original protected compiler admission retained under current published source; no native acceptance",
+  });
+  proofs.set(receipt, {
+    pair: pairReceipt,
+    slot,
+    identity,
+    files: [
+      ...parsed.files.map((file) => ({
+        ...file,
+        path: path.join(directory, ...file.path.split("/")),
+      })),
+      {
+        path: path.join(directory, "retained-compiler-input.json"),
+        bytes: raw.length,
+        sha256: hash(raw),
+      },
+    ],
   });
   await requireActualPublicWindowsCompilerIdentity(receipt);
   return receipt;
@@ -291,6 +450,13 @@ export async function requireActualPublicWindowsCompilerIdentity(receipt: object
   const retained = proofs.get(receipt);
   if (!retained) throw new Error("actual local parent compiler input custody required");
   const selected = await requireActualPublicJourneySource(retained.pair);
+  const expected =
+    retained.slot === "parked"
+      ? "parked" in selected.pair
+        ? selected.pair.parked
+        : undefined
+      : selected.pair[retained.slot];
+  assert.ok(expected);
   for (const file of retained.files) {
     const bytes = await readBoundedPublicBuildInputFile(
       path.dirname(file.path),
@@ -306,11 +472,15 @@ export async function requireActualPublicWindowsCompilerIdentity(receipt: object
   assert.equal(
     digest(retained.identity.package),
     digest({
-      filename: selected.pair[retained.slot].package.filename,
-      bytes: selected.pair[retained.slot].package.bytes,
-      sha256: selected.pair[retained.slot].package.sha256,
+      filename: expected.package.filename,
+      bytes: expected.package.bytes,
+      sha256: expected.package.sha256,
     }),
   );
+  assert.equal(retained.identity.source_commit, expected.source_commit);
+  assert.equal(retained.identity.source_tree, expected.source_tree);
+  assert.equal(retained.identity.run_id, expected.run_id);
+  assert.equal(retained.identity.run_attempt, expected.run_attempt);
   return {
     identity: structuredClone(retained.identity),
     pair_receipt: retained.pair,
