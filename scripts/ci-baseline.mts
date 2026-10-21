@@ -109,6 +109,7 @@ export function baselineRequiresPython(plan: ValidationPlan) {
       "scripts/nextest-equivalence.test.mts",
       "scripts/ci-workflow.test.mts",
       "scripts/semantic-review-linux-supervisor.test.mts",
+      "scripts/release-semantic-source.test.mts",
     ].includes(file),
   );
 }
