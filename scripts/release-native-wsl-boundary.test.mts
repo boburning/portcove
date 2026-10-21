@@ -284,6 +284,17 @@ void test("prepared WSL lifecycle commands bind exact guest user, supervisor, or
   assert.ok(stage.arguments.includes(pins.transfer_sha256));
   assert.equal(stage.arguments.at(-2), "--header-sha256");
   assert.throws(() => plan.stage("application", 512 * 1024 * 1024 + 1, "f".repeat(64)));
+  const parked = plan.stage("parked_capture", 272 * 1024 * 1024, "e".repeat(64));
+  const parkedHeader: unknown = JSON.parse(parked.header);
+  assert.ok(
+    parkedHeader &&
+      typeof parkedHeader === "object" &&
+      "entry" in parkedHeader &&
+      "bytes" in parkedHeader,
+  );
+  assert.equal(parkedHeader.entry, "parked_capture");
+  assert.equal(parkedHeader.bytes, 272 * 1024 * 1024);
+  assert.throws(() => plan.stage("parked_capture", 272 * 1024 * 1024 + 1, "e".repeat(64)));
   assert.deepEqual(plan.required_candidate_absence, [
     "/init",
     "/mnt",
