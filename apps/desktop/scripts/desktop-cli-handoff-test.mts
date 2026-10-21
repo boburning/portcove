@@ -76,7 +76,7 @@ export async function cliHandoffScenario({
           15_000,
         );
         const allButtons = await filters.findElements(
-          By.xpath('.//button[starts-with(normalize-space(.),"All (")]'),
+          By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
         );
         let wideAll: WebElement | undefined;
         for (const candidate of allButtons) if (await candidate.isDisplayed()) wideAll = candidate;
@@ -104,7 +104,22 @@ export async function cliHandoffScenario({
               (await picker.getAttribute("aria-expanded")) === "false" &&
               (await executeBrowserScript(
                 browser,
-                (id) => document.getElementById(id) === null,
+                (id) => {
+                  const list = document.getElementById(id);
+                  if (!list) return true;
+                  const popup = list.closest('[data-slot="select-content"]');
+                  const shield = popup?.parentElement?.previousElementSibling;
+                  const blocked =
+                    shield?.hasAttribute("data-base-ui-inert") &&
+                    !shield.hasAttribute("inert") &&
+                    shield.getClientRects().length > 0 &&
+                    getComputedStyle(shield).pointerEvents !== "none";
+                  return Boolean(
+                    popup?.hasAttribute("data-closed") &&
+                    list.getClientRects().length === 0 &&
+                    !blocked,
+                  );
+                },
                 listId,
               )),
             5_000,

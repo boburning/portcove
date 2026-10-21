@@ -1030,7 +1030,7 @@ export async function preparationScenarios({
       15_000,
     );
     const allButtons = await filters.findElements(
-      By.xpath('.//button[starts-with(normalize-space(.),"All (")]'),
+      By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
     );
     let visibleAll: WebElement | undefined;
     for (const candidate of allButtons) if (await candidate.isDisplayed()) visibleAll = candidate;
@@ -1065,12 +1065,29 @@ export async function preparationScenarios({
     return { picker, list, listId };
   }
   async function waitReadinessClosed(picker: WebElement, listId: string) {
-    // SelectContent uses the default Portal lifecycle: the owned list unmounts
-    // after its closing phase. Expanded=false alone still leaves the modal shield.
+    // Base UI may retain a hidden item collection for typeahead. Require its
+    // owned popup to finish closing and its sibling shield to stop intercepting.
     await browser.wait(
       async () =>
         (await picker.getAttribute("aria-expanded")) === "false" &&
-        (await executeBrowserScript(browser, (id) => document.getElementById(id) === null, listId)),
+        (await executeBrowserScript(
+          browser,
+          (id) => {
+            const list = document.getElementById(id);
+            if (!list) return true;
+            const popup = list.closest('[data-slot="select-content"]');
+            const shield = popup?.parentElement?.previousElementSibling;
+            const blocked =
+              shield?.hasAttribute("data-base-ui-inert") &&
+              !shield.hasAttribute("inert") &&
+              shield.getClientRects().length > 0 &&
+              getComputedStyle(shield).pointerEvents !== "none";
+            return Boolean(
+              popup?.hasAttribute("data-closed") && list.getClientRects().length === 0 && !blocked,
+            );
+          },
+          listId,
+        )),
       5_000,
       "The readiness listbox must finish closing before workspace interaction",
     );
@@ -1424,7 +1441,7 @@ export async function preparationScenarios({
     ).length;
     const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
     const readinessButtons = await libraryFilters.findElements(
-      By.xpath('.//button[starts-with(normalize-space(.),"All (")]'),
+      By.xpath('.//button[not(@role="combobox")][starts-with(normalize-space(.),"All (")]'),
     );
     const wideReadiness = (
       await Promise.all(readinessButtons.map((filter) => filter.isDisplayed()))
