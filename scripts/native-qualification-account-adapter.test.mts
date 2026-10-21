@@ -4,6 +4,64 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
+  "registry capture holds a bounded stable file and refuses growth, changed metadata and reparses",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Import-Module $env:PORTCOVE_TEST_NATIVE_ADAPTER
+$module=Get-Module native-qualification-account-adapter
+$directory=Join-Path ([IO.Path]::GetTempPath()) ('native-registry-read-'+[Guid]::NewGuid().ToString('N'))
+$null=[IO.Directory]::CreateDirectory($directory)
+try {
+ & $module {
+  param($directory)
+  $script:mode='normal';$script:reads=0;$script:writeDenied=$false
+  Set-Item Function:script:Get-Item -Value {
+   param($LiteralPath,[switch]$Force)
+   $item=Microsoft.PowerShell.Management\Get-Item -LiteralPath $LiteralPath -Force
+   $script:reads++;$null=$item.Length;$null=$item.CreationTimeUtc;$null=$item.LastWriteTimeUtc
+   if($script:mode -eq 'growth' -and $script:reads -eq 1){[IO.File]::AppendAllText($LiteralPath,('x'*65537))}
+   if($script:mode -eq 'locked' -and $script:reads -eq 2){try{[IO.File]::WriteAllText($LiteralPath,'changed')}catch{$script:writeDenied=$true}}
+   if($script:mode -eq 'reparse' -or ($script:mode -eq 'changed' -and $script:reads -eq 2)){
+    return [pscustomobject]@{PSIsContainer=$false;Length=$item.Length;Attributes=$(if($script:mode -eq 'reparse'){[IO.FileAttributes]::ReparsePoint}else{$item.Attributes});CreationTimeUtc=$item.CreationTimeUtc;LastWriteTimeUtc=$item.LastWriteTimeUtc.AddSeconds(1)}
+   }
+   return $item
+  }
+  $file=Join-Path $directory 'capture.bin'
+  foreach($case in @('normal','locked','growth','changed','reparse','overflow','utf8')){
+   $script:mode=$case;$script:reads=0
+   [IO.File]::WriteAllBytes($file,[Text.Encoding]::UTF8.GetBytes('original'))
+   if($case -eq 'overflow'){[IO.File]::WriteAllBytes($file,[byte[]]::new(65537))}
+   if($case -eq 'utf8'){[IO.File]::WriteAllBytes($file,[byte[]]@(255))}
+   $refused=$false
+   try{$value=Read-PortcoveNativeRegistryCapture $file}catch{$refused=$true}
+   if($case -in @('normal','locked')){if($refused -or $value -cne 'original'){throw 'valid stable capture refused'}}
+   elseif(-not $refused){throw ('unsafe capture accepted: '+$case)}
+  }
+  if(-not $script:writeDenied){throw 'held capture allowed a concurrent writer'}
+ } $directory
+ 'bounded-held-registry-pass'
+}finally{Remove-Item -LiteralPath $directory -Recurse -Force}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_ADAPTER: fileURLToPath(
+          new URL("./native-qualification-account-adapter.psm1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /bounded-held-registry-pass/u);
+  },
+);
+
+void test(
   "own-account registry joins held root, raw streams and positive settlement",
   { skip: process.platform !== "win32" },
   () => {

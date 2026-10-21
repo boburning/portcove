@@ -160,9 +160,7 @@ function Read-PortcoveNativeOwnRegistry {
     $streams=@{}
     foreach ($stream in @('stdout','stderr')) {
         $file=Join-Path $Session.binding.capture_root ($id+'.'+$stream+'.bin')
-        $item=Get-Item -LiteralPath $file -Force
-        if ($item.PSIsContainer -or $item.Length -gt 65536 -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Fixed registry capture exceeds bounds' }
-        $streams[$stream]=[IO.File]::ReadAllText($file,[Text.UTF8Encoding]::new($false,$true))
+        $streams[$stream]=Read-PortcoveNativeRegistryCapture $file
     }
     if ($streams.stderr.Length -ne 0) { throw 'Fixed registry reader retained stderr' }
     $value=$streams.stdout | ConvertFrom-Json
@@ -184,6 +182,35 @@ function Read-PortcoveNativeOwnRegistry {
         }
     }
     return $value
+}
+
+function Read-PortcoveNativeRegistryCapture {
+    param([Parameter(Mandatory)][string]$Path)
+    $before=Get-Item -LiteralPath $Path -Force
+    if ($before.PSIsContainer -or $before.Length -gt 65536 -or ($before.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Fixed registry capture exceeds bounds' }
+    # Read sharing denies concurrent write/delete/replacement for the entire
+    # held lifetime, including the final path/handle metadata comparison.
+    $file=[IO.FileStream]::new($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        $handle=$file.SafeFileHandle
+        $created=[IO.File]::GetCreationTimeUtc($handle)
+        $written=[IO.File]::GetLastWriteTimeUtc($handle)
+        $attributes=[IO.File]::GetAttributes($handle)
+        if ($file.Length -ne $before.Length -or $created -ne $before.CreationTimeUtc -or $written -ne $before.LastWriteTimeUtc -or
+            ($attributes -band ([IO.FileAttributes]::ReparsePoint -bor [IO.FileAttributes]::Directory))) { throw 'Fixed registry capture changed before held read' }
+        $buffer=[byte[]]::new(65537);$count=0
+        do {
+            $read=$file.Read($buffer,$count,$buffer.Length-$count)
+            $count+=$read
+            if ($count -gt 65536) { throw 'Fixed registry capture overflow during held read' }
+        } while ($read -gt 0)
+        $after=Get-Item -LiteralPath $Path -Force
+        if ($after.PSIsContainer -or ($after.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            $count -ne $before.Length -or $file.Length -ne $count -or $after.Length -ne $count -or
+            $after.CreationTimeUtc -ne $created -or $after.LastWriteTimeUtc -ne $written -or
+            [IO.File]::GetCreationTimeUtc($handle) -ne $created -or [IO.File]::GetLastWriteTimeUtc($handle) -ne $written) { throw 'Fixed registry capture identity changed during held read' }
+        return [Text.UTF8Encoding]::new($false,$true).GetString($buffer,0,$count)
+    } finally { $file.Dispose() }
 }
 
 function Update-PortcoveNativeProcessProxy {
