@@ -11,6 +11,8 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The [unchanged-feed site caller preparation](slice4-isolated-role-continuation-2026-10-20.md#unchanged-feed-site-caller-preparation) now connects authenticated metadata context and five-role custody to the existing keyless Tough, complete-site, journaled upload and Pages/readback path. It preserves the active candidate and uses maintenance controls. Complete run-artifact reads share the existing stable four-page/400-artifact ceiling. Local code and ten-entry bundle checks passed; actual metadata provider publication, genuine initial bootstrap continuation and final DAG qualification remain pending. No activation or additional authority is granted.
+
 The reviewed [whole-site continuation and fixed readiness bridge](slice4-complete-site-controller-2026-10-20.md)
 connect actual tools/context/five-role/immutable-Release custody to durable archive
 upload, existing Pages intent, complete public readback, metadata handoff and

@@ -28,7 +28,11 @@ export async function launchFixedSiteController(
   const input: unknown = structuredClone(raw);
   if (
     !isRecord(input) ||
-    Object.keys(input).sort().join(",") !== "context,identity,publication_result,roles,tools" ||
+    !(
+      Object.keys(input).sort().join(",") === "context,identity,publication_result,roles,tools" ||
+      (input.mode === "metadata" &&
+        Object.keys(input).sort().join(",") === "context,identity,mode,roles,tools")
+    ) ||
     !isRecord(input.tools) ||
     Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||
     !path.isAbsolute(parent)

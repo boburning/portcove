@@ -1,3 +1,7 @@
+import {
+  inspectCompleteRunArtifactInventory,
+  readCompleteRunArtifactInventory,
+} from "./release-run-artifact-inventory.mts";
 /** Bounded renewal-context reconciliation. Journal receipts, public artifacts
  * and completed producer identity remain separate from current controls. */
 import path from "node:path";
@@ -196,28 +200,7 @@ export function inspectMetadataContextRetryProvider(
       `https://api.github.com/repos/boburning/portcove/check-runs/${producer.check_run_id}`
   )
     throw new Error("metadata retry original numeric producer differs or is active");
-  if (
-    !isRecord(rawArtifacts) ||
-    !Number.isSafeInteger(rawArtifacts.total_count) ||
-    Number(rawArtifacts.total_count) < 0 ||
-    Number(rawArtifacts.total_count) > 100 ||
-    !Array.isArray(rawArtifacts.artifacts) ||
-    rawArtifacts.artifacts.length !== rawArtifacts.total_count
-  )
-    throw new Error("metadata retry artifact inventory is incomplete");
-  const rows: unknown[] = rawArtifacts.artifacts;
-  const ids = new Set<number>();
-  for (const row of rows) {
-    if (
-      !isRecord(row) ||
-      typeof row.id !== "number" ||
-      !Number.isSafeInteger(row.id) ||
-      row.id < 1 ||
-      ids.has(row.id)
-    )
-      throw new Error("metadata retry artifact inventory duplicates identity");
-    ids.add(row.id);
-  }
+  const rows = inspectCompleteRunArtifactInventory(rawArtifacts).artifacts;
   const prefix = `trusted-coordinator-signing-context`,
     selected = [false, true].map((bundle) => {
       const name = `${prefix}${bundle ? "-attestation" : ""}-${producer.run_id}-1`;
@@ -299,7 +282,7 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
   };
   let reads = 0;
   const api = new GitHubApiClient((args, input) => {
-    if (++reads > 12) throw new Error("metadata retry read limit exhausted");
+    if (++reads > 14) throw new Error("metadata retry read limit exhausted");
     const result = createGitHubRunner({
       cwd: directory,
       timeoutMs: signingContextRemaining(deadline, 15000),
@@ -321,7 +304,9 @@ async function reconcileAt(actualContext: object, context: Context, parent: stri
       run: get(`actions/runs/${producer.run_id}`),
       attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
       job: get(`actions/jobs/${producer.job_id}`),
-      artifacts: get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=1`),
+      artifacts: readCompleteRunArtifactInventory((page) =>
+        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
+      ),
     };
     return {
       raw,
