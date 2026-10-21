@@ -36,6 +36,36 @@ function fixture(windows = true) {
   };
 }
 
+void test("public initial-cohort profile is a separate protected setup proposal with no caller version stamps or schema1 default", () => {
+  const raw = {
+    ...fixture(),
+    schema_version: 2,
+    public_journey: {
+      profile: "ordinary-public-initial-cohort-v1",
+      public_build_inputs: {
+        configuration_revision: "a".repeat(40),
+        manifest_sha256: "b".repeat(64),
+      },
+    },
+  };
+  const parsed = inspectLocalNativeSetup(raw);
+  assert.equal(parsed.public_journey?.profile, "ordinary-public-initial-cohort-v1");
+  assert.equal(inspectLocalNativeSetup(fixture()).public_journey, undefined);
+  assert.throws(() => inspectLocalNativeSetup({ ...raw, schema_version: 1 }));
+  assert.throws(() =>
+    inspectLocalNativeSetup({
+      ...raw,
+      public_journey: { ...raw.public_journey, candidate_version: "0.1.1" },
+    }),
+  );
+  assert.throws(() =>
+    inspectLocalNativeSetup({
+      ...raw,
+      public_journey: { ...raw.public_journey, profile: "accepted-public-journey" },
+    }),
+  );
+});
+
 void test("explicit WSL package setup retains Windows parent custody without inventing a Linux broker or desktop tool route", () => {
   const raw = {
     ...fixture(),

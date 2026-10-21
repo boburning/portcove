@@ -411,6 +411,21 @@ async function sourceTransport(parent: Parent, directory: string) {
   return { api, download, downloadAsset, recover, recheck, verifier };
 }
 
+/** The public journey uses the same installed parent's read-only source tool
+ * and credential custody. It never adopts a hosted tool/admission brand or an
+ * incoming candidate. The protected descriptor appoints one fixed cohort rule. */
+export async function openActualNativePublicSource(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
+    throw new Error("actual protected public journey profile required");
+  const directory = await mkdtemp(
+    path.join(parent.descriptor.capture_root, "native-public-source-"),
+  );
+  const source = await sourceTransport(parent, directory);
+  await parent.recheck();
+  return { parent, directory, source };
+}
+
 const selections = new WeakMap<
   object,
   {
@@ -1133,6 +1148,20 @@ export function inspectNativePredecessorReleaseAsset(
   rawAssets: unknown,
 ) {
   const candidate = inspectNativeQualificationCandidate(rawCandidate);
+  return inspectPublicImmutableReleaseAsset(rawRecord, candidate, rawRelease, rawAssets);
+}
+
+/** Exact public record/package association only, with no native or build
+ * artifact identity inferred from a Release asset identifier. */
+export function inspectPublicImmutableReleaseAsset(
+  rawRecord: unknown,
+  candidate: Pick<
+    ReturnType<typeof inspectNativeQualificationCandidate>,
+    "source_commit" | "source_tree" | "package"
+  >,
+  rawRelease: unknown,
+  rawAssets: unknown,
+) {
   if (
     !isRecord(rawRecord) ||
     !isRecord(rawRecord.artifact) ||
