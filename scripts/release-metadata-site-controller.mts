@@ -94,7 +94,7 @@ export async function runFixedMetadataSiteConfiguration(
   if (
     !isRecord(input) ||
     Object.keys(input).sort().join(",") !== "context,identity,mode,roles,tools" ||
-    input.mode !== "metadata-renewal" ||
+    input.mode !== "metadata" ||
     !isRecord(input.tools) ||
     Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||
     !Array.isArray(input.roles) ||

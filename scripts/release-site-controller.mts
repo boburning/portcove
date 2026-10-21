@@ -81,7 +81,7 @@ export async function runFixedSiteConfiguration(
   phaseDeadline?: number,
 ) {
   const input: unknown = structuredClone(raw);
-  if (isRecord(input) && input.mode === "metadata-renewal") {
+  if (isRecord(input) && input.mode === "metadata") {
     const deadline = Math.min(started + 290000, phaseDeadline ?? Infinity);
     remaining(deadline);
     return (

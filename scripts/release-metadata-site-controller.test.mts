@@ -54,7 +54,7 @@ function fixture() {
       public_source_commit: "3".repeat(40),
     },
     binding: {
-      kind: "metadata-renewal",
+      kind: "metadata",
       descriptor_sha256: digest(descriptor),
       records_sha256: descriptor.unchanged_records_sha256,
     },
@@ -137,9 +137,9 @@ void test("imported metadata TUF receipts and invalid dispatch cannot allocate p
   );
   for (const raw of [
     {},
-    { mode: "metadata-renewal" },
+    { mode: "metadata" },
     {
-      mode: "metadata-renewal",
+      mode: "metadata",
       context: {},
       identity: {},
       roles: [],
@@ -151,7 +151,7 @@ void test("imported metadata TUF receipts and invalid dispatch cannot allocate p
       /invocation/,
     );
   await assert.rejects(
-    runFixedSiteConfiguration({ mode: "metadata-renewal" }, root, performance.now() - 1),
+    runFixedSiteConfiguration({ mode: "metadata" }, root, performance.now() - 1),
     /phase exhausted/,
   );
   assert.deepEqual(await readdir(root), []);
