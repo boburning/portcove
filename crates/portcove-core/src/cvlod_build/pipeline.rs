@@ -5,7 +5,7 @@ use super::super::{
 };
 use super::{
     archive_facts, local_profile,
-    plan::{Plan, Stage},
+    plan::{OBJECT_BATCH_LIMIT, Plan, Stage},
     sources,
 };
 use crate::{PortcoveError, Result};
@@ -711,7 +711,7 @@ pub(super) fn prepare_install(
             "auxiliary_archives":archives,"source_manifest_sha256":sources::identity(),"local_toolchain_profile":local_profile::ID,
             "local_toolchain_manifest_sha256":local_profile::identity(),"input_tree_sha256":inputs.identities.iter().map(|v|serde_json::to_vec(v).map(|b|digest(&b))).collect::<std::result::Result<Vec<_>,_>>()?,
             "lifetime_patch":{"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"generation":generation,"commands":commands,"compilation":plans,
-            "objects_per_invocation":2,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":1200,
+            "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":1200,
             "elapsed_ms":deadline.elapsed().as_millis(),"recompiler_imports":recompiler_imports,"imports":imports,"runtime_files":output,"builder_quiesced":true,"game_executed_by_builder":false
         }))?,
     )?;
@@ -1039,15 +1039,11 @@ impl Executor<'_, '_> {
                 let output = self.ninja(build, targets, false, quiesced)?;
                 let observed = plan.actions(output.complete_stdout()?, false)?;
                 plan.require_unchanged(build)?;
-                if !observed.bounded() || observed.identities() != actions.identities() {
-                    return Err(PortcoveError::verification(
-                        "CVLoD execution differs from its bounded dry-run closure",
-                    ));
-                }
+                actions.require_observed(&observed)?;
                 return Ok(());
             }
-            let smaller = if actions.objects.len() > 2 {
-                actions.objects[..2].to_vec()
+            let smaller = if let Some(objects) = actions.split_objects() {
+                objects.to_vec()
             } else {
                 vec![
                     actions
@@ -1080,7 +1076,7 @@ impl Executor<'_, '_> {
         quiesced: &mut bool,
     ) -> Result<Plan> {
         let plan = Plan::read(build, stage)?;
-        for objects in plan.objects.chunks(2) {
+        for objects in plan.objects.chunks(OBJECT_BATCH_LIMIT) {
             self.bounded_build(&plan, build, objects, 0, quiesced)?;
         }
         self.bounded_build(&plan, build, &[target.into()], 0, quiesced)?;

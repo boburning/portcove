@@ -7,6 +7,9 @@ use std::{
     path::Path,
 };
 
+// Targets are preflighted together; Ninja still runs at most two compilers.
+pub(super) const OBJECT_BATCH_LIMIT: usize = 8;
+
 #[derive(Clone, Copy)]
 pub(super) enum Stage {
     Game,
@@ -45,11 +48,9 @@ mod tests {
     use super::*;
     fn plan() -> Plan {
         Plan {
-            objects: vec![
-                "CMakeFiles/game.dir/a.cpp.obj".into(),
-                "CMakeFiles/game.dir/b.cpp.obj".into(),
-                "CMakeFiles/game.dir/c.cpp.obj".into(),
-            ],
+            objects: ('a'..='i')
+                .map(|name| format!("CMakeFiles/game.dir/{name}.cpp.obj"))
+                .collect(),
             helpers: vec![Helper {
                 description: "Generating fixed.h".into(),
                 target: "fixed.h".into(),
@@ -61,13 +62,28 @@ mod tests {
     #[test]
     fn cvlod_dry_run_counts_dependency_compilation_and_refuses_unplanned_actions() {
         let plan = plan();
-        let requested_two_with_dependency = "[1/3] Building CXX object CMakeFiles/game.dir/c.cpp.obj\n[2/3] Building CXX object CMakeFiles/game.dir/a.cpp.obj\n[3/3] Building CXX object CMakeFiles/game.dir/b.cpp.obj\n";
-        assert!(
-            !plan
-                .actions(requested_two_with_dependency, true)
-                .unwrap()
-                .bounded()
-        );
+        let expanded = plan
+            .objects
+            .iter()
+            .enumerate()
+            .map(|(index, object)| format!("[{}/9] Building CXX object {object}\n", index + 1))
+            .collect::<String>();
+        let actions = plan.actions(&expanded, true).unwrap();
+        assert!(!actions.bounded());
+        assert_eq!(actions.object_limit(), 8);
+        assert_eq!(actions.split_objects().unwrap(), &plan.objects[..8]);
+        let eight = plan
+            .objects
+            .iter()
+            .take(8)
+            .enumerate()
+            .map(|(index, object)| format!("[{}/8] Building CXX object {object}\n", index + 1))
+            .collect::<String>();
+        let expected = plan.actions(&eight, true).unwrap();
+        assert!(expected.bounded());
+        let substituted = eight.replace(&plan.objects[7], &plan.objects[8]);
+        let observed = plan.actions(&substituted, false).unwrap();
+        assert!(expected.require_observed(&observed).is_err());
         assert!(
             plan.actions(
                 "[1/1] Building CXX object CMakeFiles/game.dir/outside.cpp.obj\n",
@@ -80,6 +96,20 @@ mod tests {
         let valid = plan.actions("[1/2] Generating fixed.h\n[2/2] Building CXX object CMakeFiles/game.dir/a.cpp.obj\n", true).unwrap();
         assert!(valid.bounded());
         assert_eq!(valid.helpers[0].target, "fixed.h");
+        let mixed = plan.actions("[1/4] Generating fixed.h\n[2/4] Building CXX object CMakeFiles/game.dir/a.cpp.obj\n[3/4] Building CXX object CMakeFiles/game.dir/b.cpp.obj\n[4/4] Building CXX object CMakeFiles/game.dir/c.cpp.obj\n", true).unwrap();
+        assert!(!mixed.bounded());
+        assert_eq!(mixed.object_limit(), 2);
+        assert_eq!(mixed.split_objects().unwrap(), &plan.objects[..2]);
+        assert!(plan.actions("[1/2] Building CXX object CMakeFiles/game.dir/a.cpp.obj\n[2/2] Building CXX object CMakeFiles/game.dir/a.cpp.obj\n", true).is_err());
+        let observed = plan
+            .actions(
+                "[1/1] Building CXX object CMakeFiles/game.dir/b.cpp.obj\n",
+                false,
+            )
+            .unwrap();
+        assert!(valid.require_observed(&observed).is_err());
+        assert!(valid.require_observed(&valid).is_ok());
+        assert!(actions.require_observed(&actions).is_err());
         assert!(
             plan.actions("[1/2] Generating fixed.h\n[2/2] Generating fixed.h\n", true)
                 .is_err()
@@ -89,6 +119,20 @@ mod tests {
                 .unwrap()
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn cvlod_object_batch_arguments_keep_two_compilers_and_a_finite_target_limit() {
+        let targets = plan().objects;
+        let build = Path::new("C:/private-build");
+        let arguments = Plan::ninja_arguments(build, &targets[..8], false).unwrap();
+        assert_eq!(&arguments[..3], ["-C", "C:/private-build", "-j2"]);
+        assert_eq!(&arguments[3..], &targets[..8]);
+        let dry = Plan::ninja_arguments(build, &targets[..8], true).unwrap();
+        assert_eq!(dry[3], "-n");
+        assert_eq!(&dry[4..], &targets[..8]);
+        assert!(Plan::ninja_arguments(build, &targets, false).is_err());
+        assert!(Plan::ninja_arguments(build, &[], false).is_err());
     }
 
     #[test]
@@ -296,8 +340,27 @@ pub(super) struct Actions {
     pub(super) helpers: Vec<Helper>,
 }
 impl Actions {
+    pub(super) fn object_limit(&self) -> usize {
+        if self.helpers.is_empty() {
+            OBJECT_BATCH_LIMIT
+        } else {
+            2
+        }
+    }
     pub(super) fn bounded(&self) -> bool {
-        self.objects.len() <= 2 && self.helpers.len() <= 8
+        self.objects.len() <= self.object_limit() && self.helpers.len() <= 8
+    }
+    pub(super) fn split_objects(&self) -> Option<&[String]> {
+        let limit = self.object_limit();
+        (self.objects.len() > limit).then(|| &self.objects[..limit])
+    }
+    pub(super) fn require_observed(&self, observed: &Self) -> Result<()> {
+        if !observed.bounded() || observed.identities() != self.identities() {
+            return Err(PortcoveError::verification(
+                "CVLoD execution differs from its bounded dry-run closure",
+            ));
+        }
+        Ok(())
     }
     pub(super) fn is_empty(&self) -> bool {
         self.objects.is_empty() && self.helpers.is_empty()
@@ -576,7 +639,7 @@ impl Plan {
         targets: &[String],
         dry_run: bool,
     ) -> Result<Vec<String>> {
-        if targets.is_empty() || targets.len() > 2 {
+        if targets.is_empty() || targets.len() > OBJECT_BATCH_LIMIT {
             return Err(PortcoveError::verification(
                 "CVLoD compiler request exceeds fixed scope",
             ));
