@@ -42,6 +42,7 @@ async function mount(theme = "dark", journey: "collection" | "collection-large" 
   await expect
     .poll(() => document.querySelectorAll(".collection-entry").length)
     .toBe(journey === "collection-large" ? 60 : 12);
+  document.documentElement.dataset.theme = theme;
 }
 
 it("groups retrieval, preserves independent duplicate-port launch targets and states the Steam selection scope", async () => {
@@ -247,7 +248,7 @@ for (const theme of ["dark", "light"]) {
         document.querySelector("[data-detail-port-id]")?.getAttribute("data-detail-port-id"),
       )
       .toBe("collection-1");
-    await page.getByRole("button", { name: "Back", exact: true }).click();
+    await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
     await expect.poll(() => document.activeElement?.textContent).toContain("Mario modern port");
     expect(document.activeElement?.getAttribute("data-detail-origin")).toBe(
       "catalog:card:collection-1",

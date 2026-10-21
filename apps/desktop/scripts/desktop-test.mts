@@ -2275,7 +2275,9 @@ async function verifyCompactSettingsJumps() {
   );
 
   const diagnosticCopy = await executeBrowserScript(browser, () => {
-    const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+    const paragraph = document.querySelector(
+      ".diagnostics-card .support-bundle-export > p:first-of-type",
+    );
     if (!(paragraph instanceof HTMLElement)) throw new Error("Diagnostics explanation is missing");
     const original = paragraph.textContent;
     paragraph.textContent = `${original} `.repeat(8);
@@ -2338,7 +2340,9 @@ async function verifyCompactSettingsJumps() {
     await executeBrowserScript(
       browser,
       (copy) => {
-        const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+        const paragraph = document.querySelector(
+          ".diagnostics-card .support-bundle-export > p:first-of-type",
+        );
         if (paragraph) paragraph.textContent = copy;
       },
       diagnosticCopy,
