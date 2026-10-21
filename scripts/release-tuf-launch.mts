@@ -11,7 +11,7 @@ import type { ControllerToolArtifactExpected } from "./release-controller-tool-a
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
-import { currentTufJobDeadline } from "./release-tuf-job-budget.mts";
+import { currentTufJobDeadline } from "./release-signing-job-budget.mts";
 const started = performance.now(),
   hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export async function launchFixedTufController(

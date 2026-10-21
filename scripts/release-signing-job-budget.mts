@@ -6,16 +6,33 @@ import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
-export function tufOriginalJobDeadline(
+type SigningRole = "payload" | TufSigningRole;
+type JobIdentity = {
+  run_id: string;
+  run_attempt: number;
+  controller_revision: string;
+  controller_ref: string;
+};
+type BudgetArguments = [
+  raw: unknown,
+  identity: Pick<JobIdentity, "run_id" | "controller_revision">,
+  now?: number,
+  monotonic?: number,
+];
+type CurrentArguments = [identity: JobIdentity, root: string, processDeadline: number];
+function signingOriginalJobDeadline(
   rawRole: unknown,
   raw: unknown,
   identity: { run_id: string; controller_revision: string },
   now = Date.now(),
   monotonic = performance.now(),
 ) {
-  if (!["releases", "preview", "stable", "snapshot", "timestamp"].includes(String(rawRole)))
-    throw new Error("fixed online TUF role required");
-  const role = rawRole as TufSigningRole;
+  if (
+    !["payload", "releases", "preview", "stable", "snapshot", "timestamp"].includes(String(rawRole))
+  )
+    throw new Error("fixed online signing role required");
+  const role = rawRole as SigningRole;
+  const maximum = role === "payload" ? 570000 : 115000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -37,7 +54,9 @@ export function tufOriginalJobDeadline(
       throw new Error("TUF job inventory duplicated or incomplete");
     ids.add(job.id);
   }
-  const name = releaseControlPhaseProfile(`tuf-${role}`).reader_name;
+  const name = releaseControlPhaseProfile(
+    role === "payload" ? "payload" : `tuf-${role}`,
+  ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -50,11 +69,11 @@ export function tufOriginalJobDeadline(
     typeof job.started_at !== "string"
   )
     throw new Error("actual fixed TUF job start unavailable");
-  const remaining = Date.parse(job.started_at) + 115000 - now;
+  const remaining = Date.parse(job.started_at) + maximum - now;
   if (
     !Number.isFinite(remaining) ||
     remaining <= 0 ||
-    remaining > 115000 ||
+    remaining > maximum ||
     !Number.isFinite(monotonic)
   )
     throw new Error("original TUF job budget exhausted or future dated");
@@ -63,8 +82,8 @@ export function tufOriginalJobDeadline(
 
 /** Reads the original fixed job BEFORE any tool receipt/download. No caller
  * supplied timestamp can reset the selected two-minute job's cleanup reserve. */
-export function currentTufJobDeadline(
-  role: unknown,
+function currentSigningJobDeadline(
+  role: SigningRole,
   identity: {
     run_id: string;
     run_attempt: number;
@@ -102,5 +121,21 @@ export function currentTufJobDeadline(
   );
   remaining();
   if (response.status !== 200) throw new Error("original TUF job budget unavailable");
-  return Math.min(processDeadline, tufOriginalJobDeadline(role, response.body, identity));
+  return Math.min(processDeadline, signingOriginalJobDeadline(role, response.body, identity));
+}
+export function tufOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
+  if (!["releases", "preview", "stable", "snapshot", "timestamp"].includes(String(role)))
+    throw new Error("fixed online TUF role required");
+  return signingOriginalJobDeadline(role, ...args);
+}
+export function payloadOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("payload", ...args);
+}
+export function currentTufJobDeadline(role: unknown, ...args: CurrentArguments) {
+  if (!["releases", "preview", "stable", "snapshot", "timestamp"].includes(String(role)))
+    throw new Error("fixed online TUF role required");
+  return currentSigningJobDeadline(role as TufSigningRole, ...args);
+}
+export function currentPayloadJobDeadline(...args: CurrentArguments) {
+  return currentSigningJobDeadline("payload", ...args);
 }

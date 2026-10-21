@@ -11,11 +11,13 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import { currentPayloadJobDeadline } from "./release-signing-job-budget.mts";
 
 const started = performance.now();
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export async function launchFixedPayloadController(raw: unknown, parent: string) {
-  const deadline = started + 570000;
+  let deadline = started + 570000;
   const active = () => {
     if (performance.now() >= deadline)
       throw new Error("fixed tool launcher role deadline exhausted");
@@ -34,6 +36,11 @@ export async function launchFixedPayloadController(raw: unknown, parent: string)
     throw new Error("fixed payload launcher fields differ");
   if (process.env.NODE_OPTIONS || process.env.NODE_PATH)
     throw new Error("fixed launcher forbids ambient Node hooks");
+  deadline = currentPayloadJobDeadline(
+    inspectAssemblerIdentityExpectation(input.signer_identity),
+    parent,
+    deadline,
+  );
   const receipt = await receiveControllerTools(
     parent,
     input.tools.artifact as unknown as ControllerToolArtifactExpected,
@@ -63,7 +70,13 @@ export async function launchFixedPayloadController(raw: unknown, parent: string)
   return result;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  /^release-controller-tool-launch(?:\.mts|(?:\.bundle)?\.mjs)$/u.test(
+    path.basename(process.argv[1]),
+  ) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     if (process.argv.length !== 3) throw new Error("fixed payload configuration required");
     const raw: unknown = JSON.parse(

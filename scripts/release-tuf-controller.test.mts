@@ -12,7 +12,10 @@ import {
 } from "./release-tuf-controller.mts";
 import { launchFixedTufController } from "./release-tuf-launch.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
-import { tufOriginalJobDeadline } from "./release-tuf-job-budget.mts";
+import {
+  tufOriginalJobDeadline,
+  payloadOriginalJobDeadline,
+} from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
   identity = {
@@ -53,6 +56,35 @@ void test("fixed role job budget includes setup time and refuses partial, stale,
       assert.throws(() => tufOriginalJobDeadline(role, inventory, identity, time, 1000), /budget/);
   }
   assert.throws(() => tufOriginalJobDeadline("root", {}, identity), /role/);
+});
+void test("payload fixed job budget counts earlier tools/setup and keeps the original ten-minute cleanup reserve", () => {
+  const started = Date.parse("2026-10-20T00:00:00Z");
+  const job = {
+    id: 501,
+    run_id: Number(identity.run_id),
+    run_attempt: 1,
+    head_sha: identity.controller_revision,
+    status: "in_progress",
+    started_at: new Date(started).toISOString(),
+    name: releaseControlPhaseProfile("payload").reader_name,
+  };
+  const inventory = { total_count: 1, jobs: [job] };
+  assert.equal(payloadOriginalJobDeadline(inventory, identity, started + 120000, 1000), 451000);
+  for (const now of [started - 1, started + 570000])
+    assert.throws(() => payloadOriginalJobDeadline(inventory, identity, now, 1000), /budget/);
+  assert.throws(
+    () =>
+      payloadOriginalJobDeadline(
+        {
+          ...inventory,
+          jobs: [{ ...job, name: releaseControlPhaseProfile("tuf-releases").reader_name }],
+        },
+        identity,
+        started + 1000,
+        1000,
+      ),
+    /start/,
+  );
 });
 void test("fixed TUF phase only tightens a live original deadline and keeps selected two-minute cleanup reserve", () => {
   const now = performance.now();

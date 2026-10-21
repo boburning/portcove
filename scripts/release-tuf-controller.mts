@@ -51,7 +51,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { isRecord } from "./runtime-values.mts";
-import { currentTufJobDeadline } from "./release-tuf-job-budget.mts";
+import { currentTufJobDeadline } from "./release-signing-job-budget.mts";
 import {
   inspectMetadataSigningBinding,
   inspectMetadataSigningReservation,

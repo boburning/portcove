@@ -38,6 +38,7 @@ import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { isRecord } from "./runtime-values.mts";
+import { currentPayloadJobDeadline } from "./release-signing-job-budget.mts";
 
 export async function runPayloadSigningAndContextController(
   configuration: unknown,
@@ -206,6 +207,13 @@ export async function runFixedPayloadContextConfiguration(
     !isRecord(raw.tools.bundle)
   )
     throw new Error("fixed payload/context caller fields differ");
+  tightenPayloadSigningPhaseDeadline(
+    currentPayloadJobDeadline(
+      inspectAssemblerIdentityExpectation(raw.signer_identity),
+      parent,
+      payloadSigningPhaseDeadline(),
+    ),
+  );
   const toolsReceipt = await receiveControllerTools(
     parent,
     raw.tools.artifact as unknown as ControllerToolArtifactExpected,
@@ -228,7 +236,13 @@ export async function runFixedPayloadContextConfiguration(
   );
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  /^release-signing-controller(?:\.mts|(?:\.bundle)?\.mjs)$/u.test(
+    path.basename(process.argv[1]),
+  ) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     if (process.argv.length !== 3) throw new Error("fixed payload/context configuration required");
     const raw: unknown = JSON.parse(
