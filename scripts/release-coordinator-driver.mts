@@ -90,6 +90,10 @@ import {
   inspectPendingPagesReadback,
   recoverPendingPagesPublication,
 } from "./release-pages-recovery.mts";
+import {
+  inspectSettledPagesMetadataHandoff,
+  recoverPublishedPagesMetadata,
+} from "./release-pages-metadata-recovery.mts";
 
 type Reader = ReturnType<typeof createReleasePublicationReader>;
 const metadataPreparations = new WeakMap<
@@ -1408,9 +1412,17 @@ async function recoverTrustedCoordinatorPages(
   configuration: unknown,
   recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
   budget: ReturnType<typeof coordinatorDeadline>,
+  toolLocators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
 ) {
   const selected = selectCoordinatorPendingPagesRecovery(recovered.input);
-  if (!selected) throw new Error("durable pending Pages intent required");
+  const handoff = selected ? null : inspectSettledPagesMetadataHandoff(recovered.input);
+  if (!selected && !handoff) throw new Error("durable pending or settled Pages intent required");
+  if (!selected && !toolLocators)
+    return {
+      decision: "held-pages-metadata-tools",
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
   const authorities = await requireControllerReleaseAuthorities("coordinator");
   const namespace = inspectCoordinatorRemoteNamespace(configuration);
   if (namespace !== authorities.namespace)
@@ -1439,15 +1451,15 @@ async function recoverTrustedCoordinatorPages(
   );
   const factsSha = capacityDigest({
     checkpoint: recovered.checkpoint,
-    operation_id: selected.operation.id,
-    expected: selected.expected,
+    operation_id: (selected ?? handoff)!.operation.id,
+    expected: (selected ?? handoff)!.expected,
   });
   const api = coordinatorApi(directory, budget, 256 * 1024);
   let round = 0;
   let initialIdentity: string | undefined;
   const freshBoundary = async () => {
     budget.check();
-    if (++round > 2) throw new Error("Pages readback coordinator rounds exhausted");
+    if (++round > 4) throw new Error("Pages readback coordinator rounds exhausted");
     const controls = await authenticateReleaseControlRound(
       path.join(directory, `pages-readback-control-${round}`),
       factsSha,
@@ -1468,21 +1480,48 @@ async function recoverTrustedCoordinatorPages(
     initialIdentity = identity;
     budget.check();
   };
-  const readback = await recoverPendingPagesPublication(
-    executor,
-    {
-      repository: recovered.repository,
-      checkpoint: recovered.checkpoint,
-      remote_configuration: configuration,
-    },
-    directory,
-    budget.monotonicDeadline,
-    freshBoundary,
-  );
+  const readback = selected
+    ? await recoverPendingPagesPublication(
+        executor,
+        {
+          repository: recovered.repository,
+          checkpoint: recovered.checkpoint,
+          remote_configuration: configuration,
+        },
+        directory,
+        budget.monotonicDeadline,
+        freshBoundary,
+      )
+    : null;
+  const checkpoint = readback?.settled.checkpoint ?? recovered.checkpoint;
+  if (toolLocators) {
+    const receipt = await receiveControllerTools(
+      directory,
+      toolLocators.artifact,
+      toolLocators.bundle,
+      {
+        deadline: budget.monotonicDeadline,
+      },
+    );
+    const metadata = await recoverPublishedPagesMetadata(
+      executor,
+      { repository: recovered.repository, checkpoint, remote_configuration: configuration },
+      receipt,
+      directory,
+      budget.monotonicDeadline,
+      freshBoundary,
+    );
+    return Object.freeze({
+      decision: "pages-published-metadata-recovered",
+      ...metadata,
+      pending_obligations: ["applicable-public-client-journey", "durable-candidate-completion"],
+      automatic_retry: false,
+    });
+  }
   return Object.freeze({
     decision: "pages-effect-recovered",
     ...readback,
-    checkpoint: readback.settled.checkpoint,
+    checkpoint,
     pending_obligations: [
       "actual-tough-publication-authentication",
       "published-metadata-handoff",
@@ -1534,13 +1573,17 @@ async function requestTrustedSemanticReviewAt(
       transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     checkpoint = recovered.checkpoint;
-    if (selectCoordinatorPendingPagesRecovery(recovered.input)) {
+    if (
+      selectCoordinatorPendingPagesRecovery(recovered.input) ||
+      inspectSettledPagesMetadataHandoff(recovered.input)
+    ) {
       phase = "actual-terminal-pages-readback-recovery";
       return recoverTrustedCoordinatorPages(
         directory,
         selected.remote_configuration,
         recovered,
         budget,
+        selected.tools,
       );
     }
     const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
