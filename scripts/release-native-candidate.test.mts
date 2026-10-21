@@ -25,7 +25,11 @@ import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectNativeKeylessAssemblyPlan } from "./release-native-keyless-assembly.mts";
+import {
+  inspectNativeKeylessAssemblyPlan,
+  inspectNativePayloadVerificationPlan,
+  runNativePayloadVerificationPlan,
+} from "./release-native-keyless-assembly.mts";
 
 void test("native keyless plan fixes owned public input paths and the maintained local tool without minting execution authority", async () => {
   const root = path.resolve(fileURLToPath(new URL("..", import.meta.url))),
@@ -524,5 +528,45 @@ void test("predecessor materialization requires exact immutable Release and reco
       "Accept: application/octet-stream",
       "repos/boburning/portcove/issues",
     ]),
+  );
+});
+
+void test("native detached payload verifier uses the same pinned keyless tool with exact private paths and refuses credentials before reading", async () => {
+  const root = path.resolve(fileURLToPath(new URL("..", import.meta.url))),
+    directory = path.join(root, "work/inert-native-payload");
+  const plan = {
+    schema_version: 1,
+    artifact: path.join(directory, "setup.exe"),
+    signature: path.join(directory, "payload.sig"),
+    public_key: path.join(directory, "public.key"),
+    public_key_sha256: "c".repeat(64),
+    sha256: "a".repeat(64),
+    bytes: 128,
+    version: "0.1.0-beta.1",
+    output_parent: directory,
+    tool: {
+      path: path.join(
+        root,
+        "tools",
+        process.platform === "win32" ? "portcove-release-tools.exe" : "portcove-release-tools",
+      ),
+      sha256: "b".repeat(64),
+    },
+  };
+  const selected = inspectNativePayloadVerificationPlan(plan, directory);
+  assert.equal(selected.bytes, 128);
+  for (const changed of [
+    { ...plan, artifact: root },
+    { ...plan, signature: path.join(root, "foreign.sig") },
+    { ...plan, public_key: "relative.key" },
+    { ...plan, sha256: "unknown" },
+    { ...plan, bytes: 0 },
+    { ...plan, tool: { ...plan.tool, path: path.join(directory, "candidate.exe") } },
+    { ...plan, accepted: true },
+  ])
+    assert.throws(() => inspectNativePayloadVerificationPlan(changed, directory));
+  await assert.rejects(
+    runNativePayloadVerificationPlan(path.join(directory, "wrong-plan.json"), "a".repeat(64)),
+    /fixed native payload verifier/,
   );
 });

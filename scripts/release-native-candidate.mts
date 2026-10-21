@@ -39,7 +39,10 @@ import {
   inspectPublicationAuthorities,
 } from "./release-authority-configuration.mts";
 import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
-import { inspectNativeKeylessAssemblyPlan } from "./release-native-keyless-assembly.mts";
+import {
+  inspectNativeKeylessAssemblyPlan,
+  inspectNativePayloadVerificationPlan,
+} from "./release-native-keyless-assembly.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
@@ -417,6 +420,12 @@ const selections = new WeakMap<
     packageSha256: string;
     packageBytes: number;
     predecessor?: { path: string; bytes: number; sha256: string; version: string };
+    payloadCrypto?: {
+      file: string;
+      sha256: string;
+      signed_context_sha256: string;
+      signatures_sha256: string;
+    };
     version: string;
     facts: Readonly<Pick<PreparedReleaseAdmissionFacts, "assembly" | "archives" | "checkpoint">>;
     request: ReturnType<typeof prepareNativeStageRequest>;
@@ -835,29 +844,15 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   });
 }
 
-/** Actual local parent owns the only child invocation. The utility's JSON is
- * never treated as a hosted or native brand; original public proofs, fixed tool
- * bytes, complete repository bytes and the current journal remain necessary. */
-export async function assembleActualNativePostSignRepository(controllerReceipt: object) {
+async function runActualNativeKeylessChild(
+  controllerReceipt: object,
+  planPath: string,
+  planSha256: string,
+  directory: string,
+) {
   const selected = await requireActualNativePostSignController(controllerReceipt);
   const tool = selected.parent.transport_configuration.post_sign_verifier;
-  if (!tool) throw new Error("protected installation keyless native verifier pin absent");
-  toolBytes(tool.path, tool.sha256);
-  const inputs = await readActualNativePostSignPublicInputs(controllerReceipt);
-  const contextDirectory = path.join(inputs.context.directory, "context");
-  const plan = inspectNativeKeylessAssemblyPlan(
-    {
-      schema_version: 1,
-      context_directory: contextDirectory,
-      output_parent: inputs.directory,
-      tool,
-      signed_roles: inputs.roles.map((role) => role.envelope),
-    },
-    inputs.directory,
-  );
-  const wire = Buffer.from(JSON.stringify({ schema_version: 1, ...plan }));
-  const planPath = path.join(inputs.directory, "native-keyless-plan.json");
-  await writeFile(planPath, wire, { flag: "wx", mode: 0o600 });
+  if (!tool) throw new Error("actual native keyless verifier pin absent");
   const signal = new EventEmitter();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let status: number;
@@ -868,7 +863,7 @@ export async function assembleActualNativePostSignRepository(controllerReceipt: 
       [
         path.join(selected.parent.controller_root, "scripts/release-native-keyless-assembly.mts"),
         planPath,
-        hash(wire),
+        planSha256,
       ],
       {
         cwd: selected.parent.controller_root,
@@ -881,7 +876,7 @@ export async function assembleActualNativePostSignRepository(controllerReceipt: 
         supervise: (args, options) =>
           runRustTests(args, {
             ...options,
-            tempRoot: inputs.directory,
+            tempRoot: directory,
             signalTarget: signal,
             acquireLock: async (metadata, admission) => {
               if (!options.acquireLock)
@@ -910,6 +905,32 @@ export async function assembleActualNativePostSignRepository(controllerReceipt: 
   toolBytes(tool.path, tool.sha256);
   if (status !== 0)
     throw new Error("native keyless child failed; preserve original inputs and partial effects");
+}
+
+/** Actual local parent owns the only child invocation. The utility's JSON is
+ * never treated as a hosted or native brand; original public proofs, fixed tool
+ * bytes, complete repository bytes and the current journal remain necessary. */
+export async function assembleActualNativePostSignRepository(controllerReceipt: object) {
+  const selected = await requireActualNativePostSignController(controllerReceipt);
+  const tool = selected.parent.transport_configuration.post_sign_verifier;
+  if (!tool) throw new Error("protected installation keyless native verifier pin absent");
+  toolBytes(tool.path, tool.sha256);
+  const inputs = await readActualNativePostSignPublicInputs(controllerReceipt);
+  const contextDirectory = path.join(inputs.context.directory, "context");
+  const plan = inspectNativeKeylessAssemblyPlan(
+    {
+      schema_version: 1,
+      context_directory: contextDirectory,
+      output_parent: inputs.directory,
+      tool,
+      signed_roles: inputs.roles.map((role) => role.envelope),
+    },
+    inputs.directory,
+  );
+  const wire = Buffer.from(JSON.stringify({ schema_version: 1, ...plan }));
+  const planPath = path.join(inputs.directory, "native-keyless-plan.json");
+  await writeFile(planPath, wire, { flag: "wx", mode: 0o600 });
+  await runActualNativeKeylessChild(controllerReceipt, planPath, hash(wire), inputs.directory);
   const resultBytes = await readBoundedPublicBuildInputFile(
     inputs.directory,
     "native-keyless-result.json",
@@ -1328,6 +1349,106 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   }
   const packagePath = path.join(verified.directory, packageIdentity.candidate.package.filename);
   await writeFile(packagePath, retained.bytes, { flag: "wx", mode: 0o600 });
+  const contextFiles = await readBoundedReleaseContextFiles(
+    path.join(verified.inputs.context.directory, "context"),
+  );
+  const releaseRecords = [...contextFiles]
+    .filter(([name]) => name.startsWith("records/releases/"))
+    .map(([, bytes]) => JSON.parse(bytes.toString("utf8")) as unknown)
+    .filter(
+      (record) =>
+        isRecord(record) &&
+        record.target === platform &&
+        record.source_commit === packageIdentity.candidate.source_commit &&
+        record.version === packageIdentity.version &&
+        isRecord(record.artifact) &&
+        record.artifact.sha256 === packageIdentity.candidate.package.sha256 &&
+        record.artifact.bytes === packageIdentity.candidate.package.bytes,
+    );
+  if (
+    releaseRecords.length !== 1 ||
+    !isRecord(releaseRecords[0]) ||
+    !isRecord(releaseRecords[0].artifact)
+  )
+    throw new Error("native exact signed candidate record missing");
+  const signedArtifact = releaseRecords[0].artifact;
+  const registryBytes = contextFiles.get("payload.json");
+  if (!registryBytes) throw new Error("native payload key registry absent");
+  const registry: unknown = JSON.parse(registryBytes.toString("utf8"));
+  if (!isRecord(registry) || !Array.isArray(registry.keys) || registry.keys.length > 32)
+    throw new Error("native payload key registry invalid");
+  const keys = registry.keys.filter(
+    (key: unknown) => isRecord(key) && key.id === signedArtifact.payload_key_id,
+  );
+  if (
+    keys.length !== 1 ||
+    !isRecord(keys[0]) ||
+    typeof keys[0].tauri_public_key !== "string" ||
+    typeof signedArtifact.tauri_signature !== "string" ||
+    typeof signedArtifact.payload_key_id !== "string"
+  )
+    throw new Error("native exact public payload key/signature absent");
+  const signaturePath = path.join(verified.directory, "native-payload.sig"),
+    publicKeyPath = path.join(verified.directory, "native-payload.key");
+  await writeFile(signaturePath, signedArtifact.tauri_signature, { flag: "wx", mode: 0o600 });
+  await writeFile(publicKeyPath, keys[0].tauri_public_key, { flag: "wx", mode: 0o600 });
+  const tool = parent.transport_configuration.post_sign_verifier;
+  if (!tool) throw new Error("native protected payload verifier absent");
+  const payloadPlan = inspectNativePayloadVerificationPlan(
+    {
+      schema_version: 1,
+      artifact: packagePath,
+      signature: signaturePath,
+      public_key: publicKeyPath,
+      public_key_sha256: signedArtifact.payload_key_id,
+      sha256: packageIdentity.candidate.package.sha256,
+      bytes: packageIdentity.candidate.package.bytes,
+      version: packageIdentity.version,
+      tool,
+      output_parent: verified.directory,
+    },
+    verified.directory,
+  );
+  const payloadWire = Buffer.from(
+    JSON.stringify({ schema_version: 1, ...payloadPlan, output_parent: verified.directory }),
+  );
+  const payloadPlanPath = path.join(verified.directory, "native-payload-plan.json");
+  await writeFile(payloadPlanPath, payloadWire, { flag: "wx", mode: 0o600 });
+  await runActualNativeKeylessChild(
+    controllerReceipt,
+    payloadPlanPath,
+    hash(payloadWire),
+    verified.directory,
+  );
+  const payloadResult = await readBoundedPublicBuildInputFile(
+    verified.directory,
+    "native-payload-result.json",
+    1024 * 1024,
+  );
+  const crypto: unknown = JSON.parse(payloadResult.toString("utf8"));
+  if (
+    !isRecord(crypto) ||
+    crypto.plan_sha256 !== hash(payloadWire) ||
+    !isRecord(crypto.report) ||
+    crypto.report.signature_verified !== true ||
+    crypto.report.sha256 !== packageIdentity.candidate.package.sha256 ||
+    crypto.report.bytes !== packageIdentity.candidate.package.bytes ||
+    crypto.report.public_key_sha256 !== signedArtifact.payload_key_id
+  )
+    throw new Error("native owned payload verification result differs");
+  if (
+    !isRecord(verified.journey) ||
+    typeof verified.journey.signed_context_sha256 !== "string" ||
+    typeof verified.journey.signatures_sha256 !== "string"
+  )
+    throw new Error("native exact signed journey binding missing");
+  const payloadCrypto = {
+    file: "native-payload-result.json",
+    sha256: hash(payloadResult),
+    signed_context_sha256: verified.journey.signed_context_sha256,
+    signatures_sha256: verified.journey.signatures_sha256,
+  };
+
   await writeFile(path.join(verified.directory, "request.json"), JSON.stringify(request), {
     flag: "wx",
     mode: 0o600,
@@ -1343,6 +1464,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     directory: verified.directory,
     packagePath,
     ...(predecessor ? { predecessor } : {}),
+    payloadCrypto,
     packageSha256: packageIdentity.candidate.package.sha256,
     packageBytes: packageIdentity.candidate.package.bytes,
     version: packageIdentity.version,
@@ -1659,6 +1781,15 @@ export async function requireActualNativeCandidate(receipt: object) {
   );
   if (bytes.length !== value.packageBytes || hash(bytes) !== value.packageSha256)
     throw new Error("native selected package changed after acquisition");
+  if (value.payloadCrypto) {
+    const crypto = await readBoundedPublicBuildInputFile(
+      value.directory,
+      value.payloadCrypto.file,
+      1024 * 1024,
+    );
+    if (hash(crypto) !== value.payloadCrypto.sha256)
+      throw new Error("native actual payload crypto capture changed");
+  }
   if (value.predecessor) {
     const predecessor = await readBoundedPublicBuildInputFile(
       value.directory,
@@ -1678,6 +1809,7 @@ export async function requireActualNativeCandidate(receipt: object) {
     request: value.request,
     package_path: value.packagePath,
     predecessor: value.predecessor ? Object.freeze({ ...value.predecessor }) : null,
+    payload_cryptography: value.payloadCrypto ? Object.freeze({ ...value.payloadCrypto }) : null,
     version: value.version,
     directory: value.directory,
     checkpoint: value.facts.checkpoint,
