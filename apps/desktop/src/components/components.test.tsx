@@ -1220,7 +1220,10 @@ describe("desktop components", () => {
     expect(html).toContain("Choose and add the game files again before playing.");
     expect(html).toContain("Files have changed since they were added");
     expect(html).toContain("Play unavailable");
-    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html.indexOf("Choose and add the game files again before playing.")).toBeLessThan(
+      html.indexOf(port.summary),
+    );
+    expect(html.indexOf("Installation and version")).toBeLessThan(html.indexOf("Requirements"));
     expect(html).toMatch(/<details class="requirements-disclosure[^"]*" open="">/u);
     expect(html).toContain("Installation and version");
     expect(html).not.toContain(">Play</button>");
@@ -2548,7 +2551,7 @@ describe("desktop components", () => {
     expect(uninstalled.indexOf("Choose game files")).toBeLessThan(
       uninstalled.indexOf(port.summary),
     );
-    expect(uninstalled.indexOf("Requirements")).toBeLessThan(uninstalled.indexOf(port.summary));
+    expect(uninstalled.indexOf(port.summary)).toBeLessThan(uninstalled.indexOf("Requirements"));
     expect(uninstalled).not.toContain("Installation and version");
     expect(uninstalled).toContain("Add all required game files before installing");
     expect(uninstalled).toContain("Choose the required game file");
@@ -3242,9 +3245,10 @@ describe("desktop components", () => {
     );
     const headings = [
       'aria-label="Game actions"',
-      "Updates",
-      "Requirements",
+      "About this port",
       "Installation and version",
+      "Requirements",
+      "Updates",
       "Saves and storage",
       "Compatibility and testing",
       "Project and release",
@@ -3257,7 +3261,7 @@ describe("desktop components", () => {
       previous = current;
     }
     expect(html).toContain("Installed version");
-    expect(html.indexOf("Requirements")).toBeLessThan(html.indexOf(port.summary));
+    expect(html.indexOf(port.summary)).toBeLessThan(html.indexOf("Installation and version"));
     expect(html).toContain("Installed folder");
     expect(html).toContain(install.path);
     expect(html).toContain("Latest available for your settings");
