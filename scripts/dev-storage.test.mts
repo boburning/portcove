@@ -493,6 +493,8 @@ void test("rejects malformed invocations and invalid free-space margins", () => 
   for (const args of [
     ["run"],
     ["typo"],
+    ["typo", "--help"],
+    ["--unknown", "--help"],
     ["preflight", "--", "cargo"],
     ["preflight", "--minimum-free-gib"],
     ["run", "--json", "--", "cargo"],
@@ -504,11 +506,98 @@ void test("rejects malformed invocations and invalid free-space margins", () => 
   assert.equal(minimumFreeGiB("20.5"), 20.5);
 });
 
+void test("storage help exits before tool discovery, path checks, preparation or cleanup", (t) => {
+  const root = workspace(t);
+  const retained = path.join(root, "target/debug/incremental/retained");
+  mkdirSync(path.dirname(retained), { recursive: true });
+  writeFileSync(retained, "preserve existing cache");
+  writeFileSync(path.join(root, "not-a-directory"), "preserve source input");
+  rmSync(path.join(root, "Cargo.toml"));
+  rmSync(path.join(root, "package.json"));
+  const overrides = {
+    PATH: "",
+    PORTCOVE_MIN_FREE_GIB: "invalid-but-irrelevant-to-help",
+    PORTCOVE_BLOCK_SYSTEM_DRIVE: "invalid-but-irrelevant-to-help",
+    PORTCOVE_TEMP_DIR: path.join(root, "not-a-directory/child"),
+  };
+  for (const args of [
+    ["--help"],
+    ["preflight", "--help"],
+    ["preflight", "--scope", "tooling", "--help"],
+    ["run", "--help"],
+    ["clean", "--help"],
+    ["prune-incremental", "--help"],
+    ["run", "--help", "--", process.execPath, "-e", "require('fs').writeFileSync('ran', '')"],
+  ]) {
+    const result = cli(root, args, overrides);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    assert.match(result.stdout, /usage: node scripts\/dev-storage\.mts/);
+    assert.match(result.stdout, /--minimum-free-gib/);
+    assert.match(result.stdout, /PORTCOVE_MIN_FREE_GIB/);
+    assert.match(result.stdout, /Examples:/);
+  }
+  assert.equal(readFileSync(retained, "utf8"), "preserve existing cache");
+  assert.equal(readFileSync(path.join(root, "not-a-directory"), "utf8"), "preserve source input");
+  for (const name of ["work", "outputs", "ran"])
+    assert.equal(existsSync(path.join(root, name)), false);
+});
+
+void test("storage help after -- remains an argument to the child command", (t) => {
+  const root = workspace(t);
+  const result = cli(root, [
+    "run",
+    "--scope",
+    "tooling",
+    "--",
+    process.execPath,
+    "-e",
+    "require('fs').writeFileSync('child-arguments.json', JSON.stringify(process.argv.slice(1)))",
+    "--",
+    "--help",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(path.join(root, "child-arguments.json"), "utf8")), [
+    "--help",
+  ]);
+  assert.doesNotMatch(result.stdout, /usage: node scripts\/dev-storage\.mts/);
+});
+
+void test("invalid storage margins report the effective input and an actionable correction", (t) => {
+  const root = workspace(t);
+  for (const { args, value, received } of [
+    { args: [], value: "invalid environment value", received: '"invalid environment value"' },
+    { args: [], value: "", received: '""' },
+    { args: [], value: "invalid\nvalue", received: '"invalid\\nvalue"' },
+    { args: ["--minimum-free-gib", "0"], value: "invalid environment value", received: '"0"' },
+  ]) {
+    const result = cli(root, ["preflight", "--scope", "tooling", "--json", ...args], {
+      PATH: "",
+      PORTCOVE_MIN_FREE_GIB: value,
+    });
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.ok(result.stderr.includes(`received ${received}.`), result.stderr);
+    assert.match(result.stderr, /Set --minimum-free-gib or PORTCOVE_MIN_FREE_GIB/);
+    assert.doesNotMatch(result.stderr, /received undefined/);
+  }
+  const explicit = cli(
+    root,
+    ["preflight", "--scope", "tooling", "--json", "--minimum-free-gib", "20"],
+    { PATH: "", PORTCOVE_MIN_FREE_GIB: "invalid environment value" },
+  );
+  assert.equal(explicit.status, 0, explicit.stderr);
+  assert.equal(fixtureRecord(explicit.stdout).minimum_free_gib, 20);
+  assert.equal(existsSync(path.join(root, "work")), false);
+  assert.equal(existsSync(path.join(root, "outputs")), false);
+});
+
 void test("preflight is read-only and machine-readable, and low space prevents child execution", (t) => {
   const root = workspace(t);
   const result = cli(root, ["preflight", "--json"]);
   assert.equal(result.status, 0, result.stderr);
   const report = fixtureRecord(result.stdout);
+  assert.equal(report.minimum_free_gib, 20);
   assert.equal(report.workspace, root);
   assert.equal(report.target_directory, path.join(root, "target"));
   assert.equal(report.frontend_dependencies, path.join(root, "node_modules"));
