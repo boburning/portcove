@@ -522,6 +522,31 @@ export function verifyProtectionObserverJobIdentity(
 ) {
   return verifyJobIdentity(protectionProfile, token, expected, options);
 }
+/** Same selected D1 principals, bound to the complete immutable controller. */
+export function verifyProductionClassificationWriterJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { ...classificationProfile, workflow: productionControllerWorkflow },
+    token,
+    expected,
+    options,
+  );
+}
+export function verifyProductionClassificationObserverJobIdentity(
+  token: string,
+  expected: unknown,
+  options: IdentityOptions = {},
+) {
+  return verifyJobIdentity(
+    { ...protectionProfile, workflow: productionControllerWorkflow },
+    token,
+    expected,
+    options,
+  );
+}
 export function verifyProductionProtectionObserverJobIdentity(
   token: string,
   expected: unknown,

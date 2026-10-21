@@ -7,6 +7,7 @@ import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
 type SigningRole = "payload" | TufSigningRole;
+type ClockRole = SigningRole | "classification-writer" | "classification-observer";
 type JobIdentity = {
   run_id: string;
   run_attempt: number;
@@ -28,10 +29,19 @@ function signingOriginalJobDeadline(
   monotonic = performance.now(),
 ) {
   if (
-    !["payload", "releases", "preview", "stable", "snapshot", "timestamp"].includes(String(rawRole))
+    ![
+      "payload",
+      "releases",
+      "preview",
+      "stable",
+      "snapshot",
+      "timestamp",
+      "classification-writer",
+      "classification-observer",
+    ].includes(String(rawRole))
   )
     throw new Error("fixed online signing role required");
-  const role = rawRole as SigningRole;
+  const role = rawRole as ClockRole;
   const maximum = role === "payload" ? 570000 : 115000;
   if (
     !isRecord(raw) ||
@@ -54,9 +64,12 @@ function signingOriginalJobDeadline(
       throw new Error("TUF job inventory duplicated or incomplete");
     ids.add(job.id);
   }
-  const name = releaseControlPhaseProfile(
-    role === "payload" ? "payload" : `tuf-${role}`,
-  ).reader_name;
+  const name =
+    role === "classification-writer"
+      ? "Persist independently reviewed classification"
+      : role === "classification-observer"
+        ? "Observe release input protections"
+        : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -83,7 +96,7 @@ function signingOriginalJobDeadline(
 /** Reads the original fixed job BEFORE any tool receipt/download. No caller
  * supplied timestamp can reset the selected two-minute job's cleanup reserve. */
 function currentSigningJobDeadline(
-  role: SigningRole,
+  role: ClockRole,
   identity: {
     run_id: string;
     run_attempt: number;
@@ -138,4 +151,16 @@ export function currentTufJobDeadline(role: unknown, ...args: CurrentArguments) 
 }
 export function currentPayloadJobDeadline(...args: CurrentArguments) {
   return currentSigningJobDeadline("payload", ...args);
+}
+
+/** Clock metadata does not make either classification job a signing executor. */
+export function classificationOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
+  if (role !== "writer" && role !== "observer")
+    throw new Error("fixed classification clock role required");
+  return signingOriginalJobDeadline(`classification-${role}`, ...args);
+}
+export function currentClassificationJobDeadline(role: unknown, ...args: CurrentArguments) {
+  if (role !== "writer" && role !== "observer")
+    throw new Error("fixed classification clock role required");
+  return currentSigningJobDeadline(`classification-${role}`, ...args);
 }
