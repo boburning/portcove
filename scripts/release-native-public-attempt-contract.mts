@@ -144,18 +144,19 @@ export function inspectPublicJourneySettlement(
     typeof group.observed_at === "string" && Number.isFinite(Date.parse(group.observed_at)),
   );
   assert.ok(Array.isArray(value.roots) && value.roots.length > 0 && value.roots.length <= 64);
-  const seen = new Set<number>();
+  const seen = new Set<string>();
   const roots = value.roots.map((raw: unknown) => {
     const root = object(raw, "creation,exit_code,job_empty,remaining_pids,root_exited,root_pid");
     const pid = integer(root.root_pid);
-    assert.ok(!seen.has(pid));
-    seen.add(pid);
     const creation = object(root.creation, "kind,value");
     assert.equal(
       creation.kind,
       marker.platform_label === "windows-x86_64" ? "windows-filetime" : "linux-starttime-ticks",
     );
     assert.ok(typeof creation.value === "string" && /^[1-9][0-9]{0,19}$/u.test(creation.value));
+    const identity = `${pid}:${creation.kind}:${creation.value}`;
+    assert.ok(!seen.has(identity));
+    seen.add(identity);
     assert.equal(root.root_exited, true);
     assert.equal(root.job_empty, true);
     assert.deepEqual(root.remaining_pids, []);
@@ -164,6 +165,8 @@ export function inspectPublicJourneySettlement(
   });
   assert.ok(Array.isArray(value.files) && value.files.length > 0 && value.files.length <= 512);
   let total = 0;
+  let ordinaryBytes = 0;
+  let payloadPreimages = 0;
   const names = new Set<string>();
   const files = value.files.map((raw: unknown) => {
     const file = object(raw, "bytes,path,sha256");
@@ -172,11 +175,31 @@ export function inspectPublicJourneySettlement(
         file.path.length <= 128 &&
         file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)),
     );
-    assert.ok(!names.has(file.path));
-    names.add(file.path);
-    const bytes = integer(file.bytes, 0, 4 * 1024 * 1024);
+    const identityName =
+      marker.platform_label === "windows-x86_64" ? file.path.toLowerCase() : file.path;
+    assert.ok(!names.has(identityName));
+    names.add(identityName);
+    // Existing Windows raw preimage collection has ten fixed snapshots and two
+    // fixed payload slots. Preserve its existing512MiB payload bound; exported
+    // Linux chunks and ordinary JSON/streams retain their4MiB file bound.
+    const payload =
+      marker.platform_label === "windows-x86_64" &&
+      /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+        file.path,
+      );
+    if (payload) {
+      payloadPreimages++;
+      assert.ok(payloadPreimages <= 20);
+    }
+    const bytes = integer(file.bytes, 0, (payload ? 512 : 4) * 1024 * 1024);
+    if (!payload) {
+      ordinaryBytes += bytes;
+      assert.ok(ordinaryBytes <= 512 * 1024 * 1024);
+    }
     total += bytes;
-    assert.ok(total <= 512 * 1024 * 1024);
+    assert.ok(
+      total <= (marker.platform_label === "windows-x86_64" ? 20 * 512 + 512 : 512) * 1024 * 1024,
+    );
     return { path: file.path, bytes, sha256: hex(file.sha256) };
   });
   let wire: { path: string; bytes: number; sha256: string } | null = null;

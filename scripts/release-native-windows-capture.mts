@@ -2,7 +2,8 @@
  * remains distinct from successful stage/report/Check acceptance. */
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { writeFile } from "node:fs/promises";
+import { writeFile, lstat, readdir } from "node:fs/promises";
+import assert from "node:assert/strict";
 import path from "node:path";
 import {
   requireActualNativeInvocation,
@@ -19,6 +20,11 @@ import {
   runActualPublicSignatureControl,
   requireActualPublicSignatureControl,
 } from "./release-native-public-signature.mts";
+import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
+import {
+  inspectPublicJourneyAttemptMarker,
+  inspectPublicJourneySettlement,
+} from "./release-native-public-attempt-contract.mts";
 
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const captures = new WeakMap<
@@ -27,7 +33,14 @@ const captures = new WeakMap<
 >();
 const publicCaptures = new WeakMap<
   object,
-  { claim: object; directory: string; result: string; status: number; component: object }
+  {
+    claim: object;
+    directory: string;
+    result: string;
+    status: number;
+    component: object;
+    filesSha256?: string;
+  }
 >();
 
 /** Separate public path; no report2, Check, imported plan or candidate-stage
@@ -105,6 +118,7 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     ...captured,
     component,
   });
+  await requireActualWindowsPublicCapture(receipt);
   return receipt;
 }
 
@@ -124,12 +138,157 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
     selected.request_sha256,
   );
   const component = await requireActualPublicSignatureControl(retained.component);
+  assert.equal(retained.status, 0);
+  assert.equal(driver.failure, null);
+  const readJson = async (file: string) =>
+    JSON.parse(
+      (await readBoundedPublicBuildInputFile(retained.directory, file, 4 * 1024 * 1024)).toString(
+        "utf8",
+      ),
+    ) as unknown;
+  const bridge = await readJson("bridge-state.json"),
+    binding = await readJson("account-binding.json"),
+    report = await readJson("ordinary-public-update/public-update-journey.json");
+  assert.ok(isRecord(bridge) && isRecord(binding) && isRecord(report));
+  assert.equal(bridge.phase, "settled");
+  assert.equal(bridge.failure, null);
+  assert.deepEqual(bridge.group_remaining_pids, []);
+  assert.equal(bridge.invocation_id, selected.invocation_id);
+  assert.equal(binding.invocation_id, selected.invocation_id);
+  assert.equal(bridge.configuration_sha256, binding.configuration_sha256);
+  const account = selected.parent.authority_configuration.native["windows-x86_64"].host.account;
+  assert.ok(isRecord(account));
+  assert.equal(binding.account_sid, account.qualification);
+  const broker = driver.children.find((child) => child.role === "bridge");
+  assert.ok(broker);
+  assert.equal(bridge.broker_pid, broker.pid);
+  assert.equal(bridge.broker_created_filetime, broker.created_filetime);
+  assert.equal(binding.broker_pid, broker.pid);
+  assert.equal(binding.broker_created_filetime, broker.created_filetime);
+  assert.equal(report.schema_version, 1);
+  assert.equal(report.authority, "none");
+  assert.equal(report.native_acceptance, "not-established");
+  assert.equal(report.outcome, "observed");
+  assert.ok(isRecord(report.automatic_relaunch) && isRecord(report.automatic_relaunch.executable));
+  assert.ok(
+    isRecord(report.user_state) &&
+      isRecord(report.user_state.before) &&
+      isRecord(report.user_state.after),
+  );
+  assert.equal(
+    report.user_state.before.application_version,
+    selected.prior_package.identity.version,
+  );
+  assert.equal(
+    report.user_state.after.application_version,
+    selected.candidate_package.identity.version,
+  );
+  const compiler = selected.compiler_receipts;
+  assert.ok(compiler);
+  const candidate = await requireActualPublicWindowsCompilerIdentity(compiler.candidate);
+  assert.equal(
+    report.automatic_relaunch.executable.sha256,
+    candidate.identity.executable.nsis_sha256,
+  );
+  assert.ok(Array.isArray(report.recovery_cases));
+  assert.deepEqual(
+    report.recovery_cases
+      .map((item) => {
+        assert.ok(isRecord(item));
+        assert.ok(typeof item.area === "string");
+        return item.area;
+      })
+      .sort((a, b) => a.localeCompare(b)),
+    ["apply", "schedule", "staging"],
+  );
+  assert.ok(isRecord(report.harness));
+  assert.equal(
+    report.harness.sha256,
+    sha(
+      await readBoundedPublicBuildInputFile(
+        selected.parent.controller_root,
+        "apps/desktop/scripts/desktop-windows-public-update.mts",
+        1024 * 1024,
+      ),
+    ),
+  );
+  assert.ok(Array.isArray(bridge.roots) && bridge.roots.length > 0 && bridge.roots.length <= 64);
+  const roots = bridge.roots.map((rawRoot) => {
+    assert.ok(isRecord(rawRoot) && isRecord(rawRoot.teardown));
+    const teardown = rawRoot.teardown;
+    assert.equal(teardown.root_pid, rawRoot.pid);
+    assert.equal(teardown.root_created_filetime, rawRoot.created_filetime);
+    return {
+      root_pid: rawRoot.pid,
+      creation: { kind: "windows-filetime", value: rawRoot.created_filetime },
+      root_exited: teardown.root_exited,
+      job_empty: teardown.job_empty,
+      remaining_pids: teardown.remaining_pids,
+      exit_code: teardown.exit_code,
+    };
+  });
+  const files: Awaited<ReturnType<typeof hashNativeCapturedFile>>[] = [];
+  let directories = 0;
+  const walk = async (relative: string, depth: number): Promise<void> => {
+    assert.ok(depth <= 12 && ++directories <= 128, "public capture directory bound exhausted");
+    for (const entry of (await readdir(path.join(retained.directory, relative))).sort()) {
+      if (!relative && entry === "public-settlement.json") continue;
+      assert.match(entry, /^[A-Za-z0-9][A-Za-z0-9._-]*$/u);
+      const name = relative ? `${relative}/${entry}` : entry;
+      const info = await lstat(path.join(retained.directory, name));
+      assert.ok(!info.isSymbolicLink());
+      if (info.isDirectory()) {
+        await walk(name, depth + 1);
+        continue;
+      }
+      assert.ok(files.length < 512, "public retained file inventory exceeds bound");
+      const payload =
+        /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+          name,
+        );
+      files.push(
+        await hashNativeCapturedFile(
+          retained.directory,
+          name,
+          (payload ? 512 : 4) * 1024 * 1024,
+          selected.original_deadline,
+        ),
+      );
+    }
+  };
+  await walk("", 0);
+  const marker = inspectPublicJourneyAttemptMarker(await readJson("claim.json"), {
+    invocation_id: selected.invocation_id,
+    descriptor_sha256: selected.parent.descriptor_sha256,
+    setup_grant_sha256: selected.parent.descriptor.setup_grant_sha256,
+  });
+  const settlement = {
+    schema_version: 1,
+    kind: "ordinary-public-native-settlement",
+    authority: "none",
+    invocation_id: selected.invocation_id,
+    request_sha256: selected.request_sha256,
+    phase: selected.phase,
+    platform_label: "windows-x86_64",
+    proof_outcome: "completed",
+    group: { empty: true, remaining_pids: [], observed_at: bridge.observed_at },
+    roots,
+    files,
+    wire: null,
+  };
+  inspectPublicJourneySettlement(settlement, marker);
+  const filesSha256 = digest(files);
+  if (retained.filesSha256)
+    assert.equal(filesSha256, retained.filesSha256, "public retained file inventory changed");
+  else retained.filesSha256 = filesSha256;
+  remainingNativeParentBudget();
   return {
     ...selected,
     claim: retained.claim,
     driver,
     component,
     status: retained.status,
+    settlement,
     authority: "none" as const,
   };
 }

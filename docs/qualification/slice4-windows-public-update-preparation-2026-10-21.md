@@ -211,3 +211,51 @@ and failed before parsing; its log is retained alongside the corrected run under
 GitHub, compiler, installer or public updater execution. The actual attempt,
 parent dispatch, supervised driver and cross-invocation public proof remain
 unfinished and must be connected before this branch is delivered.
+
+## Protected attempt and initial Windows caller preparation
+
+The source now joins the actual protected parent, published pair, materialized
+package and local compiler receipts to the existing setup-created native custody
+anchor. Public phases use the same `native-attempt-<digest>` leaves. Their
+identity includes the actual checkpoint/capacity digest without creating or
+resetting coordinator retry counters. Imported summaries cannot mint this claim.
+Historical native attempts require positive original local root/group teardown
+and retained streams; this passive resource check neither resolves nor repeats
+an ambiguous Check POST. A completed public A advances only to the parked B
+phase; completed B waits for genuine V2 continuation, and failed or incomplete
+local settlement refuses reuse.
+
+The fixed Windows worker now routes an actual inactive reservation plus the
+protected public profile through the existing original-lifetime supervisor into
+the ordinary installer/UI entry. The legacy active-candidate stage path remains
+separate. The actual public getter binds the sole bridge finish, original child
+handles, exact candidate root creation/teardown, automatic V1 executable bytes,
+meaningful user state and all three named recovery observations. Its technical
+settlement is created only from that private capture getter, with no raw accepted
+JSON constructor or Check/report2 authority.
+
+Ordinary retained files keep their 4 MiB bound and 512 MiB combined bound. The
+existing Windows preimage helper has ten fixed snapshots with two fixed payload
+slots each; only those exact paths retain the existing 512 MiB payload bound.
+This is a streamed recheck of already-retained raw bytes, not an additional copy
+or a storage reservation. Linux's original bounded wire remains separate from
+its enumerated small exported files. Available disk and actual native behavior
+remain unobserved. Original compiler/package/public-source evidence must be
+acquired within the provider's seven-day retention window; later phases must
+retain the genuine original bytes and must not rebuild expired evidence.
+
+The new source/phase/import-refusal selection passed 29 tests with zero skips;
+the Windows driver selection passed six actual inert PowerShell/process tests.
+The initial driver run had four passes and two fixture failures: a nested
+hashtable differed from real JSON objects, and the old stage fixture omitted its
+real schema field. Both fixtures now model the real input and retain their old
+negative assertions. Typed checks passed after explicit proof-outcome narrowing
+and removal of one unnecessary test assertion. A further real-filesystem check
+passes for empty streams, a streamed 5 MiB preimage, oversized input, hardlink
+alias refusal and expired original-clock refusal. No account, installer, GUI,
+namespace, public publication or native acceptance execution occurred.
+
+The initial public Windows route is connected in source. Parked B, original
+historical evidence under a changed V2 feed, and full withdrawal/forward-repair
+continuation are still held. These are required remaining engineering before a
+consolidated setup can be treated as ready; V0-to-V1 alone is not the full proof.

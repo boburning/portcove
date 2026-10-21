@@ -761,3 +761,48 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
     scope: "actual parent/source/attempt custody; public native proof still required" as const,
   };
 }
+
+/** Only the actual supervised Windows capture getter supplies the technical
+ * result. There is deliberately no exported raw settlement constructor. */
+export async function recordActualWindowsPublicSettlement(captureReceipt: object) {
+  const { requireActualWindowsPublicCapture } =
+    await import("./release-native-windows-capture.mts");
+  const capture = await requireActualWindowsPublicCapture(captureReceipt);
+  const selected = await requireActualPublicJourneyInvocation(capture.claim);
+  const marker = inspectPublicJourneyAttemptMarker(
+    await publicJson(selected.capture_directory, "claim.json"),
+    {
+      invocation_id: selected.invocation_id,
+      descriptor_sha256: selected.parent.descriptor_sha256,
+      setup_grant_sha256: selected.parent.descriptor.setup_grant_sha256,
+    },
+  );
+  inspectPublicJourneySettlement(capture.settlement, marker);
+  const file = path.join(selected.capture_directory, "public-settlement.json");
+  const bytes = Buffer.from(JSON.stringify(capture.settlement));
+  if (bytes.length > 256 * 1024)
+    throw new Error("public settlement exceeds bounded technical manifest");
+  if (await absent(file)) {
+    const handle = await open(file, "wx", 0o600);
+    try {
+      await handle.writeFile(bytes);
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } else if (
+    digest(await publicJson(selected.capture_directory, "public-settlement.json")) !==
+    digest(capture.settlement)
+  )
+    throw new Error("retained public settlement differs; never overwrite or replay");
+  await readPublicSettlement(selected.parent, selected.capture_directory, selected.invocation_id);
+  remainingNativeParentBudget();
+  return Object.freeze({
+    kind: "retained-public-technical-settlement",
+    invocation_id: selected.invocation_id,
+    phase: selected.phase,
+    authority: "none" as const,
+    scope:
+      "positive owned teardown and retained observation bytes; full public A/B V2 proof remains pending",
+  });
+}

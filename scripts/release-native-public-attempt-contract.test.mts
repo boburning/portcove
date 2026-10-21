@@ -10,6 +10,7 @@ import {
   claimActualPublicJourneyInvocation,
   readActualPublicJourneyProgress,
   requireActualPublicJourneyInvocation,
+  recordActualWindowsPublicSettlement,
 } from "./release-native-attempt.mts";
 
 function fixture(platform_label = "windows-x86_64") {
@@ -172,4 +173,32 @@ void test("parsed and copied public records cannot mint actual parent, progress 
     /actual public progress/,
   );
   await assert.rejects(requireActualPublicJourneyInvocation(marker), /actual freshly claimed/);
+  await assert.rejects(
+    recordActualWindowsPublicSettlement(marker),
+    /actual fixed parent Windows public capture/,
+  );
+});
+
+void test("only existing fixed Windows raw-payload slots retain their512MiB preimage bound", () => {
+  const { settlement, inspected } = fixture();
+  settlement.files[0] = {
+    path: "ordinary-public-update/before-local-payload-tamper/staging-candidate-installer.exe",
+    bytes: 8 * 1024 * 1024,
+    sha256: "5".repeat(64),
+  };
+  assert.equal(
+    inspectPublicJourneySettlement(settlement, inspected).files[0]!.bytes,
+    8 * 1024 * 1024,
+  );
+  for (const path of [
+    "ordinary-public-update/before-startup-6/staging-candidate-installer.exe",
+    "ordinary-public-update/unappointed/staging-candidate-installer.exe",
+    "ordinary-public-update/before-local-payload-tamper/arbitrary.exe",
+  ]) {
+    const changed = structuredClone(settlement);
+    changed.files[0]!.path = path;
+    assert.throws(() => inspectPublicJourneySettlement(changed, inspected));
+  }
+  settlement.files[0].bytes = 512 * 1024 * 1024 + 1;
+  assert.throws(() => inspectPublicJourneySettlement(settlement, inspected));
 });

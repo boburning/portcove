@@ -14,6 +14,7 @@ import {
   claimActualNativeInvocation,
   readActualPublicJourneyProgress,
   claimActualPublicJourneyInvocation,
+  recordActualWindowsPublicSettlement,
 } from "./release-native-attempt.mts";
 import {
   captureActualWindowsNativeInvocation,
@@ -69,11 +70,13 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     });
     const capture = await captureActualWindowsPublicJourney(claim);
     await requireActualWindowsPublicCapture(capture);
+    const settlement = await recordActualWindowsPublicSettlement(capture);
     return {
       decision: "hold",
       reason:
-        "public Windows capture retained; technical settlement/result and full A/B V2 proof remain pending",
+        "initial public Windows capture and technical settlement retained; full parked B/V2 proof remains pending",
       capture,
+      settlement,
       authority: "none",
     };
   }

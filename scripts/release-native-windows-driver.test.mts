@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { mkdtemp, writeFile, link, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
 import {
   captureActualWindowsNativeInvocation,
   requireActualWindowsNativeCapture,
@@ -9,6 +14,48 @@ import {
   captureActualWindowsPublicJourney,
   requireActualWindowsPublicCapture,
 } from "./release-native-windows-capture.mts";
+
+void test("retained proof hashing handles empty streams and bounded raw preimages, refusing aliases and an expired original clock", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-public-proof-"));
+  try {
+    await writeFile(path.join(directory, "empty.bin"), Buffer.alloc(0));
+    const empty = await hashNativeCapturedFile(
+      directory,
+      "empty.bin",
+      1,
+      performance.now() + 10000,
+    );
+    assert.equal(empty.bytes, 0);
+    assert.equal(empty.sha256, createHash("sha256").digest("hex"));
+    const bytes = Buffer.alloc(5 * 1024 * 1024, 7);
+    await writeFile(path.join(directory, "payload.bin"), bytes);
+    const actual = await hashNativeCapturedFile(
+      directory,
+      "payload.bin",
+      bytes.length,
+      performance.now() + 10000,
+    );
+    assert.equal(actual.sha256, createHash("sha256").update(bytes).digest("hex"));
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "payload.bin", 4 * 1024 * 1024, performance.now() + 10000),
+    );
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "missing.bin", 1, performance.now() - 1),
+      /deadline exhausted/,
+    );
+    await link(path.join(directory, "payload.bin"), path.join(directory, "alias.bin"));
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "payload.bin", bytes.length, performance.now() + 10000),
+    );
+  } finally {
+    assert.ok(
+      path.isAbsolute(directory) &&
+        path.dirname(directory) === path.resolve(tmpdir()) &&
+        path.basename(directory).startsWith("portcove-public-proof-"),
+    );
+    await rm(directory, { recursive: true });
+  }
+});
 
 void test("copied public claims and captures cannot invoke the fixed Windows supervisor", async () => {
   await assert.rejects(
