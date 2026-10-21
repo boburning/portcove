@@ -226,3 +226,116 @@ void test("building admission original clock includes tools/acquisition and rese
     tufOriginalJobDeadline("candidate-building", { total_count: 1, jobs: [job] }, identity),
   );
 });
+
+void test("closed fixed DAG serialization cannot substitute arbitrary tool, context, role or publication producers", async () => {
+  const { prepareFixedControllerConfiguration } =
+    await import("./release-controller-configuration.mts");
+  const fixed = {
+    controller_revision: "a".repeat(40),
+    source_tree: "b".repeat(40),
+    controller_ref: ref,
+    actor_id: "1234",
+    run_id: "12345",
+    run_attempt: 1,
+  };
+  const { actor_id: _actor, ...producer } = fixed;
+  const artifact = (id: number) => ({ id, sha256: "c".repeat(64) });
+  const context = {
+    ...producer,
+    artifact: artifact(3),
+    bundle: artifact(4),
+    manifest_sha256: "d".repeat(64),
+    binding_sha256: "e".repeat(64),
+    facts_sha256: "f".repeat(64),
+  };
+  const out = (outputs: Record<string, unknown>) => ({ result: "success", outputs });
+  const roles = ["releases", "preview", "stable", "snapshot", "timestamp"];
+  const needs: Record<string, { result: string; outputs: Record<string, unknown> }> = {
+    tool_bootstrap: out({
+      artifact_id: "1",
+      artifact_sha256: "c".repeat(64),
+      source_tree: fixed.source_tree,
+    }),
+    tool_attest: out({ bundle_artifact_id: "2", bundle_artifact_sha256: "c".repeat(64) }),
+    coordinator: out({ mode: "metadata", context_locator: JSON.stringify(context) }),
+    ...Object.fromEntries(
+      roles.map((role, index) => [
+        `tuf_${role}`,
+        out({
+          role_locator: JSON.stringify({
+            role,
+            controller: producer,
+            artifact: artifact(5 + index * 2),
+            bundle: artifact(6 + index * 2),
+            context_manifest_sha256: context.manifest_sha256,
+            context_binding_sha256: context.binding_sha256,
+            context_facts_sha256: context.facts_sha256,
+          }),
+        }),
+      ]),
+    ),
+  };
+  const input = {
+    operation: "tuf-snapshot",
+    fixed,
+    needs,
+    admission_configuration: { schema_version: 3, namespace: "portcove-production" },
+  };
+  const selected = prepareFixedControllerConfiguration(input);
+  assert.equal("role" in selected && selected.role, "snapshot");
+  assert.equal("dependencies" in selected && selected.dependencies.length, 3);
+  assert.equal("context_kind" in selected && selected.context_kind, "metadata-signing-context");
+  for (const changed of [
+    { ...input, operation: "root" },
+    { ...input, fixed: { ...fixed, run_attempt: 2 } },
+    {
+      ...input,
+      needs: {
+        ...needs,
+        tool_bootstrap: out({ ...needs.tool_bootstrap!.outputs, source_tree: "0".repeat(40) }),
+      },
+    },
+    { ...input, needs: { ...needs, tool_attest: { ...needs.tool_attest!, result: "failure" } } },
+    {
+      ...input,
+      needs: {
+        ...needs,
+        coordinator: out({
+          mode: "metadata",
+          context_locator: JSON.stringify({ ...context, controller_revision: "0".repeat(40) }),
+        }),
+      },
+    },
+    {
+      ...input,
+      needs: {
+        ...needs,
+        tuf_stable: out({ role_locator: needs.tuf_preview!.outputs.role_locator }),
+      },
+    },
+    { ...input, operation: "release-publication" },
+  ])
+    assert.throws(() => prepareFixedControllerConfiguration(changed));
+  const coordinator = prepareFixedControllerConfiguration({ ...input, operation: "coordinator" });
+  assert.equal(
+    "remote_configuration" in coordinator && coordinator.remote_configuration.namespace,
+    "portcove-production",
+  );
+  assert.equal("identity" in coordinator, false);
+});
+
+void test("fixed job adapter and source bootstrap refuse unknown operations without output", async (t) => {
+  const { configureFixedControllerJob, runFixedControllerJob } =
+    await import("./release-controller-job.mts");
+  const { launchFixedControllerJob } = await import("./release-controller-job-bootstrap.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "fixed-controller-entry-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(
+    configureFixedControllerJob("arbitrary-entry"),
+    /fixed complete-controller job/,
+  );
+  await assert.rejects(runFixedControllerJob("root"), /fixed complete-controller job/);
+  for (const value of ["root", {}, { entry: "candidate.mjs" }])
+    await assert.rejects(launchFixedControllerJob(value), /fixed complete controller operation/);
+  assert.deepEqual(await readdir(root), []);
+});

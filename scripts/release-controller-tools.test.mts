@@ -91,6 +91,15 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
     await copyFile(path.join(sourceRoot, name), path.join(root, name));
   }
+  const { requiredContextsFromConfigs } = await import("./pr-delivery.mts");
+  assert.deepEqual(
+    requiredContextsFromConfigs(
+      JSON.parse(await readFile(path.join(root, ".github/repository-ruleset.json"), "utf8")),
+      JSON.parse(await readFile(path.join(root, ".github/qualification-coverage.json"), "utf8")),
+    ).sort(),
+    ["catalog", "dependency-review", "frontend", "rust", "rust-quality"].sort(),
+    "actual isolated controller tool root must contain the policies consumed by admission",
+  );
   await writeFile(
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
