@@ -303,6 +303,14 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(job.status, 1, job.stderr);
   assert.match(job.stderr, /fixed controller job refused/);
   assert.doesNotMatch(job.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const keyChannel = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-role-key-channel.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(keyChannel.status, 1, keyChannel.stderr);
+  assert.match(keyChannel.stderr, /isolated role key handoff refused/);
+  assert.doesNotMatch(keyChannel.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   const jobAbi = spawnSync(
     process.execPath,
     [

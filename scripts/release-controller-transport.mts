@@ -114,7 +114,7 @@ export async function normalizeControllerAttestationBundle(
 async function json(file: string, max = 16384): Promise<unknown> {
   return JSON.parse((await readControllerToolFile(file, max)).toString("utf8"));
 }
-async function optional(file: string): Promise<unknown | undefined> {
+async function optional(file: string): Promise<unknown> {
   try {
     return await json(file);
   } catch (error) {
@@ -298,7 +298,9 @@ async function fileIdentity(root: string, file: string, max: number) {
     throw new Error("fixed transport file exceeds bound");
   const digest = createHash("sha256");
   let bytes = 0;
-  for await (const chunk of createReadStream(file, { highWaterMark: 65536 })) {
+  for await (const rawChunk of createReadStream(file, { highWaterMark: 65536 })) {
+    const chunk: unknown = rawChunk;
+    if (!Buffer.isBuffer(chunk)) throw new Error("fixed transport byte stream required");
     bytes += chunk.length;
     if (bytes > max) throw new Error("fixed transport file grew");
     digest.update(chunk);
@@ -664,7 +666,9 @@ async function linuxProcessStart(pid: number) {
   try {
     let bytes = 0;
     const chunks: Buffer[] = [];
-    for await (const chunk of createReadStream(`/proc/${pid}/stat`, { highWaterMark: 8193 })) {
+    for await (const rawChunk of createReadStream(`/proc/${pid}/stat`, { highWaterMark: 8193 })) {
+      const chunk: unknown = rawChunk;
+      if (!Buffer.isBuffer(chunk)) throw new Error("owned proc byte stream required");
       bytes += chunk.length;
       if (bytes > 8192) throw new Error("owned proc identity exceeds bound");
       chunks.push(Buffer.from(chunk));

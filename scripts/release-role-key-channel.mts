@@ -141,7 +141,7 @@ export async function receiveIsolatedRoleKey<T>(
       server.listen(socketPath, () => {
         void (async () => {
           await chmod(socketPath, 0o600);
-          if (process.env.RUNNER_TEMP) {
+          if (process.env.RUNNER_TEMP && process.env.PORTCOVE_JOB_OPERATION) {
             const { retainControllerRoleKey } = await import("./release-controller-transport.mts");
             await retainControllerRoleKey(process.env.RUNNER_TEMP, selected, directory);
           }
@@ -255,7 +255,7 @@ export async function supplyIsolatedRoleKey(
 async function settleDirectCli() {
   if (
     process.argv[1] &&
-    /^release-role-key-channel[.](?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+    /^release-role-key-channel[.](?:mts|mjs|bundle[.]mjs)$/u.test(path.basename(process.argv[1])) &&
     path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
   ) {
     try {

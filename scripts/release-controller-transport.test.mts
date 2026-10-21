@@ -82,6 +82,7 @@ void test(
     const previous = { ...process.env };
     Object.assign(process.env, identity, {
       RUNNER_TEMP: root,
+      PORTCOVE_JOB_OPERATION: "payload",
       PORTCOVE_ROLE_KEY: "inert-key",
       PORTCOVE_ROLE_PASSWORD: "inert-password",
     });
@@ -89,6 +90,7 @@ void test(
       for (const key of [
         ...Object.keys(identity),
         "RUNNER_TEMP",
+        "PORTCOVE_JOB_OPERATION",
         "PORTCOVE_ROLE_KEY",
         "PORTCOVE_ROLE_PASSWORD",
       ]) {
@@ -250,7 +252,7 @@ void test("actual local routing interleaves control and pending upload before th
   assert(start >= 0 && end > start);
   const prefix: unknown = runInNewContext(
     `${stripTypeScriptTypes(producerSource.slice(start, end))};contextRoute("metadata-signing-context").prefix`,
-    Object.create(null),
+    {},
     { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
   );
   assert.equal(typeof prefix, "string");
@@ -393,7 +395,7 @@ void test("result acknowledgement passes the maintained producer's exact consume
     end = producer.indexOf("const result =", start);
   assert(start >= 0 && end > start);
   const validation = producer.slice(start, end);
-  const validate = (value: unknown) =>
+  const validate = (value: unknown): unknown =>
     runInNewContext(
       validation,
       {
