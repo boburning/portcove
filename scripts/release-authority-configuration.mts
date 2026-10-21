@@ -1,6 +1,7 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
+import { inspectInitialProofRisk706 } from "./linux-beta-risk-706-profile.mts";
 import {
   nativePrepublicationProfile,
   inspectNativeQualificationHarnessPath,
@@ -136,6 +137,9 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
       "schema_version",
       ...(isRecord(value) && Object.hasOwn(value, "publication") ? ["publication"] : []),
       ...(isRecord(value) && value.schema_version === 2 ? ["native_prepublication_profile"] : []),
+      ...(isRecord(value) && Object.hasOwn(value, "linux_risk_profile")
+        ? ["linux_risk_profile"]
+        : []),
     ]
       .sort()
       .join(","),
@@ -146,6 +150,8 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
     Buffer.byteLength(JSON.stringify(value)) > 32 * 1024
   )
     throw new Error("release authority repository or byte bound differs");
+  if (value.linux_risk_profile !== undefined && value.schema_version !== 2)
+    throw new Error("initial-proof risk profile requires explicit ratified schema2 configuration");
   if (
     value.schema_version === 2 &&
     value.native_prepublication_profile !== nativePrepublicationProfile
@@ -276,6 +282,9 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
       : {}),
     repository_id: 1354613114 as const,
     namespace,
+    ...(value.linux_risk_profile === undefined
+      ? {}
+      : { linux_risk_profile: inspectInitialProofRisk706(value.linux_risk_profile) }),
     apps,
     native,
     ...(value.publication === undefined

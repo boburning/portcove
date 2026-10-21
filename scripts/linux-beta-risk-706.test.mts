@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 import { pathToFileURL } from "node:url";
@@ -14,6 +14,9 @@ import {
   decide706,
   candidate706,
   validateApproval706,
+  assessDispatchedBuild706,
+  dispatchedBuildAssessment706,
+  inspectCompilerRiskAssessment706,
 } from "./linux-beta-risk-706.mts";
 
 import { createHash } from "node:crypto";
@@ -45,6 +48,30 @@ void test("ordinary risk readers do not load optional release-policy dependencie
       timeout: 15000,
     },
   );
+});
+
+void test("new controller bundle imports cannot execute scanner or risk CLIs", (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-risk-cli-guard-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  for (const [index, name] of ["linux-beta-risk-706.mts", "dependency-security.mts"].entries()) {
+    const original = new URL(`./${name}`, import.meta.url);
+    // The installed bundler folds import.meta.url to its entry. Preserve the
+    // whole actual module and imports, changing only its physical entry name.
+    const copied = readFileSync(original, "utf8").replace(
+      /from "([.][^"]+)"/gu,
+      (_whole: string, relative: string) => `from "${new URL(relative, original).href}"`,
+    );
+    const entry = path.join(dir, `fixed-controller-${index}.mts`);
+    writeFileSync(entry, copied);
+    const result = spawnSync(process.execPath, [entry], {
+      cwd: dir,
+      encoding: "utf8",
+      timeout: 15000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
+  }
 });
 
 void test("only the complete deterministic version transform projects native review to its actual source", async (t) => {
@@ -273,6 +300,195 @@ function input() {
     publicationTag: "v0.1.0-beta.1",
   };
 }
+
+void test("dispatched build measures changed native source without appointing a risk waiver", () => {
+  const value = input();
+  const buildCandidate = {
+    ...value.candidate,
+    productionChanges: "apps/desktop/src-tauri/src/application_update_apply.rs",
+    native: [{ id: "glib@0.18.5:registry+https://example.invalid", features: [] }],
+  };
+  const result = assessDispatchedBuild706({
+    candidate: buildCandidate,
+    scan: value.scan,
+    policy: scannerPolicy,
+    now: value.now,
+  });
+  assert.equal(result.scanPassed, false);
+  assert.equal(result.scanExitCode, 1);
+  assert.equal(result.knownFinding, "RUSTSEC-2024-0429");
+  assert.equal(result.authority, "none");
+  assert.equal(result.releaseAuthorization, "not-evaluated");
+  assert.equal(result.sourceReview, "not-authorized");
+  assert.equal(result.riskAuthorization, "pending-protected-controller-assessment");
+  assert.throws(() => decide706({ ...value, candidate: buildCandidate }), /reassessment/u);
+  assert.throws(
+    () =>
+      assessDispatchedBuild706({
+        candidate: buildCandidate,
+        scan: { ...value.scan, head: "f".repeat(40) },
+        policy: scannerPolicy,
+        now: value.now,
+      }),
+    /exact-source/u,
+  );
+  assert.throws(
+    () =>
+      assessDispatchedBuild706({
+        candidate: buildCandidate,
+        scan: value.scan,
+        policy: scannerPolicy,
+        now: "2026-10-16T00:16:00.000Z",
+      }),
+    /exact-source/u,
+  );
+  assert.throws(
+    () =>
+      assessDispatchedBuild706({
+        candidate: {
+          ...buildCandidate,
+          native: [buildCandidate.native[0], buildCandidate.native[0]],
+        },
+        scan: value.scan,
+        policy: scannerPolicy,
+        now: value.now,
+      }),
+    /graph/u,
+  );
+  const extra = structuredClone(value.scan);
+  extra.stderr = output(
+    [finding, { ...finding, advisory: { id: "RUSTSEC-OTHER", package: "other" } }],
+    { ...summary, advisories: { ...summary.advisories, errors: 2 } },
+  );
+  assert.throws(
+    () =>
+      assessDispatchedBuild706({
+        candidate: buildCandidate,
+        scan: extra,
+        policy: scannerPolicy,
+        now: value.now,
+      }),
+    /blocking finding/u,
+  );
+});
+
+void test("strict clean remediation remains build-only without requiring an exception profile", () => {
+  const value = input();
+  const clean = {
+    ...value.scan,
+    exitCode: 0,
+    stderr: output([], { ...summary, advisories: { errors: 0, warnings: 0, notes: 0, helps: 0 } }),
+  };
+  const candidate = {
+    ...value.candidate,
+    native: [{ id: "glib@0.99.0:registry+https://example.invalid", features: [] }],
+  };
+  const result = assessDispatchedBuild706({
+    candidate,
+    scan: clean,
+    policy: scannerPolicy,
+    now: value.now,
+  });
+  assert.equal(result.scanPassed, true);
+  assert.equal(result.authority, "none");
+  assert.equal(result.releaseAuthorization, "not-evaluated");
+  assert.throws(
+    () =>
+      assessDispatchedBuild706({
+        candidate: {
+          ...candidate,
+          native: [{ id: "glib@0.18.5:registry+https://example.invalid", features: [] }],
+        },
+        scan: clean,
+        policy: scannerPolicy,
+        now: value.now,
+      }),
+    /affected compiler graph/u,
+  );
+});
+
+void test("build assessment routing cannot replace the legacy tag-push decision", () => {
+  assert.equal(
+    dispatchedBuildAssessment706({
+      GITHUB_EVENT_NAME: "push",
+      PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux",
+    }),
+    false,
+  );
+  assert.equal(
+    dispatchedBuildAssessment706({
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      PORTCOVE_RELEASE_PROFILE: "full",
+    }),
+    false,
+  );
+  assert.equal(
+    dispatchedBuildAssessment706({
+      GITHUB_EVENT_NAME: "workflow_dispatch",
+      PORTCOVE_RELEASE_PROFILE: "initial-beta-win-linux",
+    }),
+    true,
+  );
+  const value = input();
+  assert.throws(
+    () => decide706({ ...value, publicationTag: "v0.1.0-beta.2" }),
+    /first publication tag/u,
+  );
+  const workflow = readFileSync(
+    new URL("../.github/workflows/release.yml", import.meta.url),
+    "utf8",
+  );
+  const authorize = workflow.slice(workflow.indexOf("  authorize_publication:"));
+  assert.match(authorize, /github.event_name == 'push'/u);
+  assert.match(authorize, /linux-beta-risk-706.mts check/u);
+});
+
+void test("compiler scanner subject binds raw FAIL, exact source and producing-job clock inside existing size cap", () => {
+  const value = input();
+  const measuredCandidate = {
+    ...value.candidate,
+    native: [{ id: "glib@0.18.5:registry+https://example.invalid", features: [] }],
+  };
+  const assessment = assessDispatchedBuild706({
+    candidate: measuredCandidate,
+    scan: value.scan,
+    policy: scannerPolicy,
+    now: value.now,
+  });
+  const raw = { candidate: measuredCandidate, scan: value.scan, assessment };
+  const expected = {
+    source_commit: value.candidate.head,
+    lock_sha256: value.scan.lockSha256,
+    started: Date.parse(value.now) - 1000,
+    finished: Date.parse(value.now) + 1000,
+  };
+  assert.deepEqual(inspectCompilerRiskAssessment706(raw, expected), raw);
+  assert.ok(Buffer.byteLength(JSON.stringify(raw)) < 128 * 1024);
+  assert.throws(
+    () => inspectCompilerRiskAssessment706(raw, { ...expected, source_commit: "f".repeat(40) }),
+    /producing-job/u,
+  );
+  assert.throws(
+    () => inspectCompilerRiskAssessment706(raw, { ...expected, started: expected.finished }),
+    /producing-job/u,
+  );
+  assert.throws(
+    () =>
+      inspectCompilerRiskAssessment706(
+        { ...raw, assessment: { ...assessment, scanPassed: true } },
+        expected,
+      ),
+    /raw scan/u,
+  );
+  assert.throws(
+    () =>
+      inspectCompilerRiskAssessment706(
+        { ...raw, candidate: { ...raw.candidate, padding: "x".repeat(128 * 1024) } },
+        expected,
+      ),
+    /bounded/u,
+  );
+});
 
 void test("exact approved finding produces a separate decision while retaining failed scan status", () => {
   const value = input(),
@@ -552,6 +768,10 @@ void test("release source review compares the exact candidate against a named re
     if (args[0] === "status") return "";
     if (args[0] === "show") return "version = 4\n";
     if (args[0] === "cat-file") return "ordinary source commit\n";
+    if (args[0] === "ls-tree") {
+      assert.equal(args[1], candidate.head);
+      return `100644 blob ${"d".repeat(40)}\tCargo.lock\n`;
+    }
     assert.equal(args[2], approval.reconfirmedHead);
     return changes;
   };

@@ -272,6 +272,7 @@ export async function collectActualPublicWindowsCompilerIdentity(
           failure: null,
           outputs: [],
           ...(raw.schema_version === 3 ? { desktop_executable: null } : {}),
+          ...(Object.hasOwn(raw, "linux_risk_assessment") ? { linux_risk_assessment: null } : {}),
           invocation: { ...raw.invocation, finished_at: null },
         }),
       );

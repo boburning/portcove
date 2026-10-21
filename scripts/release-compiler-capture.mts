@@ -415,6 +415,9 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
       await identity(root, "scripts/release-compiler-capture.mts", 256 * 1024)
     ).sha256,
     outputs: [] as { filename: string; bytes: number; sha256: string }[],
+    ...(options.interface === "desktop" && options.platform === "linux-x86_64"
+      ? { linux_risk_assessment: null as unknown }
+      : {}),
     ...(options.interface === "desktop" && options.platform === "windows-x86_64"
       ? { desktop_executable: null as ReturnType<typeof projectWindowsNsisExecutable> | null }
       : {}),
@@ -505,7 +508,70 @@ export async function captureReleaseCompiler(root: string, options: CompilerCapt
           throw new Error("desktop compiler executable lacks its exact single NSIS package slot");
         report.desktop_executable = await captureWindowsDesktopExecutable(targetDirectory);
       }
+      if (options.interface === "desktop" && options.platform === "linux-x86_64") {
+        const { candidate706, assessDispatchedBuild706, inspectCompilerRiskAssessment706 } =
+          await import("./linux-beta-risk-706.mts");
+        const { scanDependencies } = await import("./dependency-security.mts");
+        const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+        const { performance } = await import("node:perf_hooks");
+        // The raw scan is retained first; embedding it does not alter its FAIL.
+        // Its scratch receipt stays outside the exact two-member report archive.
+        report.linux_risk_assessment = await withCoordinatorDeadline(
+          performance.now() + 120000,
+          async () => {
+            const candidate = await candidate706(root);
+            const { scan } = scanDependencies(root, undefined, (raw) => {
+              const serialized = Buffer.from(
+                JSON.stringify({ candidate, scan: raw, assessment: null }),
+              );
+              if (serialized.length > 128 * 1024) {
+                report.linux_risk_assessment = {
+                  assessment: null,
+                  overflow: {
+                    bytes: serialized.length,
+                    sha256: createHash("sha256").update(serialized).digest("hex"),
+                    scope:
+                      "oversized raw receipt remains in producing job logs; this digest is not complete scanner data",
+                  },
+                };
+                throw new Error("compiler scanner diagnostic exceeds existing 128KiB tuple bound");
+              }
+              // Executed after raw file/stdout/stderr retention but before any
+              // post-scan drift refusal can unwind this producing process.
+              report.linux_risk_assessment = { candidate, scan: raw, assessment: null };
+            });
+            const assessment = assessDispatchedBuild706({
+              candidate,
+              scan,
+              policy: scan.sourceConfig,
+              now: scan.completedAt,
+            });
+            return inspectCompilerRiskAssessment706(
+              { candidate, scan, assessment },
+              {
+                source_commit: options.expectedRevision,
+                lock_sha256: observedTools.find((tool) => tool.role === "rust-lock")!.sha256,
+                started: Date.parse(started),
+                finished: Date.now(),
+              },
+            );
+          },
+        );
+      }
     }
+    // The assessment is part of this producing process, so its complete interval
+    // must retain the same compiler tools, public inputs and prepared source.
+    if (
+      !isDeepStrictEqual(await tools(), observedTools) ||
+      !isDeepStrictEqual(
+        await Promise.all(members.map((name) => identity(prepared.output, name, 512 * 1024))),
+        reconstructed,
+      ) ||
+      git(["rev-parse", "HEAD"]) !== options.expectedRevision ||
+      git(["rev-parse", "HEAD^{tree}"]) !== options.expectedTree
+    )
+      throw new Error("compiler source/tools/public inputs changed during assessment");
+    git(["diff", "--quiet", "--no-ext-diff", "--no-textconv", "HEAD", "--"]);
     report.state = "completed";
   } catch (error) {
     report.state = "failed";

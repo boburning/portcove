@@ -953,6 +953,7 @@ export async function performImmutableReleaseEffect(
   token: string,
   fetcher: typeof fetch = fetch,
   deadline?: number,
+  riskExpiresAt?: number,
 ) {
   publicationRemaining(deadline);
   if (!token || token.length > 16384)
@@ -1017,6 +1018,11 @@ export async function performImmutableReleaseEffect(
         )
   )
     throw new Error("release operation escaped the fixed create/upload/publish boundary");
+  if (
+    riskExpiresAt !== undefined &&
+    (!Number.isFinite(riskExpiresAt) || Date.now() >= riskExpiresAt)
+  )
+    throw new Error("Linux risk authorization expired before Release provider mutation");
   const response = await fetcher(endpoint, {
     method: effect.method,
     redirect: "error",
@@ -1106,6 +1112,7 @@ export async function advanceImmutableReleasePublication(
     token: string;
     fetch?: typeof fetch;
     deadline?: number;
+    riskExpiresAt?: number;
   },
 ) {
   const sessionKey = session;
@@ -1219,6 +1226,7 @@ export async function advanceImmutableReleasePublication(
           options.token,
           options.fetch,
           options.deadline,
+          options.riskExpiresAt,
         );
         const after = readImmutableReleaseState(api, session.identity);
         publicationRemaining(options.deadline);
@@ -1429,8 +1437,12 @@ export async function advanceOwnedImmutableReleasePublication(
     return structuredClone(current.capacity_source.capacity.boundary);
   };
   await readBoundary();
+  const risk = await (
+    await import("./linux-beta-risk-706-controller.mts")
+  ).authorizeActualLinuxRisk706(admissionContext, controls, state.checkpoint, deadline);
   publicationAdmissions.set(session, admissionContext);
   return advanceImmutableReleasePublication(session, {
+    ...(risk.expires_at === null ? {} : { riskExpiresAt: Date.parse(risk.expires_at) }),
     ...(deadline === undefined ? {} : { deadline }),
     recover: (checkpoint) =>
       recoverReleaseOpportunity(input.repository, checkpoint ?? state.checkpoint),

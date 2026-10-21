@@ -355,7 +355,18 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
   );
-  assert.deepEqual((await readdir(root)).sort(), [".github", "apps", "release", "scripts"]);
+  assert.deepEqual((await readdir(root)).sort(), [
+    ".github",
+    "apps",
+    "deny.toml",
+    "release",
+    "scripts",
+  ]);
+  assert.deepEqual(
+    await readFile(path.join(root, "deny.toml")),
+    await readFile(new URL("../deny.toml", import.meta.url)),
+    "isolated controller carries the exact fixed scanner policy",
+  );
   for (const [name, workflow, args] of [
     ["production-controller-admission", "application-update-production.yml", []],
     ["release-reviewed-inputs", "release-reviewed-inputs.yml", ["admission"]],

@@ -671,11 +671,13 @@ jobs:
     environment: production-payload-signing
     permissions:
       contents: read
+      issues: read
       actions: read
       id-token: write
       attestations: write
       checks: read
     env:
+      PORTCOVE_RELEASE_READ_TOKEN: ${{ github.token }}
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
       context_locator: ${{ steps.job.outputs.context_locator }}
@@ -1176,11 +1178,13 @@ jobs:
     environment: production-release-publication
     permissions:
       contents: read
+      issues: read
       actions: read
       id-token: write
       attestations: write
       checks: read
     env:
+      PORTCOVE_RELEASE_READ_TOKEN: ${{ github.token }}
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
       publication_locator: ${{ steps.job.outputs.publication_locator }}
@@ -1292,11 +1296,13 @@ jobs:
     environment: github-pages
     permissions:
       contents: read
+      issues: read
       actions: read
       id-token: write
       pages: write
       checks: read
     env:
+      PORTCOVE_RELEASE_READ_TOKEN: ${{ github.token }}
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
       decision: ${{ steps.job.outputs.decision }}

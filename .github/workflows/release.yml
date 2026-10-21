@@ -162,9 +162,10 @@ jobs:
           if-no-files-found: error
       - run: pnpm audit --prod --audit-level high
         working-directory: apps/desktop
-      - name: Audit and separately evaluate the approved Linux beta disposition
+      - name: Audit and retain build assessment or the separate tag publication disposition
         env:
           GH_TOKEN: ${{ github.token }}
+          PORTCOVE_RELEASE_PROFILE: ${{ needs.identity.outputs.release_profile }}
         run: just audit --fresh --profile release
       - name: Preserve original security results and separate disposition
         if: always()
@@ -215,6 +216,16 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 15
         run: ./scripts/install-linux-desktop-prerequisites.sh
+      - name: Read existing scanner pin for the same producing Linux job
+        if: runner.os == 'Linux' && needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        id: compiler-scanner-pin
+        shell: bash
+        run: echo "spec=cargo-deny@$(node scripts/quality-tools.mts --version cargo-deny)" >> "$GITHUB_OUTPUT"
+      - name: Install the pinned scanner in the credential-free compiler job
+        if: runner.os == 'Linux' && needs.identity.outputs.release_profile == 'initial-beta-win-linux'
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2
+        with:
+          tool: ${{ steps.compiler-scanner-pin.outputs.spec }}
       - run: pnpm install --frozen-lockfile
       - name: Read immutable public application configuration without executing it
         if: needs.identity.outputs.release_profile == 'initial-beta-win-linux'

@@ -618,6 +618,9 @@ export async function runPayloadSigningController(
     {},
     async (context, prepared, directory) => {
       requireActualReleaseAdmissionContext(context, "payload-signing");
+      const risk = await (
+        await import("./linux-beta-risk-706-controller.mts")
+      ).authorizeActualLinuxRisk706(context, undefined, context.checkpoint, deadline);
       const token = await requestAssemblerToken(
         "portcove-payload-signing",
         process.env,
@@ -715,6 +718,8 @@ export async function runPayloadSigningController(
         return current;
       };
       const guard = async () => {
+        if (risk.expires_at !== null && Date.now() >= Date.parse(risk.expires_at))
+          throw new Error("Linux risk authorization expired before payload signing");
         await freshControls();
         await requireNativeReleaseQualificationPair(
           context.native_qualifications,
@@ -767,6 +772,8 @@ export async function runPayloadSigningController(
             async (key, password) => {
               const results = [];
               for (const request of prepared.requests) {
+                if (risk.expires_at !== null && Date.now() >= Date.parse(risk.expires_at))
+                  throw new Error("Linux risk authorization expired before role-key signing");
                 results.push(
                   await signReleasePayload(
                     {

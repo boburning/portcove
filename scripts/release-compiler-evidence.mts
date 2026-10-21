@@ -16,6 +16,7 @@ import {
 } from "./release-public-build-provenance.mts";
 import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectCompilerRiskAssessment706 } from "./linux-beta-risk-706.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
@@ -250,6 +251,15 @@ export function inspectReleaseCompilerReport(
     raw.schema_version === 3 ? inspectWindowsDesktopCompilerIdentity(raw.desktop_executable) : null;
   if (desktopExecutable && (outputs.length !== 1 || !outputs[0]!.filename.endsWith(".exe")))
     throw new Error("compiler desktop identity lacks its single exact NSIS output slot");
+  const observedTools: unknown[] = raw.tools;
+  const rustLock = observedTools.find((tool) => isRecord(tool) && tool.role === "rust-lock");
+  if (
+    Object.hasOwn(raw, "linux_risk_assessment") &&
+    (expected.platform !== "linux-x86_64" ||
+      expected.interface !== "desktop" ||
+      raw.linux_risk_assessment == null)
+  )
+    throw new Error("compiler scanner subject is missing or attached to another producer slot");
   return {
     authority: "none",
     outputs,
@@ -258,6 +268,17 @@ export function inspectReleaseCompilerReport(
     finished,
     producer_job_id: job.id,
     desktop_executable: desktopExecutable,
+    linux_risk_assessment:
+      expected.platform === "linux-x86_64" &&
+      expected.interface === "desktop" &&
+      raw.linux_risk_assessment != null
+        ? inspectCompilerRiskAssessment706(raw.linux_risk_assessment, {
+            source_commit: expected.source_commit,
+            lock_sha256: isRecord(rustLock) ? String(rustLock.sha256) : "",
+            started,
+            finished,
+          })
+        : null,
   };
 }
 
@@ -278,6 +299,7 @@ const verifiedCompiler = new WeakMap<
     source: object;
     sourceTree: string;
     windowsDesktop?: VerifiedWindowsDesktopCompilerIdentity;
+    linuxRisk?: ReturnType<typeof inspectCompilerRiskAssessment706>;
   }
 >();
 export async function requireVerifiedReleaseCompilerEvidence(receipt: object) {
@@ -301,6 +323,16 @@ export async function requireVerifiedWindowsDesktopCompilerIdentity(receipt: obj
   const identity = verifiedCompiler.get(receipt)?.windowsDesktop;
   if (!identity) throw new Error("actual attested Windows desktop executable observation required");
   return Object.freeze(structuredClone(identity));
+}
+
+/** No serialized report or injected provider can enter this getter. */
+export async function requireVerifiedLinuxRiskAssessment706(receipt: object) {
+  await requireVerifiedReleaseCompilerEvidence(receipt);
+  const retained = verifiedCompiler.get(receipt)?.linuxRisk;
+  if (!retained) throw new Error("actual attested same-job Linux scanner assessment required");
+  const proof = verifiedCompiler.get(receipt)!;
+  const source = await requireVerifiedReleaseCompilerSource(proof.source, proof.sourceTree);
+  return { ...structuredClone(retained), source };
 }
 
 export async function collectReleaseCompilerEvidence(
@@ -436,6 +468,7 @@ export async function collectReleaseCompilerEvidence(
           failure: null,
           outputs: [],
           ...(raw.schema_version === 3 ? { desktop_executable: null } : {}),
+          ...(Object.hasOwn(raw, "linux_risk_assessment") ? { linux_risk_assessment: null } : {}),
           invocation: { ...raw.invocation, finished_at: null },
         })
       )
@@ -533,6 +566,12 @@ export async function collectReleaseCompilerEvidence(
       files: retained,
       source: sourceBinding,
       sourceTree: accepted.source_tree,
+      ...(() => {
+        const linux = observations.find((entry) => entry.platform === "linux-x86_64");
+        return linux?.desktop.linux_risk_assessment
+          ? { linuxRisk: structuredClone(linux.desktop.linux_risk_assessment) }
+          : {};
+      })(),
       ...(() => {
         const windows = observations.find((entry) => entry.platform === "windows-x86_64");
         const subject = subjects.find(

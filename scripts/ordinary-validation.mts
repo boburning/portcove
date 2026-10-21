@@ -658,6 +658,19 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/linux-beta-risk-706-preparation.mts",
     ["scripts/linux-beta-risk-706.test.mts", "scripts/release-publication-source.test.mts"],
   ],
+  [
+    "scripts/linux-beta-risk-706-profile.mts",
+    ["scripts/linux-beta-risk-706-controller.test.mts", "scripts/linux-beta-risk-706.test.mts"],
+  ],
+  [
+    "scripts/linux-beta-risk-706-controller.mts",
+    [
+      "scripts/linux-beta-risk-706-controller.test.mts",
+      "scripts/release-compiler-evidence.test.mts",
+      "scripts/release-immutable-publication.test.mts",
+      "scripts/release-site-deployment.test.mts",
+    ],
+  ],
   ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
   [
     "scripts/release-native-publication-admission.mts",

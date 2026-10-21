@@ -225,11 +225,24 @@ function Read-PartialSetup([string]$Root,[string]$Broker,[string]$PlanHash,[stri
 $interop=@'
 using System;
 using System.ComponentModel;
+using System.Security.AccessControl;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Security.Principal;
 using System.Text;
 public static class PortcoveAccountSetup {
+ [StructLayout(LayoutKind.Sequential)] struct SecurityAttributes {public int length;public IntPtr descriptor;public int inheritHandle;}
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] static extern bool CreateDirectoryW(string path,ref SecurityAttributes attributes);
+ public static string CreatePrivateDirectory(string path,string broker){
+  var acl=new DirectorySecurity();acl.SetOwner(new SecurityIdentifier(broker));acl.SetAccessRuleProtection(true,false);
+  foreach(var sid in new[]{broker,"S-1-5-18"})acl.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid),FileSystemRights.FullControl,InheritanceFlags.ContainerInherit|InheritanceFlags.ObjectInherit,PropagationFlags.None,AccessControlType.Allow));
+  byte[] descriptor=acl.GetSecurityDescriptorBinaryForm();var pinned=GCHandle.Alloc(descriptor,GCHandleType.Pinned);
+  try{var attributes=new SecurityAttributes{length=Marshal.SizeOf<SecurityAttributes>(),descriptor=pinned.AddrOfPinnedObject(),inheritHandle=0};
+   if(!CreateDirectoryW(path,ref attributes)){int error=Marshal.GetLastWin32Error();throw new Win32Exception(error,error==183?"Setup root exists; no adoption":"Atomic private setup root creation failed");}
+  }finally{pinned.Free();}
+  return acl.GetSecurityDescriptorSddlForm(AccessControlSections.Owner|AccessControlSections.Access);
+ }
+
  [DllImport("userenv.dll",CharSet=CharSet.Unicode)] static extern int CreateProfile(string sid,string name,StringBuilder path,uint size);
  [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)] struct Credential {public uint flags,type; public string target,comment;public long written; public uint size;public IntPtr blob;public uint persist,count;public IntPtr attributes;public string alias,user;}
  [DllImport("advapi32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool CredReadW(string target,uint type,uint flags,out IntPtr value);
@@ -275,8 +288,10 @@ if($Mode -eq 'create'){
         if(Get-LocalUser -Name $name -ErrorAction SilentlyContinue){throw 'Setup account exists; no adoption'}
         if(Test-Path -LiteralPath ('C:\Users\'+$name)){throw 'Fixed profile path already exists; no adoption'}
     }
-    New-Item -ItemType Directory -Path $root -ErrorAction Stop|Out-Null
-    $rootSddl=Set-ExactDirectoryAcl $root $broker
+    $expectedRootSddl=[PortcoveAccountSetup]::CreatePrivateDirectory($root,$broker)
+    $rootAcl=Get-Acl -LiteralPath $root
+    if($rootAcl.GetSecurityDescriptorSddlForm([Security.AccessControl.AccessControlSections]'Owner,Access') -cne $expectedRootSddl){throw 'Atomic setup root ACL readback differs; retain partial root'}
+    $rootSddl=$rootAcl.Sddl
     $setupLock=Open-SetupLock $root $broker $true
     Write-NewJson (Join-Path $root 'intent.json') @{schema_version=1;plan_sha256=$PlanSha256;source_sha256=$source;broker_sid=$broker;root_sddl=$rootSddl;authority='conditional-setup-only'}
     $accounts=@()
