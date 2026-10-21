@@ -3,7 +3,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -20,6 +20,7 @@ import {
   publicUpdateRawMetadataBytes,
   retainPublicUpdateProfile,
   restorePublicUpdateProfile,
+  restoreParkedPublicUpdateCapture,
   retainDeduplicatedPublicUpdatePreimages,
 } from "./desktop-public-update-files.mts";
 
@@ -264,6 +265,77 @@ void test(
     const directory = path.join(root, "snapshot"),
       deadline = performance.now() + 10000;
     const snapshot = await retainPublicUpdateProfile(runtime, directory, store, deadline, identity);
+    // Use the actual retained profile/chunks through the same streamed capture
+    // framing used by the guest export, with no claim of old invocation authority.
+    const invocation = "a".repeat(64);
+    const retained = new Map<string, Buffer>([
+      [
+        "public-journey/profile-snapshot/profile.json",
+        await readFile(path.join(directory, "profile.json")),
+      ],
+    ]);
+    for (const name of await readdir(path.join(root, "preimage-store")))
+      if (name.endsWith(".bin"))
+        retained.set(
+          `public-journey/preimage-store/${name}`,
+          await readFile(path.join(root, "preimage-store", name)),
+        );
+    const framing: Buffer[] = [];
+    for (const [name, bytes] of [...retained].sort(([left], [right]) =>
+      left.localeCompare(right),
+    )) {
+      framing.push(
+        Buffer.from(
+          JSON.stringify({
+            schema_version: 1,
+            invocation_id: invocation,
+            path: name,
+            bytes: bytes.length,
+            sha256: createHash("sha256").update(bytes).digest("hex"),
+          }) + "\n",
+        ),
+        bytes,
+      );
+    }
+    framing.push(
+      Buffer.from(
+        JSON.stringify({
+          schema_version: 1,
+          invocation_id: invocation,
+          count: retained.size,
+          complete: true,
+          authority: "none",
+        }) + "\n",
+      ),
+    );
+    const wire = Buffer.concat(framing),
+      wirePath = path.join(root, "parked.wire");
+    await writeFile(wirePath, wire, { mode: 0o600 });
+    const expected = {
+      invocation_id: invocation,
+      wire_sha256: createHash("sha256").update(wire).digest("hex"),
+      manifest_sha256: snapshot.sha256,
+    };
+    const transferredTarget = path.join(root, "transferred-restored");
+    const transferred = await restoreParkedPublicUpdateCapture(
+      wirePath,
+      expected,
+      path.join(root, "transferred-capture"),
+      transferredTarget,
+      deadline,
+    );
+    assert.equal(transferred.authority, "none");
+    for (const [name, bytes] of originals)
+      assert.deepEqual(await readFile(path.join(transferredTarget, name)), bytes);
+    await assert.rejects(
+      restoreParkedPublicUpdateCapture(
+        wirePath,
+        { ...expected, manifest_sha256: "b".repeat(64) },
+        path.join(root, "wrong-profile-capture"),
+        path.join(root, "wrong-profile-target"),
+        deadline,
+      ),
+    );
     const target = path.join(root, "restored");
     const copied = await restorePublicUpdateProfile(directory, snapshot.sha256, target, deadline);
     assert.equal(copied.authority, "none");

@@ -13,6 +13,28 @@ import {
   boundedNativeWslOperationTimeout,
   requireActualWslNativeCapture,
 } from "./release-native-wsl-capture.mts";
+void test("parked capture parsing refuses an exhausted original clock before opening or creating paths", async () => {
+  await assert.rejects(
+    retainNativeCaptureWire(
+      "missing-original.wire",
+      "must-not-create",
+      "a".repeat(64),
+      "b".repeat(64),
+      performance.now() - 1,
+    ),
+    /original capture read budget exhausted/u,
+  );
+  await assert.rejects(
+    retainNativeCaptureWire(
+      "missing-original.wire",
+      "must-not-create",
+      "a".repeat(64),
+      "b".repeat(64),
+      Number.NaN,
+    ),
+    /original capture read budget exhausted/u,
+  );
+});
 function fixture() {
   const id = "a".repeat(64),
     root = String.raw`E:\Portcove\controller`,

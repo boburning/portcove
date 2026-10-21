@@ -67,7 +67,16 @@ export async function retainNativeCaptureWire(
   output: string,
   invocation: string,
   expectedSha: string,
+  deadline?: number,
 ) {
+  const active = () => {
+    if (deadline !== undefined)
+      assert.ok(
+        Number.isFinite(deadline) && performance.now() < deadline,
+        "original capture read budget exhausted",
+      );
+  };
+  active();
   assert.match(invocation, /^[a-f0-9]{64}$/u);
   assert.match(expectedSha, /^[a-f0-9]{64}$/u);
   const before = await lstat(wire);
@@ -84,6 +93,7 @@ export async function retainNativeCaptureWire(
     consumed = 0,
     eof = false;
   async function fill() {
+    active();
     if (eof) return;
     const buffer = Buffer.alloc(65536),
       { bytesRead } = await input.read(buffer, 0, buffer.length, null);
@@ -99,6 +109,7 @@ export async function retainNativeCaptureWire(
   }
   async function header() {
     for (;;) {
+      active();
       const end = pending.indexOf(10);
       if (end >= 0) {
         assert.ok(end > 0 && end <= 2048, "guest capture header exceeds bound");
@@ -125,8 +136,10 @@ export async function retainNativeCaptureWire(
     last = "";
   try {
     assert.equal(identity(await input.stat()), identity(before));
+    active();
     await mkdir(output, { mode: 0o700 }); // Exact CreateNew boundary; partial files remain on refusal.
     for (;;) {
+      active();
       const raw = await header();
       assert.ok(isRecord(raw) && raw.schema_version === 1 && raw.invocation_id === invocation);
       if ("complete" in raw) {
@@ -177,6 +190,7 @@ export async function retainNativeCaptureWire(
       assert.ok(total <= 256 * 1024 * 1024 && entries.length < 512);
       const target = path.join(output, ...name.split("/"));
       await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
+      active();
       const file = await open(
         target,
         constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0),
@@ -186,6 +200,7 @@ export async function retainNativeCaptureWire(
       let remaining = Number(raw.bytes);
       try {
         while (remaining) {
+          active();
           if (!pending.length) {
             await fill();
             assert.ok(pending.length, "guest capture body is truncated");
@@ -203,6 +218,7 @@ export async function retainNativeCaptureWire(
       entries.push(Object.freeze({ path: name, bytes: Number(raw.bytes), sha256: raw.sha256 }));
     }
     assert.equal(consumed, before.size);
+    active();
     assert.equal(digest.digest("hex"), expectedSha, "original guest capture wire differs");
     assert.equal(identity(await input.stat()), identity(before));
     assert.equal(identity(await lstat(wire)), identity(before));

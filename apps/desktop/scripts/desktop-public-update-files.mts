@@ -4,6 +4,7 @@ import { lstat, mkdir, open, rename, writeFile, readdir, chmod } from "node:fs/p
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
+import { retainNativeCaptureWire } from "../../../scripts/release-native-wsl-wire.mts";
 
 const fixedStateFiles = [
   ["update-schedule.json", 1024 * 1024],
@@ -527,6 +528,47 @@ function profileRelative(value: unknown, root = false): asserts value is string 
     );
   assert.ok(value.split("/").length <= 17);
 }
+/** Reconstruct the original bounded capture before restoring its fixed profile.
+ * These expected identities remain data: the actual parent must independently
+ * appoint them from its private settled public claim before dispatching. */
+export async function restoreParkedPublicUpdateCapture(
+  wire: string,
+  expected: { invocation_id: string; wire_sha256: string; manifest_sha256: string },
+  retainedDirectory: string,
+  target: string,
+  deadline: number,
+) {
+  assert.equal(process.platform, "linux");
+  expected = Object.freeze(structuredClone(expected));
+  assert.equal(Object.keys(expected).sort().join(","), "invocation_id,manifest_sha256,wire_sha256");
+  for (const value of Object.values(expected)) assert.match(value, /^[a-f0-9]{64}$/u);
+  assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
+  const capture = await retainNativeCaptureWire(
+    wire,
+    retainedDirectory,
+    expected.invocation_id,
+    expected.wire_sha256,
+    deadline,
+  );
+  const manifest = capture.entries.find(
+    (entry) => entry.path === "public-journey/profile-snapshot/profile.json",
+  );
+  assert.ok(manifest && manifest.bytes > 0 && manifest.bytes <= 1024 * 1024);
+  assert.equal(manifest.sha256, expected.manifest_sha256);
+  const restored = await restorePublicUpdateProfile(
+    path.join(retainedDirectory, "public-journey/profile-snapshot"),
+    expected.manifest_sha256,
+    target,
+    deadline,
+  );
+  return Object.freeze({
+    ...restored,
+    invocation_id: expected.invocation_id,
+    wire_sha256: capture.wire_sha256,
+    scope: "original capture/profile bytes only; actual settled claim required separately",
+  });
+}
+
 /** Bounded byte restoration only. The caller must authenticate the exact old
  * settled claim/capture and select the same fixed profile before calling. */
 export async function restorePublicUpdateProfile(
