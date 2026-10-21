@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
@@ -29,6 +32,134 @@ function requiredFixture<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Required fixture value is missing");
   return value;
 }
+
+void test("quality-tool help is inert with no manifest or external tools", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-help-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "scripts"));
+  for (const file of ["quality-tools.mts", "runtime-values.mts"])
+    copyFileSync(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/quality-tools.mts"), "--help"],
+    {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^Usage:/u);
+  assert.match(result.stdout, /--specs TIER/u);
+  assert.match(result.stdout, /Example:/u);
+  assert.equal(result.stderr, "");
+});
+
+void test("quality manifest diagnostics retain the invalid field and tool identity", () => {
+  assert.throws(
+    () => validateQualityManifest({ ...manifest, schema_version: 0 }),
+    /The quality manifest `schema_version` must be 1\./u,
+  );
+  const duplicate = structuredClone(manifest);
+  duplicate.tools.push(requiredFixture(duplicate.tools[0]));
+  assert.throws(
+    () => validateQualityManifest(duplicate),
+    /Duplicate or missing tool ID in `id`: "just"\./u,
+  );
+  const missing = structuredClone(manifest);
+  Object.assign(requiredFixture(missing.tools[0]), { id: undefined });
+  assert.throws(
+    () => validateQualityManifest(missing),
+    /Duplicate or missing tool ID in `id`: undefined\./u,
+  );
+  const invalid = structuredClone(manifest);
+  Object.assign(requiredFixture(invalid.tools[0]), { ci_install: "unknown" });
+  assert.throws(
+    () => validateQualityManifest(invalid),
+    /"just" has an invalid `ci_install` strategy: "unknown"/u,
+  );
+});
+
+void test("quality-tool CLI preserves machine output and diagnoses unknown, failed and mismatched tools", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-quality-cli-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(path.join(root, "scripts"));
+  mkdirSync(path.join(root, ".github"));
+  for (const file of ["quality-tools.mts", "runtime-values.mts"])
+    copyFileSync(new URL(file, import.meta.url), path.join(root, "scripts", file));
+  const fixtureManifest = structuredClone(manifest);
+  const selected = requiredFixture(
+    fixtureManifest.tools.find((tool) => tool.id === "cargo-nextest"),
+  );
+  const run = (...args: string[]) => {
+    writeFileSync(path.join(root, ".github/quality-tools.json"), JSON.stringify(fixtureManifest));
+    return spawnSync(process.execPath, [path.join(root, "scripts/quality-tools.mts"), ...args], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    });
+  };
+  const outputs = run("--github-output");
+  assert.equal(outputs.status, 0, outputs.stderr);
+  assert.equal(
+    outputs.stdout,
+    Object.entries(githubOutputs(manifest))
+      .map(([name, value]) => `${name}=${value}\n`)
+      .join(""),
+  );
+  const unknown = run("--version", "missing-tool");
+  assert.equal(unknown.status, 1);
+  assert.match(unknown.stderr, /Unknown quality tool: "missing-tool"\. Use an `id`/u);
+  const invalidTier = run("--specs", "everything");
+  assert.equal(invalidTier.status, 1);
+  assert.match(invalidTier.stderr, /--specs expects required or deep; received "everything"/u);
+  selected.command = [process.execPath, "-e", "process.exit(23)"];
+  const failed = run("--verify", selected.id);
+  assert.equal(failed.status, 1);
+  assert.match(
+    failed.stderr,
+    /"cargo-nextest" did not report required version .*command exited with status 23/u,
+  );
+  selected.command = [process.execPath, "-e", "console.log('fixture version 0.0.0')"];
+  const mismatched = run("--verify", selected.id);
+  assert.equal(mismatched.status, 1);
+  assert.match(mismatched.stderr, /received "fixture version 0\.0\.0"/u);
+  selected.command = [path.join(root, "missing-executable"), "--version"];
+  const absent = run("--verify", selected.id);
+  assert.equal(absent.status, 1);
+  assert.match(absent.stderr, /ENOENT/u);
+});
+
+void test(
+  "POSIX bootstrap preserves the failed installer status and identifies the command",
+  { skip: process.platform === "win32" },
+  async () => {
+    const source = await readFile(new URL("./bootstrap-quality-tools.sh", import.meta.url), "utf8");
+    const start = source.indexOf("reported_version() {");
+    const end = source.indexOf('for tool in "${required_tools[@]}";');
+    assert.ok(start > 0 && end > start);
+    const installFunctions = source.slice(start, end);
+    for (const prebuilt of [false, true]) {
+      const command = `set -euo pipefail\n${installFunctions}\nhas_exact_version() { return 1; }\ncargo() { return 23; }\n${prebuilt ? "cargo-binstall() { :; }" : ""}\ninstall_tool 'fixture-tool|1.2.3|fixture-tool --version'`;
+      const result = spawnSync("/bin/bash", ["-c", command], {
+        encoding: "utf8",
+        timeout: 5000,
+        env: { ...process.env, PATH: "" },
+      });
+      assert.equal(result.status, 23, result.stderr);
+      assert.match(result.stderr, /Could not install fixture-tool 1\.2\.3:/u);
+      assert.match(
+        result.stderr,
+        prebuilt
+          ? /cargo binstall failed with exit code 23/u
+          : /cargo install failed with exit code 23/u,
+      );
+      assert.doesNotMatch(result.stdout, /Installed|ready/u);
+    }
+  },
+);
 
 void test("quality manifest owns exact unique Rust pins and workflow outputs", () => {
   assert.doesNotThrow(() => validateQualityManifest(manifest));

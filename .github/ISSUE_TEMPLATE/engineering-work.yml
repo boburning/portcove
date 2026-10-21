@@ -1,5 +1,5 @@
 name: Product feature or engineering work
-description: Propose executable product, engineering, documentation, security, or technical-debt work.
+description: Propose implementation-ready product, engineering, documentation, security, or technical-debt work.
 title: ""
 projects:
   - boburning/1
@@ -48,7 +48,7 @@ body:
     id: docs
     attributes:
       label: Documentation impact
-      description: Stable contract, user documentation, release snapshot, or none with reason.
+      description: Describe the affected stable contract, user documentation, or release snapshot, or explain why none applies.
     validations:
       required: true
   - type: textarea

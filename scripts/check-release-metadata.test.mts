@@ -57,6 +57,7 @@ void test("ICNS export order is repeatable without changing encoded payloads", (
 });
 
 import {
+  formatReleaseMetadataSummary,
   inspectPng,
   loadDesktopCargoFeatures,
   parseArguments,
@@ -532,6 +533,36 @@ void test("parses inline and positional release options", () => {
   );
   assert.throws(() => parseArguments(["--tag"]), /requires a value/);
   assert.throws(() => parseArguments(["--unknown"]), /unknown argument/);
+  assert.deepEqual(parseArguments(["--help"]), { printVersion: false, help: true });
+  assert.throws(() => parseArguments(["--help", "--unknown"]), /unknown argument/);
+  assert.throws(() => parseArguments(["--help", "--tag"]), /requires a value/);
+});
+
+void test("release metadata summary scopes versions, tags, and zero/one/many counts", () => {
+  assert.equal(
+    formatReleaseMetadataSummary("1.2.3", undefined, {
+      requiredFiles: 0,
+      brandAssets: 1,
+      modelFiles: 2,
+    }),
+    "Release metadata passed for Portcove 1.2.3. Checked 0 required files, 1 brand asset, and 2 model files.",
+  );
+  assert.equal(
+    formatReleaseMetadataSummary("1.2.3", "v1.2.3", {
+      requiredFiles: 1,
+      brandAssets: 2,
+      modelFiles: 0,
+    }),
+    "Release metadata passed for Portcove 1.2.3 (tag v1.2.3). Checked 1 required file, 2 brand assets, and 0 model files.",
+  );
+  assert.equal(
+    formatReleaseMetadataSummary("1.2.3", undefined, {
+      requiredFiles: 2,
+      brandAssets: 0,
+      modelFiles: 1,
+    }),
+    "Release metadata passed for Portcove 1.2.3. Checked 2 required files, 0 brand assets, and 1 model file.",
+  );
 });
 
 void test("release identity and asset digests reject coercible arrays", () => {

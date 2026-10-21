@@ -13,6 +13,7 @@ import { createGitHubRunner } from "./github-api.mts";
 
 import {
   RoadmapClient,
+  roadmapHelp,
   roadmapCommandHelp,
   analyzeReleaseReadiness,
   renderReadinessSummary,
@@ -3839,6 +3840,37 @@ void test("set help renders every configured field option without live access", 
   assert.throws(() => roadmapCommandHelp("unknown", config), /unknown/);
 });
 
+void test("the finite Roadmap command inventory has purpose, Usage and examples", () => {
+  assert.match(roadmapHelp, /^Read and reconcile/u);
+  assert.match(roadmapHelp, /\nUsage:\n/u);
+  assert.match(roadmapHelp, /incomplete reads fail/u);
+  const commands = [...roadmapHelp.matchAll(/^  node scripts\/roadmap\.mts ([a-z-]+)(?: |$)/gmu)]
+    .map((match) => fixtureValue(match[1]))
+    .filter((command) => command !== "--help");
+  for (const command of new Set(commands)) {
+    const help = roadmapCommandHelp(command, config);
+    assert.match(help, /^Usage: node scripts\/roadmap\.mts /u);
+    assert.match(help, /--help prints help without contacting GitHub/u);
+    assert.match(help, /Example:\n  node scripts\/roadmap\.mts /u);
+  }
+  assert.match(roadmapCommandHelp("set", config), /--status 'In progress'/u);
+  assert.match(roadmapCommandHelp("bootstrap"), /changes require the Project UI/u);
+});
+
+void test("offline Roadmap success separates configuration from the absence of a repository backlog", () => {
+  const result = spawnSync(process.execPath, ["scripts/roadmap.mts", "check"], {
+    encoding: "utf8",
+    timeout: 5000,
+    env: { ...process.env, PATH: "" },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /Roadmap configuration is valid[^\n]+\.\nNo mutable roadmap items are stored in the repository\.\n/u,
+  );
+  assert.doesNotMatch(result.stdout, /Project.*verified|Grouping.*read back/iu);
+});
+
 void test("Roadmap command help is available without the GitHub executable or operation lock", () => {
   for (const command of ["set", "capture-feature", "doctor", "context"]) {
     const result = spawnSync(process.execPath, ["scripts/roadmap.mts", command, "--help"], {
@@ -3847,6 +3879,8 @@ void test("Roadmap command help is available without the GitHub executable or op
       env: { ...process.env, PATH: "" },
     });
     assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /^Usage:/u);
+    assert.match(result.stdout, /Example:/u);
     assert.match(result.stdout, new RegExp(command));
     assert.equal(result.stderr, "");
   }

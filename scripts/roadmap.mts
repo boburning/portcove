@@ -1496,11 +1496,14 @@ export function parseArguments(argv: readonly string[]) {
   return { command, options, positionals };
 }
 
-export const roadmapHelp = `Portcove Roadmap maintainer tool
+export const roadmapHelp = `Read and reconcile the live Portcove Roadmap, canonical issue specifications and
+release-readiness evidence. GitHub Projects owns current planning; no mutable
+roadmap items are stored in the repository.
 
-usage:
+Usage:
   node scripts/roadmap.mts check
   node scripts/roadmap.mts doctor [--expected-head <sha>] [--json]
+  node scripts/roadmap.mts bootstrap
   node scripts/roadmap.mts capture-port --title <title> --url <https-url> (--port-key <key> | --catalog-id <id>)
   node scripts/roadmap.mts normalize-port --issue <number>
   node scripts/roadmap.mts capture-feature --title <title> [planning field options]
@@ -1515,10 +1518,96 @@ usage:
   node scripts/roadmap.mts readiness --release <release> [--linux-beta-706]
   node scripts/roadmap.mts candidate-scope --issues <issue,issue,...>
   node scripts/roadmap.mts snapshot --release <release> --output <docs/releases/path>
+  node scripts/roadmap.mts --help
+
+Required arguments appear in angle brackets; optional arguments appear in square
+brackets. Use <command> --help for its purpose, options and an example. --json
+preserves the command's machine-readable output. Live commands require an
+authenticated GitHub CLI with repository and Project access; unavailable or
+incomplete reads fail and do not establish an empty or accepted Project state.
 
 Use capture-port for direct maintainer intake. Use normalize-port for a public
 New Port form submission; it preserves form content, reconciles canonical
-markers, Project membership and neutral unset fields. Parent relationships are preserved.`;
+markers, Project membership and neutral unset fields. Parent relationships are preserved.
+
+Example:
+  node scripts/roadmap.mts context --issue 211 --runner maintainer --json`;
+
+const roadmapCommandGuidance: Readonly<Record<string, readonly [string, string]>> = {
+  check: [
+    "Validate local Roadmap configuration and historical-document boundaries without GitHub access.",
+    "check",
+  ],
+  doctor: [
+    "Read the live Project and canonical issues, then report drift or incomplete coverage. --expected-head binds the checkout; --json prints the existing report.",
+    "doctor --json",
+  ],
+  bootstrap: [
+    "Reconcile the configured Project identity, fields and views with GitHub. Grouping and sorting changes require the Project UI.",
+    "bootstrap",
+  ],
+  "capture-port": [
+    "Create a canonical new-port issue for review and roadmap planning from a direct upstream URL and durable port key or catalog id.",
+    "capture-port --title 'Example port' --url https://example.org/port --port-key example-port",
+  ],
+  "normalize-port": [
+    "Normalize an existing public New Port form submission while preserving its content and parent relationships.",
+    "normalize-port --issue <port-issue-number>",
+  ],
+  "capture-feature": [
+    "Capture a draft feature with optional configured planning fields; use promote when its durable specification is ready.",
+    "capture-feature --title 'Describe the proposed outcome'",
+  ],
+  promote: [
+    "Promote a draft Project item to a canonical issue; --spec-file supplies its implementation-ready specification.",
+    "promote <draft-item-id> --spec-file work/feature-spec.md",
+  ],
+  set: [
+    "Update selected configured fields on a Project item or repository issue. At least one field option is required.",
+    "set <item-or-issue> --status 'In progress'",
+  ],
+  "set-many": [
+    "Plan bounded field transitions from a specification file. --apply performs the guarded changes and readback; --json retains machine output.",
+    "set-many --spec-file work/field-transitions.json",
+  ],
+  move: [
+    "Move one Project item immediately before another item in manual order.",
+    "move <item-id> --before <other-item-id>",
+  ],
+  next: [
+    "List recommended Required or Planned outcomes in Project order. Recommendations do not establish assignment or execution capability.",
+    "next --json",
+  ],
+  context: [
+    "Read one issue's current specification, Project fields, typed relationships and pickup coverage. --runner reports identity, not authority; consumed/reservation references are optional comparison evidence.",
+    "context --issue 211 --runner maintainer --json",
+  ],
+  history: [
+    "Read bounded issue coordination history; --coordination-pr selects an explicit PR target.",
+    "history --issue 211 --json",
+  ],
+  "rename-commitment": [
+    "Plan the bounded Release commitment field migration. --apply performs the guarded migration and readback.",
+    "rename-commitment",
+  ],
+  readiness: [
+    "Assess the requested release against live Project commitments and dependencies. --linux-beta-706 selects the separately scoped Linux beta disposition.",
+    "readiness --release 'Public beta'",
+  ],
+  "candidate-scope": [
+    "Assess release scope for the comma-separated repository issue numbers supplied by --issues.",
+    "candidate-scope --issues 211",
+  ],
+  snapshot: [
+    "Write a new immutable readiness snapshot under docs/releases; existing files are never overwritten.",
+    "snapshot --release 'Public beta' --output docs/releases/public-beta-readiness.md",
+  ],
+};
+
+const roadmapViewGuidance = `Verified Project view layouts, filters, visible columns, grouping and sorting.
+Grouping and sorting are readable through the API; changes require the GitHub Project UI.
+Built-in auto-add and completion workflow settings are not readable through a reliable GitHub API.
+Confirm their repository and Status behavior separately in the Project UI.`;
 
 export function fieldValue(item: RoadmapIssueItem | null | undefined, fieldName: string): unknown {
   const wanted = normalizedKey(fieldName);
@@ -4657,9 +4746,8 @@ async function offlineCheck() {
       throw new Error(`${relative} hardcodes a live catalog count`);
     }
   }
-  console.log(
-    `Roadmap configuration is valid for ${config.owner}/${config.project.number}; no volatile item data is stored.`,
-  );
+  console.log(`Roadmap configuration is valid for ${config.owner}/${config.project.number}.`);
+  console.log("No mutable roadmap items are stored in the repository.");
 }
 
 export function manualUiChecklist(config: RoadmapConfig) {
@@ -4949,9 +5037,8 @@ export async function runDoctor(
   log(
     `${config.active_release} readiness has ${stage.readiness.unfinishedRequired.length} unfinished required outcomes and ${stage.readiness.planned.length} planned outcomes.`,
   );
-  log(
-    `Grouping and sorting were read back; UI changes are required if they drift. Confirm built-in auto-add and completion workflows separately:\n${manualUiChecklist(config).slice(-2).join("\n")}`,
-  );
+  log(roadmapViewGuidance);
+  log(manualUiChecklist(config).slice(-2).join("\n"));
   return {
     number,
     details,
@@ -4965,7 +5052,7 @@ export async function runDoctor(
   };
 }
 
-export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
+export function roadmapCommandHelp(command: string, config?: RoadmapConfig) {
   if (!/^[a-z-]+$/u.test(command)) throw new Error("unknown Roadmap command: " + command);
   const line = roadmapHelp
     .split("\n")
@@ -4975,6 +5062,8 @@ export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
         line.trim() === "node scripts/roadmap.mts " + command,
     );
   if (!line) throw new Error("unknown Roadmap command: " + command);
+  const guidance = roadmapCommandGuidance[command];
+  if (!guidance) throw new Error("unknown Roadmap command: " + command);
   const fields =
     command === "set"
       ? [...setFlags]
@@ -4991,12 +5080,14 @@ export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
           )
         : [];
   return [
-    line.trim(),
+    "Usage: " + line.trim(),
+    guidance[0],
+    "Required arguments use angle brackets; optional arguments use square brackets. --help prints help without contacting GitHub or acquiring an operation lock.",
     ...fields.map(
       ([flag, field]) =>
         flag +
         ": " +
-        (config.fields.find((entry) => entry.name === field)?.options.join(" | ") ??
+        (config?.fields.find((entry) => entry.name === field)?.options.join(" | ") ??
           (() => {
             throw new Error(`missing configured field ${field}`);
           })()),
@@ -5004,6 +5095,7 @@ export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
     command === "context" || command === "doctor"
       ? "--summary: retain raw evidence and display a bounded projection; mutually exclusive with --json"
       : "",
+    "Example:\n  node scripts/roadmap.mts " + guidance[1],
   ]
     .filter(Boolean)
     .join("\n");
@@ -5012,7 +5104,10 @@ export function roadmapCommandHelp(command: string, config: RoadmapConfig) {
 async function main(argv: readonly string[]) {
   const parsed = parseArguments(argv);
   if (parsed.options["--help"]) {
-    console.log(roadmapCommandHelp(parsed.command, await loadConfig()));
+    const helpConfig = ["set", "capture-feature"].includes(parsed.command)
+      ? await loadConfig()
+      : undefined;
+    console.log(roadmapCommandHelp(parsed.command, helpConfig));
     return;
   }
   if (parsed.options["--summary"] && parsed.options["--json"])
@@ -5045,7 +5140,9 @@ async function main(argv: readonly string[]) {
         Object.keys(parsed.options).some((key) => key !== "--apply") ||
         ("--apply" in parsed.options && parsed.options["--apply"] !== true)
       )
-        throw new Error("usage: roadmap.mts rename-commitment [--apply]");
+        throw new Error(
+          "Usage: roadmap.mts rename-commitment [--apply]. Run with --help for an example.",
+        );
       console.log(
         JSON.stringify(
           executeCommitmentRename({ client, config, apply: parsed.options["--apply"] === true }),
@@ -5060,7 +5157,9 @@ async function main(argv: readonly string[]) {
           (key) => !["--expected-head", "--json", "--summary"].includes(key),
         )
       )
-        throw new Error("usage: roadmap.mts doctor [--expected-head SHA] [--json]");
+        throw new Error(
+          "Usage: roadmap.mts doctor [--expected-head SHA] [--json]. Run with --help for an example.",
+        );
       let context;
       let report;
       try {
@@ -5129,6 +5228,7 @@ async function main(argv: readonly string[]) {
         console.log(JSON.stringify({ ...report, evidence: reference }));
       else if (context) console.log(summarizeReport("doctor", report, reference).text);
       else console.error((report.errors ?? []).join("\n"));
+      if (!parsed.options["--json"] && report.status === "passed") console.log(roadmapViewGuidance);
       return;
     }
     if (!client || !config) throw new Error("Roadmap operation configuration is unavailable");
@@ -5142,9 +5242,7 @@ async function main(argv: readonly string[]) {
           `Record project.number=${result.number} in .github/roadmap.json before using item commands.`,
         );
       }
-      console.log(
-        `Machine-readable view layouts, filters, and visible columns are reconciled. Manual UI confirmation required:\n${manualUiChecklist(config).join("\n")}`,
-      );
+      console.log(`${roadmapViewGuidance}\n${manualUiChecklist(config).slice(-2).join("\n")}`);
       return;
     }
     if (parsed.command === "capture-port") {
@@ -5215,7 +5313,9 @@ async function main(argv: readonly string[]) {
     }
     if (parsed.command === "promote") {
       if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
-        throw new Error("usage: roadmap.mts promote <draft-item-id>");
+        throw new Error(
+          "Usage: roadmap.mts promote <draft-item-id>. Run with --help for an example.",
+        );
       const draft = client
         .itemList(config.project.number)
         .find((item) => item.id === parsed.positionals[0]);
@@ -5233,7 +5333,9 @@ async function main(argv: readonly string[]) {
     }
     if (parsed.command === "set") {
       if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
-        throw new Error("usage: roadmap.mts set <item-or-issue> [field options]");
+        throw new Error(
+          "Usage: roadmap.mts set <item-or-issue> [field options]. Run with --help for an example.",
+        );
       const values: Record<string, string> = {};
       for (const [flag, value] of Object.entries(parsed.options)) {
         const field = setFlags.get(flag);
@@ -5257,7 +5359,9 @@ async function main(argv: readonly string[]) {
     }
     if (parsed.command === "set-many") {
       if (parsed.positionals.length)
-        throw new Error("usage: roadmap.mts set-many --spec-file <path> [--apply] [--json]");
+        throw new Error(
+          "Usage: roadmap.mts set-many --spec-file <path> [--apply] [--json]. Run with --help for an example.",
+        );
       if ("--apply" in parsed.options && parsed.options["--apply"] !== true)
         throw new Error("--apply does not accept a value");
       if ("--json" in parsed.options && parsed.options["--json"] !== true)
@@ -5286,7 +5390,9 @@ async function main(argv: readonly string[]) {
     }
     if (parsed.command === "move") {
       if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined)
-        throw new Error("usage: roadmap.mts move <item> --before <item>");
+        throw new Error(
+          "Usage: roadmap.mts move <item> --before <item>. Run with --help for an example.",
+        );
       client.moveBefore(parsed.positionals[0], requiredOption(parsed.options, "--before"));
       console.log(`Moved ${parsed.positionals[0]} before ${parsed.options["--before"]}.`);
       return;

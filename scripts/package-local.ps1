@@ -1,4 +1,25 @@
-param([string]$Version)
+param([string]$Version, [Alias("h", "-help")][switch]$Help)
+
+if ($Help) {
+    Write-Output @'
+Package the local Windows installer, CLI archive, source archive, and SHA256SUMS.txt.
+
+Usage: pwsh -File scripts/package-local.ps1 [-Version VERSION] [-Help | --help]
+
+Options:
+  -Version VERSION  Require the exact central release version; defaults to the verified version.
+  -Help, --help     Show this help without checking storage, building, or writing packages.
+
+Requires a previously built NSIS installer and the repository's Node/Cargo tools.
+PORTCOVE_OUTPUT_DIR must be inside, but not equal to, the workspace. Configured
+build/cache/output directories are excluded from the source archive. This command
+creates local artifacts; it does not sign or publish a release.
+
+Example:
+  pwsh -File scripts/package-local.ps1 -Version 0.1.0
+'@
+    exit 0
+}
 
 $ErrorActionPreference = "Stop"
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
@@ -10,7 +31,7 @@ $outputRoot = [System.IO.Path]::GetFullPath($storage.output_root)
 $targetRoot = [System.IO.Path]::GetFullPath($storage.target_directory)
 $projectPrefix = $projectRoot.TrimEnd('\') + [System.IO.Path]::DirectorySeparatorChar
 if (-not $outputRoot.StartsWith($projectPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Output directory escaped the Portcove workspace"
+    throw "The output directory resolves outside, or equals, the Portcove workspace: $outputRoot. Set PORTCOVE_OUTPUT_DIR to a packaging directory inside, but not equal to, $projectRoot."
 }
 [System.IO.Directory]::CreateDirectory($outputRoot) | Out-Null
 [System.IO.Directory]::CreateDirectory($storage.temporary_directory) | Out-Null
@@ -63,7 +84,7 @@ try {
     $excludedDirectories = @("target", "work", "outputs", "node_modules", "apps/desktop/node_modules", "apps/desktop/dist", "apps/desktop/src-tauri/gen", ".git", ".fallow", ".rscheck", "scripts/.fallow", "apps/desktop/.fallow", ".codex-remote-attachments")
     foreach ($storagePath in @($targetRoot, $outputRoot, $storage.temporary_directory, $storage.pnpm_store)) {
         $relative = [System.IO.Path]::GetRelativePath($projectRoot, $storagePath).Replace('\', '/')
-        if ($relative -eq ".") { throw "Packaging storage cannot be the workspace root" }
+        if ($relative -eq ".") { throw "Packaging storage cannot be the workspace root: $storagePath. Choose a dedicated packaging or build/cache directory inside, but not equal to, $projectRoot." }
         if (-not [System.IO.Path]::IsPathRooted($relative) -and $relative -ne ".." -and -not $relative.StartsWith("../")) {
             $excludedDirectories += $relative
         }
@@ -71,15 +92,15 @@ try {
     $archiveExclusions = @($excludedDirectories | ForEach-Object { "--exclude=./$_" })
     & tar -a -cf $temporaryArchive @archiveExclusions .
     if ($LASTEXITCODE -ne 0) { throw "Source archive failed with exit code $LASTEXITCODE" }
-    $forbiddenArchiveEntries = & tar -tf $temporaryArchive | Where-Object {
+    $forbiddenArchiveEntries = @(& tar -tf $temporaryArchive | Where-Object {
         $entry = $_ -replace '^\./', ''
         $entry -match '(^|/)(\.git|\.fallow|\.rscheck|\.codex-remote-attachments)(/|$)' -or
         ($excludedDirectories | Where-Object { $entry -eq $_ -or $entry.StartsWith("$_/") })
-    }
+    })
     if ($LASTEXITCODE -ne 0) { throw "Source archive inspection failed with exit code $LASTEXITCODE" }
     if ($forbiddenArchiveEntries) {
         [System.IO.File]::Delete($temporaryArchive)
-        throw "Source archive contains excluded workspace state: $($forbiddenArchiveEntries[0])"
+        throw "The source archive contains an item that must not be packaged: $($forbiddenArchiveEntries[0]). The temporary archive was removed. Check the configured storage paths and archive exclusions before packaging again."
     }
     [System.IO.File]::Move($temporaryArchive, $sourceArchive, $true)
 

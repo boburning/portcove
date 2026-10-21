@@ -1,5 +1,5 @@
-name: Qualification / manual validation
-description: Plan and record exact automated or hands-on platform and port evidence.
+name: Portcove test status / qualification
+description: Plan and record scoped automated or hands-on platform and port evidence.
 title: "[Qualification] "
 projects:
   - boburning/1
@@ -34,7 +34,7 @@ body:
     id: setup
     attributes:
       label: Test setup and prerequisites
-      description: Source identity, isolated library, controller/hardware, packaging route, and starting state.
+      description: Source identity, isolated library, controllers or hardware controls, packaging route, and starting state.
     validations:
       required: true
   - type: textarea
@@ -57,5 +57,5 @@ body:
   - type: textarea
     id: results
     attributes:
-      label: Results, limitations, and completion evidence
+      label: Portcove test status, limitations, and completion evidence
       description: Fill before closure; retain failures and unassessed observations explicitly.

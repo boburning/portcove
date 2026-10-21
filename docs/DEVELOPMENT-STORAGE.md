@@ -107,6 +107,12 @@ generated paths. `--scope tooling` checks workspace, temporary and output paths;
 Rust build script writes schemas) without frontend dependency/output paths. Unknown
 commands retain `all`; cleanup always uses complete Cargo discovery/containment.
 
+Path refusals identify the affected directory and the correction: reconnect an
+unavailable volume, choose a readable/writable directory, or move configured
+storage to a volume allowed by the machine policy. Cleanup never follows a link
+to repair a rejected path. Preserve custom targets, linked contents, source
+inputs, recovery material and verification evidence while correcting the layout.
+
 The existing local planner selects these scopes from its complete command plan.
 Its outer launcher uses tooling scope; selected Rust/mixed work still resolves
 Cargo before execution. Plan-only frontend/tooling discovery does not require

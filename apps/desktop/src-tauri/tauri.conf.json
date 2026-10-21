@@ -47,7 +47,7 @@
     "homepage": "https://github.com/boburning/portcove",
     "copyright": "Copyright © 2026 Portcove contributors",
     "shortDescription": "Install, update, and play native game ports.",
-    "longDescription": "Browse native game ports, add the game files they need, and manage supported installations and updates in a local library.",
+    "longDescription": "Install, update, launch, and restore previous versions of native game ports in a local Portcove library while keeping original game files on your device.",
     "licenseFile": "../../../LICENSE-MIT"
   }
 }
