@@ -3,6 +3,7 @@ import {
   inspectPublishedCatalogMetadata,
   inspectPublishedSite,
   assertCatalogPublicationBaseline,
+  applicationPublishedSiteCursor,
 } from "./release-catalog-metadata-contract.mts";
 import {
   inspectCatalogPublicationDescriptor,
@@ -676,6 +677,25 @@ export async function recordPublishedCatalogMetadata(
   options: Pick<CapacityOperationOptions, "remote"> = {},
 ) {
   return recordPublishedComponent(repository, expected, "catalog", raw, site, options);
+}
+/** Actual application Pages callers use this atomic metadata+cursor handoff;
+ * recordPublishedMetadata remains the historical app-only setup/import seam. */
+export async function recordPublishedApplicationSiteMetadata(
+  repository: string,
+  expected: string,
+  raw: unknown,
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  const published = inspectPublishedMetadata(structuredClone(raw));
+  if (!published) throw new Error("actual application publication absent");
+  const current = await recoverReleaseOpportunity(repository, expected);
+  const site = applicationPublishedSiteCursor(current.input, published);
+  return recordPublishedSitePublication(
+    repository,
+    expected,
+    { component: "application", metadata: published, site },
+    options,
+  );
 }
 /** One CAS updates the affected component plus the global site cursor. The
  * other component's original publication provenance is preserved verbatim. */

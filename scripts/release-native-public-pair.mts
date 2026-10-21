@@ -6,6 +6,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   openActualNativePublicSource,
   inspectPublicImmutableReleaseAsset,
@@ -318,11 +319,7 @@ async function acquirePublicSnapshot(parentReceipt: object) {
   assert.ok(publication, "ratified public anchors absent");
   assert.equal(seed.root_sha256, publication.public_source.root.sha256);
   const site = await materializePublishedCompleteSite(
-    {
-      site_generation_sha256: seed.publication.site_generation_sha256,
-      root_sha256: seed.root_sha256,
-      repository_sha256: hex(seed.repository_sha256, 64),
-    },
+    currentApplicationSitePins(input),
     directory,
     deadline,
   );
@@ -435,6 +432,12 @@ export async function requireActualPublicJourneyPair(receipt: object) {
   );
   const site = await requirePublishedCompleteSite(retained.site),
     prepared = await inspectPreparedMetadataRenewal(retained.preparation);
+  // The retained readback remains an observation of its original generation.
+  // A catalog-only advance may move the global cursor without changing this
+  // authenticated application closure or its original publication proof.
+  const currentPins = currentApplicationSitePins(record(current.input));
+  assert.equal(currentPins.root_sha256, site.pins.root_sha256);
+  assert.equal(currentPins.repository_sha256, site.pins.repository_sha256);
   assertMetadataRenewalBinding(
     prepared.descriptor,
     inspectPublishedMetadata(record(current.input).published_metadata),

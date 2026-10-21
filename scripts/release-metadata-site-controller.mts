@@ -3,6 +3,7 @@
 import path from "node:path";
 import { mkdtemp, open, writeFile } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -367,6 +368,8 @@ export async function runMetadataSitePublicationController(
         !published ||
         published.operation_id !== result.operation_id ||
         published.publication.site_generation_sha256 !== prepared.generation.generation ||
+        currentPublishedSite(completed.input)?.generation_sha256 !==
+          prepared.generation.generation ||
         published.repository_sha256 !== tuf.publication.repository_sha256 ||
         published.records_sha256 !== tuf.publication.records_sha256
       )

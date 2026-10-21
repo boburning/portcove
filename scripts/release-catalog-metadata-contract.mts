@@ -249,6 +249,42 @@ export function assertCatalogPublicationBaseline(raw: unknown, input: Record<str
     throw new Error("catalog publication differs from current component/site baseline");
   return descriptor;
 }
+/** Current complete-site locator for the SAME application component. The app
+ * record's publication generation remains its historical proof provenance. */
+export function currentApplicationSitePins(input: Record<string, unknown>) {
+  const site = currentPublishedSite(input);
+  const application = inspectPublishedMetadata(input.published_metadata);
+  if (!site || !application || !site.components.application)
+    throw new Error("current authenticated application component/site cursor unavailable");
+  return Object.freeze({
+    root_sha256: application.root_sha256,
+    repository_sha256: application.repository_sha256,
+    site_generation_sha256: site.generation_sha256,
+  });
+}
+/** Formatting only, after the owning caller's actual Pages/public readback.
+ * Existing component records and global cursor are still checked under CAS. */
+export function applicationPublishedSiteCursor(input: Record<string, unknown>, raw: unknown) {
+  const application = inspectPublishedMetadata(raw),
+    previous = currentPublishedSite(input);
+  if (!application) throw new Error("actual application publication facts absent");
+  return inspectPublishedSite({
+    schema_version: 1,
+    generation_sha256: application.publication.site_generation_sha256,
+    components: {
+      application: {
+        root_sha256: application.root_sha256,
+        repository_sha256: application.repository_sha256,
+      },
+      catalog: previous?.components.catalog ?? null,
+    },
+    operation_id: application.operation_id,
+    publication: {
+      evidence_sha256: application.publication.evidence_sha256,
+      remote_identity: application.publication.remote_identity,
+    },
+  })!;
+}
 function settled(
   operation: unknown,
   operationId: string | null,

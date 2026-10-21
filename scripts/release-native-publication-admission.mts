@@ -8,6 +8,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   requireControllerNativePrepublicationAuthorities,
   inspectPublicationAuthorities,
@@ -235,7 +236,7 @@ export function deriveNativePublicationJourneys(input: {
     published.repository_sha256 !== digest(inventory(prior)) ||
     published.repository_sha256 !== manifest.previous_site_pins.repository_sha256 ||
     published.root_sha256 !== manifest.previous_site_pins.root_sha256 ||
-    published.publication.site_generation_sha256 !==
+    currentApplicationSitePins(before.input).site_generation_sha256 !==
       manifest.previous_site_pins.site_generation_sha256
   )
     throw new Error("post-sign native prior differs from actual current published seed");

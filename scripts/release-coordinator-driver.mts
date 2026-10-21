@@ -1,3 +1,4 @@
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublicationReportRepair,
   reportRepairDispatchDestination,
@@ -1237,11 +1238,7 @@ async function prepareTrustedCoordinatorRenewalAt(
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
     const site = await materializeCoordinatorPublishedSite(
-      {
-        site_generation_sha256: published.publication.site_generation_sha256,
-        root_sha256: published.root_sha256,
-        repository_sha256: published.repository_sha256,
-      },
+      currentApplicationSitePins(recovered.input),
       directory,
       budget.monotonicDeadline,
     );
@@ -1472,14 +1469,14 @@ export async function requireActualCoordinatorMetadataPreparation(
     await verifiedControllerToolPaths(retained.tools);
     const prepared = await inspectPreparedMetadataRenewal(retained.preparation);
     const site = await requirePublishedCompleteSite(retained.complete_site);
+    const current = await recoverReleaseOpportunity(retained.repository, retained.checkpoint);
     if (
       capacityDigest(prepared.descriptor) !== retained.descriptor_sha256 ||
-      site.pins.site_generation_sha256 !== retained.seed.publication.site_generation_sha256 ||
+      capacityDigest(site.pins) !== capacityDigest(currentApplicationSitePins(current.input)) ||
       site.pins.root_sha256 !== retained.seed.root_sha256 ||
       site.pins.repository_sha256 !== retained.seed.repository_sha256
     )
       throw new Error("coordinator metadata public inputs changed");
-    const current = await recoverReleaseOpportunity(retained.repository, retained.checkpoint);
     if (
       capacityDigest(current.input.published_metadata) !== capacityDigest(retained.seed) ||
       capacityDigest(current.input.metadata_renewal) !== retained.descriptor_sha256 ||
@@ -2406,11 +2403,7 @@ async function recoverTrustedCoordinatorContext(
     )
       throw new Error("actual published renewal prior required for context recovery");
     currentSite = await materializeCoordinatorPublishedSite(
-      {
-        site_generation_sha256: published.publication.site_generation_sha256,
-        root_sha256: published.root_sha256,
-        repository_sha256: published.repository_sha256,
-      },
+      currentApplicationSitePins(recovered.input),
       directory,
       budget.monotonicDeadline,
     );

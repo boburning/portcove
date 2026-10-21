@@ -21,6 +21,7 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
 import { validateOpportunity } from "./release-coordinator.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   requirePublishedCompleteSite,
   materializePublishedCompleteSite,
@@ -221,11 +222,7 @@ export async function prepareControllerReleaseSigningContext(
     throw new Error("published seed differs from ratified public Root/Targets");
   withinBudget();
   const site = await materializePublishedCompleteSite(
-    {
-      site_generation_sha256: published.publication.site_generation_sha256,
-      root_sha256: published.root_sha256,
-      repository_sha256: published.repository_sha256,
-    },
+    currentApplicationSitePins(before.input),
     outputParent,
     deadline,
   );

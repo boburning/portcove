@@ -140,3 +140,73 @@ void test("copied tool/executor JSON cannot enter actual Pages metadata handoff"
     /actual|receipt|verified|tools/i,
   );
 });
+
+void test("Pages recovery advances the current catalog generation without rewriting old application provenance", () => {
+  const { input } = fixture();
+  const old = structuredClone(input.published_metadata);
+  // The catalog checkpoint moved the complete site while preserving the old
+  // application record and its original publication evidence.
+  old.publication.site_generation_sha256 = "8".repeat(64);
+  const generation =
+    input.controller.capacity_attempt.operation.site_expectation.prior_site_generation_sha256;
+  const catalog = {
+    schema_version: 1,
+    root_sha256: "7".repeat(64),
+    offline_targets_sha256: "a".repeat(64),
+    index_sha256: "b".repeat(64),
+    repository_sha256: "c".repeat(64),
+    verifier_repository_sha256: "d".repeat(64),
+    snapshot_sha256: "e".repeat(64),
+    timestamp_sha256: "f".repeat(64),
+    immutable_targets_sha256: "0".repeat(64),
+    versions: { targets: "1", definitions: "1", policy: "1", snapshot: "1", timestamp: "1" },
+    expires: Object.fromEntries(
+      ["targets", "definitions", "policy", "snapshot", "timestamp"].map((k) => [
+        k,
+        "2027-01-01T00:00:00Z",
+      ]),
+    ),
+    operation_id: "6".repeat(64),
+    publication: {
+      evidence_sha256: "5".repeat(64),
+      remote_identity: "fixture:catalog",
+      site_generation_sha256: generation,
+    },
+  };
+  const state = {
+    ...input,
+    published_metadata: old,
+    published_catalog_metadata: catalog,
+    published_site: {
+      schema_version: 1,
+      generation_sha256: generation,
+      components: {
+        application: { root_sha256: old.root_sha256, repository_sha256: old.repository_sha256 },
+        catalog: { root_sha256: catalog.root_sha256, repository_sha256: catalog.repository_sha256 },
+      },
+      operation_id: catalog.operation_id,
+      publication: {
+        evidence_sha256: catalog.publication.evidence_sha256,
+        remote_identity: catalog.publication.remote_identity,
+      },
+    },
+  };
+  assert.ok(inspectSettledPagesMetadataHandoff(state));
+  assert.deepEqual(state.published_metadata, old);
+  assert.throws(
+    () =>
+      inspectSettledPagesMetadataHandoff({
+        ...state,
+        published_site: { ...state.published_site, generation_sha256: "0".repeat(64) },
+      }),
+    /exact old published seed/,
+  );
+  assert.throws(
+    () =>
+      inspectSettledPagesMetadataHandoff({
+        ...state,
+        published_metadata: { ...old, repository_sha256: "0".repeat(64) },
+      }),
+    /component|published/i,
+  );
+});

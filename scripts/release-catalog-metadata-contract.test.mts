@@ -14,6 +14,8 @@ import {
   inspectPublishedSite,
   assertCatalogPublicationBaseline,
   validatePublishedSiteTransition,
+  currentApplicationSitePins,
+  applicationPublishedSiteCursor,
 } from "./release-catalog-metadata-contract.mts";
 
 const now = "2026-10-21T12:00:00.000Z";
@@ -229,6 +231,26 @@ void test("application advance uses global catalog generation and preserves cata
     },
   };
   const after = { ...f.after, published_metadata: application, published_site: site };
+  assert.deepEqual(currentApplicationSitePins(f.after), {
+    root_sha256: f.app.root_sha256,
+    repository_sha256: f.app.repository_sha256,
+    site_generation_sha256: f.after.published_site.generation_sha256,
+  });
+  assert.notEqual(
+    currentApplicationSitePins(f.after).site_generation_sha256,
+    f.app.publication.site_generation_sha256,
+  );
+  assert.deepEqual(applicationPublishedSiteCursor(f.after, application), site);
+  assert.deepEqual(f.after.published_metadata, f.app);
+  assert.throws(() =>
+    currentApplicationSitePins({
+      ...f.after,
+      published_metadata: {
+        ...f.app,
+        repository_sha256: "0".repeat(64),
+      },
+    }),
+  );
   const operation = {
     id: application.operation_id,
     kind: "upload",

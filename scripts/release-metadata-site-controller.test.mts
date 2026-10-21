@@ -162,6 +162,58 @@ void test("imported metadata TUF receipts and invalid dispatch cannot allocate p
   assert.deepEqual(await readdir(root), []);
 });
 
+void test("metadata reservation follows the current whole site while retaining historical application proof", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-20T01:00:00.120Z") });
+  const f = fixture(),
+    original = structuredClone(f.input.published_metadata);
+  const generation = "4".repeat(64);
+  const input = {
+    ...f.input,
+    published_site: {
+      schema_version: 1,
+      generation_sha256: generation,
+      components: {
+        application: {
+          root_sha256: original.root_sha256,
+          repository_sha256: original.repository_sha256,
+        },
+        catalog: null,
+      },
+      operation_id: null,
+      publication: { evidence_sha256: "5".repeat(64), remote_identity: "fixture:current-site" },
+    },
+  };
+  const pins = { ...f.manifest.previous_site_pins, site_generation_sha256: generation };
+  const manifest = {
+    ...f.manifest,
+    previous_site_pins: pins,
+    facts: { ...f.manifest.facts, previous_site_pins: pins },
+  };
+  assert.equal(inspectMetadataSiteReservation(input, manifest).authority, "none");
+  assert.deepEqual(input.published_metadata, original);
+  assert.throws(() => inspectMetadataSiteReservation(input, f.manifest), /site generation changed/);
+  assert.throws(
+    () =>
+      inspectMetadataSiteReservation(
+        {
+          ...input,
+          published_site: {
+            ...input.published_site,
+            components: {
+              application: {
+                ...input.published_site.components.application,
+                repository_sha256: "0".repeat(64),
+              },
+              catalog: null,
+            },
+          },
+        },
+        manifest,
+      ),
+    /component records/,
+  );
+});
+
 void test("actual metadata launcher schema reaches the original provider clock before refusing missing tool custody", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "metadata-launch-shape-"));
   t.after(() => rm(root, { recursive: true, force: true }));

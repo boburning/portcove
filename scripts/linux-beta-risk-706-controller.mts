@@ -8,6 +8,7 @@ import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
@@ -552,21 +553,19 @@ async function authorizeRiskSubject706(
       !isRecord(previous) ||
       previous.root_sha256 !== seed.root_sha256 ||
       previous.repository_sha256 !== seed.repository_sha256 ||
-      previous.site_generation_sha256 !== seed.publication.site_generation_sha256
+      previous.site_generation_sha256 !==
+        currentApplicationSitePins(snapshot.input).site_generation_sha256
     )
       throw new Error("new-candidate feed risk proof differs from current authenticated prior");
     // Already assembled by the actual keyless verifier. Rehash the original
     // context and its complete immutable history instead of another Rust job.
     priorFiles = await readBoundedReleaseContextFiles(tuf.input_root);
   } else {
+    const siteIdentity = digest({ seed, pins: currentApplicationSitePins(snapshot.input) });
     let retainedSite = priorSites.get(cacheKey);
-    if (!retainedSite || retainedSite.seed !== digest(seed)) {
+    if (!retainedSite || retainedSite.seed !== siteIdentity) {
       const site = await materializePublishedCompleteSite(
-        {
-          root_sha256: String(seed.root_sha256),
-          repository_sha256: String(seed.repository_sha256),
-          site_generation_sha256: seed.publication.site_generation_sha256,
-        },
+        currentApplicationSitePins(snapshot.input),
         directory,
         phaseDeadline,
       );
@@ -581,7 +580,7 @@ async function authorizeRiskSubject706(
         output_parent: directory,
         ...(phaseDeadline === undefined ? {} : { deadline: phaseDeadline }),
       });
-      retainedSite = { seed: digest(seed), site: site.receipt, preparation };
+      retainedSite = { seed: siteIdentity, site: site.receipt, preparation };
       priorSites.set(cacheKey, retainedSite);
     }
     await requirePublishedCompleteSite(retainedSite.site);

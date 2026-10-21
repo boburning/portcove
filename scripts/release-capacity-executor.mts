@@ -26,7 +26,7 @@ import {
   runBoundedMetadataRenewalOperation,
   runBoundedMetadataBootstrapOperation,
   runBoundedCatalogPublicationOperation,
-  recordPublishedMetadata,
+  recordPublishedApplicationSiteMetadata,
 } from "./release-capacity-operation.mts";
 import {
   inspectPublishedMetadata,
@@ -817,9 +817,14 @@ async function recoverOwnedPublishedMetadataWithinScope(
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
       api: remote.api,
     });
-    const recovered = await recordPublishedMetadata(input.repository, input.checkpoint, published, {
-      remote,
-    });
+    const recovered = await recordPublishedApplicationSiteMetadata(
+      input.repository,
+      input.checkpoint,
+      published,
+      {
+        remote,
+      },
+    );
     if (
       !("durable_checkpoint" in recovered) ||
       recovered.durable_checkpoint !== recovered.checkpoint

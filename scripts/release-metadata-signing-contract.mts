@@ -1,6 +1,7 @@
 /** Public binding shape only. This parser authenticates neither the prior feed
  * nor a coordinator, and it never grants a metadata signing capability. */
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import {
   inspectMetadataRenewalDescriptor,
   inspectPublishedMetadata,
@@ -144,7 +145,7 @@ export function inspectMetadataSigningReservation(
   if (
     !published ||
     !context.previous_site_pins ||
-    published.publication.site_generation_sha256 !==
+    currentApplicationSitePins(rawState.input).site_generation_sha256 !==
       context.previous_site_pins.site_generation_sha256
   )
     throw new Error("current metadata renewal site generation changed");

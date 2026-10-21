@@ -19,7 +19,8 @@ import { crc32, inflateRawSync } from "node:zlib";
 import { isRecord } from "./runtime-values.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
-import { recordPublishedMetadata } from "./release-capacity-operation.mts";
+import { recordPublishedApplicationSiteMetadata } from "./release-capacity-operation.mts";
+import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import {
   capacityExecutorIdentity,
@@ -695,9 +696,6 @@ export async function publishPreparedSiteDeployment(
   )
     throw new Error("site artifact is not associated with the actual fixed same-attempt executor");
   const checkpoint = await recoverReleaseOpportunity(input.repository, input.checkpoint);
-  const published = checkpoint.input.published_metadata;
-  const publication =
-    isRecord(published) && isRecord(published.publication) ? published.publication : null;
   if (bootstrap) {
     const proof = await requireInitialSiteContext(prepared.bootstrap!.tuf, prepared.deadline ?? -1);
     inspectMetadataSigningReservation(
@@ -709,9 +707,9 @@ export async function publishPreparedSiteDeployment(
     if (prepared.generation.previous_generation !== null || !prepared.bootstrap!.readback_sha256)
       throw new Error("initial site requires independent configured/public preflight");
   } else if (
-    !publication ||
     !prepared.previous_generation ||
-    publication.site_generation_sha256 !== prepared.previous_generation.generation ||
+    currentApplicationSitePins(checkpoint.input).site_generation_sha256 !==
+      prepared.previous_generation.generation ||
     prepared.generation.previous_generation !== prepared.previous_generation.generation ||
     prepared.prior_public_readback?.generation !== prepared.previous_generation.generation
   )
@@ -946,7 +944,7 @@ export async function publishPreparedSiteDeployment(
     typeof effect.remote_identity !== "string"
   )
     throw new Error("published site settlement identity differs; preserve original effects");
-  const advanced = await recordPublishedMetadata(
+  const advanced = await recordPublishedApplicationSiteMetadata(
     input.repository,
     result.checkpoint,
     {

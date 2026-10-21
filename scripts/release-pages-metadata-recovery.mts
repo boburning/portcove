@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
+import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
@@ -54,8 +55,10 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   )
     throw new Error("settled Pages receipt differs from durable generation");
   const seed = inspectPublishedMetadata(input.published_metadata);
-  if (seed?.publication.site_generation_sha256 === expected.site_generation_sha256) {
+  const site = currentPublishedSite(input);
+  if (site?.generation_sha256 === expected.site_generation_sha256) {
     if (
+      !seed ||
       seed.repository_sha256 !== expected.repository_sha256 ||
       seed.root_sha256 !== expected.root_sha256 ||
       seed.operation_id !== operation.id
@@ -65,13 +68,14 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   }
   if (seed) {
     if (
-      seed.publication.site_generation_sha256 !== expected.prior_site_generation_sha256 ||
+      site?.generation_sha256 !== expected.prior_site_generation_sha256 ||
       seed.root_sha256 !== expected.root_sha256
     )
       throw new Error("settled Pages handoff does not advance the exact old published seed");
   } else {
     const bootstrap = inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
     if (
+      site !== null ||
       expected.prior_site_generation_sha256 !== null ||
       !operation.metadata_bootstrap ||
       operation.metadata_bootstrap.descriptor_sha256 !== capacityDigest(bootstrap) ||
