@@ -100,3 +100,27 @@ remain separate obligations. Local tests include the real default full-site
 materializer with controlled credential-free public responses, opaque receipt
 readback and refusal after retained catalog mutation; they do not establish a
 live deployment or production acceptance.
+
+## Coordinator wake and verified publication handoff
+
+The default coordinator wake now selects a durable pending Pages expectation
+before waiting on semantic or native work. Its independent coordinator verifies
+the original publisher is terminal, reads the exact expected provider/public
+generation, and settles the existing journal intent. A settled expectation with
+a missing published-metadata handoff remains discoverable on a later wake.
+
+With the actual verified controller tools, the continuation materializes the
+complete public site and runs the maintained Rust/Tough verifier against the
+journal-pinned root and component. The handoff records the authenticated
+**current** feed versions, expiry, records and metadata digests; the verifier's
+unused next renewal plan is retained but never signed or published. The existing
+owned journal helper rechecks the original terminal publisher and exact current
+checkpoint before recording that state. An expired feed refuses this ordinary
+verification path; no expiry bypass is introduced.
+
+The combined recovery uses at most four fresh coordinator control rounds within
+the original 170-second job budget. It issues no Pages POST and does not repeat
+the Release effect. A failure after effect settlement leaves that settled intent
+available for the next GET-only handoff attempt. Applicable public client journey
+and durable candidate completion remain pending. The local association and
+refusal tests do not establish a genuine protected provider invocation.
