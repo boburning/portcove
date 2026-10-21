@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -179,7 +180,11 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 
 /** Hydrate only a raw operation receipt explicitly named by the current
  * journal's compact summary. No refs, history traversal or provider mutation. */
-export async function hydrateRetainedCoordinatorOperation(repository: string, proof: unknown) {
+export async function hydrateRetainedCoordinatorOperation(
+  repository: string,
+  proof: unknown,
+  options: { api?: GitHubRestReader } = {},
+) {
   if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
     throw new Error("retained operation proof schema differs");
   oid(proof.checkpoint);
@@ -190,22 +195,34 @@ export async function hydrateRetainedCoordinatorOperation(repository: string, pr
     !/^[a-f0-9]{64}$/u.test(proof.operation_sha256)
   )
     throw new Error("retained operation proof identity differs");
-  const api = new GitHubApiClient((args, input) =>
-    createGitHubRunner({
-      cwd: repository,
-      maxBuffer: 256 * 1024,
-      timeoutMs: coordinatorCommandTimeout(15000),
-    })([...args, "--hostname", "github.com"], input),
-  );
+  await hydrateRetainedCoordinatorCheckpoint(repository, proof.checkpoint, options);
+  const { readRetainedCapacityOperation } = await import("./release-coordinator-state.mts");
+  return readRetainedCapacityOperation(repository, proof);
+}
+
+/** Exactly three inert Git objects from an explicitly authenticated historical
+ * checkpoint. No refs, ancestry walk, lazy fetch or current-state authority. */
+export async function hydrateRetainedCoordinatorCheckpoint(
+  repository: string,
+  checkpoint: unknown,
+  options: { api?: GitHubRestReader } = {},
+) {
+  oid(checkpoint);
+  const api =
+    options.api ??
+    new GitHubApiClient((args, input) =>
+      createGitHubRunner({
+        cwd: repository,
+        maxBuffer: 256 * 1024,
+        timeoutMs: coordinatorCommandTimeout(15000),
+      })([...args, "--hostname", "github.com"], input),
+    );
   const get = (suffix: string) => {
     const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
     if (result.status !== 200) throw new Error("retained operation unavailable");
     return result.body;
   };
-  const commit = inspectRemoteCommitObject(
-    get(`git/commits/${proof.checkpoint}`),
-    proof.checkpoint,
-  );
+  const commit = inspectRemoteCommitObject(get(`git/commits/${checkpoint}`), checkpoint);
   const raw = get(`git/trees/${commit.tree}`);
   if (
     !isRecord(raw) ||
@@ -269,8 +286,8 @@ export async function hydrateRetainedCoordinatorOperation(repository: string, pr
     checkCoordinatorDeadline();
     if (id !== object.oid) throw new Error("retained checkpoint import differs");
   }
-  const { readRetainedCapacityOperation } = await import("./release-coordinator-state.mts");
-  return readRetainedCapacityOperation(repository, proof);
+  const { readRetainedCoordinatorCheckpoint } = await import("./release-coordinator-state.mts");
+  return readRetainedCoordinatorCheckpoint(repository, checkpoint);
 }
 
 /** Read the minimum raw recovery closure without Git writes, planner imports,

@@ -16,10 +16,26 @@ import {
 } from "./release-native-scheduler.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { performance } from "node:perf_hooks";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 
 type Setup = Awaited<ReturnType<typeof requirePinnedLocalNativeSetup>>;
+/** Reserve thirty seconds inside the existing 35-minute installed task limit.
+ * This clock belongs to the original fixed Node action; source acquisition,
+ * resource admission and every later child consume the same finite budget. */
+export function remainingNativeParentBudget(maximum = 2070000, elapsed = performance.now()) {
+  const left = Math.floor(Math.min(maximum, 2070000 - elapsed));
+  if (
+    !Number.isFinite(maximum) ||
+    maximum < 1 ||
+    !Number.isFinite(elapsed) ||
+    elapsed < 0 ||
+    left < 1
+  )
+    throw new Error("original native parent lifetime exhausted; retain and reconcile its attempt");
+  return left;
+}
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
     throw new Error("native parent fixed setup join differs");
@@ -155,6 +171,7 @@ async function readParent(
   schedulerReceipt?: object,
   originalWindowsIdentity?: string | null,
 ) {
+  remainingNativeParentBudget();
   const setup = await requirePinnedLocalNativeSetup(setupReceipt);
   const script = path.join(setup.controller_root, "scripts/release-native-worker.mts");
   if (
@@ -199,6 +216,7 @@ async function readParent(
     await requireActualLinuxNativeScheduler(scheduler);
   }
   await setup.recheck();
+  remainingNativeParentBudget();
   return { setup, scheduler, windows, windowsIdentity };
 }
 
