@@ -323,6 +323,15 @@ it("distinguishes missing snapshot and Favorites from known empty while preservi
   await closeFilters();
   expect(invoke).not.toHaveBeenCalled();
 });
+it("clears retained Favorites when its facts are unavailable", async () => {
+  flushSync(() => root.render(<Fixture />));
+  await userEvent.click(button("Favorites (2)"));
+  await userEvent.click(button("Toggle favorite facts"));
+  await expect.element(button("Favorites (unavailable)")).toBeDisabled();
+  await userEvent.click(button("Clear search and filters"));
+  await expect.element(button("Favorites (unavailable)")).toHaveAttribute("aria-pressed", "false");
+  await expect.element(button("All (3)")).toHaveAttribute("aria-pressed", "true");
+});
 it("holds unknown migrated readiness and query separately until correction", async () => {
   flushSync(() => root.render(<Fixture />));
   await userEvent.click(button("Ready (2)"));

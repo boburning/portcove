@@ -495,7 +495,7 @@ export function PortBrowser({
               ? "Results unavailable"
               : `${visiblePorts.length} of ${overview.installed} library ${overview.installed === 1 ? "entry" : "entries"}`}
           </p>
-          {visiblePorts.length > 0 && (
+          {(resultsUnavailable || visiblePorts.length > 0) && (
             <Button variant="ghost" onClick={reset}>
               Clear search and filters
             </Button>

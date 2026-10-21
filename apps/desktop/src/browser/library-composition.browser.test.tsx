@@ -81,7 +81,7 @@ it("reopens Last played and restores its exact details trigger after Back", asyn
   snapshot.statuses[0]!.last_launched_at = 1;
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
   await mount();
-  await page.getByText("Last played", { exact: true }).click();
+  await page.getByText("Last played", { exact: true }).first().click();
   const origin = '[data-detail-origin="library:continue-details:collection-0"]';
   await page.getByRole("button", { name: "View details", exact: true }).click();
   await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
