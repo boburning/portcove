@@ -1,4 +1,8 @@
 import {
+  inspectAggregateUploadExpectation,
+  assertAggregateUploadCandidate,
+} from "./release-aggregate-contract.mts";
+import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
 } from "./release-coordinator-state.mts";
@@ -12,6 +16,8 @@ import {
   capacityOperationSubject,
   capacityOperationCounters,
   inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+  assertPublicationResultDestination,
 } from "./release-capacity.mts";
 import {
   inspectMetadataRenewalDescriptor,
@@ -48,7 +54,12 @@ export class ProviderCapacityRefusal extends Error {
  * change retention, allocate candidates, or grant execution. An independently
  * admitted caller supplies one exact effect. No CLI or automatic retry exists.
  */
-type Request = { kind: "dispatch" | "upload" | "retention"; destination: string };
+type Request = {
+  kind: "dispatch" | "upload" | "retention";
+  destination: string;
+  site_expectation?: unknown;
+  aggregate_expectation?: unknown;
+};
 export interface CapacityOperationOptions {
   remote?: { configuration: unknown; api: CoordinatorRemoteApi };
   executorIdentity?: unknown;
@@ -121,6 +132,26 @@ async function runOperation(
   options: InternalOptions = {},
 ) {
   const request = structuredClone(rawRequest);
+  if (
+    Object.keys(request).sort().join(",") !==
+    [
+      "destination",
+      "kind",
+      ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
+      ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+    ]
+      .sort()
+      .join(",")
+  )
+    throw new Error("capacity operation request contains unsupported fields");
+  const aggregate =
+    request.aggregate_expectation === undefined
+      ? null
+      : inspectAggregateUploadExpectation(request.aggregate_expectation);
+  const site =
+    request.site_expectation === undefined
+      ? null
+      : inspectSitePublicationExpectation(request.site_expectation);
   const metadata =
     options.metadataRenewal === undefined
       ? null
@@ -174,7 +205,11 @@ async function runOperation(
     (!maintenance && recovered.plan.action !== "resume-active")
   )
     throw new Error("bounded operation is held by capacity or another coordinator condition");
+  if (request.destination === "github-actions:boburning/portcove:admitted-aggregate" && !aggregate)
+    throw new Error("admitted aggregate intent requires its exact upload preimage");
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
+  if (aggregate) assertAggregateUploadCandidate(candidate);
+  assertPublicationResultDestination(request.destination, candidate);
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
   const observedAt = metadataNow();
   if (maintenance) {
@@ -265,6 +300,8 @@ async function runOperation(
             },
           }),
     destination: request.destination,
+    ...(site ? { site_expectation: site } : {}),
+    ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     // An invocation-generated claim makes independent executors' pending bytes
     // distinct. Seeing somebody else's identical logical operation is not an
     // execution grant. There is no caller-supplied nonce or resume entry point.

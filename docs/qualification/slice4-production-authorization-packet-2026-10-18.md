@@ -6,10 +6,63 @@ its [custody amendment](https://github.com/boburning/portcove/issues/534#issueco
 [execution amendment](https://github.com/boburning/portcove/issues/534#issuecomment-6107645487)
 and [controller proposal](https://github.com/boburning/portcove/issues/534#issuecomment-6119064584).
 It grants nothing. The runnable workflow remains admission-only. The
-[held complete workflow](application-update-production.aggregate.yml) is outside
-`.github/workflows`; its four new jobs also have literal false conditions.
+[complete held controller](application-update-production.complete.yml) is outside
+`.github/workflows`; it is not activated. The older aggregate-only proposal is
+retained as historical evidence.
 
 ## Current local runtime checkpoint
+
+The [complete held controller integration](slice4-complete-controller-integration-2026-10-21.md) now composes the fixed jobs, exact App/installation checks, automatic wake correlation, retained signing-custody routing and public diagnostic retention. Its resource policy proposes 99 controller/wake job-minutes under the unchanged hard 100 ceiling, including the new control jobs and receipts. Historical ratification does not cover its changed digests; this remains initial setup preparation with no production activation or provider-enforcement claim.
+
+The [connected disposable release fixture](slice4-connected-release-fixture-2026-10-21.md) now joins real Git preparation, six inert package inputs, actual Tauri/Rust payload signatures, five one-key TUF workers, nonempty Tough records, controlled Release/site readback and real local journal renewal recovery in one 44.2-second test. It preserves catalog/history and proves no repeated upload after a lost response. The ordinary Linux tool-build fixture passed that same connected test with freshly built manifest-owned tools in run [39545436723/1](https://github.com/boburning/portcove/actions/runs/39545436723); its synthetic fixture source remains distinct from the reviewed application/controller source. No hosted admission brand, native/runtime judgment or production authority follows from the controlled provider or declared fixture eligibility.
+
+The [owned admitted aggregate caller](slice4-owned-admitted-aggregate-2026-10-20.md) now connects the fixed building job to actual same-bundle admission, candidate phase handling, assembly, durable upload/readback and separate attestation output. Payload routing preserves the original upload identity when a current custodian recovers earlier exact bytes. The selected preparation reallocates the existing 19-minute admission/observer/assembly allowance to a nine-minute combined reader and ten-minute observer; the complete proposed DAG remains 99 job-minutes under its hard 100-minute ceiling. This is a proposed initial ratification, not evidence of provider enforcement or execution authority. Availability/headroom remain Unknown. Existing payload/context/five-role custody, final complete DAG, host qualification and the consolidated protected setup remain independent obligations.
+
+The [automatic semantic source acquisition preparation](slice4-semantic-source-acquisition-2026-10-20.md) replaces the worker's externally refreshed object-cache prerequisite with bounded anonymous public Git acquisition and independently hashed snapshot inventories. Local disposable/inert tests cover source materialization only; the ordinary Linux source-only fixture, actual dedicated runtime/authentication and protected execution remain distinct. No model, issuer or setup authority follows from source acquisition.
+
+The [explicit initial metadata continuation](slice4-initial-metadata-preparation-2026-10-20.md#initial-context-and-complete-site-continuation-preparation) now connects genuine coordinator setup custody to the bounded context transport, five isolated role consumers, keyless Tough and initial complete-site caller. It uses null prior pins, an empty record set and the existing metadata-bootstrap journal subject. Local copied-tool/first-site and bundle checks passed; no provider publication or setup authority was exercised. The final hosted DAG remains an explicit follow-on before consolidated setup.
+
+Unresolved coordinator context uploads now have a separate fixed GET-only recovery route before ordinary bootstrap/renewal preparation. It requires the exact terminal original producer and immutable artifact, independently reconstructs the public bytes using current authenticated tools, ratified anchors and actual Tough bootstrap/prior verification, and settles only that upload through the existing coordinator recovery executor. A recovered upload is neither an attestation nor signing admission; the next wake still follows ordinary genuine preparation and bounded settled-upload reconciliation. Missing, expired, partial, changed or unavailable evidence remains held, with no automatic re-POST or absence-as-no-effect inference. Local default-transport, real Git routing and ten-entry bundle tests cover preparation only; actual provider recovery and protected execution remain unobserved.
+
+The [unchanged-feed site caller preparation](slice4-isolated-role-continuation-2026-10-20.md#unchanged-feed-site-caller-preparation) now connects authenticated metadata context and five-role custody to the existing keyless Tough, complete-site, journaled upload and Pages/readback path. It preserves the active candidate and uses maintenance controls. Complete run-artifact reads share the existing stable four-page/400-artifact ceiling. Local code and ten-entry bundle checks passed; actual metadata provider publication, genuine initial bootstrap continuation and final DAG qualification remain pending. No activation or additional authority is granted.
+
+The reviewed [whole-site continuation and fixed readiness bridge](slice4-complete-site-controller-2026-10-20.md)
+connect actual tools/context/five-role/immutable-Release custody to durable archive
+upload, existing Pages intent, complete public readback, metadata handoff and
+candidate-clear CAS/readback. The site tool is now in the fixed attested tool
+inventory. Delivered in [#2300](https://github.com/boburning/portcove/pull/2300),
+source `c9df88e3f4c2dace184b3eb233b95ba96a776187`, merged as
+`27104e187a7dba2a8602e951ab54ce32e77b7c37`. All five required checks passed
+in `39527459323`, attempt 1; the hosted ten-entry tool fixture passed in
+`39527459706`, attempt 1 (138 seconds). These implementation results do not
+establish public deployment or ordinary-client acceptance. Exact
+ambiguous Pages recovery, metadata/bootstrap continuation, final held DAG and
+eligible cleanup remain engineering work. No new VHD experiment or recurring
+administrator command is part of this path. Historical one-attempt VHD grants
+below remain retained, consumed history rather than current instructions.
+
+The October 20 [native account and pre-sign producer connection](slice4-native-account-preparation-2026-10-20.md)
+now implements private fixed-Task/source custody, exact reserved package
+selection, bounded separate-account Windows capture, six concrete pre-sign
+assertion joins and the distinct native App Check handoff with retained failure
+and GET-only recovery. Component fixtures and separate source review establish
+implementation scope only. Actual Task/account/App authentication and native
+host observations remain unobserved. The Windows post-sign implementation now
+selects and revalidates the exact completed five-role controller run, assembles
+its public signed context with the maintained keyless verifier, verifies candidate
+signatures, retrieves an immutable predecessor when required, and connects the
+existing account harness to initial-install or package-update/rollback report-2
+capture and native Check handoff. Its actual disposable fixed-Node/Rust/Tough
+qualification and retained failures are recorded in the same native receipt.
+Completion readback preserves the original native lineage across the metadata
+handoff while ordinary signing retains current-seed checks. Automatic native Check discovery is connected to the existing actual collectors
+through an explicit null marker; its inert locators cannot replace actual report
+authentication. The Linux separate-account backend remains independent engineering
+work. No native or ordinary public journey acceptance is inferred.
+The
+report-2 temporal/initial-empty-feed profile requires explicit selection in the
+consolidated conditional setup grant and keeps ordinary public update acceptance
+pending. This checkpoint grants no setup, signing, publication or execution.
 
 The October 20 [owned publication result and feed binding](slice4-534-publication-result-integration-2026-10-20.md)
 was delivered through [#2291](https://github.com/boburning/portcove/pull/2291),
@@ -548,7 +601,7 @@ result, never capacity for another dispatch, upload or retention operation.
 `release-capacity.mts` binds supplied independently admitted boundary facts to a
 revocable ratification: account/repository, exact budget identity and configuration
 generation, Actions/account/$0/stop usage, public standard runners and resource
-policy digest. The selected policy pins both held workflow digests. Its bounded
+policy digest. The historical selected policy pins both earlier held workflow digests. Its bounded
 estimate includes aggregate jobs 5/25/30/5/20 minutes plus input jobs 5/5/5 minutes
 (**100 job-minutes**), three input receipts estimated at at most 128 KiB each,
 existing 512 MiB per-file/2 GiB aggregate archive and assembly ceilings, the two
@@ -556,6 +609,12 @@ declared concurrency groups without cancellation, and seven-day retention. These
 are ceilings and estimates, not observed storage headroom or a storage allocation.
 Any later runnable workflow/resource change requires reconciliation and a new
 matching policy digest before use.
+
+The current complete-controller proposal replaces that historical resource
+inventory with the exact 99-minute controller/wake accounting and additional
+bounded receipts described in the [integration record](slice4-complete-controller-integration-2026-10-21.md).
+Its changed digest requires matching initial ratification; it does not inherit
+the historical policy's approval or claim provider enforcement.
 
 Coordinator input schema 2 carries explicit `capacity_attempt` eligibility instead
 of `free_capacity_available`. Schema 1 remains exact historical replay only;

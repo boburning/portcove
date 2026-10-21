@@ -292,47 +292,56 @@ export async function verifyUpdaterInventory(
   return inventory;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [operation, ...args] = process.argv.slice(2);
-  const options: Partial<
-    Record<"input" | "output" | "label" | "publicKey" | "verifier" | "revision" | "version", string>
-  > = {};
-  const names: Record<string, keyof typeof options> = {
-    "--input": "input",
-    "--output": "output",
-    "--label": "label",
-    "--public-key": "publicKey",
-    "--verifier": "verifier",
-    "--revision": "revision",
-    "--version": "version",
-  };
-  for (let index = 0; index < args.length; index += 2) {
-    const argument = args[index];
-    const key = argument === undefined ? undefined : names[argument];
-    const value = args[index + 1];
-    if (!key || !value || options[key])
-      throw new Error("invalid or duplicate updater inventory argument");
-    options[key] = value;
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const [operation, ...args] = process.argv.slice(2);
+    const options: Partial<
+      Record<
+        "input" | "output" | "label" | "publicKey" | "verifier" | "revision" | "version",
+        string
+      >
+    > = {};
+    const names: Record<string, keyof typeof options> = {
+      "--input": "input",
+      "--output": "output",
+      "--label": "label",
+      "--public-key": "publicKey",
+      "--verifier": "verifier",
+      "--revision": "revision",
+      "--version": "version",
+    };
+    for (let index = 0; index < args.length; index += 2) {
+      const argument = args[index];
+      const key = argument === undefined ? undefined : names[argument];
+      const value = args[index + 1];
+      if (!key || !value || options[key])
+        throw new Error("invalid or duplicate updater inventory argument");
+      options[key] = value;
+    }
+    if (!options.label || !options.publicKey || !options.verifier || !options.revision)
+      throw new Error("label, public-key, verifier and revision are required");
+    const common = {
+      label: options.label,
+      publicKey: options.publicKey,
+      verifier: options.verifier,
+      revision: options.revision,
+    };
+    if (operation === "stage" && options.output && !options.version)
+      await stageUpdaterInventory({ ...common, output: options.output });
+    else if (operation === "verify" && options.input)
+      await verifyUpdaterInventory({
+        ...common,
+        input: options.input,
+        ...(options.version === undefined ? {} : { version: options.version }),
+      });
+    else throw new Error("use stage --output PATH or verify --input PATH");
+    console.log(`Updater artifact ${operation} passed for ${options.label}.`);
   }
-  if (!options.label || !options.publicKey || !options.verifier || !options.revision)
-    throw new Error("label, public-key, verifier and revision are required");
-  const common = {
-    label: options.label,
-    publicKey: options.publicKey,
-    verifier: options.verifier,
-    revision: options.revision,
-  };
-  if (operation === "stage" && options.output && !options.version)
-    await stageUpdaterInventory({ ...common, output: options.output });
-  else if (operation === "verify" && options.input)
-    await verifyUpdaterInventory({
-      ...common,
-      input: options.input,
-      ...(options.version === undefined ? {} : { version: options.version }),
-    });
-  else throw new Error("use stage --output PATH or verify --input PATH");
-  console.log(`Updater artifact ${operation} passed for ${options.label}.`);
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
 
 function assertInventory(value: unknown): asserts value is UpdaterInventory {
   const invalid = () => new Error("updater inventory identity mismatch");

@@ -207,3 +207,325 @@ The API feasibility claims use the current primary documentation:
 [CreateProcessWithLogonW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-createprocesswithlogonw)
 and [window station and desktop creation](https://learn.microsoft.com/en-us/windows/win32/winstation/window-station-and-desktop-creation).
 Documentation support is distinct from the unperformed cross-account host test.
+
+The follow-on stage request/capture contract derives its fixed producer, host,
+account and scenario inventory from the existing global authority configuration.
+It binds the exact candidate/build/package and setup descriptor, and keeps the
+signed predecessor/context/signature identities separate for the post-sign
+stage. Partial roots, streams and failed or ambiguous outcomes remain retained;
+a complete serialization requires positive per-root and shared-group teardown.
+These are integrity checks with `authority: none`, not parent provenance.
+
+The prepared Windows scheduler observer uses read-only Task Scheduler COM and
+bounded process queries. It brackets exact task XML, one Exec action, the
+ordinary broker principal, IgnoreNew concurrency and a 35-minute deadline. One
+observed running instance must connect to the actual fixed parent through a
+creation-ordered process ancestry ending at the reported engine PID. The engine
+PID is not relabeled as the application PID. The fixed inbox Windows PowerShell
+reader also checks owner/ancestor ACLs on the descriptor, adjacent initial
+installation receipt, global/boundary configuration, controller and capture roots.
+The adjacent installation receipt avoids a descriptor/task-XML hash cycle.
+Neither helper registers, starts, stops or changes a task or ACL.
+
+The scheduler collector's private receipt denotes only an actual readback. It
+must be joined to the protected local setup reader and freshly re-observed at
+execution boundaries; imported fixtures cannot enter that receipt map. The
+installed task, its actual engine ancestry and cross-account native behavior
+remain unobserved. The tests cover integrity/refusal paths only. Microsoft
+documents the [engine PID](https://learn.microsoft.com/en-us/windows/win32/taskschd/runningtask-enginepid)
+and [security-context scope of GetInstances](https://learn.microsoft.com/en-us/windows/win32/taskschd/registeredtask-getinstances);
+those capabilities do not establish that the proposed host setup exists.
+
+The parent join now combines private setup-byte custody with the actual default
+scheduler observer and checks the complete appointed producer source/tree and
+harness bytes. The initial adjacent installation record has a strict transport
+section naming separate source-read token and native issuer-key files; issuer
+App identities still come from the global authority configuration. Neither key
+nor token is configuration content or an incoming request value. Credential
+files must stay outside candidate work/profile, controller and capture storage.
+Windows observes their owner/ancestor ACLs without reading the issuer key;
+Linux checks owner-only file custody. The private parent getter rechecks actual
+setup and scheduler state before use. Its receipt is parent-boundary provenance,
+not a native qualification result or an execution grant.
+
+The disposable credential-ACL fixture initially also attempted a positive
+non-private path check in the host's ordinary temporary directory. The real
+ancestor guard refused it as foreign-replaceable. That outcome remains a
+refusal; the focused fixture now exercises only rejection of a foreign reader
+on its new disposable file, without claiming protected temporary-directory
+custody. The initial setup still has to establish the real protected roots.
+
+The local selector now reuses the complete admission collector's source/run/
+archive/reservation acquisition. Its private default transport reads the
+separately protected source token after actual-parent recheck, admits only
+fixed-repository GETs and read-only GraphQL queries, and supplies the token only
+to a hash-pinned GitHub CLI child's closed environment. The initial transport
+record therefore also names `github_cli: {path, sha256}`. It never modifies the
+parent's authentication environment. The reused admission result retains
+`injected-provider` scope; that result cannot become native or admission
+acceptance. The selector reconstructs the exact NSIS/AppImage package tuple,
+rechecks the remote checkpoint, retains a pre-sign data-only request, and exposes
+it only through its private selection map with fresh parent/package/checkpoint
+readback. Native execution and Check issuance remain unimplemented by this
+selection component. No post-sign or public journey is inferred from it.
+
+The pinned source CLI is an owned copy under the prepared protected tools
+storage. Its path is the ninth Windows scheduler custody observation, with the
+same owner/ancestor and foreign-write refusal used for public fixed inputs;
+Linux requires owner-only file custody. It cannot overlap credentials, public
+configuration, candidate work/profile or capture storage. This closes the gap
+between a matching tool hash and a candidate-writable executable path, without
+adding a global installation or changing an existing host ACL.
+
+The bridge capture now also retains each actual returned root's image path,
+verified launch digest and UTC startup time alongside PID/creation and teardown.
+The digest comes from the fixed verified-launch operation's deny-write/delete
+custody, not from an imported report. A missing teardown remains null. A focused
+inert root-projection test passes; its first assertion incorrectly compared a
+PowerShell 7.6 automatically parsed JSON DateTime with a string, and now checks
+the exact retained wire timestamp. No candidate was launched by this fixture.
+
+One bounded, read-only WSL capability inspection saw Ubuntu and docker-desktop
+registered as stopped WSL2 distributions. The single fixed Ubuntu owner/tool
+query then reached its 20-second child timeout without stdout or stderr. It
+returned `ETIMEDOUT`, not Linux OS, tool, interop or native evidence. At
+2026-10-20T22:39:40.323Z, the owned wrapper/Node/WSL process inventory was empty;
+no global WSL shutdown or reset was performed. The query was not repeated. A
+cold-start timeout does not establish an unsupported host; the actual Linux
+account, cgroup, GUI and minimum-platform route remain unobserved.
+
+The native invocation claim is now prepared around the existing coordinator's
+bounded counters. Initial setup must create the protected capture root's
+`.native-capture-custody.jsonl` with one line containing only
+`{"schema_version":1,"kind":"native-capture-custody","setup_grant_sha256":"EXACT_APPROVED_GRANT_SHA256"}`
+and a final newline. The worker cannot create or replace this initial marker.
+Each deterministic invocation is appended and synced before its fixed
+`native-attempt-INVOCATION_SHA256` directory and original request claim are
+created. A missing directory, marker, capture or contradictory append refuses
+continuation; it does not reset a retry counter. The claim contains the actual
+frozen request, coordinator checkpoint and bounded counters.
+
+Repeating an invocation returns readback-only after validating its original
+capture and positive owned-root/shared-group teardown. Every retained stream
+must still match its exact byte count and digest. A possible Check POST requires
+the original fixed wire and GET-only issuer/source/report reconciliation before
+any later invocation. Missing, duplicate or incomplete provider inventory holds;
+there is no POST replay or automatic native retry. Reused consumer observations
+remain explicitly unbranded and cannot clear native admission. Focused fixture
+coverage passes nine tests, including lost custody, changed counters, ambiguous
+cleanup, changed wire and imported-receipt refusals. Actual task, native launch,
+Check issuance and scheduler/account qualification remain unobserved.
+
+The fixed installed worker now has a Windows driver connection through the
+existing resource supervisor. It privately selects and claims the candidate,
+rechecks source/reservation after resource admission, and launches only the
+fixed owner-side PowerShell driver. Its closed environment carries no source,
+issuer or signing credential. The driver stages the exact installer under the
+protected controller inputs, creates only per-invocation work/capture children,
+and uses the existing separate-account bridge for every installer, application,
+driver and WebView root. The parent owns one latched final group-finish request.
+The new capture leaf makes inherited entries explicit without adding rights or
+altering the existing root. This code has not changed any real host ACL.
+
+Initial installation data can now supply strict `windows_tools` pins for an
+owned PowerShell7 runtime, Git, Node, Tauri driver and WebView driver. No runtime
+is discovered, downloaded or installed by the worker. Missing tools hold. The
+driver checks owner/ancestor custody and bounded hashes before and after use;
+the selected Node bound remains 128 MiB. Its owner-side bridge/harness streams
+use the same four-MiB raw prefix and strict UTF-8 guard as candidate streams.
+Faults stop the affected child and retain the prefix. Child/group identities,
+nonzero outcomes and ambiguous completion remain separate from native success.
+
+The isolated installer now checks registration in the actual qualification SID
+hive rather than the broker's HKCU. The installed empty-library observation
+also retains the existing Core capability IPC response, actual WebView process
+snapshot and bounded loaded-image hashes. No product command or client trust
+path was added. Seventeen focused local tests pass, including actual inert
+PowerShell child streams with normal output, invalid UTF-8 and overflow, plus
+wrong-hive and imported-capture refusals. Those are component observations;
+the fixed Task/account route has not run. The signed-context/post-sign selector
+and Linux separate-account backend remain engineering work. The worker never
+publishes a Release or substitutes its own acceptance for the hosted consumer.
+
+Compatibility preparation now distinguishes maintained source declarations
+from installed runtime observations. The parent-owned source reader can retain
+the exact candidate commit's Core constants, database schema, embedded catalog
+and maintained Windows context recipe, checking bounded Contents bytes against
+their Git blob identities. A repeated read preserves matching original bytes
+and refuses changed retained input. The current source declares API 77, library
+read 1–37/write 37, embedded catalog format 2 and `library-lock-v1`. An actual
+source fixture exercises this recipe and malformed, duplicate, unsupported and
+changed declarations. This is data-only preparation: those declarations alone
+establish neither native execution nor compatibility acceptance. The installed
+Core IPC, actual state/host observations and private producer join remain
+independently required.
+
+## Connected pre-sign report and Check handoff
+
+Reviewed source `bd14eea1ab2c97ff0078ea414ae9d6cee206e0e4` connects the fixed
+worker's Windows capture to complete pre-sign report reconstruction and the
+distinct native issuer. The six assertions require exact package and installed
+executable bytes, actual qualification-SID registration, install/launch results,
+retained library manifests, observed minimum Windows/WebView versions and the
+installed Core capability response. Candidate source declarations are retained
+separately; the owned process snapshot binds loaded WebView paths and identities.
+Every root and the shared account group must have positive teardown before a
+completed report enters the private direct-capture map. Retained inputs, output
+streams, source declarations and the report are rechecked before use.
+
+Only that private report permits the broker to read its separately protected
+native App key. The fixed Node HTTP worker receives credentials through stdin,
+with no credential argv, environment or retained token. The broker checks the
+actual App, selected installation, exact repository and Checks-write/Metadata-read
+permissions. It persists the original wire and fsyncs a one-shot pre-POST marker
+before sending the exact native Check body. Original GET-only issuer/report
+readback follows. Authentication failure and a possible Check POST retain
+different phases; an ambiguous response never permits POST replay. The current
+source reader must have the read capabilities required for that reconciliation;
+credential availability alone establishes no authority.
+
+A refused stage retains its original diagnostic and, where exact original
+identities and streams permit serialization, a failed or ambiguous capture.
+Missing cleanup is never converted to an empty process group. Repeating the
+same invocation remains readback-only; only existing coordinator recovery can
+change bounded attempt counters after applicable settlement. These records add
+no second retry or acceptance authority.
+
+Separate non-writing review cleared the cumulative report, broker and failure
+retention source. Twelve focused report/source/capture/claim tests and eleven
+focused report/broker/claim tests passed; these selections overlap. Tests include
+wrong package/source/host/protocol, missing state, partial cleanup, wrong issuer,
+changed wire, truncated attempt and imported-provenance refusals. Type-aware
+lint and the maintained test inventory passed. They are fixture and inert
+component evidence, not an actual cross-account Task launch, App authentication,
+native Check, minimum-host qualification or public update journey. The temporal
+report-2 profile remains an explicit proposed consolidated setup selection;
+report-1 interpretation is preserved and no production workflow is activated.
+
+## Prepared local post-sign connection and actual keyless CLI qualification
+
+The installed worker now selects its stage from the current reserved candidate
+and the existing timestamp operation/history, including the existing recovery
+counters. Pending or ambiguous timestamp work selects readback/refusal rather
+than falling back to a repeated pre-sign run. The actual local parent retrieves
+the exact controller context and five signed-role artifacts, verifies their
+provider/Sigstore bindings, and runs the maintained keyless Rust/Tough assembly.
+The shared journey derivation preserves the hosted factory's actual guards;
+local provenance remains local and cannot import the hosted private brand.
+
+For report 2, the exact original compiler-run opaque platform archive is read
+before/after acquisition. The existing complete package/checksum/producer
+consumer retains the selected updater bytes. An ordinary predecessor additionally
+requires its exact Tough record/historical native tuple and an observed immutable
+Release with a complete asset inventory; the exact asset bytes are hash checked.
+Download counts are not treated as immutable identities. The fixed credential-free
+Rust verifier authenticates the selected payload signature and signed version.
+Its original streams, result, context manifest and complete signed repository
+remain retained and rechecked before native use.
+
+The Windows driver connects these inputs to the existing separate-account
+installer route. Initial-empty-feed qualification can report only fresh install,
+launch, retained state and signature cryptography. A later candidate requires
+an actual predecessor launch, install-over-prior, retained state and exact
+package rollback observations. The private parent report and isolated native
+App handoff support these distinct stages; legacy pre-sign APIs retain their
+original scope. Ordinary public discovery/download, updater journal/recovery
+and public manifest journey remain pending and cannot be satisfied by package
+compatibility. Actual Task/account, native App provisioning/authentication,
+Windows or Linux native acceptance and public updater observations remain absent.
+
+A separate resource-admitted disposable integration ran at source
+`f090186ca7d39784011b4be6ba33dbab8a9142c1` with fixed Node SHA-256
+`ba93f9a70bd86fce3ebbb39ec758501458453467aa92a34a0a3602d1e3fc2b9c`
+and the maintained Windows Rust tool SHA-256
+`b8a200fd447c052b1170cc8168746dffaed013948fdc847f642e33b3f2d71ecc`.
+The actual fixed Node CLI assembled a five-role disposable Tough repository,
+verified a real 180321-byte disposable Tauri-signed payload, and refused both
+a tampered payload and a corrupt signed envelope. One selected test passed
+with no skips in 17.746 seconds; resource queue was 5.572 seconds and total
+including supervisor setup was 56.883 seconds. The retained public fixture is
+`work/slice4/native-keyless-cli-0TSdzy`; `qualification.json` SHA-256 is
+`7da254ef22736ed98dd1b45450a49a4e5c2e379e7fd120f0d2267fac5e4952bd`.
+Disposable private files were removed and fixture role buffers zeroed. This is
+actual crypto/CLI integration evidence, with no production key or installed
+parent/native authority.
+
+Focused component verification subsequently passed 22 cases with one optional
+real-fixture case skipped; the real fixture above has its own exact source.
+A new inert driver test initially used a hashtable instead of the actual decoded
+JSON shape, and a stage-selection test initially inherited a publishing phase.
+Both failed outcomes remain retained; corrected wire/phase fixtures passed.
+The explicit schema-2 bootstrap locator is forwarded from the independently
+parsed global configuration through every native publication parser. The
+schema-2 locator-to-initial-journey regression passes while default schema 1
+continues to refuse that locator. No source locator appoints authority.
+
+Completion readback retains the full current-seed journey checks before Pages
+advances the public feed. Only after the published repository changes does it
+associate the original authenticated context checkpoint with the same
+candidate/source/build/counters/opportunity. It imports exactly the original commit/tree/state blob through the
+existing bounded read-only transport into a fresh private bare repository, with
+no ref mutation, parent traversal or lazy fetch. The current published metadata
+must independently equal the actual signed TUF result. Ordinary reserved native
+collection still requires the current public seed and cannot use this historical
+completion association. Eight focused native-admission cases passed, including
+changed candidate, repository, versions and expiry refusals. The selected real
+sparse-Git case passed in 39.673 seconds with no skips; its original admitted
+attempt queued 664.967 seconds and completed in 730.068 seconds including setup.
+Type-aware lint passed for all five changed modules/tests. These are lineage and
+transport checks, with no native host or protected execution acceptance.
+
+Independent review caught the pre-Pages promoting recovery case in the first
+completion repair. The narrow fix selects history only when the current repository
+differs from the authenticated original prior repository; no caught failure can
+trigger fallback. Both pre-Pages and post-Pages promoting cases pass, with wrong
+new-seed and changed old-root refusals. The original review finding is retained.
+
+The delivery composition against main `2d81de8` passed 47 focused component cases
+with one optional real-crypto case skipped (its actual result remains bound above
+to `f090186`). Five routing/inventory cases passed, all 210 indexed test files are
+registered, and changed `.mts` files passed type-aware lint. Current main's
+whole-site, metadata recovery, tool-bundle and controller changes were retained;
+these checks do not add Task/account, hosted native or public journey evidence.
+
+## Automatic native Check lookup preparation
+
+Configured native collectors now interpret the explicit `native_locators: null`
+marker as automatic GET-only discovery for pre-sign, post-sign and completion
+readback. Legacy exact locators still undergo the same actual consumer checks;
+undefined or omitted data cannot select automatic discovery. Fixed templates
+come from the existing ratified authority, exact assembly/archive inputs, and
+actual signed-context/journey factories. They contain no invented Check or
+invocation identity. The discovery result supplies only inert platform/Check/
+invocation locators and cannot mint native or admission acceptance.
+
+The reader pins GitHub.com, the configured native App, repository and exact
+source, walks the complete named-Check inventory under at most 16 suites and
+below the provider's 1000-run deletion ceiling, and brackets it with a second
+complete snapshot. Each snapshot binds the exact candidate, stage, producer,
+host, compatibility and signed journey. Missing, changed, false, duplicated or
+wrong-issuer evidence refuses. A unique Windows/Linux pair then passes through
+the unchanged actual native consumer, which authenticates and retains the full
+Check/suite/source/harness proof before any private receipt. The reader allows
+at most 40 GETs, 32 MiB total JSON and the caller's finite deadline; it adds no
+job, credential, authority or retry loop. Its default child strips ambient hooks,
+proxy and authentication configuration and preserves the fixed provider route.
+Component checks remain synthetic and do not establish an observed App, Task,
+native runtime or ordinary public updater journey.
+
+The automatic-lookup component passed six focused discovery cases and 26 existing
+native consumer/association/contract cases, plus five routing/inventory cases.
+Type-aware lint passed for the eight changed TypeScript modules/tests, and all
+213 indexed tests are registered. The discovery checks include real default
+transport argument/environment construction with an inert injected child, not
+an actual provider or native acceptance observation.
+
+Independent review found that the first automatic pre-sign lookup could allocate
+120 seconds beyond an inherited coordinator phase deadline. The repair derives
+one bounded collection deadline from the existing coordinator clock, passes it
+through discovery and actual native collection, and intersects that clock before
+and after each GET and before returning locators. Sixteen focused discovery and
+association cases passed after the repair, including zero reads after an expired
+phase, no later GET after a delayed response exhausts the phase, and a default
+child timeout bounded by the tighter inherited budget. The original finding is
+retained; no new execution budget or authority is granted.

@@ -1,12 +1,11 @@
-# HELD REVIEW ARTIFACT; intended target .github/workflows/application-update-wake.yml.
-# Activate only through the consolidated exact setup grant. Default-branch
-# scheduling receives no candidate, signing, journal, Release or Pages authority.
+# HELD REVIEW ARTIFACT; activate only through the consolidated exact setup grant.
 name: Automatic application controller wake-up
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   schedule:
-    - cron: "17 */6 * * *"
+    - cron: 17 */6 * * *
 permissions:
   contents: read
   actions: read
@@ -48,11 +47,19 @@ jobs:
         id: dispatch-token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_DISPATCH_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.app_id }}
           private-key: ${{ secrets.PORTCOVE_DISPATCH_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-actions: write
+      - name: Bind actual dispatch installation before use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch-token.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - name: Dispatch retained immutable controller intent
         env:
           GH_HOST: github.com

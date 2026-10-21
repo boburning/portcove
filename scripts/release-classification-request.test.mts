@@ -7,7 +7,10 @@ import {
 } from "./fixtures/release-control-inputs-fixture.mts";
 import { negativeSemanticDispositionFixture } from "./fixtures/release-semantic-disposition-fixture.mts";
 import { createReleaseReviewRequest } from "./release-review-request.mts";
-import { persistReviewedClassificationForRequest } from "./release-classification-request.mts";
+import {
+  persistReviewedClassificationForRequest,
+  inspectClassificationRequestReadiness,
+} from "./release-classification-request.mts";
 import { semanticReviewCheckName } from "./release-semantic-review.mts";
 import { prepareNegativeSemanticDispositionCheck } from "./release-semantic-disposition.mts";
 import { capacityDigest } from "./release-capacity.mts";
@@ -113,5 +116,32 @@ void test("missing, duplicate, negative conflict, late inventory drift and faile
       }),
     );
     assert.equal(f.mutations(), 0, mode);
+  }
+});
+
+void test("automatic classification routing is read-only, holds missing/conflicting review, and skips persisted acceptance", () => {
+  for (const [mode, eligible] of [
+    ["valid", true],
+    ["missing", false],
+  ] as const) {
+    const f = fixture(mode);
+    const readiness = inspectClassificationRequestReadiness(f.api, f.producer, f.request);
+    assert.equal(readiness.eligible, eligible, mode);
+    assert.equal(readiness.authority, "none");
+    assert.equal(f.mutations(), 0);
+  }
+  const f = fixture();
+  assert.equal(inspectClassificationRequestReadiness(f.api, f.producer, null).eligible, false);
+  persistReviewedClassificationForRequest(f.api, f.producer, f.request, () => {});
+  const current = inspectClassificationRequestReadiness(f.api, f.producer, f.request);
+  assert.equal(current.eligible, false);
+  assert.equal(current.reason, "already-persisted");
+  assert.equal(f.mutations(), 1);
+  for (const mode of ["duplicate", "conflict", "late-conflict"]) {
+    const drift = fixture(mode);
+    assert.throws(() =>
+      inspectClassificationRequestReadiness(drift.api, drift.producer, drift.request),
+    );
+    assert.equal(drift.mutations(), 0);
   }
 });

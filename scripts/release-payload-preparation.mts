@@ -1,3 +1,5 @@
+import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
+export { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 /** Read-only controller integration. Acquires existing authority observations;
  * it cannot create admission, sign, allocate or publish. */
 import { createHash } from "node:crypto";
@@ -25,7 +27,10 @@ import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { performance } from "node:perf_hooks";
 import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
-import { verifyUploadedAggregate } from "./trusted-aggregate-attestation.mts";
+import {
+  verifyAdmittedUploadedAggregate,
+  verifyUploadedAggregate,
+} from "./trusted-aggregate-attestation.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { inspectBoundedZip } from "./bounded-zip.mts";
@@ -54,8 +59,16 @@ const project = fileURLToPath(new URL("..", import.meta.url));
 // A fixed payload job starts a fresh process before receiving trusted tools.
 // The receiver must not silently add time outside the role's total deadline.
 const payloadPhaseStarted = performance.now();
+let payloadPhaseDeadline = payloadPhaseStarted + 570000;
 export function payloadSigningPhaseDeadline() {
-  return payloadPhaseStarted + 570000;
+  return payloadPhaseDeadline;
+}
+/** The dependency-free launcher may only preserve/tighten the original budget,
+ * including its first verified tool acquisition before this bundle loads. */
+export function tightenPayloadSigningPhaseDeadline(deadline: number) {
+  if (!Number.isFinite(deadline) || deadline <= performance.now())
+    throw new Error("payload role total phase deadline exhausted");
+  payloadPhaseDeadline = Math.min(payloadPhaseDeadline, deadline);
 }
 type AggregateExpected = Omit<
   Parameters<typeof verifyUploadedAggregate>[1],
@@ -86,33 +99,7 @@ export function inspectPayloadPreparationConfiguration(raw: unknown): Preparatio
     !isRecord(value.aggregate)
   )
     throw new Error("fixed controller payload preparation configuration is incomplete");
-  const aggregate = value.aggregate;
-  if (
-    Object.keys(aggregate).sort().join(",") !==
-      "artifact_id,bundle_artifact_id,bundle_sha256,controller_ref,controller_revision,run_attempt,run_id,sha256" ||
-    typeof aggregate.controller_revision !== "string" ||
-    !/^[a-f0-9]{40}$/.test(aggregate.controller_revision) ||
-    typeof aggregate.controller_ref !== "string" ||
-    !/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(
-      aggregate.controller_ref,
-    ) ||
-    typeof aggregate.run_id !== "string" ||
-    !/^[1-9][0-9]{0,15}$/.test(aggregate.run_id) ||
-    typeof aggregate.sha256 !== "string" ||
-    !sha256.test(aggregate.sha256) ||
-    typeof aggregate.bundle_sha256 !== "string" ||
-    !sha256.test(aggregate.bundle_sha256) ||
-    typeof aggregate.artifact_id !== "number" ||
-    !Number.isSafeInteger(aggregate.artifact_id) ||
-    aggregate.artifact_id < 1 ||
-    typeof aggregate.bundle_artifact_id !== "number" ||
-    !Number.isSafeInteger(aggregate.bundle_artifact_id) ||
-    aggregate.bundle_artifact_id < 1 ||
-    typeof aggregate.run_attempt !== "number" ||
-    !Number.isSafeInteger(aggregate.run_attempt) ||
-    aggregate.run_attempt < 1
-  )
-    throw new Error("fixed payload aggregate identity is incomplete");
+  const aggregate = inspectControllerAggregateLocator(value.aggregate);
   return {
     projectRoot: value.projectRoot,
     output: value.output,
@@ -131,6 +118,7 @@ export function inspectPayloadPreparationConfiguration(raw: unknown): Preparatio
       sha256: aggregate.sha256,
       bundle_artifact_id: aggregate.bundle_artifact_id,
       bundle_sha256: aggregate.bundle_sha256,
+      ...(aggregate.original_upload ? { original_upload: aggregate.original_upload } : {}),
     },
   };
 }
@@ -432,7 +420,9 @@ async function preparePayloadSigning(
         };
         await retainReservation("reservation-before.json");
         phase = "verify-uploaded-aggregate";
-        const verification = await verifyUploadedAggregate(
+        const verification = await (
+          options.aggregate ? verifyUploadedAggregate : verifyAdmittedUploadedAggregate
+        )(
           directory,
           {
             ...config.aggregate,
@@ -580,7 +570,7 @@ export async function runPayloadSigningController(
   const capturedNativeLocators: unknown = structuredClone(nativeLocators);
   // Includes acquisition, controls, signing and immutable output handoff, with
   // thirty seconds reserved for key-channel/process and runner cleanup.
-  const deadline = payloadPhaseStarted + 570000;
+  const deadline = payloadSigningPhaseDeadline();
   const withinBudget = () => {
     if (performance.now() >= deadline)
       throw new Error("payload role total phase deadline exhausted");
@@ -887,65 +877,71 @@ export async function runPayloadSigningController(
   return result;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv.length !== 3)
-      throw new Error("choose the fixed trusted preparation configuration");
-    const raw: unknown = JSON.parse(
-      (await readBounded(process.argv[2]!, 64 * 1024)).toString("utf8"),
-    );
-    if (
-      !isRecord(raw) ||
-      !isRecord(raw.configuration) ||
-      !isRecord(raw.tools) ||
-      !isRecord(raw.tools.artifact) ||
-      !isRecord(raw.tools.bundle) ||
-      !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
-      !isDeepStrictEqual(Object.keys(raw).sort(), [
-        "configuration",
-        "native_locators",
-        "signer_identity",
-        "tools",
-      ])
-    )
-      throw new Error("fixed payload caller configuration differs");
-    const receipt = await receiveControllerTools(
-      project,
-      raw.tools.artifact as unknown as ControllerToolArtifactExpected,
-      raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
-    );
-    const tools = await verifiedControllerToolPaths(receipt);
-    const selected = inspectPayloadPreparationConfiguration({
-      ...raw.configuration,
-      projectRoot: project,
-      output: path.join(project, "work", "payload-preparation"),
-    });
-    await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
-    const result = await runPayloadSigningController(
-      {
-        ...selected,
-        projectRoot: tools.root,
-        output: path.join(tools.root, "work", "payload-preparation"),
-        publicKey: path.join(tools.root, "work", "admitted-public.key"),
-      },
-      raw.signer_identity,
-      receipt,
-      raw.native_locators,
-    );
-    process.exitCode = result.decision === "signed" ? 0 : 2;
-  } catch {
-    console.error(
-      "held payload signing controller refused; retain bounded public preparation evidence",
-    );
-    process.exitCode = 2;
-  } finally {
-    if (process.env.RUNNER_TEMP)
-      await writeFile(
-        path.join(process.env.RUNNER_TEMP, "payload-preparation-process-ended.json"),
-        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
-        { flag: "wx", mode: 0o600 },
-      ).catch(() => {
-        process.exitCode = 2;
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    try {
+      if (process.argv.length !== 3)
+        throw new Error("choose the fixed trusted preparation configuration");
+      const raw: unknown = JSON.parse(
+        (await readBounded(process.argv[2]!, 64 * 1024)).toString("utf8"),
+      );
+      if (
+        !isRecord(raw) ||
+        !isRecord(raw.configuration) ||
+        !isRecord(raw.tools) ||
+        !isRecord(raw.tools.artifact) ||
+        !isRecord(raw.tools.bundle) ||
+        !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
+        !isDeepStrictEqual(Object.keys(raw).sort(), [
+          "configuration",
+          "native_locators",
+          "signer_identity",
+          "tools",
+        ])
+      )
+        throw new Error("fixed payload caller configuration differs");
+      const receipt = await receiveControllerTools(
+        project,
+        raw.tools.artifact as unknown as ControllerToolArtifactExpected,
+        raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
+      );
+      const tools = await verifiedControllerToolPaths(receipt);
+      const selected = inspectPayloadPreparationConfiguration({
+        ...raw.configuration,
+        projectRoot: project,
+        output: path.join(project, "work", "payload-preparation"),
       });
+      await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
+      const result = await runPayloadSigningController(
+        {
+          ...selected,
+          projectRoot: tools.root,
+          output: path.join(tools.root, "work", "payload-preparation"),
+          publicKey: path.join(tools.root, "work", "admitted-public.key"),
+        },
+        raw.signer_identity,
+        receipt,
+        raw.native_locators,
+      );
+      process.exitCode = result.decision === "signed" ? 0 : 2;
+    } catch {
+      console.error(
+        "held payload signing controller refused; retain bounded public preparation evidence",
+      );
+      process.exitCode = 2;
+    } finally {
+      if (process.env.RUNNER_TEMP)
+        await writeFile(
+          path.join(process.env.RUNNER_TEMP, "payload-preparation-process-ended.json"),
+          JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+          { flag: "wx", mode: 0o600 },
+        ).catch(() => {
+          process.exitCode = 2;
+        });
+    }
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

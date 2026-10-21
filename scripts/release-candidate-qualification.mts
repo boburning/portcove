@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
-import { existsSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import {
+  coordinatorCommandTimeout,
+  checkCoordinatorDeadline,
+} from "./release-coordinator-deadline.mts";
 
 const project = fileURLToPath(new URL("..", import.meta.url));
 const maximumBytes = 256 * 1024 * 1024;
@@ -47,11 +52,12 @@ export async function materializeReleaseQualificationSource(
       cwd,
       env,
       encoding: null,
-      timeout: 120000,
+      timeout: coordinatorCommandTimeout(120000),
       maxBuffer: bound,
       windowsHide: true,
       shell: false,
     });
+    checkCoordinatorDeadline();
     if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout))
       throw new Error(`candidate raw Git operation refused; retain ${directory}`);
     return result.stdout;
@@ -206,6 +212,7 @@ export function finalizeQualifiedReleaseCandidate(
     sbom_subjects: string;
   },
   readToken: string,
+  finalizer?: { node: string; entry: string; sha256: string },
 ) {
   if (!/^[a-f0-9]{40}$/u.test(request.prepared_commit) || !readToken || readToken.length > 16384)
     throw new Error("exact candidate and isolated read credential required for qualification");
@@ -222,13 +229,39 @@ export function finalizeQualifiedReleaseCandidate(
   }
   const module = new URL("./finalize-release-assets.mts", import.meta.url).href;
   const script = `import {finalizeReleaseAssets} from ${JSON.stringify(module)}; const r=JSON.parse(process.argv[1]); const result=await finalizeReleaseAssets(r.assets,r.inventory,{projectRoot:${JSON.stringify(project)},sbomSubjectChecksums:r.sbom_subjects,linuxQualificationRoot:r.qualification_root}); console.log(JSON.stringify({scope:"fixed-finalizer-exact-candidate",assets:result.assets}));`;
+  // The actual callable passes the fixed hash-qualified entry from its current
+  // tool receipt. The old source-tree path remains available to inert callers.
+  if (
+    finalizer &&
+    (!path.isAbsolute(finalizer.node) ||
+      !path.isAbsolute(finalizer.entry) ||
+      path.basename(finalizer.entry) !== "release-publication-controller.bundle.mjs" ||
+      !/^[a-f0-9]{64}$/u.test(finalizer.sha256))
+  )
+    throw new Error("fixed finalizer identity required");
+  if (finalizer) {
+    const stat = lstatSync(finalizer.entry);
+    if (
+      !stat.isFile() ||
+      stat.size < 1 ||
+      stat.size > 32 * 1024 ** 2 ||
+      createHash("sha256").update(readFileSync(finalizer.entry)).digest("hex") !== finalizer.sha256
+    )
+      throw new Error("fixed finalizer bytes differ");
+  }
   const result = spawnSync(
-    process.execPath,
-    ["--input-type=module", "--eval", script, JSON.stringify(request)],
+    finalizer?.node ?? process.execPath,
+    finalizer
+      ? [
+          finalizer.entry,
+          "--finalize",
+          JSON.stringify({ ...request, budget_ms: coordinatorCommandTimeout(10 * 60 * 1000) }),
+        ]
+      : ["--input-type=module", "--eval", script, JSON.stringify(request)],
     {
       cwd: request.qualification_root,
       encoding: "utf8",
-      timeout: 10 * 60 * 1000,
+      timeout: coordinatorCommandTimeout(10 * 60 * 1000),
       maxBuffer: 32 * 1024 * 1024,
       windowsHide: true,
       shell: false,
@@ -254,5 +287,6 @@ export function finalizeQualifiedReleaseCandidate(
       },
     },
   );
+  checkCoordinatorDeadline();
   return result;
 }

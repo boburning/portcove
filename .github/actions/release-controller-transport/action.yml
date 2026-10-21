@@ -1,0 +1,2178 @@
+name: Fixed controller Actions transport
+description: Forty bounded job-local events; no admission or release authority
+inputs:
+  phase:
+    description: Fixed immutable-controller phase
+    required: true
+  role_key:
+    description: This job's sole role key, exposed only to the existing socket client
+    default: ""
+  role_password:
+    description: This job's sole role password
+    default: ""
+runs:
+  using: composite
+  steps:
+    - id: route1
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 1
+    - if: ${{ steps.route1.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 1
+    - id: upload1
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route1.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route1.outputs.name }}
+        path: ${{ steps.route1.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest1
+      if: ${{ steps.route1.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route1.outputs.subject }}
+        predicate-path: ${{ steps.route1.outputs.predicate }}
+        predicate-type: ${{ steps.route1.outputs.predicate_type }}
+    - id: normalize1
+      if: ${{ steps.route1.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest1.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 1
+    - id: bundle1
+      if: ${{ steps.route1.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize1.outputs.bundle_name }}
+        path: ${{ steps.normalize1.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route1.outputs.kind != '' && steps.route1.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle1.outputs.artifact-id || steps.upload1.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle1.outputs.artifact-digest || steps.upload1.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 1
+    - id: route2
+      if: ${{ steps.route1.outputs.kind != 'done' && steps.route1.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 2
+    - if: ${{ steps.route2.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 2
+    - id: upload2
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route2.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route2.outputs.name }}
+        path: ${{ steps.route2.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest2
+      if: ${{ steps.route2.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route2.outputs.subject }}
+        predicate-path: ${{ steps.route2.outputs.predicate }}
+        predicate-type: ${{ steps.route2.outputs.predicate_type }}
+    - id: normalize2
+      if: ${{ steps.route2.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest2.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 2
+    - id: bundle2
+      if: ${{ steps.route2.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize2.outputs.bundle_name }}
+        path: ${{ steps.normalize2.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route2.outputs.kind != '' && steps.route2.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle2.outputs.artifact-id || steps.upload2.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle2.outputs.artifact-digest || steps.upload2.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 2
+    - id: route3
+      if: ${{ steps.route2.outputs.kind != 'done' && steps.route2.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 3
+    - if: ${{ steps.route3.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 3
+    - id: upload3
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route3.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route3.outputs.name }}
+        path: ${{ steps.route3.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest3
+      if: ${{ steps.route3.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route3.outputs.subject }}
+        predicate-path: ${{ steps.route3.outputs.predicate }}
+        predicate-type: ${{ steps.route3.outputs.predicate_type }}
+    - id: normalize3
+      if: ${{ steps.route3.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest3.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 3
+    - id: bundle3
+      if: ${{ steps.route3.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize3.outputs.bundle_name }}
+        path: ${{ steps.normalize3.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route3.outputs.kind != '' && steps.route3.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle3.outputs.artifact-id || steps.upload3.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle3.outputs.artifact-digest || steps.upload3.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 3
+    - id: route4
+      if: ${{ steps.route3.outputs.kind != 'done' && steps.route3.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 4
+    - if: ${{ steps.route4.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 4
+    - id: upload4
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route4.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route4.outputs.name }}
+        path: ${{ steps.route4.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest4
+      if: ${{ steps.route4.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route4.outputs.subject }}
+        predicate-path: ${{ steps.route4.outputs.predicate }}
+        predicate-type: ${{ steps.route4.outputs.predicate_type }}
+    - id: normalize4
+      if: ${{ steps.route4.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest4.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 4
+    - id: bundle4
+      if: ${{ steps.route4.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize4.outputs.bundle_name }}
+        path: ${{ steps.normalize4.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route4.outputs.kind != '' && steps.route4.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle4.outputs.artifact-id || steps.upload4.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle4.outputs.artifact-digest || steps.upload4.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 4
+    - id: route5
+      if: ${{ steps.route4.outputs.kind != 'done' && steps.route4.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 5
+    - if: ${{ steps.route5.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 5
+    - id: upload5
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route5.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route5.outputs.name }}
+        path: ${{ steps.route5.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest5
+      if: ${{ steps.route5.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route5.outputs.subject }}
+        predicate-path: ${{ steps.route5.outputs.predicate }}
+        predicate-type: ${{ steps.route5.outputs.predicate_type }}
+    - id: normalize5
+      if: ${{ steps.route5.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest5.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 5
+    - id: bundle5
+      if: ${{ steps.route5.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize5.outputs.bundle_name }}
+        path: ${{ steps.normalize5.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route5.outputs.kind != '' && steps.route5.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle5.outputs.artifact-id || steps.upload5.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle5.outputs.artifact-digest || steps.upload5.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 5
+    - id: route6
+      if: ${{ steps.route5.outputs.kind != 'done' && steps.route5.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 6
+    - if: ${{ steps.route6.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 6
+    - id: upload6
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route6.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route6.outputs.name }}
+        path: ${{ steps.route6.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest6
+      if: ${{ steps.route6.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route6.outputs.subject }}
+        predicate-path: ${{ steps.route6.outputs.predicate }}
+        predicate-type: ${{ steps.route6.outputs.predicate_type }}
+    - id: normalize6
+      if: ${{ steps.route6.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest6.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 6
+    - id: bundle6
+      if: ${{ steps.route6.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize6.outputs.bundle_name }}
+        path: ${{ steps.normalize6.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route6.outputs.kind != '' && steps.route6.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle6.outputs.artifact-id || steps.upload6.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle6.outputs.artifact-digest || steps.upload6.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 6
+    - id: route7
+      if: ${{ steps.route6.outputs.kind != 'done' && steps.route6.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 7
+    - if: ${{ steps.route7.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 7
+    - id: upload7
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route7.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route7.outputs.name }}
+        path: ${{ steps.route7.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest7
+      if: ${{ steps.route7.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route7.outputs.subject }}
+        predicate-path: ${{ steps.route7.outputs.predicate }}
+        predicate-type: ${{ steps.route7.outputs.predicate_type }}
+    - id: normalize7
+      if: ${{ steps.route7.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest7.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 7
+    - id: bundle7
+      if: ${{ steps.route7.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize7.outputs.bundle_name }}
+        path: ${{ steps.normalize7.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route7.outputs.kind != '' && steps.route7.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle7.outputs.artifact-id || steps.upload7.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle7.outputs.artifact-digest || steps.upload7.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 7
+    - id: route8
+      if: ${{ steps.route7.outputs.kind != 'done' && steps.route7.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 8
+    - if: ${{ steps.route8.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 8
+    - id: upload8
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route8.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route8.outputs.name }}
+        path: ${{ steps.route8.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest8
+      if: ${{ steps.route8.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route8.outputs.subject }}
+        predicate-path: ${{ steps.route8.outputs.predicate }}
+        predicate-type: ${{ steps.route8.outputs.predicate_type }}
+    - id: normalize8
+      if: ${{ steps.route8.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest8.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 8
+    - id: bundle8
+      if: ${{ steps.route8.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize8.outputs.bundle_name }}
+        path: ${{ steps.normalize8.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route8.outputs.kind != '' && steps.route8.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle8.outputs.artifact-id || steps.upload8.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle8.outputs.artifact-digest || steps.upload8.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 8
+    - id: route9
+      if: ${{ steps.route8.outputs.kind != 'done' && steps.route8.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 9
+    - if: ${{ steps.route9.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 9
+    - id: upload9
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route9.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route9.outputs.name }}
+        path: ${{ steps.route9.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest9
+      if: ${{ steps.route9.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route9.outputs.subject }}
+        predicate-path: ${{ steps.route9.outputs.predicate }}
+        predicate-type: ${{ steps.route9.outputs.predicate_type }}
+    - id: normalize9
+      if: ${{ steps.route9.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest9.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 9
+    - id: bundle9
+      if: ${{ steps.route9.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize9.outputs.bundle_name }}
+        path: ${{ steps.normalize9.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route9.outputs.kind != '' && steps.route9.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle9.outputs.artifact-id || steps.upload9.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle9.outputs.artifact-digest || steps.upload9.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 9
+    - id: route10
+      if: ${{ steps.route9.outputs.kind != 'done' && steps.route9.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 10
+    - if: ${{ steps.route10.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 10
+    - id: upload10
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route10.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route10.outputs.name }}
+        path: ${{ steps.route10.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest10
+      if: ${{ steps.route10.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route10.outputs.subject }}
+        predicate-path: ${{ steps.route10.outputs.predicate }}
+        predicate-type: ${{ steps.route10.outputs.predicate_type }}
+    - id: normalize10
+      if: ${{ steps.route10.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest10.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 10
+    - id: bundle10
+      if: ${{ steps.route10.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize10.outputs.bundle_name }}
+        path: ${{ steps.normalize10.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route10.outputs.kind != '' && steps.route10.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle10.outputs.artifact-id || steps.upload10.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle10.outputs.artifact-digest || steps.upload10.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 10
+    - id: route11
+      if: ${{ steps.route10.outputs.kind != 'done' && steps.route10.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 11
+    - if: ${{ steps.route11.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 11
+    - id: upload11
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route11.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route11.outputs.name }}
+        path: ${{ steps.route11.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest11
+      if: ${{ steps.route11.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route11.outputs.subject }}
+        predicate-path: ${{ steps.route11.outputs.predicate }}
+        predicate-type: ${{ steps.route11.outputs.predicate_type }}
+    - id: normalize11
+      if: ${{ steps.route11.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest11.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 11
+    - id: bundle11
+      if: ${{ steps.route11.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize11.outputs.bundle_name }}
+        path: ${{ steps.normalize11.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route11.outputs.kind != '' && steps.route11.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle11.outputs.artifact-id || steps.upload11.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle11.outputs.artifact-digest || steps.upload11.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 11
+    - id: route12
+      if: ${{ steps.route11.outputs.kind != 'done' && steps.route11.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 12
+    - if: ${{ steps.route12.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 12
+    - id: upload12
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route12.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route12.outputs.name }}
+        path: ${{ steps.route12.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest12
+      if: ${{ steps.route12.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route12.outputs.subject }}
+        predicate-path: ${{ steps.route12.outputs.predicate }}
+        predicate-type: ${{ steps.route12.outputs.predicate_type }}
+    - id: normalize12
+      if: ${{ steps.route12.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest12.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 12
+    - id: bundle12
+      if: ${{ steps.route12.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize12.outputs.bundle_name }}
+        path: ${{ steps.normalize12.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route12.outputs.kind != '' && steps.route12.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle12.outputs.artifact-id || steps.upload12.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle12.outputs.artifact-digest || steps.upload12.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 12
+    - id: route13
+      if: ${{ steps.route12.outputs.kind != 'done' && steps.route12.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 13
+    - if: ${{ steps.route13.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 13
+    - id: upload13
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route13.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route13.outputs.name }}
+        path: ${{ steps.route13.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest13
+      if: ${{ steps.route13.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route13.outputs.subject }}
+        predicate-path: ${{ steps.route13.outputs.predicate }}
+        predicate-type: ${{ steps.route13.outputs.predicate_type }}
+    - id: normalize13
+      if: ${{ steps.route13.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest13.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 13
+    - id: bundle13
+      if: ${{ steps.route13.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize13.outputs.bundle_name }}
+        path: ${{ steps.normalize13.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route13.outputs.kind != '' && steps.route13.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle13.outputs.artifact-id || steps.upload13.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle13.outputs.artifact-digest || steps.upload13.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 13
+    - id: route14
+      if: ${{ steps.route13.outputs.kind != 'done' && steps.route13.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 14
+    - if: ${{ steps.route14.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 14
+    - id: upload14
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route14.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route14.outputs.name }}
+        path: ${{ steps.route14.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest14
+      if: ${{ steps.route14.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route14.outputs.subject }}
+        predicate-path: ${{ steps.route14.outputs.predicate }}
+        predicate-type: ${{ steps.route14.outputs.predicate_type }}
+    - id: normalize14
+      if: ${{ steps.route14.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest14.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 14
+    - id: bundle14
+      if: ${{ steps.route14.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize14.outputs.bundle_name }}
+        path: ${{ steps.normalize14.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route14.outputs.kind != '' && steps.route14.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle14.outputs.artifact-id || steps.upload14.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle14.outputs.artifact-digest || steps.upload14.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 14
+    - id: route15
+      if: ${{ steps.route14.outputs.kind != 'done' && steps.route14.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 15
+    - if: ${{ steps.route15.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 15
+    - id: upload15
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route15.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route15.outputs.name }}
+        path: ${{ steps.route15.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest15
+      if: ${{ steps.route15.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route15.outputs.subject }}
+        predicate-path: ${{ steps.route15.outputs.predicate }}
+        predicate-type: ${{ steps.route15.outputs.predicate_type }}
+    - id: normalize15
+      if: ${{ steps.route15.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest15.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 15
+    - id: bundle15
+      if: ${{ steps.route15.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize15.outputs.bundle_name }}
+        path: ${{ steps.normalize15.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route15.outputs.kind != '' && steps.route15.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle15.outputs.artifact-id || steps.upload15.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle15.outputs.artifact-digest || steps.upload15.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 15
+    - id: route16
+      if: ${{ steps.route15.outputs.kind != 'done' && steps.route15.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 16
+    - if: ${{ steps.route16.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 16
+    - id: upload16
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route16.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route16.outputs.name }}
+        path: ${{ steps.route16.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest16
+      if: ${{ steps.route16.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route16.outputs.subject }}
+        predicate-path: ${{ steps.route16.outputs.predicate }}
+        predicate-type: ${{ steps.route16.outputs.predicate_type }}
+    - id: normalize16
+      if: ${{ steps.route16.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest16.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 16
+    - id: bundle16
+      if: ${{ steps.route16.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize16.outputs.bundle_name }}
+        path: ${{ steps.normalize16.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route16.outputs.kind != '' && steps.route16.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle16.outputs.artifact-id || steps.upload16.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle16.outputs.artifact-digest || steps.upload16.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 16
+    - id: route17
+      if: ${{ steps.route16.outputs.kind != 'done' && steps.route16.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 17
+    - if: ${{ steps.route17.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 17
+    - id: upload17
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route17.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route17.outputs.name }}
+        path: ${{ steps.route17.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest17
+      if: ${{ steps.route17.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route17.outputs.subject }}
+        predicate-path: ${{ steps.route17.outputs.predicate }}
+        predicate-type: ${{ steps.route17.outputs.predicate_type }}
+    - id: normalize17
+      if: ${{ steps.route17.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest17.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 17
+    - id: bundle17
+      if: ${{ steps.route17.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize17.outputs.bundle_name }}
+        path: ${{ steps.normalize17.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route17.outputs.kind != '' && steps.route17.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle17.outputs.artifact-id || steps.upload17.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle17.outputs.artifact-digest || steps.upload17.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 17
+    - id: route18
+      if: ${{ steps.route17.outputs.kind != 'done' && steps.route17.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 18
+    - if: ${{ steps.route18.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 18
+    - id: upload18
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route18.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route18.outputs.name }}
+        path: ${{ steps.route18.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest18
+      if: ${{ steps.route18.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route18.outputs.subject }}
+        predicate-path: ${{ steps.route18.outputs.predicate }}
+        predicate-type: ${{ steps.route18.outputs.predicate_type }}
+    - id: normalize18
+      if: ${{ steps.route18.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest18.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 18
+    - id: bundle18
+      if: ${{ steps.route18.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize18.outputs.bundle_name }}
+        path: ${{ steps.normalize18.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route18.outputs.kind != '' && steps.route18.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle18.outputs.artifact-id || steps.upload18.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle18.outputs.artifact-digest || steps.upload18.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 18
+    - id: route19
+      if: ${{ steps.route18.outputs.kind != 'done' && steps.route18.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 19
+    - if: ${{ steps.route19.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 19
+    - id: upload19
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route19.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route19.outputs.name }}
+        path: ${{ steps.route19.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest19
+      if: ${{ steps.route19.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route19.outputs.subject }}
+        predicate-path: ${{ steps.route19.outputs.predicate }}
+        predicate-type: ${{ steps.route19.outputs.predicate_type }}
+    - id: normalize19
+      if: ${{ steps.route19.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest19.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 19
+    - id: bundle19
+      if: ${{ steps.route19.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize19.outputs.bundle_name }}
+        path: ${{ steps.normalize19.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route19.outputs.kind != '' && steps.route19.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle19.outputs.artifact-id || steps.upload19.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle19.outputs.artifact-digest || steps.upload19.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 19
+    - id: route20
+      if: ${{ steps.route19.outputs.kind != 'done' && steps.route19.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 20
+    - if: ${{ steps.route20.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 20
+    - id: upload20
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route20.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route20.outputs.name }}
+        path: ${{ steps.route20.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest20
+      if: ${{ steps.route20.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route20.outputs.subject }}
+        predicate-path: ${{ steps.route20.outputs.predicate }}
+        predicate-type: ${{ steps.route20.outputs.predicate_type }}
+    - id: normalize20
+      if: ${{ steps.route20.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest20.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 20
+    - id: bundle20
+      if: ${{ steps.route20.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize20.outputs.bundle_name }}
+        path: ${{ steps.normalize20.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route20.outputs.kind != '' && steps.route20.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle20.outputs.artifact-id || steps.upload20.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle20.outputs.artifact-digest || steps.upload20.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 20
+    - id: route21
+      if: ${{ steps.route20.outputs.kind != 'done' && steps.route20.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 21
+    - if: ${{ steps.route21.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 21
+    - id: upload21
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route21.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route21.outputs.name }}
+        path: ${{ steps.route21.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest21
+      if: ${{ steps.route21.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route21.outputs.subject }}
+        predicate-path: ${{ steps.route21.outputs.predicate }}
+        predicate-type: ${{ steps.route21.outputs.predicate_type }}
+    - id: normalize21
+      if: ${{ steps.route21.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest21.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 21
+    - id: bundle21
+      if: ${{ steps.route21.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize21.outputs.bundle_name }}
+        path: ${{ steps.normalize21.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route21.outputs.kind != '' && steps.route21.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle21.outputs.artifact-id || steps.upload21.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle21.outputs.artifact-digest || steps.upload21.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 21
+    - id: route22
+      if: ${{ steps.route21.outputs.kind != 'done' && steps.route21.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 22
+    - if: ${{ steps.route22.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 22
+    - id: upload22
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route22.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route22.outputs.name }}
+        path: ${{ steps.route22.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest22
+      if: ${{ steps.route22.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route22.outputs.subject }}
+        predicate-path: ${{ steps.route22.outputs.predicate }}
+        predicate-type: ${{ steps.route22.outputs.predicate_type }}
+    - id: normalize22
+      if: ${{ steps.route22.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest22.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 22
+    - id: bundle22
+      if: ${{ steps.route22.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize22.outputs.bundle_name }}
+        path: ${{ steps.normalize22.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route22.outputs.kind != '' && steps.route22.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle22.outputs.artifact-id || steps.upload22.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle22.outputs.artifact-digest || steps.upload22.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 22
+    - id: route23
+      if: ${{ steps.route22.outputs.kind != 'done' && steps.route22.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 23
+    - if: ${{ steps.route23.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 23
+    - id: upload23
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route23.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route23.outputs.name }}
+        path: ${{ steps.route23.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest23
+      if: ${{ steps.route23.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route23.outputs.subject }}
+        predicate-path: ${{ steps.route23.outputs.predicate }}
+        predicate-type: ${{ steps.route23.outputs.predicate_type }}
+    - id: normalize23
+      if: ${{ steps.route23.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest23.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 23
+    - id: bundle23
+      if: ${{ steps.route23.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize23.outputs.bundle_name }}
+        path: ${{ steps.normalize23.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route23.outputs.kind != '' && steps.route23.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle23.outputs.artifact-id || steps.upload23.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle23.outputs.artifact-digest || steps.upload23.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 23
+    - id: route24
+      if: ${{ steps.route23.outputs.kind != 'done' && steps.route23.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 24
+    - if: ${{ steps.route24.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 24
+    - id: upload24
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route24.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route24.outputs.name }}
+        path: ${{ steps.route24.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest24
+      if: ${{ steps.route24.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route24.outputs.subject }}
+        predicate-path: ${{ steps.route24.outputs.predicate }}
+        predicate-type: ${{ steps.route24.outputs.predicate_type }}
+    - id: normalize24
+      if: ${{ steps.route24.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest24.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 24
+    - id: bundle24
+      if: ${{ steps.route24.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize24.outputs.bundle_name }}
+        path: ${{ steps.normalize24.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route24.outputs.kind != '' && steps.route24.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle24.outputs.artifact-id || steps.upload24.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle24.outputs.artifact-digest || steps.upload24.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 24
+    - id: route25
+      if: ${{ steps.route24.outputs.kind != 'done' && steps.route24.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 25
+    - if: ${{ steps.route25.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 25
+    - id: upload25
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route25.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route25.outputs.name }}
+        path: ${{ steps.route25.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest25
+      if: ${{ steps.route25.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route25.outputs.subject }}
+        predicate-path: ${{ steps.route25.outputs.predicate }}
+        predicate-type: ${{ steps.route25.outputs.predicate_type }}
+    - id: normalize25
+      if: ${{ steps.route25.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest25.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 25
+    - id: bundle25
+      if: ${{ steps.route25.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize25.outputs.bundle_name }}
+        path: ${{ steps.normalize25.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route25.outputs.kind != '' && steps.route25.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle25.outputs.artifact-id || steps.upload25.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle25.outputs.artifact-digest || steps.upload25.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 25
+    - id: route26
+      if: ${{ steps.route25.outputs.kind != 'done' && steps.route25.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 26
+    - if: ${{ steps.route26.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 26
+    - id: upload26
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route26.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route26.outputs.name }}
+        path: ${{ steps.route26.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest26
+      if: ${{ steps.route26.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route26.outputs.subject }}
+        predicate-path: ${{ steps.route26.outputs.predicate }}
+        predicate-type: ${{ steps.route26.outputs.predicate_type }}
+    - id: normalize26
+      if: ${{ steps.route26.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest26.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 26
+    - id: bundle26
+      if: ${{ steps.route26.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize26.outputs.bundle_name }}
+        path: ${{ steps.normalize26.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route26.outputs.kind != '' && steps.route26.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle26.outputs.artifact-id || steps.upload26.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle26.outputs.artifact-digest || steps.upload26.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 26
+    - id: route27
+      if: ${{ steps.route26.outputs.kind != 'done' && steps.route26.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 27
+    - if: ${{ steps.route27.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 27
+    - id: upload27
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route27.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route27.outputs.name }}
+        path: ${{ steps.route27.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest27
+      if: ${{ steps.route27.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route27.outputs.subject }}
+        predicate-path: ${{ steps.route27.outputs.predicate }}
+        predicate-type: ${{ steps.route27.outputs.predicate_type }}
+    - id: normalize27
+      if: ${{ steps.route27.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest27.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 27
+    - id: bundle27
+      if: ${{ steps.route27.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize27.outputs.bundle_name }}
+        path: ${{ steps.normalize27.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route27.outputs.kind != '' && steps.route27.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle27.outputs.artifact-id || steps.upload27.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle27.outputs.artifact-digest || steps.upload27.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 27
+    - id: route28
+      if: ${{ steps.route27.outputs.kind != 'done' && steps.route27.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 28
+    - if: ${{ steps.route28.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 28
+    - id: upload28
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route28.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route28.outputs.name }}
+        path: ${{ steps.route28.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest28
+      if: ${{ steps.route28.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route28.outputs.subject }}
+        predicate-path: ${{ steps.route28.outputs.predicate }}
+        predicate-type: ${{ steps.route28.outputs.predicate_type }}
+    - id: normalize28
+      if: ${{ steps.route28.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest28.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 28
+    - id: bundle28
+      if: ${{ steps.route28.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize28.outputs.bundle_name }}
+        path: ${{ steps.normalize28.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route28.outputs.kind != '' && steps.route28.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle28.outputs.artifact-id || steps.upload28.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle28.outputs.artifact-digest || steps.upload28.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 28
+    - id: route29
+      if: ${{ steps.route28.outputs.kind != 'done' && steps.route28.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 29
+    - if: ${{ steps.route29.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 29
+    - id: upload29
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route29.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route29.outputs.name }}
+        path: ${{ steps.route29.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest29
+      if: ${{ steps.route29.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route29.outputs.subject }}
+        predicate-path: ${{ steps.route29.outputs.predicate }}
+        predicate-type: ${{ steps.route29.outputs.predicate_type }}
+    - id: normalize29
+      if: ${{ steps.route29.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest29.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 29
+    - id: bundle29
+      if: ${{ steps.route29.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize29.outputs.bundle_name }}
+        path: ${{ steps.normalize29.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route29.outputs.kind != '' && steps.route29.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle29.outputs.artifact-id || steps.upload29.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle29.outputs.artifact-digest || steps.upload29.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 29
+    - id: route30
+      if: ${{ steps.route29.outputs.kind != 'done' && steps.route29.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 30
+    - if: ${{ steps.route30.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 30
+    - id: upload30
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route30.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route30.outputs.name }}
+        path: ${{ steps.route30.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest30
+      if: ${{ steps.route30.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route30.outputs.subject }}
+        predicate-path: ${{ steps.route30.outputs.predicate }}
+        predicate-type: ${{ steps.route30.outputs.predicate_type }}
+    - id: normalize30
+      if: ${{ steps.route30.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest30.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 30
+    - id: bundle30
+      if: ${{ steps.route30.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize30.outputs.bundle_name }}
+        path: ${{ steps.normalize30.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route30.outputs.kind != '' && steps.route30.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle30.outputs.artifact-id || steps.upload30.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle30.outputs.artifact-digest || steps.upload30.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 30
+    - id: route31
+      if: ${{ steps.route30.outputs.kind != 'done' && steps.route30.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 31
+    - if: ${{ steps.route31.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 31
+    - id: upload31
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route31.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route31.outputs.name }}
+        path: ${{ steps.route31.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest31
+      if: ${{ steps.route31.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route31.outputs.subject }}
+        predicate-path: ${{ steps.route31.outputs.predicate }}
+        predicate-type: ${{ steps.route31.outputs.predicate_type }}
+    - id: normalize31
+      if: ${{ steps.route31.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest31.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 31
+    - id: bundle31
+      if: ${{ steps.route31.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize31.outputs.bundle_name }}
+        path: ${{ steps.normalize31.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route31.outputs.kind != '' && steps.route31.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle31.outputs.artifact-id || steps.upload31.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle31.outputs.artifact-digest || steps.upload31.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 31
+    - id: route32
+      if: ${{ steps.route31.outputs.kind != 'done' && steps.route31.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 32
+    - if: ${{ steps.route32.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 32
+    - id: upload32
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route32.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route32.outputs.name }}
+        path: ${{ steps.route32.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest32
+      if: ${{ steps.route32.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route32.outputs.subject }}
+        predicate-path: ${{ steps.route32.outputs.predicate }}
+        predicate-type: ${{ steps.route32.outputs.predicate_type }}
+    - id: normalize32
+      if: ${{ steps.route32.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest32.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 32
+    - id: bundle32
+      if: ${{ steps.route32.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize32.outputs.bundle_name }}
+        path: ${{ steps.normalize32.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route32.outputs.kind != '' && steps.route32.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle32.outputs.artifact-id || steps.upload32.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle32.outputs.artifact-digest || steps.upload32.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 32
+    - id: route33
+      if: ${{ steps.route32.outputs.kind != 'done' && steps.route32.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 33
+    - if: ${{ steps.route33.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 33
+    - id: upload33
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route33.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route33.outputs.name }}
+        path: ${{ steps.route33.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest33
+      if: ${{ steps.route33.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route33.outputs.subject }}
+        predicate-path: ${{ steps.route33.outputs.predicate }}
+        predicate-type: ${{ steps.route33.outputs.predicate_type }}
+    - id: normalize33
+      if: ${{ steps.route33.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest33.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 33
+    - id: bundle33
+      if: ${{ steps.route33.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize33.outputs.bundle_name }}
+        path: ${{ steps.normalize33.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route33.outputs.kind != '' && steps.route33.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle33.outputs.artifact-id || steps.upload33.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle33.outputs.artifact-digest || steps.upload33.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 33
+    - id: route34
+      if: ${{ steps.route33.outputs.kind != 'done' && steps.route33.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 34
+    - if: ${{ steps.route34.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 34
+    - id: upload34
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route34.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route34.outputs.name }}
+        path: ${{ steps.route34.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest34
+      if: ${{ steps.route34.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route34.outputs.subject }}
+        predicate-path: ${{ steps.route34.outputs.predicate }}
+        predicate-type: ${{ steps.route34.outputs.predicate_type }}
+    - id: normalize34
+      if: ${{ steps.route34.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest34.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 34
+    - id: bundle34
+      if: ${{ steps.route34.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize34.outputs.bundle_name }}
+        path: ${{ steps.normalize34.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route34.outputs.kind != '' && steps.route34.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle34.outputs.artifact-id || steps.upload34.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle34.outputs.artifact-digest || steps.upload34.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 34
+    - id: route35
+      if: ${{ steps.route34.outputs.kind != 'done' && steps.route34.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 35
+    - if: ${{ steps.route35.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 35
+    - id: upload35
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route35.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route35.outputs.name }}
+        path: ${{ steps.route35.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest35
+      if: ${{ steps.route35.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route35.outputs.subject }}
+        predicate-path: ${{ steps.route35.outputs.predicate }}
+        predicate-type: ${{ steps.route35.outputs.predicate_type }}
+    - id: normalize35
+      if: ${{ steps.route35.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest35.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 35
+    - id: bundle35
+      if: ${{ steps.route35.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize35.outputs.bundle_name }}
+        path: ${{ steps.normalize35.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route35.outputs.kind != '' && steps.route35.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle35.outputs.artifact-id || steps.upload35.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle35.outputs.artifact-digest || steps.upload35.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 35
+    - id: route36
+      if: ${{ steps.route35.outputs.kind != 'done' && steps.route35.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 36
+    - if: ${{ steps.route36.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 36
+    - id: upload36
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route36.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route36.outputs.name }}
+        path: ${{ steps.route36.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest36
+      if: ${{ steps.route36.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route36.outputs.subject }}
+        predicate-path: ${{ steps.route36.outputs.predicate }}
+        predicate-type: ${{ steps.route36.outputs.predicate_type }}
+    - id: normalize36
+      if: ${{ steps.route36.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest36.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 36
+    - id: bundle36
+      if: ${{ steps.route36.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize36.outputs.bundle_name }}
+        path: ${{ steps.normalize36.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route36.outputs.kind != '' && steps.route36.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle36.outputs.artifact-id || steps.upload36.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle36.outputs.artifact-digest || steps.upload36.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 36
+    - id: route37
+      if: ${{ steps.route36.outputs.kind != 'done' && steps.route36.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 37
+    - if: ${{ steps.route37.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 37
+    - id: upload37
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route37.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route37.outputs.name }}
+        path: ${{ steps.route37.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest37
+      if: ${{ steps.route37.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route37.outputs.subject }}
+        predicate-path: ${{ steps.route37.outputs.predicate }}
+        predicate-type: ${{ steps.route37.outputs.predicate_type }}
+    - id: normalize37
+      if: ${{ steps.route37.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest37.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 37
+    - id: bundle37
+      if: ${{ steps.route37.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize37.outputs.bundle_name }}
+        path: ${{ steps.normalize37.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route37.outputs.kind != '' && steps.route37.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle37.outputs.artifact-id || steps.upload37.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle37.outputs.artifact-digest || steps.upload37.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 37
+    - id: route38
+      if: ${{ steps.route37.outputs.kind != 'done' && steps.route37.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 38
+    - if: ${{ steps.route38.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 38
+    - id: upload38
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route38.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route38.outputs.name }}
+        path: ${{ steps.route38.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest38
+      if: ${{ steps.route38.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route38.outputs.subject }}
+        predicate-path: ${{ steps.route38.outputs.predicate }}
+        predicate-type: ${{ steps.route38.outputs.predicate_type }}
+    - id: normalize38
+      if: ${{ steps.route38.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest38.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 38
+    - id: bundle38
+      if: ${{ steps.route38.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize38.outputs.bundle_name }}
+        path: ${{ steps.normalize38.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route38.outputs.kind != '' && steps.route38.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle38.outputs.artifact-id || steps.upload38.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle38.outputs.artifact-digest || steps.upload38.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 38
+    - id: route39
+      if: ${{ steps.route38.outputs.kind != 'done' && steps.route38.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 39
+    - if: ${{ steps.route39.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 39
+    - id: upload39
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route39.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route39.outputs.name }}
+        path: ${{ steps.route39.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest39
+      if: ${{ steps.route39.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route39.outputs.subject }}
+        predicate-path: ${{ steps.route39.outputs.predicate }}
+        predicate-type: ${{ steps.route39.outputs.predicate_type }}
+    - id: normalize39
+      if: ${{ steps.route39.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest39.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 39
+    - id: bundle39
+      if: ${{ steps.route39.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize39.outputs.bundle_name }}
+        path: ${{ steps.normalize39.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route39.outputs.kind != '' && steps.route39.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle39.outputs.artifact-id || steps.upload39.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle39.outputs.artifact-digest || steps.upload39.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 39
+    - id: route40
+      if: ${{ steps.route39.outputs.kind != 'done' && steps.route39.outputs.kind != '' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts next "$PORTCOVE_STEP_PHASE" 40
+    - if: ${{ steps.route40.outputs.kind == 'role-key' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_ROLE_KEY: ${{ inputs.role_key }}
+        PORTCOVE_ROLE_PASSWORD: ${{ inputs.role_password }}
+      run: node scripts/release-controller-transport.mts key "$PORTCOVE_STEP_PHASE" 40
+    - id: upload40
+      if: ${{ contains(fromJSON('["control","signature","context","result","site","aggregate"]'), steps.route40.outputs.kind) }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.route40.outputs.name }}
+        path: ${{ steps.route40.outputs.paths }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: attest40
+      if: ${{ steps.route40.outputs.kind == 'attest' }}
+      uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
+      with:
+        subject-path: ${{ steps.route40.outputs.subject }}
+        predicate-path: ${{ steps.route40.outputs.predicate }}
+        predicate-type: ${{ steps.route40.outputs.predicate_type }}
+    - id: normalize40
+      if: ${{ steps.route40.outputs.kind == 'attest' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_BUNDLE_PATH: ${{ steps.attest40.outputs.bundle-path }}
+      run: node scripts/release-controller-transport.mts normalize "$PORTCOVE_STEP_PHASE" 40
+    - id: bundle40
+      if: ${{ steps.route40.outputs.kind == 'attest' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: ${{ steps.normalize40.outputs.bundle_name }}
+        path: ${{ steps.normalize40.outputs.bundle_path }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - if: ${{ steps.route40.outputs.kind != '' && steps.route40.outputs.kind != 'done' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_TRANSPORT_ARTIFACT_ID: ${{ steps.bundle40.outputs.artifact-id || steps.upload40.outputs.artifact-id }}
+        PORTCOVE_TRANSPORT_ARTIFACT_SHA256: ${{ steps.bundle40.outputs.artifact-digest || steps.upload40.outputs.artifact-digest }}
+      run: node scripts/release-controller-transport.mts ack "$PORTCOVE_STEP_PHASE" 40
+    - shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-transport.mts finish "$PORTCOVE_STEP_PHASE" 40

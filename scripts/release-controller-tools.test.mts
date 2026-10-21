@@ -7,7 +7,8 @@ import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { performance } from "node:perf_hooks";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { isBuiltin } from "node:module";
 import {
   bundleControllerEntries,
   controllerBootstrapEnvironment,
@@ -36,9 +37,118 @@ import {
   expected as identityExpected,
 } from "./fixtures/assembler-identity-fixture.mts";
 import { verifyControllerToolBootstrapJobIdentity } from "./assembler-job-identity.mts";
+import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("complete job composite has fixed worker syntax, exclusive key transport and settled outputs", async () => {
+  const bytes = await readFile(
+      path.join(sourceRoot, ".github/actions/release-controller-job/action.yml"),
+      "utf8",
+    ),
+    parsed = parseDocument(bytes);
+  assert.deepEqual(parsed.errors, []);
+  const action: unknown = parsed.toJS();
+  assert.ok(isRecord(action) && isRecord(action.runs));
+  assert.equal(action.runs.using, "composite");
+  assert.ok(Array.isArray(action.runs.steps));
+  const steps: unknown[] = action.runs.steps;
+  assert.equal(steps.length, 6);
+  const pump = steps[1];
+  assert.ok(isRecord(pump) && isRecord(pump.with));
+  assert.equal(pump.uses, "./.github/actions/release-controller-transport");
+  assert.equal(pump.with.role_key, "${{ inputs.role_key }}");
+  for (const step of [steps[0], steps[2]]) {
+    assert.ok(isRecord(step) && typeof step.run === "string");
+    const source = step.run.match(/<<'NODE'\r?\n([\s\S]*?)\r?\nNODE\s*$/u)?.[1];
+    assert.ok(source, "actual fixed parent launch/settlement module must be present");
+    const checked = spawnSync(process.execPath, ["--check", "--input-type=module"], {
+      input: source,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    });
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.ok(isRecord(step.env));
+    assert.deepEqual(Object.keys(step.env).sort(), [
+      "PORTCOVE_JOB_OPERATION",
+      "PORTCOVE_JOB_PHASE",
+    ]);
+  }
+  assert.ok(isRecord(steps[3]));
+  assert.equal(
+    steps[3].run,
+    'node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"',
+  );
+  const diagnostics = steps[4],
+    upload = steps[5];
+  assert.ok(isRecord(diagnostics) && isRecord(upload) && isRecord(upload.with));
+  assert.equal(diagnostics.if, "${{ always() }}");
+  assert.equal(upload.if, "${{ always() }}");
+  assert.equal(upload.with["retention-days"], 7);
+  assert.equal(upload.with.overwrite, false);
+  assert.equal(
+    upload.with.path,
+    "${{ runner.temp }}/controller-public-evidence-${{ inputs.phase }}",
+  );
+  assert.doesNotMatch(
+    bytes,
+    /sudo|\.vhd|create-github-app-token|PORTCOVE_CONTROL_APP_TOKEN|continue-on-error/u,
+  );
+});
+void test("fixed source launcher loads without node_modules and rejects arbitrary entries or imported custody before acquisition", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-tool-launch-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const copied = new Set<string>();
+  const copy = async (relative: string): Promise<void> => {
+    if (copied.has(relative)) return;
+    copied.add(relative);
+    assert.ok(copied.size < 100);
+    const text = await readFile(path.join(sourceRoot, relative), "utf8");
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await writeFile(path.join(root, relative), text);
+    for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/gu)) {
+      const specifier = match[1]!;
+      if (specifier.startsWith("."))
+        await copy(path.posix.normalize(path.posix.join(path.posix.dirname(relative), specifier)));
+      else assert.ok(isBuiltin(specifier), `launcher dependency must be builtin: ${specifier}`);
+    }
+  };
+  await copy("scripts/release-controller-tool-launch.mts");
+  await copy("scripts/release-controller-job-bootstrap.mts");
+  await copy("scripts/release-controller-job-output.mts");
+  await copy("scripts/release-controller-diagnostics.mts");
+  const child = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-tool-launch.mts")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(child.status, 2);
+  assert.match(child.stderr, /fixed verified-tool payload launcher refused/);
+  assert.doesNotMatch(child.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const fixedJob = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-job-bootstrap.mts"), "root"],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(fixedJob.status, 1, fixedJob.stderr);
+  assert.match(fixedJob.stderr, /fixed complete controller job refused/);
+  assert.doesNotMatch(fixedJob.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  for (const raw of [{}, { entry: "arbitrary.mjs", tools: { artifact: {}, bundle: {} } }])
+    await assert.rejects(launchFixedPayloadController(raw, root), /fields differ/);
+  await assert.rejects(
+    launchFixedPayloadController(
+      {
+        configuration: {},
+        native_locators: [],
+        signer_identity: {},
+        tools: { artifact: {}, bundle: {} },
+      },
+      root,
+    ),
+  );
+  assert.deepEqual((await readdir(root)).sort(), ["scripts"]);
+});
 void test("actual pinned pack bundles fixed CLIs including semver; isolated execution needs no runtime node_modules", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-pack-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -47,11 +157,20 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     await mkdir(path.dirname(path.join(root, name)), { recursive: true });
     await copyFile(path.join(sourceRoot, name), path.join(root, name));
   }
+  const { requiredContextsFromConfigs } = await import("./pr-delivery.mts");
+  assert.deepEqual(
+    requiredContextsFromConfigs(
+      JSON.parse(await readFile(path.join(root, ".github/repository-ruleset.json"), "utf8")),
+      JSON.parse(await readFile(path.join(root, ".github/qualification-coverage.json"), "utf8")),
+    ).sort(),
+    ["catalog", "dependency-review", "frontend", "rust", "rust-quality"].sort(),
+    "actual isolated controller tool root must contain the policies consumed by admission",
+  );
   await writeFile(
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
   );
-  assert.deepEqual((await readdir(root)).sort(), [".github", "release", "scripts"]);
+  assert.deepEqual((await readdir(root)).sort(), [".github", "apps", "release", "scripts"]);
   for (const [name, workflow, args] of [
     ["production-controller-admission", "application-update-production.yml", []],
     ["release-reviewed-inputs", "release-reviewed-inputs.yml", ["admission"]],
@@ -121,6 +240,47 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const budget = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict';
+    const worker=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-payload-preparation.bundle.mjs")).href)});
+    const original=worker.payloadSigningPhaseDeadline();
+    worker.tightenPayloadSigningPhaseDeadline(original-1000);
+    worker.tightenPayloadSigningPhaseDeadline(original+1000);
+    assert.equal(worker.payloadSigningPhaseDeadline(),original-1000);
+    assert.throws(()=>worker.tightenPayloadSigningPhaseDeadline(-1),/deadline/);
+    process.stdout.write('deadline-kept');
+  `,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(budget.status, 0, budget.stderr);
+  assert.equal(budget.stdout, "deadline-kept");
+  const publication = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-publication-controller.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(publication.status, 1, publication.stderr);
+  assert.match(publication.stderr, /fixed publication controller refused/);
+  assert.doesNotMatch(publication.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const site = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-site-controller.bundle.mjs")],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(site.status, 1, site.stderr);
+  assert.match(site.stderr, /fixed site upload bridge refused/);
+  assert.doesNotMatch(site.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
@@ -134,6 +294,46 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   );
   assert.equal(driver.status, 1);
   assert.match(driver.stderr, /usage: release-coordinator-driver/u);
+  const tuf = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-tuf-controller.bundle.mjs")],
+    {
+      cwd: root,
+      encoding: "utf8",
+      timeout: 5000,
+      env: { SystemRoot: process.env.SystemRoot },
+    },
+  );
+  assert.equal(tuf.status, 1, tuf.stderr);
+  assert.match(tuf.stderr, /fixed TUF role controller refused/);
+  assert.doesNotMatch(tuf.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const job = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-controller-job.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(job.status, 1, job.stderr);
+  assert.match(job.stderr, /fixed controller job refused/);
+  assert.doesNotMatch(job.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const keyChannel = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-role-key-channel.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(keyChannel.status, 1, keyChannel.stderr);
+  assert.match(keyChannel.stderr, /isolated role key handoff refused/);
+  assert.doesNotMatch(keyChannel.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const jobAbi = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const m=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-controller-job.bundle.mjs")).href)}); if(typeof m.runConfiguredFixedControllerJob!== 'function') throw Error('fixed job ABI missing'); await m.runConfiguredFixedControllerJob('root',1).then(()=>{throw Error('arbitrary role accepted')},e=>{if(!/fixed complete-controller job/.test(e.message))throw e}); process.stdout.write('fixed-job-ABI');`,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(jobAbi.status, 0, jobAbi.stderr);
+  assert.equal(jobAbi.stdout, "fixed-job-ABI");
   assert.deepEqual(controllerToolEntries, [
     "production-controller-admission",
     "release-control-ready",
@@ -142,6 +342,10 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-signing-controller",
     "release-role-key-channel",
     "release-coordinator-driver",
+    "release-publication-controller",
+    "release-site-controller",
+    "release-tuf-controller",
+    "release-controller-job",
   ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {
@@ -579,6 +783,8 @@ void test("the receiver dependency closure loads without npm packages before any
     "production-controller-admission",
     "release-control-phases",
     "github-api",
+    "release-readonly-child-environment",
+    "release-coordinator-deadline",
     "github-binary",
     "runtime-values",
     "bounded-zip",

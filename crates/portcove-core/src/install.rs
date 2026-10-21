@@ -1323,6 +1323,29 @@ impl Installer {
         Ok(true)
     }
 
+    pub(crate) fn require_mutability_file_shapes(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+        persistent: &[&str],
+        runtime: &[&str],
+    ) -> Result<()> {
+        let selected = install.path.join(&install.selected_executable);
+        let persistent_root = qualification.persistence_root(&install.path, &selected);
+        let runtime_root = qualification.runtime_root(&install.path, &selected);
+        for relative in persistent {
+            require_optional_mutable_file(&manifest_member(&persistent_root, relative)?)?;
+            require_optional_mutable_file(&manifest_member(
+                &self.library.user_dir(&install.port_id),
+                relative,
+            )?)?;
+        }
+        for relative in runtime {
+            require_optional_mutable_file(&manifest_member(&runtime_root, relative)?)?;
+        }
+        Ok(())
+    }
+
     fn verify_with_metadata(
         &self,
         install: &InstallRecord,
@@ -2754,6 +2777,47 @@ fn staged_install_files(root: &Path) -> Result<Vec<PathBuf>> {
         }
     }
     Ok(files)
+}
+
+fn require_optional_mutable_file(path: &Path) -> Result<()> {
+    // Unlike a best-effort existence probe, an inaccessible ancestor is not
+    // evidence of an absent file. Check every existing ancestor before opening.
+    for ancestor in path.ancestors() {
+        match fs::symlink_metadata(ancestor) {
+            Ok(metadata) => {
+                #[cfg(windows)]
+                let reparse = {
+                    use std::os::windows::fs::MetadataExt;
+                    metadata.file_attributes()
+                        & windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT
+                        != 0
+                };
+                #[cfg(not(windows))]
+                let reparse = false;
+                if metadata.file_type().is_symlink() || reparse {
+                    return Err(PortcoveError::verification(
+                        "compatibility runtime file has a linked ancestor; preserve it and review the conflict",
+                    ).detail("path", path.display().to_string()));
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error.into()),
+        }
+    }
+    match fs::symlink_metadata(path) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(metadata) if metadata.is_file() => {
+            // Reuse the no-follow/single-link handle check without reading any
+            // payload. A mutable data leaf cannot alias another file.
+            drop(crate::external_runtime::open_single_link_file(path)?);
+            Ok(())
+        }
+        Ok(_) => Err(PortcoveError::verification(
+            "compatibility runtime file is not a regular file; preserve it and review the conflict",
+        )
+        .detail("path", path.display().to_string())),
+    }
 }
 
 fn is_regular_file_without_symlink(path: &Path) -> bool {

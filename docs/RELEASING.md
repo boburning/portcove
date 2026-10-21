@@ -1614,6 +1614,29 @@ replace that session. `inspectPreparedMetadataRenewal` rechecks retained output
 and tool identities before role-job or journal use. Failures retain private work;
 the adapter neither discovers keys nor grants provisioning or execution.
 
+The automatic coordinator retains its actual renewal session, controller-tool
+receipt, full public-site custody and current maintenance-reader controls in a
+same-process continuation. `requireActualCoordinatorMetadataPreparation` checks
+those original receipts, the unchanged published seed and descriptor, exact
+local/remote checkpoint, public generation marker and fresh controls before a
+fixed context producer may consume them. Its mode is explicitly `renewal`; an
+initial empty feed requires the separate bootstrap route. The original 170-second
+role deadline continues through this handoff. Serialized CLI output cannot
+recreate the private session or reset that budget.
+
+On a later renewal wake, the context continuation first reconciles the existing
+settled context upload. Its exact original numeric coordinator job and complete
+artifact inventory must be terminal and unchanged across the read. A surviving
+context is reused only after the existing pinned attestation verifier, original
+receipt/predicate association and exact current Tough input inventory agree;
+its original checkpoint remains historical lineage. A missing or expired handoff,
+or a failed original producing job, may consume the existing bounded transient
+recovery counter before a new upload. Incomplete inventories, active producers,
+unavailable reads and failed context verification refuse rather than authorize
+another effect. Reuse emits an explicit `attestation_required: false` locator;
+fresh uploads retain the separate required attestation. Neither result is signing
+or publication authority, and neither resets the original coordinator deadline.
+
 `acquireActualCandidateBuildingEligibility` collects genuine compiler, SPDX,
 whole-opportunity control and pre-sign native evidence while the exact candidate
 is still qualifying. Its private same-process proof is exclusively for the
@@ -1674,6 +1697,31 @@ execution and post-sign qualification remain separate requirements. This
 preparation neither publishes nor turns pre-sign qualification into publication
 admission, and it cannot accept imported context or qualification JSON.
 
+The prepared `signed-package-compatibility-v1` temporal profile requires global
+authority configuration schema 2, explicitly ratified under its existing source,
+configuration and grant digests. Native report schema 1 keeps its original
+interpretation. Report schema 2 binds the exact signed context, signatures and a
+distinct predecessor to install-over-prior, candidate-launch, retained-state and
+package-rollback observations. A report cannot select the profile for its reader.
+The configured native reader must independently expect the same profile and pair.
+
+Only an independently established initial empty feed can use the distinct report-2
+`initial-empty-feed` journey: it binds the metadata-bootstrap descriptor, setup,
+initial site preimage and empty logical-record digest, with fresh-install,
+candidate-launch, retained-state and signature-cryptography observations. The
+fixed caller must derive that expectation from the actual bootstrap journal,
+authenticated Tough empty prior and current published seed. Parsing its public
+digest fields cannot establish absence. It cannot assert rollback or supply an
+invented predecessor; a noninitial release retains the distinct predecessor rule.
+
+Both report-2 branches retain the three explicit obligations for ordinary public
+discovery/download, updater journal/recovery and the public manifest journey.
+Package compatibility is a prepublication predicate; actual public V0-to-V1 proof
+remains necessary for #534 acceptance after publication. These contracts prepare
+the consolidated conditional setup selection. They grant no signing, host,
+credential, publication or native acceptance authority and do not clear current
+holds without genuine fixed producer and consumer evidence.
+
 The fixed `prepareControllerReleaseSigningContext` caller additionally recovers
 the current journal at the settled payload checkpoint and derives the complete
 public-site pins from its published seed. It acquires the whole site, invokes
@@ -1701,6 +1749,17 @@ consumers. The sixth tool bundle has local isolated refusal smoke evidence;
 its new complete hosted artifact and consolidated job wiring remain pending.
 Secret jobs must launch the authenticated bundle rather than install checkout
 dependencies or execute the unbundled entry. No role settings are activated.
+
+The dependency-free `release-controller-tool-launch.mts` implements that initial
+payload entry. It authenticates the tool artifact with the existing receiver,
+requires the running Node bytes to match the authenticated executable and imports
+only the fixed manifest-owned signing-controller bundle. That bundle performs
+its own actual receiver check to establish its module-private custody; no brand
+or acceptance flag is serialized across the boundary. Both acquisitions and the
+entire continuation share the original launcher deadline, which the bundle can
+only tighten. Local isolated tests load the launcher without `node_modules`,
+exercise the real six-entry pack and prove the deadline cannot be extended.
+These observations do not qualify protected hosted signing or role execution.
 
 The context artifact preparation additionally requires actual complete public-site
 custody matched to that Tough prior. Its fixed two-file ZIP contains a bounded

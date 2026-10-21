@@ -299,10 +299,62 @@ const selectionContractTests = [
 ];
 
 const explicitNodeTests = new Map<string, readonly string[]>([
+  ...[
+    "release-controller-configuration",
+    "release-controller-job",
+    "release-controller-job-bootstrap",
+    "release-controller-job-output",
+    "release-aggregate-locator",
+    "release-coordinator-namespace",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-tuf-controller.test.mts", "scripts/release-controller-tools.test.mts"],
+  ]),
+  [
+    ".github/actions/release-controller-job/action.yml",
+    ["scripts/release-controller-tools.test.mts"],
+  ],
+  ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
+    (name): [string, string[]] => [
+      `scripts/${name}.mts`,
+      ["scripts/release-tuf-controller.test.mts"],
+    ],
+  ),
+  ...[
+    "release-metadata-signing-contract",
+    "release-metadata-signing-context",
+    "release-metadata-signing-controller",
+  ].map((name): [string, string[]] => [
+    `scripts/${name}.mts`,
+    ["scripts/release-metadata-signing-context.test.mts"],
+  ]),
+  [
+    "scripts/release-metadata-context-recovery.mts",
+    ["scripts/release-metadata-context-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-candidate-signing-recovery.mts",
+    ["scripts/release-candidate-signing-recovery.test.mts"],
+  ],
+  [
+    "scripts/release-run-artifact-inventory.mts",
+    ["scripts/release-run-artifact-inventory.test.mts"],
+  ],
+  [
+    "scripts/release-metadata-site-controller.mts",
+    ["scripts/release-metadata-site-controller.test.mts"],
+  ],
+  ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ...["worker", "worker-recovery", "request-pipeline"].map((name): [string, string[]] => [
     `scripts/release-semantic-${name}.mts`,
     ["scripts/release-semantic-worker.test.mts"],
   ]),
+  ...[
+    "scripts/release-semantic-source.mts",
+    "scripts/semantic-source-git.py",
+    "scripts/semantic-source-git.test.py",
+    "scripts/qualify-semantic-source.mts",
+  ].map((name): [string, string[]] => [name, ["scripts/release-semantic-source.test.mts"]]),
   [
     "scripts/release-classification-request.mts",
     ["scripts/release-classification-request.test.mts"],
@@ -313,6 +365,23 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
   ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
   ["scripts/release-candidate-progress.mts", ["scripts/release-candidate-progress.test.mts"]],
+  [
+    "scripts/release-admitted-aggregate-controller.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-contract.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-aggregate-upload.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+  [
+    "scripts/release-readonly-child-environment.mts",
+    ["scripts/release-admitted-aggregate-controller.test.mts"],
+  ],
+
   [
     "scripts/release-candidate-progress-contract.mts",
     ["scripts/release-candidate-progress-contract.test.mts"],
@@ -326,7 +395,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-authority-configuration.mts",
-    ["scripts/production-controller-admission.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
   ],
   [
     "scripts/fixtures/release-semantic-disposition-fixture.mts",
@@ -340,8 +412,32 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-coordinator-journal-api.test.mts"],
   ],
   ["scripts/release-site-deployment.mts", ["scripts/release-site-deployment.test.mts"]],
+  ["scripts/release-site-controller.mts", ["scripts/release-site-controller.test.mts"]],
+  ["scripts/release-site-launch.mts", ["scripts/release-site-controller.test.mts"]],
+  ["scripts/release-control-step-bridge.mts", ["scripts/release-control-step-bridge.test.mts"]],
+  ["scripts/release-controller-transport.mts", ["scripts/release-controller-transport.test.mts"]],
+  ["scripts/release-controller-diagnostics.mts", ["scripts/release-controller-transport.test.mts"]],
+  [
+    "docs/qualification/application-update-production.complete.yml",
+    ["scripts/release-production-dag.test.mts"],
+  ],
+  [
+    ".github/actions/release-control-observer/action.yml",
+    ["scripts/release-production-dag.test.mts"],
+  ],
+  [
+    ".github/actions/release-controller-transport/action.yml",
+    ["scripts/release-controller-transport.test.mts"],
+  ],
+  ["scripts/release-site-job-budget.mts", ["scripts/release-site-controller.test.mts"]],
+
   ["scripts/release-site-readback.mts", ["scripts/release-site-readback.test.mts"]],
   ["scripts/release-metadata-renewal.mts", ["scripts/release-metadata-renewal.test.mts"]],
+  ["scripts/release-bootstrap-preparation.mts", ["scripts/release-bootstrap-preparation.test.mts"]],
+  [
+    "scripts/release-bootstrap-public-inputs.mts",
+    ["scripts/release-bootstrap-preparation.test.mts"],
+  ],
   [
     "scripts/release-compiler-source-closure.mts",
     ["scripts/release-compiler-source.test.mts", "scripts/release-controller-tools.test.mts"],
@@ -375,12 +471,75 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-publication-inventory.mts", ["scripts/acquire-release-admission.test.mts"]],
   ["scripts/release-site-composer.mts", ["scripts/release-site-composer.test.mts"]],
   ["scripts/release-pages-provider.mts", ["scripts/release-pages-provider.test.mts"]],
+  ["scripts/release-pages-recovery.mts", ["scripts/release-pages-recovery.test.mts"]],
+  [
+    "scripts/release-pages-metadata-recovery.mts",
+    ["scripts/release-pages-metadata-recovery.test.mts"],
+  ],
   ["scripts/release-capacity-executor.mts", ["scripts/release-capacity-executor.test.mts"]],
-  ["scripts/release-native-admission.mts", ["scripts/release-native-admission.test.mts"]],
+  [
+    "scripts/release-native-admission.mts",
+    [
+      "scripts/release-native-admission.test.mts",
+      "scripts/release-native-check-discovery.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-native-check-discovery.mts",
+    ["scripts/release-native-check-discovery.test.mts"],
+  ],
+  ["scripts/release-native-stage-capture.mts", ["scripts/release-native-stage-capture.test.mts"]],
+  ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
+  ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
+  ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
+  [
+    "scripts/release-native-candidate.mts",
+    ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
+  ],
+  ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
+  ["scripts/release-native-attempt.mts", ["scripts/release-native-attempt.test.mts"]],
+  [
+    "scripts/release-native-source-contract.mts",
+    ["scripts/release-native-source-contract.test.mts"],
+  ],
+  [
+    "scripts/release-native-pre-sign-report.mts",
+    ["scripts/release-native-pre-sign-report.test.mts"],
+  ],
+  ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
+  ["scripts/release-native-worker.mts", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/release-native-windows-capture.mts",
+    ["scripts/release-native-windows-driver.test.mts"],
+  ],
+  ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/fixtures/native-authority-configuration-fixture.mts",
+    ["scripts/release-native-parent.test.mts"],
+  ],
+  ["scripts/read-native-scheduler.ps1", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-signing-handoff.mts", ["scripts/release-signing-handoff.test.mts"]],
+  ["scripts/release-tuf-role-artifact.mts", ["scripts/release-tuf-role-artifact.test.mts"]],
+  [
+    "scripts/fixtures/tuf-worker-fixture.mts",
+    ["scripts/release-tuf-signing.test.mts", "scripts/release-connected-fixture.test.mts"],
+  ],
+  ["scripts/release-tuf-signing.mts", ["scripts/release-tuf-signing.test.mts"]],
   ["scripts/release-signing-context.mts", ["scripts/release-signing-context.test.mts"]],
-  ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
+  [
+    "scripts/release-publication-controller.mts",
+    ["scripts/release-publication-controller.test.mts"],
+  ],
+  ["scripts/release-publication-handoff.mts", ["scripts/release-publication-controller.test.mts"]],
+  ["scripts/release-publication-inputs.mts", ["scripts/release-publication-inputs.test.mts"]],
+  ["scripts/release-publication-source.mts", ["scripts/release-publication-source.test.mts"]],
+  ["scripts/release-tuf-publication.mts", ["scripts/release-tuf-signing.test.mts"]],
+  [
+    "scripts/release-native-publication-admission.mts",
+    ["scripts/release-native-admission.test.mts"],
+  ],
   ["scripts/release-controller-wake.mts", ["scripts/release-controller-wake.test.mts"]],
+  ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
     ["scripts/release-publication-result-artifact.test.mts"],
@@ -391,7 +550,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   [
     "scripts/release-authority-configuration.mts",
-    ["scripts/production-controller-admission.test.mts"],
+    [
+      "scripts/production-controller-admission.test.mts",
+      "scripts/release-bootstrap-preparation.test.mts",
+    ],
   ],
   ...[
     "scripts/semantic-review-linux-supervisor.py",
@@ -718,8 +880,20 @@ const releaseContractTests = Object.freeze([
   "scripts/release-controller-tools.test.mts",
   "scripts/release-compiler-source.test.mts",
   "scripts/release-native-qualification-contract.test.mts",
+  "scripts/release-native-stage-capture.test.mts",
+  "scripts/release-native-scheduler.test.mts",
+  "scripts/release-native-parent.test.mts",
+  "scripts/release-native-candidate.test.mts",
+  "scripts/release-native-attempt.test.mts",
+  "scripts/release-native-windows-driver.test.mts",
+  "scripts/release-native-source-contract.test.mts",
+  "scripts/release-native-pre-sign-report.test.mts",
+  "scripts/release-native-check-broker.test.mts",
+  "scripts/release-local-native-setup.test.mts",
   "scripts/release-native-acceptance.test.mts",
   "scripts/release-native-admission.test.mts",
+  "scripts/release-native-check-discovery.test.mts",
+  "scripts/release-bootstrap-preparation.test.mts",
   "scripts/release-role-key-channel.test.mts",
   "scripts/release-control-handshake.test.mts",
   "scripts/release-live-control-admission.test.mts",
@@ -728,11 +902,23 @@ const releaseContractTests = Object.freeze([
   "scripts/release-payload-signing.test.mts",
   "scripts/release-payload-preparation.test.mts",
   "scripts/release-signing-handoff.test.mts",
+  "scripts/release-tuf-role-artifact.test.mts",
+  "scripts/release-tuf-signing.test.mts",
+  "scripts/release-connected-fixture.test.mts",
+  "scripts/release-tuf-controller.test.mts",
+  "scripts/release-metadata-signing-context.test.mts",
+  "scripts/release-metadata-context-recovery.test.mts",
+  "scripts/release-candidate-signing-recovery.test.mts",
+  "scripts/release-run-artifact-inventory.test.mts",
+  "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-signing-context.test.mts",
   "scripts/release-signing-context-artifact.test.mts",
+  "scripts/release-publication-controller.test.mts",
+  "scripts/release-publication-inputs.test.mts",
+  "scripts/release-publication-source.test.mts",
+  "scripts/release-controller-wake.test.mts",
   "scripts/release-publication-result.test.mts",
   "scripts/release-publication-result-artifact.test.mts",
-  "scripts/release-controller-wake.test.mts",
   "scripts/reconcile-release-assets.test.mts",
   "scripts/release-candidate-qualification.test.mts",
   "scripts/release-immutable-publication.test.mts",

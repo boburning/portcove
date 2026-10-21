@@ -8,6 +8,7 @@ import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
 import { isRecord } from "./runtime-values.mts";
+import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import {
   inspectReleaseControlPhase,
@@ -43,7 +44,7 @@ export function inspectControlRound(raw: unknown, requireNonce = true) {
     (requireNonce && !Object.hasOwn(raw, "nonce")) ||
     !Number.isSafeInteger(raw.index) ||
     Number(raw.index) < 1 ||
-    Number(raw.index) > 12 ||
+    Number(raw.index) > 14 ||
     (raw.nonce === undefined
       ? requireNonce
       : typeof raw.nonce !== "string" || !/^[a-f0-9]{64}$/u.test(raw.nonce))
@@ -237,37 +238,10 @@ export async function waitForControlArtifact(
     }
     throw new Error("control producer job inventory omitted records");
   };
-  const inventory = () => {
-    const found: Record<string, unknown>[] = [];
-    let total: unknown = null;
-    for (let page = 1; page <= 4; page++) {
-      const body = get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`);
-      if (
-        !isRecord(body) ||
-        !Array.isArray(body.artifacts) ||
-        body.artifacts.length > 100 ||
-        !Number.isSafeInteger(body.total_count) ||
-        Number(body.total_count) < 0 ||
-        Number(body.total_count) > 400
-      )
-        throw new Error("control artifact inventory incomplete");
-      total ??= body.total_count;
-      if (total !== body.total_count) throw new Error("control artifact inventory changed");
-      for (const artifact of body.artifacts) {
-        if (
-          !isRecord(artifact) ||
-          !Number.isSafeInteger(artifact.id) ||
-          Number(artifact.id) < 1 ||
-          found.some((a) => a.id === artifact.id)
-        )
-          throw new Error("control artifact duplicates identity");
-        found.push(artifact);
-      }
-      if (found.length === body.total_count) return found;
-      if (!body.artifacts.length || found.length > Number(body.total_count)) break;
-    }
-    throw new Error("control artifact inventory omitted records");
-  };
+  const inventory = () =>
+    readCompleteRunArtifactInventory((page) =>
+      get(`actions/runs/${input.run_id}/artifacts?per_page=100&page=${page}`),
+    ).artifacts;
   const name = controlHandshakeArtifactName(role, input);
   let polls = 0;
   try {

@@ -1,3 +1,7 @@
+import {
+  inspectAggregateUploadExpectation,
+  assertAggregateUploadCandidate,
+} from "./release-aggregate-contract.mts";
 import { releaseCanonicalDigest as capacityDigest } from "./release-canonical.mts";
 export { capacityDigest };
 import { isRecord } from "./runtime-values.mts";
@@ -11,15 +15,21 @@ import {
   assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 
-// Reviewed ceilings, not remaining storage, a reservation, or a billing quote.
+// Complete held-controller proposal. Its changed digest requires initial owner
+// ratification; historical observations do not cover this workflow. These are
+// ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "bee2037f33ae9a317af0b93a49eede17ddb81298f83d77e12f69bae7c4fd0a35",
-  input_workflow_sha256: "086ed2c625bbd45b4849eee8598a65e9bdcb394d008f47f32a081965b1223b17",
-  aggregate_job_minutes: Object.freeze([5, 25, 30, 5, 20]),
-  input_job_minutes: Object.freeze([5, 5, 5]),
+  aggregate_workflow_sha256: "7cae13eec893e5ff5dfcd2ca8cbd864dc1fd09ab4510e4afea678c6f462209ee",
+  input_workflow_sha256: "7cae13eec893e5ff5dfcd2ca8cbd864dc1fd09ab4510e4afea678c6f462209ee",
+  aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5]),
+  input_job_minutes: Object.freeze([2, 2, 3, 10, 10, 8, 6, 5]),
+  wake_workflow_sha256: "c7522d5384ac2091b0ce23f005c652f5a509faf91109c8f26aea3236e7576f1c",
+  wake_job_minutes: Object.freeze([1]),
+  declared_job_minutes: 99,
   aggregate_concurrency: "application-update-production-controller",
-  input_concurrency: "portcove-release-reviewed-inputs",
+  input_concurrency: "application-update-production-controller",
+  wake_concurrency: "portcove-application-controller-wake",
   cancel_in_progress: false,
   total_job_minutes: 100,
   retention_days: 7,
@@ -27,8 +37,16 @@ export const slice4CapacityResources = Object.freeze({
   total_archive_bytes: 2 * 1024 * 1024 * 1024,
   assembly_file_bytes: 512 * 1024 * 1024,
   total_assembly_bytes: 2 * 1024 * 1024 * 1024,
-  input_receipts: 3,
+  // Three control sources plus at most eighty ready/observation pairs:
+  // four initial+14 phases, five TUF phases of three, and five site rounds.
+  input_receipts: 163,
   input_receipt_bytes: 128 * 1024,
+  diagnostic_artifacts: 10,
+  diagnostic_files_per_artifact: 66,
+  diagnostic_file_bytes: 65536,
+  diagnostic_manifest_bytes: 65536,
+  wake_receipts: 2,
+  wake_receipt_bytes: 1024 * 1024,
   shared_cache: false,
   enlarged_cache: false,
   paid_fallback: false,
@@ -82,6 +100,7 @@ export function inspectCapacityExecutorIdentity(raw: unknown) {
       "release-publication",
       "site-publication",
       "payload-signing",
+      "aggregate-assembly",
       "tuf-releases",
       "tuf-preview",
       "tuf-stable",
@@ -145,6 +164,8 @@ export interface ParsedCapacityOperation {
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
+  aggregate_expectation?: ReturnType<typeof inspectAggregateUploadExpectation>;
+  site_expectation?: ReturnType<typeof inspectSitePublicationExpectation>;
   destination: string;
   kind: string;
   policy_sha256: string;
@@ -156,6 +177,51 @@ export interface ParsedCapacityOperation {
   failure_evidence: Record<string, unknown> | null;
   recovery: Record<string, unknown> | null;
 }
+/** Expected result in the existing durable intent, never provider completion. */
+export function inspectSitePublicationExpectation(raw: unknown) {
+  exact(
+    raw,
+    "archive_sha256,artifact_id,prior_site_generation_sha256,repository_sha256,root_sha256,site_generation_sha256",
+  );
+  for (const name of [
+    "archive_sha256",
+    "repository_sha256",
+    "root_sha256",
+    "site_generation_sha256",
+  ] as const)
+    sha(raw[name]);
+  if (raw.prior_site_generation_sha256 !== null) sha(raw.prior_site_generation_sha256);
+  if (
+    typeof raw.artifact_id !== "number" ||
+    !Number.isSafeInteger(raw.artifact_id) ||
+    raw.artifact_id < 1
+  )
+    throw new Error("site expected provider artifact identity unavailable");
+  if (raw.prior_site_generation_sha256 === raw.site_generation_sha256)
+    throw new Error("site deployment intent must advance its exact prior generation");
+  return {
+    archive_sha256: String(raw.archive_sha256),
+    artifact_id: raw.artifact_id,
+    prior_site_generation_sha256:
+      raw.prior_site_generation_sha256 === null ? null : String(raw.prior_site_generation_sha256),
+    repository_sha256: String(raw.repository_sha256),
+    root_sha256: String(raw.root_sha256),
+    site_generation_sha256: String(raw.site_generation_sha256),
+  };
+}
+/** A replacement result artifact consumes the existing bounded candidate
+ * recovery tuple. An arbitrary destination suffix cannot reset that tuple. */
+export function assertPublicationResultDestination(destination: string, candidate: unknown) {
+  if (!destination.includes(":immutable-release-result")) return;
+  if (!isRecord(candidate)) throw new Error("result recovery requires its actual candidate");
+  inspectRecoveryCounters(candidate);
+  text(candidate.version);
+  const transient = Number(candidate.transient_retries),
+    repair = Number(candidate.substantive_repairs);
+  const expected = `github-actions:boburning/portcove:${candidate.version}:immutable-release-result${transient + repair === 0 ? "" : `:recovery-${transient}-${repair}`}`;
+  if (destination !== expected)
+    throw new Error("result destination differs from consumed candidate recovery counters");
+}
 export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation | null {
   if (raw === null) return null;
   const hasExecutor = isRecord(raw) && Object.hasOwn(raw, "executor_nonce");
@@ -163,6 +229,8 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const metadata = isRecord(raw) && Object.hasOwn(raw, "metadata_renewal");
   const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
+  const hasAggregate = isRecord(raw) && Object.hasOwn(raw, "aggregate_expectation");
+  const hasSite = isRecord(raw) && Object.hasOwn(raw, "site_expectation");
   exact(
     raw,
     [
@@ -173,6 +241,8 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       ...(hasExecutor ? ["executor_nonce"] : []),
       ...(hasIdentity ? ["executor_identity"] : []),
       ...(receiptLimit ? ["receipt_limit"] : []),
+      ...(hasSite ? ["site_expectation"] : []),
+      ...(hasAggregate ? ["aggregate_expectation"] : []),
       "failure_evidence",
       "id",
       "kind",
@@ -202,6 +272,39 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   sha(raw.policy_sha256);
   sha(raw.ratification_sha256);
   text(raw.destination);
+  // Historical unsuffixed records predate bounded report-repair destinations.
+  // Keep their exact bytes readable; only new intents require the new tuple.
+  if (
+    !isRecord(raw.candidate) ||
+    raw.destination !==
+      `github-actions:boburning/portcove:${String(raw.candidate.version)}:immutable-release-result`
+  )
+    assertPublicationResultDestination(raw.destination, raw.candidate);
+  const aggregate = hasAggregate
+    ? inspectAggregateUploadExpectation(raw.aggregate_expectation)
+    : null;
+  if (executorIdentity?.role === "aggregate-assembly" && !aggregate)
+    throw new Error("admitted assembler must retain exact aggregate upload preimage");
+  if (
+    aggregate &&
+    (hasSite ||
+      metadata ||
+      bootstrap ||
+      raw.kind !== "upload" ||
+      raw.destination !== "github-actions:boburning/portcove:admitted-aggregate" ||
+      executorIdentity?.role !== "aggregate-assembly")
+  )
+    throw new Error("aggregate expectation belongs only to the fixed admitted assembler");
+  const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
+  if (
+    site &&
+    (raw.kind !== "upload" ||
+      raw.destination !== "github-pages:boburning/portcove:complete-site" ||
+      !executorIdentity ||
+      executorIdentity.role !== "site-publication" ||
+      (site.prior_site_generation_sha256 === null && !bootstrap))
+  )
+    throw new Error("site expectation belongs only to the actual fixed Pages intent");
   if (bootstrap) {
     exact(
       raw.metadata_bootstrap,
@@ -342,6 +445,8 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     before_checkpoint: raw.before_checkpoint,
     ...subject,
     destination: raw.destination,
+    ...(site ? { site_expectation: site } : {}),
+    ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     ...(hasExecutor ? { executor_nonce: String(raw.executor_nonce) } : {}),
     ...(executorIdentity ? { executor_identity: executorIdentity } : {}),
     ...(receiptLimit ? { receipt_limit: Number(raw.receipt_limit) } : {}),
@@ -672,6 +777,9 @@ function validateCapacityV2(
   const before = priorCapacity ? inspectCapacityOperation(priorCapacity.operation) : null,
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (newIntent && after.aggregate_expectation)
+    assertAggregateUploadCandidate(next.active_candidate);
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null
@@ -892,6 +1000,9 @@ export function validateCapacityTransition(
       ? inspectPriorCapacityOperations(next.controller.capacity_attempt.prior_operations)
       : [];
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
+  if (newIntent && after.aggregate_expectation)
+    assertAggregateUploadCandidate(next.active_candidate);
   const expectedPrior = newIntent
     ? [...prior, ...(before ? [before] : [])].filter(
         (op) =>

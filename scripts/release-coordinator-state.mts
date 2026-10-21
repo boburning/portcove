@@ -1,3 +1,4 @@
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   validateCapacityTransition,
   verifyRetainedCapacityOperation,
@@ -43,7 +44,11 @@ function canonical(value: unknown): string {
 
 function gitRepository(repository: string) {
   const env = {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+    ...Object.fromEntries(
+      Object.entries(readOnlyReleaseChildEnvironment() ?? process.env).filter(
+        ([key]) => !key.startsWith("GIT_"),
+      ),
+    ),
     GIT_NO_REPLACE_OBJECTS: "1",
     GIT_NO_LAZY_FETCH: "1",
     GIT_AUTHOR_NAME: "Portcove release coordinator",
@@ -212,6 +217,17 @@ function readCheckpoint(git: Git, commit: string) {
   )
     throw new Error("initial coordinator cannot invent a frozen review request");
   return { previous: state.previous, ...checked };
+}
+
+/** Inspect one explicitly authenticated historical checkpoint without moving or
+ * verifying the current ref. Inert state only; no recovery/admission authority. */
+export function readRetainedCoordinatorCheckpoint(repository: string, checkpoint: string) {
+  identity(checkpoint);
+  return {
+    checkpoint,
+    ...readCheckpoint(gitRepository(repository), checkpoint),
+    authority: "none" as const,
+  };
 }
 
 /** Resolve public raw receipts referenced by a compact summary in this same

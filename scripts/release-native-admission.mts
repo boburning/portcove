@@ -1,4 +1,8 @@
 import { isDeepStrictEqual } from "node:util";
+import { performance } from "node:perf_hooks";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
+import path from "node:path";
+import { discoverNativeQualificationLocators } from "./release-native-check-discovery.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { inspectNativeReleaseQualification } from "./release-native-qualification-contract.mts";
@@ -6,6 +10,7 @@ import type { NativeQualificationStage } from "./release-native-qualification-co
 import {
   verifiedNativeReleaseQualification,
   inspectNativeQualificationExpectation,
+  inspectNativeQualificationTemplate,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -16,79 +21,94 @@ import {
 
 /** Pure reconstruction of expected inputs, not a source of native authority.
  * Dynamic locators cannot choose an issuer, host, source, compatibility or stage. */
-export async function deriveNativeQualificationExpectations(
+export async function deriveNativeQualificationTemplates(
   rawAuthorities: unknown,
-  rawLocators: unknown,
   rawAssembly: unknown,
   rawArchives: unknown,
-  stage: NativeQualificationStage,
 ) {
   const authorities = inspectReleaseAuthorityConfiguration(rawAuthorities);
-  const locators: unknown = structuredClone(rawLocators),
-    archives: unknown = structuredClone(rawArchives);
+  const archives: unknown = structuredClone(rawArchives);
   const { accepted, policy, labels } = await inspectTrustedAssemblyInput(
     structuredClone(rawAssembly),
   );
   if (
-    stage !== "payload-signing" ||
     accepted.release_profile !== "initial-beta-win-linux" ||
     labels.length !== 2 ||
-    !Array.isArray(locators) ||
-    locators.length !== 2 ||
     !Array.isArray(archives) ||
     archives.length !== 2
   )
-    throw new Error("fixed native locators require the exact pre-sign selected package pair");
+    throw new Error("fixed native templates require the exact selected package pair");
+  return Object.freeze(
+    labels.map((platform) => {
+      if (platform !== "windows-x86_64" && platform !== "linux-x86_64")
+        throw new Error("fixed native template platform differs");
+      const fixed = authorities.native[platform];
+      const archive: unknown = archives.find(
+        (item: unknown) => isRecord(item) && item.platform === platform,
+      );
+      if (!isRecord(archive)) throw new Error("native exact immutable platform archive missing");
+      const entry = policy.packages.find(
+        (item) =>
+          item.platform_label === platform &&
+          item.interface === "desktop" &&
+          (item.format === "nsis" || item.format === "appimage"),
+      );
+      if (!entry) throw new Error("native selected updater package missing");
+      const filename = artifactName(entry, accepted.version);
+      const file = accepted.files.find(
+        (item) => item.platform_label === platform && item.filename === filename,
+      );
+      if (!file) throw new Error("native actual updater bytes missing");
+      return inspectNativeQualificationTemplate({
+        schema_version: 1,
+        native_app_id: authorities.apps.native_qualification.app_id,
+        semantic_app_id: authorities.apps.semantic.app_id,
+        classification_app_id: authorities.apps.classification.app_id,
+        stage: "payload-signing",
+        platform_label: platform,
+        candidate: {
+          source_commit: accepted.source_commit,
+          source_tree: accepted.source_tree,
+          run_id: accepted.run_id,
+          run_attempt: accepted.run_attempt,
+          artifact_id: archive.artifact_id,
+          package: { filename, bytes: file.bytes, sha256: file.sha256 },
+        },
+        producer: fixed.producer,
+        host: fixed.host,
+        compatibility: fixed.compatibility,
+        journey: null,
+      });
+    }),
+  );
+}
+
+/** Locator binding is integrity-only; actual collection must reauthenticate each Check. */
+export function bindNativeQualificationLocators(
+  rawLocators: unknown,
+  rawTemplates: readonly unknown[],
+) {
+  const locators: unknown = structuredClone(rawLocators);
+  const templates = rawTemplates.map(inspectNativeQualificationTemplate);
+  if (
+    !Array.isArray(locators) ||
+    locators.length !== 2 ||
+    templates.length !== 2 ||
+    new Set(templates.map((item) => item.platform_label)).size !== 2
+  )
+    throw new Error("fixed native locators require the exact selected package pair");
   const expected = locators.map((raw: unknown) => {
     if (
       !isRecord(raw) ||
-      Object.keys(raw).sort().join(",") !== "check_id,invocation_id,platform_label" ||
-      (raw.platform_label !== "windows-x86_64" && raw.platform_label !== "linux-x86_64") ||
-      typeof raw.check_id !== "number" ||
-      !Number.isSafeInteger(raw.check_id) ||
-      raw.check_id < 1 ||
-      typeof raw.invocation_id !== "string" ||
-      !/^[a-f0-9]{64}$/u.test(raw.invocation_id)
+      Object.keys(raw).sort().join(",") !== "check_id,invocation_id,platform_label"
     )
       throw new Error("native dynamic locator cannot supply authority or an unknown tuple");
-    const platform = raw.platform_label,
-      fixed = authorities.native[platform];
-    const archive: unknown = archives.find(
-      (item: unknown) => isRecord(item) && item.platform === platform,
-    );
-    if (!isRecord(archive)) throw new Error("native exact immutable platform archive missing");
-    const entry = policy.packages.find(
-      (item) =>
-        item.platform_label === platform &&
-        item.interface === "desktop" &&
-        (item.format === "nsis" || item.format === "appimage"),
-    );
-    if (!entry) throw new Error("native selected updater package missing");
-    const filename = artifactName(entry, accepted.version);
-    const file = accepted.files.find(
-      (item) => item.platform_label === platform && item.filename === filename,
-    );
-    if (!file) throw new Error("native actual updater bytes missing");
+    const template = templates.find((item) => item.platform_label === raw.platform_label);
+    if (!template) throw new Error("native locator platform differs");
     return inspectNativeQualificationExpectation({
-      schema_version: 1,
+      ...template,
       check_id: raw.check_id,
-      native_app_id: authorities.apps.native_qualification.app_id,
-      semantic_app_id: authorities.apps.semantic.app_id,
-      classification_app_id: authorities.apps.classification.app_id,
-      stage,
-      platform_label: platform,
-      candidate: {
-        source_commit: accepted.source_commit,
-        source_tree: accepted.source_tree,
-        run_id: accepted.run_id,
-        run_attempt: accepted.run_attempt,
-        artifact_id: archive.artifact_id,
-        package: { filename, bytes: file.bytes, sha256: file.sha256 },
-      },
-      producer: { ...fixed.producer, invocation_id: raw.invocation_id },
-      host: fixed.host,
-      compatibility: fixed.compatibility,
-      journey: null,
+      producer: { ...template.producer, invocation_id: raw.invocation_id },
     });
   });
   if (
@@ -97,6 +117,21 @@ export async function deriveNativeQualificationExpectations(
   )
     throw new Error("native locator platform or Check duplicated");
   return Object.freeze(expected);
+}
+
+export async function deriveNativeQualificationExpectations(
+  rawAuthorities: unknown,
+  rawLocators: unknown,
+  rawAssembly: unknown,
+  rawArchives: unknown,
+  stage: NativeQualificationStage,
+) {
+  if (stage !== "payload-signing")
+    throw new Error("fixed native locators require exact pre-sign stage");
+  return bindNativeQualificationLocators(
+    rawLocators,
+    await deriveNativeQualificationTemplates(rawAuthorities, rawAssembly, rawArchives),
+  );
 }
 
 /** Actual fixed hosted entry. The independently ratified global authority
@@ -110,23 +145,30 @@ export async function collectConfiguredNativeReleaseQualificationPair(
 ) {
   if (phase !== "admission" && phase !== "payload")
     throw new Error("fixed pre-sign native reader phase required");
+  const deadline = performance.now() + coordinatorCommandTimeout(120000);
   const capturedLocators: unknown = structuredClone(locators),
     capturedAssembly: unknown = structuredClone(assembly),
     capturedArchives: unknown = structuredClone(archives);
   const authorities = await requireControllerReleaseAuthorities(phase);
-  const expected = await deriveNativeQualificationExpectations(
+  if (!path.isAbsolute(outputParent))
+    throw new Error("native evidence output parent must be absolute");
+  const templates = await deriveNativeQualificationTemplates(
     authorities,
-    capturedLocators,
     capturedAssembly,
     capturedArchives,
-    "payload-signing",
   );
+  const selectedLocators =
+    capturedLocators === null
+      ? discoverNativeQualificationLocators(templates, deadline)
+      : capturedLocators;
+  const expected = bindNativeQualificationLocators(selectedLocators, templates);
   return collectNativeReleaseQualificationPair(
     outputParent,
     expected,
     capturedAssembly,
     capturedArchives,
     "payload-signing",
+    deadline,
   );
 }
 
@@ -139,6 +181,7 @@ export async function collectNativeReleaseQualificationPair(
   rawAssembly: unknown,
   rawArchives: unknown,
   stage: NativeQualificationStage,
+  deadline?: number,
 ) {
   if (!Array.isArray(rawExpected) || rawExpected.length !== 2)
     throw new Error("fixed caller must supply exactly two independent native expectations");
@@ -153,7 +196,13 @@ export async function collectNativeReleaseQualificationPair(
     throw new Error("independent native stage/platform/Check pair differs");
   const receipts = [];
   for (const item of expected)
-    receipts.push(await collectNativeReleaseQualification(outputParent, item));
+    receipts.push(
+      await collectNativeReleaseQualification(
+        outputParent,
+        item,
+        deadline === undefined ? {} : { deadline },
+      ),
+    );
   await requireNativeReleaseQualificationPair(receipts, assembly, archives, stage);
   return Object.freeze(receipts);
 }

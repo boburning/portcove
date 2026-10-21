@@ -1,3 +1,4 @@
+import { inspectAggregateUploadExpectation } from "./release-aggregate-contract.mts";
 import { performance } from "node:perf_hooks";
 import {
   inspectAssemblerIdentityExpectation,
@@ -5,7 +6,11 @@ import {
   verifyCapacityExecutorJobIdentity,
 } from "./assembler-job-identity.mts";
 import type { CapacityExecutorRole } from "./assembler-job-identity.mts";
-import { capacityDigest, inspectCapacityExecutorIdentity } from "./release-capacity.mts";
+import {
+  capacityDigest,
+  inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+} from "./release-capacity.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
@@ -13,9 +18,14 @@ import {
   recordCapacityReadback,
   runBoundedCapacityOperation,
   runBoundedMetadataRenewalOperation,
+  runBoundedMetadataBootstrapOperation,
   recordPublishedMetadata,
 } from "./release-capacity-operation.mts";
-import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
+import {
+  inspectPublishedMetadata,
+  inspectMetadataRenewalDescriptor,
+  inspectMetadataBootstrapDescriptor,
+} from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
@@ -122,6 +132,8 @@ export async function refreshCapacityExecutor(session: ExecutorSession) {
 interface OwnedEffectRequest {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
+  site_expectation?: unknown;
+  aggregate_expectation?: unknown;
 }
 
 /** Scope validation only. A matching destination cannot mint an executor session
@@ -130,45 +142,132 @@ export function assertCapacityExecutorEffectScope(
   role: CapacityExecutorRole,
   request: OwnedEffectRequest,
 ) {
-  if (Object.keys(request).sort().join(",") !== "destination,kind")
+  if (
+    Object.keys(request).sort().join(",") !==
+    [
+      "destination",
+      "kind",
+      ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
+      ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+    ]
+      .sort()
+      .join(",")
+  )
     throw new Error("executor effect request contains unsupported fields");
+  if (request.aggregate_expectation !== undefined) {
+    inspectAggregateUploadExpectation(request.aggregate_expectation);
+    if (
+      role !== "aggregate-assembly" ||
+      request.site_expectation !== undefined ||
+      request.kind !== "upload" ||
+      request.destination !== "github-actions:boburning/portcove:admitted-aggregate"
+    )
+      throw new Error("aggregate expectation is outside admitted assembler scope");
+  }
+  if (request.site_expectation !== undefined) {
+    inspectSitePublicationExpectation(request.site_expectation);
+    if (
+      role !== "site-publication" ||
+      request.kind !== "upload" ||
+      request.destination !== "github-pages:boburning/portcove:complete-site"
+    )
+      throw new Error("site expectation is outside the authenticated executor's fixed scope");
+  }
   // Destinations describe a stable logical effect within the candidate or
   // metadata lifecycle. Regenerated artifact/run/descriptor IDs cannot reset
   // retry accounting; actual provider IDs belong in completed-effect receipts.
   const allowed =
-    role === "site-publication"
+    role === "aggregate-assembly"
       ? request.kind === "upload" &&
-        request.destination === "github-pages:boburning/portcove:complete-site"
-      : role === "coordinator"
-        ? request.kind === "dispatch" &&
-          request.destination === "github-actions:boburning/portcove:release.yml:dispatch"
-        : role === "payload-signing"
-          ? request.kind === "upload" &&
-            /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
-              request.destination,
-            )
-          : role.startsWith("tuf-") &&
+        request.destination === "github-actions:boburning/portcove:admitted-aggregate" &&
+        request.aggregate_expectation !== undefined
+      : role === "site-publication"
+        ? request.kind === "upload" &&
+          [
+            "github-pages:boburning/portcove:complete-site",
+            "github-actions:boburning/portcove:complete-site-artifact",
+          ].includes(request.destination)
+        : role === "coordinator"
+          ? (request.kind === "dispatch" &&
+              request.destination === "github-actions:boburning/portcove:release.yml:dispatch") ||
+            (request.kind === "upload" &&
               [
-                "tuf-releases",
-                "tuf-preview",
-                "tuf-stable",
-                "tuf-snapshot",
-                "tuf-timestamp",
-              ].includes(role)
+                "github-actions:boburning/portcove:metadata-renewal-context",
+                "github-actions:boburning/portcove:metadata-bootstrap-context",
+              ].includes(request.destination))
+          : role === "payload-signing"
             ? request.kind === "upload" &&
-              new RegExp(
-                `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
-                "u",
-              ).test(request.destination)
-            : role === "release-publication" &&
-              request.kind === "upload" &&
-              (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+              /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
                 request.destination,
-              ) ||
-                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result$/u.test(
+              )
+            : role.startsWith("tuf-") &&
+                [
+                  "tuf-releases",
+                  "tuf-preview",
+                  "tuf-stable",
+                  "tuf-snapshot",
+                  "tuf-timestamp",
+                ].includes(role)
+              ? request.kind === "upload" &&
+                new RegExp(
+                  `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
+                  "u",
+                ).test(request.destination)
+              : role === "release-publication" &&
+                request.kind === "upload" &&
+                (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                   request.destination,
-                ));
+                ) ||
+                  /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
+                    request.destination,
+                  ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
+}
+
+/** Subject routing only; no descriptor/JSON can mint an executor session. The
+ * existing operation implementations independently check the current journal,
+ * exact descriptor, pending/nonce, counters, provider readback and settlement. */
+export function inspectCapacityExecutorSubject(
+  role: CapacityExecutorRole,
+  raw: { request: OwnedEffectRequest; metadata_renewal?: unknown; metadata_bootstrap?: unknown },
+) {
+  const value = structuredClone(raw);
+  const renewal = value.metadata_renewal !== undefined,
+    bootstrap = value.metadata_bootstrap !== undefined;
+  if (renewal && bootstrap) throw new Error("exactly one metadata subject required");
+  if (renewal || bootstrap) {
+    if (
+      ![
+        "coordinator",
+        "site-publication",
+        "tuf-releases",
+        "tuf-preview",
+        "tuf-stable",
+        "tuf-snapshot",
+        "tuf-timestamp",
+      ].includes(role)
+    )
+      throw new Error("metadata subject requires a fixed coordinator/site/online role");
+    const kind = renewal ? "metadata-renewal" : "metadata-bootstrap";
+    if (
+      role === "coordinator" &&
+      (value.request.kind !== "upload" ||
+        value.request.destination !== `github-actions:boburning/portcove:${kind}-context`)
+    )
+      throw new Error("coordinator metadata subject requires its own exact context upload");
+    return renewal
+      ? {
+          kind: "metadata-renewal" as const,
+          descriptor: inspectMetadataRenewalDescriptor(value.metadata_renewal),
+        }
+      : {
+          kind: "metadata-bootstrap" as const,
+          descriptor: inspectMetadataBootstrapDescriptor(value.metadata_bootstrap),
+        };
+  }
+  if (role === "coordinator" && value.request.kind === "upload")
+    throw new Error("coordinator context upload requires its explicit metadata subject");
+  return { kind: "candidate" as const };
 }
 
 /** Actual current-job/exact-checkpoint integration of the existing bounded
@@ -192,6 +291,7 @@ async function executeOwnedCapacityEffectWithinScope(
     remote_configuration: unknown;
     request: OwnedEffectRequest;
     metadata_renewal?: unknown;
+    metadata_bootstrap?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
   readBoundary: () => Promise<unknown>,
@@ -203,6 +303,7 @@ async function executeOwnedCapacityEffectWithinScope(
   const value = sessions.get(session);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const input = structuredClone(raw);
+  const subject = inspectCapacityExecutorSubject(value.role, input);
   if (!/^[a-f0-9]{40}$/u.test(input.checkpoint))
     throw new Error("exact coordinator checkpoint required");
   assertCapacityExecutorEffectScope(value.role, input.request);
@@ -255,18 +356,10 @@ async function executeOwnedCapacityEffectWithinScope(
       await recordCompleted(receipt.remote_identity, receipt.evidence_sha256);
     };
     const options = { remote, executorIdentity, maximumReceipts: 1 };
-    if (
-      input.metadata_renewal !== undefined &&
-      value.role !== "site-publication" &&
-      !["tuf-releases", "tuf-preview", "tuf-stable", "tuf-snapshot", "tuf-timestamp"].includes(
-        value.role,
-      )
-    )
-      throw new Error("metadata maintenance requires a fixed site or metadata signing executor");
-    if (input.metadata_renewal === undefined && input.recovery !== undefined)
+    if (subject.kind === "candidate" && input.recovery !== undefined)
       throw new Error("candidate retries require their existing reservation recovery");
     const result =
-      input.metadata_renewal === undefined
+      subject.kind === "candidate"
         ? await runBoundedCapacityOperation(
             input.repository,
             input.checkpoint,
@@ -275,10 +368,14 @@ async function executeOwnedCapacityEffectWithinScope(
             perform,
             options,
           )
-        : await runBoundedMetadataRenewalOperation(
+        : await (
+            subject.kind === "metadata-renewal"
+              ? runBoundedMetadataRenewalOperation
+              : runBoundedMetadataBootstrapOperation
+          )(
             input.repository,
             input.checkpoint,
-            input.metadata_renewal,
+            subject.descriptor,
             input.request,
             readBoundary,
             perform,
@@ -337,12 +434,51 @@ async function executeOwnedCapacityEffectWithinScope(
  * and resolve an old intent only after the original exact executor is terminal;
  * it never inherits permission to re-POST the effect. Readback callbacks in the
  * immutable controller must positively establish the requested resolution. */
+/** Provider reads share the actual executor's original phase clock. This
+ * transport carries no executor authority and never extends a retained session. */
+function capacityRecoveryProviderApi(value: Pick<PrivateSession, "directory" | "deadline">) {
+  const remaining = () => {
+    if (value.deadline !== undefined && !Number.isFinite(value.deadline))
+      throw new Error("capacity recovery phase deadline invalid");
+    const timeout =
+      value.deadline === undefined
+        ? 15000
+        : Math.floor(Math.min(15000, value.deadline - performance.now()));
+    if (timeout < 1) throw new Error("capacity recovery phase deadline exhausted");
+    return timeout;
+  };
+  return new GitHubApiClient((args, body) => {
+    const result = createGitHubRunner({
+      cwd: value.directory,
+      timeoutMs: remaining(),
+      maxBuffer: 2 * 1024 * 1024,
+    })([...args, "--hostname", "github.com"], body);
+    remaining();
+    return result;
+  });
+}
+
 export async function recoverOwnedCapacityEffect(
-  ...args: Parameters<typeof recoverOwnedCapacityEffectWithinScope>
+  ...args: [
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[0],
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[1],
+    Parameters<typeof recoverOwnedCapacityEffectWithinScope>[2],
+  ]
 ) {
   const value = sessions.get(args[0]);
   if (!value) throw new Error("an actual authenticated executor session is required");
   const work = () => recoverOwnedCapacityEffectWithinScope(...args);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+/** The same protected admitted-aggregate role may settle a previous terminal
+ * job's one exact upload. This route cannot resolve other roles or re-upload. */
+export async function recoverOwnedAdmittedAggregateEffect(
+  ...args: Parameters<typeof recoverOwnedCapacityEffect>
+) {
+  const value = sessions.get(args[0]);
+  if (!value || value.role !== "aggregate-assembly")
+    throw new Error("actual admitted aggregate recovery job required");
+  const work = () => recoverOwnedCapacityEffectWithinScope(...args, true);
   return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
 }
 async function recoverOwnedCapacityEffectWithinScope(
@@ -353,9 +489,13 @@ async function recoverOwnedCapacityEffectWithinScope(
     evidence_sha256: string;
     completed_effect?: { remote_identity: string; evidence_sha256: string };
   }>,
+  admittedAggregate = false,
 ) {
   const value = sessions.get(session);
-  if (!value || value.role !== "coordinator")
+  if (
+    !value ||
+    (admittedAggregate ? value.role !== "aggregate-assembly" : value.role !== "coordinator")
+  )
     throw new Error("actual fixed coordinator recovery identity required");
   const input = structuredClone(raw);
   if (!/^[a-f0-9]{40}$/u.test(input.checkpoint))
@@ -368,14 +508,7 @@ async function recoverOwnedCapacityEffectWithinScope(
   if (state.busy || state.failed)
     throw new Error("executor is busy or stopped; retain original recovery evidence");
   state.busy = true;
-  const runner = createGitHubRunner({
-    cwd: value.directory,
-    timeoutMs: 15_000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
+  const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
     api: createCoordinatorJournalApi(value.directory, value.deadline),
@@ -399,6 +532,15 @@ async function recoverOwnedCapacityEffectWithinScope(
     )
       throw new Error("an unresolved identity-bound capacity operation is required");
     const original = inspectCapacityExecutorIdentity(operation.executor_identity);
+    if (
+      admittedAggregate &&
+      (original.role !== "aggregate-assembly" ||
+        operation.destination !== "github-actions:boburning/portcove:admitted-aggregate" ||
+        operation.kind !== "upload" ||
+        operation.receipt_limit !== 1 ||
+        !operation.aggregate_expectation)
+    )
+      throw new Error("admitted aggregate recovery cannot resolve another effect");
     if (original.job_id === executorIdentity.job_id && original.run_id === executorIdentity.run_id)
       throw new Error("live executor cannot appoint itself as terminal-job recovery");
     const terminal = () => {
@@ -496,14 +638,7 @@ async function recoverOwnedPublishedMetadataWithinScope(
   }
   if (state.busy || state.failed) throw new Error("recovery executor is busy or stopped");
   state.busy = true;
-  const runner = createGitHubRunner({
-    cwd: value.directory,
-    timeoutMs: 15000,
-    maxBuffer: 2 * 1024 * 1024,
-  });
-  const api = new GitHubApiClient((args, body) =>
-    runner([...args, "--hostname", "github.com"], body),
-  );
+  const api = capacityRecoveryProviderApi(value);
   const remote = {
     configuration: input.remote_configuration,
     api: createCoordinatorJournalApi(value.directory, value.deadline),

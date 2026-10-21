@@ -4,6 +4,51 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
+  "installer registration uses the actual qualification SID hive without broker HKCU fallback",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_INSTALLER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'installer parse failure'}
+$function=$ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Assert-InstallerUserRegistration'
+if(@($function).Count -ne 1){throw 'missing registration ownership assertion'}
+Invoke-Expression $function.Extent.Text
+$base='Microsoft.PowerShell.Core\Registry::'
+$tail='\Software\Microsoft\Windows\CurrentVersion\Uninstall\Portcove'
+$sid='S-1-5-21-1-2-3-1002'
+Assert-InstallerUserRegistration ($base+'HKEY_CURRENT_USER'+$tail)
+Assert-InstallerUserRegistration ($base+'HKEY_USERS\'+$sid+$tail) $sid
+$refused=0
+foreach($wrong in @('HKEY_CURRENT_USER','HKEY_LOCAL_MACHINE',('HKEY_USERS\'+$sid+'0'),('HKEY_USERS\S-1-5-21-1-2-3-1001'))){
+  try{Assert-InstallerUserRegistration ($base+$wrong+$tail) $sid}catch{$refused++}
+}
+if($refused -ne 4){throw 'qualification hive ownership widened'}
+[ordered]@{positive_paths=2;refused_paths=$refused;scope='inert registry path assertions only'}|ConvertTo-Json -Compress
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_INSTALLER: fileURLToPath(
+          new URL("./test-windows-installer.ps1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      positive_paths: 2,
+      refused_paths: 4,
+      scope: "inert registry path assertions only",
+    });
+  },
+);
+
+void test(
   "profile keeper prepares its exact new working directory before requesting a launch",
   { skip: process.platform !== "win32" },
   () => {

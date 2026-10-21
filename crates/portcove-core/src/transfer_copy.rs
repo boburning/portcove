@@ -209,12 +209,16 @@ pub(crate) fn verify_destination(
     for relative in &expected_metadata.application_versions {
         let mut install = relative.clone();
         install.path = destination_root.join(&install.path);
-        let qualification = crate::InstallQualification::from_port(
-            catalogs
-                .catalog_for_install(relative)?
-                .port(&install.port_id)?,
-            platform,
+        let retained = catalogs
+            .catalog_for_install(relative)?
+            .port(&install.port_id)?;
+        // Transfer retains its historical catalog authority. Apply the same
+        // checked runtime interpretation as service operations, without using
+        // current catalog facts or changing any copied manifest bytes.
+        let interpreted = crate::installed_mutability::checked_port(
+            &installer, &install, retained, retained, platform,
         )?;
+        let qualification = crate::InstallQualification::from_port(&interpreted, platform)?;
         let report = installer.verify_managed(&install, &qualification)?;
         if !report.valid {
             return Err(PortcoveError::verification(

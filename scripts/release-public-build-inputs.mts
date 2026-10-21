@@ -292,5 +292,11 @@ async function main() {
   console.log(JSON.stringify(result.receipt));
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  await main();
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+    await main();
+}
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -85,6 +85,9 @@ const base = `repos/${repository}`;
 const hash = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 // A caller-supplied option/JSON field cannot activate qualifying acquisition.
 const qualifyingCollections = new WeakSet<object>();
+const aggregateCollections = new WeakSet<object>();
+const publicationCompletionCollections = new WeakSet<object>();
+const aggregateReadbacks = new WeakSet<object>();
 const acquiredCandidates = new WeakMap<object, Readonly<Record<string, unknown>>>();
 export interface ActualCandidateBuildingEligibility {
   stage: "candidate-building";
@@ -101,6 +104,7 @@ export interface ActualCandidateBuildingEligibility {
   sbom_receipt: object;
   public_build_inputs_receipt: object;
   pending_obligations: readonly string[];
+  aggregate_readback_only?: true;
 }
 const actualBuildingEligibility = new WeakMap<object, ActualCandidateBuildingEligibility>();
 /** Data-only stage association. Candidate building consumes pre-sign native
@@ -157,6 +161,31 @@ const actualAdmissionContexts = new WeakMap<
   object,
   { context: Readonly<ActualReleaseAdmissionContext>; phase: ReleaseControlPhase }
 >();
+const actualPublicationCompletionContexts = new WeakMap<
+  object,
+  Readonly<ActualReleaseAdmissionContext>
+>();
+/** The fixed publisher may reconstruct settled output after a promoting phase
+ * crash. This separate brand never enters the ordinary effect admission map. */
+export function requireActualPublicationControllerContext(raw: object) {
+  const completion = actualPublicationCompletionContexts.get(raw);
+  if (!completion)
+    return {
+      mode: "publication" as const,
+      context: requireActualReleaseAdmissionContext(raw, "release-publication"),
+    };
+  if (
+    completion.stage !== "release-publication" ||
+    completion.admission.decision !== "admitted" ||
+    completion.admission.holds.length ||
+    completion.admission.evidence_scope !== "github.com" ||
+    completion.controls.evidence_scope !== "github.com" ||
+    completion.facts.checkpoint !== completion.checkpoint
+  )
+    throw new Error("actual promoting readback context required");
+  requireAuthenticatedReleaseControlSource(completion.controls, "release-publication");
+  return { mode: "completion-only" as const, context: completion };
+}
 const acquiredSbomReceipts = new WeakMap<object, object>();
 const acquiredNativeReceipts = new WeakMap<object, readonly object[]>();
 const acquiredCoordinatorRepositories = new WeakMap<object, string>();
@@ -253,6 +282,10 @@ export async function acquireReleaseAdmission(
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
     compiler?: ReleaseCompilerAdmissionPrerequisite;
+    // Inert updater package custody only; full archive verification precedes it.
+    retainDesktopPackage?: NonNullable<
+      Parameters<typeof discoverReleaseArtifactFiles>[4]
+    >["retainDesktopPackage"];
     // Fixed caller obtains actual native Check receipts against these privately
     // acquired candidate facts. Serialized reports are never prerequisites.
     establishNative?: (
@@ -267,6 +300,8 @@ export async function acquireReleaseAdmission(
   } = {},
 ) {
   const qualifyingOnly = qualifyingCollections.has(rawOptions);
+  const aggregateResume = aggregateCollections.has(rawOptions);
+  const allowPublicationCompletion = publicationCompletionCollections.has(rawOptions);
   // Preserve actual/injected transport provenance and capability references
   // throughout asynchronous acquisition. A caller cannot clear an injected
   // option after collection to obtain a production context.
@@ -414,8 +449,16 @@ export async function acquireReleaseAdmission(
     const candidate = record(state.active_candidate);
     if (
       qualifyingOnly
-        ? candidate.phase !== "qualifying"
-        : !["building", "publishing"].includes(String(candidate.phase))
+        ? candidate.phase !== "qualifying" &&
+          !(
+            aggregateResume &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          )
+        : ![
+            "building",
+            "publishing",
+            ...(allowPublicationCompletion ? ["promoting"] : []),
+          ].includes(String(candidate.phase))
     )
       throw new Error("admission cannot revive an inactive or failed candidate");
     for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -659,13 +702,18 @@ export async function acquireReleaseAdmission(
           run_attempt: evidenceRequest.attempt,
           source_commit: active.prepared_commit,
         },
-        options.compiler
-          ? {
-              retainCliPackage: async (identity, bytes) => {
-                cliPackages.set(identity.filename, bytes);
-              },
-            }
-          : {},
+        {
+          ...(options.retainDesktopPackage
+            ? { retainDesktopPackage: options.retainDesktopPackage }
+            : {}),
+          ...(options.compiler
+            ? {
+                retainCliPackage: async (identity, bytes) => {
+                  cliPackages.set(identity.filename, bytes);
+                },
+              }
+            : {}),
+        },
       );
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
@@ -872,7 +920,24 @@ export async function acquireReleaseAdmission(
     }
     if (!capacitySource && !controlsBefore)
       holds.add("admitted-spending-boundary-source-unconfigured");
-    if (capacity.eligibility !== "eligible") holds.add("bounded-no-spend-attempt-ineligible");
+    const operation = isRecord(capacityInput.operation) ? capacityInput.operation : null;
+    const aggregatePendingReadback =
+      aggregateResume &&
+      candidate.phase === "building" &&
+      operation &&
+      operation.destination === "github-actions:boburning/portcove:admitted-aggregate" &&
+      operation.kind === "upload" &&
+      operation.receipt_limit === 1 &&
+      ["pending", "ambiguous", "capacity-refused"].includes(String(operation.outcome)) &&
+      isRecord(operation.executor_identity) &&
+      operation.executor_identity.role === "aggregate-assembly" &&
+      operation.aggregate_expectation !== undefined &&
+      assessBoundedCapacity({ ...capacityInput, operation: null }).eligibility === "eligible";
+    const aggregateReadback =
+      aggregatePendingReadback ||
+      (aggregateResume && ["publishing", "promoting"].includes(String(candidate.phase)));
+    if (capacity.eligibility !== "eligible" && !aggregatePendingReadback)
+      holds.add("bounded-no-spend-attempt-ineligible");
     if (!controlsBefore || !controlsAfter)
       holds.add(
         options.controls
@@ -1013,6 +1078,7 @@ export async function acquireReleaseAdmission(
       ) {
         acquiredCoordinatorRepositories.set(result, before.repository);
         acquiredCandidates.set(result, freezePreparedFacts(structuredClone(candidate)));
+        if (aggregateReadback) aggregateReadbacks.add(result);
       }
     }
     return result;
@@ -1055,12 +1121,22 @@ async function performAdmissionHandshake(
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
-  building?: { tools: object; namespace: string; receive: (proof: object) => Promise<void> },
+  building?: {
+    tools: object;
+    namespace: string;
+    receive: (proof: object) => Promise<void>;
+    aggregate?: true;
+  },
+  deadline?: number,
+  publicationCompletion = false,
 ) {
   const phase = inspectReleaseControlPhase(rawPhase);
   const env = { ...process.env };
   const workflow = await readProductionControllerWorkflowBytes();
-  const reader = await authenticateControlReaderJob(env, workflow, { phase });
+  const reader = await authenticateControlReaderJob(env, workflow, {
+    phase,
+    ...(deadline === undefined ? {} : { deadline }),
+  });
   if (building) {
     const tools = await verifiedControllerToolPaths(building.tools);
     if (
@@ -1089,16 +1165,25 @@ async function performAdmissionHandshake(
         JSON.stringify(prepareControlReadiness(reader.identity, readyDigest, phase)),
         { flag: "wx", mode: 0o600 },
       );
-      const observedArtifact = await waitForControlArtifact(root, "observation", {
-        phase,
-        controller_revision: reader.admitted.revision,
-        controller_ref: reader.admitted.execution_ref,
-        run_id: String(reader.admitted.run_id),
-        run_attempt: reader.admitted.run_attempt,
-      });
+      await (
+        await import("./release-control-step-bridge.mts")
+      ).retainControlStepLocator(path.join(root, `ready-${phase}.json`), phase, 0);
+      const observedArtifact = await waitForControlArtifact(
+        root,
+        "observation",
+        {
+          phase,
+          controller_revision: reader.admitted.revision,
+          controller_ref: reader.admitted.execution_ref,
+          run_id: String(reader.admitted.run_id),
+          run_attempt: reader.admitted.run_attempt,
+        },
+        deadline === undefined ? {} : { phaseDeadline: deadline },
+      );
       retained.controls = await authenticateReleaseControlSource(env, workflow, {
         phase,
         observedArtifact,
+        ...(deadline === undefined ? {} : { deadline }),
       });
       return retained.controls;
     },
@@ -1107,6 +1192,12 @@ async function performAdmissionHandshake(
     if (phase !== "admission" || onAdmitted)
       throw new Error("building eligibility is separate from payload/publication admission");
     qualifyingCollections.add(collection);
+    if (building.aggregate) aggregateCollections.add(collection);
+  }
+  if (publicationCompletion) {
+    if (phase !== "release-publication" || building || !onAdmitted || !compiler || !establishNative)
+      throw new Error("fixed publication completion prerequisites unavailable");
+    publicationCompletionCollections.add(collection);
   }
   const admission = await acquireReleaseAdmission(root, configuration, collection);
   // Native stage qualification is necessary but cannot clear unrelated holds.
@@ -1159,7 +1250,14 @@ async function performAdmissionHandshake(
       if (phase !== "admission" || admission.decision !== "eligible-for-candidate-building")
         throw new Error("actual qualifying eligibility target differs");
       const candidate = acquiredCandidates.get(admission);
-      if (!candidate || candidate.phase !== "qualifying")
+      if (
+        !candidate ||
+        (candidate.phase !== "qualifying" &&
+          !(
+            building.aggregate &&
+            ["building", "publishing", "promoting"].includes(String(candidate.phase))
+          ))
+      )
         throw new Error("actual qualifying candidate custody missing");
       const proof = Object.freeze({
         kind: "actual-candidate-building-eligibility",
@@ -1168,6 +1266,7 @@ async function performAdmissionHandshake(
       });
       actualBuildingEligibility.set(proof, {
         stage: "candidate-building",
+        ...(aggregateReadbacks.has(admission) ? { aggregate_readback_only: true as const } : {}),
         repository: coordinatorRepository,
         checkpoint: admission.checkpoint,
         candidate,
@@ -1200,7 +1299,10 @@ async function performAdmissionHandshake(
       public_build_inputs_receipt: publicInputs,
       pending_obligations: Object.freeze([...admission.pending_obligations]),
     });
-    actualAdmissionContexts.set(context, { context, phase });
+    const candidate = acquiredCandidates.get(admission);
+    if (publicationCompletion && candidate?.phase === "promoting")
+      actualPublicationCompletionContexts.set(context, context);
+    else actualAdmissionContexts.set(context, { context, phase });
     await onAdmitted!(context);
   }
   return admission;
@@ -1218,6 +1320,7 @@ export function acquireReleaseAdmissionWithControlHandshake(
   onAdmitted?: (context: Readonly<ActualReleaseAdmissionContext>) => Promise<void>,
   compiler?: ReleaseCompilerAdmissionPrerequisite,
   establishNative?: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline?: number,
 ) {
   return performAdmissionHandshake(
     root,
@@ -1227,16 +1330,54 @@ export function acquireReleaseAdmissionWithControlHandshake(
     onAdmitted,
     compiler,
     establishNative,
+    undefined,
+    deadline,
+  );
+}
+
+/** Fixed Release caller only. Promoting acquisition yields the distinct
+ * readback-only brand above, never a publication/signing/aggregate capability. */
+export function acquirePublicationControllerAdmission(
+  root: string,
+  configuration: unknown,
+  onAdmitted: NonNullable<Parameters<typeof acquireReleaseAdmissionWithControlHandshake>[4]>,
+  compiler: ReleaseCompilerAdmissionPrerequisite,
+  establishNative: NonNullable<Parameters<typeof acquireReleaseAdmission>[2]>["establishNative"],
+  deadline: number,
+) {
+  return performAdmissionHandshake(
+    root,
+    configuration,
+    "release-publication",
+    undefined,
+    onAdmitted,
+    compiler,
+    establishNative,
+    undefined,
+    deadline,
+    true,
   );
 }
 
 /** Read-only qualifying evidence under the fixed independent reader. It neither
  * advances the candidate nor creates payload/publication admission. */
 export async function acquireActualCandidateBuildingEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args);
+}
+export async function acquireActualAdmittedAggregateEligibility(
+  ...args: [root: string, configuration: unknown, tools: object, native: unknown, deadline?: number]
+) {
+  return acquireBuildingEligibility(...args, true);
+}
+async function acquireBuildingEligibility(
   root: string,
   rawConfiguration: unknown,
   controllerTools: object,
   rawNativeLocators: unknown,
+  deadline?: number,
+  aggregate?: true,
 ) {
   const capturedConfiguration: unknown = structuredClone(rawConfiguration),
     nativeLocators: unknown = structuredClone(rawNativeLocators);
@@ -1282,10 +1423,12 @@ export async function acquireActualCandidateBuildingEligibility(
     {
       tools: controllerTools,
       namespace: authorities.namespace,
+      ...(aggregate ? { aggregate } : {}),
       receive: async (actual) => {
         proof = actual;
       },
     },
+    deadline,
   );
   return (
     proof ??
@@ -1301,6 +1444,14 @@ export async function acquireActualCandidateBuildingEligibility(
 /** Exact private proof for the separate durable phase writer. A caller cannot
  * import a successful report, change a hold or reinterpret payload admission. */
 export async function requireActualCandidateBuildingEligibility(receipt: object) {
+  if (actualBuildingEligibility.get(receipt)?.aggregate_readback_only)
+    throw new Error("aggregate readback proof cannot authorize candidate building");
+  return requireAdmittedAggregateEligibility(receipt);
+}
+export async function requireActualAdmittedAggregateEligibility(receipt: object) {
+  return requireAdmittedAggregateEligibility(receipt);
+}
+async function requireAdmittedAggregateEligibility(receipt: object) {
   const actual = actualBuildingEligibility.get(receipt);
   if (!actual) throw new Error("actual same-process candidate building eligibility required");
   requireAuthenticatedReleaseControlSource(actual.controls, "admission");
@@ -1318,6 +1469,110 @@ export async function requireActualCandidateBuildingEligibility(receipt: object)
     ...actual,
     candidate: freezePreparedFacts(structuredClone(actual.candidate)),
   });
+}
+
+/** Complete fixed admission caller. Actual tools, native pair, independent
+ * controls and the same-process phase writer precede any aggregate locator. */
+export async function runFixedBuildingConfiguration(raw: unknown, root: string, deadline: number) {
+  const { withCoordinatorDeadline } = await import("./release-coordinator-deadline.mts");
+  return withCoordinatorDeadline(deadline, async () => {
+    if (
+      !isRecord(raw) ||
+      Object.keys(raw).sort().join(",") !== "configuration,native_locators,tools" ||
+      !isRecord(raw.tools) ||
+      Object.keys(raw.tools).sort().join(",") !== "artifact,bundle" ||
+      !isRecord(raw.tools.artifact) ||
+      !isRecord(raw.tools.bundle) ||
+      !path.isAbsolute(root)
+    )
+      throw new Error("fixed building admission caller fields differ");
+    await requireControllerReleaseAuthorities("admission");
+    const { receiveControllerTools } = await import("./release-controller-tool-admission.mts");
+    const tools = await receiveControllerTools(
+      root,
+      raw.tools.artifact as unknown as Parameters<typeof receiveControllerTools>[1],
+      raw.tools.bundle as unknown as Parameters<typeof receiveControllerTools>[2],
+      { deadline },
+    );
+    const eligibility = await acquireActualCandidateBuildingEligibility(
+      root,
+      raw.configuration,
+      tools,
+      raw.native_locators,
+      deadline,
+    );
+    const admitted = await requireActualCandidateBuildingEligibility(eligibility);
+    const { advanceActualCandidateToBuilding, requireActualCandidatePhaseAdvance } =
+      await import("./release-candidate-progress.mts");
+    const advanced = await advanceActualCandidateToBuilding(eligibility, { deadline });
+    const actual = await requireActualCandidatePhaseAdvance(advanced, "building");
+    const { aggregateEvidenceRequestFromObservation } =
+      await import("./production-aggregate-steps.mts");
+    const descriptor = {
+      schema_version: 1,
+      checkpoint: actual.checkpoint,
+      coordinator: { schema_version: 1, namespace: actual.namespace },
+      assembly: admitted.facts.assembly,
+      archives: admitted.facts.archives,
+      evidence: aggregateEvidenceRequestFromObservation(admitted.facts.evidence),
+    };
+    const encoded = JSON.stringify(descriptor);
+    const { requireReservedAggregate } = await import("./production-aggregate-steps.mts");
+    const { readRemoteCoordinatorSnapshot } = await import("./release-coordinator-recovery.mts");
+    await requireReservedAggregate(
+      encoded,
+      await readRemoteCoordinatorSnapshot(root, descriptor.coordinator, {
+        transport: { cwd: root, deadline },
+      }),
+    );
+    if (Buffer.byteLength(encoded) > 65536)
+      throw new Error("actual building descriptor exceeds output bound");
+    await requireActualCandidatePhaseAdvance(advanced, "building");
+    return Object.freeze({
+      decision: "candidate-building-admitted",
+      descriptor,
+      authority: "none",
+    });
+  });
+}
+async function runBuildingCli() {
+  if (
+    process.argv.length !== 3 ||
+    process.argv[2] !== "--building" ||
+    !process.env.RUNNER_TEMP ||
+    !process.env.GITHUB_OUTPUT
+  )
+    throw new Error("fixed building caller channels required");
+  const authorities = await requireControllerReleaseAuthorities("admission");
+  const raw = process.env.PORTCOVE_FIXED_BUILDING_CONFIGURATION;
+  if (!raw || Buffer.byteLength(raw) > 65536)
+    throw new Error("bounded fixed building configuration required");
+  const { currentBuildingJobDeadline } = await import("./release-signing-job-budget.mts");
+  const deadline = currentBuildingJobDeadline(
+    {
+      run_id: process.env.GITHUB_RUN_ID ?? "",
+      run_attempt: 1,
+      controller_revision: process.env.PORTCOVE_CONTROLLER_REVISION ?? "",
+      controller_ref: process.env.PORTCOVE_CONTROLLER_REF ?? "",
+    },
+    process.cwd(),
+    performance.now() + 405000,
+  );
+  const selected: unknown = JSON.parse(raw);
+  if (
+    !isRecord(selected) ||
+    !isRecord(selected.configuration) ||
+    selected.configuration.namespace !== authorities.namespace
+  )
+    throw new Error("fixed building namespace differs from ratified authority");
+  const result = await runFixedBuildingConfiguration(selected, process.env.RUNNER_TEMP, deadline);
+  const { appendFile } = await import("node:fs/promises");
+  await appendFile(process.env.GITHUB_OUTPUT, `descriptor=${JSON.stringify(result.descriptor)}\n`);
+  await writeFile(
+    path.join(process.env.RUNNER_TEMP, "building-admission-result.json"),
+    JSON.stringify(result),
+    { flag: "wx", mode: 0o600 },
+  );
 }
 
 async function main() {
@@ -1378,19 +1633,25 @@ async function main() {
   );
   process.exitCode = 2;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main().catch(() => {
-    console.error(
-      "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
-    );
-    process.exitCode = 2;
-  });
-  if (process.argv[2] === "--handshake" && process.env.RUNNER_TEMP)
-    await writeFile(
-      path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
-      JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
-      { flag: "wx", mode: 0o600 },
-    ).catch(() => {
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    await (process.argv[2] === "--building" ? runBuildingCli() : main()).catch(() => {
+      console.error(
+        "independent release admission refused; retain owned acquisition evidence; no descriptor or mutation emitted",
+      );
       process.exitCode = 2;
     });
+    if (["--handshake", "--building"].includes(process.argv[2] ?? "") && process.env.RUNNER_TEMP)
+      await writeFile(
+        path.join(process.env.RUNNER_TEMP, "release-admission-process-ended.json"),
+        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+        { flag: "wx", mode: 0o600 },
+      ).catch(() => {
+        process.exitCode = 2;
+      });
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

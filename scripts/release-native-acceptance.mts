@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { isDeepStrictEqual } from "node:util";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import type { GitHubRestReader } from "./github-api.mts";
@@ -11,13 +12,19 @@ import { isRecord } from "./runtime-values.mts";
 import {
   inspectNativeReleaseQualification,
   nativeQualificationCheckName,
+  nativePrepublicationProfile,
+  inspectNativeQualificationJourney,
+  inspectNativeQualificationCandidate,
+  inspectNativeQualificationHarnessPath,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
 
 const repository = "repos/boburning/portcove";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export type NativeQualificationExpectation = {
-  schema_version: 1;
+  schema_version: 1 | 2;
+  native_prepublication_profile?: typeof nativePrepublicationProfile;
   check_id: number;
   native_app_id: number;
   semantic_app_id: number;
@@ -35,6 +42,12 @@ export type NativeQualificationExpectation = {
   compatibility: NativeReleaseQualification["compatibility"];
   journey: NativeReleaseQualification["journey"];
 };
+export type NativeQualificationTemplate = Omit<
+  NativeQualificationExpectation,
+  "check_id" | "producer"
+> & {
+  producer: Omit<NativeQualificationExpectation["producer"], "invocation_id">;
+};
 type BoundReceipt = {
   directory: string;
   files: { path: string; bytes: number; sha256: string }[];
@@ -43,6 +56,7 @@ type BoundReceipt = {
   check_identity: unknown;
   suite_identity: unknown;
   get: (route: string) => unknown;
+  active: () => void;
 };
 const qualifications = new WeakMap<object, BoundReceipt>();
 export type VerifiedNativeReleaseQualification = Readonly<
@@ -78,27 +92,33 @@ function version(value: unknown): bigint[] {
     throw new Error("observed native engine version is unavailable");
   return value.split(".").map((part) => BigInt(part));
 }
-export function inspectNativeQualificationExpectation(
-  raw: unknown,
-): NativeQualificationExpectation {
+function inspectNativeExpectation(raw: unknown, locator: boolean) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage",
+    (isRecord(value) && value.schema_version === 2
+      ? "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,native_prepublication_profile,platform_label,producer,schema_version,semantic_app_id,stage"
+      : "candidate,check_id,classification_app_id,compatibility,host,journey,native_app_id,platform_label,producer,schema_version,semantic_app_id,stage"
+    )
+      .split(",")
+      .filter((key) => locator || key !== "check_id")
+      .join(","),
   );
   if (
     Buffer.byteLength(JSON.stringify(value)) > 16 * 1024 ||
-    value.schema_version !== 1 ||
+    (value.schema_version !== 1 && value.schema_version !== 2) ||
     !["payload-signing", "release-publication"].includes(String(value.stage)) ||
     !["windows-x86_64", "linux-x86_64"].includes(String(value.platform_label))
   )
     throw new Error("native qualification expected stage/platform is invalid");
-  for (const key of [
-    "check_id",
-    "native_app_id",
-    "semantic_app_id",
-    "classification_app_id",
-  ] as const)
+  if (
+    value.schema_version === 2 &&
+    (value.stage !== "release-publication" ||
+      value.native_prepublication_profile !== nativePrepublicationProfile)
+  )
+    throw new Error("native expected ratified prepublication profile differs");
+  if (locator) positive(value.check_id);
+  for (const key of ["native_app_id", "semantic_app_id", "classification_app_id"] as const)
     positive(value[key]);
   if (
     new Set([value.native_app_id, value.semantic_app_id, value.classification_app_id, 15368])
@@ -124,21 +144,30 @@ export function inspectNativeQualificationExpectation(
       throw new Error("native candidate path is unsafe");
   };
   candidate(value.candidate);
-  exact(value.producer, "harness,invocation_id,source_commit,source_tree");
-  digest(value.producer.invocation_id);
+  exact(
+    value.producer,
+    locator
+      ? "harness,invocation_id,source_commit,source_tree"
+      : "harness,source_commit,source_tree",
+  );
+  if (locator) digest(value.producer.invocation_id);
   digest(value.producer.source_commit, 40);
   digest(value.producer.source_tree, 40);
   exact(value.producer.harness, "path,sha256");
   digest(value.producer.harness.sha256);
   bounded(value.producer.harness.path, 192);
-  if (!/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(value.producer.harness.path))
-    throw new Error("native expected harness is unsafe");
+  inspectNativeQualificationHarnessPath(value.producer.harness.path);
   exact(value.host, "account,engine,machine_id_sha256,minimum_platform,qualification_profile");
   digest(value.host.machine_id_sha256);
   bounded(value.host.minimum_platform, 128);
   bounded(value.host.qualification_profile, 128);
-  exact(value.host.account, "broker,kind,qualification");
-  for (const part of Object.values(value.host.account)) bounded(part, 184);
+  const expectedAccount = inspectNativeQualificationAccount(value.host.account);
+  if (
+    value.platform_label === "windows-x86_64"
+      ? expectedAccount.kind !== "windows-sid"
+      : !["linux-uid", "windows-wsl-uid"].includes(expectedAccount.kind)
+  )
+    throw new Error("native expected platform/account identity differs");
   exact(value.host.engine, "minimum_version,name");
   bounded(value.host.engine.name, 64);
   version(value.host.engine.minimum_version);
@@ -175,23 +204,33 @@ export function inspectNativeQualificationExpectation(
   range(value.compatibility.library.read);
   positive(value.compatibility.library.write_schema);
   bounded(value.compatibility.library.lock_protocol, 128);
-  if (value.stage === "payload-signing") {
-    if (value.journey !== null)
-      throw new Error("native pre-sign expectation cannot import a signed journey");
-  } else {
-    exact(value.journey, "predecessor,signatures_sha256,signed_context_sha256");
-    candidate(value.journey.predecessor);
-    digest(value.journey.signatures_sha256);
-    digest(value.journey.signed_context_sha256);
-  }
+  inspectNativeQualificationJourney(
+    value.journey,
+    value.stage as NativeReleaseQualification["stage"],
+    inspectNativeQualificationCandidate(value.candidate),
+    value.schema_version === 2,
+  );
   // Every member is explicitly validated above; the actual report inspector
   // additionally validates the complete observed fields before any receipt.
-  return value as unknown as NativeQualificationExpectation;
+  return value;
+}
+export function inspectNativeQualificationExpectation(
+  raw: unknown,
+): NativeQualificationExpectation {
+  return inspectNativeExpectation(raw, true) as unknown as NativeQualificationExpectation;
+}
+/** Integrity-only fixed inputs; no dynamic Check/invocation identity or acceptance. */
+export function inspectNativeQualificationTemplate(raw: unknown): NativeQualificationTemplate {
+  return inspectNativeExpectation(raw, false) as unknown as NativeQualificationTemplate;
 }
 export function prepareNativeQualificationCheck(raw: unknown) {
   const report = inspectNativeReleaseQualification(raw),
     reportSha = releaseCanonicalDigest(report);
-  const summary = JSON.stringify({ schema_version: 1, report_sha256: reportSha, report });
+  const summary = JSON.stringify({
+    schema_version: report.schema_version,
+    report_sha256: reportSha,
+    report,
+  });
   if (Buffer.byteLength(summary) > 64 * 1024) throw new Error("native Check summary exceeds bound");
   return {
     report,
@@ -200,7 +239,7 @@ export function prepareNativeQualificationCheck(raw: unknown) {
     body: {
       name: nativeQualificationCheckName,
       head_sha: report.candidate.source_commit,
-      external_id: `portcove-native-qualification-v1:${reportSha}`,
+      external_id: `portcove-native-qualification-v${report.schema_version}:${reportSha}`,
       status: "completed",
       conclusion: "success",
       // Checks' documented wire format has whole UTC seconds. The full native
@@ -253,7 +292,7 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   const report = inspectNativeReleaseQualification(summary.report),
     prepared = prepareNativeQualificationCheck(report);
   if (
-    summary.schema_version !== 1 ||
+    summary.schema_version !== report.schema_version ||
     summary.report_sha256 !== releaseCanonicalDigest(report) ||
     raw.external_id !== prepared.body.external_id ||
     typeof raw.started_at !== "string" ||
@@ -271,6 +310,8 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   };
   const { engine, ...expectedHost } = expected.host;
   if (
+    report.schema_version !== expected.schema_version ||
+    report.native_prepublication_profile !== expected.native_prepublication_profile ||
     report.stage !== expected.stage ||
     report.platform_label !== expected.platform_label ||
     !isDeepStrictEqual(report.candidate, expected.candidate) ||
@@ -305,6 +346,14 @@ function checkIdentity(raw: unknown, expected: NativeQualificationExpectation) {
   };
 }
 
+/** Integrity-only Check wire inspection. No provider/native receipt is minted. */
+export function inspectNativeQualificationCheck(raw: unknown, expected: unknown) {
+  return {
+    ...checkIdentity(raw, inspectNativeQualificationExpectation(expected)),
+    authority: "none" as const,
+  };
+}
+
 /** Read-only actual-provider collection. Injected boundaries exercise the same
  * checks and retained bytes but never receive a native acceptance brand. */
 export async function collectNativeReleaseQualification(
@@ -313,10 +362,20 @@ export async function collectNativeReleaseQualification(
   options: {
     api?: GitHubRestReader;
     spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+    deadline?: number;
   } = {},
 ) {
   const injectedApi = options.api,
-    injectedSpawn = options.spawn;
+    injectedSpawn = options.spawn,
+    deadline = options.deadline;
+  const remaining = () => {
+    if (deadline === undefined) return 15000;
+    const left = Math.floor(deadline - performance.now());
+    if (!Number.isFinite(deadline) || left < 1)
+      throw new Error("native qualification phase deadline exhausted");
+    return Math.min(15000, left);
+  };
+  remaining();
   const injected = injectedApi !== undefined || injectedSpawn !== undefined;
   const expected = inspectNativeQualificationExpectation(rawExpected);
   if (!path.isAbsolute(outputParent))
@@ -340,30 +399,40 @@ export async function collectNativeReleaseQualification(
     timeoutMs: 15000,
     maxBuffer: 512 * 1024,
     spawn: (command, args, settings) =>
-      (injectedSpawn ?? spawnSync)(command, args, { ...settings, env: environment }),
+      (injectedSpawn ?? spawnSync)(command, args, {
+        ...settings,
+        timeout: remaining(),
+        env: environment,
+      }),
   });
   const api =
     injectedApi ??
     new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const get = (route: string) => {
+    remaining();
     if (
-      !/^check-runs\/[1-9][0-9]*$|^check-suites\/[1-9][0-9]*$|^git\/commits\/[a-f0-9]{40}$|^contents\/scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1\?ref=[a-f0-9]{40}$/u.test(
+      route !==
+        `contents/${expected.producer.harness.path}?ref=${expected.producer.source_commit}` &&
+      !/^check-runs\/[1-9][0-9]*$|^check-suites\/[1-9][0-9]*$|^git\/commits\/[a-f0-9]{40}$/u.test(
         route,
       )
     )
       throw new Error("native provider route is outside fixed read-only inputs");
     const response = api.request("GET", `${repository}/${route}`);
+    remaining();
     if (response.status !== 200 || Buffer.byteLength(JSON.stringify(response.body)) > 512 * 1024)
       throw new Error("native provider readback is unavailable or oversized");
     return structuredClone(response.body);
   };
   const files: BoundReceipt["files"] = [];
   const retainBytes = async (name: string, bytes: Buffer) => {
+    remaining();
     if (bytes.length < 1 || bytes.length > 512 * 1024)
       throw new Error("native retained proof exceeds bound");
     const filename = path.join(directory, name);
     await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
     files.push({ path: filename, bytes: bytes.length, sha256: hash(bytes) });
+    remaining();
   };
   const retain = (name: string, value: unknown) =>
     retainBytes(name, Buffer.from(JSON.stringify(value)));
@@ -456,6 +525,9 @@ export async function collectNativeReleaseQualification(
         check_identity: check,
         suite_identity: suite,
         get,
+        active: () => {
+          remaining();
+        },
       });
     return receipt;
   } catch {
@@ -474,10 +546,12 @@ export async function verifiedNativeReleaseQualification(
   const bound = qualifications.get(receipt);
   if (!bound)
     throw new Error("native qualification was not authenticated by this actual provider process");
+  bound.active();
   for (const file of bound.files) {
     const bytes = await readControllerToolFile(file.path, 512 * 1024);
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("native retained proof changed");
+    bound.active();
   }
   const check = checkIdentity(bound.get(`check-runs/${bound.expected.check_id}`), bound.expected);
   const suite = suiteIdentity(bound.get(`check-suites/${check.suite_id}`), bound.expected);
@@ -507,5 +581,6 @@ export async function verifiedNativeReleaseQualification(
     }
   };
   freeze(result);
+  bound.active();
   return result;
 }

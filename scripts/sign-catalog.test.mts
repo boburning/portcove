@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, generateKeyPairSync, verify } from "node:crypto";
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -19,8 +26,8 @@ function fixture() {
   const output = path.join(root, "envelope.json");
   writeFileSync(key, privateKey.export({ format: "pem", type: "pkcs8" }));
   writeFileSync(catalog, '{"fixture":"opaque publisher input"}');
-  const run = (args: readonly string[] = []) =>
-    spawnSync(
+  const run = (args: readonly string[] = []) => {
+    const result = spawnSync(
       process.execPath,
       [
         tool,
@@ -40,7 +47,10 @@ function fixture() {
       ],
       { cwd: root, encoding: "utf8", timeout: 10_000, windowsHide: true },
     );
-  return { root, key, catalog, output, publicKey, run };
+    assert.ifError(result.error);
+    return result;
+  };
+  return { root, tool, key, catalog, output, publicKey, run };
 }
 function object(value: unknown) {
   assert.ok(isRecord(value));
@@ -98,34 +108,141 @@ void test("offline catalog signer preserves exact signed bytes and refuses overw
   assert.deepEqual(readFileSync(item.output), bytes);
 });
 
-void test("offline catalog signer refuses invalid bounds, input and key algorithms", (t) => {
+void test("offline catalog signer help succeeds without reading inputs or writing output", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
-  for (const args of [
-    ["--sequence", "0"],
-    ["--sequence", "NaN"],
-    ["--expires-at", "100"],
-    ["--expires-at", String(101 + 366 * 86400)],
-  ]) {
-    const result = item.run(args);
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /positive safe integer sequence and Unix-second validity/u);
-    assert.equal(result.stdout, "");
-  }
-  writeFileSync(item.catalog, "{");
-  assert.notEqual(item.run().status, 0);
-  writeFileSync(item.catalog, Buffer.alloc(4 * 1024 * 1024 + 1));
-  assert.match(item.run().stderr, /bounded regular file/u);
-  assert.match(item.run(["--catalog", item.root]).stderr, /bounded regular file/u);
-  writeFileSync(item.catalog, "{}");
-  const wrong = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
-  writeFileSync(item.key, wrong.privateKey.export({ format: "pem", type: "pkcs8" }));
-  assert.match(item.run().stderr, /Ed25519 private key is required/u);
-  const missing = spawnSync(process.execPath, [path.join(item.root, "sign-catalog.mts")], {
+  const help = spawnSync(process.execPath, [item.tool, "--help"], {
+    cwd: item.root,
     encoding: "utf8",
     timeout: 10_000,
     windowsHide: true,
   });
+  assert.ifError(help.error);
+  assert.equal(help.status, 0, help.stderr);
+  assert.equal(help.stderr, "");
+  assert.match(help.stdout, /^Usage: node scripts\/sign-catalog\.mts/mu);
+  assert.match(help.stdout, /Example:/u);
+  for (const option of [
+    "--catalog",
+    "--key",
+    "--output",
+    "--sequence",
+    "--issued-at",
+    "--expires-at",
+  ])
+    assert.ok(help.stdout.includes(option), `Missing help for ${option}`);
+  assert.equal(existsSync(item.output), false);
+
+  writeFileSync(item.output, "Preserve the existing output.");
+  const result = item.run([
+    "--help",
+    "--key",
+    path.join(item.root, "missing-key.pem"),
+    "--catalog",
+    path.join(item.root, "missing-catalog.json"),
+    "--sequence",
+    "invalid",
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.stdout, help.stdout);
+  assert.equal(readFileSync(item.output, "utf8"), "Preserve the existing output.");
+});
+
+void test("offline catalog signer identifies invalid numeric arguments and their limits", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  for (const { args, message } of [
+    { args: ["--sequence", "0"], message: /--sequence.*positive safe integer.*received "0"/u },
+    { args: ["--sequence", "NaN"], message: /--sequence.*positive safe integer.*received "NaN"/u },
+    {
+      args: ["--sequence", "9007199254740992"],
+      message: /--sequence.*9007199254740991.*received "9007199254740992"/u,
+    },
+    { args: ["--issued-at=-1"], message: /--issued-at.*nonnegative safe integer.*received "-1"/u },
+    { args: ["--issued-at", "NaN"], message: /--issued-at.*Unix seconds.*received "NaN"/u },
+    { args: ["--expires-at", "NaN"], message: /--expires-at.*Unix seconds.*received "NaN"/u },
+    {
+      args: ["--expires-at", "100"],
+      message: /--expires-at.*greater than --issued-at \(100\).*received "100"/u,
+    },
+    {
+      args: ["--expires-at", String(101 + 366 * 86400)],
+      message: /at most 366 days \(31622400 seconds\).*received 31622401 seconds/u,
+    },
+  ]) {
+    const result = item.run(args);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, message);
+    assert.equal(result.stdout, "");
+    assert.equal(existsSync(item.output), false);
+  }
+
+  const missing = spawnSync(process.execPath, [item.tool], {
+    encoding: "utf8",
+    timeout: 10_000,
+    windowsHide: true,
+  });
+  assert.ifError(missing.error);
   assert.notEqual(missing.status, 0);
-  assert.match(missing.stderr, /--catalog is required/u);
+  assert.match(missing.stderr, /--catalog is required.*--help/u);
+  assert.equal(missing.stdout, "");
+});
+
+void test("offline catalog signer reports input limits without exposing input contents", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const privateKey = readFileSync(item.key);
+  const refuses = (args: readonly string[], message: RegExp) => {
+    const result = item.run(args);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, message);
+    assert.equal(result.stdout, "");
+    assert.doesNotMatch(result.stderr, /PRIVATE_INPUT_CANARY/u);
+    assert.equal(existsSync(item.output), false);
+  };
+  writeFileSync(item.key, Buffer.alloc(65537, "PRIVATE_INPUT_CANARY"));
+  refuses([], /--key.*65536-byte read limit.*received 65537 bytes/u);
+  writeFileSync(item.key, privateKey);
+  writeFileSync(item.catalog, "{");
+  refuses([], /SyntaxError/u);
+  writeFileSync(item.catalog, Buffer.alloc(4194305, "PRIVATE_INPUT_CANARY"));
+  refuses([], /--catalog.*4194304-byte read limit.*received 4194305 bytes/u);
+  refuses(["--catalog", item.root], /--catalog.*regular file.*directory.*4194304 bytes/u);
+  writeFileSync(item.catalog, "{}");
+  const wrong = generateKeyPairSync("ec", { namedCurve: "prime256v1" });
+  writeFileSync(item.key, wrong.privateKey.export({ format: "pem", type: "pkcs8" }));
+  refuses([], /--key.*Ed25519 private key.*received ec/u);
+});
+
+void test("offline catalog signer retains numeric coercion and the inclusive validity limit", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const result = item.run([
+    "--sequence",
+    "0x1",
+    "--issued-at",
+    "1e2",
+    "--expires-at",
+    String(100 + 366 * 86400),
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const envelope = object(JSON.parse(readFileSync(item.output, "utf8")));
+  const payload = object(JSON.parse(text(envelope.payload)));
+  assert.equal(payload.sequence, 1);
+  assert.equal(payload.issued_at, 100);
+  assert.equal(payload.expires_at, 100 + 366 * 86400);
+});
+
+void test("offline catalog signer reports the independent escaped-envelope limit", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const catalog = JSON.stringify({ fixture: '"'.repeat(1100000) });
+  assert.ok(Buffer.byteLength(catalog) < 4194304);
+  writeFileSync(item.catalog, catalog);
+  const result = item.run();
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /envelope.*4194304-byte.*received \d+ bytes after JSON escaping/u);
+  assert.equal(result.stdout, "");
+  assert.equal(existsSync(item.output), false);
 });

@@ -4,6 +4,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmod, lstat, mkdir, realpath, rmdir, unlink } from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 
@@ -138,7 +139,13 @@ export async function receiveIsolatedRoleKey<T>(
       });
       server.once("error", fail);
       server.listen(socketPath, () => {
-        void chmod(socketPath, 0o600).catch(fail);
+        void (async () => {
+          await chmod(socketPath, 0o600);
+          if (process.env.RUNNER_TEMP && process.env.PORTCOVE_JOB_OPERATION) {
+            const { retainControllerRoleKey } = await import("./release-controller-transport.mts");
+            await retainControllerRoleKey(process.env.RUNNER_TEMP, selected, directory);
+          }
+        })().catch(fail);
       });
     });
   } finally {
@@ -156,6 +163,7 @@ export async function supplyIsolatedRoleKey(
   directory: string,
   rawRole: IsolatedSigningRole,
   environment: NodeJS.ProcessEnv = process.env,
+  phaseDeadline?: number,
 ) {
   const selected = role(rawRole),
     socketPath = address(directory);
@@ -175,7 +183,12 @@ export async function supplyIsolatedRoleKey(
   )
     throw new Error("role key channel ownership differs");
   const socket = net.createConnection({ path: socketPath, allowHalfOpen: true });
-  const timer = setTimeout(() => socket.destroy(new Error("role key client deadline")), 600_000);
+  const left = phaseDeadline === undefined ? 600000 : Math.floor(phaseDeadline - performance.now());
+  if (!Number.isFinite(left) || left < 1 || left > 600000) {
+    socket.destroy();
+    throw new Error("original role key client deadline exhausted");
+  }
+  const timer = setTimeout(() => socket.destroy(new Error("role key client deadline")), left);
   try {
     await new Promise<void>((resolve, reject) => {
       let buffer: Buffer = Buffer.alloc(0);
@@ -183,6 +196,8 @@ export async function supplyIsolatedRoleKey(
       socket.once("error", () => reject(new Error("isolated role key handoff refused")));
       socket.on("data", (chunk: Buffer) => {
         try {
+          if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
+            throw new Error("original role key client deadline exhausted");
           if (buffer.length + chunk.length > 4096)
             throw new Error("role worker response exceeds bound");
           buffer = Buffer.concat([buffer, chunk]);
@@ -237,13 +252,23 @@ export async function supplyIsolatedRoleKey(
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv.length !== 4)
-      throw new Error("fixed role and private socket directory required");
-    await supplyIsolatedRoleKey(process.argv[3]!, role(process.argv[2]));
-  } catch {
-    console.error("isolated role key handoff refused; no credential diagnostic retained");
-    process.exitCode = 1;
+async function settleDirectCli() {
+  if (
+    process.argv[1] &&
+    /^release-role-key-channel[.](?:mts|mjs|bundle[.]mjs)$/u.test(path.basename(process.argv[1])) &&
+    path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+  ) {
+    try {
+      if (process.argv.length !== 4)
+        throw new Error("fixed role and private socket directory required");
+      await supplyIsolatedRoleKey(process.argv[3]!, role(process.argv[2]));
+    } catch {
+      console.error("isolated role key handoff refused; no credential diagnostic retained");
+      process.exitCode = 1;
+    }
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

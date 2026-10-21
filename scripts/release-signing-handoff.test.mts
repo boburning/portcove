@@ -7,7 +7,10 @@ import test from "node:test";
 import type { TestContext } from "node:test";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
-import { readSigningOutputArtifact } from "./release-signing-handoff.mts";
+import {
+  readSigningOutputArtifact,
+  inspectSigningOutputArchive,
+} from "./release-signing-handoff.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { performance } from "node:perf_hooks";
 import { isRecord } from "./runtime-values.mts";
@@ -123,6 +126,58 @@ void test("exact immutable signing output brackets numeric producer identity and
   assert.equal(result.producer.job_id, 501);
   assert.equal(result.producer.check_run_id, "777");
   assert.ok((await readFile(path.join(f.directory, "signing-output.zip"))).equals(f.archive));
+});
+void test("downstream completed producer custody retains successful numeric job even when later workflow failed", async (t) => {
+  const f = await fixture(t);
+  Object.assign(f.job, { status: "completed", conclusion: "success" });
+  Object.assign(f.run, { status: "completed", conclusion: "failure" });
+  const result = await readSigningOutputArtifact(f.directory, f.expected, {
+    ...f.options,
+    producerState: "completed",
+  });
+  assert.equal(result.authority, "none");
+  assert.equal(result.evidence_scope, "injected-provider");
+  assert.equal(result.producer.job_id, 501);
+  assert.equal(f.calls.length, 6);
+  for (const change of [
+    (value: typeof f) => Object.assign(value.job, { status: "in_progress", conclusion: null }),
+    (value: typeof f) => Object.assign(value.job, { status: "completed", conclusion: "failure" }),
+    (value: typeof f) => {
+      value.job.check_run_url += "0";
+    },
+    (value: typeof f) => {
+      value.job.run_attempt++;
+    },
+    (value: typeof f) => Object.assign(value.run, { status: "completed", conclusion: null }),
+  ]) {
+    const failed = await fixture(t);
+    Object.assign(failed.job, { status: "completed", conclusion: "success" });
+    change(failed);
+    await assert.rejects(
+      readSigningOutputArtifact(failed.directory, failed.expected, {
+        ...failed.options,
+        producerState: "completed",
+      }),
+    );
+    assert.equal(failed.downloads(), 0);
+  }
+});
+void test("shared signing ZIP parser detaches exact complete bounded bytes and provides no trust result", () => {
+  const content = Buffer.from("inert public role envelope"),
+    archive = createAuditZip([["releases.json", content]]);
+  const files = [{ filename: "releases.json", bytes: content.length, sha256: hash(content) }];
+  const parsed = inspectSigningOutputArchive(archive, files);
+  archive.fill(0);
+  content.fill(0);
+  files[0]!.sha256 = "0".repeat(64);
+  assert.equal(parsed.get("releases.json")?.toString(), "inert public role envelope");
+  assert.equal(Object.hasOwn(parsed, "authority"), false);
+  assert.throws(() => inspectSigningOutputArchive(Buffer.alloc(2 * 1024 * 1024 + 1), []));
+  assert.throws(() =>
+    inspectSigningOutputArchive(createAuditZip([["releases.json", Buffer.from("changed")]]), [
+      { filename: "releases.json", bytes: 7, sha256: "a".repeat(64) },
+    ]),
+  );
 });
 void test("changed attempt, job association, source, artifact or terminal producer refuses before download", async (t) => {
   for (const change of [

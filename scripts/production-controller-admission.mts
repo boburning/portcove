@@ -156,6 +156,35 @@ export function admitProductionProtectionObserver(
     releaseControlPhaseProfile(phase).observer_job,
   );
 }
+/** Dedicated D1 jobs in the complete fixed controller. These named profiles do
+ * not add a generic release-input reader or a capacity executor role. */
+export function admitProductionClassificationWriter(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_writer",
+  );
+}
+export function admitProductionClassificationObserver(
+  rawPolicy: string | undefined,
+  environment: NodeJS.ProcessEnv,
+  workflowBytes: Uint8Array,
+) {
+  return admitController(
+    productionControllerWorkflow,
+    rawPolicy,
+    environment,
+    workflowBytes,
+    "classification_protection_observation",
+  );
+}
+
 export function admitReviewedInputsController(
   rawPolicy: string | undefined,
   environment: NodeJS.ProcessEnv,

@@ -476,6 +476,9 @@ export async function authenticateReleaseControlRound(
     JSON.stringify(prepareControlReadiness(reader.identity, factsSha256, phase, round)),
     { flag: "wx", mode: 0o600 },
   );
+  await (
+    await import("./release-control-step-bridge.mts")
+  ).retainControlStepLocator(path.join(directory, `ready-${phase}.json`), phase, index);
   const observedArtifact = await waitForControlArtifact(
     directory,
     "observation",

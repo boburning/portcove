@@ -231,10 +231,14 @@ fn verify_completed_destination(target: &Library, journal: &ImportJournal) -> Re
         &journal.plan.metadata,
         target.root(),
     )?;
+    let platform = Platform::current()?;
     for install in target.all_installs()? {
         let catalog = catalogs.catalog_for_install(&install)?;
-        let qualification =
-            InstallQualification::from_port(catalog.port(&install.port_id)?, Platform::current()?)?;
+        let retained = catalog.port(&install.port_id)?;
+        let interpreted = crate::installed_mutability::checked_port(
+            &installer, &install, retained, retained, platform,
+        )?;
+        let qualification = InstallQualification::from_port(&interpreted, platform)?;
         installer.verify_import_contract(&install, &qualification)?;
     }
     Ok(())

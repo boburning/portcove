@@ -4,8 +4,52 @@ import {
   capacityExecutorIdentity,
   refreshCapacityExecutor,
   assertCapacityExecutorEffectScope,
+  inspectCapacityExecutorSubject,
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
+import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
+void test("only the site executor may retain its archive and bind an exact Pages expectation", () => {
+  const destination = "github-actions:boburning/portcove:complete-site-artifact";
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("site-publication", { kind: "upload", destination }),
+  );
+  for (const role of [
+    "coordinator",
+    "payload-signing",
+    "release-publication",
+    "tuf-releases",
+  ] as const)
+    assert.throws(() => assertCapacityExecutorEffectScope(role, { kind: "upload", destination }));
+  const site_expectation = {
+    archive_sha256: "1".repeat(64),
+    artifact_id: 123,
+    prior_site_generation_sha256: "2".repeat(64),
+    repository_sha256: "3".repeat(64),
+    root_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("site-publication", {
+      kind: "upload",
+      destination: "github-pages:boburning/portcove:complete-site",
+      site_expectation,
+    }),
+  );
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("site-publication", {
+      kind: "upload",
+      destination,
+      site_expectation,
+    }),
+  );
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("payload-signing", {
+      kind: "upload",
+      destination: "github-pages:boburning/portcove:complete-site",
+      site_expectation,
+    }),
+  );
+});
 
 void test("only the fixed publisher can persist its immutable result under the existing pending journal", () => {
   const destination = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";
@@ -136,4 +180,153 @@ void test("signing executors can hand off only their own immutable output, never
     ])
       assert.throws(() => assertCapacityExecutorEffectScope(role, invalid), /fixed scope/u);
   }
+});
+void test("bootstrap and renewal route distinct explicit subjects through only their existing fixed roles", () => {
+  const bootstrap = metadataBootstrapFixture().descriptor,
+    renewal = metadataFixture().descriptor;
+  for (const role of [
+    "coordinator",
+    "site-publication",
+    "tuf-releases",
+    "tuf-preview",
+    "tuf-stable",
+    "tuf-snapshot",
+    "tuf-timestamp",
+  ] as const) {
+    const request = {
+      kind: "upload" as const,
+      destination:
+        role === "coordinator"
+          ? "github-actions:boburning/portcove:metadata-bootstrap-context"
+          : role === "site-publication"
+            ? "github-pages:boburning/portcove:complete-site"
+            : `github-actions:boburning/portcove:metadata-bootstrap:${role}-envelope`,
+    };
+    assert.doesNotThrow(() => assertCapacityExecutorEffectScope(role, request));
+    assert.equal(
+      inspectCapacityExecutorSubject(role, { request, metadata_bootstrap: bootstrap }).kind,
+      "metadata-bootstrap",
+    );
+    assert.throws(
+      () =>
+        inspectCapacityExecutorSubject(role, {
+          request,
+          metadata_bootstrap: bootstrap,
+          metadata_renewal: renewal,
+        }),
+      /one metadata/u,
+    );
+    assert.throws(() =>
+      inspectCapacityExecutorSubject(role, { request, metadata_bootstrap: renewal }),
+    );
+    const renewalRequest =
+      role === "coordinator"
+        ? { ...request, destination: "github-actions:boburning/portcove:metadata-renewal-context" }
+        : request;
+    assert.equal(
+      inspectCapacityExecutorSubject(role, { request: renewalRequest, metadata_renewal: renewal })
+        .kind,
+      "metadata-renewal",
+    );
+  }
+  const contextRequest = {
+    kind: "upload" as const,
+    destination: "github-actions:boburning/portcove:metadata-bootstrap-context",
+  };
+  assert.throws(
+    () => inspectCapacityExecutorSubject("coordinator", { request: contextRequest }),
+    /explicit/u,
+  );
+  assert.throws(
+    () =>
+      inspectCapacityExecutorSubject("coordinator", {
+        request: contextRequest,
+        metadata_renewal: renewal,
+      }),
+    /own exact/u,
+  );
+  for (const role of ["payload-signing", "release-publication"] as const) {
+    assert.throws(
+      () =>
+        inspectCapacityExecutorSubject(role, {
+          request: contextRequest,
+          metadata_bootstrap: bootstrap,
+        }),
+      /fixed coordinator/u,
+    );
+    assert.throws(() => assertCapacityExecutorEffectScope(role, contextRequest), /fixed scope/u);
+  }
+  assert.equal(
+    inspectCapacityExecutorSubject("coordinator", {
+      request: {
+        kind: "dispatch",
+        destination: "github-actions:boburning/portcove:release.yml:dispatch",
+      },
+    }).kind,
+    "candidate",
+  );
+});
+
+void test("actual recovery provider transport caps each read to original session remaining and refuses late replies", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { stripTypeScriptTypes } = await import("node:module");
+  const { runInNewContext } = await import("node:vm");
+  const source = await readFile(
+    new URL("./release-capacity-executor.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function capacityRecoveryProviderApi("),
+    end = source.indexOf("export async function recoverOwnedCapacityEffect(", start);
+  assert.ok(start > 0 && end > start);
+  let now = 10,
+    delay = 0,
+    gets = 0;
+  const timeouts: number[] = [];
+  const makeApi = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\ncapacityRecoveryProviderApi",
+    {
+      performance: { now: () => now },
+      Number,
+      Math,
+      Error,
+      createGitHubRunner: (settings: { timeoutMs: number }) => {
+        timeouts.push(settings.timeoutMs);
+        return (args: string[]) => {
+          assert.ok(args.includes("github.com"));
+          gets++;
+          now += delay;
+          return { status: 200, body: { original: true } };
+        };
+      },
+      GitHubApiClient: class {
+        private runner: (...args: unknown[]) => unknown;
+        constructor(runner: (...args: unknown[]) => unknown) {
+          this.runner = runner;
+        }
+        request() {
+          return this.runner(["api", "fixed-original-job"], undefined);
+        }
+      },
+    },
+  ) as (value: { directory: string; deadline?: number }) => { request: () => unknown };
+  const api = makeApi({ directory: "private", deadline: 100 });
+  api.request();
+  now = 50;
+  api.request();
+  assert.deepEqual(timeouts, [90, 50]);
+  now = 100;
+  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.equal(gets, 2);
+  now = 95;
+  delay = 6;
+  assert.throws(() => api.request(), /deadline exhausted/);
+  assert.equal(gets, 3);
+  assert.deepEqual(timeouts, [90, 50, 5]);
+  assert.throws(() => makeApi({ directory: "private", deadline: NaN }).request(), /invalid/);
+  assert.equal(gets, 3);
+  now = 1;
+  delay = 0;
+  makeApi({ directory: "private" }).request();
+  assert.equal(timeouts.at(-1), 15000);
+  assert.equal(source.split("const api = capacityRecoveryProviderApi(value);").length - 1, 2);
 });

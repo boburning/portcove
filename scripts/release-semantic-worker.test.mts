@@ -91,6 +91,7 @@ function configuration() {
     namespace: "portcove-worker-fixture",
     output_parent: "/unprovisioned/output",
     source_repository: "/unprovisioned/source",
+    source_git_sha256: "d".repeat(64),
     source_read_token: "/unprovisioned/credentials/source-read",
     auth_cache: "/unprovisioned/reviewer/auth.json",
     runtime: {

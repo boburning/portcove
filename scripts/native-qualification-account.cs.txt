@@ -128,9 +128,13 @@ namespace Portcove.NativeQualification {
         readonly object sync = new object();
         readonly MemoryStream retained = new MemoryStream();
         public Task<string> Completion { get; private set; }
-        internal NativePipeCapture(IntPtr pipe) {
+        internal NativePipeCapture(IntPtr pipe) : this(new FileStream(new SafeFileHandle(pipe, true), FileAccess.Read, 4096, false)) { }
+        // Fixed owner-side harness children use the same raw-byte bound and
+        // strict decoder. This constructor does not launch or appoint a child.
+        public NativePipeCapture(Stream input) {
+            if (input == null || !input.CanRead) throw new ArgumentException("Readable native capture stream required");
             Completion = Task.Run(async () => {
-                using (var stream = new FileStream(new SafeFileHandle(pipe, true), FileAccess.Read, 4096, false)) {
+                using (var stream = input) {
                     var decoder = new UTF8Encoding(false, true).GetDecoder();
                     byte[] buffer = new byte[4096]; char[] characters = new char[4098];
                     while (true) {

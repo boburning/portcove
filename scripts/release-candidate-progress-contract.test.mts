@@ -6,6 +6,7 @@ import {
   inspectCandidateStageEvidence,
   validateCandidateStageTransition,
   immutableReleaseProgressDigest,
+  requireRetainedPublishCandidate,
 } from "./release-candidate-progress-contract.mts";
 
 const checkpoint = "a".repeat(40);
@@ -78,6 +79,51 @@ function attempt(c = candidate(), cp = checkpoint) {
     substantive_repairs: c.substantive_repairs,
   };
 }
+void test("report repair retains the exact old publisher only after a consumed counter and original promoting proof", () => {
+  const old = candidate(),
+    current = { ...old, phase: "publishing", transient_retries: 1 };
+  const operation = {
+    id: "b".repeat(64),
+    candidate: Object.fromEntries(
+      [
+        "source_commit",
+        "prepared_commit",
+        "version",
+        "transient_retries",
+        "substantive_repairs",
+      ].map((key) => [key, old[key as keyof typeof old]]),
+    ),
+  };
+  const release = {
+    release_id: 123,
+    immutable: true as const,
+    source_commit: old.prepared_commit,
+    version: old.version,
+    assets: [],
+  };
+  const proof = attempt(old);
+  proof.proof.locators = [
+    { kind: "operation", id: operation.id, sha256: releaseCanonicalDigest(operation) },
+    { kind: "immutable-release", id: "123", sha256: immutableReleaseProgressDigest(release) },
+  ];
+  proof.evidence_sha256 = releaseCanonicalDigest(proof.proof);
+  const retained = { ...current, stage_evidence: [{ phase: "promoting", attempts: [proof] }] };
+  requireRetainedPublishCandidate(retained, operation, release);
+  requireRetainedPublishCandidate({ ...old, stage_evidence: [] }, operation, release);
+  for (const [c, op, r] of [
+    [current, operation, release],
+    [retained, { ...operation, id: "c".repeat(64) }, release],
+    [retained, operation, { ...release, release_id: 124 }],
+    [{ ...retained, prepared_tree: "d".repeat(40) }, operation, release],
+    [{ ...retained, release_run: { ...old.release_run, run_id: 124 } }, operation, release],
+    [
+      retained,
+      { ...operation, candidate: { ...operation.candidate, transient_retries: 2 } },
+      release,
+    ],
+  ] as const)
+    assert.throws(() => requireRetainedPublishCandidate(c, op, r));
+});
 void test("stage history appends only exact phase/checkpoint/run proof and keeps legacy unchanged", () => {
   const old = candidate();
   const next = {

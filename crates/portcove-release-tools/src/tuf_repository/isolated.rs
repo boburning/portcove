@@ -11,6 +11,7 @@ use tough::editor::signed::SignedRole;
 use tough::schema::{DelegatedTargets, KeyHolder, Metafile, Snapshot, Targets};
 
 mod bootstrap;
+pub use bootstrap::{BootstrapContextReport, inspect_tuf_bootstrap};
 pub mod renewal;
 pub use renewal::prepare_tuf_renewal;
 

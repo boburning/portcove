@@ -12,6 +12,8 @@ import {
   inspectCompactCapacityOperations,
   verifyRetainedCapacityOperation,
   inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+  assertPublicationResultDestination,
 } from "./release-capacity.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
@@ -25,6 +27,136 @@ import {
 } from "./release-metadata-contract.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
+void test("replacement publication result uses only the consumed bounded candidate counters", () => {
+  const candidate = { version: "0.1.0-beta.1", transient_retries: 1, substantive_repairs: 0 };
+  const root = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";
+  assert.doesNotThrow(() => assertPublicationResultDestination(root + ":recovery-1-0", candidate));
+  assert.doesNotThrow(() =>
+    assertPublicationResultDestination(root, { ...candidate, transient_retries: 0 }),
+  );
+  for (const destination of [
+    root,
+    root + ":recovery-0-0",
+    root + ":recovery-2-0",
+    root + ":retry",
+    root.replace("beta.1", "beta.2") + ":recovery-1-0",
+  ])
+    assert.throws(() => assertPublicationResultDestination(destination, candidate));
+});
+void test("historical unsuffixed nonzero-counter result remains readable but cannot become a new intent", () => {
+  const original = operationFixture("pending");
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...base
+  } = original;
+  const candidate = { ...base.candidate, transient_retries: 1 };
+  const identity = {
+    ...base,
+    candidate,
+    destination: `github-actions:boburning/portcove:${candidate.version}:immutable-release-result`,
+  };
+  const historical = {
+    ...original,
+    ...identity,
+    id: capacityDigest(identity),
+    completed_effects: [],
+  };
+  assert.equal(inspectCapacityOperation(historical)!.id, historical.id);
+  assert.throws(() => assertPublicationResultDestination(historical.destination, candidate));
+  const capacity = capacityFixture();
+  const input = {
+    schema_version: 2,
+    active_candidate: candidate,
+    controller: { capacity_attempt: { ...capacity, operation: historical, prior_operations: [] } },
+  };
+  assert.doesNotThrow(() =>
+    validateCapacityTransition(input, structuredClone(input), "a".repeat(40)),
+  );
+  const before = {
+    ...input,
+    controller: { capacity_attempt: { ...capacity, operation: null, prior_operations: [] } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(before, input, "a".repeat(40)),
+    /consumed candidate/u,
+  );
+});
+void test("durable Pages intent binds exact generation, prior, public repository and artifact before any result", () => {
+  const expected = {
+    archive_sha256: "1".repeat(64),
+    artifact_id: 123,
+    prior_site_generation_sha256: "2".repeat(64),
+    repository_sha256: "3".repeat(64),
+    root_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  const original = operationFixture("pending", "e".repeat(64));
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...base
+  } = original;
+  const identity = {
+    ...base,
+    destination: "github-pages:boburning/portcove:complete-site",
+    site_expectation: expected,
+    executor_identity: {
+      controller_revision: "a".repeat(40),
+      execution_ref: "refs/tags/controller-v1",
+      workflow: ".github/workflows/controller.yml",
+      run_id: "123",
+      run_attempt: 1,
+      job_id: 456,
+      check_run_id: "789",
+      actor_id: "43177418",
+      role: "site-publication",
+    },
+  };
+  const pending = { ...original, ...identity, id: capacityDigest(identity), completed_effects: [] };
+  const parsed = inspectCapacityOperation(pending)!;
+  assert.deepEqual(parsed.site_expectation, expected);
+  assert.equal(parsed.outcome, "pending");
+  assert.deepEqual(parsed.completed_effects, []);
+  for (const [key, value] of Object.entries(expected))
+    assert.throws(() =>
+      inspectCapacityOperation({
+        ...pending,
+        site_expectation: {
+          ...expected,
+          [key]: typeof value === "number" ? value + 1 : "f".repeat(64),
+        },
+      }),
+    );
+  for (const changed of [
+    { ...expected, prior_site_generation_sha256: expected.site_generation_sha256 },
+    { ...expected, artifact_id: 0 },
+    { ...expected, reservation: true },
+  ])
+    assert.throws(() => inspectSitePublicationExpectation(changed));
+  const other = {
+    ...identity,
+    executor_identity: { ...identity.executor_identity, role: "payload-signing" },
+  };
+  assert.throws(
+    () => inspectCapacityOperation({ ...pending, ...other, id: capacityDigest(other) }),
+    /fixed Pages/u,
+  );
+  assert.throws(
+    () =>
+      inspectCapacityOperation({
+        ...pending,
+        site_expectation: { ...expected, prior_site_generation_sha256: null },
+      }),
+    /fixed Pages/u,
+  );
+});
 void test("initial metadata descriptor is explicit empty first generation and cannot impersonate renewal or published state", () => {
   const f = metadataBootstrapFixture();
   assertMetadataBootstrapBinding(f.descriptor, null, f.descriptor.generated_at);
@@ -65,7 +197,8 @@ void test("bounded eligibility never claims availability, headroom or reservatio
   assert.equal(result.reservation, "none");
   assert.equal(result.authority, "none");
   assert.equal(result.resource_estimate.total_job_minutes, 100);
-  assert.equal(result.resource_estimate.input_receipts, 3);
+  assert.equal(result.resource_estimate.input_receipts, 163);
+  assert.equal(result.resource_estimate.declared_job_minutes, 99);
   assert.equal(result.resource_estimate.retention_days, 7);
 });
 void test("changed account, stop, budget, visibility, runner or resource policy refuses even a rehashed observation", () => {
@@ -95,29 +228,37 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("historical resource ratification preserves its limits and cannot silently cover the changed held controller", async () => {
+void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
   for (const [file, expected] of [
     [
-      "docs/qualification/application-update-production.aggregate.yml",
+      "docs/qualification/application-update-production.complete.yml",
       slice4CapacityResources.aggregate_workflow_sha256,
     ],
     [
-      "docs/qualification/release-reviewed-inputs.held.yml",
+      "docs/qualification/application-update-production.complete.yml",
       slice4CapacityResources.input_workflow_sha256,
+    ],
+    [
+      "docs/qualification/application-update-wake.held.yml",
+      slice4CapacityResources.wake_workflow_sha256,
     ],
   ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
     const current = createHash("sha256").update(bytes).digest("hex");
-    if (file.endsWith("application-update-production.aggregate.yml"))
-      assert.notEqual(
-        current,
-        expected,
-        "new observer source requires final coherent resource requalification",
-      );
-    else assert.equal(current, expected);
+    assert.equal(current, expected);
   }
-  assert.deepEqual(slice4CapacityResources.aggregate_job_minutes, [5, 25, 30, 5, 20]);
-  assert.deepEqual(slice4CapacityResources.input_job_minutes, [5, 5, 5]);
+  assert.equal(
+    [
+      ...slice4CapacityResources.aggregate_job_minutes,
+      ...slice4CapacityResources.input_job_minutes,
+      ...slice4CapacityResources.wake_job_minutes,
+    ].reduce((a, b) => a + b, 0),
+    99,
+  );
+  const historical = capacityFixture();
+  historical.ratification.resource_policy_sha256 = "1".repeat(64);
+  assert.equal(assessBoundedCapacity(historical).eligibility, "ineligible");
+  assert.equal(assessBoundedCapacity(historical).reason, "capacity resource policy changed");
   assert.equal(slice4CapacityResources.cancel_in_progress, false);
   assert.equal(slice4CapacityResources.shared_cache, false);
   assert.equal(slice4CapacityResources.paid_fallback, false);

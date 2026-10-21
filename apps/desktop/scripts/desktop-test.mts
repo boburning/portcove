@@ -2733,6 +2733,59 @@ try {
   });
   await scenario("empty-library", async () => {
     const browser = driverBrowser();
+    if (nativeAccount) {
+      // Observe the existing Core capability endpoint through this actual
+      // installed renderer. This data is not a new client capability or a
+      // native acceptance receipt; the fixed parent must bind it separately.
+      const capabilities = await invoke("get_engine_capabilities");
+      assert.ok(capabilities.ok, "Installed Core capability observation failed");
+      const value = object(capabilities.value);
+      assert.equal(value.product, "Portcove");
+      assert.ok(Number.isSafeInteger(value.schema_version));
+      assert.equal(typeof value.product_version, "string");
+      const snapshotPath = path.join(output, "native-runtime-processes.json");
+      const snapshot = observeNativeSession("Snapshot", snapshotPath);
+      const enginePaths = [
+        ...new Set(
+          snapshot.processes
+            .filter((item) => path.basename(item.path).toLowerCase() === "msedgewebview2.exe")
+            .map((item) => item.path),
+        ),
+      ];
+      assert.ok(
+        enginePaths.length >= 1 && enginePaths.length <= 4,
+        "Actual loaded WebView images required",
+      );
+      const loaded = await Promise.all(
+        enginePaths.map((image) =>
+          fileIdentity(image, { maxBytes: 256 * 1024 * 1024, signal: admission.signal }),
+        ),
+      );
+      const browserCapabilities = await browser.getCapabilities();
+      const browserName: unknown = browserCapabilities.get("browserName");
+      const browserVersion: unknown = browserCapabilities.get("browserVersion");
+      const runtimePath = path.join(output, "native-runtime-capabilities.json");
+      await writeFile(
+        runtimePath,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          account_binding_sha256: process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256,
+          operating_system: os.release(),
+          architecture: process.arch,
+          core: value,
+          browser: {
+            name: browserName ?? null,
+            version: browserVersion ?? null,
+          },
+          loaded_engine_images: loaded,
+          process_snapshot: snapshotPath,
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(snapshotPath, runtimePath);
+    }
     const bootstrap = await invoke("get_bootstrap_status");
     assert.ok(bootstrap.ok);
     assert.equal(path.resolve(required(bootstrap.value.library_root)), library);

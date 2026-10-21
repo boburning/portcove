@@ -4,6 +4,61 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
+  "bridge state retains actual root image and startup identity for partial or complete capture",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = `
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_NATIVE_BRIDGE,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'bridge parse failure'}
+foreach($name in @('Save-State','Convert-Teardown')){
+  $function=$ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ $name
+  if(@($function).Count -ne 1){throw 'missing fixed function'}
+  Invoke-Expression $function.Extent.Text
+}
+function Write-Capture {param($Id,$Process)}
+$capture=Join-Path ([IO.Path]::GetTempPath()) ('native-root-capture-'+[Guid]::NewGuid().ToString('N'))
+[IO.Directory]::CreateDirectory($capture)|Out-Null
+try{
+  $configurationValue=[pscustomobject]@{capture_root=$capture}
+  $InvocationId='a'*64;$ExpectedConfigurationSha256='b'*64;$sequence=1
+  $roots=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+  $launchIdentities=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::Ordinal)
+  $roots.Add('fixture-root',[pscustomobject]@{Id=123;CreatedFileTime=134000000000000000L;Path='C:\\fixed\\inert.exe';StartTime=[DateTime]::Parse('2026-10-20T12:00:00Z').ToUniversalTime();LastTeardown=$null})
+  $launchIdentities.Add('fixture-root',[ordered]@{sha256=('c'*64)})
+  $group=[pscustomobject]@{}; $group|Add-Member ScriptMethod RemainingPids {return @()}
+  Save-State 'running'
+  $stateText=Get-Content -LiteralPath (Join-Path $capture 'bridge-state.json') -Raw
+  $state=$stateText|ConvertFrom-Json
+  if($state.roots.Count -ne 1 -or $state.roots[0].path -cne 'C:\\fixed\\inert.exe' -or
+    $state.roots[0].sha256 -cne ('c'*64) -or $stateText -cnotmatch '"started_at":\\s*"2026-10-20T12:00:00[.]000Z"' -or
+    $null -ne $state.roots[0].teardown -or $state.native_acceptance -cne 'not-established'){throw 'root capture identity missing'}
+  [ordered]@{roots=$state.roots.Count;partial_teardown=$true;scope='inert root projection; no process launch or native acceptance'}|ConvertTo-Json -Compress
+}finally{Remove-Item -LiteralPath $capture -Recurse -Force}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_BRIDGE: fileURLToPath(
+          new URL("./native-qualification-account-bridge.ps1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      roots: 1,
+      partial_teardown: true,
+      scope: "inert root projection; no process launch or native acceptance",
+    });
+  },
+);
+
+void test(
   "fixed Windows account helper compiles and validates inert requests without credentials or logon",
   {
     skip: process.platform !== "win32",

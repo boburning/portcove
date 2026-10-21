@@ -11,9 +11,12 @@ param(
     [string]$NormalPackageAdmissionPath,
     [string]$NativeAccountBindingPath,
     [string]$NativeAccountBindingSha256,
+    [switch]$NativeParentOwnsFinish,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
+    [switch]$QualifyPackageRollback,
+    [string]$ExpectedPredecessorVersion,
     [ValidateRange(1, 600)]
     [int]$ProcessTimeoutSeconds = 120,
     [ValidateRange(1, 60)]
@@ -37,6 +40,9 @@ $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
+if ($NativeParentOwnsFinish -and (-not $NativeAccountBindingPath -or -not $NativeAccountBindingSha256)) {
+    throw 'Parent-owned settlement requires the exact isolated account binding'
+}
 if ($NativeAccountBindingPath -or $NativeAccountBindingSha256) {
     if (-not $NativeAccountBindingPath -or $NativeAccountBindingSha256 -cnotmatch '^[a-f0-9]{64}$' -or
         -not $EvidencePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath) {
@@ -95,6 +101,16 @@ function Get-UninstallEntries([string]$InstallLocation) {
         )
         $locationMatches -or $uninstallMatches
     })
+}
+
+function Assert-InstallerUserRegistration([string]$RegistrationPath, [string]$QualificationSid = '') {
+    # HKCU in the fixed harness belongs to the broker. The isolated candidate's
+    # real loaded hive is addressed through its appointed SID instead.
+    $hive = if ($QualificationSid) { 'HKEY_USERS\' + $QualificationSid } else { 'HKEY_CURRENT_USER' }
+    $prefix = 'Microsoft.PowerShell.Core\Registry::' + $hive + '\Software\Microsoft\Windows\CurrentVersion\Uninstall\'
+    if (-not $RegistrationPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Expected installation ownership in the exact current-user qualification hive'
+    }
 }
 
 function Assert-NoReparseAncestry([string]$Path) {
@@ -228,6 +244,20 @@ function Get-PreservationManifest([string]$LibraryRoot) {
     }
 }
 
+function Assert-NativePackageRollbackObservation($Observation, [string]$ExpectedHash, [string]$ExpectedVersion, [string]$ExpectedSentinel) {
+    if ($ExpectedHash -cnotmatch '^[a-f0-9]{64}$' -or $ExpectedSentinel -cnotmatch '^[a-f0-9]{64}$' -or -not $ExpectedVersion -or
+        $Observation.install_exit_code -ne 0 -or $Observation.registered_version -cne $ExpectedVersion -or
+        $Observation.executable_sha256 -cne $ExpectedHash -or $Observation.registration_count -ne 1 -or
+        -not $Observation.smoke.responding -or $Observation.smoke.exit_code -ne 0 -or
+        -not $Observation.database_present -or $Observation.sentinel_sha256 -cne $ExpectedSentinel -or
+        $null -eq $Observation.manifest_before_install -or $null -eq $Observation.manifest_after_install -or
+        @($Observation.manifest_before_install.library).Count -lt 1 -or
+        ($Observation.manifest_before_install | ConvertTo-Json -Depth 6 -Compress) -cne
+            ($Observation.manifest_after_install | ConvertTo-Json -Depth 6 -Compress)) {
+        throw 'Native package rollback did not restore exact predecessor bytes/version, launch or retained data'
+    }
+}
+
 $installer = (Resolve-Path -LiteralPath $InstallerPath).Path
 if ([System.IO.Path]::GetExtension($installer) -ne ".exe") {
     throw "Installer must be an executable: $installer"
@@ -237,6 +267,14 @@ if ($predecessor -and [System.IO.Path]::GetExtension($predecessor) -ne ".exe") {
     throw "Upgrade predecessor must be an executable"
 }
 $installedUpdate = -not [string]::IsNullOrWhiteSpace($InstalledUpdateTrustedRootPath)
+if ($QualifyPackageRollback -and (-not $nativeAccount -or -not $predecessor -or $installedUpdate -or
+        $RendererUpdate -or $NormalPackageManifestPath -or -not $ExpectedPredecessorVersion -or
+        -not $ExpectedVersion -or $ExpectedPredecessorVersion -ceq $ExpectedVersion)) {
+    throw 'Package rollback requires isolated-account distinct predecessor/candidate package compatibility mode'
+}
+if ($ExpectedPredecessorVersion -and -not $QualifyPackageRollback) {
+    throw 'ExpectedPredecessorVersion belongs only to the explicit package rollback mode'
+}
 if ($RendererUpdate -and -not $installedUpdate) {
     throw "Renderer update qualification requires an installed application update"
 }
@@ -1221,9 +1259,8 @@ try {
         if ($registryEntries[0].DisplayVersion -ne $ExpectedVersion) {
             throw "Installed registration does not match expected version $ExpectedVersion"
         }
-        if ($registryEntries[0].PSPath -notmatch 'HKEY_CURRENT_USER') {
-            throw "Expected current-user installation ownership"
-        }
+        $qualificationSid = if ($nativeAccount) { [string]$nativeAccount.binding.account_sid } else { '' }
+        Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid
     }
     $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
@@ -1362,6 +1399,40 @@ try {
         }
     }
 
+    $packageRollback=$null
+    if ($QualifyPackageRollback) {
+        # This is installer/package compatibility, not public updater selection,
+        # a private feed, or application-update journal recovery. The fixed
+        # parent must independently bind signed context and predecessor inputs.
+        $rollbackBefore=Get-PreservationManifest $libraryRoot
+        if ((Get-FileHash -LiteralPath $predecessor -Algorithm SHA256).Hash.ToLowerInvariant() -cne $upgrade.predecessor_installer_sha256) {
+            throw 'Original predecessor package changed before rollback'
+        }
+        Write-InstallerEvidence 'package_rollback_installing'
+        $rollbackInstall=Invoke-JournaledProcess -Role 'package_rollback_installer' -Executable $predecessor -Arguments @('/S','/UPDATE') -AllowedRelocationRoot $runRoot
+        $rollbackAfter=Get-PreservationManifest $libraryRoot
+        $rollbackRegistration=@(Get-UninstallEntries $installRoot)
+        if ($rollbackRegistration.Count -ne 1) { throw 'Package rollback registration is absent or ambiguous' }
+        Assert-InstallerUserRegistration ([string]$rollbackRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+        $rollbackSmoke=Invoke-ApplicationSmoke $application 'package_rollback_smoke'
+        $packageRollback=[ordered]@{
+            install_exit_code=$rollbackInstall.ExitCode;registered_version=$rollbackRegistration[0].DisplayVersion;
+            registration_path=$rollbackRegistration[0].PSPath;registration_count=$rollbackRegistration.Count;
+            executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
+            predecessor_installer_sha256=$upgrade.predecessor_installer_sha256;smoke=$rollbackSmoke;
+            manifest_before_install=$rollbackBefore;manifest_after_install=$rollbackAfter;
+            manifest_after_launch=Get-PreservationManifest $libraryRoot;
+            database_present=[IO.File]::Exists((Join-Path $libraryRoot 'portcove.sqlite3'));
+            sentinel_sha256=(Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash.ToLowerInvariant();
+            scope='signed-package compatibility only; ordinary public updater journey remains pending'
+        }
+        Assert-NativePackageRollbackObservation $packageRollback $upgrade.predecessor_executable_sha256 $ExpectedPredecessorVersion $sentinelHash.ToLowerInvariant()
+        # Startup may legitimately change SQLite/cache state. Retain that full
+        # observation and require uninstall to preserve the post-launch state;
+        # never call installer replacement a public updater rollback.
+        $beforeUninstallManifest=$packageRollback.manifest_after_launch
+        Write-InstallerEvidence 'package_rollback_verified' $packageRollback
+    }
     Write-InstallerEvidence "uninstalling"
     # NSIS may continue from an exact self-copy below TEMP. The original bytes
     # are journaled before launch; permit only that same image below this run.
@@ -1442,6 +1513,7 @@ try {
         preservation_manifest_after_uninstall = $afterUninstallManifest
         current_installed_boundary = $normalBoundary
         isolated_account_boundary = $isolatedAccountBoundary
+        package_rollback = $packageRollback
     }
     Write-InstallerEvidence "complete" $result
     $result | ConvertTo-Json -Depth 10 -Compress
@@ -1475,7 +1547,7 @@ finally {
 }
 } catch { $nativeFailure=$_; throw }
 finally {
-    if ($nativeAccount) {
+    if ($nativeAccount -and -not $NativeParentOwnsFinish) {
         try {
             $settlement=Invoke-PortcoveNativeAccountCommand $nativeAccount finish 'installer-stage-finish'
             if ($settlement.group_empty -isnot [bool] -or -not $settlement.group_empty) { throw 'Isolated installer group settlement is incomplete' }

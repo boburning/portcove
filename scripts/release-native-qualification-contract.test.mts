@@ -3,7 +3,74 @@ import test from "node:test";
 import {
   inspectNativeReleaseQualification,
   nativeQualificationScenarios,
+  nativePrepublicationScenarios,
+  nativePrepublicationProfile,
+  nativePrepublicationPending,
+  nativeInitialPackageScenarios,
+  nativeEmptyRecordsSha256,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
+import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
+
+void test("explicit WSL account union keeps actual Windows broker SID distinct from guest UID and distribution", () => {
+  const account = {
+    kind: "windows-wsl-uid",
+    broker: "S-1-5-21-1-2-3-1001",
+    qualification: "1001",
+    distribution: {
+      name: "Ubuntu",
+      registration_id: "12345678-1234-1234-1234-123456789abc",
+      wsl_version: 2,
+    },
+  };
+  assert.deepEqual(inspectNativeQualificationAccount(account), account);
+  const input = report();
+  const linux = {
+    ...input,
+    platform_label: "linux-x86_64",
+    host: {
+      ...input.host,
+      os_version: "6.8.0",
+      minimum_platform: "ubuntu-24.04-x64",
+      account,
+      loaded_engine: { name: "WebKitGTK", version: "2.52.6", sha256: "a".repeat(64) },
+    },
+    runtime: { ...input.runtime, root_creation: { kind: "linux-starttime-ticks", value: "12345" } },
+    compatibility: { ...input.compatibility, minimum_os_version: "6.8.0" },
+  };
+  assert.deepEqual(inspectNativeReleaseQualification(linux).host.account, account);
+  assert.throws(
+    () => inspectNativeReleaseQualification({ ...input, host: { ...input.host, account } }),
+    /platform\/account/,
+  );
+  const config = nativeAuthorityConfigurationFixture();
+  config.native["linux-x86_64"]!.host.account = account;
+  assert.deepEqual(
+    inspectReleaseAuthorityConfiguration(config).native["linux-x86_64"].host.account,
+    account,
+  );
+  config.native["windows-x86_64"]!.host.account = account;
+  assert.throws(
+    () => inspectReleaseAuthorityConfiguration(config),
+    /WSL account belongs only to Linux/,
+  );
+  for (const invalid of [
+    { ...account, broker: "1000" },
+    { ...account, qualification: "S-1-5-21-1-2-3-1002" },
+    { ...account, qualification: "0" },
+    { ...account, qualification: "4294967295" },
+    { ...account, distribution: { ...account.distribution, name: "Ubuntu --user root" } },
+    { ...account, distribution: { ...account.distribution, registration_id: "unobserved" } },
+    { ...account, distribution: { ...account.distribution, wsl_version: 1 } },
+    { ...account, broker_uid: "1000" },
+  ])
+    assert.throws(() => inspectNativeQualificationAccount(invalid));
+  assert.deepEqual(
+    inspectNativeQualificationAccount({ kind: "linux-uid", broker: "1000", qualification: "1001" }),
+    { kind: "linux-uid", broker: "1000", qualification: "1001" },
+  );
+});
 
 function report(stage: "payload-signing" | "release-publication" = "payload-signing") {
   const sha = "a".repeat(64),
@@ -107,12 +174,121 @@ void test("inert native contract keeps signing and publication stages distinct a
   assert.equal(Object.hasOwn(actual, "accepted"), false);
   assert.equal(Object.hasOwn(actual, "authority"), false);
 });
+void test("schema2 prepublication wire keeps package compatibility separate from pending ordinary public journey", () => {
+  const legacy = report("release-publication");
+  const value = {
+    ...legacy,
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+    pending_obligations: [...nativePrepublicationPending],
+    scenarios: nativePrepublicationScenarios.map((name, index) => ({
+      ...legacy.scenarios[index]!,
+      name,
+    })),
+  };
+  const result = inspectNativeReleaseQualification(value);
+  assert.equal(result.schema_version, 2);
+  assert.equal(result.native_prepublication_profile, nativePrepublicationProfile);
+  assert.deepEqual(
+    result.scenarios.map((scenario) => scenario.name),
+    nativePrepublicationScenarios,
+  );
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  assert.equal(result.journey?.signed_context_sha256, "3".repeat(64));
+  value.pending_obligations[0] = "changed" as (typeof value.pending_obligations)[number];
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  for (const changed of [
+    { ...value, pending_obligations: [] },
+    { ...value, pending_obligations: [...nativePrepublicationPending].reverse() },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      native_prepublication_profile: "caller-profile",
+    },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      stage: "payload-signing",
+      journey: null,
+    },
+    { ...value, pending_obligations: [...nativePrepublicationPending], journey: null },
+    {
+      ...value,
+      pending_obligations: [...nativePrepublicationPending],
+      scenarios: legacy.scenarios,
+    },
+    { ...value, pending_obligations: [...nativePrepublicationPending], schema_version: 1 },
+  ])
+    assert.throws(() => inspectNativeReleaseQualification(changed));
+  assert.deepEqual(
+    inspectNativeReleaseQualification(legacy).scenarios.map((scenario) => scenario.name),
+    nativeQualificationScenarios["release-publication"],
+  );
+});
+void test("initial report2 schema binds explicit empty-feed bootstrap and never fabricates predecessor or rollback", () => {
+  const ordinary = report("release-publication");
+  const initial = {
+    ...ordinary,
+    schema_version: 2,
+    native_prepublication_profile: nativePrepublicationProfile,
+    pending_obligations: [...nativePrepublicationPending],
+    journey: {
+      kind: "initial-empty-feed",
+      metadata_bootstrap_sha256: "5".repeat(64),
+      setup_plan_sha256: "6".repeat(64),
+      initial_site_preimage_sha256: "7".repeat(64),
+      empty_records_sha256: nativeEmptyRecordsSha256,
+      signed_context_sha256: "8".repeat(64),
+      signatures_sha256: "9".repeat(64),
+    },
+    scenarios: nativeInitialPackageScenarios.map((name, index) => ({
+      ...ordinary.scenarios[index]!,
+      name,
+    })),
+  };
+  const result = inspectNativeReleaseQualification(initial);
+  assert.equal(result.journey?.kind, "initial-empty-feed");
+  assert.equal(result.journey?.predecessor, undefined);
+  assert.deepEqual(
+    result.scenarios.map((scenario) => scenario.name),
+    nativeInitialPackageScenarios,
+  );
+  assert.deepEqual(result.pending_obligations, nativePrepublicationPending);
+  for (const changed of [
+    { ...initial, schema_version: 1 },
+    { ...initial, journey: null },
+    { ...initial, journey: { ...initial.journey, empty_records_sha256: "0".repeat(64) } },
+    { ...initial, journey: { ...initial.journey, metadata_bootstrap_sha256: "" } },
+    { ...initial, journey: { ...initial.journey, predecessor: ordinary.journey!.predecessor } },
+    { ...initial, scenarios: ordinary.scenarios },
+    {
+      ...initial,
+      scenarios: nativePrepublicationScenarios.map((name, index) => ({
+        ...ordinary.scenarios[index]!,
+        name,
+      })),
+    },
+  ])
+    assert.throws(() => inspectNativeReleaseQualification(changed));
+  // A noninitial journey still requires different exact predecessor bytes.
+  assert.throws(() =>
+    inspectNativeReleaseQualification({
+      ...initial,
+      journey: { ...ordinary.journey, predecessor: ordinary.candidate },
+      scenarios: nativePrepublicationScenarios.map((name, index) => ({
+        ...ordinary.scenarios[index]!,
+        name,
+      })),
+    }),
+  );
+});
 void test("post-sign native captures bind exact predecessor and signed context while empty required capabilities remain valid", () => {
   const value = report("release-publication");
   value.compatibility.required_capabilities = [];
   const parsed = inspectNativeReleaseQualification(value);
   assert.deepEqual(parsed.compatibility.required_capabilities, []);
-  assert.equal(parsed.journey?.predecessor.run_id, "12222");
+  assert.ok(parsed.journey?.predecessor);
+  assert.equal(parsed.journey.predecessor.run_id, "12222");
   assert.equal(parsed.runtime.root_creation.value, "133000000000000000");
   for (const mutation of [
     (v: ReturnType<typeof report>) => {

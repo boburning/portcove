@@ -9,8 +9,9 @@ const expected = {
   generation: "b".repeat(64),
 };
 const ack = {
-  id: "provider-id",
-  status_url: "https://api.github.com/repos/boburning/portcove/pages/deployments/provider-id",
+  id: expected.generation,
+  status_url:
+    "https://api.github.com/repos/boburning/portcove/pages/deployments/" + expected.generation,
   page_url: "https://boburning.github.io/portcove/",
 };
 const response = (body: unknown, status = 200) => ({
@@ -91,6 +92,14 @@ void test("documented Pages acknowledgement URLs remain fixed and recognized ter
     assert.equal(isTerminalPagesFailure(status), true);
   assert.equal(isTerminalPagesFailure("succeed"), false);
 });
+void test("Pages acknowledgement must echo the exact unique generation build version", async () => {
+  const provider = createPagesProviderTransport(".", {
+    token: async () => "inert-token",
+    api: { request: () => response({ ...ack, id: "a".repeat(40) }) },
+  });
+  await assert.rejects(provider.create(expected), /acknowledgement unavailable/);
+  await assert.rejects(provider.create(expected), /already attempted/);
+});
 void test("controls expiring during token acquisition refuse before the POST and cannot repeat", async () => {
   let clock = 0,
     posts = 0;
@@ -160,7 +169,11 @@ void test("fixed Pages POST carries only actual opaque artifact/source and ephem
     {
       method: "POST",
       endpoint: "repos/boburning/portcove/pages/deployments",
-      body: { artifact_id: 12, pages_build_version: "a".repeat(40), oidc_token: "inert-token" },
+      body: {
+        artifact_id: 12,
+        pages_build_version: expected.generation,
+        oidc_token: "inert-token",
+      },
     },
   ]);
   assert.equal(receipt.evidence_scope, "injected-provider");
@@ -227,11 +240,14 @@ void test("status observation is bounded fixed-route and never establishes publi
       },
     },
   });
-  const observed = provider.observe({ ...expected, id: "provider-id" });
+  const observed = provider.observeByGeneration(expected);
   assert.equal(observed.stage, "provider-status-only");
   assert.equal(observed.acceptance, "pending-public-readback");
   assert.deepEqual(calls, [
-    { method: "GET", endpoint: "repos/boburning/portcove/pages/deployments/provider-id" },
+    {
+      method: "GET",
+      endpoint: "repos/boburning/portcove/pages/deployments/" + expected.generation,
+    },
   ]);
   assert.throws(
     () => provider.observe({ ...expected, id: "../other" }),

@@ -130,6 +130,45 @@ async fn initial_empty_feed_uses_only_offline_public_anchors_and_separate_online
 }
 
 #[tokio::test]
+async fn keyless_initial_preflight_verifies_public_anchors_without_any_private_key() {
+    use portcove_release_tools::tuf_repository::isolated::inspect_tuf_bootstrap;
+    let (fixture, descriptor) = initial_fixture().await;
+    assert_eq!(
+        fs::read_dir(fixture.root().join("jobs")).unwrap().count(),
+        0
+    );
+    let report = inspect_tuf_bootstrap(&fixture.root().join("context.json"))
+        .await
+        .unwrap();
+    assert_eq!(report.root_sha256, descriptor["root_sha256"]);
+    assert_eq!(
+        report.offline_targets_sha256,
+        descriptor["offline_targets_sha256"]
+    );
+    assert_eq!(report.initial_records_sha256, sha256(b"[]"));
+    assert_eq!(report.versions["timestamp"], "1");
+    let top = fixture.root().join("offline-targets.json");
+    let mut tampered: serde_json::Value = serde_json::from_slice(&fs::read(&top).unwrap()).unwrap();
+    tampered["signed"]["version"] = json!(99);
+    write_json(&top, &tampered);
+    assert!(
+        inspect_tuf_bootstrap(&fixture.root().join("context.json"))
+            .await
+            .is_err()
+    );
+    let routine = Fixture::new(false).await;
+    assert!(
+        inspect_tuf_bootstrap(&routine.root().join("context.json"))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        fs::read_dir(fixture.root().join("jobs")).unwrap().count(),
+        0
+    );
+}
+
+#[tokio::test]
 async fn initial_context_refuses_mixed_prior_missing_descriptor_and_nonempty_records() {
     let (mut fixture, descriptor) = initial_fixture().await;
     let clean = fixture.context.clone();

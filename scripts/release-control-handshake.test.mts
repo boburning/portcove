@@ -156,13 +156,13 @@ void test("the caller's monotonic phase deadline survives handshake pagination a
 void test("bounded rounds use distinct immutable names and reject missing, invalid or excess round identities", () => {
   for (const value of [
     { index: 0, nonce: "a".repeat(64) },
-    { index: 13, nonce: "a".repeat(64) },
+    { index: 15, nonce: "a".repeat(64) },
     { index: 1 },
     { index: 1, nonce: "short" },
     { index: 1, nonce: "a".repeat(64), accepted: true },
   ])
     assert.throws(() => inspectControlRound(value));
-  assert.deepEqual(inspectControlRound({ index: 12 }, false), { index: 12 });
+  assert.deepEqual(inspectControlRound({ index: 14 }, false), { index: 14 });
 });
 void test("a later operation consumes only its exact round and private nonce while the observer remains live", async (t) => {
   const round = { index: 2, nonce: "a".repeat(64) };
