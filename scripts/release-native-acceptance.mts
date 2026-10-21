@@ -14,6 +14,7 @@ import {
   nativePrepublicationProfile,
   inspectNativeQualificationJourney,
   inspectNativeQualificationCandidate,
+  inspectNativeQualificationHarnessPath,
 } from "./release-native-qualification-contract.mts";
 import type { NativeReleaseQualification } from "./release-native-qualification-contract.mts";
 
@@ -143,8 +144,7 @@ export function inspectNativeQualificationExpectation(
   exact(value.producer.harness, "path,sha256");
   digest(value.producer.harness.sha256);
   bounded(value.producer.harness.path, 192);
-  if (!/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(value.producer.harness.path))
-    throw new Error("native expected harness is unsafe");
+  inspectNativeQualificationHarnessPath(value.producer.harness.path);
   exact(value.host, "account,engine,machine_id_sha256,minimum_platform,qualification_profile");
   digest(value.host.machine_id_sha256);
   bounded(value.host.minimum_platform, 128);
@@ -362,7 +362,9 @@ export async function collectNativeReleaseQualification(
     new GitHubApiClient((args, input) => runner([...args, "--hostname", "github.com"], input));
   const get = (route: string) => {
     if (
-      !/^check-runs\/[1-9][0-9]*$|^check-suites\/[1-9][0-9]*$|^git\/commits\/[a-f0-9]{40}$|^contents\/scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1\?ref=[a-f0-9]{40}$/u.test(
+      route !==
+        `contents/${expected.producer.harness.path}?ref=${expected.producer.source_commit}` &&
+      !/^check-runs\/[1-9][0-9]*$|^check-suites\/[1-9][0-9]*$|^git\/commits\/[a-f0-9]{40}$/u.test(
         route,
       )
     )

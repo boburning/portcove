@@ -18,6 +18,7 @@ import {
 async function fixture() {
   const native = nativeQualificationFixture(),
     config = nativeAuthorityConfigurationFixture();
+  config.native["windows-x86_64"]!.producer.harness.path = "scripts/release-native-worker.mts";
   const source = inspectNativeCompatibilitySources(
     Object.fromEntries(
       await Promise.all(
