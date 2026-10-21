@@ -669,3 +669,5 @@ expanding the whole task; text remains selectable with keyboard or pointer.
 Features retain lazy capture, redaction, request/generation guards, clipboard
 outcomes and announcements. The primitive does not fetch, redact, copy or store
 diagnostics. Existing failure and Activity semantics remain authoritative.
+
+Saved-file verification failures use a contextual check message. Keep Core error code, mutation metadata and diagnostic context in collapsed technical details, but do not project generic preparation or mutation-outcome claims into the ordinary saved-file check. Current inspection results and reconnect/relink guidance remain separately visible; pending, cancelled and unavailable inspection states retain their own contracts. This presentation rule does not change Core error authority or claim database-byte immutability.
