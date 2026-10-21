@@ -216,7 +216,7 @@ export async function buildControllerTools(
     const status = await runResourceCommand(
       "rust",
       "cargo",
-      ["build", "--locked", "--release", "-p", "portcove-release-tools"],
+      ["build", "--locked", "--release", "-p", "portcove-release-tools", "-p", "portcove-cli"],
       { cwd: sourceRoot, environment: env },
     );
     if (status !== 0) throw new Error(`fixed controller tool build refused; retain ${directory}`);
@@ -235,6 +235,7 @@ export async function buildControllerTools(
     }
     for (const [name, filename] of [
       ["node", process.execPath],
+      ["portcove", path.join(target, "release", "portcove")],
       ["portcove-release-tools", path.join(target, "release", "portcove-release-tools")],
       ["tauri-addon.node", addon],
     ])

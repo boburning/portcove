@@ -17,6 +17,8 @@ on:
       - scripts/run-rust-tests.mts
       - scripts/heavy-rust-test-lock.mts
       - crates/portcove-release-tools/**
+      - crates/portcove-cli/**
+      - crates/portcove-core/**
       - Cargo.toml
       - Cargo.lock
       - rust-toolchain.toml
@@ -38,6 +40,8 @@ on:
       - scripts/updater-artifact-inventory.mts
       - apps/desktop/scripts/prepare-release-version.mts
       - crates/portcove-release-tools/**
+      - crates/portcove-cli/**
+      - crates/portcove-core/**
       - Cargo.toml
       - Cargo.lock
       - rust-toolchain.toml

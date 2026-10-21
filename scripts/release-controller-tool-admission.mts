@@ -130,6 +130,7 @@ export async function verifiedControllerToolPaths(receipt: object) {
     identity: Object.freeze(structuredClone(retained.expected)),
     root: retained.tools,
     node: path.join(retained.tools, "bin/node"),
+    cli: path.join(retained.tools, "bin/portcove"),
     rust: path.join(retained.tools, "bin/portcove-release-tools"),
     tauriAddon: path.join(retained.tools, "bin/tauri-addon.node"),
     publicAssets: path.join(retained.tools, "release"),

@@ -620,6 +620,31 @@ void test("ordinary Linux tool build fixture uses actual source and fresh public
   assert.match(source, /await buildControllerTools\(source, buildWork, expected\)/u);
   assert.match(source, /actual-rust-refusal-smoke/u);
   assert.match(source, /production_tool_acceptance: "not-established"/u);
+  assert.ok(isRecord(parsed.on));
+  for (const event of ["pull_request", "push"]) {
+    const trigger = parsed.on[event];
+    assert.ok(isRecord(trigger) && Array.isArray(trigger.paths));
+    for (const scope of ["crates/portcove-cli/**", "crates/portcove-core/**"])
+      assert.ok(trigger.paths.includes(scope));
+  }
+  const buildSource = await readFile(
+    new URL("./release-controller-tool-build.mts", import.meta.url),
+    "utf8",
+  );
+  const argumentsSource = buildSource.match(
+    /runResourceCommand\(\s*"rust",\s*"cargo",\s*(\[[\s\S]*?\])/u,
+  )?.[1];
+  assert.ok(argumentsSource);
+  assert.deepEqual(JSON.parse(argumentsSource), [
+    "build",
+    "--locked",
+    "--release",
+    "-p",
+    "portcove-release-tools",
+    "-p",
+    "portcove-cli",
+  ]);
+  assert.match(buildSource, /\["portcove", path\.join\(target, "release", "portcove"\)\]/u);
 });
 void test("fresh bootstrap OIDC profile authenticates numeric job and refuses wrong job, source, attempt and expiry", async () => {
   const make = (patch: Record<string, unknown> = {}) =>
@@ -899,6 +924,27 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
       /compiler source/u,
     );
   }
+});
+void test("Core CLI is mandatory opaque tool content and changed or missing CLI bytes refuse", () => {
+  const f = fixture();
+  assert.ok(controllerToolPaths.includes("bin/portcove"));
+  assert.deepEqual(
+    inspectControllerToolArchive(f.archive, f.manifest).files.get("bin/portcove"),
+    f.bytes.get("bin/portcove"),
+  );
+  for (const files of [
+    [...f.bytes].filter(([name]) => name !== "bin/portcove"),
+    [...f.bytes].map(
+      ([name, bytes]) =>
+        [name, name === "bin/portcove" ? Buffer.from("substituted candidate CLI") : bytes] as const,
+    ),
+  ])
+    assert.throws(() =>
+      inspectControllerToolArchive(
+        createAuditZip([["manifest.json", JSON.stringify(f.manifest)], ...files]),
+        f.manifest,
+      ),
+    );
 });
 void test("tool acquisition retains the phase deadline before outputs and after provider reads", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "controller-tools-deadline-"));
