@@ -736,7 +736,7 @@ preparation and external-folder registration remain separate operations.
 
 ### Review and retained-operation identity
 
-A source-import review belongs to its current port, source inputs and returned
+A source-import review belongs to its source profile, current inputs and returned
 plan fingerprint. Cancelling Move grants no approval to a later review and does
 not affect another game's preparation eligibility. Production Move obtains its
 own native confirmation; the reference prototype's checkbox is not a second
