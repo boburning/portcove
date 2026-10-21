@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "profile": "initial-public-proof-three-total-v1",
+  "max_publications": 3,
+  "expires_at": "2026-11-15T04:59:00.000Z",
+  "approved_at": "2026-10-21T20:18:51Z",
+  "native_inputs_sha256": "d6c06816f42debe374cf6084e50de01b9ccfa8511363423e55b857a0370e6df7",
+  "dependency_graph_sha256": "bdb48d394c746352c66768830ae9a78f8fe3209fa20ee90eadeb3d65b6286d0a",
+  "policy_sha256": "7cbe77e7ef591e476797956f7bf3e79a0fc659a646505f079580c16d51499525",
+  "amendment": {
+    "comment_id": 6325645712,
+    "owner_id": 43177418,
+    "body_sha256": "028f25b2feb1775dbed59a3d3b45d32ec903ebf4cc67549948955738a5ffb001"
+  }
+}
