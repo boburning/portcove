@@ -16,6 +16,8 @@ import {
   writeApplicationUpdateReconstruction,
 } from "./reconstruct-application-update-records.mts";
 import { updaterIdentity } from "./updater-artifact-inventory.mts";
+import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
+import { mergeReleaseRecordBytes, releaseRecordManifestBytes } from "./release-signing-context.mts";
 
 const policy = await loadPackagePolicy();
 const run = promisify(execFile);
@@ -119,6 +121,56 @@ function evidence(version: string, overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+void test("reviewed Preview withdrawal matches maintained reconstruction bytes while ordinary forward records append", async () => {
+  const version = "0.1.0-beta.1",
+    next = "0.1.0-beta.2",
+    reason = "Withdraw prior Preview in favor of the independently qualified forward repair.";
+  const original = await reconstructApplicationUpdateRecords(
+    [source(version)],
+    { [`v${version}`]: evidence(version) },
+    { policy },
+  );
+  const expected = await reconstructApplicationUpdateRecords(
+    [source(version)],
+    { [`v${version}`]: evidence(version, { withdrawn: true, reason }) },
+    { policy },
+  );
+  const forward = await reconstructApplicationUpdateRecords(
+    [source(next)],
+    { [`v${next}`]: evidence(next) },
+    { policy },
+  );
+  const promotionPath = `channels/preview/windows-x86_64/nsis/${version}.json`,
+    releasePath = `releases/${version}/windows-x86_64/nsis.json`;
+  const records = (files: Map<string, Buffer>) =>
+    new Map([...files].filter(([name]) => name !== "reconstruction-manifest.json"));
+  const transformed = applyReviewedPreviewWithdrawals(
+    records(original.files),
+    original.manifest,
+    {
+      preview_withdrawals: [
+        {
+          promotion_path: promotionPath,
+          promotion_sha256: digest(required(original.files.get(promotionPath))),
+          release_path: releasePath,
+          release_sha256: digest(required(original.files.get(releasePath))),
+          reason,
+        },
+      ],
+    },
+    next,
+  );
+  assert.deepEqual(transformed.files, records(expected.files));
+  assert.deepEqual(transformed.manifest, expected.manifest);
+  const merged = mergeReleaseRecordBytes(transformed.files, records(forward.files));
+  assert.deepEqual(merged.get(releasePath), original.files.get(releasePath));
+  const combined = jsonObject(
+    releaseRecordManifestBytes([transformed.manifest, forward.manifest], merged),
+  );
+  assert.ok(Array.isArray(combined.records));
+  assert.equal(combined.records.length, 4);
+});
 
 void test("reconstructs deterministic versioned release and separately authenticated channel records", async () => {
   const sources = [source("1.0.0"), source("0.9.0")];

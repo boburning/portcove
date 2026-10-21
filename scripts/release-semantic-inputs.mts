@@ -9,6 +9,10 @@ import { isRecord } from "./runtime-values.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
+import {
+  assertPreviewWithdrawalClassification,
+  readPreviewWithdrawalSource,
+} from "./release-preview-withdrawals.mts";
 
 const repository = "repos/boburning/portcove";
 const oid = (value: unknown): value is string =>
@@ -284,6 +288,10 @@ export function prepareFrozenSemanticInputs(
     evidence,
     namespaceConfiguration,
   );
+  assertPreviewWithdrawalClassification(
+    opportunity.classification,
+    readPreviewWithdrawalSource(bundle),
+  );
   prepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }
@@ -310,6 +318,7 @@ export function prepareFrozenSemanticProposalInputs(
     },
     namespaceConfiguration,
   );
+  readPreviewWithdrawalSource(bundle);
   proposalPrepared.set(bundle, bundle.bundle_sha256);
   return bundle;
 }

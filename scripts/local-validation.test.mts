@@ -48,13 +48,15 @@ import { resolveUiSelection } from "./ui-test-selection.mts";
 
 const allFilesExist = () => true;
 
-void test("pending Release modules select complete test paths and serialize actual CI outputs", async (t) => {
+void test("Release recovery and Preview withdrawal inputs select complete test paths and serialize actual CI outputs", async (t) => {
   const files = [
     "scripts/release-pending-release-recovery.mts",
     "scripts/release-effect-contract.mts",
     "scripts/release-pending-result-recovery.mts",
     "scripts/release-report-repair-contract.mts",
     "scripts/release-report-repair-identity.mts",
+    "scripts/release-preview-withdrawals.mts",
+    "release-preview-withdrawals.json",
   ];
   for (const file of files) {
     const selection = classifyChanges([{ status: "M", path: file }], { fileExists: () => false });
@@ -62,7 +64,9 @@ void test("pending Release modules select complete test paths and serialize actu
       selection.nodeTests.has(
         file === "scripts/release-effect-contract.mts"
           ? "scripts/release-pending-release-recovery.test.mts"
-          : file.replace(/\.mts$/u, ".test.mts"),
+          : file === "release-preview-withdrawals.json"
+            ? "scripts/release-preview-withdrawals.test.mts"
+            : file.replace(/\.mts$/u, ".test.mts"),
       ),
     );
     assert.ok(!selection.unknown.has(file));

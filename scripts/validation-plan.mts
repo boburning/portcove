@@ -231,6 +231,8 @@ const nativeScenarioFiles = new Set([
 // qualification, and updater authorities. Node contract tests are protected
 // with their implementations so a gate cannot weaken its own required proof.
 const releaseSecurityFiles = withNodeTestCompanions([
+  "release-preview-withdrawals.json",
+  "scripts/release-preview-withdrawals.mts",
   "scripts/release-native-stage-capture.mts",
   "scripts/release-native-capture-files.mts",
   "scripts/release-native-linux-report.mts",

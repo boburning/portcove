@@ -272,6 +272,32 @@ metadata excludes withdrawn versions from staging/application and normally offer
 a newer forward repair. Withdrawal neither deletes user data nor terminates an
 already installed offline application.
 
+The controlled new-release path accepts an optional, source-bound
+`release-preview-withdrawals.json` request. Its exact schema is
+`{ "schema_version": 1, "withdrawals": [...] }`; each entry contains
+`promotion_path`, `promotion_sha256`, `release_path`, `release_sha256`, `reason`,
+`prior_promotion_utf8` and `prior_release_utf8`. The last two fields retain the
+complete original JSON bytes as UTF-8 strings. The fixed snapshot builder checks
+their digests and relationships, then carries only the path/digest/reason map in
+`classification.preview_withdrawals`. Source-provided prior bytes remain untrusted
+data throughout independent whole-opportunity review. The actual signing factory
+must match them against its current Tough-authenticated prior before changing any
+record. Accepted review alone cannot authenticate a feed or authorize signing.
+
+Requests are sorted by promotion path, unique, limited to 16 entries and 32 KiB
+for the complete source file, with a 1 KiB nonempty reason per entry. Only an
+eligible non-production Preview promotion may become ineligible and withdrawn;
+its release reference and all other record fields remain fixed. A later ordinary
+candidate supplies the forward-repair version. The factory updates the exact
+Preview record and its reconstruction-manifest identity while preserving immutable
+Releases, Stable targets, catalog content and historical metadata. Existing role
+version/expiration advancement and per-role isolated signing remain applicable.
+The complete source request must be observed in both proposal and full review,
+even if it is unchanged in the accumulated diff. An absent or empty request keeps
+normal record construction unchanged; clear an applied request before a later
+candidate because a changed or already withdrawn prior refuses rather than being
+silently reinterpreted. Routine metadata renewal still retains exact record bytes.
+
 The Tauri host's `application_update` module now owns the strict schema and
 selection boundary after TUF verification. It accepts only fully consumed release
 and channel target bytes, verifies that the promotion binds the exact release path
