@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import test from "node:test";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import {
@@ -454,4 +455,39 @@ void test("native source closure refuses changed or incomplete exact harness byt
     }),
     /retain/u,
   );
+});
+void test("native collector preserves a caller phase deadline before and after actual default transport", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "native-consumer-deadline-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  let calls = 0;
+  const spawn: NonNullable<Parameters<typeof collectNativeReleaseQualification>[2]>["spawn"] = (
+    _command,
+    args,
+    settings,
+  ) => {
+    calls++;
+    assert.ok(
+      typeof settings.timeout === "number" && settings.timeout > 0 && settings.timeout <= 50,
+    );
+    const endpoint = args.find((part) => part.startsWith("repos/boburning/portcove/"));
+    assert.ok(endpoint);
+    const body = f.api.request("GET", endpoint).body;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 65);
+    return { status: 0, stderr: "", stdout: `HTTP/2.0 200 OK\r\n\r\n${JSON.stringify(body)}` };
+  };
+  await assert.rejects(
+    collectNativeReleaseQualification(root, f.expected, { deadline: performance.now() - 1, spawn }),
+    /deadline/u,
+  );
+  assert.equal(calls, 0);
+  assert.deepEqual(await readdir(root), []);
+  await assert.rejects(
+    collectNativeReleaseQualification(root, f.expected, {
+      deadline: performance.now() + 50,
+      spawn,
+    }),
+    /retain/u,
+  );
+  assert.equal(calls, 1);
 });

@@ -139,6 +139,7 @@ export async function collectNativeReleaseQualificationPair(
   rawAssembly: unknown,
   rawArchives: unknown,
   stage: NativeQualificationStage,
+  deadline?: number,
 ) {
   if (!Array.isArray(rawExpected) || rawExpected.length !== 2)
     throw new Error("fixed caller must supply exactly two independent native expectations");
@@ -153,7 +154,13 @@ export async function collectNativeReleaseQualificationPair(
     throw new Error("independent native stage/platform/Check pair differs");
   const receipts = [];
   for (const item of expected)
-    receipts.push(await collectNativeReleaseQualification(outputParent, item));
+    receipts.push(
+      await collectNativeReleaseQualification(
+        outputParent,
+        item,
+        deadline === undefined ? {} : { deadline },
+      ),
+    );
   await requireNativeReleaseQualificationPair(receipts, assembly, archives, stage);
   return Object.freeze(receipts);
 }

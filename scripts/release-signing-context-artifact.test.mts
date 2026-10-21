@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { stripTypeScriptTypes } from "node:module";
+import vm from "node:vm";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
@@ -15,11 +17,58 @@ import {
   prepareSigningContextPredicate,
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
+  requireRetainedSigningContext,
   signingContextPredicateType,
   handoffSigningContextArtifact,
 } from "./release-signing-context-artifact.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+void test("retained context rechecks its original deadline after asynchronous full-tree read", async () => {
+  // Execute the actual private function in an inert closure. This does not mint
+  // a module-owned receipt or bypass the production receiver's private brand.
+  const source = await readFile(
+    new URL("./release-signing-context-artifact.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("async function readReceivedSigningContext("),
+    end = source.indexOf("\nexport function requireReceivedSigningContext", start);
+  assert.ok(start > 0 && end > start);
+  for (const provider of ["retained", "fresh"] as const) {
+    let clock = 0;
+    const receipt = {},
+      received = new WeakMap([
+        [
+          receipt,
+          {
+            public_evidence: [],
+            context: "fixture",
+            directory: "fixture",
+            files: [],
+            manifest: {},
+            active() {
+              if (clock >= 10) throw new Error("fixture deadline exhausted");
+            },
+            refresh() {},
+          },
+        ],
+      ]);
+    const run = vm.runInNewContext(
+      `${stripTypeScriptTypes(source.slice(start, end))}\nreadReceivedSigningContext`,
+      {
+        received,
+        digest,
+        identities: (value: unknown) => value,
+        readBoundedReleaseContextFiles: async () => {
+          clock = 11;
+          return [];
+        },
+        structuredClone,
+        Object,
+      },
+    ) as (receipt: object, deadline: undefined, provider: string) => Promise<unknown>;
+    await assert.rejects(run(receipt, undefined, provider), /deadline exhausted/);
+  }
+});
 void test("context upload handoff cannot start from imported custody or renew an expired phase", async () => {
   const pending = { checkpoint: "a".repeat(40), operation_id: "b".repeat(64) };
   await assert.rejects(
@@ -152,7 +201,7 @@ function fixture() {
     path: productionControllerWorkflow,
     event: "workflow_dispatch",
     status: "in_progress",
-    conclusion: null,
+    conclusion: null as string | null,
     repository: { id: 1354613114, full_name: "boburning/portcove" },
     head_repository: { id: 1354613114 },
   };
@@ -179,7 +228,7 @@ function fixture() {
               head_sha: controller.controller_revision,
               name: "Sign admitted updater payloads",
               status: "completed",
-              conclusion: "success",
+              conclusion: faults.value === "job-failure" ? "failure" : "success",
               check_run_url: `https://api.github.com/repos/boburning/portcove/check-runs/${faults.value === "job" ? "778" : "777"}`,
             },
           };
@@ -247,6 +296,7 @@ function fixture() {
     expected,
     options,
     faults,
+    run,
     counts: () => ({ requests, downloads }),
   };
 }
@@ -263,6 +313,47 @@ void test("bounded context ZIP has exactly two fixed members and complete packed
   ])
     assert.throws(() => inspectSigningContextArchive(archive));
 });
+void test("successful exact payload context survives a later sibling workflow failure but not a failed producer", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-completed-component-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const f = fixture();
+  f.run.status = "completed";
+  f.run.conclusion = "failure";
+  const result = await receiveSigningContextArtifact(
+    root,
+    f.expected,
+    performance.now() + 5000,
+    f.options,
+  );
+  assert.equal(result.evidence_scope, "injected-provider");
+  await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  for (const fault of ["job-failure", "job"]) {
+    const failed = fixture();
+    failed.run.status = "completed";
+    failed.run.conclusion = "failure";
+    failed.faults.value = fault;
+    await assert.rejects(
+      receiveSigningContextArtifact(
+        root,
+        failed.expected,
+        performance.now() + 5000,
+        failed.options,
+      ),
+      /retain/,
+    );
+  }
+  const impossible = fixture();
+  impossible.run.conclusion = "failure";
+  await assert.rejects(
+    receiveSigningContextArtifact(
+      root,
+      impossible.expected,
+      performance.now() + 5000,
+      impossible.options,
+    ),
+    /retain/,
+  );
+});
 void test("injected complete provider/attestation path proves data association but cannot mint actual context brand", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "signing-context-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
@@ -277,6 +368,11 @@ void test("injected complete provider/attestation path proves data association b
   assert.equal(result.publication_admission, "not-established");
   assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  await assert.rejects(
+    requireRetainedSigningContext(result, performance.now() + 1000),
+    /actual authenticated/,
+  );
+  assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   for (const fault of ["job", "certificate", "drift"]) {
     const changed = fixture();
     changed.faults.value = fault;

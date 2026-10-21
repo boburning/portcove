@@ -57,6 +57,104 @@ import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+void test("exact Pages expectation survives real pending checkpoint and ambiguous partial effect without replay", async (t) => {
+  const f = await fixture(t);
+  const saved = await checkpointReleaseOpportunity(f.repository, f.initial.checkpoint, f.input);
+  const capacity = capacityFixture();
+  const input = {
+    ...f.input,
+    schema_version: 2,
+    controller: {
+      workflow: f.input.controller.workflow,
+      revision: f.input.controller.revision,
+      publication_paused: false,
+      capacity_attempt: capacity,
+    },
+  };
+  const migrated = await checkpointReleaseOpportunity(f.repository, saved.checkpoint, input);
+  const expected = {
+    archive_sha256: "1".repeat(64),
+    artifact_id: 123,
+    prior_site_generation_sha256: "2".repeat(64),
+    repository_sha256: "3".repeat(64),
+    root_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  const executor = {
+    controller_revision: "a".repeat(40),
+    execution_ref: "refs/tags/controller-v1",
+    workflow: ".github/workflows/controller.yml",
+    run_id: "123",
+    run_attempt: 1,
+    job_id: 456,
+    check_run_id: "789",
+    actor_id: "43177418",
+    role: "site-publication",
+  };
+  let effects = 0,
+    failedCheckpoint = "";
+  try {
+    await runBoundedCapacityOperation(
+      f.repository,
+      migrated.checkpoint,
+      {
+        kind: "upload",
+        destination: "github-pages:boburning/portcove:complete-site",
+        site_expectation: expected,
+      },
+      async () => capacity.boundary,
+      async (record, pending) => {
+        effects++;
+        const retained = await recoverReleaseOpportunity(f.repository, pending.checkpoint);
+        assert.ok(
+          isRecord(retained.input.controller) &&
+            isRecord(retained.input.controller.capacity_attempt),
+        );
+        const operation = retained.input.controller.capacity_attempt.operation;
+        assert.ok(isRecord(operation));
+        assert.deepEqual(operation.site_expectation, expected);
+        assert.equal(operation.outcome, "pending");
+        // Controlled data seam only: no GitHub executor, upload or public proof.
+        await record("github-pages:boburning/portcove:fixture-deployment", "6".repeat(64));
+        throw Error("lost response after observed partial fixture effect");
+      },
+      { executorIdentity: executor, maximumReceipts: 1 },
+    );
+    assert.fail("ambiguous response must stop");
+  } catch (error) {
+    assert.ok(error instanceof CoordinatorRemoteError && isRecord(error.evidence));
+    failedCheckpoint = String(error.evidence.checkpoint);
+  }
+  const failed = await recoverReleaseOpportunity(f.repository, failedCheckpoint);
+  assert.ok(
+    isRecord(failed.input.controller) && isRecord(failed.input.controller.capacity_attempt),
+  );
+  const operation = failed.input.controller.capacity_attempt.operation;
+  assert.ok(isRecord(operation));
+  assert.deepEqual(operation.site_expectation, expected);
+  assert.equal(operation.outcome, "ambiguous");
+  assert.deepEqual(failed.input.active_candidate, f.input.active_candidate);
+  await assert.rejects(
+    runBoundedCapacityOperation(
+      f.repository,
+      failedCheckpoint,
+      {
+        kind: "upload",
+        destination: "github-pages:boburning/portcove:complete-site",
+        site_expectation: expected,
+      },
+      async () => capacity.boundary,
+      async () => {
+        effects++;
+      },
+      { executorIdentity: executor, maximumReceipts: 1 },
+    ),
+  );
+  assert.equal(effects, 1);
+  await assert.rejects(
+    recordCapacityReadback(f.repository, failedCheckpoint, "effect-not-applied", "7".repeat(64)),
+  );
+});
 
 void test(
   "candidate stage evidence survives real Git checkpoint custody and refuses backfill or same-phase rewrites",

@@ -145,6 +145,7 @@ export interface ParsedCapacityOperation {
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
+  site_expectation?: ReturnType<typeof inspectSitePublicationExpectation>;
   destination: string;
   kind: string;
   policy_sha256: string;
@@ -156,6 +157,51 @@ export interface ParsedCapacityOperation {
   failure_evidence: Record<string, unknown> | null;
   recovery: Record<string, unknown> | null;
 }
+/** Expected result in the existing durable intent, never provider completion. */
+export function inspectSitePublicationExpectation(raw: unknown) {
+  exact(
+    raw,
+    "archive_sha256,artifact_id,prior_site_generation_sha256,repository_sha256,root_sha256,site_generation_sha256",
+  );
+  for (const name of [
+    "archive_sha256",
+    "repository_sha256",
+    "root_sha256",
+    "site_generation_sha256",
+  ] as const)
+    sha(raw[name]);
+  if (raw.prior_site_generation_sha256 !== null) sha(raw.prior_site_generation_sha256);
+  if (
+    typeof raw.artifact_id !== "number" ||
+    !Number.isSafeInteger(raw.artifact_id) ||
+    raw.artifact_id < 1
+  )
+    throw new Error("site expected provider artifact identity unavailable");
+  if (raw.prior_site_generation_sha256 === raw.site_generation_sha256)
+    throw new Error("site deployment intent must advance its exact prior generation");
+  return {
+    archive_sha256: String(raw.archive_sha256),
+    artifact_id: raw.artifact_id,
+    prior_site_generation_sha256:
+      raw.prior_site_generation_sha256 === null ? null : String(raw.prior_site_generation_sha256),
+    repository_sha256: String(raw.repository_sha256),
+    root_sha256: String(raw.root_sha256),
+    site_generation_sha256: String(raw.site_generation_sha256),
+  };
+}
+/** A replacement result artifact consumes the existing bounded candidate
+ * recovery tuple. An arbitrary destination suffix cannot reset that tuple. */
+export function assertPublicationResultDestination(destination: string, candidate: unknown) {
+  if (!destination.includes(":immutable-release-result")) return;
+  if (!isRecord(candidate)) throw new Error("result recovery requires its actual candidate");
+  inspectRecoveryCounters(candidate);
+  text(candidate.version);
+  const transient = Number(candidate.transient_retries),
+    repair = Number(candidate.substantive_repairs);
+  const expected = `github-actions:boburning/portcove:${candidate.version}:immutable-release-result${transient + repair === 0 ? "" : `:recovery-${transient}-${repair}`}`;
+  if (destination !== expected)
+    throw new Error("result destination differs from consumed candidate recovery counters");
+}
 export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation | null {
   if (raw === null) return null;
   const hasExecutor = isRecord(raw) && Object.hasOwn(raw, "executor_nonce");
@@ -163,6 +209,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const metadata = isRecord(raw) && Object.hasOwn(raw, "metadata_renewal");
   const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
+  const hasSite = isRecord(raw) && Object.hasOwn(raw, "site_expectation");
   exact(
     raw,
     [
@@ -173,6 +220,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       ...(hasExecutor ? ["executor_nonce"] : []),
       ...(hasIdentity ? ["executor_identity"] : []),
       ...(receiptLimit ? ["receipt_limit"] : []),
+      ...(hasSite ? ["site_expectation"] : []),
       "failure_evidence",
       "id",
       "kind",
@@ -202,6 +250,24 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   sha(raw.policy_sha256);
   sha(raw.ratification_sha256);
   text(raw.destination);
+  // Historical unsuffixed records predate bounded report-repair destinations.
+  // Keep their exact bytes readable; only new intents require the new tuple.
+  if (
+    !isRecord(raw.candidate) ||
+    raw.destination !==
+      `github-actions:boburning/portcove:${String(raw.candidate.version)}:immutable-release-result`
+  )
+    assertPublicationResultDestination(raw.destination, raw.candidate);
+  const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
+  if (
+    site &&
+    (raw.kind !== "upload" ||
+      raw.destination !== "github-pages:boburning/portcove:complete-site" ||
+      !executorIdentity ||
+      executorIdentity.role !== "site-publication" ||
+      (site.prior_site_generation_sha256 === null && !bootstrap))
+  )
+    throw new Error("site expectation belongs only to the actual fixed Pages intent");
   if (bootstrap) {
     exact(
       raw.metadata_bootstrap,
@@ -342,6 +408,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     before_checkpoint: raw.before_checkpoint,
     ...subject,
     destination: raw.destination,
+    ...(site ? { site_expectation: site } : {}),
     ...(hasExecutor ? { executor_nonce: String(raw.executor_nonce) } : {}),
     ...(executorIdentity ? { executor_identity: executorIdentity } : {}),
     ...(receiptLimit ? { receipt_limit: Number(raw.receipt_limit) } : {}),
@@ -672,6 +739,7 @@ function validateCapacityV2(
   const before = priorCapacity ? inspectCapacityOperation(priorCapacity.operation) : null,
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null
@@ -892,6 +960,7 @@ export function validateCapacityTransition(
       ? inspectPriorCapacityOperations(next.controller.capacity_attempt.prior_operations)
       : [];
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   const expectedPrior = newIntent
     ? [...prior, ...(before ? [before] : [])].filter(
         (op) =>

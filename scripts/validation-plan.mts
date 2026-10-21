@@ -274,6 +274,10 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-candidate-progress-contract.mts",
   "scripts/release-site-readback.mts",
   "scripts/release-site-deployment.mts",
+  "scripts/release-site-controller.mts",
+  "scripts/release-site-launch.mts",
+  "scripts/release-site-job-budget.mts",
+
   "scripts/release-pages-provider.mts",
   "scripts/release-capacity-executor.mts",
 
@@ -351,6 +355,9 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-acceptance.mts",
   "scripts/release-native-admission.mts",
   "scripts/release-signing-handoff.mts",
+  "scripts/release-tuf-role-artifact.mts",
+  "scripts/fixtures/tuf-worker-fixture.mts",
+  "scripts/release-tuf-signing.mts",
   "scripts/release-signing-context.mts",
   "scripts/release-signing-context-artifact.mts",
   "scripts/release-publication-result.mts",
