@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { createRequire } from "node:module";
-import { mkdir, mkdtemp, readFile, writeFile, copyFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile, copyFile, cp, rm } from "node:fs/promises";
 import { performance } from "node:perf_hooks";
 import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
 import { signIsolatedTufRole, tufRoleDependencies } from "./release-tuf-signing.mts";
@@ -784,13 +784,34 @@ void test(
     const altered = Buffer.from('{"signed":{},"signatures":[]}');
     const alteredPath = path.join(corrupt, "releases.json");
     await writeFile(alteredPath, altered);
+    await cp(input, path.join(corrupt, "context"), { recursive: true, errorOnExist: true });
+    const corruptRoles = [];
+    for (const item of assemblyPlan.signed_roles) {
+      const bytes = item.filename === "releases.json" ? altered : await readFile(item.path);
+      const filename = path.join(corrupt, item.filename);
+      if (filename !== alteredPath) await writeFile(filename, bytes, { flag: "wx" });
+      corruptRoles.push({
+        filename: item.filename,
+        path: filename,
+        bytes: bytes.length,
+        sha256: sha(bytes),
+      });
+    }
     await assert.rejects(
       invoke(corrupt, "native-keyless-plan.json", {
         ...assemblyPlan,
         output_parent: corrupt,
         context_directory: path.join(corrupt, "context"),
-        signed_roles: [],
+        signed_roles: corruptRoles,
       }),
+    );
+    assert.equal(
+      (
+        JSON.parse(await readFile(path.join(corrupt, "native-keyless-refusal.json"), "utf8")) as {
+          authority: string;
+        }
+      ).authority,
+      "none",
     );
     // The exact original contexts/results remain public fixture evidence only.
     await writeFile(
@@ -803,7 +824,7 @@ void test(
           "actual-cli-five-role-tough-assembled",
           "actual-cli-selected-payload-verified",
           "actual-cli-tampered-payload-refused",
-          "invalid-envelope-plan-refused",
+          "actual-cli-corrupt-envelope-refused",
         ],
         authority: "none",
         scope:
