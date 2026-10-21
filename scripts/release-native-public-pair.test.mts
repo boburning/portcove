@@ -8,6 +8,7 @@ import {
   requireActualPublicJourneyPair,
   requireActualPublicJourneyPackage,
   inspectPublicJourneyContinuation,
+  acquireActualPublicJourneyContinuationPair,
 } from "./release-native-public-pair.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 const sha = (b: Buffer) => createHash("sha256").update(b).digest("hex");
@@ -241,6 +242,10 @@ void test("missing prior, changed bytes, duplicate allocations and another curre
   }
 });
 void test("raw pair/setup imports cannot enter actual parent or public custody factories", async () => {
+  await assert.rejects(
+    acquireActualPublicJourneyContinuationPair({}, { kind: "actual-retained-public-cohort" }),
+    /actual retained public cohort custody/,
+  );
   await assert.rejects(
     acquireActualPublicJourneyPair({
       public_journey: { profile: "ordinary-public-initial-cohort-v1" },
