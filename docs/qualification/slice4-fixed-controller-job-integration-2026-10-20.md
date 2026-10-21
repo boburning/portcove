@@ -46,6 +46,16 @@ the actual isolated source-closure check passes. The earlier failure remains
 distinct from the passing bundle result; it is not described as an entirely
 passing run. Final source/CI identities belong in the delivery receipt.
 
+The first hosted qualification at `7a9d505` exposed transport stream/test typing,
+ambient `RUNNER_TEMP` activating fixed-job hooks in ordinary CI, and the bundled
+key client's missing direct-CLI refusal. The failures remain retained under
+CI `39536782681` and tool fixture `39536779219`; neither run passed. Hooks now
+also require the explicit fixed-job marker, the exact bundled CLI is covered,
+and stream chunks are narrowed before bounded hashing. Focused typing, sixteen
+handoff/transport checks and the actual eleven-entry Pack pass after repair;
+the one Linux socket case remains skipped locally on Windows. Final hosted
+qualification must cover the composed source, including pending-context recovery.
+
 The event transport's local Linux-specific socket case is skipped on Windows;
 hosted Linux qualification remains a separate result. Synthetic files and
 disposable keys do not establish actual semantic, native, App, key-custody or
