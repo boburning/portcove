@@ -1483,6 +1483,14 @@ export async function preparationScenarios({
     const first = await seed("opengoal-jak1", "success");
     const second = await seed("opengoal-jak2", "success");
     const before = [await status(first.port.id), await status(second.port.id)];
+    // Establish the post-seeding render before measuring. An in-flight
+    // workspace read may legitimately have observed the two fixture commits.
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -1512,6 +1520,23 @@ export async function preparationScenarios({
         const search = await browser.findElement(By.id("port-search"));
         await search.clear();
         await search.sendKeys("Jak");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (ids) => {
+                const rendered = [
+                  ...document.querySelectorAll<HTMLButtonElement>(
+                    ".collection-entry button[data-detail-game-id]",
+                  ),
+                ].map((item) => item.dataset.detailGameId);
+                return ids.every((id) => rendered.includes(id));
+              },
+              [first.port.id, second.port.id],
+            ),
+          15_000,
+          "Both exact prepared Library entries must render before layout measurement",
+        );
         for (const layout of ["Covers", "Compact rows"]) {
           await clickVisible(browser, await browser.findElement(button(layout)));
           for (const { width, height } of [

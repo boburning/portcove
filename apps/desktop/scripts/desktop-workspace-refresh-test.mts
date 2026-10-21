@@ -650,8 +650,22 @@ export async function workspaceRefreshScenario({
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
           10_000,
         );
-        const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
-        assert.equal(await play.isEnabled(), false);
+        const launchControls = await browser.findElements(
+          By.xpath(
+            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Play" or normalize-space(.)="Try launch"]',
+          ),
+        );
+        for (const launch of launchControls) assert.equal(await launch.isEnabled(), false);
+        const locate = await browser.findElement(
+          By.xpath(
+            '//section[contains(@class,"detail-panel")]//div[contains(@class,"primary-actions")]//button[normalize-space(.)="Locate game files"]',
+          ),
+        );
+        assert.equal(
+          await locate.isEnabled(),
+          true,
+          "The specific file recovery must remain actionable",
+        );
         sourceFormat.guidance = expected;
         sourceFormat.injections = await executeBrowserScript(browser, () => {
           const probe = (window as RefreshWindow).__portcoveExternalReconciliationProbe;

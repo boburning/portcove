@@ -196,7 +196,11 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await openCatalogPortAfterRefresh(browser, port, port.name);
-    await click(By.css("summary.advanced-summary"));
+    await click(
+      By.xpath(
+        '//section[contains(@class,"detail-panel")]//summary[contains(@class,"advanced-summary") and starts-with(normalize-space(.),"Technical details")]',
+      ),
+    );
     await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);

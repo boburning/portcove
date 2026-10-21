@@ -79,28 +79,45 @@ export async function artworkScenario({
         });
         return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector: string) =>
+      const fallbackVisual = async (selector: string, paletteIndex: number) =>
         executeBrowserScript(
           browser,
-          (selector) => {
+          (selector, paletteIndex) => {
             const frame = document.querySelector<HTMLElement>(selector);
             if (!frame) throw new Error("Artwork frame unavailable");
-            const palette = [...frame.classList].find((name: string) =>
-              name.startsWith("palette-"),
-            );
+            const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
+            const role = roles[paletteIndex];
+            if (!role) throw new Error("Unknown generated artwork palette");
+            const token = `--color-art-${role}`;
+            const computed = getComputedStyle(frame);
+            const probe = document.createElement("span");
+            probe.style.display = "none";
+            probe.style.backgroundColor = `var(${token})`;
+            document.body.append(probe);
+            let expectedBackground: string;
+            try {
+              expectedBackground = getComputedStyle(probe).backgroundColor;
+            } finally {
+              probe.remove();
+            }
             return {
               source: frame.dataset.artworkSource,
               initials: frame.querySelector(":scope > span")?.textContent,
-              palette,
+              palette: computed.getPropertyValue("--art-color").trim(),
+              expectedPalette: getComputedStyle(document.documentElement)
+                .getPropertyValue(token)
+                .trim(),
+              background: computed.backgroundColor,
+              expectedBackground,
             };
           },
           selector,
+          paletteIndex,
         );
       const expectFallbackVisual = async (selector: string, fallback: GeneratedArtworkFallback) => {
         const expected = {
           source: "generated_fallback",
           initials: fallback.initials,
-          palette: `palette-${fallback.palette_index}`,
         };
         const frame = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
         await executeBrowserScript(
@@ -109,14 +126,20 @@ export async function artworkScenario({
           frame,
         );
         await browser.wait(async () => {
-          const actual = await fallbackVisual(selector);
+          const actual = await fallbackVisual(selector, fallback.palette_index);
           return (
             actual.source === expected.source &&
             actual.initials === expected.initials &&
-            actual.palette === expected.palette
+            actual.palette.length > 0 &&
+            actual.palette === actual.expectedPalette &&
+            actual.background === actual.expectedBackground
           );
         }, 10_000);
-        assert.deepEqual(await fallbackVisual(selector), expected);
+        const actual = await fallbackVisual(selector, fallback.palette_index);
+        assert.deepEqual({ source: actual.source, initials: actual.initials }, expected);
+        assert.ok(actual.palette.length > 0);
+        assert.equal(actual.palette, actual.expectedPalette);
+        assert.equal(actual.background, actual.expectedBackground);
       };
       const open = async () => {
         await observations.capture("before-reload");

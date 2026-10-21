@@ -658,9 +658,9 @@ export async function installScenarios({
           return {
             label: card.getAttribute("aria-label"),
             state: card.querySelector(".readiness")?.textContent?.trim(),
-            attention: [...card.querySelectorAll(".badge.update")].map((item) =>
-              item.textContent?.trim(),
-            ),
+            attention: [
+              ...card.querySelectorAll(".collection-state button, .collection-state p"),
+            ].map((item) => item.textContent?.trim()),
           };
         },
         port.id,
@@ -669,11 +669,29 @@ export async function installScenarios({
     assert.ok(libraryCard);
     assert.equal(libraryCard.state, "Ready to play");
     assert.equal(libraryCard.label, `${gameIdentityLabel(port)}. Ready to play.`);
-    assert.ok(libraryCard.attention.includes("Update downloaded"));
+    assert.ok(libraryCard.attention.includes("Review downloaded update"));
     assert.equal(
-      libraryCard.attention.includes("Update available"),
+      libraryCard.attention.includes("Another update available at last check"),
       false,
       "the available target already matches the verified downloaded update",
+    );
+    const stagedLink = await browser.findElement(
+      By.xpath(
+        `//article[.//button[@data-detail-game-id="${port.id}"]]//button[normalize-space(.)="Review downloaded update"]`,
+      ),
+    );
+    await stagedLink.click();
+    await browser.wait(
+      async () => {
+        const section = await browser.findElement(
+          By.css(
+            `.detail-panel[data-detail-port-id="${port.id}"] section[aria-label="Use update saved for later"]`,
+          ),
+        );
+        return (await section.getText()).includes(nextVersion);
+      },
+      5000,
+      "Downloaded-update link must open the same game's saved update",
     );
     const layouts = await captureStagedLayouts(port, nextVersion);
     const finalResult = await statuses();

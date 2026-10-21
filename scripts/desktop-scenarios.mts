@@ -798,6 +798,17 @@ export function resolveDesktopSelection({
   const selectedSet = new Set(selected);
   const setup = ordered([...dependencies].filter((id) => !selectedSet.has(id)));
   const executed = new Set([...selected, ...setup]);
+  if (
+    executed.has("native-staged-update-composition") &&
+    executed.has("native-preparation-review-and-play")
+  )
+    throw new Error(
+      "Staged-update composition and preparation must use separate fresh libraries; the staged fixture is intentionally retained",
+    );
+  if (executed.has("native-library-layout") && executed.has("native-preparation-cancellation"))
+    throw new Error(
+      "Library layout and preparation cancellation must use separate fresh libraries; their JakII fixture modes differ",
+    );
   const excluded = DESKTOP_SCENARIOS.filter(
     (item) => !executed.has(item.id) && !nonRunnable.includes(item.id),
   ).map((item) => item.id);

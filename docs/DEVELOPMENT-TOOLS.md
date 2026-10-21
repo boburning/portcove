@@ -1281,6 +1281,15 @@ The curated profiles are:
 - `full`: smoke, owned lifecycle and artwork. It remains a curated native suite,
   not universal desktop, physical-device, gameplay or human qualification.
 
+Run staged-update composition separately from preparation journeys: its saved
+update deliberately remains staged, while preparation verifies an unstaged
+fixture preimage. Library layout and preparation cancellation also require
+separate fresh libraries because they use different JakII runtime modes. The
+planner rejects these pairs, including prerequisite closure, before launch;
+ordinary profiles remain unchanged. Do not activate/delete staged evidence or
+overwrite fixture modes to combine them. Layout measurement reloads after its
+fixture commits and waits for both exact rendered entries before measuring.
+
 `--scenario native-host-publication-recovery` is a standalone instrumented Windows
 journey at existing Core install, restore, whole-library move and import checkpoints. It
 uses the existing `qualification-fixtures` build feature; ordinary builds keep

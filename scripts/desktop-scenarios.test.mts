@@ -2665,6 +2665,23 @@ void test("selected setup identities admit both replacements only in the opt-in 
   const ordinaryCatalog = json(await readFile(ordinary.catalogPath, "utf8"));
   assert.deepEqual(object(ordinaryCatalog).source_catalog, object(original).source_catalog);
 });
+void test("known native fixture conflicts refuse before launch, including transitive prerequisites", () => {
+  for (const scenarios of [
+    ["native-staged-update-composition", "native-preparation-review-and-play"],
+    ["native-staged-update-composition", "native-ready-detail-composition"],
+    ["native-library-layout", "native-preparation-cancellation"],
+    ["native-library-layout", "native-interrupted-preparation-recovery"],
+  ]) {
+    assert.throws(() => resolveDesktopSelection({ scenarios }), /separate fresh libraries/);
+  }
+  for (const scenario of ["native-staged-update-composition", "native-library-layout"]) {
+    assert.ok(
+      resolveDesktopSelection({ scenarios: [scenario] }).selected_scenarios.includes(scenario),
+    );
+  }
+  assert.ok(resolveDesktopSelection({ profile: "full" }).selected_scenarios.length > 0);
+});
+
 import "../apps/desktop/scripts/desktop-qualification-history.native.test.mts";
 import "../apps/desktop/scripts/desktop-harness.native.test.mts";
 import "../apps/desktop/scripts/desktop-native-observations.native.test.mts";
