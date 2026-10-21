@@ -144,6 +144,9 @@ export function inspectLocalNativeTransport(
       "source_read_token",
       ...(isRecord(raw) && Object.hasOwn(raw, "windows_tools") ? ["windows_tools"] : []),
       ...(isRecord(raw) && Object.hasOwn(raw, "post_sign_verifier") ? ["post_sign_verifier"] : []),
+      ...(isRecord(raw) && Object.hasOwn(raw, "public_signature_control")
+        ? ["public_signature_control"]
+        : []),
     ]
       .sort()
       .join(","),
@@ -160,6 +163,30 @@ export function inspectLocalNativeTransport(
   const source = canonical(raw.source_read_token, windows),
     key = canonical(raw.native_issuer.private_key, windows);
   let postSignVerifier: { path: string; sha256: string } | undefined;
+  let publicSignatureControl: { path: string; sha256: string } | undefined;
+  if (Object.hasOwn(raw, "public_signature_control")) {
+    exact(raw.public_signature_control, "path,sha256");
+    publicSignatureControl = {
+      path: canonical(raw.public_signature_control.path, windows),
+      sha256: digest(raw.public_signature_control.sha256),
+    };
+    const paths = [
+      source,
+      key,
+      canonical(raw.github_cli.path, windows),
+      ...(isRecord(raw.post_sign_verifier)
+        ? [canonical(raw.post_sign_verifier.path, windows)]
+        : []),
+    ];
+    if (
+      paths.some((value) =>
+        windows
+          ? value.toLowerCase() === publicSignatureControl!.path.toLowerCase()
+          : value === publicSignatureControl!.path,
+      )
+    )
+      throw new Error("public signature tool overlaps credential or verifier custody");
+  }
   if (Object.hasOwn(raw, "post_sign_verifier")) {
     exact(raw.post_sign_verifier, "path,sha256");
     postSignVerifier = {
@@ -218,6 +245,8 @@ export function inspectLocalNativeTransport(
       throw new Error("native tool and credential paths overlap");
     if (postSignVerifier && paths.includes(postSignVerifier.path.toLowerCase()))
       throw new Error("native keyless verifier overlaps an independently pinned desktop tool");
+    if (publicSignatureControl && paths.includes(publicSignatureControl.path.toLowerCase()))
+      throw new Error("public signature tool overlaps an independently pinned desktop tool");
   }
   return {
     schema_version: 1 as const,
@@ -232,6 +261,7 @@ export function inspectLocalNativeTransport(
     },
     ...(tools ? { windows_tools: tools } : {}),
     ...(postSignVerifier ? { post_sign_verifier: postSignVerifier } : {}),
+    ...(publicSignatureControl ? { public_signature_control: publicSignatureControl } : {}),
   };
 }
 

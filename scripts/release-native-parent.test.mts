@@ -95,6 +95,7 @@ void test("public source tool pins must also reside in the scheduler-observed pr
       ...f.transport_configuration,
       windows_tools,
       post_sign_verifier: tool("release-tools"),
+      public_signature_control: tool("verify_packaged_application_update"),
     },
   };
   assert.equal(inspectWindowsNativeParentSetup(raw).authority, "none");
@@ -107,12 +108,30 @@ void test("public source tool pins must also reside in the scheduler-observed pr
       ...raw.transport_configuration,
       windows_tools: { ...windows_tools, git: { ...tool("git"), path: "C:\\Mutable\\git.exe" } },
     },
+    {
+      ...raw.transport_configuration,
+      public_signature_control: {
+        ...tool("verify_packaged_application_update"),
+        path: "C:\\Mutable\\verify_packaged_application_update.exe",
+      },
+    },
   ])
     assert.throws(
       () => inspectWindowsNativeParentSetup({ ...raw, transport_configuration }),
       /protected controller tree/,
     );
   assert.equal(inspectWindowsNativeParentSetup(f).authority, "none");
+  assert.throws(
+    () =>
+      inspectWindowsNativeParentSetup({
+        ...raw,
+        transport_configuration: {
+          ...raw.transport_configuration,
+          public_signature_control: raw.transport_configuration.post_sign_verifier,
+        },
+      }),
+    /overlaps/,
+  );
 });
 
 function fixture() {

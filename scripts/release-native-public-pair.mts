@@ -302,6 +302,7 @@ export async function requireActualPublicJourneyPair(receipt: object) {
     site,
     preparation: prepared,
     parent: retained.session.parent,
+    parent_receipt: retained.session.parent_receipt,
     directory: retained.session.directory,
     deadline: retained.deadline,
   };
@@ -409,6 +410,7 @@ export async function requireActualPublicJourneyPackage(receipt: object) {
   );
   assert.ok(performance.now() < selected.deadline, "original public parent lifetime exhausted");
   return {
+    pair_receipt: retained.pair,
     pair: selected,
     slot: retained.slot,
     path: retained.path,

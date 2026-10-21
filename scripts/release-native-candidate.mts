@@ -494,9 +494,11 @@ export async function openActualNativePublicSource(parentReceipt: object) {
     throw new Error("actual protected public journey profile required");
   const verifier = parent.transport_configuration.post_sign_verifier;
   const git = parent.transport_configuration.windows_tools?.git;
+  const signature = parent.transport_configuration.public_signature_control;
   if (
     !verifier ||
     !releasePathContains(parent.controller_root, verifier.path) ||
+    (signature && !releasePathContains(parent.controller_root, signature.path)) ||
     (parent.descriptor.platform_label === "windows-x86_64" &&
       (!git || !releasePathContains(parent.controller_root, git.path)))
   )
@@ -508,7 +510,7 @@ export async function openActualNativePublicSource(parentReceipt: object) {
   );
   const source = await sourceTransport(parent, directory);
   await parent.recheck();
-  return { parent, directory, source };
+  return { parent, parent_receipt: parentReceipt, directory, source };
 }
 
 const selections = new WeakMap<

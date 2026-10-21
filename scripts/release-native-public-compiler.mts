@@ -313,6 +313,7 @@ export async function requireActualPublicWindowsCompilerIdentity(receipt: object
   );
   return {
     identity: structuredClone(retained.identity),
+    pair_receipt: retained.pair,
     pair: selected,
     slot: retained.slot,
     authority: "none" as const,
