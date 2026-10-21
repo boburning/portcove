@@ -18,6 +18,7 @@ import { nativePrepublicationProfile } from "./release-native-qualification-cont
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
   deriveNativePublicationJourneys,
+  inspectNativeCompletionLineage,
   inspectNativePublicationPredecessor,
   inspectNativeInitialPublicationJourney,
   collectConfiguredNativePublicationQualificationPair,
@@ -509,6 +510,125 @@ void test("shared data-only journey derivation binds exact prior inventory and r
       },
     },
   };
+  const candidate = {
+    phase: "building",
+    prepared_commit: "a".repeat(40),
+    prepared_tree: "b".repeat(40),
+    source_commit: "c".repeat(40),
+    version: "0.1.0-beta.1",
+    release_run: { run_id: "123", attempt: 1 },
+    transient_retries: 0,
+    substantive_repairs: 0,
+    frozen_opportunity: structuredClone(
+      input.manifest.facts && (input.manifest.facts as { opportunity: object }).opportunity,
+    ),
+  };
+  const historical = { ...input.coordinator_input, active_candidate: candidate };
+  const nextPublished = {
+    ...published,
+    repository_sha256: "4".repeat(64),
+    snapshot_sha256: "5".repeat(64),
+    timestamp_sha256: "6".repeat(64),
+    records_sha256: "7".repeat(64),
+    operation_id: "8".repeat(64),
+  };
+  const current = {
+    ...historical,
+    active_candidate: { ...candidate, phase: "promoting" },
+    published_metadata: nextPublished,
+  };
+  const {
+    operation_id: _operation,
+    publication: _publication,
+    ...signedPublication
+  } = nextPublished;
+  const lineage = inspectNativeCompletionLineage(
+    current,
+    historical,
+    input.manifest,
+    signedPublication,
+  );
+  assert.equal(lineage.authority, "none");
+  assert.deepEqual(lineage.input, historical);
+  assert.notEqual(lineage.input, historical);
+  // The unchanged reserved/signing path must still refuse a newer public seed.
+  assert.throws(
+    () => deriveNativePublicationJourneys({ ...input, coordinator_input: current }),
+    /prior differs/,
+  );
+  assert.deepEqual(
+    deriveNativePublicationJourneys({ ...input, coordinator_input: lineage.input }),
+    deriveNativePublicationJourneys(input),
+  );
+  for (const name of [
+    "prepared_commit",
+    "prepared_tree",
+    "source_commit",
+    "version",
+    "release_run",
+    "transient_retries",
+    "substantive_repairs",
+    "frozen_opportunity",
+  ] as const) {
+    const changed = structuredClone(current) as Record<string, unknown>;
+    (changed.active_candidate as Record<string, unknown>)[name] = "changed";
+    assert.throws(
+      () => inspectNativeCompletionLineage(changed, historical, input.manifest, signedPublication),
+      /lineage differs/,
+    );
+  }
+  assert.throws(
+    () =>
+      inspectNativeCompletionLineage(
+        { ...current, active_candidate: candidate },
+        historical,
+        input.manifest,
+        signedPublication,
+      ),
+    /promoting/,
+  );
+  assert.throws(
+    () =>
+      inspectNativeCompletionLineage(
+        current,
+        historical,
+        { ...input.manifest, facts: { opportunity: { base_commit: "d".repeat(40) } } },
+        signedPublication,
+      ),
+    /opportunity differs/,
+  );
+  for (const key of [
+    "repository_sha256",
+    "root_sha256",
+    "offline_targets_sha256",
+    "snapshot_sha256",
+    "timestamp_sha256",
+    "records_sha256",
+  ] as const)
+    assert.throws(
+      () =>
+        inspectNativeCompletionLineage(current, historical, input.manifest, {
+          ...signedPublication,
+          [key]: "0".repeat(64),
+        }),
+      /signed candidate/,
+    );
+  assert.throws(
+    () =>
+      inspectNativeCompletionLineage(current, historical, input.manifest, {
+        ...signedPublication,
+        versions: { ...signedPublication.versions, timestamp: "999" },
+      }),
+    /signed candidate/,
+  );
+  assert.throws(
+    () =>
+      inspectNativeCompletionLineage(current, historical, input.manifest, {
+        ...signedPublication,
+        expires: { ...signedPublication.expires, timestamp: "2030-01-01T00:00:00Z" },
+      }),
+    /signed candidate/,
+  );
   const journeys = deriveNativePublicationJourneys(input);
   assert.equal(journeys.length, 2);
   assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");

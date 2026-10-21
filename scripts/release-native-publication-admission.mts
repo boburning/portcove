@@ -2,7 +2,7 @@
  * not native acceptance. Only the existing current native consumer mints that
  * private qualification after all independently expected inputs match. */
 import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
@@ -15,7 +15,10 @@ import {
 import { requireActualTufPublication } from "./release-tuf-publication.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
-import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
+import {
+  readRemoteCoordinatorSnapshot,
+  hydrateRetainedCoordinatorCheckpoint,
+} from "./release-coordinator-recovery.mts";
 import {
   requireReservedAggregate,
   inspectReservedPublicationReadback,
@@ -23,7 +26,9 @@ import {
 import {
   inspectMetadataBootstrapDescriptor,
   inspectPublishedMetadata,
+  inspectTufPublicationFacts,
 } from "./release-metadata-contract.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
   deriveNativeQualificationExpectations,
@@ -335,7 +340,63 @@ export function deriveNativePublicationJourneys(input: {
   return journeys;
 }
 
-/** The fixed entry cannot accept a journey, expected-report JSON or injected provider. */
+/** Completion-only historical association. The fixed caller must separately
+ * authenticate both the original context and the actual current signed TUF result. */
+export function inspectNativeCompletionLineage(
+  rawCurrent: unknown,
+  rawHistorical: unknown,
+  rawManifest: unknown,
+  rawPublication: unknown,
+) {
+  if (
+    !isRecord(rawCurrent) ||
+    !isRecord(rawHistorical) ||
+    !isRecord(rawManifest) ||
+    !isRecord(rawCurrent.active_candidate) ||
+    rawCurrent.active_candidate.phase !== "promoting" ||
+    !isRecord(rawHistorical.active_candidate) ||
+    !isRecord(rawManifest.facts) ||
+    !isRecord(rawManifest.facts.opportunity)
+  )
+    throw new Error(
+      "native completion requires exact promoting/current and original candidate lineage",
+    );
+  const current = rawCurrent.active_candidate,
+    prior = rawHistorical.active_candidate;
+  for (const name of [
+    "prepared_commit",
+    "prepared_tree",
+    "source_commit",
+    "version",
+    "release_run",
+    "transient_retries",
+    "substantive_repairs",
+    "frozen_opportunity",
+  ])
+    if (digest(current[name]) !== digest(prior[name]))
+      throw new Error("native historical candidate/reservation lineage differs");
+  if (digest(prior.frozen_opportunity) !== digest(rawManifest.facts.opportunity))
+    throw new Error("native original checkpoint opportunity differs from authenticated context");
+  const publication = inspectTufPublicationFacts(rawPublication),
+    published = inspectPublishedMetadata(rawCurrent.published_metadata);
+  if (
+    !published ||
+    digest(
+      Object.fromEntries(
+        Object.keys(publication).map((name) => [name, published[name as keyof typeof published]]),
+      ),
+    ) !== digest(publication)
+  )
+    throw new Error(
+      "native completion current published repository differs from actual signed candidate",
+    );
+  return {
+    input: structuredClone(rawHistorical),
+    authority: "none" as const,
+    scope: "original context lineage only" as const,
+  };
+}
+
 type NativePublicationPairArguments = [
   parent: string,
   locators: unknown,
@@ -493,9 +554,63 @@ async function collectNativePublicationPair(
       },
     };
     phase = "independent-native-journey";
+    let journeyInput = before.input;
+    if (purpose === "completion-readback") {
+      const checkpoint = manifest.facts.checkpoint;
+      if (typeof checkpoint !== "string" || !/^[a-f0-9]{40}$/u.test(checkpoint))
+        throw new Error("authenticated original native context checkpoint missing");
+      const historicalRepository = path.join(directory, "historical-coordinator.git");
+      execFileSync(
+        "git",
+        [
+          "-c",
+          "core.hooksPath=" + (process.platform === "win32" ? "NUL" : "/dev/null"),
+          "init",
+          "--bare",
+          "--template=",
+          "--quiet",
+          historicalRepository,
+        ],
+        {
+          cwd: directory,
+          env: {
+            PATH: process.env.PATH,
+            SystemRoot: process.env.SystemRoot,
+            GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+            GIT_NO_LAZY_FETCH: "1",
+            GIT_NO_REPLACE_OBJECTS: "1",
+            GIT_TERMINAL_PROMPT: "0",
+          },
+          timeout: remaining(),
+          maxBuffer: 65536,
+          windowsHide: true,
+        },
+      );
+      const historical = await withCoordinatorDeadline(deadline, () =>
+        hydrateRetainedCoordinatorCheckpoint(historicalRepository, checkpoint, { api }),
+      );
+      journeyInput = inspectNativeCompletionLineage(
+        before.input,
+        historical.input,
+        manifest,
+        tuf.publication,
+      ).input;
+      await writeFile(
+        path.join(directory, "historical-native-lineage.json"),
+        JSON.stringify({
+          checkpoint,
+          current_checkpoint: before.checkpoint,
+          historical_published_sha256: digest(historical.input.published_metadata),
+          signed_repository_sha256: signedContext,
+          authority: "none",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+    }
     const journeys = deriveNativePublicationJourneys({
       files,
-      coordinator_input: before.input,
+      coordinator_input: journeyInput,
       manifest,
       namespace: authorities.namespace,
       signed_context_sha256: signedContext,

@@ -460,3 +460,17 @@ The explicit schema-2 bootstrap locator is forwarded from the independently
 parsed global configuration through every native publication parser. The
 schema-2 locator-to-initial-journey regression passes while default schema 1
 continues to refuse that locator. No source locator appoints authority.
+
+Completion readback now associates the original authenticated context checkpoint
+with the same candidate/source/build/counters/opportunity after published metadata
+advances. It imports exactly the original commit/tree/state blob through the
+existing bounded read-only transport into a fresh private bare repository, with
+no ref mutation, parent traversal or lazy fetch. The current published metadata
+must independently equal the actual signed TUF result. Ordinary reserved native
+collection still requires the current public seed and cannot use this historical
+completion association. Eight focused native-admission cases passed, including
+changed candidate, repository, versions and expiry refusals. The selected real
+sparse-Git case passed in 39.673 seconds with no skips; its original admitted
+attempt queued 664.967 seconds and completed in 730.068 seconds including setup.
+Type-aware lint passed for all five changed modules/tests. These are lineage and
+transport checks, with no native host or protected execution acceptance.

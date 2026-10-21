@@ -32,6 +32,7 @@ import {
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
+  hydrateRetainedCoordinatorCheckpoint,
 } from "./release-coordinator-recovery.mts";
 import {
   publishCoordinatorCheckpoint,
@@ -2964,6 +2965,26 @@ void test(
       /exact raw capacity operation/,
     );
     assert.equal(reads.length, 6);
+    const historical = await hydrateRetainedCoordinatorCheckpoint(
+      sparse,
+      retainedProof.checkpoint,
+      { api },
+    );
+    assert.equal(historical.checkpoint, retainedProof.checkpoint);
+    assert.equal(historical.authority, "none");
+    const originalHistorical: unknown = JSON.parse(blobBytes.toString("utf8"));
+    assert.ok(isRecord(originalHistorical));
+    assert.deepEqual(historical.input, originalHistorical.input);
+    assert.equal(reads.length, 9);
+    assert.equal(
+      execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      "",
+    );
+    await assert.rejects(
+      hydrateRetainedCoordinatorCheckpoint(sparse, "main", { api }),
+      /exact Git/,
+    );
+    assert.equal(reads.length, 9);
     assert.throws(() =>
       readRetainedCapacityOperation(f.bare, {
         checkpoint: String(proof.checkpoint),
