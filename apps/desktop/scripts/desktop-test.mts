@@ -633,6 +633,8 @@ function validateBackupFocusInventory(captured: NativeProcessSnapshot, requireQu
         [
           "native-real-prepared-runtime",
           "native-reviewed-backup-restore-and-delete",
+          "native-reviewed-source-reference-removal",
+          "native-reviewed-steam-batch-add",
           "native-host-publication-recovery",
           "native-game-update-review",
           "native-selected-setup-completion",
@@ -1044,6 +1046,12 @@ async function selectSettingsCategory(id: string) {
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
   () => {
+    checks.push({
+      scenario: "native-harness-deadline",
+      outcome: "failed",
+      message: `Native harness exceeded its ${harnessDeadlineMs}ms allowance; stopping the owned driver.`,
+    });
+    process.exitCode = 1;
     void (async () => {
       try {
         await stopDriver();

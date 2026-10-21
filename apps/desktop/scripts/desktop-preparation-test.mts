@@ -20,7 +20,7 @@ import type {
   OutputGameUpdatePlan,
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
-import { gameTitle } from "../src/port-identity.ts";
+import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -50,6 +50,52 @@ export interface PreparationContext {
   chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 }
 // Preserve original error identity, including deliberate non-Error boundary failures.
+function launchContinuityPoint(element: Element) {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Launch origin must be a button");
+  const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]');
+  const owner =
+    workspace && getComputedStyle(workspace).overflowY !== "visible"
+      ? workspace
+      : document.scrollingElement;
+  const active = document.activeElement;
+  const rectangle = (item: Element | null) => {
+    const bounds = item?.getBoundingClientRect();
+    return bounds
+      ? { top: bounds.top, bottom: bounds.bottom, width: bounds.width, height: bounds.height }
+      : null;
+  };
+  return {
+    observedAt: new Date().toISOString(),
+    documentFocused: document.hasFocus(),
+    visibility: document.visibilityState,
+    activeTag: active?.tagName,
+    activeText: active?.textContent?.trim().slice(0, 160),
+    originFocused: active === element,
+    originConnected: element.isConnected,
+    disabled: element.disabled,
+    ariaDisabled: element.getAttribute("aria-disabled"),
+    ariaBusy: element.getAttribute("aria-busy"),
+    scrollTop: owner?.scrollTop,
+    scrollHeight: owner?.scrollHeight,
+    clientHeight: owner?.clientHeight,
+    maximumScroll: owner ? owner.scrollHeight - owner.clientHeight : null,
+    viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+    fontStatus: document.fonts.status,
+    workspaceOverflowY: workspace ? getComputedStyle(workspace).overflowY : null,
+    originRectangle: rectangle(element),
+    cardRectangle: rectangle(element.closest("article")),
+    continueRectangle: rectangle(document.querySelector(".continue-card")),
+    workspaceRectangle: rectangle(workspace),
+    workspaceChildren: workspace
+      ? Array.from(workspace.children).map((item) => ({
+          tag: item.tagName,
+          className: item.className,
+          rectangle: rectangle(item),
+        }))
+      : [],
+  };
+}
+
 function rethrowFailure(error: unknown): never {
   throw error;
 }
@@ -842,7 +888,7 @@ export function assertPreparedLibrarySummary(
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
+    `${installed.length} ${installed.length === 1 ? "entry" : "entries"} · On this computer`,
   );
 }
 
@@ -951,6 +997,26 @@ export async function preparationScenarios({
     );
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
+    await search.sendKeys(
+      Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+      Key.BACK_SPACE,
+    );
+    await clickVisible(
+      browser,
+      await browser.wait(
+        until.elementLocated(
+          By.xpath(
+            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
+          ),
+        ),
+        15_000,
+      ),
+    );
+    for (const favorite of await browser.findElements(
+      By.css('[data-favorites-filter][aria-pressed="true"]'),
+    ))
+      await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
     await browser.findElement(card).click();
@@ -1275,22 +1341,51 @@ export async function preparationScenarios({
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
-    const readinessSummary = await browser.wait(
-      until.elementLocated(By.css('[aria-label="Library readiness"]')),
+    const libraryHeader = await browser.wait(
+      until.elementLocated(By.css("[data-library-header] p")),
       15_000,
     );
-    const readinessText = await readinessSummary.getText();
+    const headerText = await libraryHeader.getText();
     const libraryStatuses = await invoke("get_statuses");
     assert.equal(libraryStatuses.ok, true);
     assertPreparedLibrarySummary(
-      readinessText,
+      headerText,
       transportValues("status", libraryStatuses.value),
       port.id,
     );
-    assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
+    const installedCount = transportValues("status", libraryStatuses.value).filter(
+      (item) => item.active || item.external_runtime,
+    ).length;
+    const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    for (const label of [
+      `All (${installedCount})`,
+      `Ready (${installedCount})`,
+      "Needs attention (0)",
+    ]) {
+      const filter = await libraryFilters.findElement(
+        By.xpath(`.//button[normalize-space(.)="${label}"]`),
+      );
+      assert.equal(await filter.isDisplayed(), true, label);
+    }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,
+    );
+    // Core launch settlement can trigger a workspace refresh after navigation.
+    // Observe the authoritative presentation becoming actionable; never bypass
+    // its pending/conflict state to take the geometry measurement.
+    await browser.wait(
+      async () => {
+        const current = await browser.findElement(
+          By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`),
+        );
+        const launch = await current.findElements(
+          By.xpath('.//button[normalize-space(.)="Try launch"]'),
+        );
+        return launch.length === 1 && (await launch[0]!.isEnabled());
+      },
+      15_000,
+      "Library launch must settle before the card composition check",
     );
     const cardActions = await executeBrowserScript(
       browser,
@@ -1447,6 +1542,14 @@ export async function preparationScenarios({
     const first = await seed("opengoal-jak1", "success");
     const second = await seed("opengoal-jak2", "success");
     const before = [await status(first.port.id), await status(second.port.id)];
+    // Establish the post-seeding render before measuring. An in-flight
+    // workspace read may legitimately have observed the two fixture commits.
+    await browser.navigate().refresh();
+    await browser.wait(
+      until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+      15_000,
+    );
+    await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -1476,6 +1579,23 @@ export async function preparationScenarios({
         const search = await browser.findElement(By.id("port-search"));
         await search.clear();
         await search.sendKeys("Jak");
+        await browser.wait(
+          () =>
+            executeBrowserScript(
+              browser,
+              (ids) => {
+                const rendered = [
+                  ...document.querySelectorAll<HTMLButtonElement>(
+                    ".collection-entry button[data-detail-game-id]",
+                  ),
+                ].map((item) => item.dataset.detailGameId);
+                return ids.every((id) => rendered.includes(id));
+              },
+              [first.port.id, second.port.id],
+            ),
+          15_000,
+          "Both exact prepared Library entries must render before layout measurement",
+        );
         for (const layout of ["Covers", "Compact rows"]) {
           await clickVisible(browser, await browser.findElement(button(layout)));
           for (const { width, height } of [
@@ -1563,6 +1683,16 @@ export async function preparationScenarios({
     assert.equal(readyStatus.channel, "stable");
     assert.equal(readyStatus.active.channel, "stable");
     assert.ok(!readyStatus.last_update_check);
+    // This scenario continues the preliminary-source fixture above. Launchable
+    // bytes and successful preparation do not establish confirmed compatibility.
+    assert.notEqual(readyStatus.readiness?.source_assessment?.admission.mode, "exact_identity");
+    const artworkReply = await invoke("get_artwork", {
+      portId: port.id,
+      slot: "cover",
+      generation: (await read("desktop_bootstrap_status", "get_bootstrap_status")).generation,
+    });
+    assert.equal(artworkReply.ok, true);
+    const artwork = transportValue("artwork_state", artworkReply.value);
     const originalWindow = await browser.manage().window().getRect();
     try {
       for (const theme of ["dark", "light"]) {
@@ -1580,18 +1710,29 @@ export async function preparationScenarios({
           await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
           theme,
         );
-        const play = await browser.wait(until.elementLocated(button("Play")), 15_000);
+        const play = await browser.wait(until.elementLocated(button("Try launch")), 15_000);
         assert.equal(await play.isEnabled(), true);
         assert.equal(await play.getAttribute("data-variant"), "primary");
         await browser.wait(
           () =>
             executeBrowserScript(
               browser,
-              () =>
-                document.querySelector(".detail-cover.artwork-image > span")?.textContent === "OJ",
+              (expected) => {
+                const frame = document.querySelector<HTMLElement>(".detail-cover.artwork-image");
+                const image = frame?.querySelector("img");
+                if (image) return image.complete && image.naturalWidth > 0;
+                return (
+                  frame?.dataset.artworkSource === "generated_fallback" &&
+                  frame.querySelector(":scope > span")?.textContent ===
+                    expected.generated_fallback.initials &&
+                  (expected.availability !== "available" ||
+                    frame.textContent?.includes("Image unavailable"))
+                );
+              },
+              artwork,
             ),
           15_000,
-          "The owned port cover fallback did not settle before visual capture",
+          "The owned port cover image or identified fallback did not settle before visual capture",
         );
         for (const { width, height } of [
           { width: 960, height: 640 },
@@ -1633,10 +1774,9 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(screenshot);
-          assert.equal(hierarchy.title, port.name);
-          assert.match(required(hierarchy.state), /Ready to play/);
+          assert.equal(hierarchy.title, gameTitle(port));
+          assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "Status and actions",
             "Updates",
             "Requirements",
             "Installation and version",
@@ -1650,7 +1790,7 @@ export async function preparationScenarios({
               hierarchy.action.bottom <= hierarchy.viewport.height &&
               hierarchy.action.left >= 0 &&
               hierarchy.action.right <= hierarchy.viewport.width,
-            `Play must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
+            `Trial launch must remain visible at ${actualWindow.width}x${actualWindow.height}: ${JSON.stringify(hierarchy)}`,
           );
           const facts = await executeBrowserScript(browser, () => {
             const strip = document.querySelector(".installation-facts");
@@ -1667,7 +1807,7 @@ export async function preparationScenarios({
             ["Installed version", readyStatus.active.version],
             ["Selected channel", "Stable"],
             ["Installed channel", "Stable"],
-            ["Latest eligible release", "No current check"],
+            ["Latest available for your settings", "No current check"],
             ["Installed folder", readyStatus.active.path],
           ]);
           assert.equal(facts.horizontalOverflow, false);
@@ -1677,9 +1817,14 @@ export async function preparationScenarios({
             flag: "wx",
           });
           artifacts.push(factsScreenshot);
-          await executeBrowserScript(browser, () =>
-            document.querySelector("main")?.scrollTo({ top: 0 }),
-          );
+          await executeBrowserScript(browser, () => {
+            const workspace = document.querySelector('main[data-focus-region="workspace"]');
+            const owner =
+              workspace && getComputedStyle(workspace).overflowY === "visible"
+                ? (document.scrollingElement ?? document.documentElement)
+                : workspace;
+            owner?.scrollTo({ top: 0 });
+          });
         }
       }
     } finally {
@@ -1689,7 +1834,15 @@ export async function preparationScenarios({
   await scenario("native-game-return-continuity", async () => {
     const port = transportValue("port", command(["catalog", "show", "opengoal-jak1"]));
     const before = await status(port.id);
-    assert.equal(required(before.readiness).launchable, true);
+    const preimage = path.join(output, "game-return-continuity-before.json");
+    await writeFile(preimage, JSON.stringify(before, null, 2), { flag: "wx" });
+    artifacts.push(preimage);
+    assert.equal(
+      required(before.readiness).launchable,
+      true,
+      "Game return requires a launchable fixture",
+    );
+    assert.notEqual(before.readiness?.source_assessment?.admission.mode, "exact_identity");
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
@@ -1701,16 +1854,28 @@ export async function preparationScenarios({
     try {
       await browser.manage().window().setRect({ width: 720, height: 560 });
       const query = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
-      await query.sendKeys(port.name);
-      const ready = await browser.findElement(
-        By.xpath('//div[@aria-label="Library filters"]//button[normalize-space(.)="Ready"]'),
+      await query.sendKeys(
+        Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+        Key.BACK_SPACE,
+        port.name,
       );
-      await ready.click();
+      const ready = await browser.findElement(
+        By.xpath(
+          '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"Ready (")]',
+        ),
+      );
+      await browser.wait(
+        async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
+        15_000,
+        "Library readiness counts did not settle",
+      );
+      const readyLabel = await ready.getText();
+      await clickVisible(browser, ready);
       const card = await browser.wait(
         until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
       );
-      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Play"]'));
+      const play = await card.findElement(By.xpath('.//button[normalize-space(.)="Try launch"]'));
       await executeBrowserScript(
         browser,
         (element) => element.scrollIntoView({ block: "center" }),
@@ -1719,10 +1884,28 @@ export async function preparationScenarios({
       const scrollBefore = await executeBrowserScript(browser, () => {
         const workspace = document.querySelector('main[data-focus-region="workspace"]');
         if (!workspace) throw new Error("Library workspace is missing");
-        return workspace.scrollTop;
+        const owner =
+          getComputedStyle(workspace).overflowY === "visible"
+            ? (document.scrollingElement ?? document.documentElement)
+            : workspace;
+        return owner.scrollTop;
       });
       assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
+      const beforeClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const beforeClickPath = path.join(output, "game-return-before-click.json");
+      await writeFile(beforeClickPath, JSON.stringify(beforeClick, null, 2), { flag: "wx" });
+      artifacts.push(beforeClickPath);
+      const beforeImage = path.join(output, "native-game-return-before-click.png");
+      await writeFile(beforeImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(beforeImage);
       await play.click();
+      const afterClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const afterClickPath = path.join(output, "game-return-after-click.json");
+      await writeFile(afterClickPath, JSON.stringify(afterClick, null, 2), { flag: "wx" });
+      artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
         15_000,
@@ -1731,19 +1914,26 @@ export async function preparationScenarios({
         () =>
           executeBrowserScript(
             browser,
-            (portName, launches) => {
+            (identity, launches) => {
               const recent = document.querySelector<HTMLElement>(".continue-card");
               return (
-                recent?.getAttribute("aria-label") === `Continue ${portName}` &&
+                recent?.getAttribute("aria-label") === `Continue ${identity}` &&
                 Number(recent.dataset.successfulLaunches ?? 0) > launches
               );
             },
-            port.name,
+            gameIdentityLabel(port),
             before.successful_launches,
           ),
         15_000,
         "Library did not render the completed launch after the game exited",
       );
+      await browser.wait(
+        async () =>
+          (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
+        15_000,
+        "Launch origin remained excluded after game return and workspace readback",
+      );
+      const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
       const returned = await executeBrowserScript(
         browser,
         (element) => {
@@ -1755,25 +1945,49 @@ export async function preparationScenarios({
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();
           const workspaceBounds = workspace?.getBoundingClientRect();
+          const owner =
+            workspace && getComputedStyle(workspace).overflowY === "visible"
+              ? (document.scrollingElement ?? document.documentElement)
+              : workspace;
           return {
             query: search?.value,
             filter: ready?.textContent?.trim(),
-            scrollTop: workspace?.scrollTop,
+            scrollTop: owner?.scrollTop,
             playFocused: document.activeElement === element,
             playConnected: element.isConnected,
             cardVisible:
               bounds && workspaceBounds
-                ? bounds.bottom > workspaceBounds.top && bounds.top < workspaceBounds.bottom
+                ? bounds.bottom > Math.max(0, workspaceBounds.top) &&
+                  bounds.top < Math.min(innerHeight, workspaceBounds.bottom)
                 : false,
           };
         },
         play,
       );
+      const observation = path.join(output, "game-return-continuity-observation.json");
+      await writeFile(
+        observation,
+        JSON.stringify({ scrollBefore, beforeClick, afterClick, settled, returned }, null, 2),
+        {
+          flag: "wx",
+        },
+      );
+      artifacts.push(observation);
+      const settledImage = path.join(output, "native-game-return-settled-before-assert.png");
+      await writeFile(settledImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(settledImage);
       assert.equal(returned.query, port.name);
-      assert.equal(returned.filter, "Ready");
-      assert.equal(returned.playConnected, true);
-      assert.equal(returned.playFocused, true);
-      assert.equal(returned.cardVisible, true);
+      assert.equal(returned.filter, readyLabel);
+      assert.equal(returned.playConnected, true, "Original Play control disconnected after return");
+      assert.equal(returned.playFocused, true, "Play control lost focus after return");
+      assert.equal(
+        returned.cardVisible,
+        true,
+        "Launched card is outside the reading viewport after return",
+      );
       assert.ok(
         Math.abs(required(returned.scrollTop) - scrollBefore) <= 2,
         `Library scroll changed after game return: ${scrollBefore} -> ${returned.scrollTop}`,
@@ -2337,6 +2551,15 @@ export async function preparationScenarios({
       observations.failed_activity = failed;
       const action = By.css('[data-detail-origin="error:preparation-review"]');
       await browser.wait(until.elementLocated(action), 15_000);
+      // The failure notice can render before the completed review's modal layer
+      // unmounts. Wait for actual dismissal before exercising ordinary navigation;
+      // never click through the overlay or dismiss it on the test's behalf.
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[data-slot="dialog-overlay"]'))).length === 0,
+        15_000,
+        "The settled preparation review must release its modal overlay before navigation",
+      );
       await browser
         .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
         .click();

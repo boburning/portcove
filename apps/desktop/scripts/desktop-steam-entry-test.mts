@@ -4,7 +4,7 @@ import { assertReviewFieldPresentation } from "./desktop-review-controls.mts";
 // Controlled native consumer proof for one explicit Steam profile. No Steam client is launched.
 import assert from "node:assert/strict";
 import path from "node:path";
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readdir, realpath, stat, writeFile } from "node:fs/promises";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import { assertSteamEntryContext } from "./desktop-context-contract.mts";
@@ -81,7 +81,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     await mkdir(config, { recursive: true });
     await open(port, false);
     const { button, click } = reviewControls(browser);
-    await click(By.css("summary.advanced-summary"));
+    await click(By.css(".detail-body > details.advanced-settings > summary.advanced-summary"));
     await click(button("Steam shortcut"));
     const dialog = By.css('[aria-labelledby="steam-entry-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);
@@ -136,7 +136,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     );
     const reviewed = await browser.findElement(dialog).getText();
     assert.ok(reviewed.includes(shortcuts));
-    assert.ok(reviewed.includes("add"));
+    assert.ok(reviewed.includes("Add or repair shortcut"));
     assert.ok(reviewed.includes("Keep Steam closed until this finishes"));
     const accessibility = path.join(output, "steam-entry-review-accessibility.json");
     await captureAccessibilityReport(browser, accessibility, artifacts);
@@ -178,12 +178,14 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.equal(currentValue.writes_required, false);
     await click(button("Close"));
     const sourcesBeforeUninstall = sources();
-    const backupsBeforeUninstall = backups(port.id);
     const savedDataRoot = transportValue("port_paths", command(["paths", port.id])).user_data_root;
     const savedData = path.join(savedDataRoot, "owned-steam-removal-save.bin");
     await mkdir(savedDataRoot, { recursive: true });
     await writeFile(savedData, "owned save must survive game and shortcut removal", { flag: "wx" });
     const savedDataBefore = await fileIdentity(savedData);
+    // Creating owned saved data changes backup eligibility. Capture the full
+    // pre-removal inventory after that deliberate fixture mutation.
+    const backupsBeforeUninstall = backups(port.id);
     const removedInstall = command(["remove", port.id, "--yes"]);
     const removedPaths = object(removedInstall).removed;
     assert.ok(Array.isArray(removedPaths));
@@ -194,7 +196,11 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     assert.deepEqual(await fileIdentity(savedData), savedDataBefore);
     assert.deepEqual(await fileIdentity(shortcuts), added);
     await openCatalogPortAfterRefresh(browser, port, port.name);
-    await click(By.css("summary.advanced-summary"));
+    await click(
+      By.xpath(
+        '//section[contains(@class,"detail-panel")]//summary[contains(@class,"advanced-summary") and starts-with(normalize-space(.),"Technical details")]',
+      ),
+    );
     await click(button("Steam shortcut"));
     assert.ok((await browser.findElement(dialog).getText()).includes("game is not installed here"));
     await browser.findElement(By.id("steam-installation")).sendKeys(steamRoot);
@@ -284,6 +290,132 @@ export async function steamEntryScenario(context: SteamEntryContext) {
       ? { port: transportValue("port", command(["catalog", "show", "opengoal-jak2"])) }
       : await context.seed("opengoal-jak2", "success");
     const second = await context.seed("opengoal-jak3", "success");
+    // A cached seed describes fixture creation, not its current installation.
+    // The earlier backup case deliberately removes Jak III. Re-establish only
+    // an absent owned installation, without recreating originals or sources.
+    const fixtures = [first, second];
+    const activeBefore = fixtures.map(({ port }) => ({
+      port_id: port.id,
+      active: status(port.id).active,
+    }));
+    for (const { port } of fixtures) {
+      if (status(port.id).active) continue;
+      const original = path.join(output, `owned-${port.id}`);
+      const paths = transportValue("port_paths", command(["paths", port.id]));
+      const sourcesBeforeAdopt = sources();
+      const backupsBeforeAdopt = backups(port.id).backups;
+      const requiredProfiles = [port.source_profile, port.bios_source_profile].filter(
+        (id): id is string => typeof id === "string",
+      );
+      const registered = sourcesBeforeAdopt.filter((source) =>
+        requiredProfiles.includes(source.profile_id),
+      );
+      for (const profileId of requiredProfiles)
+        assert.ok(
+          registered.some((source) => source.profile_id === profileId),
+          "Do not recreate an absent source as part of batch fixture repair",
+        );
+      const preservedFiles: Awaited<ReturnType<typeof fileIdentity>>[] = [];
+      const preservedDirectories: string[] = [];
+      const canonicalOutput = await realpath(output);
+      const remember = async (location: string, optional = false): Promise<void> => {
+        const entry = await lstat(location).catch((error: unknown) => {
+          if (optional && error instanceof Error && "code" in error && error.code === "ENOENT")
+            return undefined;
+          throw error;
+        });
+        if (!entry) return;
+        assert.equal(
+          entry.isSymbolicLink(),
+          false,
+          "Owned fixture witnesses must not follow links",
+        );
+        const relative = path.relative(canonicalOutput, await realpath(location));
+        assert.ok(
+          relative && !relative.startsWith("..") && !path.isAbsolute(relative),
+          "Fixture repair is confined to this output tree",
+        );
+        if (entry.isDirectory()) {
+          preservedDirectories.push(location);
+          for (const name of (await readdir(location)).sort())
+            await remember(path.join(location, name));
+        } else {
+          assert.ok(entry.isFile(), "Owned fixture witnesses require ordinary files");
+          preservedFiles.push(await fileIdentity(location));
+        }
+      };
+      await remember(original);
+      await remember(paths.user_data_root, true);
+      for (const source of registered) await remember(source.path);
+      for (const backup of backupsBeforeAdopt) await remember(backup.path);
+      const beforeFile = path.join(output, `steam-batch-owned-precondition-${port.id}.before.json`);
+      await writeFile(
+        beforeFile,
+        JSON.stringify(
+          {
+            port_id: port.id,
+            active_before: null,
+            original,
+            preservedFiles,
+            preservedDirectories,
+            sources: sourcesBeforeAdopt,
+            backups: backupsBeforeAdopt,
+          },
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(beforeFile);
+      const adopted = object(command(["adopt", original, "--port", port.id, "--yes"]));
+      assert.equal(typeof adopted.id, "string");
+      assert.equal(
+        status(port.id).active?.id,
+        adopted.id,
+        "Core must establish the requested owned installation",
+      );
+      assert.deepEqual(sources(), sourcesBeforeAdopt);
+      assert.deepEqual(backups(port.id).backups, backupsBeforeAdopt);
+      for (const directory of preservedDirectories)
+        assert.ok((await stat(directory)).isDirectory());
+      assert.deepEqual(
+        await Promise.all(preservedFiles.map((file) => fileIdentity(file.path))),
+        preservedFiles,
+      );
+      const afterFile = path.join(output, `steam-batch-owned-precondition-${port.id}.after.json`);
+      await writeFile(
+        afterFile,
+        JSON.stringify(
+          {
+            port_id: port.id,
+            active: status(port.id).active,
+            preserved_original_source_save_backup_bytes: true,
+          },
+          null,
+          2,
+        ),
+        { flag: "wx" },
+      );
+      artifacts.push(afterFile);
+    }
+    const activeAfter = fixtures.map(({ port }) => ({
+      port_id: port.id,
+      active: status(port.id).active,
+    }));
+    for (const previous of activeBefore)
+      if (previous.active) assert.deepEqual(status(previous.port_id).active, previous.active);
+    assert.equal(new Set(activeAfter.map((item) => item.port_id)).size, 2);
+    assert.ok(
+      activeAfter.every((item) => item.active),
+      "Both batch targets must currently be installed",
+    );
+    const precondition = path.join(output, "steam-batch-active-precondition.json");
+    await writeFile(
+      precondition,
+      JSON.stringify({ before: activeBefore, after: activeAfter }, null, 2),
+      { flag: "wx" },
+    );
+    artifacts.push(precondition);
     const steamRoot = path.join(output, "controlled batch Steam ü");
     const steamUserId = "24680";
     const shortcuts = path.join(steamRoot, "userdata", steamUserId, "config", "shortcuts.vdf");
@@ -297,7 +429,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     );
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Library")]'));
-    await click(By.xpath('//summary[normalize-space(.)="Integrations"]'));
+    await click(By.xpath('//summary[normalize-space(.)="Collection commands"]'));
     await click(button("Choose games for Steam…"));
     const dialog = By.css('[aria-labelledby="steam-batch-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);

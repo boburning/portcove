@@ -72,13 +72,13 @@ it.each(["light", "dark"])(
       ),
     );
     const preview = page.getByRole("button", { name: "Preview", exact: true });
+    const stableOnly = page.getByRole("button", { name: /^Stable-only port\s/ });
+    await expect.element(stableOnly).toBeVisible();
     await userEvent.click(preview);
     await expect.element(preview).toHaveAttribute("aria-pressed", "true");
     expect(query).toEqual({ version: 1, channels: ["beta"] });
-    await expect.element(page.getByRole("button", { name: /^Upstream Beta 12\./ })).toBeVisible();
-    await expect
-      .element(page.getByRole("button", { name: /^Stable-only port\./ }))
-      .not.toBeInTheDocument();
+    await expect.element(page.getByRole("button", { name: /^Upstream Beta 12\s/ })).toBeVisible();
+    await expect.element(stableOnly).not.toBeInTheDocument();
     expect(change).not.toHaveBeenCalled();
     expect(refresh).not.toHaveBeenCalled();
     const selector = page.getByRole("combobox");

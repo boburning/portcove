@@ -13,6 +13,9 @@ interface LayoutCounts {
   getBoundingClientRect: number;
 }
 interface ControllerSample extends LayoutCounts {
+  fixture_controls: LayoutCounts;
+  fixture_container: LayoutCounts;
+  outside_fixture: LayoutCounts;
   phase: string;
   presses: number;
   poll_milliseconds: number[];
@@ -81,10 +84,36 @@ export async function controllerScenario({
           typeof sample.getBoundingClientRect === "number" &&
           typeof sample.presses === "number",
       );
+      const scoped = {} as Record<
+        "fixture_controls" | "fixture_container" | "outside_fixture",
+        LayoutCounts
+      >;
+      for (const scope of ["fixture_controls", "fixture_container", "outside_fixture"] as const) {
+        const counts = sample[scope];
+        assert(isRecord(counts));
+        assert.ok(
+          Number.isSafeInteger(counts.getClientRects) && Number(counts.getClientRects) >= 0,
+        );
+        assert.ok(
+          Number.isSafeInteger(counts.getBoundingClientRect) &&
+            Number(counts.getBoundingClientRect) >= 0,
+        );
+        scoped[scope] = {
+          getClientRects: Number(counts.getClientRects),
+          getBoundingClientRect: Number(counts.getBoundingClientRect),
+        };
+      }
+      for (const method of ["getClientRects", "getBoundingClientRect"] as const)
+        assert.equal(
+          sample[method],
+          Object.values(scoped).reduce((sum, counts) => sum + counts[method], 0),
+          "Every layout read must retain its receiver attribution",
+        );
       return {
         getClientRects: sample.getClientRects,
         getBoundingClientRect: sample.getBoundingClientRect,
         presses: sample.presses,
+        ...scoped,
       };
     });
     const [idle, activate, held, direction] = samples;
@@ -101,7 +130,9 @@ export async function controllerScenario({
     );
     assert.equal(activate.getBoundingClientRect, 0);
     assert.ok(direction.getClientRects <= 1001);
-    assert.equal(direction.getBoundingClientRect, 1000);
+    assert.equal(direction.fixture_controls.getBoundingClientRect, result.control_count);
+    assert.equal(result.control_count, 1000);
+    assert.equal(direction.fixture_container.getBoundingClientRect, 0);
   });
 }
 
@@ -132,6 +163,7 @@ export async function observeInjectedController(
   dialog.style.cssText =
     "position:fixed;inset:0;z-index:99999;overflow:auto;background:white;display:grid;grid-template-columns:1fr 1fr";
   let presses = 0;
+  const controls = new Set<HTMLElement>();
   for (let index = 0; index < 1000; index++) {
     const button = document.createElement("button");
     button.textContent = `Owned navigation fixture ${index}`;
@@ -140,12 +172,23 @@ export async function observeInjectedController(
       presses++;
     };
     dialog.append(button);
+    controls.add(button);
   }
   let pressed: number[] = [];
   let counts: LayoutCounts = { getClientRects: 0, getBoundingClientRect: 0 };
+  let receiverCounts = {
+    fixture_controls: { getClientRects: 0, getBoundingClientRect: 0 },
+    fixture_container: { getClientRects: 0, getBoundingClientRect: 0 },
+    outside_fixture: { getClientRects: 0, getBoundingClientRect: 0 },
+  };
   let durations: number[] = [];
   const reset = () => {
     counts = { getClientRects: 0, getBoundingClientRect: 0 };
+    receiverCounts = {
+      fixture_controls: { getClientRects: 0, getBoundingClientRect: 0 },
+      fixture_container: { getClientRects: 0, getBoundingClientRect: 0 },
+      outside_fixture: { getClientRects: 0, getBoundingClientRect: 0 },
+    };
     durations = [];
   };
   const frames = async (count: number) => {
@@ -189,6 +232,12 @@ export async function observeInjectedController(
     const counted = <Value,>(name: keyof LayoutCounts, original: (this: HTMLElement) => Value) =>
       function (this: HTMLElement): Value {
         counts[name]++;
+        const receiver = controls.has(this)
+          ? "fixture_controls"
+          : this === dialog
+            ? "fixture_container"
+            : "outside_fixture";
+        receiverCounts[receiver][name]++;
         return original.call(this);
       };
     HTMLElement.prototype.getClientRects = counted("getClientRects", originals.getClientRects);
@@ -202,6 +251,7 @@ export async function observeInjectedController(
       samples.push({
         phase,
         ...counts,
+        ...receiverCounts,
         presses,
         poll_milliseconds: [...durations],
       });

@@ -68,7 +68,19 @@ it("renders game-led cards with separate full project and variant labels", () =>
   expect(html).toContain('title="Cobalt Project"');
   expect(html).toContain(">US edition</span>");
   expect(html).toContain('title="Amber Recompiled"');
-  expect(html).toContain('aria-label="A Familiar Adventure · Cobalt Project · US edition.');
+  const cards = [
+    ...html.matchAll(
+      /<button[^>]*data-detail-origin="catalog:card:[^"]+"[^>]*>[\s\S]*?<\/button>/gu,
+    ),
+  ];
+  expect(cards).toHaveLength(2);
+  expect(cards[0]![0]).toContain("Cobalt Project");
+  expect(cards[0]![0]).toContain("US edition");
+  expect(cards[1]![0]).toContain("Amber Recompiled");
+  for (const [card] of cards) {
+    expect(card).toContain("A Familiar Adventure");
+    expect(card).not.toContain("aria-label=");
+  }
 });
 
 it("finds Pokémon Red using ordinary ASCII spelling without changing the display", () => {
