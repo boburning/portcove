@@ -3786,8 +3786,16 @@ try {
             title: choice.querySelector("summary")?.textContent?.trim(),
             open: choice.hasAttribute("open"),
           })),
-          actionGap: actionBounds.top - heroBounds.bottom,
+          actionInHero: hero.contains(action),
+          actionGap:
+            actionBounds.top -
+            Math.max(
+              title.getBoundingClientRect().bottom,
+              reasonBounds.bottom,
+              requirementBounds.bottom,
+            ),
           actionFits: actionBounds.left >= 0 && actionBounds.right <= window.innerWidth,
+          actionVisible: actionBounds.top >= 0 && actionBounds.bottom <= window.innerHeight,
         };
       });
       assert.equal(hierarchy.duplicateReadiness, 0);
@@ -3820,8 +3828,17 @@ try {
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Folder for a future install", open: false },
       ]);
-      assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
+      assert.equal(hierarchy.actionInHero, true, `Action grouping: ${JSON.stringify(hierarchy)}`);
+      assert.ok(
+        hierarchy.actionGap >= 0 && hierarchy.actionGap < 160,
+        `Action gap: ${JSON.stringify(hierarchy)}`,
+      );
       assert.equal(hierarchy.actionFits, true);
+      assert.equal(
+        hierarchy.actionVisible,
+        true,
+        `Action visibility: ${JSON.stringify(hierarchy)}`,
+      );
     };
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
