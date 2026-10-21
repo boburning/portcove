@@ -128,7 +128,7 @@ export function createPagesProviderTransport(
       try {
         response = api.request("POST", endpoint, {
           artifact_id: expected.artifact_id,
-          pages_build_version: expected.controller_revision,
+          pages_build_version: expected.generation,
           oidc_token: token,
         });
       } catch {
@@ -143,6 +143,7 @@ export function createPagesProviderTransport(
         response.status !== 200 ||
         !isRecord(body) ||
         typeof body.id !== "string" ||
+        body.id !== expected.generation ||
         !/^[A-Za-z0-9_-]{1,128}$/u.test(body.id) ||
         ![
           `https://api.github.com/${endpoint}/${body.id}`,
@@ -198,6 +199,12 @@ export function createPagesProviderTransport(
         stage: "provider-status-only" as const,
         acceptance: "pending-public-readback" as const,
       };
+    },
+    /** The exact build version is durable before POST. This route can recover
+     * a lost acknowledgement, but absent/404 never proves no deployment. The
+     * provider's version-to-ID mapping still needs initial setup qualification. */
+    observeByGeneration(raw: Omit<PagesDeploymentIdentity, "id">) {
+      return this.observe({ ...raw, id: raw.generation });
     },
   };
 }

@@ -16,6 +16,7 @@ export const controllerToolEntries = Object.freeze([
   "release-coordinator-driver",
   "release-publication-controller",
   "release-site-controller",
+  "release-tuf-controller",
 ] as const);
 export const controllerToolAssets = Object.freeze([
   ".github/workflows/application-update-production.yml",
