@@ -492,6 +492,17 @@ export async function openActualNativePublicSource(parentReceipt: object) {
   const parent = await requireActualNativeParent(parentReceipt);
   if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
     throw new Error("actual protected public journey profile required");
+  const verifier = parent.transport_configuration.post_sign_verifier;
+  const git = parent.transport_configuration.windows_tools?.git;
+  if (
+    !verifier ||
+    !releasePathContains(parent.controller_root, verifier.path) ||
+    (parent.descriptor.platform_label === "windows-x86_64" &&
+      (!git || !releasePathContains(parent.controller_root, git.path)))
+  )
+    throw new Error(
+      "public source tools must be staged inside the actual protected controller tree",
+    );
   const directory = await mkdtemp(
     path.join(parent.descriptor.capture_root, "native-public-source-"),
   );
