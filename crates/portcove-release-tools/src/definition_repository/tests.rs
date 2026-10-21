@@ -148,6 +148,25 @@ async fn catalog_four_isolated_roles_and_zero_key_assembly_have_exact_tough_read
     let report = assemble_definition_repository(&config).await.unwrap();
     assert!(report.changed);
     assert_eq!(report.authority, "none");
+    assert_eq!(report.versions.len(), 5);
+    assert!(report.versions.values().all(|v| v == "1"));
+    assert_eq!(report.expires.len(), 5);
+    assert_eq!(
+        report.root_sha256,
+        sha(&fs::read(fixture.root().join("root.json")).unwrap())
+    );
+    assert_eq!(
+        report.offline_targets_sha256,
+        sha(&fs::read(fixture.root().join("targets.json")).unwrap())
+    );
+    assert_eq!(
+        report.timestamp_sha256,
+        sha(&fs::read(fixture.roles.join("timestamp.json")).unwrap())
+    );
+    assert_eq!(
+        report.snapshot_sha256,
+        sha(&fs::read(fixture.roles.join("snapshot.json")).unwrap())
+    );
     assert!(
         report
             .files

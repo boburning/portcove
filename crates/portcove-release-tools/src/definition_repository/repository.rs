@@ -499,11 +499,47 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
     recheck(&context)?;
     let identities = bundle::identities(&files);
     let repository_sha256 = sha(&serde_json::to_vec(&identities)?);
+    let actual_roles = current_roles(&files)?;
+    let mut versions = BTreeMap::new();
+    let mut expires = BTreeMap::new();
+    for (label, name) in [
+        ("targets", "targets.json"),
+        ("definitions", "official-definitions.json"),
+        ("policy", "official-policy.json"),
+        ("snapshot", "snapshot.json"),
+        ("timestamp", "timestamp.json"),
+    ] {
+        let signed: serde_json::Value = serde_json::from_slice(at(&actual_roles, name)?)?;
+        versions.insert(
+            label.into(),
+            signed["signed"]["version"]
+                .as_u64()
+                .ok_or_else(|| {
+                    TufRepositoryError::Invalid("verified metadata version absent".into())
+                })?
+                .to_string(),
+        );
+        expires.insert(
+            label.into(),
+            signed["signed"]["expires"]
+                .as_str()
+                .ok_or_else(|| {
+                    TufRepositoryError::Invalid("verified metadata expiry absent".into())
+                })?
+                .to_owned(),
+        );
+    }
     Ok(DefinitionRepositoryReport {
         schema_version: 1,
         changed,
         files: identities,
         repository_sha256,
+        root_sha256: sha(&context.root_bytes),
+        offline_targets_sha256: sha(&context.top_bytes),
+        timestamp_sha256: sha(at(&actual_roles, "timestamp.json")?),
+        snapshot_sha256: sha(at(&actual_roles, "snapshot.json")?),
+        versions,
+        expires,
         index_sha256: context.index_sha256,
         authority: "none",
     })

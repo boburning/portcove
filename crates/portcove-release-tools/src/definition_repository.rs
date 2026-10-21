@@ -100,6 +100,12 @@ pub struct DefinitionRepositoryReport {
     pub changed: bool,
     pub files: Vec<DefinitionFile>,
     pub repository_sha256: String,
+    pub root_sha256: String,
+    pub offline_targets_sha256: String,
+    pub timestamp_sha256: String,
+    pub snapshot_sha256: String,
+    pub versions: BTreeMap<String, String>,
+    pub expires: BTreeMap<String, String>,
     pub index_sha256: String,
     pub authority: &'static str,
 }
