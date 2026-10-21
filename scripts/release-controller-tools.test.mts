@@ -53,7 +53,7 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
   assert.equal(action.runs.using, "composite");
   assert.ok(Array.isArray(action.runs.steps));
   const steps: unknown[] = action.runs.steps;
-  assert.equal(steps.length, 4);
+  assert.equal(steps.length, 6);
   const pump = steps[1];
   assert.ok(isRecord(pump) && isRecord(pump.with));
   assert.equal(pump.uses, "./.github/actions/release-controller-transport");
@@ -79,6 +79,17 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
   assert.equal(
     steps[3].run,
     'node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"',
+  );
+  const diagnostics = steps[4],
+    upload = steps[5];
+  assert.ok(isRecord(diagnostics) && isRecord(upload) && isRecord(upload.with));
+  assert.equal(diagnostics.if, "${{ always() }}");
+  assert.equal(upload.if, "${{ always() }}");
+  assert.equal(upload.with["retention-days"], 7);
+  assert.equal(upload.with.overwrite, false);
+  assert.equal(
+    upload.with.path,
+    "${{ runner.temp }}/controller-public-evidence-${{ inputs.phase }}",
   );
   assert.doesNotMatch(
     bytes,
@@ -106,6 +117,7 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   await copy("scripts/release-controller-tool-launch.mts");
   await copy("scripts/release-controller-job-bootstrap.mts");
   await copy("scripts/release-controller-job-output.mts");
+  await copy("scripts/release-controller-diagnostics.mts");
   const child = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-controller-tool-launch.mts")],

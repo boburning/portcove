@@ -125,3 +125,20 @@ runs:
       env:
         PORTCOVE_JOB_OPERATION: ${{ inputs.operation }}
       run: node scripts/release-controller-job-output.mts "$PORTCOVE_JOB_OPERATION"
+
+    - name: Retain bounded public routing evidence after success or refusal
+      if: ${{ always() }}
+      shell: bash
+      env:
+        PORTCOVE_JOB_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-controller-diagnostics.mts "$PORTCOVE_JOB_PHASE"
+    - name: Preserve original attempt diagnostics without logs or credentials
+      if: ${{ always() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-controller-diagnostics-${{ inputs.phase }}-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/controller-public-evidence-${{ inputs.phase }}
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0

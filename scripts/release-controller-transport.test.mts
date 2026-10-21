@@ -559,3 +559,50 @@ void test("composite contains forty fixed slots with isolated key env and unchan
   assert(!source.includes("overwrite: true"));
   assert(!source.includes("GH_TOKEN"));
 });
+
+void test("always-retained diagnostics select bounded public markers and preserve original failure state", async (t) => {
+  const { retainControllerDiagnostics } = await import("./release-controller-diagnostics.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "controller-diagnostics-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const marker = "controller-job-settlement-payload.json";
+  await writeFile(
+    path.join(root, marker),
+    JSON.stringify({ exit_code: 1, requires_attestation: false }),
+  );
+  await writeFile(
+    path.join(root, "controller-transport-payload-slot-40.json"),
+    JSON.stringify({ kind: "done" }),
+  );
+  await writeFile(path.join(root, "controller-transport-payload-clock.json"), "x".repeat(65537));
+  await writeFile(path.join(root, "private.key"), "inert-secret-not-for-artifacts");
+  await writeFile(path.join(root, "controller-payload.log"), "inert-unfiltered-log");
+  const output = await retainControllerDiagnostics(root, "payload");
+  const manifest = JSON.parse(await readFile(path.join(output, "manifest.json"), "utf8")) as {
+    scope: string;
+    authority: string;
+    files: { path: string }[];
+    unavailable: { path: string; reason: string }[];
+  };
+  assert.equal(manifest.scope, "public-routing-diagnostics-only");
+  assert.equal(manifest.authority, "none");
+  assert.deepEqual(
+    manifest.files.map((file: { path: string }) => file.path).sort(),
+    [marker, "controller-transport-payload-slot-40.json"].sort(),
+  );
+  assert.equal(
+    manifest.unavailable.find((file: { path: string }) => file.path.endsWith("-clock.json"))
+      ?.reason,
+    "unreadable-or-invalid",
+  );
+  assert.equal((await readdir(output)).includes("private.key"), false);
+  assert.equal((await readdir(output)).includes("controller-payload.log"), false);
+  assert.deepEqual(JSON.parse(await readFile(path.join(output, marker), "utf8")), {
+    exit_code: 1,
+    requires_attestation: false,
+  });
+  await assert.rejects(retainControllerDiagnostics(root, "payload"), { code: "EEXIST" });
+  assert.equal(
+    await readFile(path.join(root, "private.key"), "utf8"),
+    "inert-secret-not-for-artifacts",
+  );
+});
