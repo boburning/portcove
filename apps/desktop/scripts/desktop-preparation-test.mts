@@ -1019,23 +1019,33 @@ export async function preparationScenarios({
       15_000,
     );
     await dismissApplicationUpdateChoice();
-    await browser.findElement(By.xpath('//nav//button[contains(., "Library")]')).click();
+    await selectPrimaryNavigation(browser, "Library");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       Key.BACK_SPACE,
     );
-    await clickVisible(
-      browser,
-      await browser.wait(
-        until.elementLocated(
-          By.xpath(
-            '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"All (")]',
-          ),
-        ),
-        15_000,
-      ),
+    const filters = await browser.wait(
+      until.elementLocated(By.css('[aria-label="Library filters"]')),
+      15_000,
     );
+    const allButtons = await filters.findElements(
+      By.xpath('.//button[starts-with(normalize-space(.),"All (")]'),
+    );
+    let visibleAll: WebElement | undefined;
+    for (const candidate of allButtons) if (await candidate.isDisplayed()) visibleAll = candidate;
+    if (visibleAll) await clickVisible(browser, visibleAll);
+    else {
+      const { picker, list } = await openReadinessOptions(filters);
+      const all = await list.findElement(
+        By.xpath('.//*[@role="option"][starts-with(normalize-space(.),"All (")]'),
+      );
+      await clickVisible(browser, all);
+      await browser.wait(
+        async () => (await picker.getAttribute("aria-expanded")) === "false",
+        5_000,
+      );
+    }
     for (const favorite of await browser.findElements(
       By.css('[data-favorites-filter][aria-pressed="true"]'),
     ))
@@ -1045,6 +1055,17 @@ export async function preparationScenarios({
     await browser.findElement(card).click();
     if (waitForPreparation)
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
+  }
+  async function openReadinessOptions(filters: WebElement) {
+    const picker = await filters.findElement(By.css('[role="combobox"]'));
+    assert.match(await picker.getAccessibleName(), /^Readiness\s/u);
+    await clickVisible(browser, picker);
+    await browser.wait(async () => Boolean(await picker.getAttribute("aria-controls")), 5_000);
+    const listId = await picker.getAttribute("aria-controls");
+    assert.ok(listId, "The readiness picker must name its owned listbox");
+    const list = await browser.wait(until.elementLocated(By.id(listId)), 5_000);
+    assert.equal(await list.getAttribute("role"), "listbox");
+    return { picker, list };
   }
   async function status(portId: string) {
     const result = await invoke("get_statuses");
@@ -1077,6 +1098,7 @@ export async function preparationScenarios({
     assert.ok(preparationHierarchy.owner?.startsWith(`${port.id}:`));
     const outputLocationInput = await browser.findElement(By.id(`output-location-path-${port.id}`));
     const reviewedOutput = path.join(output, "reviewed-future-output");
+    await clickVisible(browser, outputLocationInput);
     await outputLocationInput.sendKeys(
       Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
       reviewedOutput,
@@ -1393,15 +1415,31 @@ export async function preparationScenarios({
       (item) => item.active || item.external_runtime,
     ).length;
     const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    const readinessButtons = await libraryFilters.findElements(
+      By.xpath('.//button[starts-with(normalize-space(.),"All (")]'),
+    );
+    const wideReadiness = (
+      await Promise.all(readinessButtons.map((filter) => filter.isDisplayed()))
+    ).some(Boolean);
+    const compactReadiness = wideReadiness ? undefined : await openReadinessOptions(libraryFilters);
     for (const label of [
       `All (${installedCount})`,
       `Ready (${installedCount})`,
       "Needs attention (0)",
     ]) {
-      const filter = await libraryFilters.findElement(
-        By.xpath(`.//button[normalize-space(.)="${label}"]`),
-      );
+      const filter = compactReadiness
+        ? await compactReadiness.list.findElement(
+            By.xpath(`.//*[@role="option"][normalize-space(.)="${label}"]`),
+          )
+        : await libraryFilters.findElement(By.xpath(`.//button[normalize-space(.)="${label}"]`));
       assert.equal(await filter.isDisplayed(), true, label);
+    }
+    if (compactReadiness) {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () => (await compactReadiness.picker.getAttribute("aria-expanded")) === "false",
+        5_000,
+      );
     }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
