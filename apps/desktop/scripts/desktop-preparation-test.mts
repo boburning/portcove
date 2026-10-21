@@ -1672,6 +1672,26 @@ export async function preparationScenarios({
               await browser.manage().window().setRect({ width: 1366, height: 768 });
               const target = '.collection-entry button[aria-label^="More actions for "]';
               const more = await browser.findElement(By.css(target));
+              const waitForVisibleAction = () =>
+                browser.wait(
+                  () =>
+                    executeBrowserScript(
+                      browser,
+                      (element) => {
+                        const bounds = element.getBoundingClientRect();
+                        return (
+                          document.activeElement === element &&
+                          bounds.top >= 0 &&
+                          bounds.bottom <= innerHeight + 1 &&
+                          bounds.left >= 0 &&
+                          bounds.right <= innerWidth + 1
+                        );
+                      },
+                      more,
+                    ),
+                  5000,
+                  "The focused Library action must remain visible through feedback and resizing",
+                );
               await clickVisible(browser, more);
               await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
               const menuFocus = await browser.switchTo().activeElement();
@@ -1682,23 +1702,25 @@ export async function preparationScenarios({
               );
               // Owned DOM-only geometry diagnostic: this does not report a Core
               // artwork failure or change either imported asset/selection.
-              await executeBrowserScript(
-                browser,
-                async (element) => {
-                  const state = element
-                    .closest(".collection-entry")
-                    ?.querySelector(".collection-state");
-                  if (!state) throw new Error("Owned Library state region missing");
-                  const notice = document.createElement("p");
-                  notice.dataset.ownedArtworkFeedback = "true";
-                  notice.className = "m-0 text-pc-muted-foreground";
-                  notice.textContent = "Image unavailable";
-                  state.prepend(notice);
-                  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-                  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-                },
-                more,
-              );
+              const insertFeedback = () =>
+                executeBrowserScript(
+                  browser,
+                  async (element) => {
+                    const state = element
+                      .closest(".collection-entry")
+                      ?.querySelector(".collection-state");
+                    if (!state) throw new Error("Owned Library state region missing");
+                    const notice = document.createElement("p");
+                    notice.dataset.ownedArtworkFeedback = "true";
+                    notice.className = "m-0 text-pc-muted-foreground";
+                    notice.textContent = "Image unavailable";
+                    state.prepend(notice);
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                  },
+                  more,
+                );
+              await insertFeedback();
               const feedbackWithMenu = await executeBrowserScript(
                 browser,
                 launchContinuityPoint,
@@ -1720,6 +1742,16 @@ export async function preparationScenarios({
                 before: feedbackBefore,
                 after: feedbackWithMenu,
               });
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
               await browser.actions().sendKeys(Key.ESCAPE).perform();
               await browser.wait(
                 () =>
@@ -1731,6 +1763,14 @@ export async function preparationScenarios({
                 5000,
                 "Closing the enlarged Library menu must restore its exact trigger",
               );
+              await insertFeedback();
+              await waitForVisibleAction();
+              observations.push({
+                phase: "owned-dom-artwork-feedback-after-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                ...(await measure()),
+                continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+              });
               for (const requestedWindow of [
                 { width: 1366, height: 768 },
                 { width: 1920, height: 1080 },
@@ -1747,25 +1787,7 @@ export async function preparationScenarios({
                   ...state,
                   continuity,
                 });
-                await browser.wait(
-                  () =>
-                    executeBrowserScript(
-                      browser,
-                      (element) => {
-                        const bounds = element.getBoundingClientRect();
-                        return (
-                          document.activeElement === element &&
-                          bounds.top >= 0 &&
-                          bounds.bottom <= innerHeight + 1 &&
-                          bounds.left >= 0 &&
-                          bounds.right <= innerWidth + 1
-                        );
-                      },
-                      more,
-                    ),
-                  5000,
-                  "The focused Library action must remain visible after resizing",
-                );
+                await waitForVisibleAction();
                 observations.push({
                   phase: "settled-focused-resize-200",
                   requestedWindow,
