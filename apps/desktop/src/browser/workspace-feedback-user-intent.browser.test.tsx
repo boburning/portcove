@@ -149,7 +149,9 @@ for (const when of ["pending", "notice visible"] as const) {
       .getByRole("textbox", { name: "Search your library", exact: true })
       .element();
     // A deliberate user reading/focus choice, distinct from the old bottom baseline.
-    owner().scrollTo({ top: Math.min(120, owner().scrollHeight - owner().clientHeight) });
+    owner().scrollTo({
+      top: owner().scrollTop + search.getBoundingClientRect().top - innerHeight / 2,
+    });
     await userEvent.click(search);
     await painted();
     const searchBounds = search.getBoundingClientRect();
@@ -160,6 +162,13 @@ for (const when of ["pending", "notice visible"] as const) {
       top: searchBounds.top,
       documentTop: searchBounds.top + owner().scrollTop,
     };
+    // The below-feedback search needs removable leading scroll range. A
+    // position requiring negative scroll after feedback clears is unreachable.
+    const feedbackHeight = document
+      .querySelector("[data-workspace-feedback]")!
+      .getBoundingClientRect().height;
+    expect(feedbackHeight).toBeGreaterThan(0);
+    expect(userPosition.scroll).toBeGreaterThan(feedbackHeight);
     expect(Math.abs(userPosition.scroll - running.originalPosition.scroll)).toBeGreaterThan(2);
     if (when === "pending") await running.completeWithNotice();
     await running.removeNotice();
