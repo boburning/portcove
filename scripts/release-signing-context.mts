@@ -19,6 +19,8 @@ import { updaterIdentity } from "./updater-artifact-inventory.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
+import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
+import { validateOpportunity } from "./release-coordinator.mts";
 import {
   requirePublishedCompleteSite,
   materializePublishedCompleteSite,
@@ -401,15 +403,18 @@ export async function prepareReleaseSigningContext(
       )
       .map(([name, bytes]) => [name.slice(8), bytes]),
   );
-  const records = mergeReleaseRecordBytes(
+  const withdrawn = applyReviewedPreviewWithdrawals(
     oldRecords,
+    JSON.parse(source.get("records/reconstruction-manifest.json")!.toString("utf8")) as unknown,
+    validateOpportunity(payload.context.facts.opportunity).classification,
+    accepted.version,
+  );
+  const records = mergeReleaseRecordBytes(
+    withdrawn.files,
     new Map([...reconstructed.files].filter(([name]) => name !== "reconstruction-manifest.json")),
   );
   const manifest = releaseRecordManifestBytes(
-    [
-      JSON.parse(source.get("records/reconstruction-manifest.json")!.toString("utf8")) as unknown,
-      reconstructed.manifest,
-    ],
+    [withdrawn.manifest, reconstructed.manifest],
     records,
   );
   for (const name of [...source.keys()]) if (name.startsWith("records/")) source.delete(name);
