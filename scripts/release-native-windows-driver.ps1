@@ -36,7 +36,7 @@ function Assert-DriverOwnerPath([string]$Path) {
 }
 function Assert-DriverStageSelection($Value) {
     if($Value.schema_version -eq 2) {
-        if($Value.stage -cne 'ordinary-public-initial' -or $null -ne $Value.journey -or $null -ne $Value.predecessor -or
+        if($Value.stage -cnotin @('ordinary-public-initial','ordinary-public-park') -or $null -ne $Value.journey -or $null -ne $Value.predecessor -or
             (@($Value.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'boundary,invocation_id,journey,package,predecessor,public_inputs,request_sha256,schema_version,stage,tools,version' -or
             (@($Value.public_inputs.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'path,sha256' -or
             $Value.public_inputs.sha256 -cnotmatch '^[a-f0-9]{64}$') {throw 'Public driver plan differs from its separate fixed initial journey'}
@@ -138,6 +138,8 @@ Assert-DriverOwnerPath $capture
 if($publicMode) {
     if([IO.Path]::GetFullPath($planValue.public_inputs.path) -cne (Join-Path $capture 'public-inputs.json')) {throw 'Public driver input is outside its exact claim leaf'}
     $publicInputs=Read-DriverJson $planValue.public_inputs.path $planValue.public_inputs.sha256
+    if(($planValue.stage -ceq 'ordinary-public-park' -and ($publicInputs.schema_version -ne 2 -or $publicInputs.phase -cne 'park-v0-with-v1')) -or
+        ($planValue.stage -ceq 'ordinary-public-initial' -and $publicInputs.schema_version -ne 1)){throw 'Actual public phase/input branch differs'}
     if($publicInputs.prior_installer_sha256 -cne $planValue.package.sha256 -or $publicInputs.prior_version -cne $planValue.version) {throw 'Public driver initial package differs'}
 }
 $acl=Get-Acl -LiteralPath $capture

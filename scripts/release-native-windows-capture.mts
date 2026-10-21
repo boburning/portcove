@@ -50,11 +50,9 @@ export async function captureActualWindowsPublicJourney(claim: object) {
   if (
     process.platform !== "win32" ||
     selected.parent.descriptor.platform_label !== "windows-x86_64" ||
-    selected.phase !== "initial-v0-v1"
+    (selected.phase !== "initial-v0-v1" && selected.phase !== "park-v0-with-v1")
   )
-    throw new Error(
-      "actual Windows initial public journey claim required; parked continuation remains held",
-    );
+    throw new Error("actual Windows initial or parked public journey claim required");
   const compiler = selected.compiler_receipts;
   if (!compiler) throw new Error("actual public Windows compiler proof missing");
   const prior = await requireActualPublicWindowsCompilerIdentity(compiler.prior),
@@ -62,7 +60,8 @@ export async function captureActualWindowsPublicJourney(claim: object) {
   const tools = selected.parent.transport_configuration.windows_tools;
   if (!tools) throw new Error("actual fixed Windows tools missing");
   const input = {
-    schema_version: 1,
+    schema_version: selected.phase === "initial-v0-v1" ? 1 : 2,
+    ...(selected.phase === "park-v0-with-v1" ? { phase: "park-v0-with-v1" } : {}),
     kind: "ordinary-public-windows-update-inputs",
     prior_installer_sha256: selected.prior_package.identity.package.sha256,
     prior_executable_sha256: prior.identity.executable.nsis_sha256,
@@ -84,7 +83,7 @@ export async function captureActualWindowsPublicJourney(claim: object) {
   await requireActualPublicSignatureControl(component);
   const plan = {
     schema_version: 2,
-    stage: "ordinary-public-initial",
+    stage: selected.phase === "initial-v0-v1" ? "ordinary-public-initial" : "ordinary-public-park",
     journey: null,
     predecessor: null,
     invocation_id: selected.invocation_id,
@@ -168,8 +167,9 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
   assert.equal(report.schema_version, 1);
   assert.equal(report.authority, "none");
   assert.equal(report.native_acceptance, "not-established");
-  assert.equal(report.outcome, "observed");
-  assert.ok(isRecord(report.automatic_relaunch) && isRecord(report.automatic_relaunch.executable));
+  const parked = selected.phase === "park-v0-with-v1";
+  assert.equal(report.phase, selected.phase);
+  assert.equal(report.outcome, parked ? "parked" : "observed");
   assert.ok(
     isRecord(report.user_state) &&
       isRecord(report.user_state.before) &&
@@ -181,26 +181,52 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
   );
   assert.equal(
     report.user_state.after.application_version,
-    selected.candidate_package.identity.version,
+    parked ? selected.prior_package.identity.version : selected.candidate_package.identity.version,
   );
   const compiler = selected.compiler_receipts;
   assert.ok(compiler);
   const candidate = await requireActualPublicWindowsCompilerIdentity(compiler.candidate);
-  assert.equal(
-    report.automatic_relaunch.executable.sha256,
-    candidate.identity.executable.nsis_sha256,
-  );
-  assert.ok(Array.isArray(report.recovery_cases));
-  assert.deepEqual(
-    report.recovery_cases
-      .map((item) => {
-        assert.ok(isRecord(item));
-        assert.ok(typeof item.area === "string");
-        return item.area;
-      })
-      .sort((a, b) => a.localeCompare(b)),
-    ["apply", "schedule", "staging"],
-  );
+  if (parked) {
+    assert.ok(isRecord(report.parked) && isRecord(report.parked.status));
+    const prior = await requireActualPublicWindowsCompilerIdentity(compiler.prior);
+    assert.equal(report.parked.installed_sha256, prior.identity.executable.nsis_sha256);
+    assert.equal(
+      report.parked.staged_installer_sha256,
+      selected.candidate_package.identity.package.sha256,
+    );
+    assert.equal(report.parked.status.apply, null);
+    assert.ok(isRecord(report.parked.status.staged));
+    assert.equal(report.parked.status.staged.version, selected.candidate_package.identity.version);
+    assert.deepEqual(report.parked.status.recovery_required, []);
+    const installer = await readJson("installer.json");
+    assert.ok(isRecord(installer) && isRecord(installer.details));
+    assert.equal(installer.phase, "public_v1_parked");
+    assert.equal(installer.details.kept_installed, true);
+    assert.equal(installer.details.registered_version, selected.prior_package.identity.version);
+    assert.equal(
+      installer.details.installed_executable_sha256,
+      prior.identity.executable.nsis_sha256,
+    );
+  } else {
+    assert.ok(
+      isRecord(report.automatic_relaunch) && isRecord(report.automatic_relaunch.executable),
+    );
+    assert.equal(
+      report.automatic_relaunch.executable.sha256,
+      candidate.identity.executable.nsis_sha256,
+    );
+    assert.ok(Array.isArray(report.recovery_cases));
+    assert.deepEqual(
+      report.recovery_cases
+        .map((item) => {
+          assert.ok(isRecord(item));
+          assert.ok(typeof item.area === "string");
+          return item.area;
+        })
+        .sort((a, b) => a.localeCompare(b)),
+      ["apply", "schedule", "staging"],
+    );
+  }
   assert.ok(isRecord(report.harness));
   assert.equal(
     report.harness.sha256,
@@ -243,7 +269,7 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
       }
       assert.ok(files.length < 512, "public retained file inventory exceeds bound");
       const payload =
-        /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+        /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault|parked-v1)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
           name,
         );
       files.push(

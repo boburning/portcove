@@ -51,10 +51,10 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     if (linux) throw new Error("actual Linux public capture continuation is not connected yet");
     const pair = await acquireActualPublicJourneyPair(parent);
     const progress = await readActualPublicJourneyProgress(pair);
-    if (progress.phase !== "initial-v0-v1")
+    if (progress.phase !== "initial-v0-v1" && progress.phase !== "park-v0-with-v1")
       return {
         decision: "hold",
-        reason: "public parked or V2 continuation not connected; no repeated launch",
+        reason: "parked public B awaits authenticated V2 continuation; no repeated launch",
         progress,
         authority: "none",
       };

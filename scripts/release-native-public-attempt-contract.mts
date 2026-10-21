@@ -184,9 +184,13 @@ export function inspectPublicJourneySettlement(
     // Linux chunks and ordinary JSON/streams retain their4MiB file bound.
     const payload =
       marker.platform_label === "windows-x86_64" &&
-      /^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+      (/^ordinary-public-update\/(?:before-startup-[0-5]|before-local-payload-tamper|before-(?:schedule|staging|apply)-fault)\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
         file.path,
-      );
+      ) ||
+        (marker.phase === "park-v0-with-v1" &&
+          /^ordinary-public-update\/parked-v1\/staging-(?:candidate-installer[.]exe|[.]candidate[.]payload[.]incoming)$/u.test(
+            file.path,
+          )));
     if (payload) {
       payloadPreimages++;
       assert.ok(payloadPreimages <= 20);

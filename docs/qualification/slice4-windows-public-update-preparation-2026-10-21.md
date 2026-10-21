@@ -259,3 +259,22 @@ The initial public Windows route is connected in source. Parked B, original
 historical evidence under a changed V2 feed, and full withdrawal/forward-repair
 continuation are still held. These are required remaining engineering before a
 consolidated setup can be treated as ready; V0-to-V1 alone is not the full proof.
+
+The next source increment connects the derived `park-v0-with-v1` phase through a
+closed schema2 child input. It uses the ordinary UI to stage genuine public V1
+while V0 remains installed, retains meaningful state/raw staging preimages,
+positively closes the owned application tree, and preserves that installation.
+Only this fixed phase returns before uninstall; schema1 A keeps its original
+apply/relaunch/recovery/uninstall route. The actual parent getter additionally
+binds the retained V0 executable, V1 staged identity and current-user installer
+registration before recording technical phase settlement. Eighteen inert
+configuration, file, PowerShell and driver checks passed with zero skips, and
+six changed TypeScript files passed typed lint. No installer or account ran.
+
+The later V2 continuation is still held. In addition to original evidence
+retention and current Tough withdrawal/forward-repair readback, the setup needs
+a concrete rendezvous: V2's native qualification currently uses the same Windows
+account/product registration and could alter B's parked V0 before V2 publication.
+Positive process settlement does not isolate that durable registration. This
+source increment does not appoint another account, relax native gates or claim
+that scheduling conflict resolved.

@@ -82,6 +82,7 @@ if($function.Count -ne 1){throw 'missing fixed driver selection'}
 Invoke-Expression $function[0].Extent.Text
 $plan=[ordered]@{schema_version=2;stage='ordinary-public-initial';journey=$null;predecessor=$null;boundary=@{};invocation_id='a'*64;request_sha256='b'*64;package=@{};tools=@{};version='0.1.0-beta.1';public_inputs=@{path='C:\capture\public-inputs.json';sha256='c'*64}}
 Assert-DriverStageSelection ($plan|ConvertTo-Json -Depth 5|ConvertFrom-Json)
+$park=$plan|ConvertTo-Json -Depth 5|ConvertFrom-Json;$park.stage='ordinary-public-park';Assert-DriverStageSelection $park
 $original=$plan|ConvertTo-Json -Depth 5 -Compress
 $refused=0
 foreach($change in @({param($p)$p.stage='release-publication'},{param($p)$p.schema_version=1},{param($p)$p.predecessor=@{path='other'}},{param($p)$p.public_inputs.sha256='bad'},{param($p)$p|Add-Member -NotePropertyName accepted -NotePropertyValue $true})){
