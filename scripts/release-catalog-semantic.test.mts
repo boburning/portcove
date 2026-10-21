@@ -305,7 +305,41 @@ void test("catalog source freeze carries exact current and prior bytes through f
     classification: { ...f.opportunity.classification, change: "update" },
   };
   const input = { files: f.files, inspection: f.inspection, prior_repository: prior };
-  const bundle = prepareFrozenCatalogSemanticInputs(source.api, root, opportunity, input);
+  const mutableInspection = Buffer.from(f.inspection);
+  const api = {
+    request(method: string, endpoint: string) {
+      mutableInspection.fill(0);
+      return source.api.request(method, endpoint);
+    },
+  };
+  const bundle = prepareFrozenCatalogSemanticInputs(api, root, opportunity, {
+    ...input,
+    inspection: mutableInspection,
+  });
+  assert.equal(
+    mutableInspection.every((byte) => byte === 0),
+    true,
+  );
+  const capturedInspection = bundle.manifest.evidence.core_inspection as {
+    raw_utf8: string;
+    sha256: string;
+  };
+  assert.equal(capturedInspection.raw_utf8, f.inspection.toString("utf8"));
+  assert.equal(sha(Buffer.from(capturedInspection.raw_utf8)), opportunity.core_inspection_sha256);
+  assert.throws(
+    () =>
+      prepareFrozenCatalogSemanticInputs(
+        {
+          request() {
+            assert.fail("oversized capture cannot invoke provider");
+          },
+        },
+        root,
+        opportunity,
+        { ...input, files: new Map([["definitions/index.json", Buffer.alloc(8 * 1024 ** 2 + 1)]]) },
+      ),
+    /capture exceeds/,
+  );
   const index = materializeSemanticReaderIndex(bundle);
   assert.equal(
     inspectSemanticReaderIndex(index.bytes, index.sha256).manifest.snapshots.catalog!.length,

@@ -314,13 +314,36 @@ export function prepareFrozenCatalogSemanticInputs(
   if (
     !Buffer.isBuffer(input.inspection) ||
     !input.inspection.length ||
-    input.inspection.length > 4 * 1024 ** 2 ||
-    createHash("sha256").update(input.inspection).digest("hex") !==
-      opportunity.core_inspection_sha256 ||
-    !Buffer.from(input.inspection.toString("utf8")).equals(input.inspection)
+    input.inspection.length > 4 * 1024 ** 2
   )
     throw new Error("catalog frozen Core inspection bytes differ");
-  const files = new Map([...input.files].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+  const inspection = Buffer.from(input.inspection);
+  if (
+    createHash("sha256").update(inspection).digest("hex") !== opportunity.core_inspection_sha256 ||
+    !Buffer.from(inspection.toString("utf8")).equals(inspection)
+  )
+    throw new Error("catalog frozen Core inspection bytes differ");
+  const copyFiles = (
+    values: ReadonlyMap<string, Buffer>,
+    maximumFiles: number,
+    maximumBytes: number,
+  ) => {
+    const captured = new Map<string, Buffer>();
+    let total = 0;
+    for (const [target, bytes] of values) {
+      if (
+        !Buffer.isBuffer(bytes) ||
+        captured.has(target) ||
+        captured.size >= maximumFiles ||
+        bytes.length > 8 * 1024 ** 2 ||
+        (total += bytes.length) > maximumBytes
+      )
+        throw new Error("catalog semantic capture exceeds reader bound");
+      captured.set(target, Buffer.from(bytes));
+    }
+    return captured;
+  };
+  const files = copyFiles(input.files, 16385, 32 * 1024 ** 2);
   const inventory = (values: ReadonlyMap<string, Buffer>, key: "target" | "path") =>
     [...values]
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
@@ -329,7 +352,7 @@ export function prepareFrozenCatalogSemanticInputs(
         bytes: bytes.length,
         sha256: createHash("sha256").update(bytes).digest("hex"),
       }));
-  const report = inspectCatalogCoreReport(JSON.parse(input.inspection.toString("utf8")), files);
+  const report = inspectCatalogCoreReport(JSON.parse(inspection.toString("utf8")), files);
   if (
     capacityDigest(inventory(files, "target")) !== opportunity.bundle_sha256 ||
     report.index_sha256 !== opportunity.classification.index_sha256 ||
@@ -340,7 +363,7 @@ export function prepareFrozenCatalogSemanticInputs(
   const prior =
     input.prior_repository === null
       ? null
-      : new Map([...input.prior_repository].map(([target, bytes]) => [target, Buffer.from(bytes)]));
+      : copyFiles(input.prior_repository, 20000, 128 * 1024 ** 2);
   if (
     prior &&
     capacityDigest(inventory(prior, "path")) !== opportunity.baseline.catalog_repository_sha256
@@ -405,7 +428,7 @@ export function prepareFrozenCatalogSemanticInputs(
   bundle.manifest.evidence = {
     ...bundle.manifest.evidence,
     core_inspection: {
-      raw_utf8: input.inspection.toString("utf8"),
+      raw_utf8: inspection.toString("utf8"),
       sha256: opportunity.core_inspection_sha256,
     },
   };
