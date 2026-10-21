@@ -6,8 +6,53 @@ import {
   selectCoordinatorPublicationBaseline,
   selectCoordinatorMetadataRenewal,
   requireActualCoordinatorMetadataPreparation,
+  coordinatorMaintenanceIdentity,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
+
+void test("maintenance continuation permits only fresh observation fields to change", () => {
+  const original = {
+    phase: "coordinator",
+    purpose: "metadata-coordinator-controls",
+    reader: { job_id: 12, run_id: 13, check_run_id: "14", expires_at: "old" },
+    pause: { commit: "a".repeat(40), publication_paused: false },
+    capacity: { commit: "a".repeat(40), document_sha256: "b".repeat(64) },
+    protection: {
+      observed_at: "old",
+      inventory_sha256: "c".repeat(64),
+      authorization: "input-writer-policy-only",
+    },
+    resource_policy_matches_controller: true,
+    facts_sha256: "d".repeat(64),
+    authority: "none",
+  };
+  const refreshed = {
+    ...structuredClone(original),
+    reader: { ...original.reader, expires_at: "new", round: { index: 1, nonce: "e".repeat(64) } },
+    protection: { ...original.protection, observed_at: "new" },
+    facts_sha256: "f".repeat(64),
+  };
+  assert.equal(coordinatorMaintenanceIdentity(original), coordinatorMaintenanceIdentity(refreshed));
+  for (const changed of [
+    { ...refreshed, reader: { ...refreshed.reader, job_id: 15 } },
+    { ...refreshed, pause: { ...refreshed.pause, commit: "f".repeat(40) } },
+    { ...refreshed, capacity: { ...refreshed.capacity, document_sha256: "f".repeat(64) } },
+    { ...refreshed, protection: { ...refreshed.protection, inventory_sha256: "f".repeat(64) } },
+  ])
+    assert.notEqual(
+      coordinatorMaintenanceIdentity(original),
+      coordinatorMaintenanceIdentity(changed),
+    );
+  assert.throws(() =>
+    coordinatorMaintenanceIdentity({ ...original, resource_policy_matches_controller: false }),
+  );
+  assert.throws(() =>
+    coordinatorMaintenanceIdentity({
+      ...original,
+      pause: { ...original.pause, publication_paused: true },
+    }),
+  );
+});
 
 void test("serialized renewal output cannot reconstruct the coordinator's private continuation", async () => {
   await assert.rejects(

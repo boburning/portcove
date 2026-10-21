@@ -49,6 +49,7 @@ import {
 import {
   authenticateControlReaderJob,
   authenticateReleaseControlSource,
+  authenticateReleaseControlRound,
 } from "./release-live-control-admission.mts";
 import { prepareControlReadiness, waitForControlArtifact } from "./release-control-handshake.mts";
 import { readProductionControllerWorkflowBytes } from "./production-controller-admission.mts";
@@ -101,10 +102,37 @@ const metadataPreparations = new WeakMap<
     deadline: number;
     seed: NonNullable<ReturnType<typeof inspectPublishedMetadata>>;
     descriptor_sha256: string;
-    control_facts_sha256: string;
+    control_identity_sha256: string;
+    next_controls: () => Promise<Awaited<ReturnType<typeof authenticateReleaseControlSource>>>;
   }
 >();
 const project = fileURLToPath(new URL("..", import.meta.url));
+/** Integrity comparison only: caller JSON never establishes authenticated
+ * controls. Every source is authenticated and freshness-checked separately. */
+export function coordinatorMaintenanceIdentity(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    raw.phase !== "coordinator" ||
+    raw.purpose !== "metadata-coordinator-controls" ||
+    raw.resource_policy_matches_controller !== true ||
+    !isRecord(raw.reader) ||
+    !isRecord(raw.protection) ||
+    !isRecord(raw.pause) ||
+    raw.pause.publication_paused !== false ||
+    !isRecord(raw.capacity)
+  )
+    throw new Error("eligible coordinator maintenance facts required");
+  const stable = structuredClone(raw);
+  // Only freshness/handshake fields vary. Preserve all other policy, source,
+  // exact reader-job and configuration fields, including future additions.
+  delete stable.facts_sha256;
+  if (!isRecord(stable.reader) || !isRecord(stable.protection))
+    throw new Error("coordinator maintenance identity unavailable");
+  delete stable.reader.expires_at;
+  delete stable.reader.round;
+  delete stable.protection.observed_at;
+  return capacityDigest(stable);
+}
 function coordinatorDeadline() {
   const monotonicStart = performance.now();
   const monotonicDeadline = monotonicStart + 170000;
@@ -1087,6 +1115,40 @@ async function prepareTrustedCoordinatorRenewalAt(
       evidence_scope: "actual-tool-and-public-feed",
       automatic_retry: false,
     });
+    const controlIdentity = coordinatorMaintenanceIdentity(initial);
+    let nextRound = 0;
+    let refreshing = false;
+    let refreshFailed = false;
+    const nextControls = async () => {
+      if (refreshing || refreshFailed)
+        throw new Error("coordinator maintenance continuation already active or refused");
+      refreshing = true;
+      try {
+        budget.check();
+        const index = ++nextRound;
+        if (index > 14) throw new Error("coordinator maintenance control rounds exhausted");
+        const next = await authenticateReleaseControlRound(
+          path.join(directory, `metadata-control-round-${index}`),
+          capacityDigest({ checkpoint, descriptor: prepared.descriptor }),
+          "coordinator",
+          index,
+          { deadline: budget.monotonicDeadline },
+        );
+        const fresh = next.readMaintenance(api);
+        if (
+          next.evidence_scope !== "github.com" ||
+          coordinatorMaintenanceIdentity(fresh) !== controlIdentity
+        )
+          throw new Error("coordinator maintenance authority changed across control rounds");
+        budget.check();
+        return next;
+      } catch (error) {
+        refreshFailed = true;
+        throw error;
+      } finally {
+        refreshing = false;
+      }
+    };
     metadataPreparations.set(result, {
       preparation,
       tools: receipt,
@@ -1099,7 +1161,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       deadline: budget.monotonicDeadline,
       seed: structuredClone(published),
       descriptor_sha256: capacityDigest(prepared.descriptor),
-      control_facts_sha256: initial.facts_sha256,
+      control_identity_sha256: controlIdentity,
+      next_controls: nextControls,
     });
     return result;
   } catch (error) {
@@ -1155,8 +1218,11 @@ export async function requireActualCoordinatorMetadataPreparation(result: object
         throw new Error("coordinator metadata phase deadline exhausted");
       return response;
     });
-    const fresh = retained.controls.readMaintenance(api);
-    if (fresh.pause.publication_paused || fresh.facts_sha256 !== retained.control_facts_sha256)
+    // The original observer may have aged while the authenticated feed/tool
+    // custody was checked. Obtain a new fixed-job round before reading it.
+    const controls = await retained.next_controls();
+    const fresh = controls.readMaintenance(api);
+    if (coordinatorMaintenanceIdentity(fresh) !== retained.control_identity_sha256)
       throw new Error("coordinator maintenance controls changed before continuation");
     await readPublicApplicationSiteMarker(site.generation, retained.deadline);
     const remote = await readRemoteCoordinatorSnapshot(
@@ -1166,14 +1232,18 @@ export async function requireActualCoordinatorMetadataPreparation(result: object
     );
     if (remote.checkpoint !== retained.checkpoint)
       throw new Error("remote coordinator metadata checkpoint changed");
-    if (retained.controls.readMaintenance(api).facts_sha256 !== retained.control_facts_sha256)
+    if (
+      coordinatorMaintenanceIdentity(controls.readMaintenance(api)) !==
+      retained.control_identity_sha256
+    )
       throw new Error("coordinator maintenance controls changed after readback");
     return Object.freeze({
       mode: "renewal" as const,
       preparation: retained.preparation,
       tools: retained.tools,
       complete_site: retained.complete_site,
-      controls: retained.controls,
+      controls,
+      next_controls: retained.next_controls,
       reader: retained.reader,
       repository: retained.repository,
       namespace: retained.namespace,
