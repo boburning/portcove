@@ -341,10 +341,26 @@ void test("fixed job adapter and source bootstrap refuse unknown operations with
 });
 
 void test("complete job bootstrap refuses inherited cross-role credentials before tool acquisition", async () => {
-  const { assertControllerBootstrapEnvironment } = await import("./release-controller-job-bootstrap.mts");
-  assert.doesNotThrow(() => assertControllerBootstrapEnvironment({ GH_TOKEN: "ordinary-fixed-job-token" }));
-  for (const key of ["NODE_OPTIONS", "NODE_PATH", "PORTCOVE_CONTROL_APP_TOKEN", "PORTCOVE_ROLE_KEY", "PORTCOVE_ROLE_PASSWORD", "TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "PORTCOVE_TUF_RELEASES_KEY", "PORTCOVE_PROTECTION_APP_KEY"])
-    assert.throws(() => assertControllerBootstrapEnvironment({ [key]: "inert-fixture" }), /forbids inherited/);
+  const { assertControllerBootstrapEnvironment } =
+    await import("./release-controller-job-bootstrap.mts");
+  assert.doesNotThrow(() =>
+    assertControllerBootstrapEnvironment({ GH_TOKEN: "ordinary-fixed-job-token" }),
+  );
+  for (const key of [
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "PORTCOVE_CONTROL_APP_TOKEN",
+    "PORTCOVE_ROLE_KEY",
+    "PORTCOVE_ROLE_PASSWORD",
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+    "PORTCOVE_TUF_RELEASES_KEY",
+    "PORTCOVE_PROTECTION_APP_KEY",
+  ])
+    assert.throws(
+      () => assertControllerBootstrapEnvironment({ [key]: "inert-fixture" }),
+      /forbids inherited/,
+    );
 });
 
 void test("actual result routing keeps context, role and immutable-result attestation paths distinct", async () => {
@@ -352,14 +368,115 @@ void test("actual result routing keeps context, role and immutable-result attest
   const directory = path.resolve(os.tmpdir(), "fixed-result-routing"),
     context = "https://portcove.dev/attestations/release-signing-context/v1";
   assert.equal(fixedControllerResultAttestation("coordinator", { decision: "held" }), null);
-  assert.equal(fixedControllerResultAttestation("coordinator", { decision: "metadata-context-prepared", attestation_required: false }), null);
-  assert.equal(fixedControllerResultAttestation("building", { decision: "candidate-building-admitted" }), null);
-  const payload = fixedControllerResultAttestation("payload", { context_upload: { directory, attestation: "pending" } });
+  assert.equal(
+    fixedControllerResultAttestation("coordinator", {
+      decision: "metadata-context-prepared",
+      attestation_required: false,
+    }),
+    null,
+  );
+  assert.equal(
+    fixedControllerResultAttestation("building", { decision: "candidate-building-admitted" }),
+    null,
+  );
+  const payload = fixedControllerResultAttestation("payload", {
+    context_upload: { directory, attestation: "pending" },
+  });
   assert.equal(payload?.predicate_type, context);
   assert.equal(payload?.subject_path, path.join(directory, "signing-context-manifest.json"));
-  const publication = fixedControllerResultAttestation("release-publication", { artifact: { directory, attestation: "pending" } });
-  assert.equal(publication?.subject_path, path.join(directory, "upload", "immutable-release-result.json"));
-  assert.equal(publication?.predicate_type, "https://portcove.dev/attestations/immutable-release-result/v1");
-  assert.throws(() => fixedControllerResultAttestation("coordinator", { decision: "metadata-context-prepared", subject_path: "copied-report" }), /paths unavailable/);
-  assert.throws(() => fixedControllerResultAttestation("tuf-releases", { decision: "role-output-prepared", subject_path: "copied-report", predicate_path: "copied-predicate", predicate_type: context }), /paths unavailable/);
+  const publication = fixedControllerResultAttestation("release-publication", {
+    artifact: { directory, attestation: "pending" },
+  });
+  assert.equal(
+    publication?.subject_path,
+    path.join(directory, "upload", "immutable-release-result.json"),
+  );
+  assert.equal(
+    publication?.predicate_type,
+    "https://portcove.dev/attestations/immutable-release-result/v1",
+  );
+  assert.throws(
+    () =>
+      fixedControllerResultAttestation("coordinator", {
+        decision: "metadata-context-prepared",
+        subject_path: "copied-report",
+      }),
+    /paths unavailable/,
+  );
+  assert.throws(
+    () =>
+      fixedControllerResultAttestation("tuf-releases", {
+        decision: "role-output-prepared",
+        subject_path: "copied-report",
+        predicate_path: "copied-predicate",
+        predicate_type: context,
+      }),
+    /paths unavailable/,
+  );
+});
+
+void test("final role output projects the retained producer result into the maintained next-role consumer", async () => {
+  const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts"),
+    { inspectTufRoleArtifactExpected } = await import("./release-tuf-role-artifact.mts"),
+    { createHash } = await import("node:crypto");
+  const controller = {
+      controller_revision: identity.controller_revision,
+      source_tree: "b".repeat(40),
+      controller_ref: ref,
+      run_id: identity.run_id,
+      run_attempt: 1,
+    },
+    subject = Buffer.from("retained signing-output manifest bytes"),
+    sha = createHash("sha256").update(subject).digest("hex"),
+    result = {
+      decision: "role-output-prepared",
+      subject_digest: sha,
+      artifact: { id: 11, bytes: 100, sha256: "c".repeat(64), name: "provider-owned-output" },
+    },
+    custody = {
+      subject,
+      predicate: Buffer.from(
+        JSON.stringify({
+          role: "tuf-releases",
+          controller,
+          context_manifest_sha256: "d".repeat(64),
+          context_binding_sha256: "e".repeat(64),
+          context_facts_sha256: "f".repeat(64),
+        }),
+      ),
+      bundle: { artifact_id: 12, sha256: "a".repeat(64) },
+    };
+  const outputs = projectFixedControllerJobOutputs("tuf-releases", result, custody),
+    received = inspectTufRoleArtifactExpected(JSON.parse(outputs.role_locator!));
+  assert.equal(received.role, "releases");
+  assert.deepEqual(received.artifact, { id: 11, sha256: "c".repeat(64) });
+  assert.deepEqual(received.bundle, { id: 12, sha256: "a".repeat(64) });
+  assert.deepEqual(received.controller, controller);
+  assert.throws(
+    () => projectFixedControllerJobOutputs("tuf-releases", result),
+    /custody unavailable/,
+  );
+  assert.throws(
+    () =>
+      projectFixedControllerJobOutputs("tuf-releases", result, {
+        ...custody,
+        subject: Buffer.from("changed"),
+      }),
+    /subject differs/,
+  );
+  assert.throws(
+    () => projectFixedControllerJobOutputs("tuf-preview", result, custody),
+    /subject differs/,
+  );
+  assert.deepEqual(
+    projectFixedControllerJobOutputs("coordinator", { decision: "held", holds: ["unrelated"] }),
+    { mode: "held", stage: "held" },
+  );
+  assert.deepEqual(
+    projectFixedControllerJobOutputs("coordinator", {
+      decision: "resume-existing",
+      active_candidate: { phase: "building" },
+    }),
+    { mode: "release", stage: "building" },
+  );
 });

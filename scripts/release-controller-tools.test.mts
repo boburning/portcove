@@ -61,6 +61,7 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   };
   await copy("scripts/release-controller-tool-launch.mts");
   await copy("scripts/release-controller-job-bootstrap.mts");
+  await copy("scripts/release-controller-job-output.mts");
   const child = spawnSync(
     process.execPath,
     [path.join(root, "scripts/release-controller-tool-launch.mts")],
@@ -69,9 +70,11 @@ void test("fixed source launcher loads without node_modules and rejects arbitrar
   assert.equal(child.status, 2);
   assert.match(child.stderr, /fixed verified-tool payload launcher refused/);
   assert.doesNotMatch(child.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
-  const fixedJob = spawnSync(process.execPath,
+  const fixedJob = spawnSync(
+    process.execPath,
     [path.join(root, "scripts/release-controller-job-bootstrap.mts"), "root"],
-    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } });
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
   assert.equal(fixedJob.status, 1, fixedJob.stderr);
   assert.match(fixedJob.stderr, /fixed complete controller job refused/);
   assert.doesNotMatch(fixedJob.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
@@ -248,15 +251,23 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(tuf.status, 1, tuf.stderr);
   assert.match(tuf.stderr, /fixed TUF role controller refused/);
   assert.doesNotMatch(tuf.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
-  const job = spawnSync(process.execPath,
+  const job = spawnSync(
+    process.execPath,
     [path.join(root, "scripts/release-controller-job.bundle.mjs")],
-    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } });
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
   assert.equal(job.status, 1, job.stderr);
   assert.match(job.stderr, /fixed controller job refused/);
   assert.doesNotMatch(job.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
-  const jobAbi = spawnSync(process.execPath, ["--input-type=module", "-e",
-    `const m=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-controller-job.bundle.mjs")).href)}); if(typeof m.runConfiguredFixedControllerJob!== 'function') throw Error('fixed job ABI missing'); await m.runConfiguredFixedControllerJob('root',1).then(()=>{throw Error('arbitrary role accepted')},e=>{if(!/fixed complete-controller job/.test(e.message))throw e}); process.stdout.write('fixed-job-ABI');`],
-    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } });
+  const jobAbi = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `const m=await import(${JSON.stringify(pathToFileURL(path.join(root, "scripts/release-controller-job.bundle.mjs")).href)}); if(typeof m.runConfiguredFixedControllerJob!== 'function') throw Error('fixed job ABI missing'); await m.runConfiguredFixedControllerJob('root',1).then(()=>{throw Error('arbitrary role accepted')},e=>{if(!/fixed complete-controller job/.test(e.message))throw e}); process.stdout.write('fixed-job-ABI');`,
+    ],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
   assert.equal(jobAbi.status, 0, jobAbi.stderr);
   assert.equal(jobAbi.stdout, "fixed-job-ABI");
   assert.deepEqual(controllerToolEntries, [

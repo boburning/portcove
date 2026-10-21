@@ -1,6 +1,6 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
+import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import {
   nativePrepublicationProfile,
   inspectNativeQualificationHarnessPath,

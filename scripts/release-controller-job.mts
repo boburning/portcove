@@ -1,6 +1,6 @@
 /** Fixed complete-controller job entry. No arbitrary command, source, tool,
  * candidate program or credential is accepted through configuration. */
-import { writeFile, appendFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
@@ -9,6 +9,7 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { retainControllerAttestation } from "./release-controller-transport.mts";
 
 function operation(raw: unknown) {
   if (
@@ -111,7 +112,11 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
   } else if (role === "payload")
     result = await (
       await import("./release-signing-controller.mts")
-    ).runFixedPayloadContextConfiguration(configuration, privateRoot, phaseDeadline ?? performance.now() + 570000);
+    ).runFixedPayloadContextConfiguration(
+      configuration,
+      privateRoot,
+      phaseDeadline ?? performance.now() + 570000,
+    );
   else if (role.startsWith("tuf-"))
     result = await (
       await import("./release-tuf-controller.mts")
@@ -134,7 +139,11 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
     if (!isRecord(entry) || typeof entry.runFixedCoordinatorConfiguration !== "function")
       throw new Error("same-bundle coordinator factory unavailable");
     const worker = entry as {
-      runFixedCoordinatorConfiguration(raw: unknown, parent: string, deadline?: number): Promise<unknown>;
+      runFixedCoordinatorConfiguration(
+        raw: unknown,
+        parent: string,
+        deadline?: number,
+      ): Promise<unknown>;
     };
     result = await worker.runFixedCoordinatorConfiguration(configuration, work, phaseDeadline);
   }
@@ -158,13 +167,6 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
     { flag: "wx", mode: 0o600 },
   );
   if (!positive) throw new Error("actual fixed job remained held");
-  if (role === "building") {
-    if (!process.env.GITHUB_OUTPUT) throw new Error("fixed aggregate output channel unavailable");
-    const descriptor = JSON.stringify(result.descriptor);
-    if (Buffer.byteLength(descriptor) > 65536 || /[\r\n]/u.test(descriptor))
-      throw new Error("bounded aggregate descriptor required");
-    await appendFile(process.env.GITHUB_OUTPUT, `descriptor=${descriptor}\n`);
-  }
   return result;
 }
 
@@ -178,24 +180,46 @@ export function fixedControllerResultAttestation(rawRole: unknown, raw: unknown)
   if (role === "coordinator") {
     if (raw.decision !== "metadata-context-prepared" || raw.attestation_required === false)
       return null;
-    if (typeof raw.subject_path !== "string" || typeof raw.predicate_path !== "string" || raw.predicate_type !== contextType)
+    if (
+      typeof raw.subject_path !== "string" ||
+      typeof raw.predicate_path !== "string" ||
+      raw.predicate_type !== contextType
+    )
       throw new Error("actual coordinator attestation paths unavailable");
-    return { subject_path: raw.subject_path, predicate_path: raw.predicate_path, predicate_type: contextType };
+    return {
+      subject_path: raw.subject_path,
+      predicate_path: raw.predicate_path,
+      predicate_type: contextType,
+    };
   }
   if (role.startsWith("tuf-")) {
     const type = "https://portcove.dev/attestations/tuf-role-output/v1";
-    if (raw.decision !== "role-output-prepared" || typeof raw.subject_path !== "string" || typeof raw.predicate_path !== "string" || raw.predicate_type !== type)
+    if (
+      raw.decision !== "role-output-prepared" ||
+      typeof raw.subject_path !== "string" ||
+      typeof raw.predicate_path !== "string" ||
+      raw.predicate_type !== type
+    )
       throw new Error("actual TUF attestation paths unavailable");
-    return { subject_path: raw.subject_path, predicate_path: raw.predicate_path, predicate_type: type };
+    return {
+      subject_path: raw.subject_path,
+      predicate_path: raw.predicate_path,
+      predicate_type: type,
+    };
   }
   const handoff = role === "payload" ? raw.context_upload : raw.artifact;
-  if (!isRecord(handoff) || typeof handoff.directory !== "string" || handoff.attestation !== "pending")
+  if (
+    !isRecord(handoff) ||
+    typeof handoff.directory !== "string" ||
+    handoff.attestation !== "pending"
+  )
     throw new Error("actual handoff attestation unavailable");
-  if (role === "payload") return {
-    subject_path: path.join(handoff.directory, "signing-context-manifest.json"),
-    predicate_path: path.join(handoff.directory, "signing-context-predicate.json"),
-    predicate_type: contextType,
-  };
+  if (role === "payload")
+    return {
+      subject_path: path.join(handoff.directory, "signing-context-manifest.json"),
+      predicate_path: path.join(handoff.directory, "signing-context-predicate.json"),
+      predicate_type: contextType,
+    };
   return {
     subject_path: path.join(handoff.directory, "upload", "immutable-release-result.json"),
     predicate_path: path.join(handoff.directory, "immutable-release-result-predicate.json"),
@@ -206,19 +230,25 @@ export function fixedControllerResultAttestation(rawRole: unknown, raw: unknown)
 /** Called only by the verified source bootstrap's fixed bundle entry. This
  * bundle owns its own deadline context; a source-module ALS is not shared. */
 export async function runConfiguredFixedControllerJob(rawRole: unknown, deadline: number) {
-  const role = operation(rawRole), phase = role === "building" ? "admission" : role;
-  let exitCode = 1, requiresAttestation = false;
+  const role = operation(rawRole),
+    phase = role === "building" ? "admission" : role;
+  let exitCode = 1,
+    requiresAttestation = false;
   try {
     const completed = await withCoordinatorDeadline(deadline, async () => {
       await configureFixedControllerJob(role);
       const result = await runFixedControllerJob(role, deadline);
       // Set before retaining the locator: a retention failure must not erase
       // the fact that the actual result needs independent attestation.
-      requiresAttestation = role !== "building" && role !== "site-publication" &&
-        (role !== "coordinator" || (isRecord(result) && result.decision === "metadata-context-prepared" && result.attestation_required !== false));
+      requiresAttestation =
+        role !== "building" &&
+        role !== "site-publication" &&
+        (role !== "coordinator" ||
+          (isRecord(result) &&
+            result.decision === "metadata-context-prepared" &&
+            result.attestation_required !== false));
       const attestation = fixedControllerResultAttestation(role, result);
       if (attestation) {
-        // Filled by the fixed event-transport implementation in this delivery.
         await retainControllerAttestation(temporary(), phase, attestation);
       }
       return result;
@@ -226,8 +256,16 @@ export async function runConfiguredFixedControllerJob(rawRole: unknown, deadline
     exitCode = 0;
     return completed;
   } finally {
-    await writeFile(path.join(temporary(), `release-control-${phase}-process-ended.json`), JSON.stringify({ exit_code: exitCode }), { flag: "wx", mode: 0o600 });
-    await writeFile(path.join(temporary(), `controller-job-settlement-${phase}.json`), JSON.stringify({ exit_code: exitCode, requires_attestation: requiresAttestation }), { flag: "wx", mode: 0o600 });
+    await writeFile(
+      path.join(temporary(), `release-control-${phase}-process-ended.json`),
+      JSON.stringify({ exit_code: exitCode }),
+      { flag: "wx", mode: 0o600 },
+    );
+    await writeFile(
+      path.join(temporary(), `controller-job-settlement-${phase}.json`),
+      JSON.stringify({ exit_code: exitCode, requires_attestation: requiresAttestation }),
+      { flag: "wx", mode: 0o600 },
+    );
   }
 }
 async function main() {

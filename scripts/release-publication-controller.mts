@@ -230,7 +230,10 @@ export async function runFixedPublicationEntry(filename: string, phaseDeadline?:
     throw new Error("publication invocation is not the original fixed job");
   const root = process.env.RUNNER_TEMP;
   if (!root || !path.isAbsolute(root)) throw new Error("fixed private runner root required");
-  const deadline = Math.min(currentPublicationJobDeadline(root, identity), phaseDeadline ?? Infinity);
+  const deadline = Math.min(
+    currentPublicationJobDeadline(root, identity),
+    phaseDeadline ?? Infinity,
+  );
   const toolsInput = raw.tools;
   return withCoordinatorDeadline(deadline, async () => {
     const directory = await mkdtemp(path.join(root, "publication-controller-bootstrap-"));
