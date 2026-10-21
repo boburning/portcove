@@ -6,7 +6,7 @@ import { mkdir, open, readFile, statfs, writeFile, type FileHandle } from "node:
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Builder, By, until, type WebDriver } from "selenium-webdriver";
+import type { WebDriver } from "selenium-webdriver";
 import { inspectPublicNativeLinuxBinding } from "./native-linux-public-plan.mts";
 import { inspectNativeLinuxHomeMount } from "./native-linux-isolated-plan.mts";
 import { launchPublicLinuxNativeSession } from "./native-linux-isolated-session.mts";
@@ -30,12 +30,6 @@ import {
   restoreParkedPublicUpdateCapture,
   retainPublicContinuationPreimages,
 } from "./desktop-public-update-files.mts";
-import {
-  driveInstalledUpdateToRestart,
-  driveInstalledUpdateRecovery,
-  driveInstalledForwardRepairToRestart,
-  openInstalledUpdateSettings,
-} from "./desktop-application-update-journey.mts";
 import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
 import { isRecord, errorCode, errorMessage } from "../../../scripts/runtime-values.mts";
 
@@ -242,6 +236,13 @@ export async function runLinuxPublicUpdateJourney(
     performance.now() + Date.parse(binding.session.deadline_utc) - Date.now(),
   );
   assert.ok(Number.isFinite(deadline) && deadline > performance.now());
+  const { Builder, By, until } = await import("selenium-webdriver");
+  const {
+    driveInstalledUpdateToRestart,
+    driveInstalledUpdateRecovery,
+    driveInstalledForwardRepairToRestart,
+    openInstalledUpdateSettings,
+  } = await import("./desktop-application-update-journey.mts");
   const active = () =>
     assert.ok(performance.now() < deadline, "Original public journey lifetime expired");
   // One opaque payload plus bounded distinct fault/partial chunks and the exact
