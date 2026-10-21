@@ -51,7 +51,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     path.join(root, ".github/workflows/release-reviewed-inputs.yml"),
     "fixture workflow bytes; no active reviewed-input workflow claimed",
   );
-  assert.deepEqual((await readdir(root)).sort(), [".github", "release", "scripts"]);
+  assert.deepEqual((await readdir(root)).sort(), [".github", "apps", "release", "scripts"]);
   for (const [name, workflow, args] of [
     ["production-controller-admission", "application-update-production.yml", []],
     ["release-reviewed-inputs", "release-reviewed-inputs.yml", ["admission"]],
@@ -121,6 +121,14 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
   assert.equal(context.status, 2);
   assert.match(context.stderr, /fixed payload\/context controller refused/);
   assert.doesNotMatch(context.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
+  const publication = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/release-publication-controller.bundle.mjs")],
+    { cwd: root, encoding: "utf8", timeout: 5000, env: { SystemRoot: process.env.SystemRoot } },
+  );
+  assert.equal(publication.status, 1);
+  assert.match(publication.stderr, /fixed publication controller refused/);
+  assert.doesNotMatch(publication.stderr, /ERR_MODULE_NOT_FOUND|Cannot find package/);
   assert.equal(
     (
       await readFile(path.join(root, "scripts/release-reviewed-inputs.bundle.mjs"), "utf8")
@@ -142,6 +150,7 @@ void test("actual pinned pack bundles fixed CLIs including semver; isolated exec
     "release-signing-controller",
     "release-role-key-channel",
     "release-coordinator-driver",
+    "release-publication-controller",
   ]);
 });
 void test("bootstrap environment excludes ambient credentials, wrappers, npm hooks and caches", () => {

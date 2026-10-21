@@ -51,6 +51,66 @@ export function candidateProgressIdentity(candidate: Record<string, unknown>) {
   );
 }
 
+/** Integrity-only recovery association. A later report attempt may retain the
+ * original immutable publication only when the same journal already recorded
+ * that exact settled operation and Release at the original recovery counters. */
+export function requireRetainedPublishCandidate(
+  candidate: Record<string, unknown>,
+  operation: { id: string; candidate?: unknown },
+  release: Parameters<typeof immutableReleaseProgressDigest>[0],
+) {
+  if (!isRecord(operation.candidate)) throw new Error("retained publisher candidate missing");
+  const fields = [
+    "source_commit",
+    "prepared_commit",
+    "version",
+    "transient_retries",
+    "substantive_repairs",
+  ];
+  const current = Object.fromEntries(fields.map((key) => [key, candidate[key]]));
+  if (releaseCanonicalDigest(operation.candidate) === releaseCanonicalDigest(current)) return;
+  for (const key of ["source_commit", "prepared_commit", "version"])
+    if (operation.candidate[key] !== candidate[key])
+      throw new Error("retained publisher candidate identity differs");
+  for (const key of ["transient_retries", "substantive_repairs"])
+    if (
+      !Number.isSafeInteger(operation.candidate[key]) ||
+      !Number.isSafeInteger(candidate[key]) ||
+      Number(operation.candidate[key]) < 0 ||
+      Number(operation.candidate[key]) > Number(candidate[key])
+    )
+      throw new Error("retained publisher recovery counters differ");
+  const history = inspectCandidateStageEvidence(candidate.stage_evidence, candidate);
+  const originalCandidate = operation.candidate;
+  const matching = history
+    .find((slot) => slot.phase === "promoting")
+    ?.attempts.filter(
+      (attempt) =>
+        attempt.transient_retries === originalCandidate.transient_retries &&
+        attempt.substantive_repairs === originalCandidate.substantive_repairs &&
+        releaseCanonicalDigest(attempt.release_run) ===
+          releaseCanonicalDigest(candidate.release_run) &&
+        isRecord(attempt.proof) &&
+        Array.isArray(attempt.proof.locators) &&
+        attempt.proof.locators.some(
+          (locator: unknown) =>
+            isRecord(locator) &&
+            locator.kind === "operation" &&
+            locator.id === operation.id &&
+            locator.sha256 === releaseCanonicalDigest(operation),
+        ) &&
+        attempt.proof.locators.some(
+          (locator: unknown) =>
+            isRecord(locator) &&
+            locator.kind === "immutable-release" &&
+            locator.id === String(release.release_id) &&
+            locator.sha256 === immutableReleaseProgressDigest(release),
+        ),
+    );
+  if (matching?.length !== 1)
+    throw new Error("retained publisher lacks exact original promoting proof");
+}
+
 /** Bounded public recovery locators, never an authentication or eligibility proof.
  * Actual callers must recollect provider/private evidence before any action. */
 export function inspectCandidateStageEvidence(raw: unknown, candidate: Record<string, unknown>) {

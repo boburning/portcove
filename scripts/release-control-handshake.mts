@@ -43,7 +43,7 @@ export function inspectControlRound(raw: unknown, requireNonce = true) {
     (requireNonce && !Object.hasOwn(raw, "nonce")) ||
     !Number.isSafeInteger(raw.index) ||
     Number(raw.index) < 1 ||
-    Number(raw.index) > 12 ||
+    Number(raw.index) > 14 ||
     (raw.nonce === undefined
       ? requireNonce
       : typeof raw.nonce !== "string" || !/^[a-f0-9]{64}$/u.test(raw.nonce))
