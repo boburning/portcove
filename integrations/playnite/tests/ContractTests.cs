@@ -101,6 +101,37 @@ internal static class ContractTests
         };
         Func<Dictionary<string, object>> fresh = () => Json.Object(Json.Parse(Json.Print(fixture)));
         var review = InstallationReview.Read(fresh(), "shape-a", library);
+        var buildInputs = fresh();
+        var buildPlan = Json.Object(Json.Field(buildInputs, "plan"));
+        buildPlan["auxiliary_downloads"] = Json.Parse(Json.Print(new[] {
+            new { name = "fixed-toolchain.zip", url = "https://github.com/owner/repo/fixed.zip", size = 456L, sha256 = new string('c',64) }
+        }));
+        buildPlan["download_bytes"] = 579L;
+        buildPlan["temporary_space"] = Json.Parse(Json.Print(new {
+            path = @"H:\Isolated library\versions\shape-a", required_bytes = 12884901888L,
+            available_bytes = (long?)null, sufficient = (bool?)null
+        }));
+        var buildDescription = InstallationReview.Read(buildInputs, "shape-a", library).Description;
+        Check(buildDescription.Contains("Additional fixed inputs: 1 (456 bytes) from github.com") &&
+            buildDescription.Contains("12884901888 bytes; available space unknown") &&
+            buildDescription.Contains("technical plan"), "source-build review consumes acquisitions and preserves unknown capacity");
+        var capacity = Json.Object(Json.Field(buildPlan, "temporary_space"));
+        capacity["sufficient"] = true;
+        Reject(() => InstallationReview.Read(buildInputs, "shape-a", library), "unknown capacity cannot claim sufficient space");
+        capacity["available_bytes"] = 1L; capacity["sufficient"] = false;
+        Check(InstallationReview.Read(buildInputs, "shape-a", library).Description.Contains("insufficient"), "known insufficient capacity is presented truthfully");
+        capacity["path"] = @"H:\Other";
+        Reject(() => InstallationReview.Read(buildInputs, "shape-a", library), "capacity cannot target a different destination");
+        capacity["path"] = @"H:\Isolated library\versions\shape-a";
+        buildPlan["download_bytes"] = 123L;
+        Reject(() => InstallationReview.Read(buildInputs, "shape-a", library), "source-build acquisition total must reconcile");
+        buildPlan["download_bytes"] = 579L;
+        var buildAsset = Json.Object(Json.Array(Json.Field(buildPlan, "auxiliary_downloads"))[0]);
+        buildAsset["url"] = "http://github.com/owner/repo/fixed.zip";
+        Reject(() => InstallationReview.Read(buildInputs, "shape-a", library), "insecure source-build input acquisition refused");
+        buildAsset["url"] = "https://github.com/owner/repo/fixed.zip";
+        buildAsset["sha256"] = "invalid";
+        Reject(() => InstallationReview.Read(buildInputs, "shape-a", library), "malformed source-build input digest refused");
         var withNotices = fresh();
         Json.Object(Json.Field(withNotices, "plan"))["preservation_notices"] = new[] { "Sign-in stays with each installed version." };
         Check(InstallationReview.Read(withNotices, "shape-a", library).Description.Contains("Sign-in stays with each installed version."), "installation review presents the core preservation notice before confirmation");
@@ -233,7 +264,7 @@ internal static class ContractTests
             .Cast<string>().Concat(new[] { "artwork.handoff", "artwork.handoff-bytes" }).ToArray();
         ProtocolStream.Negotiate(artworkAdditive, ConsumerCapability.Library);
         Check(true, "existing library reader accepts optional artwork handoff without consuming it");
-        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77 })
+        foreach (var publicSchema in new[] { 42, 57, 60, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78 })
         {
             var supported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             supported["schema_version"] = publicSchema;
@@ -241,7 +272,7 @@ internal static class ContractTests
             ProtocolStream.Negotiate(supported, ConsumerCapability.Library);
             Check(true, "public schema " + publicSchema + " negotiated");
         }
-        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77 })
+        foreach (var publicSchema in new[] { 72, 73, 74, 75, 76, 77, 78 })
         {
             var relink = Json.Object(Json.Parse(Json.Print(Capabilities())));
             relink["schema_version"] = publicSchema;
@@ -258,7 +289,7 @@ internal static class ContractTests
         var stream73 = new ProtocolStream("status");
         stream73.Line(Json.Print(result73));
         Check(Json.Array(stream73.Finish(0)).Length == 0, "schema 73 result crosses the actual protocol reader");
-        foreach (var privateSchema in new[] { 58, 59, 64, 78 })
+        foreach (var privateSchema in new[] { 58, 59, 64, 79 })
         {
             var unsupported = Json.Object(Json.Parse(Json.Print(Capabilities())));
             unsupported["schema_version"] = privateSchema;
@@ -443,6 +474,9 @@ internal static class ContractTests
         ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
         Check(true, "runtime path policy keeps launch decisions in Core");
         bad["schema_version"] = 78;
+        ProtocolStream.Negotiate(bad, ConsumerCapability.LaunchOnly);
+        Check(true, "fixed CVLoD recipe keeps source-build eligibility and execution in Core");
+        bad["schema_version"] = 79;
         Reject(() => ProtocolStream.Negotiate(bad), "unknown schema beyond runtime paths rejected");
         bad["schema_version"] = 42; bad["commands"] = new object[0];
         Reject(() => ProtocolStream.Negotiate(bad), "missing command capability rejected");
@@ -772,12 +806,12 @@ internal static class ContractTests
         capabilities["schema_version"] = 73;
         Check(ProtocolStream.SupportsReviewedExternal(capabilities), "shared-directory schema preserves reviewed external flow");
         capabilities["commands"] = new[] { "external", "external.review", "external.relink" };
-        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77 })
+        foreach (var supportedRelinkSchema in new[] { 72, 73, 74, 75, 76, 77, 78 })
         {
             capabilities["schema_version"] = supportedRelinkSchema;
             Check(ProtocolStream.SupportsExternalRelink(capabilities), "known relink schema preserves reviewed folder change");
         }
-        foreach (var unsupportedRelinkSchema in new[] { 71, 78 })
+        foreach (var unsupportedRelinkSchema in new[] { 71, 79 })
         {
             capabilities["schema_version"] = unsupportedRelinkSchema;
             Check(!ProtocolStream.SupportsExternalRelink(capabilities), "older and unknown relink schemas are refused");
@@ -817,7 +851,7 @@ internal static class ContractTests
         biosReadiness["blockers"] = new object[0];
         Reject(() => PortActions.ValidateStatus(biosStatus, 69), "legacy recovery schema independently rejects the new BIOS action reason");
         Reject(() => PortActions.ValidateStatus(biosStatus, 68), "schema68 rejects the new BIOS action reason even without new readiness fields");
-        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 78 })
+        foreach (var unsupported in new[] { 42, 57, 58, 59, 60, 63, 64, 65, 66, 79 })
         {
             capabilities["schema_version"] = unsupported;
             Check(!ProtocolStream.SupportsReviewedExternal(capabilities), "review capability cannot enable unsupported external contract " + unsupported);
@@ -1518,6 +1552,35 @@ internal static class ContractTests
         await client.Connect();
         connect.Stop();
         var port = args[3];
+
+        if (mode == "qualification-cvlod-source-plan")
+        {
+            if (args.Length != 4 || port != "cvlod-recomp")
+                throw new ArgumentException("CVLoD plan qualification requires the exact private fixture port.");
+            var before = client.InvocationCount;
+            var value = await client.Read("installation.plan", "installation", "plan", port);
+            var invocations = client.InvocationCount - before;
+            var plan = Json.Field(value, "plan");
+            var inputs = Json.Array(Json.Field(plan, "auxiliary_downloads"));
+            Check(client.ApiSchemaVersion == 78 && inputs.Length == 1490,
+                "compiled API78 producer exposes the complete fixed CVLoD acquisition inventory");
+            var review = InstallationReview.Read(value, port, args[2]);
+            var required = Json.Number(Json.Field(plan, "temporary_space"), "required_bytes");
+            var primaryBytes = Json.Number(Json.Field(Json.Field(plan, "release"), "asset"), "size");
+            Check(review.Description.Contains("Additional fixed inputs: 1490") &&
+                required == checked(primaryBytes + 12884901888L) &&
+                review.Description.Contains("Temporary free-space requirement: " + required + " bytes"),
+                "actual client consumes Core acquisitions and primary-plus-build capacity before confirmation");
+            var arguments = review.InstallationArguments();
+            Check(arguments.Contains(Json.Text(value, "plan_sha256")) && arguments.Contains("--expected-plan") &&
+                !arguments.Contains("--acknowledge-shared-preferences") && invocations == 1 && client.InvocationCount == before + 1,
+                "actual source-build reader binds ordinary plan consent without extra requests or mutation");
+            Console.WriteLine("CVLOD_PLAN " + Json.Print(new { schema = client.ApiSchemaVersion,
+                input_count = inputs.Length, temporary_required_bytes = required, primary_bytes = primaryBytes,
+                request_count = invocations, maximum_caller_concurrency = 1,
+                polling_overlap = false, fingerprint = review.Fingerprint, arguments, mutation_executed = false }));
+            return;
+        }
 
         if (mode == "qualification-shared-external-preview")
         {

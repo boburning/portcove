@@ -1011,6 +1011,8 @@ mod tests {
         // The runner preserves both streams. A retained stderr warning must
         // never be mistaken for another planned recipe.
         let captured = BuildCommandOutput {
+            stderr: None,
+            exit_code: Some(0),
             output: format!(
                 "{link}\nprocess_begin: CreateProcess(NULL, git rev-parse --abbrev-ref HEAD, ...) failed.\nMakefile:178: pipe: No error\n"
             ),
@@ -1020,6 +1022,8 @@ mod tests {
         validate_link_plan(captured.complete_stdout().unwrap(), tool).unwrap();
         assert!(
             BuildCommandOutput {
+                stderr: None,
+                exit_code: Some(0),
                 output: link.clone(),
                 stdout: None
             }

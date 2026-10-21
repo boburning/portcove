@@ -1,0 +1,39 @@
+[Info] Ambiguous jal target 0x802E5210 in function func_8014C6BC, falling back to function lookup
+[Info] Ambiguous jal target 0x802E5210 in function func_8014C6BC, falling back to function lookup
+[Info] Ambiguous jal target 0x802E5150 in function func_8015011C, falling back to function lookup
+[Info] Ambiguous jal target 0x802E4CF8 in function func_80177258, falling back to function lookup
+[Info] Ambiguous jal target 0x802E54DC in function func_80177258, falling back to function lookup
+[Info] Ambiguous jal target 0x802E5FAC in function func_80177258, falling back to function lookup
+[Info] Ambiguous jal target 0x802E4AA0 in function func_80177258, falling back to function lookup
+[Info] Ambiguous jal target 0x802E3EA4 in function func_80177258, falling back to function lookup
+[Info] Ambiguous jal target 0x802E5A80 in function func_80177258, falling back to function lookup
+[Warn] Function ni_ovl_004_func_0F00A28C is branching outside of the function (to 0x0F00A6E0)
+[Warn] Function ni_ovl_006_func_0F003B74 is branching outside of the function (to 0x0F004268)
+[Warn] Function ni_ovl_006_func_0F003B74 is branching outside of the function (to 0x0F004268)
+[Warn] Function ni_ovl_012_func_0F006234 is branching outside of the function (to 0x0F0063FC)
+[Warn] Function ni_ovl_066_func_0F002CC8 is branching outside of the function (to 0x0F002D14)
+[Warn] Function ni_ovl_118_func_0F0013A4 is branching outside of the function (to 0x0F00150C)
+[Warn] Function ni_ovl_135_func_0E000A14 is branching outside of the function (to 0x0E000F04)
+[Warn] Function ni_ovl_135_func_0E000A14 is branching outside of the function (to 0x0E000E58)
+[Warn] Function ni_ovl_135_func_0E000A14 is branching outside of the function (to 0x0E000F04)
+[Warn] Function ni_ovl_135_func_0E000E4C is branching outside of the function (to 0x0E000EB8)
+[Warn] Function ni_ovl_135_func_0E000E4C is branching outside of the function (to 0x0E000F04)
+[Warn] Function ni_ovl_135_func_0E000EAC is branching outside of the function (to 0x0E000F04)
+[Warn] Function ni_ovl_135_func_0E000EAC is branching outside of the function (to 0x0E000F00)
+[Warn] Function ni_ovl_135_func_0E000EAC is branching outside of the function (to 0x0E000F04)
+[Warn] Function ni_ovl_135_func_0E000EF8 is branching outside of the function (to 0x0E001004)
+[Warn] Function ni_ovl_135_func_0E000EF8 is branching outside of the function (to 0x0E000F68)
+[Warn] Function ni_ovl_135_func_0E000EF8 is branching outside of the function (to 0x0E001004)
+[Warn] Function ni_ovl_135_func_0E000F5C is branching outside of the function (to 0x0E001004)
+[Warn] Function ni_ovl_135_func_0E000FB4 is branching outside of the function (to 0x0E001004)
+[Warn] Function ni_ovl_135_func_0E000FB4 is branching outside of the function (to 0x0E001004)
+[Warn] Function static_172_0F0014B4 is branching outside of the function (to 0x0F00150C)
+[Warn] Function static_189_0E000DFC is branching outside of the function (to 0x0E000F04)
+[Warn] Function static_189_0E000DFC is branching outside of the function (to 0x0E000E58)
+[Warn] Function static_189_0E000DFC is branching outside of the function (to 0x0E000F04)
+[Warn] Function static_189_0E000F0C is branching outside of the function (to 0x0E001004)
+[Warn] Function static_189_0E000F0C is branching outside of the function (to 0x0E000F68)
+[Warn] Function static_189_0E000F0C is branching outside of the function (to 0x0E001004)
+[Warn] Function static_189_0E000FC0 is branching outside of the function (to 0x0E001004)
+[Warn] Function static_189_0E000FC0 is branching outside of the function (to 0x0E001004)
+Failed to find written section index of relocatable section: ..overlay_system

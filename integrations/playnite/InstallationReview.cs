@@ -101,12 +101,23 @@ namespace Portcove.ReferenceClient
             }
             var runtime = Json.Field(plan, "bundled_runtime");
             var runtimeDescription = "";
+            var expectedBytes = Json.Number(asset, "size");
             if (runtime != null)
             {
                 var runtimeAsset = Json.Field(runtime, "asset");
                 runtimeDescription = "\nBundled runtime: " + RequiredText(runtimeAsset, "name") +
                     "\nRuntime SHA-256: " + Digest(runtimeAsset, "sha256");
+                var runtimeBytes = Json.Number(runtimeAsset, "size");
+                if (runtimeBytes < 0) throw new InvalidOperationException("Invalid bundled runtime size.");
+                expectedBytes = checked(expectedBytes + runtimeBytes);
             }
+            var acquisitionDescription = AcquisitionNotices(plan, ref expectedBytes);
+            // Older plans omit auxiliary inputs. Once supplied, their complete
+            // cold acquisition quantity must reconcile with Core's total.
+            object auxiliary;
+            if (Json.TryField(plan, "auxiliary_downloads", out auxiliary) && bytes != expectedBytes)
+                throw new InvalidOperationException("Installation input sizes do not match the reviewed total.");
+            var capacityDescription = CapacityNotice(plan, destination);
             var selected = Json.OptionalObjectField(value, "selected_install");
             var destinationDescription = "Managed versions folder: " + destination;
             var downloadDescription = "Download size: " + bytes + " bytes";
@@ -138,12 +149,61 @@ namespace Portcove.ReferenceClient
                 Description = "Install and activate this reviewed release? Portcove rechecks these inputs before applying it. Changed inputs require another review.\n\n" +
                     "Requested release version: " + RequiredText(release, "version") + "\nRequested channel: " + ChannelLabel(channel) +
                     "\nArtifact: " + RequiredText(asset, "name") + "\nSHA-256: " + Digest(asset, "sha256") +
-                    runtimeDescription + "\n" + downloadDescription +
+                    runtimeDescription + acquisitionDescription + capacityDescription + "\n" + downloadDescription +
                     "\n" + destinationDescription + "\nSaved data: " + saves +
                     "\nOriginal inputs: " + (sources.Count == 0 ? "none required" : string.Join(", ", sources)) +
                     PreservationNotices(plan) +
                     "\n\nOriginal files remain in place. Free space, source bytes and destination safety are checked at execution. Cancellation may retain private work for recovery."
             };
+        }
+
+        private static string AcquisitionNotices(object plan, ref long expectedBytes)
+        {
+            object raw;
+            if (!Json.TryField(plan, "auxiliary_downloads", out raw)) return "";
+            var inputs = Json.Array(raw);
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var hosts = new SortedSet<string>(StringComparer.Ordinal);
+            long total = 0;
+            foreach (var input in inputs)
+            {
+                if (!names.Add(RequiredText(input, "name")))
+                    throw new InvalidOperationException("Repeated installation input.");
+                Digest(input, "sha256");
+                var size = Json.Number(input, "size");
+                Uri uri;
+                if (size < 0 || !Uri.TryCreate(RequiredText(input, "url"), UriKind.Absolute, out uri) ||
+                    uri.Scheme != Uri.UriSchemeHttps || uri.UserInfo.Length != 0 || uri.Fragment.Length != 0)
+                    throw new InvalidOperationException("Invalid installation input acquisition.");
+                total = checked(total + size);
+                hosts.Add(uri.Host);
+            }
+            expectedBytes = checked(expectedBytes + total);
+            return inputs.Length == 0 ? "" : "\nAdditional fixed inputs: " + inputs.Length + " (" + total +
+                " bytes) from " + string.Join(", ", hosts) +
+                ". Complete names, URLs and hashes are shown in the technical plan. Cache reuse is not guaranteed.";
+        }
+
+        private static string CapacityNotice(object plan, string destination)
+        {
+            var capacity = Json.OptionalObjectField(plan, "temporary_space");
+            if (capacity == null) return ""; // Supported older/retained plans.
+            if (RequiredText(capacity, "path") != destination)
+                throw new InvalidOperationException("Temporary space targets another installation directory.");
+            var required = Json.Number(capacity, "required_bytes");
+            if (required < 0) throw new InvalidOperationException("Invalid temporary space requirement.");
+            var available = Json.Field(capacity, "available_bytes");
+            var sufficient = Json.Field(capacity, "sufficient");
+            if (available == null)
+            {
+                if (sufficient != null) throw new InvalidOperationException("Unknown capacity cannot claim sufficient space.");
+                return "\nTemporary free-space requirement: " + required + " bytes; available space unknown. Core rechecks at execution.";
+            }
+            var observed = Json.Number(capacity, "available_bytes");
+            if (observed < 0 || sufficient == null || Json.Boolean(capacity, "sufficient") != (observed >= required))
+                throw new InvalidOperationException("Inconsistent temporary space observation.");
+            return "\nTemporary free-space requirement: " + required + " bytes; available: " + observed +
+                " bytes (" + (observed >= required ? "sufficient" : "insufficient") + "). Core rechecks at execution.";
         }
 
         internal static string PreservationNotices(object plan)

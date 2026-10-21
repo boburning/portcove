@@ -57,7 +57,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–77/events 2–3; schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–78/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -167,6 +167,17 @@ missing process-start identity, changed install, or live supervisor remains a
 conflict requiring review. Recovery does not prove that a hard-killed game flushed
 its own saves; it only performs the collection that core can verify afterward.
 
+API78 adds the closed `cvlod-n64-source-cb8548d145a1-ui-lifetime-v1` recipe
+and N64 template version 3. It adds no command, input field or event version.
+Clients continue to display the complete Core installation plan, including
+fixed acquisitions and temporary capacity, and obtain its existing consent.
+They must not execute catalog build instructions or derive eligibility from the
+recipe name. The reference consumes Core action/readiness decisions; it does
+not parse the descriptive catalog recipe enum. Capability negotiation still
+rejects unknown API79 and used event schemas outside 2–3. Definition admission
+separately requires N64 version 3 and the existing Windows path capability 11;
+API78 alone does not admit a definition or authorize a build.
+
 ## Optional management
 
 Read `status <port>`, `catalog show <port>`, `catalog export` and `doctor` for
@@ -227,7 +238,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–77 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–78 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core
