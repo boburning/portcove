@@ -348,7 +348,9 @@ jobs:
         run: node scripts/release-reviewed-inputs.mts persist-production-request
   coordinator:
     name: Coordinate application release
-    if: ${{ success() }}
+    if:
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' &&
+      needs.tool_attest.result == 'success' }}
     needs: &a1
       - admission
       - tool_bootstrap
@@ -426,7 +428,9 @@ jobs:
           phase: coordinator
   coordinator_protection_observation:
     name: Observe application coordinator protections
-    if: ${{ success() }}
+    if:
+      ${{ always() && needs.admission.result == 'success' && needs.tool_bootstrap.result == 'success' &&
+      needs.tool_attest.result == 'success' }}
     needs: *a1
     runs-on: ubuntu-22.04
     timeout-minutes: 3

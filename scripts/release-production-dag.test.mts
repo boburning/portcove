@@ -110,6 +110,13 @@ void test("actual held job conditions route retained custody without repeating s
   assert.equal(permitted("site_publication", "release", true, "release_publication"), false);
   assert.equal(permitted("site_publication", "metadata", false), true);
   assert.equal(permitted("site_publication", "metadata", false, "tuf_timestamp"), false);
+  // Classification persistence is not maintenance authority. Its failed probe
+  // must not prevent the actual coordinator from independently choosing renewal.
+  for (const name of ["coordinator", "coordinator_protection_observation"]) {
+    assert.equal(permitted(name, "metadata", false, "classification_writer"), true);
+    assert.equal(permitted(name, "metadata", false, "tool_attest"), false);
+    assert.equal(permitted(name, "metadata", false, "admission"), false);
+  }
 });
 void test("complete held DAG keeps bounded resource and credential ownership across actual callables", async () => {
   const source = await readFile(

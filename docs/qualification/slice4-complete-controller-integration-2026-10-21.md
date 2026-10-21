@@ -28,6 +28,13 @@ dispatch/reconciliation contract. It conveys correlation only, never accepted
 policy or a candidate assertion. The fixed observer starts at each reader's
 actual initial ordinal; no Administration-write token enters a reader or signer.
 
+The coordinator and its observer may start after failed classification persistence
+only when source admission and trusted tools succeed. Existing maintenance-first
+selection can therefore renew already accepted metadata while a new semantic
+review is unavailable. The actual coordinator still authenticates maintenance
+controls, and new-release admission still requires independently accepted
+classification; this workflow condition supplies neither authority.
+
 ## Proposed resource reconciliation
 
 The complete controller has 52 non-input job-minutes and 46 classification/control
