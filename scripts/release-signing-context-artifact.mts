@@ -635,7 +635,19 @@ export async function receiveSigningContextArtifact(
         raw.path !== productionControllerWorkflow ||
         raw.event !== "workflow_dispatch" ||
         !["in_progress", "completed"].includes(String(raw.status)) ||
-        (raw.conclusion !== null && raw.conclusion !== "success") ||
+        (raw.status === "in_progress"
+          ? raw.conclusion !== null
+          : ![
+              "success",
+              "failure",
+              "cancelled",
+              "timed_out",
+              "action_required",
+              "neutral",
+              "skipped",
+              "stale",
+              "startup_failure",
+            ].includes(String(raw.conclusion))) ||
         !isRecord(raw.repository) ||
         raw.repository.id !== 1354613114 ||
         raw.repository.full_name !== "boburning/portcove" ||
