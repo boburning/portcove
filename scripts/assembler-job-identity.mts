@@ -22,7 +22,11 @@ export type ControllerOidcEnvironment =
   | "production-tuf-preview"
   | "production-tuf-stable"
   | "production-tuf-snapshot"
-  | "production-tuf-timestamp";
+  | "production-tuf-timestamp"
+  | "production-catalog-definitions"
+  | "production-catalog-policy"
+  | "production-catalog-snapshot"
+  | "production-catalog-timestamp";
 export function controllerOidcSubject(ref: string, environment?: ControllerOidcEnvironment) {
   if (!/^refs\/tags\/portcove-production-controller-[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(ref))
     throw new Error("controller OIDC subject requires the fixed protected tag family");
@@ -41,6 +45,10 @@ export function controllerOidcSubject(ref: string, environment?: ControllerOidcE
       "production-tuf-stable",
       "production-tuf-snapshot",
       "production-tuf-timestamp",
+      "production-catalog-definitions",
+      "production-catalog-policy",
+      "production-catalog-snapshot",
+      "production-catalog-timestamp",
     ].includes(environment)
   )
     throw new Error("controller OIDC environment is unsupported");
@@ -448,6 +456,26 @@ const capacityExecutorProfiles = Object.freeze({
     workflow: productionControllerWorkflow,
     job: releaseControlPhaseProfile("tuf-timestamp").reader_name,
     environment: "production-tuf-timestamp" as const,
+  },
+  "catalog-definitions": {
+    workflow: productionControllerWorkflow,
+    job: "Sign catalog definitions",
+    environment: "production-catalog-definitions" as const,
+  },
+  "catalog-policy": {
+    workflow: productionControllerWorkflow,
+    job: "Sign catalog policy",
+    environment: "production-catalog-policy" as const,
+  },
+  "catalog-snapshot": {
+    workflow: productionControllerWorkflow,
+    job: "Sign catalog snapshot",
+    environment: "production-catalog-snapshot" as const,
+  },
+  "catalog-timestamp": {
+    workflow: productionControllerWorkflow,
+    job: "Sign catalog timestamp",
+    environment: "production-catalog-timestamp" as const,
   },
   coordinator: {
     workflow: productionControllerWorkflow,
