@@ -21,6 +21,8 @@ import {
   inspectNativeSourceCommand,
   nativeInvocationIdentity,
   inspectNativePostSignController,
+  inspectNativeCurrentStage,
+  acquireActualNativeStageCandidate,
   readActualNativePostSignController,
   requireActualNativePostSignController,
   inspectNativeControllerVerificationCommand,
@@ -263,6 +265,31 @@ void test("post-sign source run comes from exact completed timestamp candidate o
   assert.equal(actual.run_id, "12345");
   assert.notEqual(actual.run_id, String(candidate.release_run.run_id));
   assert.equal(actual.authority, "none");
+  const snapshot = (operation: unknown) => ({
+    active_candidate: { ...candidate, phase: "building" },
+    controller: { capacity_attempt: { schema_version: 2, operation, prior_operations: [] } },
+  });
+  assert.equal(inspectNativeCurrentStage(snapshot(null)), "payload-signing");
+  assert.equal(inspectNativeCurrentStage(snapshot(make())), "release-publication");
+  assert.equal(
+    inspectNativeCurrentStage(snapshot(make({}, { outcome: "pending", completed_effects: [] }))),
+    "release-publication",
+  );
+  assert.equal(
+    inspectNativeCurrentStage(snapshot(make({}, { outcome: "ambiguous" }))),
+    "release-publication",
+  );
+  assert.equal(
+    inspectNativeCurrentStage(snapshot(make({ candidate: { ...subject, transient_retries: 1 } }))),
+    "payload-signing",
+  );
+  assert.throws(() =>
+    inspectNativeCurrentStage({
+      ...snapshot(null),
+      active_candidate: { ...candidate, phase: "promoting" },
+    }),
+  );
+  await assert.rejects(acquireActualNativeStageCandidate({}), /actual installed native parent/);
   for (const changed of [
     make({ candidate: { ...subject, transient_retries: 1 } }),
     make({ candidate: { ...subject, prepared_commit: "3".repeat(40) } }),

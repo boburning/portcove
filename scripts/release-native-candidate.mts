@@ -1474,7 +1474,10 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     recover: original.source.recover,
     recheckSource: async () => {
       await original.source.recheck();
-      await requireActualNativePostSignController(controllerReceipt);
+      const current = await requireActualNativePostSignController(controllerReceipt);
+      const tool = current.parent.transport_configuration.post_sign_verifier;
+      if (!tool) throw new Error("native original verifier pin missing");
+      toolBytes(tool.path, tool.sha256);
       const manifest = await readBoundedPublicBuildInputFile(
         verified.inputs.context.directory,
         "signing-context-manifest.json",
@@ -1494,6 +1497,78 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
   });
   await requireActualNativeCandidate(receipt);
   return receipt;
+}
+
+/** Existing journal timing selects the native stage. An unresolved timestamp
+ * intent selects post-sign readback/refusal, never a fallback pre-sign rerun. */
+export function inspectNativeCurrentStage(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    !isRecord(raw.active_candidate) ||
+    !isRecord(raw.controller) ||
+    !isRecord(raw.controller.capacity_attempt)
+  )
+    throw new Error("native stage requires actual candidate/coordinator state");
+  const candidate = raw.active_candidate,
+    capacity = raw.controller.capacity_attempt;
+  if (
+    !["building", "publishing"].includes(String(candidate.phase)) ||
+    capacity.schema_version !== 2
+  )
+    throw new Error("native stage candidate is not eligible for either fixed capture stage");
+  const destination = `github-actions:boburning/portcove:${String(candidate.version)}:tuf-timestamp-envelope`;
+  const operation = inspectCapacityOperation(capacity.operation);
+  const sameCounters = (input: {
+    prepared_commit?: unknown;
+    transient_retries?: unknown;
+    substantive_repairs?: unknown;
+  }) =>
+    input.prepared_commit === candidate.prepared_commit &&
+    input.transient_retries === candidate.transient_retries &&
+    input.substantive_repairs === candidate.substantive_repairs;
+  const currentTimestamp =
+    operation &&
+    operation.candidate &&
+    sameCounters(operation.candidate) &&
+    operation.kind === "upload" &&
+    operation.destination === destination;
+  const retainedTimestamp = inspectCompactCapacityOperations(capacity.prior_operations).some(
+    (group) =>
+      group.subject.kind === "candidate" &&
+      group.subject.identity === candidate.prepared_commit &&
+      group.transient_retries === candidate.transient_retries &&
+      group.substantive_repairs === candidate.substantive_repairs &&
+      group.kind === "upload" &&
+      group.destination_sha256 === digest(destination),
+  );
+  return candidate.phase === "publishing" || currentTimestamp || retainedTimestamp
+    ? ("release-publication" as const)
+    : ("payload-signing" as const);
+}
+export async function acquireActualNativeStageCandidate(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  const directory = await mkdtemp(
+    path.join(parent.descriptor.capture_root, "native-stage-selection-"),
+  );
+  const source = await sourceTransport(parent, directory),
+    before = await source.recover();
+  const stage = inspectNativeCurrentStage(before.input);
+  await writeFile(
+    path.join(directory, "stage-source.json"),
+    JSON.stringify({ checkpoint: before.checkpoint, stage, authority: "none" }),
+    { flag: "wx", mode: 0o600 },
+  );
+  await source.recheck();
+  if ((await source.recover()).checkpoint !== before.checkpoint)
+    throw new Error("native stage changed during selection");
+  const selected =
+    stage === "payload-signing"
+      ? await acquireActualNativeCandidate(parentReceipt)
+      : await acquireActualNativePostSignCandidate(parentReceipt);
+  const current = await requireActualNativeCandidate(selected);
+  if (current.request.request.stage !== stage || current.checkpoint !== before.checkpoint)
+    throw new Error("native stage/reservation changed during immutable input preparation");
+  return selected;
 }
 
 /** No injected transport or incoming candidate tuple can enter this factory.
@@ -1789,6 +1864,17 @@ export async function requireActualNativeCandidate(receipt: object) {
     );
     if (hash(crypto) !== value.payloadCrypto.sha256)
       throw new Error("native actual payload crypto capture changed");
+    const result: unknown = JSON.parse(crypto.toString("utf8"));
+    if (!isRecord(result)) throw new Error("native retained crypto capture invalid");
+    for (const name of ["stdout", "stderr"] as const) {
+      const stream = await readBoundedPublicBuildInputFile(
+        value.directory,
+        `native-payload.${name}.bin`,
+        1024 * 1024,
+      );
+      if (hash(stream) !== result[`${name}_sha256`])
+        throw new Error("native original crypto stream changed");
+    }
   }
   if (value.predecessor) {
     const predecessor = await readBoundedPublicBuildInputFile(

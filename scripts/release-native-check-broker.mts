@@ -11,7 +11,10 @@ import {
 } from "./release-semantic-issuer.mts";
 import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
 import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
-import { requireActualNativePreSignReport } from "./release-native-pre-sign-report.mts";
+import {
+  requireActualNativePreSignReport,
+  requireActualNativeStageReport,
+} from "./release-native-pre-sign-report.mts";
 import { reconcileActualNativeCheck } from "./release-native-candidate.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 
@@ -133,13 +136,13 @@ export function inspectNativeCheckAttempt(
 const issuing = new WeakSet<object>();
 /** No injected transport. All credentials travel through the fixed Node HTTP
  * worker's private stdin, after actual source/capture/teardown revalidation. */
-export async function publishActualNativePreSignReport(receipt: object) {
+export async function publishActualNativeStageReport(receipt: object) {
   if (issuing.has(receipt)) throw new Error("native report handoff is already in progress");
   issuing.add(receipt);
   let token = "",
     jwt = "";
   try {
-    let actual = await requireActualNativePreSignReport(receipt);
+    let actual = await requireActualNativeStageReport(receipt);
     const wire = prepareNativeCheckTransport(actual.report);
     const configuration = actual.parent.authority_configuration;
     const issuer = configuration.apps.native_qualification;
@@ -272,7 +275,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
         flag: "wx",
         mode: 0o600,
       });
-      actual = await requireActualNativePreSignReport(receipt);
+      actual = await requireActualNativeStageReport(receipt);
       if (digest(prepareNativeQualificationCheck(actual.report).body) !== digest(wire.body))
         throw new Error("native report changed before Check handoff");
       // The sole mutating Check request is latched durably BEFORE invoking
@@ -331,4 +334,10 @@ export async function publishActualNativePreSignReport(receipt: object) {
     jwt = "";
     issuing.delete(receipt);
   }
+}
+
+/** Legacy callers cannot broaden their pre-sign role by importing report2. */
+export async function publishActualNativePreSignReport(receipt: object) {
+  await requireActualNativePreSignReport(receipt);
+  return publishActualNativeStageReport(receipt);
 }
