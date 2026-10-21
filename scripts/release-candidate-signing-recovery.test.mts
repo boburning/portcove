@@ -18,6 +18,7 @@ import {
   inspectCandidateSigningContextBinding,
   inspectCandidateSigningProvider,
   readCandidateSigningOperations,
+  readSigningOperationsForPendingRelease,
   recoverCandidateSigningCustody,
 } from "./release-candidate-signing-recovery.mts";
 
@@ -548,6 +549,33 @@ void test(
     );
     assert.equal(found.size, 7);
     assert.deepEqual([...found.keys()], ["payload", "context", ...roles]);
+    const retainedRelease = operation("context", 8, {
+      candidate: {
+        source_commit: active.source_commit,
+        prepared_commit: active.prepared_commit,
+        version: active.version,
+        transient_retries: active.transient_retries,
+        substantive_repairs: active.substantive_repairs,
+      },
+      destination: `github-release:boburning/portcove:v${String(active.version)}:publish`,
+      executor_identity: { ...operation("context").executor_identity, role: "release-publication" },
+    });
+    const pendingRelease = { ...retainedRelease, outcome: "pending", completed_effects: [] };
+    const pendingFound = await readSigningOperationsForPendingRelease(
+      directory,
+      { controller: { capacity_attempt: { ...capacity, operation: pendingRelease } } },
+      active,
+      {
+        request() {
+          assert.fail("exact seven compact proofs need no new provider request");
+        },
+      },
+    );
+    assert.deepEqual(
+      [...pendingFound.values()].map((entry) => entry.id),
+      [...found.values()].map((entry) => entry.id),
+    );
+
     for (const [output, original] of found) {
       assert.equal(inspectCandidateSigningOperation(original, active, output).id, original.id);
       const observed = provider(output === "payload" ? "context" : output);
@@ -583,3 +611,42 @@ void test(
     );
   },
 );
+
+void test("narrow pending Release receipt discovery requires all seven settled originals and preserves ordinary unresolved HOLD", async () => {
+  const originals = ["payload", "context", ...roles].map((output, index) =>
+    operation(output as Output, index + 1),
+  );
+  const original = operation("context", 8, {
+    destination: `github-release:boburning/portcove:v${candidate.version}:publish`,
+    executor_identity: { ...operation("context").executor_identity, role: "release-publication" },
+  });
+  const pending = { ...original, outcome: "pending", completed_effects: [] };
+  const input = {
+    controller: {
+      capacity_attempt: { schema_version: 1, operation: pending, prior_operations: originals },
+    },
+  };
+  const before = structuredClone(input);
+  assert.ok(inspectCapacityOperation(pending));
+  await assert.rejects(
+    readCandidateSigningOperations(process.cwd(), input, candidate),
+    /unrelated unresolved/,
+  );
+  const found = await readSigningOperationsForPendingRelease(process.cwd(), input, candidate);
+  assert.equal(found.size, 7);
+  assert.deepEqual(input, before);
+  const incomplete = structuredClone(input);
+  incomplete.controller.capacity_attempt.prior_operations[0]!.outcome = "pending";
+  incomplete.controller.capacity_attempt.prior_operations[0]!.completed_effects = [];
+  await assert.rejects(
+    readSigningOperationsForPendingRelease(process.cwd(), incomplete, candidate),
+    /already be settled/,
+  );
+  await assert.rejects(
+    readSigningOperationsForPendingRelease(process.cwd(), input, {
+      ...candidate,
+      phase: "building",
+    }),
+    /exact unresolved/,
+  );
+});
