@@ -43,6 +43,48 @@ void test("replacement publication result uses only the consumed bounded candida
   ])
     assert.throws(() => assertPublicationResultDestination(destination, candidate));
 });
+void test("historical unsuffixed nonzero-counter result remains readable but cannot become a new intent", () => {
+  const original = operationFixture("pending");
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...base
+  } = original;
+  const candidate = { ...base.candidate, transient_retries: 1 };
+  const identity = {
+    ...base,
+    candidate,
+    destination: `github-actions:boburning/portcove:${candidate.version}:immutable-release-result`,
+  };
+  const historical = {
+    ...original,
+    ...identity,
+    id: capacityDigest(identity),
+    completed_effects: [],
+  };
+  assert.equal(inspectCapacityOperation(historical)!.id, historical.id);
+  assert.throws(() => assertPublicationResultDestination(historical.destination, candidate));
+  const capacity = capacityFixture();
+  const input = {
+    schema_version: 2,
+    active_candidate: candidate,
+    controller: { capacity_attempt: { ...capacity, operation: historical, prior_operations: [] } },
+  };
+  assert.doesNotThrow(() =>
+    validateCapacityTransition(input, structuredClone(input), "a".repeat(40)),
+  );
+  const before = {
+    ...input,
+    controller: { capacity_attempt: { ...capacity, operation: null, prior_operations: [] } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(before, input, "a".repeat(40)),
+    /consumed candidate/u,
+  );
+});
 void test("durable Pages intent binds exact generation, prior, public repository and artifact before any result", () => {
   const expected = {
     archive_sha256: "1".repeat(64),

@@ -250,7 +250,14 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   sha(raw.policy_sha256);
   sha(raw.ratification_sha256);
   text(raw.destination);
-  assertPublicationResultDestination(raw.destination, raw.candidate);
+  // Historical unsuffixed records predate bounded report-repair destinations.
+  // Keep their exact bytes readable; only new intents require the new tuple.
+  if (
+    !isRecord(raw.candidate) ||
+    raw.destination !==
+      `github-actions:boburning/portcove:${String(raw.candidate.version)}:immutable-release-result`
+  )
+    assertPublicationResultDestination(raw.destination, raw.candidate);
   const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
   if (
     site &&
@@ -732,6 +739,7 @@ function validateCapacityV2(
   const before = priorCapacity ? inspectCapacityOperation(priorCapacity.operation) : null,
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null
@@ -952,6 +960,7 @@ export function validateCapacityTransition(
       ? inspectPriorCapacityOperations(next.controller.capacity_attempt.prior_operations)
       : [];
   const newIntent = after && (!before || before.id !== after.id);
+  if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   const expectedPrior = newIntent
     ? [...prior, ...(before ? [before] : [])].filter(
         (op) =>
