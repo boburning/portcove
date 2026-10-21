@@ -50,3 +50,19 @@ three-version correction journey.
 The ordinary-client A/B staged-withdrawal/forward-repair journey and any amendment
 to the selected #706 three-beta risk scope remain separate, ungranted acceptance
 and setup matters. No candidate request file is installed by this change.
+
+The resource-admitted connected case passed at
+`025f9249b8358b89fe7df3fed928b42ba09af440`: one case, zero skips, 50.603 seconds
+of payload execution, 8.072 seconds admission wait and 61.717 seconds total. It used
+an owned copy of the unchanged maintained Rust binary with SHA-256
+`ba6eb7cbb60cbefa26014834091aa70cff1b59f4f8be9e561272956984cdcbc7`.
+Raw output is retained at `work/preview-withdrawal/connected-025f924.log`.
+The initial `f598c74` execution failed at its additive branch because the fixture
+passed an assembler directory containing the internal repository manifest to the
+public-only prior adapter. The repair copies exactly the public metadata/targets
+component, excluding only that internal manifest; the adapter guard is unchanged.
+The failed 53.379-second execution and its public temporary evidence remain
+retained at `work/preview-withdrawal/connected-f598c74.log`. A preceding mistyped
+expected hash refused before any fixture payload; the actual verifier bytes did
+not change. The added actual source-data classification/output route passed one
+focused case separately. No failed evidence was discarded or relabeled.
