@@ -7,6 +7,7 @@ import { recoveryKey } from "./transport";
 import { desktopApi } from "../../api";
 import { doctor, workspace } from "./scenarios";
 import { sourceProfile } from "../../test-fixtures";
+import { navigateTo } from "../../../test/primary-navigation";
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   Object.defineProperty(navigator, "getGamepads", { configurable: true, value: () => [] });
@@ -94,7 +95,7 @@ it("returns to the exact older recovery activity after opening its game", async 
     },
   });
   await mount("library");
-  await page.getByRole("button", { name: /^Activity/ }).click();
+  await navigateTo("Activity");
   await page.getByRole("button", { name: "Review activity", exact: true }).click();
   await expect
     .poll(() => document.activeElement?.getAttribute("data-activity-id"))
@@ -113,14 +114,14 @@ it("returns to the exact older recovery activity after opening its game", async 
 
 it("opens current Settings read surfaces without fixture refusals", async () => {
   await mount("library");
-  await act(async () => page.getByRole("button", { name: /^Settings/ }).click());
+  await navigateTo("Settings");
   expect(document.body.textContent).toContain("Color theme");
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
 it("keeps unsaved update choices while switching Settings categories", async () => {
   await mount("library");
-  await page.getByRole("button", { name: /^Settings/ }).click();
+  await navigateTo("Settings");
   const navigation = page.getByRole("navigation", { name: "Settings categories" });
   await navigation.getByRole("button", { name: "Updates", exact: true }).click();
   const preview = page
@@ -139,7 +140,7 @@ it("keeps unsaved update choices while switching Settings categories", async () 
 
 it("opens About through Settings and keeps custom catalog trust under Advanced", async () => {
   await mount("library");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await navigateTo("Settings");
   await page
     .getByRole("navigation", { name: "Settings categories" })
     .getByRole("button", { name: "About", exact: true })
@@ -169,7 +170,7 @@ it("opens the Updates category before focusing an application-update notice", as
     choice: null,
   });
   await mount("library");
-  await page.getByRole("button", { name: /^Settings/ }).click();
+  await navigateTo("Settings");
   await expect
     .element(page.getByRole("heading", { name: "Color theme", exact: true }))
     .toBeVisible();
@@ -189,8 +190,8 @@ it("opens the Updates category before focusing an application-update notice", as
 
 it("opens application updates from Activity without entering custom catalog settings", async () => {
   await mount("library");
-  await page.getByRole("button", { name: /^Activity/ }).click();
-  await page.getByRole("button", { name: "Updates", exact: true }).click();
+  await navigateTo("Activity");
+  await page.getByRole("tab", { name: "Updates", exact: true }).click();
   await page.getByRole("button", { name: "Open Portcove update settings", exact: true }).click();
   await expect
     .element(
@@ -208,7 +209,7 @@ it("opens application updates from Activity without entering custom catalog sett
 it("checks a one-time update channel in actual Settings without saving consent", async () => {
   const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
   await mount("library");
-  await page.getByRole("button", { name: /^Settings/ }).click();
+  await navigateTo("Settings");
   await page
     .getByRole("navigation", { name: "Settings categories" })
     .getByRole("button", { name: "Updates", exact: true })

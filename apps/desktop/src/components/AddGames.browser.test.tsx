@@ -116,6 +116,9 @@ it.each([320, 240])("returns to the actual document reading position at %spx", a
   const origin = page.getByRole("button", { name: "Add games", exact: true });
   await expect.element(origin).toBeVisible();
   origin.element().scrollIntoView({ block: "center" });
+  const readingOwner = document.scrollingElement!;
+  const originDocumentTop = origin.element().getBoundingClientRect().top + readingOwner.scrollTop;
+  readingOwner.scrollTop = Math.min(100, originDocumentTop / 2);
   const top = document.scrollingElement!.scrollTop;
   expect(top).toBeGreaterThan(0);
   await origin.click();

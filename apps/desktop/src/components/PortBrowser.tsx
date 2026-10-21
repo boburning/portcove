@@ -945,7 +945,7 @@ function PortCard({
           className={cn(
             view === "library"
               ? "shrink-0"
-              : "absolute [inset-inline-start:min(calc(100%_-_2rem),11.75rem)] bottom-0 z-10 bg-pc-surface",
+              : "absolute [inset-inline-start:calc(min(100%,var(--collection-art-limit))_-_2rem)] bottom-0 z-10 bg-pc-surface",
           )}
           aria-label={`Favorite ${gameIdentityLabel(port)}`}
           aria-pressed={favorites.ids?.has(port.id) ?? false}

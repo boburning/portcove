@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
 import type { CatalogStatus, CatalogUpdatePlan } from "../types";
@@ -123,7 +123,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     expect(document.body.querySelector('label[for="catalog-public-key"]')?.className).toContain(
       "text-pc-muted-foreground",
     );
-    await click("Update source");
+    await page.getByRole("combobox", { name: /^Update source/ }).click();
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );

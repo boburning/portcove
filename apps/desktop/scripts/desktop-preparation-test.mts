@@ -138,6 +138,7 @@ import {
   captureAccessibilityReport,
   clickVisible,
   chooseGameUpdateDisposition,
+  selectPrimaryNavigation,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -217,31 +218,35 @@ const updateReviewWindows = [
 ];
 
 async function openUpdateTheme(browser: WebDriver, theme: string) {
-  await browser.findElement(By.xpath('//nav//button[contains(., "Settings")]')).click();
+  await selectPrimaryNavigation(browser, "Settings");
   await browser
     .findElement(
       By.css('nav[aria-label="Settings categories"] button[aria-controls="settings-appearance"]'),
     )
     .click();
   await browser
-    .findElement(By.xpath(`//button[normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`))
+    .findElement(
+      By.xpath(
+        `//*[@role="radiogroup" and @aria-label="Color theme"]//*[@role="radio" and normalize-space(.)="${theme === "dark" ? "Dark" : "Light"}"]`,
+      ),
+    )
     .click();
   assert.equal(
     await executeBrowserScript(browser, () => document.documentElement.dataset.theme),
     theme,
   );
-  await browser
-    .findElement(By.xpath('//nav//button[./span[normalize-space(.)="Activity"]]'))
-    .click();
+  await selectPrimaryNavigation(browser, "Activity");
   await selectActivitySection(browser, "Updates");
 }
 
 async function selectActivitySection(browser: WebDriver, label: "Updates" | "Tasks & history") {
   const button = await browser.findElement(
-    By.xpath(`//nav[@aria-label="Activity sections"]//button[normalize-space(.)="${label}"]`),
+    By.xpath(
+      `//*[@role="tablist" and @aria-label="Activity sections"]//*[@role="tab" and normalize-space(.)="${label}"]`,
+    ),
   );
   await clickVisible(browser, button);
-  await browser.wait(async () => (await button.getAttribute("aria-pressed")) === "true", 5000);
+  await browser.wait(async () => (await button.getAttribute("aria-selected")) === "true", 5000);
 }
 
 async function assertIndividualUpdateFailure({

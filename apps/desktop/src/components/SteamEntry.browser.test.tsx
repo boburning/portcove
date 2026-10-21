@@ -82,7 +82,8 @@ it("uses the selected installation and profile, shows exact consumer evidence, a
   expect(document.body.querySelector<HTMLElement>("#steam-profile")?.dataset.slot).toBe("input");
   expect(installation?.className).toContain("border-pc-input");
   expect(installation?.className).toContain("bg-[var(--color-bg-inset)]");
-  expect(installationLabel?.className).toContain("text-pc-muted-foreground");
+  expect(installation?.labels?.[0]).toBe(installationLabel);
+  expect(installationLabel?.textContent).toBe("Steam installation folder");
   await input("Steam installation folder", "C:\\Steam");
   await input("Steam profile ID", "12345");
   await click("Review shortcut setup");

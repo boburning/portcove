@@ -1,5 +1,5 @@
 import { render as renderComponent, cleanup } from "vitest-browser-react";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
@@ -177,11 +177,12 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(searchField?.dataset.slot).toBe("input");
     expect(searchField?.className).toContain("border-pc-input");
     expect(searchField?.className).toContain("bg-[var(--color-bg-inset)]");
-    expect(searchLabel?.className).toContain("text-pc-muted-foreground");
+    expect(searchField?.labels?.[0]).toBe(searchLabel);
+    expect(searchLabel?.textContent).toBe("Search folder");
     expect(document.body.textContent).toContain(
       "Searching does not upload or move your files. After finding a match, choose whether to use it where it is, copy it into Portcove, or move it.",
     );
-    await click("Required files");
+    await page.getByRole("combobox", { name: /^Required files/ }).click();
     const openPopup = document.body.querySelector<HTMLElement>(
       '[data-slot="select-content"][data-open]',
     );
@@ -199,7 +200,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     await click("Choose folder");
     expect(control("Search this folder").disabled).toBe(true);
     await click("Choose folder");
-    await click("Required files");
+    await page.getByRole("combobox", { name: /^Required files/ }).click();
     await click("Owned game source");
     await click("Open game-file folder");
     expect(openInbox).toHaveBeenCalledWith(profile.id);
@@ -333,7 +334,7 @@ it("keeps cancellation tied to the emitted durable operation", async () => {
     await root.rerender(<SourceDiscoveryButton profiles={[profile]} disabled={false} />);
     await click("Find required files");
     await click("Choose folder");
-    await click("Required files");
+    await page.getByRole("combobox", { name: /^Required files/ }).click();
     await click("Owned game source");
     await click("Search this folder");
     await click("Cancel operation");

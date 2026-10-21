@@ -360,8 +360,22 @@ describe("ApplicationUpdateSettings", () => {
     await click("Retry loading settings");
     expect(host.querySelector('[role="alert"]')).toBeNull();
     expect(host.querySelector('[aria-label="Application update channel"]')).not.toBeNull();
-    for (const control of host.querySelectorAll("button, input")) {
+    // Base UI's hidden form inputs never enter the application focus inventory.
+    for (const control of host.querySelectorAll<HTMLInputElement>('input[aria-hidden="true"]')) {
+      expect(control.tabIndex).toBe(-1);
+    }
+    const controls = [
+      ...host.querySelectorAll<HTMLElement>('button, input, [role="checkbox"]'),
+    ].filter((control) => !control.matches('input[aria-hidden="true"]'));
+    for (const control of controls) {
       expect(control.hasAttribute("data-focusable")).toBe(true);
+    }
+    for (const control of controls.filter(
+      (item) => !item.matches(':disabled, [aria-disabled="true"]'),
+    )) {
+      expect(control.tabIndex).toBeGreaterThanOrEqual(0);
+      control.focus();
+      expect(document.activeElement).toBe(control);
     }
   });
 

@@ -3,6 +3,7 @@ import { observeVisibleTarget } from "./browser-readiness.mts";
 import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
 import { executeBrowserScript } from "./browser-script.mts";
+import { gameIdentityLabel } from "../src/port-identity.ts";
 import {
   captureSettledVisual,
   observePreparationCompletion,
@@ -22,6 +23,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   reviewControls,
+  selectPrimaryNavigation,
   selectGameFilesSettings,
 } from "./desktop-review-controls.mts";
 
@@ -595,7 +597,7 @@ export async function selectedSetupCompletionScenario({
         await screenshot("connected-folder-management");
       }
       {
-        await click(By.xpath('//nav//button[contains(., "Library")]'));
+        await selectPrimaryNavigation(browser, "Library");
         await click(button("Add games"));
         await browser.wait(
           until.elementLocated(By.xpath('//h1[normalize-space(.)="Add games"]')),
@@ -605,11 +607,43 @@ export async function selectedSetupCompletionScenario({
         await click(By.css('button[aria-label="Choose a game or port"]'));
         const query = await browser.findElement(By.id("port-search"));
         await query.sendKeys(port.name);
-        const options = await browser.findElements(
-          By.css(`#add-games-port option[value="${port.id}"]`),
+        await browser.wait(until.elementLocated(By.css('[role="option"]')), 5_000);
+        const options = await browser.findElements(By.css('[role="option"]'));
+        const projectDescription = `Port project: ${port.name} · ${port.id}`;
+        const descriptions = await Promise.all(options.map((option) => option.getText()));
+        assert.equal(
+          descriptions.filter((text) => text.split(/\r?\n/u).includes(projectDescription)).length,
+          1,
         );
-        assert.equal(options.length, 1);
-        await required(options[0]).click();
+        let highlightedExactPort = false;
+        for (let index = 0; index <= options.length; index++) {
+          await query.sendKeys(Key.ARROW_DOWN);
+          const activeId = await query.getAttribute("aria-activedescendant");
+          if (!activeId) continue;
+          const active = await browser.findElement(By.id(activeId));
+          if ((await active.getText()).split(/\r?\n/u).includes(projectDescription)) {
+            highlightedExactPort = true;
+            break;
+          }
+        }
+        assert.equal(
+          highlightedExactPort,
+          true,
+          "Keyboard selection must highlight the exact stable port project",
+        );
+        await query.sendKeys(Key.ENTER);
+        await browser.wait(
+          async () => (await query.getAttribute("aria-expanded")) === "false",
+          5_000,
+        );
+        assert.equal(await query.getAttribute("value"), gameIdentityLabel(port));
+        // Reopen to observe the committed ID through the selected option, rather
+        // than inferring identity from a possibly duplicated display title.
+        await query.sendKeys(Key.ARROW_DOWN);
+        await browser.wait(
+          async () => (await query.getAttribute("aria-expanded")) === "true",
+          5_000,
+        );
         {
           await browser.wait(
             () =>
@@ -619,28 +653,37 @@ export async function selectedSetupCompletionScenario({
               ),
             10_000,
           );
-          const enlarged = await executeBrowserScript(browser, () => ({
-            width: innerWidth,
-            height: innerHeight,
-            client: document.documentElement.clientWidth,
-            scroll: document.documentElement.scrollWidth,
-            query: document.querySelector<HTMLInputElement>("#port-search")?.value,
-            selected: document.querySelector<HTMLSelectElement>("#add-games-port")?.value,
-          }));
+          const enlarged = await executeBrowserScript(browser, () => {
+            const input = document.querySelector<HTMLInputElement>("#port-search");
+            const list = document.getElementById(input?.getAttribute("aria-controls") ?? "");
+            const selectedOption = list?.querySelector('[role="option"][aria-selected="true"]');
+            const project = [...(selectedOption?.querySelectorAll("span") ?? [])]
+              .map((span) => span.textContent ?? "")
+              .find((text) => text.startsWith("Port project: "));
+            return {
+              width: innerWidth,
+              height: innerHeight,
+              client: document.documentElement.clientWidth,
+              scroll: document.documentElement.scrollWidth,
+              query: input?.value,
+              selected: project?.slice(project.lastIndexOf(" · ") + 3),
+              selected_project: project,
+            };
+          });
           assert.ok(enlarged.width <= 240 && enlarged.scroll <= enlarged.client + 1);
-          assert.equal(enlarged.query, port.name);
+          assert.equal(enlarged.query, gameIdentityLabel(port));
           assert.equal(enlarged.selected, port.id);
+          assert.equal(enlarged.selected_project, projectDescription);
           const receipt = path.join(output, "add-games-native-400.json");
           await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
           artifacts.push(receipt);
         }
-        await click(By.xpath('//nav//button[contains(., "Settings")]'));
-        await click(
-          By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Library")]'),
-        );
+        await query.sendKeys(Key.ESCAPE);
+        await selectPrimaryNavigation(browser, "Settings");
+        await selectPrimaryNavigation(browser, "Library");
         assert.equal(
           await browser.findElement(By.id("port-search")).getAttribute("value"),
-          port.name,
+          gameIdentityLabel(port),
         );
         await click(By.css('button[aria-label="Find games in a folder"]'));
       }
@@ -736,7 +779,7 @@ export async function selectedSetupCompletionScenario({
       await browser.wait(until.elementLocated(queue), 5_000);
       const beforeSelection = await read("get_statuses");
       for (const id of [port.id, reviewPort.id])
-        await click(By.css(`input[data-setup-review-port="${id}"]`));
+        await click(By.css(`[role="checkbox"][data-setup-review-port="${id}"]`));
       assert.deepEqual(await read("get_statuses"), beforeSelection, "Selection grants no mutation");
       report.observations.setup_selection = [port.id, reviewPort.id];
       await click(button(`Review ${port.name} setup`));
@@ -1151,9 +1194,7 @@ export async function selectedSetupCompletionScenario({
       assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       await screenshot("selected-setup-queue-return");
       await enlargedStage("returned-selection");
-      await click(
-        By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Settings")]'),
-      );
+      await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
       const accessibilityFile = path.join(output, "selected-setup-completion-accessibility.json");
       await captureAccessibilityReport(browser, accessibilityFile, artifacts);
@@ -1178,9 +1219,7 @@ export async function selectedSetupCompletionScenario({
         [],
         "The visible source result must not retain prohibited or unresolved ARIA attributes",
       );
-      await click(
-        By.xpath('//nav[@aria-label="Primary navigation"]//button[contains(., "Library")]'),
-      );
+      await selectPrimaryNavigation(browser, "Library");
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
       // The game remains registered outside this new root. Only a newly found
@@ -1244,7 +1283,7 @@ export async function selectedSetupCompletionScenario({
       assert.equal(
         (
           await browser.findElements(
-            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+            By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
           )
         ).length,
         0,
@@ -1271,9 +1310,13 @@ export async function selectedSetupCompletionScenario({
             (item) => item.action === "install" && item.availability === "allowed",
           );
           const choices = await browser.findElements(
-            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+            By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
           );
-          return allowed && choices.length === 1 && (await required(choices[0]).isEnabled());
+          return (
+            allowed &&
+            choices.length === 1 &&
+            (await required(choices[0]).getAttribute("aria-disabled")) !== "true"
+          );
         },
         15_000,
         "Explicit BIOS registration must expose the actual Core-eligible selection",
@@ -1289,7 +1332,7 @@ export async function selectedSetupCompletionScenario({
         biosOnlyPath,
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
-      await click(By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`));
+      await click(By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`));
       const statusesBeforeBiosPlan = await read("get_statuses");
       const acquisitionsBeforeBiosPlan = fixture.requests.length;
       await click(button(`Review ${fixture.refreshPort.name} setup`));
@@ -1398,29 +1441,34 @@ export async function selectedSetupCompletionScenario({
         ),
       );
       assert.deepEqual(core(["source", "list"]), biosSources);
-      await restartClick(By.xpath('//nav//button[contains(., "Settings")]'));
+      await selectPrimaryNavigation(browser, "Settings");
       await selectGameFilesSettings(browser);
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await browser.wait(
         async () => {
           const controls = await browser.findElements(
-            By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+            By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
           );
-          return controls.length === 1 && (await required(controls[0]).isEnabled());
+          return (
+            controls.length === 1 &&
+            (await required(controls[0]).getAttribute("aria-disabled")) !== "true"
+          );
         },
         15_000,
         "Restart must recover the saved BIOS match and actual eligible setup choice",
       );
       const restoredChoice = await browser.findElement(
-        By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`),
+        By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
       );
       assert.equal(
-        await restoredChoice.isSelected(),
-        false,
+        await restoredChoice.getAttribute("aria-checked"),
+        "false",
         "Selection is ephemeral across restart",
       );
       assert.doesNotMatch(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
-      await restartClick(By.css(`input[data-setup-review-port="${fixture.refreshPort.id}"]`));
+      await restartClick(
+        By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
+      );
       await restartClick(restartButton(`Review ${fixture.refreshPort.name} setup`));
       await browser.wait(until.elementLocated(installDialog), 15_000);
       const restoredPlan = await read("plan_port", {

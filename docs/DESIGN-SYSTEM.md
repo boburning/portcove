@@ -454,9 +454,11 @@ reference composition's fixed frame width or column count is not a window rule.
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
 does not impose a maximum collection width or column count. Artwork is
-bounded at 13.75rem; tracks can shrink below the shared 14rem preferred minimum
+bounded at 220 CSS pixels, or 160 pixels when the viewport is at most 680 pixels high;
+tracks can shrink below the shared 14rem preferred minimum
 when the available width requires it. Library and Catalog share artwork geometry
-independent of window height. Text-heavy workspaces retain a readable inner
+independent of title/status height. Text enlargement reflows text around the bounds;
+native WebView zoom enlarges the whole interface. Text-heavy workspaces retain a readable inner
 content width; that content limit must not constrain the scrolling viewport or
 leave an inactive scrolling area at the right of a wide window.
 Catalog titles use the same two-line typography as Library, expanding at narrow reading widths;
@@ -730,7 +732,7 @@ opening another destination must not imply cancellation or task completion.
 
 Catalog cards retain their own browsing filters, sort and route semantics. Whole
 cover images use Library's centered 2:3 frame and semantic neutral padding.
-Artwork size is independent of title/status height and window height. Missing artwork uses the same
+Artwork size is independent of title/status height, with the shared short-window bound. Missing artwork uses the same
 quiet game symbol as Library and Detail. Do not infer crop bounds or replace
 provider/user-selected artwork. Titles and project/variant identity follow the
 frame without reserving three empty title lines. The existing card activation

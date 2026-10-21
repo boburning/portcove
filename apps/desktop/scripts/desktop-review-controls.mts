@@ -16,7 +16,7 @@ export async function openCatalogPortAfterRefresh(
   const { click } = reviewControls(browser);
   await browser.navigate().refresh();
   await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
-  await click(By.xpath('//nav//button[contains(., "Find games")]'));
+  await selectPrimaryNavigation(browser, "Find games");
   const search = await browser.findElement(By.id("port-search"));
   await search.sendKeys(
     Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
@@ -113,6 +113,45 @@ export async function clickVisible(
       cause: error,
     });
   }
+}
+
+/** Use the shipping narrow navigation sheet when the desktop navigation is hidden. */
+export async function selectPrimaryNavigation(
+  browser: WebDriver,
+  label: "Library" | "Find games" | "Activity" | "Settings",
+) {
+  const locator = By.xpath(
+    `//nav[@aria-label="Primary navigation"]//button[.//span[normalize-space(.)="${label}"]]`,
+  );
+  const visibleDestination = async () => {
+    for (const candidate of await browser.findElements(locator)) {
+      if (await candidate.isDisplayed()) return candidate;
+    }
+    return undefined;
+  };
+  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  let destination = await visibleDestination();
+  if (!destination) {
+    const trigger = await browser.wait(
+      until.elementLocated(By.css('button[aria-label="Open navigation"]')),
+      5_000,
+    );
+    await clickVisible(browser, trigger);
+    await browser.wait(async () => {
+      destination = await visibleDestination();
+      return Boolean(destination);
+    }, 5_000);
+  }
+  assert.ok(destination, `Visible primary navigation destination missing: ${label}`);
+  await clickVisible(browser, destination);
+  await browser.wait(
+    async () => {
+      const sheets = await browser.findElements(By.css(".navigation-sheet"));
+      return !(await Promise.all(sheets.map((sheet) => sheet.isDisplayed()))).some(Boolean);
+    },
+    5_000,
+    "The narrow navigation sheet must close after choosing a destination",
+  );
 }
 
 export function reviewControls(browser: WebDriver) {

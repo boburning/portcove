@@ -24,7 +24,7 @@
     width: min(330px, 34vw);
   }
   .collection-covers {
-    --collection-art-limit: 13.75rem;
+    --collection-art-limit: 220px;
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
     align-items: stretch;
     gap: 28px 24px;
@@ -145,6 +145,11 @@
     .collection-project {
       white-space: normal;
       overflow: visible;
+    }
+  }
+  @media (height <= 680px) {
+    .collection-covers {
+      --collection-art-limit: 160px;
     }
   }
   @container collection (max-width: 46em) {

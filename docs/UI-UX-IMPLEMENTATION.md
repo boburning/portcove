@@ -106,7 +106,7 @@ Depends on P1 visual/access contracts and P2 action presentation.
 
 - Translate the chosen reference into the existing component stack, retaining Geist and one semantic token authority.
 - Use 15px-equivalent body text, 13px secondary text and approximately 28px page headings as initial production targets. Use 36px compact and 40px ordinary controls, allowing content-driven growth.
-- Preserve 2:3 contained artwork and neutral padding. Target approximately 176–220px covers normally and 112px artwork in short windows; derive columns from usable space.
+- Preserve 2:3 contained artwork and neutral padding. Bound covers at 220 CSS pixels normally and 160 pixels in short windows; derive columns from usable space. Text enlargement reflows identity around these bounds; native WebView zoom still enlarges the whole interface.
 - Keep frame geometry independent of title/status length and align action baselines within rows.
 - Use one details link for artwork/title, with Play and other controls outside it. Avoid nested interactive cards.
 - Remove routine Stable repetition and maintenance facts from ordinary cards. Retain meaningful project, variant, readiness and exception information.

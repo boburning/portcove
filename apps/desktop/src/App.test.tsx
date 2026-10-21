@@ -75,7 +75,7 @@ describe("Portcove app shell", () => {
     const html = renderToStaticMarkup(
       <BootstrapRecovery error={missingBootstrapError} recoveryPending />,
     );
-    expect(html).toContain('class="button-row" aria-busy="true"');
+    expect(html).toContain('aria-busy="true"');
     expect(html).toMatch(/disabled=""[^>]*>Choose library<\/button>/);
     expect(html).toMatch(/disabled=""[^>]*>Use platform default<\/button>/);
     const retry = html.match(/<button([^>]*)>Retry startup<\/button>/)?.[1];

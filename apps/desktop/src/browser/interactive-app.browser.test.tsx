@@ -215,7 +215,7 @@ it("keeps actual App update entries and their independent Play actions reachable
     .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
     .toBeVisible();
   await page.getByRole("button", { name: "Activity", exact: true }).click();
-  await page.getByRole("button", { name: "Updates", exact: true }).click();
+  await page.getByRole("tab", { name: "Updates", exact: true }).click();
   const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
   expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
   const play = page

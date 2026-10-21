@@ -134,12 +134,14 @@ describe("update destination links", () => {
       expect(tasks.hidden).toBe(false);
       expect(updates.hidden).toBe(true);
       const section = [
-        ...host.querySelectorAll<HTMLButtonElement>('nav[aria-label="Activity sections"] button'),
+        ...host.querySelectorAll<HTMLButtonElement>(
+          '[role="tablist"][aria-label="Activity sections"] [role="tab"]',
+        ),
       ].find((button) => button.textContent === "Updates")!;
       await act(async () => section.click());
       expect(tasks.hidden).toBe(true);
       expect(updates.hidden).toBe(false);
-      expect(section.getAttribute("aria-pressed")).toBe("true");
+      expect(section.getAttribute("aria-selected")).toBe("true");
       const link = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
         (button) => button.textContent === "Open Portcove update settings",
       );
