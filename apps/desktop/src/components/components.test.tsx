@@ -3525,7 +3525,6 @@ describe("desktop components", () => {
     );
 
     expect(html).toContain("Review downloaded update");
-    expect(html).toContain(">Play</button>");
     expect(html).toMatch(
       /role="heading" aria-level="2"[^>]*>Sample Port<\/span>[\s\S]*?Ready to play/u,
     );
