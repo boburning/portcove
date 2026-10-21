@@ -1,9 +1,10 @@
-import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
+import { mkdir, open, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WebDriver } from "selenium-webdriver";
+import { readPublicUpdateFile as readWindowsPublicExecutable } from "./desktop-public-update-files.mts";
 import {
   readPublicUserState,
   assertPublicUserStateChoicesPreserved,
@@ -59,43 +60,7 @@ export function selectWindowsPublicRelaunch(
   return { prior: prior[0], relaunched: current[0] };
 }
 
-/** Stable regular-file read, including replacement checks around the open handle. */
-export async function readWindowsPublicExecutable(file: string, maximumBytes = 512 * 1024 * 1024) {
-  assert.ok(
-    Number.isSafeInteger(maximumBytes) && maximumBytes > 0 && maximumBytes <= 512 * 1024 * 1024,
-  );
-  const before = await lstat(file);
-  assert.ok(before.isFile() && !before.isSymbolicLink() && before.nlink === 1);
-  assert.ok(before.size > 0 && before.size <= maximumBytes);
-  const handle = await open(file, "r");
-  try {
-    const opened = await handle.stat();
-    assert.equal(opened.ino, before.ino);
-    assert.equal(opened.dev, before.dev);
-    const digest = createHash("sha256");
-    let total = 0;
-    for await (const chunk of handle.createReadStream({ autoClose: false })) {
-      assert.ok(Buffer.isBuffer(chunk));
-      total += chunk.length;
-      assert.ok(total <= before.size, "Installed executable grew during readback");
-      digest.update(chunk);
-    }
-    const after = await lstat(file),
-      retained = await handle.stat();
-    for (const value of [after, retained]) {
-      assert.equal(value.ino, before.ino);
-      assert.equal(value.dev, before.dev);
-      assert.equal(value.size, before.size);
-      assert.equal(value.mtimeMs, before.mtimeMs);
-      assert.equal(value.ctimeMs, before.ctimeMs);
-      assert.ok(value.isFile() && !value.isSymbolicLink() && value.nlink === 1);
-    }
-    assert.equal(total, before.size);
-    return { path: file, bytes: total, sha256: digest.digest("hex") };
-  } finally {
-    await handle.close();
-  }
-}
+export { readPublicUpdateFile as readWindowsPublicExecutable } from "./desktop-public-update-files.mts";
 
 export async function readWindowsPublicUserState(browser: WebDriver): Promise<PublicUserState> {
   const value = await readPublicUserState(browser, "win32");
