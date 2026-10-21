@@ -330,11 +330,25 @@ void test(
       windowsHide: true,
       timeout: 10000,
     });
-    const restored = await importCoordinatorCheckpoint(
-      sparse,
-      exported.checkpoint,
-      exported.objects,
-    );
+    const objects = new Map<
+      string,
+      { kind: "blob" | "tree" | "commit"; oid: string; bytes: Buffer }
+    >();
+    for (const checkpoint of [exported.checkpoint, exported.previous]) {
+      if (!checkpoint) continue;
+      const git = (...args: string[]) =>
+        execFileSync("git", ["-C", repository, ...args], { windowsHide: true, timeout: 10000 });
+      for (const [kind, oid] of [
+        ["blob", git("rev-parse", `${checkpoint}:state.json`).toString("utf8").trim()],
+        ["tree", git("rev-parse", `${checkpoint}^{tree}`).toString("utf8").trim()],
+        ["commit", checkpoint],
+      ] as const)
+        objects.set(oid, { kind, oid, bytes: git("cat-file", kind, oid) });
+    }
+    assert.equal(objects.size, 6);
+    const restored = await importCoordinatorCheckpoint(sparse, exported.checkpoint, [
+      ...objects.values(),
+    ]);
     assert.deepEqual(restored.input.published_catalog_metadata, catalog);
     assert.deepEqual(currentPublishedSite(restored.input), cursor);
     assert.equal(restored.plan.action, "skip");
