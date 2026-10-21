@@ -57,6 +57,23 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
       !job.steps.some((step) => /gh workflow run|gh api[^\n]*dispatches/u.test(step.run ?? "")),
     );
     assert.ok(!JSON.stringify(job).includes("overwrite: true"));
+    for (let index = 0; index < job.steps.length; index++) {
+      const step = job.steps[index]!;
+      if (step.uses?.startsWith("actions/create-github-app-token@")) {
+        assert.match(
+          step.with?.["app-id"] ?? "",
+          /^\$\{\{ fromJSON\(vars\.PORTCOVE_RELEASE_AUTHORITIES\)\.apps\.[a-z_]+\.app_id \}\}$/u,
+        );
+        const installation = job.steps[index + 1];
+        assert.equal(
+          installation?.env?.PORTCOVE_OBSERVED_INSTALLATION_ID,
+          `\${{ steps.${String((step as Step & { id: string }).id)}.outputs.installation-id }}`,
+        );
+        assert.ok(
+          installation?.env?.PORTCOVE_EXPECTED_INSTALLATION_ID?.endsWith(".installation_id }}"),
+        );
+      }
+    }
     for (const step of job.steps) {
       if (step.uses && !step.uses.startsWith("./")) assert.match(step.uses, /@[a-f0-9]{40}$/u);
       if (step.with?.["role_key"] && step.with.role_key !== "")
@@ -118,7 +135,9 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   assert.equal(observerCalls("site_protection_observation")[0]?.with?.rounds, "5");
   const publisher = requiredJob("release_publication");
   const publicationApp = publisher.steps.findIndex(
-    (step) => step.with?.["app-id"] === "${{ vars.PORTCOVE_RELEASE_PUBLICATION_APP_ID }}",
+    (step) =>
+      step.with?.["app-id"] ===
+      "${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.app_id }}",
   );
   const publisherGuard = publisher.steps.findIndex((step) =>
     step.run?.includes("requireControllerReleaseAuthorities('release-publication')"),
@@ -173,4 +192,44 @@ void test("held DAG embedded fixed Node programs parse in the actual pinned runt
         }
   }
   assert.ok(checked >= 5, "actual embedded programs must be selected");
+});
+
+void test("actual observer installation guard refuses drift before invoking its reader", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("docs/qualification/application-update-production.complete.yml", root),
+      "utf8",
+    ),
+  ) as Workflow;
+  const observer = parse(
+    await readFile(new URL(".github/actions/release-control-observer/action.yml", root), "utf8"),
+  ) as { runs: { steps: Step[] } };
+  const guards = observer.runs.steps.filter((step) => step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID);
+  assert.equal(guards.length, 15);
+  const guard = guards[0]?.run?.split("\n")[0];
+  assert.ok(guard);
+  for (const step of guards) assert.equal(step.run?.split("\n")[0], guard);
+  const direct = Object.values(workflow.jobs)
+    .flatMap((job) => job.steps)
+    .filter((step) => step.env?.PORTCOVE_OBSERVED_INSTALLATION_ID);
+  assert.ok(direct.length >= 10);
+  for (const step of direct) assert.equal(step.run, guard);
+  const bash = process.platform === "win32" ? "C:/Program Files/Git/bin/bash.exe" : "/bin/bash";
+  for (const [expected, observed, status] of [
+    ["123", "123", 0],
+    ["123", "124", 1],
+    ["", "", 1],
+    ["123\n", "123\n", 1],
+    ["$(exit 0)", "$(exit 0)", 1],
+  ] as const) {
+    const result = spawnSync(bash, ["--noprofile", "--norc", "-c", guard], {
+      env: {
+        PORTCOVE_EXPECTED_INSTALLATION_ID: expected,
+        PORTCOVE_OBSERVED_INSTALLATION_ID: observed,
+      },
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    assert.equal(result.status, status, result.stderr);
+  }
 });

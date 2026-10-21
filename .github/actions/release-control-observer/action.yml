@@ -16,6 +16,9 @@ inputs:
   private_key:
     description: Isolated observer credential released only after actual readiness
     required: true
+  installation_id:
+    description: Exact ratified isolated observer installation
+    required: true
 runs:
   using: composite
   steps:
@@ -41,7 +44,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer0.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE"
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer0.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE"
     - if: ${{ steps.ready0.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -73,7 +82,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer1.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 1
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer1.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 1
     - if: ${{ steps.ready1.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -105,7 +120,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer2.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 2
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer2.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 2
     - if: ${{ steps.ready2.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -137,7 +158,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer3.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 3
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer3.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 3
     - if: ${{ steps.ready3.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -169,7 +196,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer4.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 4
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer4.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 4
     - if: ${{ steps.ready4.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -201,7 +234,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer5.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 5
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer5.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 5
     - if: ${{ steps.ready5.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -233,7 +272,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer6.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 6
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer6.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 6
     - if: ${{ steps.ready6.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -265,7 +310,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer7.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 7
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer7.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 7
     - if: ${{ steps.ready7.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -297,7 +348,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer8.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 8
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer8.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 8
     - if: ${{ steps.ready8.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -329,7 +386,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer9.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 9
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer9.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 9
     - if: ${{ steps.ready9.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -361,7 +424,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer10.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 10
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer10.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 10
     - if: ${{ steps.ready10.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -393,7 +462,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer11.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 11
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer11.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 11
     - if: ${{ steps.ready11.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -425,7 +500,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer12.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 12
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer12.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 12
     - if: ${{ steps.ready12.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -457,7 +538,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer13.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 13
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer13.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 13
     - if: ${{ steps.ready13.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:
@@ -489,7 +576,13 @@ runs:
       env:
         PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
         PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer14.outputs.token }}
-      run: node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 14
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer14.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 14
     - if: ${{ steps.ready14.outcome == 'success' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       with:

@@ -264,12 +264,21 @@ jobs:
       - id: observer
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private-key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-administration: write
         if: ${{ steps.probe.outputs.eligible == 'true' }}
+      - name: Bind actual protection_observer installation before credential use
+        if: ${{ steps.probe.outputs.eligible == 'true' }}
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: observe
         if: ${{ steps.probe.outputs.eligible == 'true' }}
         env:
@@ -303,7 +312,7 @@ jobs:
       - id: writer
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_CLASSIFICATION_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.classification.app_id }}
           private-key: ${{ secrets.PORTCOVE_CLASSIFICATION_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
@@ -311,6 +320,17 @@ jobs:
         if:
           ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true'
           }}
+      - name: Bind actual classification installation before credential use
+        if:
+          ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true'
+          }}
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.classification.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.writer.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - if:
           ${{ steps.probe.outputs.eligible == 'true' && needs.classification_protection_observation.outputs.eligible == 'true'
           }}
@@ -366,19 +386,35 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: dispatch
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_DISPATCH_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.app_id }}
           private-key: ${{ secrets.PORTCOVE_DISPATCH_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-actions: write
+      - name: Bind actual dispatch installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.dispatch.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.dispatch.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -413,8 +449,9 @@ jobs:
           phase: coordinator
           rounds: "14"
           initial: "true"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   independent_admission:
     name: Authenticate release control inputs
     if: ${{ needs.coordinator.outputs.mode == 'release' }}
@@ -462,11 +499,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -504,8 +549,9 @@ jobs:
           phase: admission
           rounds: "14"
           initial: "true"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   attest:
     needs:
       - admission
@@ -652,11 +698,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -692,8 +746,9 @@ jobs:
           phase: payload
           rounds: "14"
           initial: "true"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   tuf_releases:
     name: Sign authenticated Releases metadata
     if:
@@ -747,11 +802,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -816,11 +879,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -886,11 +957,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -957,11 +1036,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1029,11 +1116,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1076,36 +1171,41 @@ jobs:
           phase: tuf-releases
           rounds: "3"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-preview
           rounds: "3"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-stable
           rounds: "3"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-snapshot
           rounds: "3"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-timestamp
           rounds: "3"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   release_publication:
     name: Publish immutable application release
     if: ${{ always() && needs.coordinator.outputs.mode == 'release' && needs.tuf_timestamp.result == 'success' }}
@@ -1162,19 +1262,35 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: publication
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_RELEASE_PUBLICATION_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.app_id }}
           private-key: ${{ secrets.PORTCOVE_RELEASE_PUBLICATION_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual release_publication installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.release_publication.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.publication.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1209,8 +1325,9 @@ jobs:
           phase: release-publication
           rounds: "14"
           initial: "true"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
   site_publication:
     name: Publish authenticated application site
     if:
@@ -1270,11 +1387,19 @@ jobs:
       - id: journal
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
         with:
-          app-id: ${{ vars.PORTCOVE_COORDINATOR_JOURNAL_APP_ID }}
+          app-id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.app_id }}
           private-key: ${{ secrets.PORTCOVE_COORDINATOR_JOURNAL_APP_PRIVATE_KEY }}
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - name: Bind actual coordinator_journal installation before credential use
+        shell: bash
+        env:
+          PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.coordinator_journal.installation_id }}
+          PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.journal.outputs.installation-id }}
+        run:
+          '[[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+          "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]'
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
@@ -1310,5 +1435,6 @@ jobs:
           phase: site-publication
           rounds: "5"
           initial: "false"
-          app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
+          app_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.app_id }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
+          installation_id: ${{ fromJSON(vars.PORTCOVE_RELEASE_AUTHORITIES).apps.protection_observer.installation_id }}
