@@ -241,8 +241,13 @@ export function coordinatorOriginalJobDeadline(
     throw new Error("original coordinator job budget exhausted or future dated");
   return monotonic + remaining;
 }
-function coordinatorDeadline() {
+function coordinatorDeadline(phaseDeadline?: number) {
   const monotonicStart = performance.now();
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= monotonicStart)
+  )
+    throw new Error("coordinator inherited deadline exhausted");
   const run = process.env.GITHUB_RUN_ID;
   const revision = process.env.GITHUB_SHA;
   if (
@@ -253,7 +258,15 @@ function coordinatorDeadline() {
     process.env.GITHUB_RUN_ATTEMPT !== "1"
   )
     throw new Error("fixed first-attempt coordinator job budget identity required");
-  const runner = createGitHubRunner({ cwd: project, timeoutMs: 10000, maxBuffer: 1024 * 1024 });
+  const lookupRemaining = Math.floor(
+    Math.min(10000, (phaseDeadline ?? Infinity) - performance.now()),
+  );
+  if (lookupRemaining < 1) throw new Error("coordinator inherited deadline exhausted");
+  const runner = createGitHubRunner({
+    cwd: project,
+    timeoutMs: lookupRemaining,
+    maxBuffer: 1024 * 1024,
+  });
   const response = new GitHubApiClient((args, input) =>
     runner([...args, "--hostname", "github.com"], input),
   ).request(
@@ -264,8 +277,11 @@ function coordinatorDeadline() {
     throw new Error("actual coordinator original job budget unavailable");
   const monotonicDeadline = Math.min(
     monotonicStart + 170000,
+    phaseDeadline ?? Infinity,
     coordinatorOriginalJobDeadline(response.body, { run_id: run, controller_revision: revision }),
   );
+  if (performance.now() >= monotonicDeadline)
+    throw new Error("coordinator inherited deadline exhausted");
   const deadline = Date.now() + Math.floor(monotonicDeadline - performance.now());
   return {
     deadline,
@@ -1976,8 +1992,9 @@ export async function requestTrustedSemanticReview(
     remote_configuration: unknown;
     tools?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"];
   },
+  phaseDeadline?: number,
 ) {
-  const budget = coordinatorDeadline();
+  const budget = coordinatorDeadline(phaseDeadline);
   return withCoordinatorDeadline(budget.monotonicDeadline, () =>
     requestTrustedSemanticReviewAt(privateParent, raw, budget),
   );
@@ -2401,6 +2418,42 @@ async function continueTrustedSemanticReview(
   }
 }
 
+/** Fixed same-bundle caller. Private coordinator sessions never cross a JSON or
+ * source/bundle module boundary before the existing signing-context handoff. */
+export async function runFixedCoordinatorConfiguration(
+  raw: unknown,
+  parent: string,
+  phaseDeadline?: number,
+) {
+  if (
+    phaseDeadline !== undefined &&
+    (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
+  )
+    throw new Error("coordinator inherited deadline exhausted");
+  const input: unknown = structuredClone(raw);
+  if (
+    !isRecord(input) ||
+    Object.keys(input).sort().join(",") !== "remote_configuration,tools" ||
+    !isRecord(input.tools) ||
+    Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||
+    !path.isAbsolute(parent)
+  )
+    throw new Error("fixed coordinator invocation fields differ");
+  const actual = await requestTrustedSemanticReview(
+    parent,
+    {
+      remote_configuration: input.remote_configuration,
+      tools: input.tools as Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+    },
+    phaseDeadline,
+  );
+  if (metadataPreparations.has(actual) || bootstrapPreparations.has(actual))
+    return (
+      await import("./release-metadata-signing-controller.mts")
+    ).completeCoordinatorSigningContext(actual, parent, phaseDeadline);
+  return actual;
+}
+
 async function runCoordinatorCli() {
   const [directory, selectionFile] = process.argv.slice(2);
   if (process.argv.length !== 4 || !directory || !selectionFile)
@@ -2410,6 +2463,12 @@ async function runCoordinatorCli() {
     throw new Error("bounded coordinator selection file required");
   const selection: unknown = JSON.parse(await readFile(selectionFile, "utf8"));
   if (!isRecord(selection)) throw new Error("coordinator selection must be an object");
+  if (Object.keys(selection).sort().join(",") === "remote_configuration,tools") {
+    console.log(
+      JSON.stringify(await runFixedCoordinatorConfiguration(selection, path.resolve(directory))),
+    );
+    return;
+  }
   if (
     selection.opportunity === null &&
     Object.keys(selection).sort().join(",") !== "opportunity,remote_configuration,tools"

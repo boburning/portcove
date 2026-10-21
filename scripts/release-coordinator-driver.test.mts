@@ -582,3 +582,76 @@ void test("late publication bracket permits only the exact two own immutable pre
     /unrelated/,
   );
 });
+
+void test("fixed bundled coordinator caller rejects imported routing and expired inherited clock before effects", async () => {
+  const { runFixedCoordinatorConfiguration } = await import("./release-coordinator-driver.mts");
+  for (const raw of [
+    {},
+    { remote_configuration: {}, tools: {} },
+    { remote_configuration: {}, tools: { artifact: {}, bundle: {} }, accepted: true },
+  ])
+    await assert.rejects(runFixedCoordinatorConfiguration(raw, process.cwd()), /fields differ/);
+  for (const deadline of [-1, NaN, Infinity])
+    await assert.rejects(
+      runFixedCoordinatorConfiguration(
+        { remote_configuration: {}, tools: { artifact: {}, bundle: {} } },
+        process.cwd(),
+        deadline,
+      ),
+      /inherited deadline/,
+    );
+});
+
+void test("coordinator inherited phase caps the original-job lookup and refuses a late response", async () => {
+  const source = await readFile(
+    new URL("./release-coordinator-driver.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("function coordinatorDeadline("),
+    end = source.indexOf("function coordinatorApi(", start);
+  assert.ok(start >= 0 && end > start);
+  let now = 100,
+    reads = 0;
+  const timeouts: number[] = [];
+  const clock = runInNewContext(
+    stripTypeScriptTypes(source.slice(start, end)) + "\ncoordinatorDeadline",
+    {
+      performance: { now: () => now },
+      Date,
+      Number,
+      Math,
+      Error,
+      project: process.cwd(),
+      process: {
+        env: { GITHUB_RUN_ID: "123", GITHUB_SHA: "a".repeat(40), GITHUB_RUN_ATTEMPT: "1" },
+      },
+      coordinatorOriginalJobDeadline: () => 1000,
+      createGitHubRunner: (settings: { timeoutMs: number }) => {
+        timeouts.push(settings.timeoutMs);
+        return () => {
+          reads++;
+          now += 10;
+        };
+      },
+      GitHubApiClient: class {
+        private runner: (args: string[], input: unknown) => unknown;
+        constructor(runner: (args: string[], input: unknown) => unknown) {
+          this.runner = runner;
+        }
+        request() {
+          this.runner([], undefined);
+          return { status: 200, body: {} };
+        }
+      },
+    },
+  ) as (deadline?: number) => { monotonicDeadline: number };
+  assert.throws(() => clock(100), /inherited deadline/);
+  assert.equal(reads, 0);
+  assert.throws(() => clock(105), /inherited deadline/);
+  assert.deepEqual(timeouts, [5]);
+  assert.equal(reads, 1);
+  now = 200;
+  const current = clock(250);
+  assert.equal(current.monotonicDeadline, 250);
+  assert.deepEqual(timeouts, [5, 50]);
+});
