@@ -27,7 +27,19 @@ void test(
 import {
   inspectNativeWslRegistration,
   inspectNativeWslGuestHost,
+  observeActualPublicWslRegistration,
 } from "./release-native-wsl-host.mts";
+void test("imported public pairs cannot reach the registration subprocess", async () => {
+  for (const raw of [
+    {},
+    { parent: { descriptor: { platform_label: "linux-x86_64" } } },
+    { kind: "actual-public-journey-pair", authority: "none" },
+  ])
+    await assert.rejects(
+      observeActualPublicWslRegistration(raw),
+      /actual parent\/public Tough pair required/u,
+    );
+});
 import {
   inspectNativeWslBoundary,
   nativeWslInvocationCommands,
