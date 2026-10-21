@@ -1,3 +1,7 @@
+import {
+  inspectCatalogReviewRequest,
+  assertCatalogReviewRequestBaseline,
+} from "./release-catalog-review-request.mts";
 import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
 import {
   inspectCatalogPublicationDescriptor,
@@ -403,6 +407,7 @@ type Authority = {
   metadata_bootstrap_sha256?: string;
   catalog_publication_sha256?: string;
   catalog_initialization_sha256?: string;
+  catalog_review_request_sha256?: string;
   published_catalog_metadata_sha256?: string;
   published_site_sha256?: string;
 };
@@ -498,6 +503,7 @@ export function planReleaseOpportunity(input: unknown) {
       "review_disposition",
       "catalog_publication",
       "catalog_initialization",
+      "catalog_review_request",
       "published_catalog_metadata",
       "published_site",
     ],
@@ -512,6 +518,7 @@ export function planReleaseOpportunity(input: unknown) {
   const hasMetadata =
     Object.hasOwn(input, "catalog_publication") ||
     Object.hasOwn(input, "catalog_initialization") ||
+    Object.hasOwn(input, "catalog_review_request") ||
     Object.hasOwn(input, "published_catalog_metadata") ||
     Object.hasOwn(input, "published_site") ||
     Object.hasOwn(input, "published_metadata") ||
@@ -543,6 +550,7 @@ export function planReleaseOpportunity(input: unknown) {
       ? { published_catalog_metadata_sha256: capacityDigest(publishedCatalog) }
       : {}),
   };
+  const catalogReviewRequest = inspectCatalogReviewRequest(input.catalog_review_request);
   const reviewRequest = inspectReleaseReviewRequest(input.review_request);
   const reviewDisposition = inspectReleaseReviewDisposition(input.review_disposition);
   const metadataRenewal =
@@ -554,6 +562,8 @@ export function planReleaseOpportunity(input: unknown) {
       ? null
       : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
   if (catalogPublication) {
+    if (catalogReviewRequest)
+      throw new Error("catalog publication must consume its neutral review request");
     if (
       catalogInitialization &&
       (catalogPublication.prior.catalog_root_sha256 !== catalogInitialization.root_sha256 ||
@@ -592,6 +602,32 @@ export function planReleaseOpportunity(input: unknown) {
       "explicit catalog subject ready for independently authenticated catalog admission",
       authority,
       { catalog_publication: catalogPublication, admission: "required" as const },
+    );
+  }
+  if (catalogReviewRequest) {
+    if (input.opportunity !== null) validateOpportunity(input.opportunity);
+    assertCatalogReviewRequestBaseline(catalogReviewRequest, input);
+    const authority: Authority = {
+      ...siteAuthority,
+      controller_workflow: controller.workflow,
+      controller_revision: controller.revision,
+      publication_observed_at: publication.observed_at,
+      publication_sha256: capacityDigest(input.publication),
+      catalog_review_request_sha256: capacityDigest(catalogReviewRequest),
+      ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
+    };
+    return plan(
+      controller.publication_paused ||
+        controller.capacity?.eligibility !== "eligible" ||
+        active ||
+        publication.reserved_versions.length ||
+        reviewRequest ||
+        reviewDisposition
+        ? "pause"
+        : "catalog-review-request",
+      "neutral catalog request awaits independently authenticated whole-opportunity review",
+      authority,
+      { catalog_review_request: catalogReviewRequest, admission: "required" as const },
     );
   }
   if (input.opportunity === null) {

@@ -2,6 +2,11 @@
 import { createHash } from "node:crypto";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
+import {
+  currentPublishedSite,
+  inspectPublishedCatalogMetadata,
+} from "./release-catalog-metadata-contract.mts";
+import { inspectCatalogInitialization } from "./release-catalog-publication-contract.mts";
 import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -78,6 +83,40 @@ export function createCatalogReviewRequest(input: {
   return inspectCatalogReviewRequest({ ...identity, request_id: digest(identity) })!;
 }
 
+/** Current journal identity only; actual provider/Tough/config acceptance is
+ * established by the named controller and producer, never this comparison. */
+export function assertCatalogReviewRequestBaseline(
+  rawRequest: unknown,
+  input: Record<string, unknown>,
+) {
+  const request = inspectCatalogReviewRequest(rawRequest);
+  if (!request) throw new Error("catalog review request absent");
+  const prior = request.opportunity.baseline;
+  const catalog = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
+  const site = currentPublishedSite(input);
+  const initialization = inspectCatalogInitialization(input.catalog_initialization);
+  if (
+    prior.catalog_repository_sha256 !== (catalog?.repository_sha256 ?? null) ||
+    prior.site_generation_sha256 !== (site?.generation_sha256 ?? null) ||
+    prior.application_root_sha256 !== (site?.components.application?.root_sha256 ?? null) ||
+    prior.application_repository_sha256 !==
+      (site?.components.application?.repository_sha256 ?? null) ||
+    (catalog &&
+      (prior.catalog_root_sha256 !== catalog.root_sha256 ||
+        prior.source_commit !== catalog.source_commit ||
+        prior.source_tree !== catalog.source_tree)) ||
+    (!catalog &&
+      initialization &&
+      (prior.catalog_root_sha256 !== initialization.root_sha256 ||
+        prior.source_commit !== initialization.source_commit ||
+        prior.source_tree !== initialization.source_tree ||
+        request.opportunity.publisher_configuration_sha256 !==
+          initialization.publisher_configuration_sha256))
+  )
+    throw new Error("catalog review request publication baseline changed");
+  return request;
+}
+
 /** A positive request can retire only into the same exact catalog descriptor.
  * Negative retirement is separately authenticated; absence never means success. */
 export function validateCatalogReviewRequestTransition(
@@ -96,6 +135,7 @@ export function validateCatalogReviewRequestTransition(
   )
     throw new Error("catalog review cannot rewrite an application opportunity or reservation");
   if (!before && after) {
+    assertCatalogReviewRequestBaseline(after, next);
     if (
       after.before_checkpoint !== checkpoint ||
       after.requested_at !== next.now ||

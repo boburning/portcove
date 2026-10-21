@@ -1,3 +1,4 @@
+import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import { assertCatalogPublicationBaseline } from "./release-catalog-metadata-contract.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
@@ -289,7 +290,17 @@ export async function prepareActualCoordinatorCatalogSigning(
       );
       if (recovered.input.catalog_publication == null) {
         stage = "durable-catalog-subject";
-        const input = { ...structuredClone(recovered.input), catalog_publication: descriptor };
+        const pendingReview = inspectCatalogReviewRequest(recovered.input.catalog_review_request);
+        if (
+          pendingReview &&
+          capacityDigest(pendingReview.opportunity) !== capacityDigest(inputs.opportunity)
+        )
+          throw new Error("catalog selected Check differs from frozen neutral request");
+        const input = {
+          ...structuredClone(recovered.input),
+          ...(pendingReview ? { catalog_review_request: null } : {}),
+          catalog_publication: descriptor,
+        };
         if (planReleaseOpportunity(input).action !== "catalog-publication")
           throw new Error("existing coordinator holds forbid catalog subject admission");
         if (catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !== stable)
