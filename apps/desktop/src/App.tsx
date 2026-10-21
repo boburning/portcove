@@ -8,7 +8,7 @@ import { scrollWorkspaceTo, workspaceScrollTop } from "./workspace-scroll";
 import { InterfaceSizeProvider } from "./InterfaceSize";
 import { ApplicationUpdateNotices } from "./features/application-update/ApplicationUpdateNotices";
 import { ApplicationUpdateSettings } from "./features/application-update/ApplicationUpdates";
-import { Notice } from "./components/ui/patterns";
+import { ActionRow, Notice } from "./components/ui/patterns";
 import { useFavorites } from "./features/favorites/use-favorites";
 import {
   useApplicationUpdateChoice,
@@ -269,7 +269,7 @@ export function BootstrapRecovery({
           ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
           : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
       </p>
-      <div className="button-row" aria-busy={pending}>
+      <ActionRow aria-busy={pending}>
         <Button
           className="[align-self:flex-start]"
           type="button"
@@ -301,7 +301,7 @@ export function BootstrapRecovery({
         >
           Use platform default
         </Button>
-      </div>
+      </ActionRow>
       {actionError && (
         <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
           {actionError}

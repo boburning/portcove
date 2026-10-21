@@ -33,7 +33,7 @@ const outputProblemClass =
 function OutputFact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-[length:var(--text-2xs)] text-pc-muted-foreground uppercase">{label}</dt>
+      <dt className="text-xs text-pc-muted-foreground uppercase">{label}</dt>
       <dd className="m-0 mt-1 text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]">
         {children}
       </dd>
@@ -305,7 +305,7 @@ export function OutputLocationControl({
           </h3>
         </div>
         <span
-          className={`output-location-source rounded-full px-2 py-1 text-[length:var(--text-2xs)] font-bold ${location?.selection_source === "port_setting" ? "custom bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground" : "inherited bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]"}`}
+          className={`output-location-source rounded-full px-2 py-1 text-xs font-bold ${location?.selection_source === "port_setting" ? "custom bg-[var(--color-interactive-subtle)] text-pc-interactive-foreground" : "inherited bg-[var(--color-bg-inset)] text-[var(--color-text-secondary)]"}`}
         >
           {source}
         </span>
@@ -326,6 +326,11 @@ export function OutputLocationControl({
       </p>
       <Field
         label="Folder for future installs"
+        fieldError={
+          preview && !preview.reset_to_default && preview.validation_errors.length > 0
+            ? preview.validation_errors.join(" ")
+            : undefined
+        }
         description="Portcove will check whether this folder can be used. Checking does not create or move files."
       >
         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
@@ -561,6 +566,7 @@ function OutputLocationReview({
   cancel: () => void;
   finalFocus: () => HTMLButtonElement | null;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const safe =
     preview.availability === "available" &&
     preview.validation_errors.length === 0 &&
@@ -596,12 +602,18 @@ function OutputLocationReview({
       }}
     >
       <DialogContent
+        initialFocus={heading}
         finalFocus={finalFocus}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="output-location-review-description"
       >
-        <DialogTitle id="output-location-review-title" className="mb-2 text-xl">
+        <DialogTitle
+          ref={heading}
+          tabIndex={-1}
+          id="output-location-review-title"
+          className="mb-2 text-xl"
+        >
           {preview.reset_to_default ? "Review library default" : "Review future folder"}
         </DialogTitle>
         <DialogDescription id="output-location-review-description" className="mb-4 leading-relaxed">
@@ -653,7 +665,6 @@ function OutputLocationReview({
         <DialogFooter className="mt-4">
           <Button
             data-focusable
-            data-autofocus
             variant="primary"
             disabled={!safe || Boolean(pending)}
             onClick={apply}
@@ -708,6 +719,7 @@ function OutputRelocationReview({
   cancel: () => void;
   finalFocus: () => HTMLButtonElement | null;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const safe =
     plan.availability === "available" &&
     plan.validation_errors.length === 0 &&
@@ -717,12 +729,18 @@ function OutputRelocationReview({
     !plan.backups_will_move;
   return (
     <DialogContent
+      initialFocus={heading}
       finalFocus={finalFocus}
       showCloseButton={false}
       reviewSize="wide"
       aria-describedby="output-relocation-review-description"
     >
-      <DialogTitle id="output-relocation-review-title" className="mb-2 text-xl">
+      <DialogTitle
+        ref={heading}
+        tabIndex={-1}
+        id="output-relocation-review-title"
+        className="mb-2 text-xl"
+      >
         Review moving existing versions
       </DialogTitle>
       <DialogDescription id="output-relocation-review-description" className="mb-4 leading-relaxed">
@@ -768,7 +786,7 @@ function OutputRelocationReview({
               className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 rounded-pc-sm bg-[var(--color-bg-subtle)] p-2"
             >
               <strong>{item.install.version}</strong>
-              <span className="text-[length:var(--text-2xs)] text-pc-muted-foreground">
+              <span className="text-xs text-pc-muted-foreground">
                 {[
                   item.active && "active",
                   item.previous && "previous",
@@ -779,7 +797,7 @@ function OutputRelocationReview({
                   .join(" · ")}
               </span>
               <code
-                className="col-span-full text-[length:var(--text-2xs)] [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
+                className="col-span-full text-xs [overflow-wrap:anywhere] text-[var(--color-text-secondary)]"
                 title={item.install.path}
               >
                 {item.install.path}
@@ -804,13 +822,7 @@ function OutputRelocationReview({
         )}
       </div>
       <DialogFooter className="mt-4">
-        <Button
-          data-focusable
-          data-autofocus
-          variant="primary"
-          disabled={!safe || pending}
-          onClick={apply}
-        >
+        <Button data-focusable variant="primary" disabled={!safe || pending} onClick={apply}>
           {pending ? "Moving and verifying…" : "Move existing versions"}
         </Button>
         <Button data-focusable variant="outline" disabled={pending} onClick={cancel}>

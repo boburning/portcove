@@ -50,6 +50,9 @@
     color: var(--color-text-secondary);
   }
   .bootstrap-recovery-details textarea {
+    inline-size: 100%;
+    min-inline-size: 0;
+    block-size: min(16rem, 35dvh);
     max-block-size: 35dvh;
     overflow: auto;
     margin-block-start: var(--space-3);

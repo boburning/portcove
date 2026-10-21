@@ -1,9 +1,52 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { portDefinition } from "../test-fixtures";
 import type { AdoptionPreview } from "../types";
 import { AdoptionModal } from "./AdoptionModal";
+
+it("starts folder entry at the field, contains keyboard focus and returns to its opener", async () => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  function CopyDialog() {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Copy installation</button>
+        {open && (
+          <AdoptionModal
+            path=""
+            setPath={vi.fn()}
+            close={() => setOpen(false)}
+            review={vi.fn()}
+            adopt={vi.fn()}
+          />
+        )}
+      </>
+    );
+  }
+  try {
+    await act(async () => root.render(<CopyDialog />));
+    const opener = page.getByRole("button", { name: "Copy installation", exact: true });
+    await opener.click();
+    await expect.poll(() => document.activeElement?.id).toBe("adopt-path");
+    const dialog = document.querySelector('[data-slot="dialog-content"]')!;
+    for (let index = 0; index < 10; index += 1) {
+      await userEvent.keyboard("{Tab}");
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    }
+    await userEvent.keyboard("{Escape}");
+    await expect.poll(() => document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+    await expect.element(opener).toHaveFocus();
+  } finally {
+    await act(async () => root.unmount());
+    container.remove();
+    vi.unstubAllGlobals();
+  }
+});
 
 it("keeps an uncancellable copy open and inputs locked even while another operation is busy", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);

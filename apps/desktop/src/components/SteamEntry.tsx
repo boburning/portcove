@@ -70,6 +70,7 @@ export function SteamEntryDialog({
   installed: boolean;
   close: () => void;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
   const [review, setReview] = useState<SteamEntryReview>();
@@ -135,6 +136,7 @@ export function SteamEntryDialog({
       }}
     >
       <DialogContent
+        initialFocus={cancelButton}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="steam-entry-description"
@@ -166,7 +168,7 @@ export function SteamEntryDialog({
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
           <Button
-            data-autofocus
+            ref={cancelButton}
             data-focusable
             variant="outline"
             disabled={pending === "apply"}
@@ -236,6 +238,7 @@ export function SteamBatchEntryDialog({
   generation: number;
   close: () => void;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [steamRoot, setSteamRoot] = useState("");
   const [steamUserId, setSteamUserId] = useState("");
@@ -301,6 +304,7 @@ export function SteamBatchEntryDialog({
       }}
     >
       <DialogContent
+        initialFocus={cancelButton}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="steam-batch-description"
@@ -353,7 +357,7 @@ export function SteamBatchEntryDialog({
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
           <Button
-            data-autofocus
+            ref={cancelButton}
             data-focusable
             variant="outline"
             disabled={pending === "apply"}

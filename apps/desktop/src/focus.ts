@@ -5,7 +5,10 @@ const regionFocus = new WeakMap<HTMLElement, HTMLElement>();
 
 function visibleControl(item: HTMLElement) {
   return (
-    (item.tabIndex >= 0 || item.matches("[role=option], [role=menuitem]")) &&
+    (item.tabIndex >= 0 ||
+      item.matches("[role=option], [role=menuitem]") ||
+      (item.matches("[role=radio], [role=tab]") &&
+        Boolean(item.closest("[role=radiogroup], [role=tablist]")))) &&
     !item.matches(":disabled, [aria-disabled=true]") &&
     !item.closest("[inert], [hidden], [aria-hidden=true]") &&
     item.getClientRects().length > 0 &&
@@ -61,7 +64,9 @@ export function cyclePrimaryNavigation(offset: number) {
 
 export function fieldOwnsArrows(target: HTMLElement | null) {
   return Boolean(
-    target?.closest("input, textarea, select, [contenteditable=true], [role=combobox]"),
+    target?.closest(
+      "input, textarea, select, [contenteditable=true], [role=combobox], [role=radio], [role=tab], [role=menuitem]",
+    ),
   );
 }
 

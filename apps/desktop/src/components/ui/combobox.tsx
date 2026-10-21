@@ -27,7 +27,7 @@ export function SearchChoice({
   onQueryChange: (query: string) => void;
   onChange: (id: string) => void;
   disabled?: boolean;
-  id?: string;
+  id?: string | undefined;
 }) {
   return (
     <Field label={label} disabled={disabled}>
@@ -35,19 +35,33 @@ export function SearchChoice({
         items={options}
         value={options.find((option) => option.id === value) ?? null}
         inputValue={query}
-        onInputValueChange={onQueryChange}
-        onValueChange={(option) => {
-          if (option) onChange(option.id);
+        onInputValueChange={(nextQuery, details) => {
+          // Base UI restores the selected label (none), or clears an unselected
+          // query (input-clear), after closing. A workspace draft survives both.
+          if (details.reason === "input-change" || details.reason === "item-press")
+            onQueryChange(nextQuery);
+          else details.cancel();
+        }}
+        onValueChange={(option, details) => {
+          if (option && details.reason === "item-press") onChange(option.id);
+          else details.cancel();
         }}
         itemToStringLabel={(option) => option.label}
         itemToStringValue={(option) => option.id}
         isItemEqualToValue={(a, b) => a.id === b.id}
         disabled={disabled}
+        onOpenChange={(_open, details) => {
+          if (details.reason === "escape-key") {
+            details.event.stopPropagation();
+            details.event.stopImmediatePropagation();
+          }
+        }}
       >
         <div className="relative min-w-0">
           <ComboboxPrimitive.Input
             id={id}
             data-focusable
+            data-controller-combobox
             placeholder="Search games and port projects…"
             className={`min-h-(--control-height-md) w-full min-w-0 rounded-pc-md border border-pc-input bg-[var(--color-bg-inset)] py-2 ps-3 pe-10 text-sm text-pc-foreground placeholder:text-pc-muted-foreground ${controlFocus}`}
           />
@@ -64,7 +78,10 @@ export function SearchChoice({
             align="start"
             className="z-50 max-w-[calc(100vw-2rem)]"
           >
-            <ComboboxPrimitive.Popup className="w-(--anchor-width) max-w-full rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-lg">
+            <ComboboxPrimitive.Popup
+              data-portcove-focus-scope
+              className="w-(--anchor-width) max-w-full rounded-pc-md border border-pc-border bg-pc-surface p-1 text-pc-foreground shadow-lg"
+            >
               <ComboboxPrimitive.Empty className="px-3 py-4 text-sm text-pc-muted-foreground">
                 No game or port matches this search.
               </ComboboxPrimitive.Empty>

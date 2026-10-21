@@ -108,6 +108,7 @@ export function CatalogFilters({
   gameFileQuery?: GameFileFilterState | undefined;
 }) {
   const trigger = useRef<HTMLButtonElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const query = queryFromFilter(filter);
   const result = evaluateCatalogQuery(candidates ?? [], query, context);
   const editable = result.state === "matched";
@@ -162,8 +163,10 @@ export function CatalogFilters({
         >
           <ListFilter /> Filters ({activeCount})
         </DialogTrigger>
-        <DialogContent finalFocus={trigger}>
-          <DialogTitle>{view === "library" ? "Library" : "Catalog"} filters</DialogTitle>
+        <DialogContent initialFocus={heading} finalFocus={trigger}>
+          <DialogTitle ref={heading} tabIndex={-1}>
+            {view === "library" ? "Library" : "Find games"} filters
+          </DialogTitle>
           <DialogDescription>
             Choose any matching option within a group. A game must match every selected group for
             the same setup or installation to appear.

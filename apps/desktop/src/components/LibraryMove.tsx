@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { reloadWorkspace } from "../reload-workspace";
 import { join } from "@tauri-apps/api/path";
 import { desktopApi } from "../api";
@@ -31,6 +31,7 @@ export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
 }
 
 function LibraryMoveDialog({ close }: { close: () => void }) {
+  const destinationInput = useRef<HTMLInputElement>(null);
   const [destination, setDestination] = useState("");
   const [plan, setPlan] = useState<LibraryMovePlan>();
   const [busy, setBusy] = useState("");
@@ -72,6 +73,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
       }}
     >
       <DialogContent
+        initialFocus={destinationInput}
         showCloseButton={false}
         reviewSize="wide"
         aria-describedby="move-library-description"
@@ -95,7 +97,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
         >
           <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
             <Input
-              data-autofocus
+              ref={destinationInput}
               data-focusable
               id="library-destination"
               value={destination}

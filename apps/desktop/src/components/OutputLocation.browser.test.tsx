@@ -443,6 +443,7 @@ describe("per-game install folder", () => {
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     expect(document.body.textContent).toContain("Use library default for future installs");
     expect(document.body.textContent).toContain("Future placement only");
+    await expect.poll(() => document.activeElement?.id).toBe("output-location-review-title");
     await pressEscape();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
@@ -688,6 +689,7 @@ describe("per-game install folder", () => {
     await click("Review moving existing versions");
     expect(reviewMove).toHaveBeenCalledWith("sample", "F:/Games/Sample", 14);
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    await expect.poll(() => document.activeElement?.id).toBe("output-relocation-review-title");
     await pressEscape();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);

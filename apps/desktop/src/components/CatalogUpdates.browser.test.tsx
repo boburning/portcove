@@ -106,6 +106,7 @@ it("requires explicit review, invalidates changed candidates and uses core prove
     );
     expect(review).not.toHaveBeenCalled();
     await click("Manage catalog updates");
+    await expect.poll(() => document.activeElement?.id).toBe("catalog-update-title");
     expect(document.body.textContent).toContain(
       "Verify the publisher key through a trusted channel.",
     );

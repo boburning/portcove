@@ -1,11 +1,15 @@
 import { PortSearch } from "./PortSearch";
 import { OperationProgress } from "./OperationProgress";
 import { cn } from "cn";
-import { Notice, SettingsRow } from "./ui/patterns";
+import { RadioGroup } from "@base-ui/react/radio-group";
+import { Radio } from "@base-ui/react/radio";
+import { controlFocus } from "./ui/control-style";
+import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
 import { SupportBundleExport } from "./SupportBundleExport";
 import { desktopApi } from "../api";
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -25,6 +29,7 @@ import {
   HardDrive,
   Library,
   LoaderCircle,
+  Menu as MenuIcon,
   Settings,
   ShieldCheck,
   Wrench,
@@ -74,6 +79,7 @@ import { GameFileLibraries } from "./GameFileLibraries";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { Icon, NavigationHints, Shortcut } from "./ui";
 import { Button } from "./ui/button";
+import { Tooltip } from "./ui/tooltip";
 import { Input } from "./ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { commandShortcut } from "../keyboard-shortcuts";
@@ -99,6 +105,18 @@ export function Sidebar({
   controller?: string | undefined;
 }) {
   const activityState = navigationActivityState(activities);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationTrigger = useRef<HTMLButtonElement>(null);
+  const desktopNavigation = useRef<HTMLElement>(null);
+  const sheetNavigation = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 48rem)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setNavigationOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
   const items = [
     { view: "library", label: "Library", icon: Library, shortcut: "1" },
     { view: "catalog", label: "Find games", icon: Boxes, shortcut: "2" },
@@ -110,29 +128,24 @@ export function Sidebar({
     icon: typeof Library;
     shortcut: string;
   }>;
-  return (
-    <aside
-      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
-      data-focus-region="sidebar"
-    >
-      <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
-        <BrandAvatar />
-        <div>
-          <strong className="block text-[length:var(--text-lg)] tracking-[-0.02em]">
-            Portcove
-          </strong>
-        </div>
-      </div>
-      <nav aria-label="Primary navigation">
-        {items.map((item) => (
+  const renderNavigation = (sheet = false) => (
+    <nav ref={sheet ? sheetNavigation : desktopNavigation} aria-label="Primary navigation">
+      {items.map((item) => (
+        <Tooltip
+          key={item.view}
+          label={`${item.label} · ${commandShortcut(item.shortcut)}`}
+          disabled={sheet}
+        >
           <Button
             data-focusable
-            key={item.view}
             aria-current={view === item.view ? "page" : undefined}
             variant={view === item.view ? "selected" : "ghost"}
             size="lg"
             className="group/nav nav-item flex h-auto min-h-[var(--control-height-lg)] w-full items-center gap-2 p-[var(--space-2)_var(--space-3)] text-start whitespace-normal"
-            onClick={() => setView(item.view)}
+            onClick={() => {
+              setView(item.view);
+              setNavigationOpen(false);
+            }}
           >
             <Icon glyph={item.icon} />
             <span className="nav-label min-w-0 flex-1">{item.label}</span>
@@ -149,13 +162,70 @@ export function Sidebar({
             )}
             <Shortcut className="hidden">{commandShortcut(item.shortcut)}</Shortcut>
           </Button>
-        ))}
-      </nav>
-      {controller && (
-        <div className="sidebar-footer mt-auto">
-          <NavigationHints controller={controller} workspace />
+        </Tooltip>
+      ))}
+    </nav>
+  );
+  return (
+    <aside
+      className="sidebar flex min-h-0 flex-col overflow-y-auto bg-[var(--color-bg-elevated)] p-[var(--space-6)_var(--space-4)_var(--space-4)] shadow-[inset_-1px_0_var(--color-bg-subtle)] [border-inline-end:1px_solid_var(--color-border)] max-[65rem]:px-3"
+      data-focus-region="sidebar"
+    >
+      <div className="sidebar-compact-header items-center gap-3">
+        <BrandAvatar />
+        <span className="min-w-0 flex-1 font-semibold">
+          {items.find((item) => item.view === view)?.label}
+        </span>
+        <Tooltip label="Navigation">
+          <Button
+            ref={navigationTrigger}
+            data-focusable
+            variant="outline"
+            size="icon"
+            aria-label="Open navigation"
+            aria-haspopup="dialog"
+            aria-expanded={navigationOpen}
+            onClick={() => setNavigationOpen(true)}
+          >
+            <Icon glyph={MenuIcon} />
+          </Button>
+        </Tooltip>
+      </div>
+      <div className="sidebar-desktop">
+        <div className="brand flex items-center gap-3 p-[0_var(--space-2)_var(--space-7)]">
+          <BrandAvatar />
+          <div>
+            <strong className="block text-[length:var(--text-lg)] tracking-[-0.02em]">
+              Portcove
+            </strong>
+          </div>
         </div>
-      )}
+        {renderNavigation()}
+        {controller && (
+          <div className="sidebar-footer mt-auto">
+            <NavigationHints controller={controller} workspace />
+          </div>
+        )}
+      </div>
+      <Dialog open={navigationOpen} onOpenChange={setNavigationOpen}>
+        <DialogContent
+          className="navigation-sheet top-0 left-0 h-dvh max-h-dvh w-[min(22rem,calc(100%-1rem))] max-w-none translate-x-0 translate-y-0 content-start gap-5 rounded-none sm:max-w-none rtl:right-0 rtl:left-auto"
+          aria-describedby={undefined}
+          initialFocus={() =>
+            sheetNavigation.current?.querySelector<HTMLElement>('[aria-current="page"]') ?? false
+          }
+          finalFocus={() =>
+            window.matchMedia("(min-width: 48rem)").matches
+              ? (desktopNavigation.current?.querySelector<HTMLElement>('[aria-current="page"]') ??
+                false)
+              : navigationTrigger.current
+          }
+        >
+          <DialogTitle>Navigation</DialogTitle>
+          {renderNavigation(true)}
+          {controller && <NavigationHints controller={controller} workspace />}
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
@@ -239,19 +309,21 @@ export function PageHeader({
         data-focus-group
       >
         {view === "catalog" && <PortSearch query={query} setQuery={setQuery} />}
-        <Button
-          data-focusable
-          data-detail-origin={`command-trigger:${view}`}
-          variant="ghost"
-          size="sm"
-          className="command-trigger whitespace-nowrap text-pc-muted-foreground"
-          onClick={onOpenCommands}
-          aria-label={`Commands ${commandShortcut("K")}: open command palette`}
-        >
-          <Icon glyph={Command} />
-          <span className="max-[65rem]:hidden">Commands </span>
-          <span className="ms-1 text-xs">{commandShortcut("K")}</span>
-        </Button>
+        <Tooltip label={`Commands · ${commandShortcut("K")}`}>
+          <Button
+            data-focusable
+            data-detail-origin={`command-trigger:${view}`}
+            variant="ghost"
+            size="sm"
+            className="command-trigger whitespace-nowrap text-pc-muted-foreground"
+            onClick={onOpenCommands}
+            aria-label={`Commands ${commandShortcut("K")}: open command palette`}
+          >
+            <Icon glyph={Command} />
+            <span className="max-[65rem]:hidden">Commands </span>
+            <span className="ms-1 text-xs">{commandShortcut("K")}</span>
+          </Button>
+        </Tooltip>
       </div>
     </header>
   );
@@ -303,6 +375,23 @@ export function StatusLayer({
   openActivity?: (id?: string) => void;
   preparationRecovery?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
+  const acknowledgedSuccess = useRef(new Set<number>());
+  const [latestSuccess, setLatestSuccess] = useState<number>();
+  useLayoutEffect(() => {
+    let newest: number | undefined;
+    for (const record of invocations?.values() ?? []) {
+      if (
+        record.phase !== "settled" ||
+        record.outcome !== "succeeded" ||
+        invocationFailure(record) !== undefined ||
+        acknowledgedSuccess.current.has(record.id)
+      )
+        continue;
+      acknowledgedSuccess.current.add(record.id);
+      newest = record.id;
+    }
+    if (newest !== undefined) setLatestSuccess(newest);
+  }, [invocations]);
   return (
     <>
       {invocations
@@ -313,7 +402,9 @@ export function StatusLayer({
               aria-label={`${record.context.action} · ${record.context.target.label}`}
               data-invocation-id={record.id}
               className={
-                record.phase === "settled" && invocationFailure(record) === undefined
+                record.phase === "settled" &&
+                invocationFailure(record) === undefined &&
+                record.id !== latestSuccess
                   ? "sr-only"
                   : "mb-3 min-w-0"
               }
@@ -354,12 +445,39 @@ export function StatusLayer({
                   )}
                 </>
               ) : (
-                invocationFailure(record) === undefined && (
+                invocationFailure(record) === undefined &&
+                (record.id === latestSuccess ? (
+                  <Notice intent="success" className="mb-0 items-center">
+                    <p data-slot="notice-body" role="status">
+                      {record.context.action} · {record.context.target.label}: finished.
+                    </p>
+                    <div data-slot="notice-actions">
+                      {record.context.activityId && openActivity && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openActivity(record.context.activityId)}
+                        >
+                          View in Activity
+                        </Button>
+                      )}
+                      {dismissInvocation && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Dismiss completion for ${record.context.action}`}
+                          onClick={() => dismissInvocation(record.id)}
+                        >
+                          Dismiss
+                        </Button>
+                      )}
+                    </div>
+                  </Notice>
+                ) : record.outcome === "cancelled" ? (
                   <p role="status" className="sr-only">
-                    {record.context.action} · {record.context.target.label}:{" "}
-                    {record.outcome === "cancelled" ? "cancelled" : "finished"}.
+                    {record.context.action} · {record.context.target.label}: cancelled.
                   </p>
-                )
+                ) : null)
               )}
             </div>
           ))
@@ -1240,24 +1358,19 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
       : `Always ${resolvedLabel}`;
   return (
     <SettingsRow className="appearance-card" data-focus-group>
-      <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-        THEME
-      </p>
       <h2>Color theme</h2>
-      <div
-        className="segmented appearance-options m-[18px_0] grid [grid-auto-columns:1fr] [grid-auto-flow:column] rounded-pc-md border border-[var(--color-border)] bg-[var(--color-bg-inset)] p-[3px]"
-        role="group"
+      <RadioGroup
+        value={preference}
+        onValueChange={(value) => {
+          if (options.includes(value)) appearance?.setPreference(value);
+        }}
+        className="appearance-options grid w-full max-w-sm grid-cols-1 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-1 @min-[22rem]/row:grid-cols-3"
         aria-label="Color theme"
       >
         {options.map((option) => (
-          <ThemeOption
-            key={option}
-            option={option}
-            selected={preference === option}
-            select={appearance?.setPreference}
-          />
+          <ThemeOption key={option} option={option} />
         ))}
-      </div>
+      </RadioGroup>
       <p>{status}.</p>
     </SettingsRow>
   );
@@ -1344,7 +1457,7 @@ function DiagnosticsCard({
       <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
         DIAGNOSTICS
       </p>
-      <h2>
+      <h2 className="flex items-center gap-2">
         <Icon glyph={ShieldCheck} />
         Create support bundle
       </h2>
@@ -1374,26 +1487,18 @@ function DiagnosticsCard({
   );
 }
 
-function ThemeOption({
-  option,
-  selected,
-  select,
-}: {
-  option: ThemePreference;
-  selected: boolean;
-  select?: ((preference: ThemePreference) => void) | undefined;
-}) {
+function ThemeOption({ option }: { option: ThemePreference }) {
   return (
-    <Button
+    <Radio.Root
       data-focusable
-      variant={selected ? "selected" : "ghost"}
-      size="sm"
-      className="flex-1 capitalize"
-      aria-pressed={selected}
-      onClick={() => select?.(option)}
+      value={option}
+      className={`flex min-h-(--control-height-md) cursor-pointer items-center justify-center gap-1 rounded-pc-sm px-2 py-2 text-sm font-semibold text-pc-muted-foreground data-checked:bg-pc-selection data-checked:text-pc-selection-foreground ${controlFocus}`}
     >
+      <Radio.Indicator>
+        <Icon glyph={Check} size="sm" />
+      </Radio.Indicator>
       {option.charAt(0).toUpperCase() + option.slice(1)}
-    </Button>
+    </Radio.Root>
   );
 }
 
@@ -1761,6 +1866,7 @@ export function LibrarySelectionCard({
   const [pending, setPending] = useState(false);
   const switchTrigger = useRef<HTMLButtonElement>(null);
   const resetTrigger = useRef<HTMLButtonElement>(null);
+  const keepLibraryButton = useRef<HTMLButtonElement>(null);
   const focusReturn = useRef<"switch" | "reset">("switch");
   const chooseCandidate = async () => {
     setError(undefined);
@@ -1829,7 +1935,7 @@ export function LibrarySelectionCard({
         {source}. Opening another library does not move your files. The library you open uses its
         own game install folder settings.
       </p>
-      <div className="button-row">
+      <ActionRow>
         <Button
           ref={switchTrigger}
           data-library-selection-trigger="switch"
@@ -1856,7 +1962,7 @@ export function LibrarySelectionCard({
         >
           Use default library
         </Button>
-      </div>
+      </ActionRow>
       {review && (
         <Dialog
           open
@@ -1865,6 +1971,7 @@ export function LibrarySelectionCard({
           }}
         >
           <DialogContent
+            initialFocus={keepLibraryButton}
             showCloseButton={false}
             finalFocus={() =>
               (focusReturn.current === "reset" ? resetTrigger.current : null) ??
@@ -1902,7 +2009,7 @@ export function LibrarySelectionCard({
               </Button>
               <Button
                 data-focusable
-                data-autofocus
+                ref={keepLibraryButton}
                 variant="outline"
                 disabled={pending}
                 onClick={cancelReview}
@@ -2111,7 +2218,7 @@ export function HostToolRow({
         ) : (
           <p>Portcove couldn’t use this executable. Choose it again to continue.</p>
         ))}
-      <div className="button-row">
+      <ActionRow>
         {tool.source !== "environment" && (
           <Button
             data-focusable
@@ -2160,7 +2267,7 @@ export function HostToolRow({
             Clear custom path
           </Button>
         )}
-      </div>
+      </ActionRow>
       <details className="host-tool-details mt-1 min-w-0">
         <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
           Tool details
@@ -2220,7 +2327,7 @@ function StorageCard({
         <div className="mb-[15px] grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <strong className="text-xs">{formatBytes(available)} available</strong>
-            <span className="text-[length:var(--text-2xs)] text-pc-muted-foreground">
+            <span className="text-xs text-pc-muted-foreground">
               {formatBytes(total)} total storage capacity
             </span>
           </div>
@@ -2241,7 +2348,7 @@ function StorageCard({
       ) : (
         <p>Storage capacity is unavailable for this location.</p>
       )}
-      <p>
+      <p className="flex items-start gap-2 [&_svg]:mt-0.5">
         <Icon glyph={ShieldCheck} size="sm" /> Installed application files are kept separate from
         saves and settings.
       </p>

@@ -55,7 +55,9 @@ it("focuses the safe action through asynchronous review and returns to the opene
       port={port}
       status={{
         ...portStatus(),
-        port_actions: [{ action: "remove_managed", availability: "allowed", reason: "available" }],
+        port_actions: [
+          { action: "remove_managed", availability: "waiting", reason: "review_required" },
+        ],
       }}
       generation={7}
       busy={false}

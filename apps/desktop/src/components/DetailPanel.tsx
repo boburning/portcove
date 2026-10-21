@@ -346,7 +346,7 @@ export function DetailPanel(props: DetailPanelProps) {
   );
   return (
     <section
-      className="detail-panel @container/detail relative w-full min-w-0 motion-reduce:[animation:none]"
+      className="detail-panel @container/detail relative w-full max-w-[64rem] min-w-0 motion-reduce:[animation:none]"
       aria-labelledby="port-detail-title"
       data-detail-workspace
       data-detail-port-id={port.id}
@@ -388,11 +388,11 @@ function DetailHero({
   children: ReactNode;
 }) {
   return (
-    <div className="detail-hero flex flex-col items-start gap-5 @min-[32rem]/detail:flex-row @min-[32rem]/detail:gap-7">
+    <div className="detail-hero flex items-start gap-4 @min-[32rem]/detail:gap-5">
       <ArtworkImage
         port={port}
         quietFallback
-        className="detail-cover aspect-[2/3] w-[80px] flex-none rounded-pc-md border border-pc-border bg-[var(--art-color)] @min-[24rem]/detail:w-[120px] @min-[48rem]/detail:w-[160px]"
+        className="detail-cover aspect-2/3 w-12 flex-none rounded-pc-md border border-pc-border bg-[var(--art-color)] @min-[20rem]/detail:w-16 @min-[32rem]/detail:w-24"
       />
       <div className="w-full min-w-0 flex-1 [overflow-wrap:anywhere] @min-[32rem]/detail:self-center">
         <p className="mb-1 text-xs text-[var(--color-text-secondary)]">
@@ -412,7 +412,7 @@ function DetailHero({
         <span
           className={cn(
             `hero-state mt-[10px] inline-flex items-center gap-2 text-[length:var(--text-xs)] font-[750] text-[var(--color-text)] ${state.tone}`,
-            "[&.ready]:text-[var(--color-success-text-raised)] [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
+            "[&.ready]:text-pc-muted-foreground [&.setup]:text-[var(--color-warning-text)] [&.staged]:text-[var(--color-interactive-text)]",
           )}
         >
           <Icon glyph={state.icon} size="sm" />
@@ -851,8 +851,7 @@ function StatusActionsGroup({
 
 const disclosureSummaryStyle =
   "list-none [&::-webkit-details-marker]:hidden flex cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
-const disclosureMetaStyle =
-  "ml-auto text-[length:var(--text-2xs)] font-medium text-pc-muted-foreground";
+const disclosureMetaStyle = "ml-auto text-xs font-medium text-pc-muted-foreground";
 const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
 function RequirementsGroup({
@@ -1314,7 +1313,7 @@ function SavesAndSettingsSummary({ port }: { port: PortDefinition }) {
 
 function TrustStrip({ status }: { status?: PortStatus | undefined }) {
   return (
-    <div className="trust-strip m-[13px_1px_22px] flex flex-wrap gap-[7px_12px] text-[length:var(--text-2xs)] text-[var(--color-text-muted)]">
+    <div className="trust-strip m-[13px_1px_22px] flex flex-wrap gap-[7px_12px] text-xs text-[var(--color-text-muted)]">
       <span className="inline-flex items-center gap-1">
         <Icon glyph={HardDrive} size="sm" />
         Game files stay local
@@ -2022,6 +2021,7 @@ export function InstallAction({
   portaled?: boolean;
 }) {
   const reviewButton = useRef<HTMLButtonElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
   const chooseButton = useRef<HTMLButtonElement>(null);
   const actionRegion = useRef<HTMLDivElement>(null);
   const restoreFocus = useRef(false);
@@ -2093,13 +2093,19 @@ export function InstallAction({
           }}
         >
           <DialogContent
+            initialFocus={reviewHeading}
             showCloseButton={false}
             finalFocus={() => (busy === "install" ? actionRegion.current : reviewButton.current)}
             portaled={portaled}
             reviewSize="standard"
             aria-describedby="install-review-description"
           >
-            <DialogTitle id="install-review-title" className="mb-2 text-xl">
+            <DialogTitle
+              ref={reviewHeading}
+              tabIndex={-1}
+              id="install-review-title"
+              className="mb-2 text-xl"
+            >
               Review installation
             </DialogTitle>
             <DialogDescription id="install-review-description" className="mb-4 leading-relaxed">
@@ -2242,16 +2248,16 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
           INSTALL PLAN
         </p>
         <strong className="block text-[length:var(--text-sm)]">{plan.release.version}</strong>
-        <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
           {releaseChannelPresentation(plan.channel).label} · {installPlanActionLabel(plan.action)}
         </span>
         {plan.bundled_runtime && (
-          <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
             Required component included · {formatBytes(plan.bundled_runtime.asset.size)}
           </span>
         )}
         {(plan.auxiliary_downloads?.length ?? 0) > 0 && (
-          <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]">
+          <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)]">
             Required build components included · Download may be reduced by cached files
           </span>
         )}
@@ -2260,7 +2266,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
         <strong className="block text-[length:var(--text-sm)]">
           {download ? formatBytes(plan.download_bytes) : "No download"}
         </strong>
-        <span className="mt-[4px] block text-[length:var(--text-2xs)] text-[var(--color-text-secondary)] capitalize">
+        <span className="mt-[4px] block text-xs text-[var(--color-text-secondary)] capitalize">
           {download
             ? libraryOutput
               ? plan.temporary_space?.available_bytes === null
@@ -2277,7 +2283,7 @@ function InstallPlanSummary({ plan }: { plan: InstallPlan }) {
             {plan.output_location.effective_output_directory}
           </code>
           {plan.temporary_space ? (
-            <p className="mt-[4px] text-[length:var(--text-2xs)] text-[var(--color-text-secondary)]">
+            <p className="mt-[4px] text-xs text-[var(--color-text-secondary)]">
               Temporary space required: {formatBytes(plan.temporary_space.required_bytes)} at{" "}
               <code>{plan.temporary_space.path}</code>.{" "}
               {plan.temporary_space.available_bytes === null
@@ -2334,7 +2340,6 @@ function PlannedInstallButton({
   return (
     <Button
       data-focusable
-      data-autofocus={!blocked && !insufficientSpace}
       variant="primary"
       disabled={blocked || insufficientSpace || Boolean(busy)}
       onClick={() => {

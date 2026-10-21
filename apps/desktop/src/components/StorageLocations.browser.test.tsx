@@ -144,6 +144,7 @@ describe("Storage locations", () => {
       "The library you open uses its own game install folder settings",
     );
     expect(switchLibrary).not.toHaveBeenCalled();
+    await expect.poll(() => document.activeElement).toBe(button("Keep current library"));
     await click("Keep current library");
     expect(document.activeElement).toBe(trigger);
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();

@@ -280,6 +280,7 @@ for (const theme of ["dark", "light"]) {
       (entry) =>
         Math.abs(entry.getBoundingClientRect().top - entries[0]!.getBoundingClientRect().top) < 1,
     );
+    expect(firstRow).toHaveLength(5);
     const actionBottom = firstRow.map(
       (entry) => entry.querySelector(".collection-actions")!.getBoundingClientRect().bottom,
     );
@@ -310,7 +311,7 @@ for (const theme of ["dark", "light"]) {
     await mount(theme);
     expect(
       document.querySelector(".collection-art")!.getBoundingClientRect().width,
-    ).toBeLessThanOrEqual(180);
+    ).toBeLessThanOrEqual(221);
     const spacing = document.createElement("style");
     spacing.id = "collection-spacing";
     spacing.textContent =

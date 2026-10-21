@@ -14,7 +14,7 @@ export function Field({
 }: FieldPrimitive.Root.Props & {
   label: ReactNode;
   description?: ReactNode;
-  fieldError?: string;
+  fieldError?: string | undefined;
 }) {
   return (
     <FieldPrimitive.Root
