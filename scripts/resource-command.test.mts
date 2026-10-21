@@ -28,6 +28,67 @@ void test("resource command delegates unchanged payload/cwd and failure to the e
   assert.equal(status, 23);
 });
 
+void test("resource queue deadline rejects exhausted admission before invoking any supervisor", async () => {
+  let effects = 0;
+  for (const queueDeadline of [performance.now() - 1, NaN, Infinity])
+    await assert.rejects(
+      runResourceCommand("analysis", "never", [], {
+        queueDeadline,
+        supervise: async () => {
+          effects++;
+          return 0;
+        },
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+  assert.equal(effects, 0);
+});
+
+void test("original queue deadline bounds an actually occupied isolated capacity domain without launching payload", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "source-queue-deadline-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(
+    path.join(directory, "config.json"),
+    JSON.stringify({ slots: 1, legacyMode: "coordinated", waitMs: 60000 }),
+  );
+  const settings = {
+    root: directory,
+    environment: {},
+    legacyBlocker: async () => null,
+    snapshot: () => "fixed",
+    pollMs: 10,
+    report: () => {},
+  };
+  const held = await acquireResourceCapacity("analysis", {}, settings);
+  let payload = false;
+  const started = performance.now();
+  try {
+    await assert.rejects(
+      runResourceCommand("analysis", "never", [], {
+        environment: {},
+        queueDeadline: started + 500,
+        supervise: async (_args, options) => {
+          const lease = await options.acquireLock!(
+            {},
+            { ...settings, waitMs: 60000, waitMilliseconds: 60000 },
+          );
+          payload = true;
+          await lease.release();
+          return 0;
+        },
+      }),
+      { code: "PORTCOVE_RESOURCE_QUEUE_TIMEOUT" },
+    );
+  } finally {
+    await held.release();
+  }
+  assert.equal(payload, false);
+  assert.ok(
+    performance.now() - started < 5000,
+    "does not inherit the configured 60-second queue wait",
+  );
+});
+
 void test("native build uses the installed pinned Tauri CLI and literal build arguments", () => {
   const command = nativeBuildCommand(["--no-bundle", "--config", "literal path"], {
     resolve: (name) => {

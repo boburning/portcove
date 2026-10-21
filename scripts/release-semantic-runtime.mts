@@ -835,7 +835,10 @@ export function semanticSupervisorEnvironment(
   source: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
   const environment: NodeJS.ProcessEnv = {
-    PATH: "/usr/bin:/bin",
+    // The existing resource supervisor compiles its maintained process-tree
+    // reaper with the parent's pinned Rust toolchain before launching Python.
+    // Both fixed Python supervisors independently clear their child PATH.
+    PATH: source.PATH ?? "/usr/bin:/bin",
     LANG: "C.UTF-8",
     HOME: source.HOME,
   };

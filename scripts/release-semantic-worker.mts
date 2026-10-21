@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, realpath, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
@@ -12,7 +12,7 @@ import {
   recoverRemoteCoordinator,
   readRemoteCoordinatorSnapshot,
 } from "./release-coordinator-recovery.mts";
-import { hydrateReleasePreparationSource } from "./release-preparation-source.mts";
+import { materializeSemanticSource } from "./release-semantic-source.mts";
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import {
   readIndependentSemanticCheckInventory,
@@ -85,11 +85,12 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !==
-      "auth_cache,issuer,kind,namespace,output_parent,runtime,schema_version,setup_grant_sha256,source_read_token,source_repository,worker_revision" ||
+      "auth_cache,issuer,kind,namespace,output_parent,runtime,schema_version,setup_grant_sha256,source_git_sha256,source_read_token,source_repository,worker_revision" ||
     value.schema_version !== 1 ||
     value.kind !== "portcove-fixed-semantic-worker" ||
     !/^[a-f0-9]{40}$/u.test(String(value.worker_revision)) ||
     !/^[a-f0-9]{64}$/u.test(String(value.setup_grant_sha256)) ||
+    !/^[a-f0-9]{64}$/u.test(String(value.source_git_sha256)) ||
     !isRecord(value.issuer) ||
     !isRecord(value.issuer.issuer)
   )
@@ -146,6 +147,7 @@ export function inspectSemanticWorkerConfiguration(raw: unknown) {
     output_parent: output,
     auth_cache: authCache,
     source_repository: absolute(value.source_repository),
+    source_git_sha256: String(value.source_git_sha256),
     source_read_token: absolute(value.source_read_token),
     worker_revision: String(value.worker_revision),
     setup_grant_sha256: String(value.setup_grant_sha256),
@@ -453,21 +455,6 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     if (capacityDigest(recovered.input.review_request) !== capacityDigest(request))
       throw new Error("journal changed during full request recovery");
     await guard();
-    const source = path.join(attempt, "source.git");
-    git(attempt, ["init", "--bare", "--quiet", source]);
-    const objects = await realpath(
-      git(config.source_repository, [
-        "rev-parse",
-        "--path-format=absolute",
-        "--git-path",
-        "objects",
-      ]),
-    );
-    if (/[\r\n\0]/u.test(objects)) throw new Error("source object path invalid");
-    await writeFile(path.join(source, "objects/info/alternates"), `${objects}\n`, {
-      flag: "wx",
-      mode: 0o600,
-    });
     const tag = api.request(
       "GET",
       `${repository}/git/ref/tags/${encodeURIComponent(`v${request.base_version}`)}`,
@@ -479,22 +466,21 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
       !/^[a-f0-9]{40}$/u.test(String(tag.object.sha))
     )
       throw new Error("existing publication tag unavailable");
-    if (tag.object.type === "commit") {
-      const commit = api.request("GET", `${repository}/git/commits/${String(tag.object.sha)}`).body;
-      if (!isRecord(commit) || !isRecord(commit.tree) || typeof commit.tree.sha !== "string")
-        throw new Error("published preparation tree unavailable");
-      await retain(
-        "prepared-source-materialization",
-        hydrateReleasePreparationSource(
-          source,
-          { source_commit: String(tag.object.sha), source_tree: commit.tree.sha },
-          api,
-        ),
-      );
-    } else if (tag.object.type !== "tag") throw new Error("unsupported publication object");
-    // Missing ordinary source objects or legacy annotated tags are explicit
-    // source-acquisition failures. No unbounded fetch or candidate checkout.
-    git(source, ["cat-file", "-e", `${request.source_commit}^{commit}`]);
+    if (!["commit", "tag"].includes(String(tag.object.type)))
+      throw new Error("unsupported publication object");
+    const acquired = await materializeSemanticSource(
+      attempt,
+      {
+        source_commit: request.source_commit,
+        source_tree: request.source_tree,
+        base_commit: request.base_commit,
+        published_object: String(tag.object.sha),
+      },
+      api,
+      { git_sha256: config.source_git_sha256, python_sha256: config.runtime.tools_sha256.python },
+    );
+    await retain("bounded-source-materialized-no-runtime", acquired);
+    const source = acquired.repository;
     await guard();
     const outcome = await reviewFrozenCoordinatorRequest(api, source, request, {
       namespace: config.namespace,

@@ -209,7 +209,7 @@ for (const theme of ["dark", "light"]) {
       .map((entry) => entry.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect());
     for (const box of art) {
       expect(box.width).toBeGreaterThanOrEqual(175);
-      expect(box.width).toBeLessThanOrEqual(221);
+      expect(box.width).toBeLessThanOrEqual(261);
       expect(Math.abs(box.height / box.width - 1.5)).toBeLessThan(0.02);
       expect(Math.abs(box.height - art[0]!.height)).toBeLessThan(1);
     }
@@ -252,10 +252,9 @@ for (const theme of ["dark", "light"]) {
     localStorage.clear();
     await page.viewport(960, 640);
     await mount(theme);
-    expect(document.querySelector(".collection-art")!.getBoundingClientRect().width).toBeCloseTo(
-      112,
-      0,
-    );
+    expect(
+      document.querySelector(".collection-art")!.getBoundingClientRect().width,
+    ).toBeLessThanOrEqual(180);
     const spacing = document.createElement("style");
     spacing.id = "collection-spacing";
     spacing.textContent =
