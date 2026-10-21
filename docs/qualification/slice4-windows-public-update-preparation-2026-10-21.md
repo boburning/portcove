@@ -259,3 +259,17 @@ passed with zero skips and five affected modules passed typed lint. The first
 typed draft exposed unknown-valued parser fields; explicit validated return
 values fixed that diagnostic without a cast. Actual positive historical-provider
 and native execution remain unobserved.
+
+The shared actual invocation claim now has an explicit continuation branch. Only
+an actual current continuation pair plus its historical receipt can turn the
+complete positive A/B history into continue-with-v2. It still requires no active
+coordinator candidate, complete current local resource settlement, original
+parent lifetime, and the same exclusive anchor/CreateNew append. V2 requests
+separately pin parked V1 package/compiler identities and the exact original B
+invocation. The private getter returns those opaque package/compiler references
+and rereads the original settled B files/wire; copied phase data cannot claim.
+A completed third phase is recognized without replaying it, while the historical
+getter continues to pin only the original A/B prefix. Sixteen data/refusal cases
+and five affected typed modules passed. Execution dispatch/capture continuation
+and the shared Windows registration rendezvous remain held; this claim is not
+an observation that a public updater ran.
