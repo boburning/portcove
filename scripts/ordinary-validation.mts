@@ -516,9 +516,19 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-catalog-semantic.mts", ["scripts/release-catalog-semantic.test.mts"]],
   [
     "scripts/release-catalog-signing.mts",
-    ["scripts/release-catalog-signing.test.mts", "scripts/release-catalog-recovery.test.mts"],
+    [
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-catalog-recovery.test.mts",
+      "scripts/release-catalog-context-boundary.test.mts",
+    ],
   ],
-  ["scripts/release-catalog-signing-context.mts", ["scripts/release-catalog-signing.test.mts"]],
+  [
+    "scripts/release-catalog-signing-context.mts",
+    [
+      "scripts/release-catalog-signing.test.mts",
+      "scripts/release-catalog-context-boundary.test.mts",
+    ],
+  ],
   ["scripts/release-catalog-signing-contract.mts", ["scripts/release-catalog-signing.test.mts"]],
   [
     "scripts/release-catalog-source.mts",
