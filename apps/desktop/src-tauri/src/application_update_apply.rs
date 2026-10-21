@@ -483,9 +483,13 @@ impl ApplicationUpdateApplyStore {
     }
 
     /// Reuses an identical explicit restart request after a known failed
-    /// native attempt, while refusing ambiguous or successful attempts. The
-    /// caller must still record the matching restart termination and launch a
-    /// fresh helper; this method grants no replacement authority.
+    /// native attempt, while refusing ambiguous or successful attempts.
+    /// An explicitly selected newer candidate may supersede a restart request
+    /// only before any native launch. The same apply lock fences an older
+    /// helper by revision or excludes this change while that helper owns a
+    /// revalidation/launch lease. This is not proof that the helper exited.
+    /// The caller must still record the matching restart termination and launch
+    /// a fresh helper; this method grants no replacement authority.
     pub fn prepare_explicit_restart(
         &self,
         preferences: &ApplicationUpdatePreferences,
@@ -512,7 +516,29 @@ impl ApplicationUpdateApplyStore {
                 publish = true;
             }
             Some(current) if current != &intent => {
-                return Err(ApplicationUpdateApplyError::IntentConflict);
+                let newer = semver::Version::parse(&intent.candidate.release.version)
+                    .ok()
+                    .zip(semver::Version::parse(&current.candidate.release.version).ok())
+                    .is_some_and(|(next, prior)| next.cmp_precedence(&prior).is_gt());
+                if current.request != ApplicationUpdateApplyRequest::RestartToApply
+                    || current.installed != intent.installed
+                    || current.library_root != intent.library_root
+                    || current.preference_choice.channel != intent.preference_choice.channel
+                    || !newer
+                    || state.native_launch.is_some()
+                    || state.native_exit_code.is_some()
+                    || state.native_replacement.is_some()
+                    || !matches!(
+                        state.termination,
+                        None | Some(ApplicationTerminationKind::RestartToApply)
+                    )
+                {
+                    return Err(ApplicationUpdateApplyError::IntentConflict);
+                }
+                state.revision = next_revision(state.revision)?;
+                state.intent = Some(intent);
+                state.termination = None;
+                publish = true;
             }
             Some(_) => match state.native_launch {
                 Some(
@@ -1341,6 +1367,231 @@ mod tests {
             )
             .unwrap();
         assert!(observed.may_attempt_revalidation());
+    }
+
+    #[test]
+    fn explicit_newer_restart_supersedes_only_an_unlaunched_matching_installation() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = library_root(&temporary);
+        let preferences = preferences(ApplicationUpdateMode::Manual, false);
+        let installed = installed("0.1.0");
+        let store = ApplicationUpdateApplyStore::new(temporary.path().join("updates")).unwrap();
+        let prior = staged(
+            candidate("0.2.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let next = staged(
+            candidate("0.3.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let prepared = store
+            .prepare_explicit_restart(&preferences, &prior, &installed, &library)
+            .unwrap();
+        let terminated = store
+            .record_termination(
+                prepared.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+        let superseded = store
+            .prepare_explicit_restart(&preferences, &next, &installed, &library)
+            .unwrap();
+        assert_eq!(superseded.revision, terminated.revision + 1);
+        assert_eq!(
+            superseded.intent.as_ref().unwrap().candidate,
+            next.candidate
+        );
+        assert_eq!(superseded.termination, None);
+        assert!(!superseded.may_attempt_revalidation());
+        assert!(matches!(
+            store.record_termination(
+                terminated.revision,
+                ApplicationTerminationKind::RestartToApply
+            ),
+            Err(ApplicationUpdateApplyError::RevisionConflict { .. })
+        ));
+        assert_eq!(store.load().unwrap(), superseded);
+    }
+
+    #[test]
+    fn newer_restart_preserves_native_attempts_and_unrelated_intents() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = library_root(&temporary);
+        let other_library = temporary.path().join("other-library");
+        drop(portcove_core::Library::open(&other_library).unwrap());
+        let preferences = preferences(ApplicationUpdateMode::Automatic, false);
+        let installed = installed("0.1.0");
+        let store = ApplicationUpdateApplyStore::new(temporary.path().join("updates")).unwrap();
+        let prior = staged(
+            candidate("0.2.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let next = staged(
+            candidate("0.3.0-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        let prepared = store
+            .prepare_explicit_restart(&preferences, &prior, &installed, &library)
+            .unwrap();
+        let terminated = store
+            .record_termination(
+                prepared.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+        let unchanged = |state: &ApplicationUpdateApplyState,
+                         target: &StagedApplicationUpdate,
+                         context: &InstalledApplicationContext,
+                         root: &Path| {
+            store.publish(state).unwrap();
+            let original = fs::read(store.root().join(APPLY_FILE)).unwrap();
+            assert!(matches!(
+                store.prepare_explicit_restart(&preferences, target, context, root),
+                Err(ApplicationUpdateApplyError::IntentConflict)
+            ));
+            assert_eq!(fs::read(store.root().join(APPLY_FILE)).unwrap(), original);
+            assert_eq!(store.load().unwrap(), *state);
+        };
+        for native in [
+            ApplicationUpdateNativeLaunchState::Starting,
+            ApplicationUpdateNativeLaunchState::Started,
+            ApplicationUpdateNativeLaunchState::Failed,
+            ApplicationUpdateNativeLaunchState::InstallerSucceeded,
+            ApplicationUpdateNativeLaunchState::InstallerFailed,
+        ] {
+            let mut state = terminated.clone();
+            state.native_launch = Some(native);
+            state.native_exit_code = match native {
+                ApplicationUpdateNativeLaunchState::InstallerSucceeded => Some(0),
+                ApplicationUpdateNativeLaunchState::InstallerFailed => Some(1),
+                _ => None,
+            };
+            unchanged(&state, &next, &installed, &library);
+        }
+        unchanged(&terminated, &next, &installed, &other_library);
+        let mut changed_install = installed.clone();
+        changed_install.current_version = "0.1.1".into();
+        unchanged(&terminated, &next, &changed_install, &library);
+        let mut safe_exit = terminated.clone();
+        safe_exit.intent.as_mut().unwrap().request = ApplicationUpdateApplyRequest::SafeExit;
+        safe_exit.termination = Some(ApplicationTerminationKind::NormalExit);
+        unchanged(&safe_exit, &next, &installed, &library);
+        let mut unmatched = terminated.clone();
+        unmatched.termination = Some(ApplicationTerminationKind::Crash);
+        unchanged(&unmatched, &next, &installed, &library);
+        let older = staged(
+            candidate("0.1.1-beta.1", ApplicationChannel::Preview),
+            temporary.path(),
+        );
+        unchanged(&terminated, &older, &installed, &library);
+        let mut same_version = prior.clone();
+        same_version.candidate.promotion.reason = Some("different retained context".into());
+        unchanged(&terminated, &same_version, &installed, &library);
+    }
+
+    #[tokio::test]
+    async fn newer_restart_is_excluded_by_admitted_lease_and_fences_old_helpers() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = library_root(&temporary);
+        let apply = ApplicationUpdateApplyStore::new(temporary.path().join("updates")).unwrap();
+        let staging = ApplicationUpdateStagingStore::new(temporary.path().join("staging")).unwrap();
+        let preferences_store =
+            ApplicationUpdatePreferenceStore::new(temporary.path().join("preferences.json"))
+                .unwrap();
+        let preferences = preferences_store
+            .save_choice(
+                0,
+                preferences(ApplicationUpdateMode::Manual, false)
+                    .choice
+                    .unwrap(),
+            )
+            .unwrap();
+        let installed = installed("0.1.0");
+        let runtime_lock = temporary.path().join("runtime.lock");
+        let prior = stageable_candidate("0.2.0-beta.1");
+        let next = stageable_candidate("0.3.0-beta.1");
+        let prior_staged = staging
+            .stage(&mut &b"test"[..], &prior, &payload_key())
+            .await
+            .unwrap();
+        let next_staged = staged(next.clone(), temporary.path());
+        let prepared = apply
+            .prepare_explicit_restart(&preferences, &prior_staged, &installed, &library)
+            .unwrap();
+        let terminated = apply
+            .record_termination(
+                prepared.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+        let lease = apply
+            .admit_revalidation(
+                terminated.revision,
+                &preferences_store,
+                &staging,
+                &prior,
+                &installed,
+                &runtime_lock,
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            apply.prepare_explicit_restart(&preferences, &next_staged, &installed, &library),
+            Err(ApplicationUpdateApplyError::Busy)
+        ));
+        assert!(matches!(
+            staging.reset(),
+            Err(ApplicationUpdateStagingError::Busy)
+        ));
+        drop(lease);
+        let next_staged = staging
+            .stage(&mut &b"test"[..], &next, &payload_key())
+            .await
+            .unwrap();
+        let superseded = apply
+            .prepare_explicit_restart(&preferences, &next_staged, &installed, &library)
+            .unwrap();
+        assert!(matches!(
+            apply
+                .admit_revalidation(
+                    terminated.revision,
+                    &preferences_store,
+                    &staging,
+                    &prior,
+                    &installed,
+                    &runtime_lock
+                )
+                .await,
+            Err(ApplicationUpdateApplyError::RevisionConflict { .. })
+        ));
+        assert_eq!(apply.load().unwrap(), superseded);
+        let terminated = apply
+            .record_termination(
+                superseded.revision,
+                ApplicationTerminationKind::RestartToApply,
+            )
+            .unwrap();
+        let lease = apply
+            .admit_revalidation(
+                terminated.revision,
+                &preferences_store,
+                &staging,
+                &next,
+                &installed,
+                &runtime_lock,
+            )
+            .await
+            .unwrap();
+        assert_eq!(lease.staged().candidate, next);
+        let failed = lease
+            .begin_native_launch()
+            .unwrap()
+            .record_failed()
+            .unwrap();
+        assert_eq!(
+            failed.native_launch,
+            Some(ApplicationUpdateNativeLaunchState::Failed)
+        );
     }
 
     #[test]
