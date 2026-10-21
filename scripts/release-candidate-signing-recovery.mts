@@ -17,7 +17,15 @@ import {
 import {
   recoverReleaseOpportunity,
   readRetainedCapacityOperation,
+  checkpointReleaseOpportunity,
 } from "./release-coordinator-state.mts";
+import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
+import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
+import {
+  inspectPublicationReportRepair,
+  inspectConsumedPublicationReportRepair,
+} from "./release-report-repair-contract.mts";
 import {
   hydrateRetainedCoordinatorOperation,
   readRemoteCoordinatorSnapshot,
@@ -55,6 +63,19 @@ import {
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  readImmutableReleaseState,
+  proposeImmutableReleaseTransition,
+} from "./release-immutable-publication.mts";
+import { receivePublicationResultArtifact } from "./release-publication-result-artifact.mts";
+import type { PublicationResultArtifactExpected } from "./release-publication-result-artifact.mts";
+import {
+  inspectPendingResultOperation,
+  inspectRetainedResultOperation,
+  publicationResultReadbackDestination,
+  inspectPendingResultProvider,
+  readPendingResultArchive,
+} from "./release-pending-result-recovery.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 
 import {
@@ -81,10 +102,9 @@ function roleFor(output: Output) {
   return output === "payload" || output === "context" ? "payload-signing" : `tuf-${output}`;
 }
 function candidate(raw: unknown) {
-  assert.ok(
-    isRecord(raw) && ["publishing", "promoting"].includes(String(raw.phase)),
-    "signing readback requires publishing/promoting",
-  );
+  assert.ok(isRecord(raw), "signing readback candidate missing");
+  if (!["publishing", "promoting"].includes(String(raw.phase)))
+    inspectConsumedPublicationReportRepair(raw);
   for (const key of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
     assert.ok(
       typeof raw[key] === "string" && /^[a-f0-9]{40}$/u.test(raw[key]),
@@ -332,6 +352,112 @@ export async function readSigningOperationsForPendingRelease(
   );
   return readOriginalSigningOperations(repository, input, active, api, pending);
 }
+/** Named GET-only allowance for the exact retained result upload. All original
+ * signing outputs must already be settled; it cannot authorize another upload. */
+export async function readSigningOperationsForPendingResult(
+  repository: string,
+  input: unknown,
+  active: Record<string, unknown>,
+  api?: GitHubRestReader,
+) {
+  assert.ok(
+    isRecord(input) && isRecord(input.controller) && isRecord(input.controller.capacity_attempt),
+  );
+  const current = inspectCapacityOperation(input.controller.capacity_attempt.operation);
+  const pending =
+    current && settled(current)
+      ? inspectRetainedResultOperation(current, active)
+      : inspectPendingResultOperation(current, active);
+  return readOriginalSigningOperations(repository, input, active, api, pending);
+}
+
+async function readOriginalPublishedOperation(
+  repository: string,
+  input: Record<string, unknown>,
+  active: Record<string, unknown>,
+  api: GitHubRestReader,
+) {
+  assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+  const capacity = input.controller.capacity_attempt;
+  const wanted = `github-release:boburning/portcove:v${String(active.version)}:publish`;
+  const candidates: Operation[] = [];
+  if (capacity.schema_version === 2) {
+    for (const group of inspectCompactCapacityOperations(capacity.prior_operations)) {
+      if (
+        group.subject.kind !== "candidate" ||
+        group.subject.identity !== active.prepared_commit ||
+        group.kind !== "upload" ||
+        group.destination_sha256 !== digest(wanted) ||
+        !group.completed
+      )
+        continue;
+      for (const proof of group.attempts) {
+        let raw: unknown;
+        try {
+          raw = readRetainedCapacityOperation(repository, proof);
+        } catch {
+          raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+        }
+        const retained = inspectCapacityOperation(raw);
+        if (retained && settled(retained)) candidates.push(retained);
+      }
+    }
+  } else {
+    assert.ok(Array.isArray(capacity.prior_operations) && capacity.prior_operations.length <= 32);
+    for (const raw of capacity.prior_operations) {
+      const retained = inspectCapacityOperation(raw);
+      if (retained?.destination === wanted && settled(retained)) candidates.push(retained);
+    }
+  }
+  assert.equal(candidates.length, 1, "original immutable publish settlement missing or ambiguous");
+  const published = candidates[0]!;
+  assert.equal(published.destination, wanted);
+  return published;
+}
+
+/** Metadata may advance the current operation after the upload was settled.
+ * Retain exact original result custody through its existing immutable proof. */
+async function readOriginalResultOperation(
+  repository: string,
+  input: Record<string, unknown>,
+  active: Record<string, unknown>,
+  api: GitHubRestReader,
+) {
+  assert.ok(isRecord(input.controller) && isRecord(input.controller.capacity_attempt));
+  const capacity = input.controller.capacity_attempt;
+  const wanted = publicationResultReadbackDestination(active);
+  const current = inspectCapacityOperation(capacity.operation);
+  if (current?.destination === wanted)
+    return settled(current)
+      ? inspectRetainedResultOperation(current, active)
+      : inspectPendingResultOperation(current, active);
+  if (current && !["succeeded", "recovered"].includes(current.outcome)) return undefined;
+  if (capacity.schema_version === 2) {
+    const groups = inspectCompactCapacityOperations(capacity.prior_operations).filter(
+      (group) =>
+        group.subject.kind === "candidate" &&
+        group.subject.identity === active.prepared_commit &&
+        group.kind === "upload" &&
+        group.destination_sha256 === digest(wanted),
+    );
+    assert.ok(groups.length <= 1, "original result summary is ambiguous");
+    if (!groups.length) return undefined;
+    const proof = groups[0]!.attempts.at(-1)!;
+    let raw: unknown;
+    try {
+      raw = readRetainedCapacityOperation(repository, proof);
+    } catch {
+      raw = await hydrateRetainedCoordinatorOperation(repository, proof, { api });
+    }
+    return inspectRetainedResultOperation(raw, active);
+  }
+  assert.ok(Array.isArray(capacity.prior_operations) && capacity.prior_operations.length <= 32);
+  const matches = capacity.prior_operations
+    .map(inspectCapacityOperation)
+    .filter((op) => op?.destination === wanted);
+  assert.ok(matches.length <= 1, "original result history is ambiguous");
+  return matches.length ? inspectRetainedResultOperation(matches[0], active) : undefined;
+}
 async function readOriginalSigningOperations(
   repository: string,
   input: unknown,
@@ -476,7 +602,7 @@ export async function recoverCandidateSigningCustody(
       assert.equal((await refreshCapacityExecutor(executor)).role, "coordinator");
       const state = await recoverReleaseOpportunity(input.repository, checkpoint);
       const active = candidate(state.input.active_candidate);
-      const originalCandidate = digest(active);
+      let originalCandidate = digest(active);
       const guard = async () => {
         signingContextRemaining(deadline, 15000);
         await verifiedControllerToolPaths(toolsReceipt);
@@ -488,7 +614,7 @@ export async function recoverCandidateSigningCustody(
         );
         assert.equal(snapshot.checkpoint, checkpoint, "signing custody journal changed");
         assert.equal(
-          digest(candidate(snapshot.input.active_candidate)),
+          digest(snapshot.input.active_candidate),
           originalCandidate,
           "signing recovery changed candidate/phase/counters",
         );
@@ -507,9 +633,20 @@ export async function recoverCandidateSigningCustody(
         currentOperation.destination.startsWith("github-release:boburning/portcove:")
           ? inspectPendingCandidateReleaseOperation(currentOperation, active)
           : undefined;
-      const operations = await (
-        pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
-      )(input.repository, state.input, active, api);
+      const pendingResult = pendingRelease
+        ? undefined
+        : await readOriginalResultOperation(input.repository, state.input, active, api);
+      const operations = pendingResult
+        ? await readOriginalSigningOperations(
+            input.repository,
+            state.input,
+            active,
+            api,
+            pendingResult,
+          )
+        : await (
+            pendingRelease ? readSigningOperationsForPendingRelease : readCandidateSigningOperations
+          )(input.repository, state.input, active, api);
       const observe = (operation: Operation, output: Exclude<Output, "payload">) => {
         const producer = operation.executor_identity!;
         return inspectCandidateSigningProvider(
@@ -667,6 +804,260 @@ export async function recoverCandidateSigningCustody(
       );
       await requireActualTufPublication(publication, deadline);
       await requireRetainedSigningContext(context, deadline);
+      let publicationResultLocator: PublicationResultArtifactExpected | undefined;
+      let resultRepair: Record<string, unknown> | undefined;
+      if (pendingResult) {
+        phase = "original-pending-result-readback";
+        const published = await readOriginalPublishedOperation(
+          input.repository,
+          state.input,
+          active,
+          api,
+        );
+        const expected = await derivePendingReleaseAssets(
+          context,
+          publication,
+          toolsReceipt,
+          active,
+          deadline,
+        );
+        const producer = pendingResult.executor_identity!;
+        const observeProvider = () =>
+          inspectPendingResultProvider(
+            get(`actions/runs/${String(producer.run_id)}`),
+            get(`actions/runs/${String(producer.run_id)}/attempts/1`),
+            get(`actions/jobs/${String(producer.job_id)}`),
+            readCompleteRunArtifactInventory((page) =>
+              get(`actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`),
+            ),
+            pendingResult,
+          );
+        const commit = get(`git/commits/${producer.controller_revision}`);
+        assert.ok(
+          isRecord(commit) &&
+            commit.sha === producer.controller_revision &&
+            isRecord(commit.tree) &&
+            typeof commit.tree.sha === "string" &&
+            /^[a-f0-9]{40}$/u.test(commit.tree.sha),
+        );
+        const controllerTree = commit.tree.sha;
+        const providerBefore = observeProvider();
+        const archive = readGitHubArtifactArchive(
+          `${base}/actions/artifacts/${providerBefore.artifact.id}/zip`,
+          {
+            cwd: directory,
+            maxBytes: providerBefore.artifact.bytes,
+            timeoutMs: signingContextRemaining(deadline, 30000),
+            spawn: (command, args, settings) =>
+              spawnSync(command, args, { ...settings, env: environment }),
+          },
+        );
+        signingContextRemaining(deadline, 15000);
+        const observeRelease = async (record: Record<string, unknown>) => {
+          assert.ok(isRecord(record.release) && Array.isArray(record.release.assets));
+          const assets = record.release.assets.map((raw: unknown) => {
+            assert.ok(
+              isRecord(raw) &&
+                typeof raw.filename === "string" &&
+                typeof raw.bytes === "number" &&
+                typeof raw.sha256 === "string",
+            );
+            return { filename: raw.filename, bytes: raw.bytes, sha256: raw.sha256 };
+          });
+          assert.equal(assets.length, expected.assets.length + 1);
+          for (const wanted of expected.assets)
+            assert.ok(
+              assets.some((a) => digest(a) === digest(wanted)),
+              "report public asset differs from original context",
+            );
+          const sbom = assets.find((a) => a.filename === "Portcove-SBOM.spdx.json");
+          assert.ok(
+            sbom &&
+              sbom.sha256 === expected.sbom_sha256 &&
+              Number.isSafeInteger(sbom.bytes) &&
+              sbom.bytes > 0 &&
+              sbom.bytes <= 16 * 1024 ** 2,
+          );
+          const identity = {
+            version: expected.version,
+            source_commit: expected.source_commit,
+            assets,
+          };
+          const raw = readImmutableReleaseState(api, identity);
+          const transition = proposeImmutableReleaseTransition(identity, raw.release, raw.assets);
+          assert.equal(
+            transition.decision,
+            "complete",
+            "original immutable Release is no longer complete",
+          );
+          if (transition.decision !== "complete") throw new Error("complete Release required");
+          const sbomAsset = transition.assets.find((a) => a.filename === sbom.filename)!;
+          const sbomBytes = readGitHubReleaseAsset(`${base}/releases/assets/${sbomAsset.id}`, {
+            cwd: directory,
+            maxBytes: sbom.bytes,
+            timeoutMs: signingContextRemaining(deadline, 30000),
+            spawn: (command, args, settings) =>
+              spawnSync(command, args, { ...settings, env: environment }),
+          });
+          assert.equal(sbomBytes.length, sbom.bytes);
+          assert.equal(hash(sbomBytes), sbom.sha256);
+          return {
+            ...transition,
+            version: expected.version,
+            source_commit: expected.source_commit,
+          };
+        };
+        const observe = () =>
+          readPendingResultArchive(
+            archive,
+            providerBefore,
+            controllerTree,
+            context,
+            pendingResult,
+            active,
+            published,
+            observeRelease,
+            deadline,
+          );
+        await guard();
+        const before = await observe();
+        if (!settled(pendingResult)) {
+          const recovered = await recoverOwnedCapacityEffect(
+            executor,
+            { ...input, checkpoint },
+            async (pending) => {
+              assert.equal(digest(pending), digest(pendingResult));
+              await guard();
+              const again = await observe();
+              assert.equal(digest(again.projection), digest(before.projection));
+              assert.equal(
+                digest(observeProvider()),
+                digest(providerBefore),
+                "original result provider drifted",
+              );
+              await requireRetainedActualTufPublication(publication, deadline);
+              await guard();
+              return {
+                resolution: "effect-completed",
+                evidence_sha256: again.evidence_sha256,
+                ...(pendingResult.completed_effects.length
+                  ? {}
+                  : {
+                      completed_effect: {
+                        remote_identity: again.remote_identity,
+                        evidence_sha256: again.evidence_sha256,
+                      },
+                    }),
+              };
+            },
+          );
+          checkpoint = recovered.checkpoint;
+        }
+        await guard();
+        if (
+          providerBefore.bundle &&
+          isRecord(providerBefore.original.job) &&
+          providerBefore.original.job.conclusion === "success"
+        ) {
+          const resultLocator: PublicationResultArtifactExpected = {
+            controller_revision: producer.controller_revision,
+            controller_ref: producer.execution_ref,
+            source_tree: controllerTree,
+            run_id: String(producer.run_id),
+            run_attempt: 1,
+            artifact: { id: providerBefore.artifact.id, sha256: providerBefore.artifact.sha256 },
+            bundle: { id: providerBefore.bundle.id, sha256: providerBefore.bundle.sha256 },
+            report_sha256: before.report_sha256,
+          };
+          await receivePublicationResultArtifact(directory, resultLocator, context, deadline);
+          publicationResultLocator = resultLocator;
+          await guard();
+        } else {
+          resultRepair = {
+            operation_id: pendingResult.id,
+            artifact: providerBefore.artifact,
+            report_sha256: before.report_sha256,
+            original_executor: producer,
+            scope: "upload custody only; original successful attestation absent",
+            authority: "none",
+          };
+          if (Number(active.transient_retries) < 2) {
+            await guard();
+            const current = await recoverReleaseOpportunity(input.repository, checkpoint);
+            assert.equal(digest(current.input.active_candidate), originalCandidate);
+            assert.ok(
+              isRecord(current.input.controller) &&
+                isRecord(current.input.controller.capacity_attempt),
+            );
+            const currentOperation = inspectCapacityOperation(
+              current.input.controller.capacity_attempt.operation,
+            );
+            assert.ok(
+              !currentOperation || settled(currentOperation),
+              "unrelated unresolved effect blocks report failure",
+            );
+            const reportOperation =
+              currentOperation?.id === pendingResult.id ? currentOperation : pendingResult;
+            assert.ok(
+              reportOperation &&
+                settled(reportOperation) &&
+                reportOperation.id === pendingResult.id,
+            );
+            const failed = { ...active, phase: "failed", failure_kind: "transient" };
+            const proof = inspectPublicationReportRepair(
+              {
+                schema_version: 1,
+                candidate_sha256: candidateProgressIdentity(active),
+                expected_transient_retry: Number(active.transient_retries) + 1,
+                substantive_repairs: active.substantive_repairs,
+                failure:
+                  providerBefore.original.job.conclusion === "success"
+                    ? "attestation-missing"
+                    : "producer-failed",
+                artifact_id: providerBefore.artifact.id,
+                artifact_sha256: providerBefore.artifact.sha256,
+                report_sha256: before.report_sha256,
+                context_manifest_sha256: before.record.context.manifest_sha256,
+                result_checkpoint: checkpoint,
+                result_operation_id: reportOperation.id,
+                result_operation_sha256: digest(reportOperation),
+                result_operation: reportOperation,
+                publish_operation_id: published.id,
+                publish_operation_sha256: digest(published),
+                release_id: before.record.release.release_id,
+                immutable_identity_sha256: before.record.immutable_identity_sha256,
+              },
+              failed,
+            );
+            const failedCandidate = { ...failed, report_repair: proof };
+            const next = structuredClone(current.input);
+            next.active_candidate = failedCandidate;
+            const saved = await checkpointReleaseOpportunity(input.repository, checkpoint, next);
+            await guard();
+            await refreshCapacityExecutor(executor);
+            await publishCoordinatorCheckpoint(
+              input.repository,
+              saved.checkpoint,
+              input.remote_configuration,
+              { api: createCoordinatorJournalApi(directory, deadline) },
+            );
+            checkpoint = saved.checkpoint;
+            originalCandidate = digest(failedCandidate);
+            await guard();
+            resultRepair = {
+              ...resultRepair,
+              failure_checkpoint: checkpoint,
+              expected_transient_retry: proof.expected_transient_retry,
+              scope:
+                "same-journal technical failure; next actual coordinator must consume its bounded retry plan",
+            };
+          } else
+            resultRepair = {
+              ...resultRepair,
+              scope: "existing transient repair limit exhausted; no new report attempt",
+            };
+        }
+      }
       if (pendingRelease) {
         phase = "original-pending-Release-readback";
         const expected = await derivePendingReleaseAssets(
@@ -742,11 +1133,26 @@ export async function recoverCandidateSigningCustody(
       await refreshCapacityExecutor(executor);
       signingContextRemaining(deadline, 15000);
       const result = Object.freeze({
-        decision: "candidate-signing-custody-reused" as const,
+        decision: resultRepair
+          ? ("candidate-publication-result-repair-required" as const)
+          : ("candidate-signing-custody-reused" as const),
         checkpoint,
-        candidate_phase: active.phase as "publishing" | "promoting",
+        candidate_phase:
+          resultRepair && "failure_checkpoint" in resultRepair
+            ? ("failed" as const)
+            : (active.phase as "qualifying" | "building" | "publishing" | "promoting"),
         context_locator: contextLocator,
+        ...(active.report_repair === undefined
+          ? {}
+          : {
+              report_only_repair: true,
+              report_repair_sha256: digest(inspectConsumedPublicationReportRepair(active)),
+            }),
         role_locators: roleLocators,
+        ...(publicationResultLocator
+          ? { publication_result_locator: publicationResultLocator }
+          : {}),
+        ...(resultRepair ? { publication_result_repair: resultRepair } : {}),
         authority: "none" as const,
         scope: "original-attested-custody-only" as const,
       });

@@ -348,6 +348,21 @@ async function contextAssociation(
   return context;
 }
 
+/** Bounded report/context association for GET-only upload recovery. This does
+ * not verify an attestation, mint received custody, or authorize publication. */
+export async function inspectPublicationResultReadback(
+  bytes: Buffer,
+  controller: Controller,
+  contextReceipt: object,
+  deadline: number,
+) {
+  remaining(deadline);
+  const record = reportInput(bytes, controller);
+  const context = await contextAssociation(record, contextReceipt, deadline, "retained");
+  remaining(deadline);
+  return { record, context, report_sha256: hash(bytes), authority: "none" as const };
+}
+
 /** Verify exact result bytes through the existing GitHub/Sigstore verifier and
  * terminal fixed producer. Failed workflow siblings cannot erase a successful
  * producer's immutable result; recovery authorization remains a separate gate. */

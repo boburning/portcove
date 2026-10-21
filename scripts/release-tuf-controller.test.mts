@@ -369,6 +369,65 @@ void test("closed fixed DAG serialization cannot substitute arbitrary tool, cont
     roles.map(() => "12344"),
   );
   assert.equal(resumed.configuration.aggregate.run_id, fixed.run_id);
+  const repairOutputs = projectFixedControllerJobOutputs("coordinator", {
+    decision: "candidate-signing-custody-reused",
+    candidate_phase: "qualifying",
+    report_only_repair: true,
+    report_repair_sha256: "9".repeat(64),
+    context_locator: oldContext,
+    role_locators: retainedRoles,
+  });
+  const repairInput = {
+    ...resumedInput,
+    needs: { ...resumedInput.needs, coordinator: out(repairOutputs) },
+  };
+  const repair = prepareFixedControllerConfiguration(repairInput);
+  assert.ok("context" in repair && "roles" in repair);
+  assert.equal(repair.context.run_id, "12344");
+  assert.deepEqual(repair.roles, resumed.roles);
+  const originalPublication = {
+    controller_revision: fixed.controller_revision,
+    source_tree: fixed.source_tree,
+    controller_ref: fixed.controller_ref,
+    run_id: "12343",
+    run_attempt: 1,
+    artifact: artifact(30),
+    bundle: artifact(31),
+    report_sha256: "8".repeat(64),
+  };
+  const publishedOutputs = projectFixedControllerJobOutputs("coordinator", {
+    decision: "candidate-signing-custody-reused",
+    candidate_phase: "promoting",
+    context_locator: oldContext,
+    role_locators: retainedRoles,
+    publication_result_locator: originalPublication,
+  });
+  const publishedInput = {
+    ...resumedInput,
+    operation: "site-publication",
+    needs: {
+      ...resumedInput.needs,
+      coordinator: out(publishedOutputs),
+      release_publication: { result: "skipped", outputs: {} },
+    },
+  };
+  const site = prepareFixedControllerConfiguration(publishedInput);
+  assert.ok("publication_result" in site);
+  assert.deepEqual(site.publication_result, originalPublication);
+  for (const operation of ["building", "payload", "tuf-releases", "release-publication"])
+    assert.throws(() => prepareFixedControllerConfiguration({ ...publishedInput, operation }));
+  for (const operation of ["payload", "tuf-releases", "tuf-timestamp"])
+    assert.throws(() => prepareFixedControllerConfiguration({ ...repairInput, operation }));
+  assert.deepEqual(
+    projectFixedControllerJobOutputs("coordinator", {
+      decision: "report-repair-dispatched",
+      report_only_repair: true,
+      report_repair_sha256: "9".repeat(64),
+      dispatch_run: { run_id: 1111, attempt: 1, revision: "a".repeat(40) },
+      release_run: { run_id: 999, attempt: 1, revision: "a".repeat(40) },
+    }),
+    { mode: "held", stage: "held" },
+  );
   for (const operation of ["payload", "tuf-releases", "tuf-timestamp"])
     assert.throws(() => prepareFixedControllerConfiguration({ ...resumedInput, operation }));
   for (const changed of [

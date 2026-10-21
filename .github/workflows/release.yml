@@ -1,4 +1,5 @@
 name: Release
+run-name: ${{ inputs.report_only_repair && format('Report repair {0}', inputs.report_repair_sha256) || github.event.head_commit.message || github.ref_name }}
 
 on:
   push:
@@ -10,6 +11,14 @@ on:
         type: choice
         default: full
         options: [full, initial-beta-win-linux]
+      report_only_repair:
+        description: Restrict this invocation to an existing journal-bound report repair.
+        type: boolean
+        default: false
+      report_repair_sha256:
+        description: Exact consumed report-repair descriptor digest; never admission authority.
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -23,7 +32,12 @@ concurrency:
 
 jobs:
   identity:
+    timeout-minutes: ${{ inputs.report_only_repair && 2 || 360 }}
+    permissions:
+      contents: read
+      actions: read
     outputs:
+      report_only_repair: ${{ steps.report-repair.outputs.report_only_repair }}
       release_profile: ${{ steps.build-plan.outputs.profile }}
       build_matrix: ${{ steps.build-plan.outputs.build_matrix }}
       public_configuration_revision: ${{ steps.public-input-identity.outputs.revision }}
@@ -41,6 +55,15 @@ jobs:
         env:
           PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile || 'full' }}
         run: node scripts/release-package-policy.mts --profile "$PORTCOVE_RELEASE_PROFILE" --build-plan >> "$GITHUB_OUTPUT"
+      - name: Bind report-only invocation to the actual current journal dispatch
+        if: inputs.report_only_repair
+        id: report-repair
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTCOVE_REPORT_REPAIR_SHA256: ${{ inputs.report_repair_sha256 }}
+          PORTCOVE_RELEASE_PROFILE: ${{ inputs.release_profile }}
+          PORTCOVE_RELEASE_AUTHORITIES: ${{ vars.PORTCOVE_RELEASE_AUTHORITIES }}
+        run: node scripts/release-report-repair-identity.mts
       - name: Bind separately ratified public application build inputs
         if: steps.build-plan.outputs.profile == 'initial-beta-win-linux'
         id: public-input-identity
@@ -49,6 +72,7 @@ jobs:
           PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256: ${{ vars.PORTCOVE_APPLICATION_PUBLIC_INPUTS_SHA256 }}
         run: node scripts/release-public-build-inputs.mts --validate-identity
       - name: Verify release identity and workflow contracts
+        if: ${{ !inputs.report_only_repair }}
         run: |
           node --test scripts/check-release-metadata.test.mts scripts/release-package-policy.test.mts scripts/write-release-checksums.test.mts scripts/reconcile-release-assets.test.mts scripts/finalize-release-assets.test.mts scripts/generate-release-downloads.test.mts scripts/release-result-gate.test.mts scripts/linux-beta-risk-706.test.mts scripts/dependency-security.test.mts scripts/desktop-input-observation.test.mts scripts/release-workflow.test.mts
           node scripts/check-release-metadata.mts
@@ -57,6 +81,7 @@ jobs:
         run: node scripts/check-release-metadata.mts --tag "${{ github.ref_name }}"
 
   qualification:
+    if: ${{ !inputs.report_only_repair }}
     needs: identity
     permissions:
       contents: read
@@ -70,6 +95,7 @@ jobs:
       provenance_scope: release-qualification
 
   validate:
+    if: ${{ !inputs.report_only_repair }}
     needs: [identity, qualification]
     runs-on: ubuntu-22.04
     steps:
@@ -156,6 +182,7 @@ jobs:
         run: node scripts/check-retcomm-upstreams.mts
 
   build:
+    if: ${{ !inputs.report_only_repair }}
     name: Build ${{ matrix.label }}
     timeout-minutes: ${{ needs.identity.outputs.release_profile == 'initial-beta-win-linux' && 60 || 360 }}
     needs: [identity, validate]
@@ -301,7 +328,7 @@ jobs:
           overwrite: false
 
   build_intel:
-    if: needs.identity.outputs.release_profile == 'full'
+    if: ${{ !inputs.report_only_repair && needs.identity.outputs.release_profile == 'full' }}
     needs: [identity, validate]
     runs-on: macos-15
     permissions:
@@ -354,7 +381,7 @@ jobs:
           overwrite: false
 
   verify_intel:
-    if: needs.identity.outputs.release_profile == 'full'
+    if: ${{ !inputs.report_only_repair && needs.identity.outputs.release_profile == 'full' }}
     needs: [identity, build_intel]
     runs-on: macos-15-intel
     permissions:
@@ -386,7 +413,7 @@ jobs:
           ./scripts/verify-macos-release.ps1 -DmgPath $dmg.FullName -Version $version -Architecture x86_64
 
   release_gate:
-    if: always()
+    if: ${{ always() && !inputs.report_only_repair }}
     needs: [identity, qualification, validate, build, build_intel, verify_intel]
     runs-on: ubuntu-22.04
     permissions:
@@ -406,6 +433,7 @@ jobs:
         run: node scripts/release-result-gate.mts
 
   assemble:
+    if: ${{ !inputs.report_only_repair }}
     needs: [identity, release_gate]
     runs-on: ubuntu-22.04
     permissions:
@@ -513,7 +541,7 @@ jobs:
           overwrite: false
 
   rehearse:
-    if: github.event_name == 'workflow_dispatch'
+    if: ${{ !inputs.report_only_repair && github.event_name == 'workflow_dispatch' }}
     needs: assemble
     runs-on: ubuntu-22.04
     permissions:
@@ -537,7 +565,7 @@ jobs:
         run: sha256sum --check --strict ../release-attestation/sbom-subject-checksums.txt
 
   attest:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')
+    if: ${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')) }}
     needs: [identity, assemble]
     runs-on: ubuntu-22.04
     permissions:

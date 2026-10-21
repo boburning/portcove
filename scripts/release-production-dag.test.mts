@@ -91,11 +91,30 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
   );
   assert.ok(!JSON.stringify(wake).includes("SIGNING_PRIVATE_KEY"));
 });
+void test("actual coordinator outputs bind every fixed composite declaration", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as { jobs: { coordinator: { outputs: Record<string, string> } } };
+  const action = parse(
+    await readFile(new URL(".github/actions/release-controller-job/action.yml", root), "utf8"),
+  ) as { outputs: Record<string, { value: string }> };
+  for (const [name, value] of Object.entries(workflow.jobs.coordinator.outputs)) {
+    const match = /^\$\{\{ steps\.job\.outputs\.([a-z0-9_]+) \}\}$/u.exec(value);
+    assert.ok(match, name);
+    assert.equal(action.outputs[match[1]!]!.value, `\${{ steps.output.outputs.${match[1]} }}`);
+  }
+});
 void test("actual held job conditions route retained custody without repeating signing and preserve renewal", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
   ) as Workflow;
-  const permitted = (job: string, mode: string, reused: boolean, failed?: string) => {
+  const permitted = (
+    job: string,
+    mode: string,
+    reused: boolean,
+    failed?: string,
+    published = false,
+  ) => {
     const needs = Object.fromEntries(
       Object.keys(workflow.jobs).map((name) => [
         name,
@@ -103,10 +122,25 @@ void test("actual held job conditions route retained custody without repeating s
           result:
             name === failed
               ? "failure"
-              : reused && (name === "payload_signing" || name.startsWith("tuf_"))
+              : (published &&
+                    [
+                      "independent_admission",
+                      "protection_observation",
+                      "attest",
+                      "release_publication",
+                      "release_protection_observation",
+                    ].includes(name)) ||
+                  (reused && (name === "payload_signing" || name.startsWith("tuf_")))
                 ? "skipped"
                 : "success",
-          outputs: name === "coordinator" ? { mode, signing_custody: reused ? "reused" : "" } : {},
+          outputs:
+            name === "coordinator"
+              ? {
+                  mode,
+                  signing_custody: reused ? "reused" : "",
+                  publication_custody: published ? "reused" : "",
+                }
+              : {},
         },
       ]),
     );
@@ -143,6 +177,23 @@ void test("actual held job conditions route retained custody without repeating s
   assert.equal(permitted("site_publication", "release", true, "release_publication"), false);
   assert.equal(permitted("site_publication", "metadata", false), true);
   assert.equal(permitted("site_publication", "metadata", false, "tuf_timestamp"), false);
+  for (const name of [
+    "independent_admission",
+    "protection_observation",
+    "attest",
+    "payload_signing",
+    "payload_protection_observation",
+    "tuf_releases",
+    "tuf_preview",
+    "tuf_stable",
+    "tuf_snapshot",
+    "tuf_timestamp",
+    "release_publication",
+    "release_protection_observation",
+  ])
+    assert.equal(permitted(name, "release", true, undefined, true), false, name);
+  for (const name of ["site_publication", "site_protection_observation"])
+    assert.equal(permitted(name, "release", true, undefined, true), true, name);
   // Classification persistence is not maintenance authority. Its failed probe
   // must not prevent the actual coordinator from independently choosing renewal.
   for (const name of ["coordinator", "coordinator_protection_observation"]) {

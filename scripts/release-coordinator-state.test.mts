@@ -1,5 +1,9 @@
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
-import { capacityDigest, assessBoundedCapacity } from "./release-capacity.mts";
+import {
+  capacityDigest,
+  assessBoundedCapacity,
+  inspectCapacityOperation,
+} from "./release-capacity.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import {
   runBoundedCapacityOperation,
@@ -61,6 +65,220 @@ import { fileURLToPath } from "node:url";
 
 const execute = promisify(execFile);
 const moduleUrl = new URL("./release-coordinator-state.mts", import.meta.url).href;
+void test(
+  "report-only technical repair consumes existing journal counter and distinct dispatch while retaining original compiler and publication",
+  { timeout: 180000 },
+  async (t) => {
+    // Real local Git plus inert provider transport, never private authentication.
+    const { releaseEffectFixture } = await import("./fixtures/release-effect-fixture.mts");
+    const { reportRepairDispatchDestination, inspectConsumedPublicationReportRepair } =
+      await import("./release-report-repair-contract.mts");
+    const f = await remoteCapacityFixture(t, true);
+    let checkpoint = f.migrated.checkpoint;
+    const read = () => recoverReleaseOpportunity(f.bare, checkpoint);
+    const save = async (input: Record<string, unknown>) => {
+      const next = await checkpointReleaseOpportunity(f.bare, checkpoint, input);
+      await publishCoordinatorCheckpoint(f.bare, next.checkpoint, f.config, { api: f.api });
+      checkpoint = next.checkpoint;
+      return next;
+    };
+    let input = structuredClone((await read()).input);
+    assert.ok(isRecord(input.active_candidate));
+    const active = input.active_candidate;
+    active.phase = "qualifying";
+    const compiler = { run_id: 999, attempt: 1, revision: active.prepared_commit };
+    active.release_run = compiler;
+    await save(input);
+    const advance = async (
+      phase: string,
+      locators: { kind: string; id: string; sha256: string }[],
+    ) => {
+      input = structuredClone((await read()).input);
+      assert.ok(isRecord(input.active_candidate));
+      const current = input.active_candidate;
+      const proof = {
+        schema_version: 1,
+        candidate_sha256: candidateProgressIdentity(current),
+        controller_revision: "3".repeat(40),
+        locators,
+      };
+      const histories = Array.isArray(current.stage_evidence)
+        ? structuredClone(current.stage_evidence)
+        : [];
+      histories.push({
+        phase,
+        attempts: [
+          {
+            previous_checkpoint: checkpoint,
+            evidence_sha256: capacityDigest(proof),
+            proof,
+            release_run: compiler,
+            transient_retries: 0,
+            substantive_repairs: 0,
+          },
+        ],
+      });
+      current.phase = phase;
+      current.stage_evidence = histories;
+      await save(input);
+    };
+    await advance("building", [{ kind: "native-check", id: "101", sha256: "b".repeat(64) }]);
+    await advance("publishing", [{ kind: "native-check", id: "102", sha256: "c".repeat(64) }]);
+    const publisher = {
+      controller_revision: "3".repeat(40),
+      execution_ref: "refs/tags/controller-v1",
+      workflow: productionControllerWorkflow,
+      run_id: "123",
+      run_attempt: 1,
+      job_id: 456,
+      check_run_id: "789",
+      actor_id: "43177418",
+      role: "release-publication",
+    };
+    const executeOnce = async (
+      request: Parameters<typeof runBoundedCapacityOperation>[2],
+      remote: string,
+      identity: unknown = publisher,
+    ) => {
+      const operation = await runBoundedCapacityOperation(
+        f.bare,
+        checkpoint,
+        request,
+        async () => f.capacity.boundary,
+        async (record) => {
+          await record(remote, "a".repeat(64));
+        },
+        { ...f.options, executorIdentity: identity, maximumReceipts: 1 },
+      );
+      checkpoint = operation.checkpoint;
+      const completed = await recordCapacityReadback(
+        f.bare,
+        checkpoint,
+        "effect-completed",
+        "b".repeat(64),
+        f.options,
+      );
+      checkpoint = completed.checkpoint;
+      const saved = (await read()).input.controller;
+      assert.ok(isRecord(saved) && isRecord(saved.capacity_attempt));
+      return inspectCapacityOperation(saved.capacity_attempt.operation);
+    };
+    assert.ok(typeof active.version === "string" && typeof active.prepared_commit === "string");
+    const published = await executeOnce(
+      {
+        kind: "upload",
+        destination: `github-release:boburning/portcove:v${active.version}:publish`,
+        release_expectation: releaseEffectFixture(checkpoint, {
+          version: active.version,
+          source_commit: active.prepared_commit,
+          assets: [{ filename: "package.exe", bytes: 1, sha256: "a".repeat(64) }],
+        }),
+      },
+      "github-release:boburning/portcove:release:321:immutable:abc",
+    );
+    assert.ok(published);
+    await advance("promoting", [
+      { kind: "operation", id: published.id, sha256: capacityDigest(published) },
+      { kind: "immutable-release", id: "321", sha256: "d".repeat(64) },
+    ]);
+    const report = await executeOnce(
+      {
+        kind: "upload",
+        destination: `github-actions:boburning/portcove:${active.version}:immutable-release-result`,
+      },
+      "github-actions:boburning/portcove:artifact:700",
+    );
+    assert.ok(report);
+    await executeOnce(
+      { kind: "retention", destination: "qualification:settled-metadata-interleaving" },
+      "qualification:metadata-settled",
+      { ...publisher, role: "coordinator" },
+    );
+    input = structuredClone((await read()).input);
+    assert.ok(isRecord(input.active_candidate));
+    const history = structuredClone(input.active_candidate.stage_evidence);
+    input.active_candidate = {
+      ...input.active_candidate,
+      phase: "failed",
+      failure_kind: "transient",
+      report_repair: {
+        schema_version: 1,
+        candidate_sha256: candidateProgressIdentity(input.active_candidate),
+        expected_transient_retry: 1,
+        substantive_repairs: 0,
+        failure: "attestation-missing",
+        artifact_id: 700,
+        artifact_sha256: "a".repeat(64),
+        report_sha256: "b".repeat(64),
+        context_manifest_sha256: "c".repeat(64),
+        result_checkpoint: checkpoint,
+        result_operation_id: report.id,
+        result_operation_sha256: capacityDigest(report),
+        result_operation: report,
+        publish_operation_id: published.id,
+        publish_operation_sha256: capacityDigest(published),
+        release_id: 321,
+        immutable_identity_sha256: "d".repeat(64),
+      },
+    };
+    const failed = await save(input);
+    assert.equal(failed.plan.action, "retry-active");
+    const unconsumed = checkpoint;
+    await assert.rejects(
+      runBoundedCapacityOperation(
+        f.bare,
+        checkpoint,
+        {
+          kind: "dispatch",
+          destination: `github-actions:boburning/portcove:release.yml:dispatch:report-repair-1-0:${"f".repeat(64)}`,
+        },
+        async () => f.capacity.boundary,
+        async () => assert.fail("unconsumed repair cannot dispatch"),
+        {
+          ...f.options,
+          executorIdentity: { ...publisher, role: "coordinator" },
+          maximumReceipts: 1,
+        },
+      ),
+    );
+    assert.equal((await read()).checkpoint, unconsumed);
+    assert.ok(isRecord(input.active_candidate));
+    input.active_candidate = {
+      ...input.active_candidate,
+      phase: "prepared",
+      failure_kind: null,
+      transient_retries: 1,
+      release_run: null,
+    };
+    await save(input);
+    assert.ok(isRecord(input.active_candidate));
+    const dispatched = await executeOnce(
+      { kind: "dispatch", destination: reportRepairDispatchDestination(input.active_candidate) },
+      "github-actions:boburning/portcove:run:1111:attempt:1",
+      { ...publisher, role: "coordinator" },
+    );
+    assert.ok(dispatched);
+    input = structuredClone((await read()).input);
+    assert.ok(isRecord(input.active_candidate));
+    input.active_candidate = {
+      ...input.active_candidate,
+      phase: "qualifying",
+      release_run: compiler,
+    };
+    await save(input);
+    const final = await read();
+    assert.ok(isRecord(final.input.active_candidate));
+    inspectConsumedPublicationReportRepair(final.input.active_candidate);
+    assert.deepEqual(final.input.active_candidate.stage_evidence, history);
+    assert.deepEqual(final.input.active_candidate.release_run, compiler);
+    assert.equal(
+      dispatched.completed_effects[0]!.remote_identity,
+      "github-actions:boburning/portcove:run:1111:attempt:1",
+    );
+    assert.equal(final.input.active_candidate.transient_retries, 1);
+    assert.equal(f.refs.get(f.stateRef), checkpoint);
+  },
+);
 void test(
   "admitted aggregate exact preimage survives remote pending/lost response and GET-only completion without repeat",
   { timeout: 180000 },

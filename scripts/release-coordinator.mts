@@ -1,3 +1,4 @@
+import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
 import { assessBoundedCapacity, capacityDigest } from "./release-capacity.mts";
 import {
   inspectPublishedMetadata,
@@ -303,7 +304,7 @@ function validateActive(active: unknown) {
       "transient_retries",
       "substantive_repairs",
     ],
-    ["release_run", "frozen_opportunity", "stage_evidence"],
+    ["release_run", "frozen_opportunity", "stage_evidence", "report_repair"],
     "active candidate",
   );
   for (const field of ["source_commit", "source_tree", "prepared_commit", "prepared_tree"])
@@ -328,6 +329,8 @@ function validateActive(active: unknown) {
     if (frozen.source_commit !== active.source_commit || frozen.source_tree !== active.source_tree)
       throw new Error("frozen opportunity differs from active original source");
   }
+  if (active.report_repair !== undefined)
+    inspectPublicationReportRepair(active.report_repair, active);
   if (active.release_run !== undefined && active.release_run !== null) {
     exactKeys(active.release_run, ["run_id", "attempt", "revision"], [], "release run");
     if (
@@ -357,6 +360,9 @@ function validateActive(active: unknown) {
     transient_retries: boundedCount(active.transient_retries, 2, "transient retries"),
     substantive_repairs: boundedCount(active.substantive_repairs, 3, "substantive repairs"),
     release_run: active.release_run ?? null,
+    ...(active.report_repair === undefined
+      ? {}
+      : { report_repair: inspectPublicationReportRepair(active.report_repair, active) }),
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: validateOpportunity(active.frozen_opportunity) }
       : {}),
@@ -406,6 +412,7 @@ function activePlan(
     transient_retries: active.transient_retries,
     substantive_repairs: active.substantive_repairs,
     release_run: active.release_run ?? null,
+    ...(active.report_repair === undefined ? {} : { report_repair: active.report_repair }),
     ...(Object.hasOwn(active, "frozen_opportunity")
       ? { frozen_opportunity: active.frozen_opportunity }
       : {}),

@@ -177,6 +177,39 @@ void test("exact retained run continuation repeats only GET and reproduces origi
     ["GET", "GET"],
   );
 });
+void test("report-only dispatch binds closed inputs and title to exact principal and source; no title-only recovery", async () => {
+  const repair = { ...input, report_repair_sha256: "c".repeat(64) };
+  const p = provider();
+  const transport: typeof fetch = async (raw, init) => {
+    const response = await p.transport(raw, init);
+    const value: unknown = await response.json();
+    return Response.json(
+      isRecord(value) && value.id === 42
+        ? { ...value, display_title: `Report repair ${repair.report_repair_sha256}` }
+        : value,
+    );
+  };
+  const result = await dispatchPreparedReleaseCandidate(
+    repair,
+    "secret",
+    async () => {},
+    transport,
+  );
+  assert.equal(result.evidence.report_repair_sha256, repair.report_repair_sha256);
+  assert.deepEqual(p.calls.find((call) => call.method === "POST")?.body, {
+    ref: "portcove-fixture-prepared/v0.19.0-preview.1",
+    inputs: {
+      release_profile: "initial-beta-win-linux",
+      report_only_repair: true,
+      report_repair_sha256: repair.report_repair_sha256,
+    },
+  });
+  const ordinary = provider();
+  await assert.rejects(readPreparedReleaseCandidate(repair, 42, "secret", ordinary.transport));
+  const missing = recoveryProvider("valid");
+  await assert.rejects(discoverPreparedReleaseCandidate(repair, "secret", missing.transport));
+  assert.ok(missing.calls.every((call) => !call.includes("/dispatches")));
+});
 
 function recoveryProvider(mode: string) {
   const fallback = provider();

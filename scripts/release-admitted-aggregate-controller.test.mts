@@ -59,6 +59,31 @@ const expectation = {
   assembly_sha256: "a".repeat(64),
   files: [{ filename: "package.zip", bytes: 23, sha256: "b".repeat(64) }],
 };
+void test("actual report-only aggregate continuation refuses a missing original upload before assembly", async () => {
+  const source = await readFile(
+    new URL("./release-admitted-aggregate-controller.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("      if (admitted.aggregate_readback_only || reportRepair)");
+  const end = source.indexOf("      active();", start);
+  assert.ok(start > 0 && end > start);
+  const execute: unknown = runInNewContext(
+    stripTypeScriptTypes(`(async()=>{${source.slice(start, end)}})`),
+    {
+      admitted: { aggregate_readback_only: false },
+      reportRepair: true,
+      assembleReleaseArtifacts: () => assert.fail("report repair cannot rebuild/upload"),
+      directory: "inert",
+      descriptor: {},
+      deadline: 1,
+    },
+  );
+  assert.ok(typeof execute === "function");
+  await assert.rejects(
+    (execute as () => Promise<unknown>)(),
+    /readback-only aggregate proof cannot upload/u,
+  );
+});
 
 void test("actual GH transport entrypoints inherit only captured read token and private config in the admitted scope", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "portcove-readonly-cli-"));

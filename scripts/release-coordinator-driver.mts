@@ -1,3 +1,9 @@
+import {
+  inspectPublicationReportRepair,
+  reportRepairDispatchDestination,
+  reportRepairOriginalCompilerRun,
+  inspectConsumedPublicationReportRepair,
+} from "./release-report-repair-contract.mts";
 import { mkdtemp, lstat, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -669,7 +675,7 @@ async function coordinateTrustedReleaseAt(
       priorOperation &&
       !["succeeded", "recovered"].includes(priorOperation.outcome) &&
       priorOperation.kind === "dispatch" &&
-      priorOperation.destination === "github-actions:boburning/portcove:release.yml:dispatch" &&
+      priorOperation.destination === reportRepairDispatchDestination(existingActive) &&
       isRecord(priorOperation.candidate) &&
       priorOperation.candidate.prepared_commit === existingActive.prepared_commit
     ) {
@@ -686,6 +692,13 @@ async function coordinateTrustedReleaseAt(
         prepared_commit: existingActive.prepared_commit,
         remote_configuration: selected.remote_configuration,
         dispatch_actor_id: selected.dispatch_actor_id,
+        ...(existingActive.report_repair === undefined
+          ? {}
+          : {
+              report_repair_sha256: capacityDigest(
+                inspectPublicationReportRepair(existingActive.report_repair, existingActive),
+              ),
+            }),
       };
       const resolved = await recoverOwnedCapacityEffect(
         await getExecutor(),
@@ -767,7 +780,10 @@ async function coordinateTrustedReleaseAt(
     input.publication = { ...publication, observed_at: input.now };
     input.controller = {
       workflow: ".github/workflows/application-update-production.yml",
-      revision: reader.admitted.revision,
+      revision:
+        isRecord(input.active_candidate) && isRecord(recovered.input.controller)
+          ? recovered.input.controller.revision
+          : reader.admitted.revision,
       publication_paused: initial.pause.publication_paused,
       capacity_attempt: {
         ...structuredClone(initial.capacity_source.capacity),
@@ -777,9 +793,18 @@ async function coordinateTrustedReleaseAt(
       },
     };
     const plan = planReleaseOpportunity(input);
+    const reportRetry =
+      plan.action === "retry-active" &&
+      isRecord(input.active_candidate) &&
+      input.active_candidate.report_repair !== undefined
+        ? inspectPublicationReportRepair(
+            input.active_candidate.report_repair,
+            input.active_candidate,
+          )
+        : null;
     if (
       plan.action === "pause" ||
-      plan.action === "retry-active" ||
+      (plan.action === "retry-active" && !reportRetry) ||
       plan.action === "dispatch-repair"
     )
       return {
@@ -836,6 +861,39 @@ async function coordinateTrustedReleaseAt(
     checkpoint = planned.checkpoint;
     if (plan.action === "skip" || plan.action === "coalesce")
       return { decision: plan.action, plan, directory, checkpoint, authority: "none" };
+    if (reportRetry) {
+      phase = "actual-bounded-report-retry";
+      const old = input.active_candidate;
+      if (
+        !isRecord(old) ||
+        old.phase !== "failed" ||
+        old.failure_kind !== "transient" ||
+        reportRetry.expected_transient_retry !== Number(old.transient_retries) + 1 ||
+        plan.action !== "retry-active" ||
+        !("retry_number" in plan) ||
+        plan.retry_number !== reportRetry.expected_transient_retry
+      )
+        throw new Error("exact report-only retry plan required");
+      input.active_candidate = {
+        ...old,
+        phase: "prepared",
+        failure_kind: null,
+        transient_retries: reportRetry.expected_transient_retry,
+        release_run: null,
+      };
+      if (!isRecord(input.active_candidate)) throw new Error("report repair candidate missing");
+      inspectPublicationReportRepair(input.active_candidate.report_repair, input.active_candidate);
+      await readBoundary();
+      await assertInventory();
+      const resumed = await checkpointReleaseOpportunity(repository, checkpoint, input);
+      await publishCoordinatorCheckpoint(
+        repository,
+        resumed.checkpoint,
+        selected.remote_configuration,
+        { api: journal },
+      );
+      checkpoint = resumed.checkpoint;
+    }
     if (plan.action === "prepare") {
       phase = "exact-version-preparation";
       const prepared = await prepareReleaseVersion(
@@ -920,7 +978,7 @@ async function coordinateTrustedReleaseAt(
       retained &&
       (retained.outcome === "succeeded" || retained.outcome === "recovered") &&
       retained.kind === "dispatch" &&
-      retained.destination === "github-actions:boburning/portcove:release.yml:dispatch" &&
+      retained.destination === reportRepairDispatchDestination(candidate) &&
       isRecord(retained.candidate) &&
       retained.candidate.prepared_commit === candidate.prepared_commit;
     if (isRetainedDispatch) {
@@ -941,6 +999,13 @@ async function coordinateTrustedReleaseAt(
           prepared_commit: candidate.prepared_commit,
           remote_configuration: selected.remote_configuration,
           dispatch_actor_id: selected.dispatch_actor_id,
+          ...(candidate.report_repair === undefined
+            ? {}
+            : {
+                report_repair_sha256: capacityDigest(
+                  inspectPublicationReportRepair(candidate.report_repair, candidate),
+                ),
+              }),
         },
         Number(retainedRun[1]),
         readToken,
@@ -964,7 +1029,7 @@ async function coordinateTrustedReleaseAt(
           remote_configuration: selected.remote_configuration,
           request: {
             kind: "dispatch",
-            destination: "github-actions:boburning/portcove:release.yml:dispatch",
+            destination: reportRepairDispatchDestination(candidate),
           },
         },
         readBoundary,
@@ -980,6 +1045,13 @@ async function coordinateTrustedReleaseAt(
               prepared_commit: candidate.prepared_commit,
               remote_configuration: selected.remote_configuration,
               dispatch_actor_id: selected.dispatch_actor_id,
+              ...(candidate.report_repair === undefined
+                ? {}
+                : {
+                    report_repair_sha256: capacityDigest(
+                      inspectPublicationReportRepair(candidate.report_repair, candidate),
+                    ),
+                  }),
             },
             token,
             async () => {
@@ -1004,8 +1076,39 @@ async function coordinateTrustedReleaseAt(
       capacityDigest(progressed.active_candidate) !== capacityDigest(candidate)
     )
       throw new Error("frozen candidate changed before actual run binding");
+    let originalCompilerRun: ReturnType<typeof reportRepairOriginalCompilerRun> | undefined;
+    if (candidate.report_repair !== undefined) {
+      originalCompilerRun = reportRepairOriginalCompilerRun(candidate);
+      const readToken = process.env.GH_TOKEN;
+      if (
+        !readToken ||
+        typeof candidate.version !== "string" ||
+        typeof candidate.prepared_commit !== "string"
+      )
+        throw new Error("report repair original compiler reader unavailable");
+      const original = await readPreparedReleaseCandidate(
+        {
+          version: candidate.version,
+          prepared_commit: candidate.prepared_commit,
+          remote_configuration: selected.remote_configuration,
+          dispatch_actor_id: selected.dispatch_actor_id,
+        },
+        Number(originalCompilerRun.run_id),
+        readToken,
+        fetch,
+        budget.monotonicDeadline,
+      );
+      if (
+        original.evidence.run_id !== originalCompilerRun.run_id ||
+        originalCompilerRun.attempt !== 1 ||
+        originalCompilerRun.revision !== candidate.prepared_commit
+      )
+        throw new Error("original report compiler provenance changed");
+      await readBoundary();
+      await assertInventory(checkpoint);
+    }
     progressed.active_candidate.phase = "qualifying";
-    progressed.active_candidate.release_run = {
+    progressed.active_candidate.release_run = originalCompilerRun ?? {
       run_id: dispatch.value.evidence.run_id,
       attempt: 1,
       revision: candidate.prepared_commit,
@@ -1017,11 +1120,22 @@ async function coordinateTrustedReleaseAt(
       api: journal,
     });
     return {
-      decision: "dispatched",
+      decision: candidate.report_repair === undefined ? "dispatched" : "report-repair-dispatched",
       directory,
       checkpoint,
       operation_id: result.operation_id,
       release_run: progressed.active_candidate.release_run,
+      dispatch_run: {
+        run_id: dispatch.value.evidence.run_id,
+        attempt: 1,
+        revision: candidate.prepared_commit,
+      },
+      ...(candidate.report_repair === undefined
+        ? {}
+        : {
+            report_only_repair: true,
+            report_repair_sha256: capacityDigest(candidate.report_repair),
+          }),
       authority: "none",
       automatic_retry: false,
     };
@@ -1840,6 +1954,14 @@ export async function requireActualCoordinatorBootstrapPreparation(
  * signing custody; phase or locator JSON never grants publication eligibility. */
 export function selectCoordinatorCandidateSigningRecovery(input: Record<string, unknown>) {
   const active = input.active_candidate;
+  if (
+    isRecord(active) &&
+    ["qualifying", "building"].includes(String(active.phase)) &&
+    active.report_repair !== undefined
+  ) {
+    inspectConsumedPublicationReportRepair(active);
+    return active.phase as "qualifying" | "building";
+  }
   return isRecord(active) && ["publishing", "promoting"].includes(String(active.phase))
     ? (active.phase as "publishing" | "promoting")
     : null;

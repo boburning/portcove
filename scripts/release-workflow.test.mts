@@ -181,7 +181,7 @@ void test("cheap identity unlocks qualification and builds before the explicit r
   needs("build", ["identity", "validate"]);
   needs("build_intel", ["identity", "validate"]);
 
-  assert.equal(workflowData.jobs.release_gate?.if, "always()");
+  assert.equal(workflowData.jobs.release_gate?.if, "${{ always() && !inputs.report_only_repair }}");
   needs("release_gate", [
     "identity",
     "qualification",
@@ -283,7 +283,10 @@ void test("assembler reconciles the full matrix then generates and checksums the
 });
 
 void test("manual rehearsal verifies every finalized checksum without release write access", () => {
-  assert.equal(workflowData.jobs.rehearse?.if, "github.event_name == 'workflow_dispatch'");
+  assert.equal(
+    workflowData.jobs.rehearse?.if,
+    "${{ !inputs.report_only_repair && github.event_name == 'workflow_dispatch' }}",
+  );
   needs("rehearse", ["assemble"]);
   assert.match(rehearseSection, /name: release-final/);
   assert.match(rehearseSection, /sha256sum --check --strict SHA256SUMS\.txt/);
@@ -298,7 +301,7 @@ void test("manual rehearsal verifies every finalized checksum without release wr
 void test("tag releases attest exact final bytes and the SBOM before draft mutation", () => {
   assert.equal(
     workflowData.jobs.attest?.if,
-    "github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')",
+    "${{ !inputs.report_only_repair && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && needs.identity.outputs.release_profile == 'initial-beta-win-linux')) }}",
   );
   needs("attest", ["identity", "assemble"]);
   assert.equal((attestSection.match(/actions\/attest@/g) ?? []).length, 3);
