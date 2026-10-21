@@ -16,7 +16,7 @@ void test("actual maintained source recipe supplies declarations without runtime
     ),
   );
   const result = inspectNativeCompatibilitySources(files);
-  assert.deepEqual(result.cli_protocol, { min: 77, max: 77 });
+  assert.deepEqual(result.cli_protocol, { min: 78, max: 78 });
   assert.deepEqual(result.catalog_formats, [2]);
   assert.deepEqual(result.library, {
     read: { min: 1, max: 37 },
@@ -35,7 +35,7 @@ void test("actual maintained source recipe supplies declarations without runtime
       ...files,
       [lib]: Buffer.concat([
         files[lib]!,
-        Buffer.from("\npub const API_SCHEMA_VERSION: u32 = 77;\n"),
+        Buffer.from("\npub const API_SCHEMA_VERSION: u32 = 78;\n"),
       ]),
     },
     {

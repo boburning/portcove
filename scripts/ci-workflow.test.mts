@@ -3026,10 +3026,33 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     -50,
   );
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
-  // Four Windows lifecycle diagnostics were added after the original two
-  // publication cases. Keep an exact allowlist rather than rejecting their
-  // existing retained output or admitting arbitrary new exceptions.
-  assert.equal(outputOverrides.length, 6);
+  // Six lifecycle/publication diagnostics plus the explicitly ignored CVLoD
+  // host SDK probe form an exact allowlist, not arbitrary output exceptions.
+  assert.equal(outputOverrides.length, 7);
+  const sdkProbe = overrideFor(
+    "package(portcove-core) & test(/^cartridge_build::cvlod::local_profile::timing_tests::cvlod_host_sdk_stage_timings$/)",
+    "cfg(windows)",
+  );
+  assert.equal(sdkProbe["success-output"], "immediate");
+  assert.deepEqual(sdkProbe["slow-timeout"], {
+    period: "30s",
+    "terminate-after": 32,
+    "grace-period": "0s",
+  });
+  for (const field of ["retries", "threads-required", "priority"])
+    assert.equal(sdkProbe[field], undefined);
+  const sdkProbeSource = await readFile(
+    new URL(
+      "../crates/portcove-core/src/cvlod_build/local_profile_timing_tests.rs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(
+    sdkProbeSource,
+    /#\[ignore = "explicit host SDK measurement; retains a fresh private C: copy"\]\s*fn cvlod_host_sdk_stage_timings\(\)/u,
+  );
+  assert.match(sdkProbeSource, /Duration::from_secs\(15 \* 60\)/u);
   for (const filter of [
     "package(portcove-core) & (test(/^service::shipwright_persistence_tests::shipwright_activation_and_rollback_collect_before_replacing_working_save$/) | test(/^service::shipwright_persistence_tests::shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup$/))",
     "package(portcove-core) & (test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation$/))",
