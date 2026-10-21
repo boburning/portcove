@@ -25,7 +25,6 @@ import { fileURLToPath } from "node:url";
 import {
   checkoutToolEnvironment,
   readToolPins,
-  readToolState,
   pinnedAquaCommand,
   toolCachePaths,
 } from "./tool-cache.mts";
@@ -404,25 +403,11 @@ export function spawnCommand(
   return result;
 }
 
-export function canonicalCheckoutCommand(
-  command: string,
-  args: string[],
-  toolState: unknown = readToolState(),
-): [string, string[]] {
-  const pinnedNode =
-    isRecord(toolState) && typeof toolState.node === "string" ? toolState.node : null;
+export function canonicalCheckoutCommand(command: string, args: string[]): [string, string[]] {
   const executable = path.basename(command).toLowerCase();
   if (!path.isAbsolute(command) && new Set(["aqua", "aqua.exe"]).has(executable))
     return [pinnedAquaCommand(), args];
-  if (
-    !path.isAbsolute(command) &&
-    new Set(["node", "node.exe"]).has(executable) &&
-    pinnedNode &&
-    path.isAbsolute(pinnedNode) &&
-    statSync(pinnedNode, { throwIfNoEntry: false })?.isFile()
-  ) {
-    return [pinnedNode, args];
-  }
+  if (new Set(["node", "node.exe"]).has(command.toLowerCase())) return [process.execPath, args];
   if (new Set(["corepack", "corepack.cmd", "corepack.exe"]).has(executable) && args[0] === "pnpm") {
     return [command, [readToolPins().packageManager, ...args.slice(1)]];
   }

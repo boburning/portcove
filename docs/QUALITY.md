@@ -65,7 +65,9 @@ do not require a new reviewer or a repeated complete investigation.
 
 ## Canonical commands
 
-Use repository-pinned package scripts or `pnpm exec vp`; global Vite+ is optional.
+Use repository-pinned package scripts or `pnpm exec vp`. Global Vite+ is the
+recommended Node/pnpm provider; installed checks use the local toolchain and do
+not require a global CLI.
 [Development tools](DEVELOPMENT-TOOLS.md#frontend-workflow) describes setup and
 focused commands. `just local-check --plan` shows selected work without execution.
 Its UI selection can run real browser tests, including import-related browser

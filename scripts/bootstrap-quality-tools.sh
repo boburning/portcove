@@ -46,12 +46,12 @@ if $want_frontend; then
   package_spec="$(node -p 'JSON.parse(require("node:fs").readFileSync("package.json","utf8")).packageManager')"
   if command -v pnpm >/dev/null 2>&1 && [[ "$(pnpm --version)" == "${package_spec#pnpm@}" ]]; then
     pnpm install --frozen-lockfile
-  elif command -v corepack >/dev/null 2>&1; then
-    corepack "$package_spec" install --frozen-lockfile
   else
-    printf 'Provide %s on PATH; Corepack is an optional provisioning provider.\n' "$package_spec" >&2
+    printf 'Activate %s on PATH; with Vite+ run vp env install in this checkout.\n' "$package_spec" >&2
     exit 1
   fi
+  # A warm pnpm install can skip prepare even after the Node pin changes.
+  node scripts/hooks-install.mts
 fi
 if $want_rust && [[ "$profile" != standard ]]; then
   rust_pin="$(node -e 'console.log(JSON.parse(process.argv[1]).pins.rust)' "$capability_plan")"

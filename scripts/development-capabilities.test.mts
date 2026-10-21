@@ -126,11 +126,6 @@ function bootstrapFixture(t: TestContext) {
     "scripts/tool-cache.mts",
     "scripts/bootstrap-quality-tools.sh",
     "scripts/bootstrap-quality-tools.ps1",
-    "scripts/hooks-install.mts",
-    "scripts/viteplus-cli.mts",
-    "scripts/dev-storage.mts",
-    "scripts/checked-git.mts",
-    "scripts/report-summary.mts",
     ".node-version",
     "rust-toolchain.toml",
     "package.json",
@@ -166,11 +161,21 @@ if(command==="node") {
   const child=spawnSync(args[4],args.slice(5),{stdio:"inherit",env:{...process.env,PORTCOVE_RESOURCE_RESERVATION:"fixture-owned"}});process.exit(child.status??1);
  }
  if(path.basename(args[0]??"")==="dev-doctor.mts") {log(["doctor",...args.slice(1)]);process.exit(0)}
+ if(path.basename(args[0]??"")==="hooks-install.mts") {
+  log(["hooks",...args.slice(1)]);
+  if(process.env.PCV_TEST_HOOK_FAILURE) {console.error("fixture hook refresh failed");process.exit(71)}
+  process.exit(0);
+ }
  const result=spawnSync(${JSON.stringify(process.execPath)},args,{stdio:"inherit",env:process.env});process.exit(result.status??1);
 }
 log([command,...args]);
 const manifest=JSON.parse(readFileSync(".github/quality-tools.json","utf8"));
-if(command==="pnpm") {if(args[0]==="--version")console.log(JSON.parse(readFileSync("package.json","utf8")).packageManager.split("@")[1]);process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94)}
+if(command==="pnpm") {
+ if(args[0]==="--version")console.log(JSON.parse(readFileSync("package.json","utf8")).packageManager.split("@")[1]);
+ if(args[0]==="install"&&process.env.PCV_TEST_INSTALL_FAILURE) {console.error("fixture dependency install failed");process.exit(72)}
+ // A warm install does no lifecycle work: bootstrap must refresh hooks itself.
+ process.exit(process.cwd()===process.env.PCV_TEST_PROJECT?0:94);
+}
 if(command==="rustc") {if(process.env.PCV_TEST_MISSING_RUST)process.exit(1);console.log("rustc "+manifest.rust.channel+" (fixture)");process.exit(0)}
 if(command==="cargo") {console.log(args[0]==="nextest"?"cargo-nextest "+manifest.tools.find(t=>t.id==="cargo-nextest").version:"fixture component");process.exit(0)}
 process.exit(73);
@@ -245,6 +250,7 @@ void test(
         "verify-bootstrap",
         "pnpm",
         "pnpm",
+        "hooks",
         ...(["win32", "linux"].includes(process.platform) ? ["rustc"] : []),
         "doctor",
       ],
@@ -252,6 +258,44 @@ void test(
     const packages = calls.filter((call) => call[0] === "pnpm");
     assert.deepEqual(packages[0]?.slice(1), ["--version"]);
     assert.deepEqual(packages[1]?.slice(1), ["install", "--frozen-lockfile"]);
+    assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
+  },
+);
+
+void test(
+  "POSIX frontend warm setup refreshes hooks and propagates install or hook failures",
+  { skip: process.platform === "win32" },
+  (t) => {
+    const fixture = bootstrapFixture(t);
+    const args = ["scripts/bootstrap-quality-tools.sh", "--profile", "frontend"];
+    const first = fixture.run("bash", args);
+    assert.equal(first.status, 0, first.stderr);
+    let start = fixture.calls().length;
+    const warm = fixture.run("bash", args);
+    assert.equal(warm.status, 0, warm.stderr);
+    const warmCalls = fixture.calls().slice(start);
+    assert.deepEqual(
+      warmCalls.filter((call) => ["pnpm", "hooks", "doctor"].includes(call[0] ?? "")),
+      [
+        ["pnpm", "--version"],
+        ["pnpm", "install", "--frozen-lockfile"],
+        ["hooks"],
+        ["doctor", "--profile", "frontend"],
+      ],
+    );
+    start = fixture.calls().length;
+    const failedInstall = fixture.run("bash", args, { PCV_TEST_INSTALL_FAILURE: "1" });
+    assert.equal(failedInstall.status, 72, failedInstall.stderr);
+    assert.ok(
+      !fixture
+        .calls()
+        .slice(start)
+        .some((call) => ["hooks", "rustc", "doctor"].includes(call[0] ?? "")),
+    );
+    start = fixture.calls().length;
+    const failedHooks = fixture.run("bash", args, { PCV_TEST_HOOK_FAILURE: "1" });
+    assert.equal(failedHooks.status, 71, failedHooks.stderr);
+    assert.deepEqual(fixture.calls().slice(start).at(-1), ["hooks"]);
     assert.equal(readFileSync(fixture.marker, "utf8"), "verified prior state\n");
   },
 );
@@ -309,6 +353,7 @@ void test(
         "verify-bootstrap",
         "pnpm",
         "pnpm",
+        "hooks",
         ...(["win32", "linux"].includes(process.platform) ? ["rustc"] : []),
         "doctor",
       ],
