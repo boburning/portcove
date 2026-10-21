@@ -289,6 +289,7 @@ export function PageHeader({
   return (
     <header
       data-library-header={view === "library" || undefined}
+      data-search-header={view === "catalog" || undefined}
       className="page-header mb-5 flex flex-wrap items-start justify-between gap-4"
     >
       <div>

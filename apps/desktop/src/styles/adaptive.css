@@ -86,7 +86,7 @@
       width: 100%;
       flex: 1 1 12rem;
     }
-    [data-library-header] .header-tools {
+    .page-header:not([data-search-header]) .header-tools {
       width: auto;
       margin-inline-start: auto;
     }
