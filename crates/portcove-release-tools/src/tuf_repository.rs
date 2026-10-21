@@ -206,6 +206,8 @@ impl DelegatedRole {
 }
 
 pub mod isolated;
+pub mod offline;
+pub mod offline_key;
 mod online;
 mod validation;
 
