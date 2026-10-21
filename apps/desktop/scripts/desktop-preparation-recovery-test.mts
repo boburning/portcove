@@ -381,7 +381,9 @@ export async function interruptedPreparationScenario({
     await beforeRestartLog.click();
     const beforeRestartText = await browser.wait(async () => {
       const text = await beforeRestart.getText();
-      return text.includes("Capture is incomplete") ? text : false;
+      return text.includes("Only the output saved before the last observation is available.")
+        ? text
+        : false;
     }, 15_000);
     assert.ok(beforeRestartText);
     assert.match(beforeRestartText, /Running game setup/);
@@ -411,7 +413,7 @@ export async function interruptedPreparationScenario({
         const text = await candidate.getText();
         if (
           text.includes("Game-data setup") &&
-          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")
         ) {
@@ -434,14 +436,14 @@ export async function interruptedPreparationScenario({
         const current = await candidate.getText();
         return current.includes("Reading the retained log")
           ? false
-          : current.includes("Capture reached the end") ||
-              current.includes("Capture is incomplete") ||
+          : current.includes("Both output streams ended. Saved output is shown below.") ||
+              current.includes("Only the output saved before the last observation is available.") ||
               current.includes("No retained diagnostic capture")
             ? current
             : false;
       }, 15_000);
       assert.ok(loadedText);
-      if (loadedText.includes("Capture is incomplete")) {
+      if (loadedText.includes("Only the output saved before the last observation is available.")) {
         row = candidate;
         break;
       }

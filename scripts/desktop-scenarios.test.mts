@@ -2453,6 +2453,14 @@ void test("isolated reviewed backup chains retain the finite lifecycle allowance
   for (const scenarios of [
     ["native-reviewed-backup-restore-and-delete"],
     ["native-game-return-continuity", "native-reviewed-backup-restore-and-delete"],
+    ["native-reviewed-installed-game-removal"],
+    [
+      "native-interrupted-preparation-recovery",
+      "native-reviewed-steam-entry-add-and-remove",
+      "native-reviewed-steam-batch-add",
+      "native-reviewed-installed-game-removal",
+      "native-reviewed-source-reference-removal",
+    ],
   ]) {
     assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
   }

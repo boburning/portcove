@@ -854,7 +854,8 @@ export function desktopHarnessDeadlineMs(
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = Math.max(
     executed > 8 ||
-      selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete") ||
+      selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
       ? 10 * 60_000
       : 3 * 60_000,
     selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
