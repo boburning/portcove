@@ -257,7 +257,8 @@ try {
   const originalFetch = globalThis.fetch;
   const marker = Buffer.from(JSON.stringify(prepared.generation));
   globalThis.fetch = async (value) => {
-    const url = String(value),
+    if (typeof value !== "string") throw new Error("controlled fixed URL string required");
+    const url = value,
       pathname = new URL(url).pathname.replace(/^\/portcove\//u, "");
     const body =
       pathname === "publication.json" ? marker : pathname === ".nojekyll" ? Buffer.alloc(0) : bytes;

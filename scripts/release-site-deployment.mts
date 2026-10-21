@@ -768,7 +768,7 @@ export async function prepareCatalogSiteHandoffFromActualRepository(
   const current = await materializePublishedCatalogCompleteSite(
     {
       root_sha256: facts.root_sha256,
-      repository_sha256: facts.repository_sha256,
+      repository_sha256: String(facts.repository_sha256),
       site_generation_sha256: String(expected.site_generation_sha256),
     },
     request.output_parent,
