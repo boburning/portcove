@@ -11,12 +11,78 @@ import {
   readActualNativePostSignController,
   requireActualNativePostSignController,
   inspectNativeControllerVerificationCommand,
+  inspectNativePostSignArtifactInventory,
+  readActualNativePostSignPublicInputs,
 } from "./release-native-candidate.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import path from "node:path";
+
+void test("post-sign run inventory selects the exact twelve opaque artifacts and refuses partial, duplicate or unrelated producer locators", async () => {
+  const controller = { run_id: "12345", run_attempt: 1, controller_revision: "a".repeat(40) };
+  const names = [
+    "trusted-payload-signing-context-12345-1",
+    "trusted-payload-signing-context-attestation-12345-1",
+    ...["releases", "preview", "stable", "snapshot", "timestamp"].flatMap((role) => [
+      `trusted-tuf-${role}-output-12345-1`,
+      `trusted-tuf-${role}-attestation-12345-1`,
+    ]),
+  ];
+  const raw = {
+    total_count: names.length,
+    artifacts: names.map((name, index) => ({
+      id: 100 + index,
+      name,
+      expired: false,
+      digest: "sha256:" + "b".repeat(64),
+      size_in_bytes: 22,
+      workflow_run: {
+        id: 12345,
+        repository_id: 1354613114,
+        head_repository_id: 1354613114,
+        head_sha: "a".repeat(40),
+      },
+    })),
+  };
+  const selected = inspectNativePostSignArtifactInventory(raw, controller);
+  assert.equal(selected.context.id, 100);
+  assert.equal(selected.context_bundle.id, 101);
+  assert.deepEqual(
+    selected.roles.map((role) => role.role),
+    ["releases", "preview", "stable", "snapshot", "timestamp"],
+  );
+  assert.equal(selected.authority, "none");
+  for (const change of [
+    { id: 101 },
+    { name: "foreign" },
+    { expired: true },
+    { digest: "unobserved" },
+    { size_in_bytes: 0 },
+    { size_in_bytes: 128 * 1024 ** 2 + 1 },
+    { workflow_run: { ...raw.artifacts[0]!.workflow_run, id: 12346 } },
+    { workflow_run: { ...raw.artifacts[0]!.workflow_run, head_sha: "c".repeat(40) } },
+    { workflow_run: { ...raw.artifacts[0]!.workflow_run, head_repository_id: 42 } },
+  ]) {
+    const altered = structuredClone(raw);
+    Object.assign(altered.artifacts[0]!, change);
+    assert.throws(() => inspectNativePostSignArtifactInventory(altered, controller));
+  }
+  assert.throws(() =>
+    inspectNativePostSignArtifactInventory({ ...raw, total_count: 13 }, controller),
+  );
+  assert.throws(() =>
+    inspectNativePostSignArtifactInventory(raw, { ...controller, run_attempt: 2 }),
+  );
+  assert.throws(() =>
+    inspectNativePostSignArtifactInventory(raw, { ...controller, run_id: "9007199254740992" }),
+  );
+  await assert.rejects(
+    readActualNativePostSignPublicInputs({}),
+    /actual native post-sign controller source/,
+  );
+});
 
 void test("parent-owned controller verifier admits only fixed local-bundle verification with complete source/certificate flags", () => {
   const root = path.resolve("inert-native-verifier"),

@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
 import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
 import { requireActualNativeParent } from "./release-native-parent.mts";
@@ -21,6 +22,11 @@ import { isRecord } from "./runtime-values.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { releasePathContains } from "./release-path-safety.mts";
+import {
+  inspectSigningContextArchive,
+  receiveSigningContextArtifact,
+} from "./release-signing-context-artifact.mts";
+import { readAttestedTufRoleArtifact } from "./release-tuf-role-artifact.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
   inspectCapacityOperation,
@@ -436,7 +442,7 @@ export function inspectNativePostSignController(
   return Object.freeze({
     controller_revision: executor.controller_revision,
     controller_ref: executor.execution_ref,
-    run_id: executor.run_id,
+    run_id: String(executor.run_id),
     run_attempt: executor.run_attempt,
     operation_id: operation.id,
     operation_sha256: digest(operation),
@@ -579,6 +585,218 @@ export async function requireActualNativePostSignController(receipt: object) {
     authority: "none" as const,
     scope: "parent-owned journal source only; signed context and native execution pending" as const,
   };
+}
+
+/** Complete bounded per-run inventory selects public locators only. Every
+ * artifact's provider custody, producer and signature are verified separately. */
+export function inspectNativePostSignArtifactInventory(
+  raw: unknown,
+  controller: {
+    run_id: string;
+    run_attempt: number;
+    controller_revision: string;
+  },
+) {
+  if (
+    !isRecord(raw) ||
+    !Array.isArray(raw.artifacts) ||
+    raw.total_count !== raw.artifacts.length ||
+    raw.artifacts.length > 100 ||
+    controller.run_attempt !== 1 ||
+    !/^[1-9][0-9]{0,15}$/u.test(controller.run_id) ||
+    !Number.isSafeInteger(Number(controller.run_id)) ||
+    !/^[a-f0-9]{40}$/u.test(controller.controller_revision)
+  )
+    throw new Error("complete bounded post-sign artifact inventory unavailable");
+  const seen = new Set<number>();
+  const artifacts = raw.artifacts.map((item: unknown) => {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "number" ||
+      !Number.isSafeInteger(item.id) ||
+      item.id < 1 ||
+      seen.has(item.id) ||
+      typeof item.name !== "string"
+    )
+      throw new Error("post-sign artifact inventory identity duplicated or absent");
+    seen.add(item.id);
+    return item;
+  });
+  const select = (name: string, maximum: number) => {
+    const rows = artifacts.filter((item) => item.name === name),
+      item = rows[0];
+    if (
+      rows.length !== 1 ||
+      !item ||
+      item.expired !== false ||
+      typeof item.digest !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(item.digest) ||
+      typeof item.size_in_bytes !== "number" ||
+      !Number.isSafeInteger(item.size_in_bytes) ||
+      item.size_in_bytes < 22 ||
+      item.size_in_bytes > maximum ||
+      !isRecord(item.workflow_run) ||
+      item.workflow_run.id !== Number(controller.run_id) ||
+      item.workflow_run.repository_id !== 1354613114 ||
+      item.workflow_run.head_repository_id !== 1354613114 ||
+      item.workflow_run.head_sha !== controller.controller_revision
+    )
+      throw new Error("exact post-sign public artifact missing or changed");
+    return Object.freeze({
+      id: Number(item.id),
+      sha256: item.digest.slice(7),
+      bytes: item.size_in_bytes,
+    });
+  };
+  return Object.freeze({
+    context: select(`trusted-payload-signing-context-${controller.run_id}-1`, 128 * 1024 ** 2),
+    context_bundle: select(
+      `trusted-payload-signing-context-attestation-${controller.run_id}-1`,
+      4 * 1024 ** 2,
+    ),
+    roles: Object.freeze(
+      (["releases", "preview", "stable", "snapshot", "timestamp"] as const).map((role) =>
+        Object.freeze({
+          role,
+          artifact: select(`trusted-tuf-${role}-output-${controller.run_id}-1`, 2 * 1024 ** 2),
+          bundle: select(`trusted-tuf-${role}-attestation-${controller.run_id}-1`, 4 * 1024 ** 2),
+        }),
+      ),
+    ),
+    authority: "none" as const,
+  });
+}
+
+/** Executes the maintained public receivers with this parent's fixed read-only
+ * credential and exact gh verifier. Injected-provider scope is retained: local
+ * source custody cannot manufacture a hosted private publication receipt. */
+export async function readActualNativePostSignPublicInputs(controllerReceipt: object) {
+  const original = postSignControllers.get(controllerReceipt);
+  const selected = await requireActualNativePostSignController(controllerReceipt);
+  if (!original) throw new Error("actual post-sign source session unavailable");
+  const source = original.source,
+    controller = selected.controller,
+    directory = await mkdtemp(path.join(selected.directory, "public-inputs-"));
+  const deadline = performance.now() + 300000;
+  const active = () => {
+    if (performance.now() >= deadline)
+      throw new Error("native public input acquisition deadline exhausted");
+  };
+  const inventory = () => {
+    active();
+    const response = source.api.request(
+      "GET",
+      `repos/boburning/portcove/actions/runs/${controller.run_id}/artifacts?per_page=100`,
+    );
+    active();
+    if (response.status !== 200) throw new Error("post-sign artifact inventory unavailable");
+    return inspectNativePostSignArtifactInventory(response.body, controller);
+  };
+  const before = inventory();
+  const zipEndpoint = `repos/boburning/portcove/actions/artifacts/${before.context.id}/zip`;
+  const contextArchive = source.download(zipEndpoint, {
+    cwd: directory,
+    maxBytes: before.context.bytes,
+    timeoutMs: 30000,
+  });
+  if (
+    contextArchive.length !== before.context.bytes ||
+    hash(contextArchive) !== before.context.sha256
+  )
+    throw new Error("native public context archive differs from provider identity");
+  const inspected = inspectSigningContextArchive(contextArchive);
+  const factsSha256 = inspected.manifest.facts_sha256;
+  if (typeof factsSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(factsSha256))
+    throw new Error("native signed context lacks exact facts digest");
+  const { bytes: _contextBytes, ...artifact } = before.context,
+    { bytes: _bundleBytes, ...bundle } = before.context_bundle;
+  const expected = {
+    controller_revision: controller.controller_revision,
+    source_tree: selected.parent.controller_tree,
+    controller_ref: controller.controller_ref,
+    run_id: controller.run_id,
+    run_attempt: controller.run_attempt,
+    artifact,
+    bundle,
+    manifest_sha256: inspected.manifest_sha256,
+    binding_sha256: digest(inspected.manifest.binding),
+    facts_sha256: factsSha256,
+  };
+  const cachedDownload: typeof readGitHubArtifactArchive = (endpoint, options) =>
+    endpoint === zipEndpoint ? Buffer.from(contextArchive) : source.download(endpoint, options);
+  const context = await receiveSigningContextArtifact(directory, expected, deadline, {
+    api: source.api,
+    download: cachedDownload,
+    spawn: source.verifier(controller),
+  });
+  const candidate = selected.candidate,
+    facts = inspected.manifest.facts;
+  if (!isRecord(facts) || digest(facts.opportunity) !== digest(candidate.frozen_opportunity))
+    throw new Error("actual signed context differs from reserved complete opportunity");
+  const { accepted } = await inspectTrustedAssemblyInput(facts.assembly);
+  if (
+    accepted.release_profile !== "initial-beta-win-linux" ||
+    accepted.source_commit !== candidate.prepared_commit ||
+    accepted.source_tree !== candidate.prepared_tree ||
+    accepted.version !== candidate.version ||
+    !isRecord(candidate.release_run) ||
+    accepted.run_id !== String(candidate.release_run.run_id) ||
+    accepted.run_attempt !== candidate.release_run.attempt
+  )
+    throw new Error(
+      "native signed context differs from exact reserved compiler run/prepared source",
+    );
+  const roles = [];
+  for (const role of before.roles) {
+    const { bytes: _artifactBytes, ...artifact } = role.artifact,
+      { bytes: _attestationBytes, ...bundle } = role.bundle;
+    roles.push(
+      await readAttestedTufRoleArtifact(
+        directory,
+        {
+          role: role.role,
+          controller: {
+            controller_revision: expected.controller_revision,
+            source_tree: expected.source_tree,
+            controller_ref: expected.controller_ref,
+            run_id: expected.run_id,
+            run_attempt: expected.run_attempt,
+          },
+          artifact,
+          bundle,
+          context_manifest_sha256: expected.manifest_sha256,
+          context_binding_sha256: expected.binding_sha256,
+          context_facts_sha256: expected.facts_sha256,
+        },
+        deadline,
+        { api: source.api, download: source.download, spawn: source.verifier(controller) },
+      ),
+    );
+  }
+  active();
+  if (digest(inventory()) !== digest(before))
+    throw new Error("post-sign artifact inventory changed during acquisition");
+  await requireActualNativePostSignController(controllerReceipt);
+  await writeFile(
+    path.join(directory, "public-inputs-source.json"),
+    JSON.stringify({
+      controller,
+      inventory: before,
+      context: expected,
+      envelopes: roles.map((role) => role.envelope),
+      authority: "none",
+      scope: "local parent-owned crypto/provider source; keyless Tough and native capture pending",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  return Object.freeze({
+    directory,
+    context,
+    roles: Object.freeze(roles),
+    authority: "none" as const,
+    scope:
+      "local parent-owned crypto/provider source; keyless Tough and native capture pending" as const,
+  });
 }
 
 /** No injected transport or incoming candidate tuple can enter this factory.
