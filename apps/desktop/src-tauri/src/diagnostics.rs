@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeMap,
-    fs::{self, File, OpenOptions},
-    io::{Read, Write},
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex,
@@ -11,9 +11,9 @@ use std::{
 };
 
 use portcove_core::{
-    PortcoveError, PortcoveService, Result, SupportBundleData,
-    redact_diagnostic_text as redact_text, redact_diagnostic_value,
-    sensitive_diagnostic_field as is_sensitive_field,
+    FailureReport, HostPreferenceStore, Library, PortcoveError, Result, SupportBundleExport,
+    SupportBundleRequest, export_support_bundle, redact_diagnostic_text as redact_text,
+    redact_diagnostic_value, sensitive_diagnostic_field as is_sensitive_field,
 };
 use serde_json::{Value, json};
 use tracing::{
@@ -78,7 +78,7 @@ struct FieldVisitor {
 }
 
 pub fn initialize(logs_dir: &Path) -> Result<()> {
-    fs::create_dir_all(logs_dir)?;
+    let logs_dir = portcove_core::prepare_support_log_directory(logs_dir)?;
     let log = DiagnosticLog::new(
         logs_dir.join(LOG_FILE_NAME),
         MAX_LOG_BYTES,
@@ -92,83 +92,35 @@ pub fn initialize(logs_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn create_support_bundle(service: &PortcoveService) -> Result<PathBuf> {
-    let logs_dir = service.library().logs_dir();
-    fs::create_dir_all(&logs_dir)?;
-    let timestamp = unix_timestamp_millis();
-    let output = logs_dir.join(format!("portcove-support-{timestamp}.zip"));
-    let doctor = service.doctor()?;
-    let activities = service.library().activities(100)?;
-    let summary = SupportBundleData::summary(&doctor, &activities, timestamp);
+/// This host-owned location survives library initialization/replacement. It
+/// carries no library state and never grants recovery or sharing authority.
+#[derive(Clone)]
+pub(crate) struct HostDiagnostics {
+    pub(crate) directory: crate::DesktopResult<PathBuf>,
+}
 
-    let log_files = support_log_files(&logs_dir)?;
-    let file = File::create(&output)?;
-    let mut archive = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    archive
-        .start_file("diagnostics.json", options)
-        .map_err(zip_error)?;
-    write_support_data(&mut archive, &summary)?;
-    for (index, activity) in activities.iter().enumerate() {
-        let captures = service.library().activity_diagnostic(&activity.id)?;
-        if !captures.is_empty() {
-            archive
-                .start_file(format!("logs/activity-{index}.json"), options)
-                .map_err(zip_error)?;
-            // Fixed archive names cannot turn a stored activity ID into a path.
-            write_support_data(
-                &mut archive,
-                &SupportBundleData::activity_captures(&captures),
-            )?;
+impl HostDiagnostics {
+    pub(crate) fn new(preferences: &crate::DesktopResult<HostPreferenceStore>) -> Self {
+        Self {
+            directory: preferences
+                .as_ref()
+                .map(HostPreferenceStore::diagnostics_directory)
+                .map_err(Clone::clone),
         }
     }
-    for path in log_files {
-        let name = path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .ok_or_else(|| {
-                PortcoveError::unsupported("diagnostic log name is not valid Unicode")
-            })?;
-        let mut contents = String::new();
-        File::open(&path)?.read_to_string(&mut contents)?;
-        archive
-            .start_file(format!("logs/{name}"), options)
-            .map_err(zip_error)?;
-        for line in contents.lines() {
-            serde_json::to_writer(&mut archive, &SupportBundleData::runtime_log_line(line))?;
-            archive.write_all(b"\n")?;
-        }
-    }
-    archive.finish().map_err(zip_error)?.sync_all()?;
-    Ok(output)
 }
 
-fn write_support_data(writer: &mut impl Write, data: &SupportBundleData) -> Result<()> {
-    serde_json::to_writer_pretty(&mut *writer, data)?;
-    writer.write_all(b"\n")?;
-    Ok(())
-}
-
-fn support_log_files(logs_dir: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = fs::read_dir(logs_dir)?
-        .collect::<std::io::Result<Vec<_>>>()?
-        .into_iter()
-        .filter_map(|entry| {
-            let name = entry.file_name();
-            let name = name.to_str()?;
-            let approved_name = name == LOG_FILE_NAME
-                || (1..=RETAINED_LOG_FILES).any(|index| name == format!("{LOG_FILE_NAME}.{index}"));
-            (entry.file_type().ok()?.is_file() && approved_name).then(|| entry.path())
-        })
-        .collect::<Vec<_>>();
-    files.sort();
-    Ok(files)
-}
-
-fn zip_error(error: zip::result::ZipError) -> PortcoveError {
-    PortcoveError::state("could not create the diagnostic support bundle")
-        .detail("cause", error.to_string())
+pub fn create_support_bundle(
+    library: Option<&Library>,
+    startup_failure: Option<&FailureReport>,
+    directory: &Path,
+) -> Result<SupportBundleExport> {
+    export_support_bundle(SupportBundleRequest {
+        destination_dir: directory,
+        logs_dir: Some(directory),
+        library,
+        startup_failure,
+    })
 }
 
 impl DiagnosticLog {
@@ -289,6 +241,41 @@ fn unix_timestamp_millis() -> u128 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use portcove_core::PortcoveService;
+    use std::{fs::File, io::Read};
+
+    #[test]
+    fn support_export_uses_host_location_without_a_ready_library() {
+        let temporary = tempfile::tempdir().unwrap();
+        let preferences =
+            HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+        let host = HostDiagnostics::new(&Ok(preferences));
+        let directory = host.directory.unwrap();
+        assert_eq!(directory, temporary.path().join("diagnostics"));
+        fs::create_dir(&directory).unwrap();
+        DiagnosticLog::new(
+            directory.join(LOG_FILE_NAME),
+            MAX_LOG_BYTES,
+            RETAINED_LOG_FILES,
+        )
+        .append(&json!({"fields": {"message": "startup host log remains available"}}))
+        .unwrap();
+        let failure = PortcoveError::state("unavailable library token=startup-canary").report();
+        let original = failure.clone();
+        let exported = create_support_bundle(None, Some(&failure), &directory).unwrap();
+        assert!(!exported.manifest.library_available);
+        assert_eq!(failure, original);
+        assert!(exported.path.is_file());
+        let mut archive = zip::ZipArchive::new(File::open(exported.path).unwrap()).unwrap();
+        let mut log = String::new();
+        archive
+            .by_name(&format!("logs/{LOG_FILE_NAME}"))
+            .unwrap()
+            .read_to_string(&mut log)
+            .unwrap();
+        assert!(log.contains("startup host log remains available"));
+        assert!(!temporary.path().join("preferences.json").exists());
+    }
 
     #[test]
     fn auth_observation_preserves_results_and_records_only_fixed_safe_fields() {
@@ -367,6 +354,30 @@ mod tests {
         assert!(!redacted.contains("CapsSecret"));
         assert!(!redacted.contains("github_pat_long-value"));
         assert!(redacted.contains("safe=visible"));
+    }
+
+    #[test]
+    fn unsafe_existing_host_log_cannot_be_enabled_for_startup_writes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("private-file");
+        fs::write(&foreign, b"preserve foreign data").unwrap();
+        let directory = temporary.path().join("diagnostics");
+        fs::create_dir(&directory).unwrap();
+        fs::hard_link(&foreign, directory.join(LOG_FILE_NAME)).unwrap();
+        assert!(initialize(&directory).is_err());
+        assert_eq!(fs::read(&foreign).unwrap(), b"preserve foreign data");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn unsafe_host_ancestor_cannot_redirect_early_logging() {
+        let temporary = tempfile::tempdir().unwrap();
+        let foreign = temporary.path().join("foreign");
+        fs::create_dir(&foreign).unwrap();
+        let alias = temporary.path().join("aliased-host");
+        std::os::unix::fs::symlink(&foreign, &alias).unwrap();
+        assert!(initialize(&alias.join("diagnostics")).is_err());
+        assert!(!foreign.join("diagnostics").exists());
     }
 
     #[test]
@@ -473,8 +484,10 @@ mod tests {
         drop(connection);
         let service = PortcoveService::new(library).unwrap();
 
-        let bundle = create_support_bundle(&service).unwrap();
-        let mut archive = zip::ZipArchive::new(File::open(bundle).unwrap()).unwrap();
+        let bundle =
+            create_support_bundle(Some(service.library()), None, &service.library().logs_dir())
+                .unwrap();
+        let mut archive = zip::ZipArchive::new(File::open(&bundle.path).unwrap()).unwrap();
         let mut entries = BTreeMap::new();
         for index in 0..archive.len() {
             let mut entry = archive.by_index(index).unwrap();
@@ -486,10 +499,13 @@ mod tests {
         assert_eq!(
             entries.keys().map(String::as_str).collect::<Vec<_>>(),
             [
-                "diagnostics.json",
+                "activities.json",
+                "doctor.json",
                 "logs/activity-0.json",
                 "logs/portcove-desktop.jsonl",
                 "logs/portcove-desktop.jsonl.1",
+                "manifest.json",
+                "startup.json",
             ]
         );
         let exported = serde_json::to_string(&entries).unwrap();
@@ -508,8 +524,8 @@ mod tests {
         assert!(exported.contains("[REDACTED]"));
         assert!(exported.contains("safe=visible"));
         assert!(exported.contains("safe=structured"));
-        let summary: Value = serde_json::from_str(&entries["diagnostics.json"]).unwrap();
-        assert_eq!(summary["schema_version"], 2);
+        let summary: Value = serde_json::from_str(&entries["activities.json"]).unwrap();
+        assert_eq!(summary["schema_version"], 1);
         assert_eq!(summary["activities"][0]["failure"]["details_omitted"], 1);
         assert_eq!(summary["activities"][0]["target_id_omitted"], true);
         let captures: Value = serde_json::from_str(&entries["logs/activity-0.json"]).unwrap();

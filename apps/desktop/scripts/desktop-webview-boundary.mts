@@ -218,6 +218,7 @@ try {
     browser,
     invoke: (command, args, options) => invoke(browser, command, args, options),
     library: process.env.PORTCOVE_LIBRARY,
+    preferencesPath: process.env.PORTCOVE_PREFERENCES,
     observations: report.observations,
     fixtureUrl,
     initialUrl,

@@ -78,6 +78,7 @@ import { ArtworkProvider } from "./artwork";
 import { SourceIntakeDialog } from "./components/SourceIntake";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
+import { SupportBundleExport } from "./components/SupportBundleExport";
 import { Button } from "./components/ui/button";
 import { WorkspaceRefreshNotice } from "./features/workspace/WorkspaceRefreshNotice";
 import {
@@ -170,6 +171,7 @@ function PortcoveApp() {
   if (!bootstrap.ready)
     return (
       <BootstrapRecovery
+        key={bootstrap.generation}
         error={bootstrap.error ?? missingBootstrapError}
         recoveryPending={recoveryPending}
         chooseLibrary={chooseLibrary}
@@ -308,6 +310,17 @@ export function BootstrapRecovery({
           {actionError}
         </p>
       )}
+      <section
+        aria-label="Support bundle"
+        className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
+        data-focus-group
+      >
+        <h2>Create support bundle</h2>
+        <SupportBundleExport
+          disabled={pending}
+          createSupportBundle={desktopApi.createSupportBundle}
+        />
+      </section>
     </main>
   );
 }

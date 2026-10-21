@@ -1086,7 +1086,8 @@ history update, atomically with terminal status. Older rows remain readable with
 no report. Corrupt optional failure details are reported as unreadable without
 hiding the activity or preventing ordinary library access. Shared text/field
 redaction now lives in core so activity presentation and desktop diagnostic
-bundles use one policy; host tracing, rotation and support-bundle packaging stay
+bundles use one policy. Core owns bounded support collection and archive
+publication; host tracing, rotation and the user-requested export command stay
 in the desktop adapter. Raw machine error fields retain their established meaning.
 
 SQLite schema 21 adds lazy, per-activity diagnostic captures. Core owns two
@@ -2345,15 +2346,81 @@ workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
 
-Tauri writes structured JSONL diagnostics under `logs/`, rotates at a bounded size, retains five generations, and appends across restarts. Sensitive structured field names and common inline credential forms are redacted before persistence. Operation events are logged with their core operation and parent IDs.
+Tauri writes structured JSONL diagnostics in the `diagnostics` directory beside
+the configured host-preference file, rotates at a bounded size, retains five
+generations, and appends across restarts. This host location is available before
+library initialization and remains stable across library replacement. Failure
+to initialize logging does not change the library initialization outcome.
+Earlier library-local logs are not migrated or searched. Sensitive structured
+field names and common inline credential forms are redacted before persistence.
+Operation events are logged with their core operation and parent IDs. Early
+failures before host preferences or the runtime lease remain owned by their
+existing subprocess diagnostics.
 
 ### Support-bundle export classification
 
 Core's `SupportBundleData` owns the privacy projection for user-requested support
 ZIPs. Its value is private and cannot be constructed from arbitrary JSON by an
-adapter. The desktop archive writer serializes only these classified summary,
-activity-capture and runtime-log projections. The summary uses schema version 2;
-this export format does not change the CLI/domain schema or persisted records.
+adapter. Core's archive writer serializes only classified startup, doctor,
+activity-capture, activity and runtime-log projections plus a closed manifest.
+The manifest and the independent startup, doctor and activity documents use
+schema version 1. The earlier combined summary projection remains schema 2;
+the archive now uses independent documents so one unavailable section cannot
+discard the others. These export versions do not change the CLI/domain schema
+or persisted records.
+
+Settings and bootstrap recovery expose the same explicit export action. The
+host's ordinary guarded blocking worker can export startup/runtime evidence
+without constructing a healthy library service. The returned path and manifest
+show partial and omitted sections without changing the original startup or
+operation failure. Nothing is uploaded automatically, and an exported archive
+is not evidence that recovery succeeded.
+
+The schema-1 manifest records product version, OS/architecture, an unknown source
+revision when the build supplies none, bounded-recent-diagnostics scope,
+library availability, limits, fixed section provenance, exported member names,
+status, closed omission reasons and known byte/record counts. Unknown counts
+are null. Startup includes only library availability, closed failure code and
+mutation state; its arbitrary error text is omitted. The bounded doctor reads
+existing platform and volume-size facts. Catalog/install/source counts,
+repair inventories and live host-tool probes remain null and explicitly partial:
+those reads can enumerate large inventories or hash executable files. They are
+not inferred from successful log collection.
+
+Collection admits at most 100 recent activities (128 KiB per SQLite row), 32
+capture records (8 MiB per admitted payload group, 16 MiB aggregate raw capture
+bytes), six fixed runtime files (4 MiB raw input each), and 64 KiB per runtime
+record. Structured sections are capped at 8 MiB and all exported payloads at
+16 MiB, plus a separately capped 64 KiB manifest and fixed ZIP metadata. Reads,
+redaction and serialization are bounded before publication; log records stream
+through a bounded buffer. A 30-second cooperative deadline is checked between
+sections and log records. It is not a hard timeout for a blocked OS or SQLite
+call. Support-only SQLite connections are read-only, use a 250 ms busy timeout,
+and enforce consuming read limits; normal readers and capture retention are
+unchanged. Main database and existing fixed WAL/SHM/journal sidecars must be
+single-link regular files with unchanged held identities. SQLite may still
+create or update its own WAL/SHM locking bookkeeping; support reads perform no
+logical domain writes. A failed capture attempt conservatively consumes its
+entire admitted byte/record reservation, so a corrupt later row cannot reset
+the aggregate budget. Capture completeness, observed bytes and stream truncation retain
+their original meanings, distinct from export omissions.
+
+Only the active runtime file and five exact rotation names are opened through
+the existing single-link, no-follow regular-file reader. Rotation/read failures,
+oversize or malformed records and incomplete trailing records retain available
+sections and receive closed reasons; raw errors and filenames cannot become
+manifest reasons. Member names never come from stored IDs or paths. A private
+same-directory temporary file is finished, synced and closed before an atomic
+no-replace rename publishes a unique final ZIP. Unix publication/cleanup uses
+the held parent directory; Windows holds its ancestors without delete sharing.
+Ordinary failure/unwind removes only that export's temporary file after verifying
+its held identity. If identity or cleanup cannot be proven, the private file is
+retained; existing user files are never overwritten.
+An abrupt process or machine exit can leave a private `.portcove-support-*.tmp`
+file. It is not a completed bundle and is never collected or promoted by later
+exports; only the exact abandoned file may be removed after confirming the
+owning process has exited. There is no directory-wide cleanup or new recovery
+authority.
 
 Every participating source DTO is matched exhaustively, including nested failure
 presentations, recovery targets, cancellation states and capture streams. There
@@ -2361,6 +2428,10 @@ are no rest patterns that silently admit new fields. A source field or public
 enum variant added to an exported class must receive an explicit decision before
 the projection compiles. Whole classes intentionally excluded from export remain
 excluded when their internal representation grows.
+
+The classification table describes approved projections. The bounded collector
+can omit approved classes, including the full doctor/repair/tool inventories,
+and reports those unknowns in its manifest and independent documents.
 
 | Data class                        | Export policy                                                                                                                                                                                                                                                                                                                                                                                        |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

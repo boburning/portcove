@@ -63,6 +63,22 @@ pub struct ActivityDiagnostic {
     pub stream_limit_bytes: u64,
 }
 
+pub(crate) fn decode_activity_diagnostic(
+    activity_id: &str,
+    phase: &str,
+    json: &str,
+) -> Result<ActivityDiagnostic> {
+    let invalid = || {
+        PortcoveError::state("the retained diagnostic capture could not be read")
+            .detail("activity_id", activity_id)
+    };
+    let capture: ActivityDiagnostic = serde_json::from_str(json).map_err(|_| invalid())?;
+    if capture.activity_id != activity_id || capture.phase != phase {
+        return Err(invalid());
+    }
+    Ok(capture)
+}
+
 #[derive(Default, Clone)]
 struct StreamBuffer {
     bytes: Vec<u8>,
@@ -205,15 +221,7 @@ impl Library {
         })?;
         rows.map(|row| {
             let (phase, json) = row?;
-            let invalid = || {
-                PortcoveError::state("the retained diagnostic capture could not be read")
-                    .detail("activity_id", activity_id)
-            };
-            let capture: ActivityDiagnostic = serde_json::from_str(&json).map_err(|_| invalid())?;
-            if capture.activity_id != activity_id || capture.phase != phase {
-                return Err(invalid());
-            }
-            Ok(capture)
+            decode_activity_diagnostic(activity_id, &phase, &json)
         })
         .collect()
     }

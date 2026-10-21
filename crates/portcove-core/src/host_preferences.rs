@@ -105,6 +105,12 @@ impl HostPreferenceStore {
             .unwrap_or_else(Self::open_default)
     }
 
+    /// Host diagnostics remain available independently of the selected library.
+    /// This is a sibling directory, never the preference file or its contents.
+    pub fn diagnostics_directory(&self) -> PathBuf {
+        self.path.with_file_name("diagnostics")
+    }
+
     /// User-scoped lock shared by CLI and Desktop process lifetimes. The
     /// explicit override supports isolated development and qualification.
     pub fn application_runtime_lock_path() -> Result<PathBuf> {

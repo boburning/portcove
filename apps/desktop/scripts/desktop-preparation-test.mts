@@ -3213,8 +3213,8 @@ export async function preparationScenarios({
       );
       const bundle = await invoke("create_support_bundle");
       assert.equal(bundle.ok, true);
-      assert.ok(typeof bundle.value === "string");
-      artifacts.push(bundle.value);
+      const exported = transportValue("desktop_support_bundle_export", bundle.value);
+      artifacts.push(exported.path);
       const capture = path.join(output, "retained-preparation-log.json");
       await writeFile(capture, JSON.stringify(retained, null, 2), {
         flag: "wx",
