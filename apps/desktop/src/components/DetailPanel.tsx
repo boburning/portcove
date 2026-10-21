@@ -524,7 +524,7 @@ function DetailBody({
   const external = port.release.provider === "user-prepared" || Boolean(status?.external_runtime);
   return (
     <div className="detail-body pb-10">
-      <div className="detail-summary border-b border-pc-border pb-6">
+      <div className="detail-summary">
         {header(
           <StatusActionsGroup
             installCancellations={installCancellations}
