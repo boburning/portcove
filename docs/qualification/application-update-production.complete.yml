@@ -1126,7 +1126,7 @@ jobs:
     timeout-minutes: 6
     environment: production-release-publication
     permissions:
-      contents: write
+      contents: read
       actions: read
       id-token: write
       attestations: write
@@ -1167,11 +1167,20 @@ jobs:
           owner: boburning
           repositories: portcove
           permission-contents: write
+      - id: publication
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.PORTCOVE_RELEASE_PUBLICATION_APP_ID }}
+          private-key: ${{ secrets.PORTCOVE_RELEASE_PUBLICATION_APP_PRIVATE_KEY }}
+          owner: boburning
+          repositories: portcove
+          permission-contents: write
       - id: job
         uses: ./.github/actions/release-controller-job
         env:
           PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
           PORTCOVE_COORDINATOR_JOURNAL_TOKEN: ${{ steps.journal.outputs.token }}
+          PORTCOVE_RELEASE_PUBLICATION_TOKEN: ${{ steps.publication.outputs.token }}
         with:
           operation: release-publication
           phase: release-publication

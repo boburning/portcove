@@ -116,6 +116,25 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
   );
   assert.equal(observerCalls("site_protection_observation")[0]?.with?.initial, "false");
   assert.equal(observerCalls("site_protection_observation")[0]?.with?.rounds, "5");
+  const publisher = requiredJob("release_publication");
+  const publicationApp = publisher.steps.findIndex(
+    (step) => step.with?.["app-id"] === "${{ vars.PORTCOVE_RELEASE_PUBLICATION_APP_ID }}",
+  );
+  const publisherGuard = publisher.steps.findIndex((step) =>
+    step.run?.includes("requireControllerReleaseAuthorities('release-publication')"),
+  );
+  const publishingWorker = publisher.steps.find(
+    (step) => step.uses === "./.github/actions/release-controller-job",
+  );
+  assert.ok(publisherGuard >= 0 && publicationApp > publisherGuard);
+  assert.equal(publisher.permissions?.contents, "read");
+  assert.equal(
+    publishingWorker?.env?.PORTCOVE_RELEASE_PUBLICATION_TOKEN,
+    "${{ steps.publication.outputs.token }}",
+  );
+  for (const [name, job] of Object.entries(jobs))
+    if (name !== "release_publication")
+      assert.ok(!JSON.stringify(job).includes("PORTCOVE_RELEASE_PUBLICATION_TOKEN"));
   assert.ok(requiredJob("release_publication").needs!.includes("tuf_timestamp"));
   assert.ok(requiredJob("site_publication").needs!.includes("release_publication"));
 });
