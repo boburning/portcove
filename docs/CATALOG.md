@@ -657,7 +657,10 @@ individual commands do not renew it. Other cartridge recipes retain their
 Cancellation and the separate process-tree closure deadline are unchanged.
 Each invocation preflights at most eight
 pure compiler targets, or two compiler targets when helpers are present, with
-at most eight helpers. Ninja still runs only two jobs. Oversized closures first
+at most eight helpers. A closure containing a fixed RmlUi source object instead
+admits only one compiler target, keeping its large output separate from other
+compiler output under the unchanged capture limit. Ninja still runs only two
+jobs. Oversized closures first
 split compiler dependencies, then request up to eight fixed helpers together.
 Every selected request group passes the same complete dry-run preflight again;
 an unfit group that cannot shrink refuses. Dependency expansion is

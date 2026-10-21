@@ -202,6 +202,69 @@ mod tests {
     }
 
     #[test]
+    fn cvlod_rmlui_closures_isolate_compiler_output_before_execution() {
+        let fixed: BTreeMap<String, Vec<String>> =
+            serde_json::from_str(include_str!("objects.json")).unwrap();
+        let aliases: BTreeMap<String, String> =
+            serde_json::from_str(include_str!("object-aliases.json")).unwrap();
+        let helpers: BTreeMap<String, Vec<Helper>> =
+            serde_json::from_str(include_str!("helpers.json")).unwrap();
+        let plan = Plan {
+            objects: fixed["game"]
+                .iter()
+                .map(|object| aliases.get(object).unwrap_or(object).clone())
+                .collect(),
+            helpers: helpers["game"].clone(),
+            manifest_sha256: String::new(),
+            rules_sha256: String::new(),
+        };
+        let actual = plan
+            .actions(include_str!("fixtures/a16-rmlui-batch.txt"), true)
+            .unwrap();
+        assert_eq!(actual.objects.len(), 8);
+        assert_eq!(actual.object_limit(), 1);
+        assert!(!actual.bounded());
+        assert_eq!(
+            actual.smaller_targets(&actual.objects).unwrap(),
+            actual.objects[..1]
+        );
+        assert!(actual.require_observed(&actual).is_err());
+        let noisy = &actual.objects[4..];
+        assert!(noisy.iter().all(|o| o.starts_with("lib/RmlUi/Source/")));
+        let mut singleton = Actions {
+            objects: noisy[..1].to_vec(),
+            helpers: vec![],
+        };
+        assert!(singleton.bounded());
+        assert!(singleton.require_observed(&singleton).is_ok());
+        let substituted = Actions {
+            objects: noisy[1..2].to_vec(),
+            helpers: vec![],
+        };
+        assert!(singleton.require_observed(&substituted).is_err());
+        singleton.objects.push(noisy[1].clone());
+        assert!(!singleton.bounded());
+        assert_eq!(singleton.object_limit(), 1);
+        // Expanded compiler dependencies still split before helper requests.
+        singleton.helpers = plan.helpers[..8].to_vec();
+        assert_eq!(singleton.object_limit(), 1);
+        assert_eq!(
+            singleton.smaller_targets(&singleton.objects).unwrap(),
+            noisy[..1]
+        );
+        singleton.objects.truncate(1);
+        assert!(singleton.bounded());
+        singleton.helpers.push(plan.helpers[8].clone());
+        assert!(!singleton.bounded());
+        assert!(singleton.require_observed(&singleton).is_err());
+        let requests = singleton.smaller_targets(&singleton.objects).unwrap();
+        assert_eq!(requests.len(), 8);
+        assert!(singleton.smaller_targets(&requests).is_err());
+        singleton.helpers.clear();
+        assert!(singleton.smaller_targets(&singleton.objects).is_err());
+    }
+
+    #[test]
     fn cvlod_object_batch_arguments_keep_two_compilers_and_a_finite_target_limit() {
         let targets = plan().objects;
         let build = Path::new("C:/private-build");
@@ -476,7 +539,15 @@ pub(super) struct Actions {
 }
 impl Actions {
     pub(super) fn object_limit(&self) -> usize {
-        if self.helpers.is_empty() {
+        // Retained RmlUi compiler output approaches the unchanged per-stream
+        // capture limit for one unit. Never combine it with another compiler.
+        if self
+            .objects
+            .iter()
+            .any(|object| object.starts_with("lib/RmlUi/Source/"))
+        {
+            1
+        } else if self.helpers.is_empty() {
             OBJECT_BATCH_LIMIT
         } else {
             2
