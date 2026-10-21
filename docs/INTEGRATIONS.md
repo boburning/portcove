@@ -1,8 +1,8 @@
 # External frontend integration
 
-Portcove is a complete native-port manager with a dependable public CLI. Other
-applications should integrate once with Portcove instead of learning how to
-manage each individual port.
+Portcove exposes shared native-port management through its public CLI. An
+external client uses those supported operations and their current assessments
+rather than implementing separate per-port installation or recovery rules.
 
 Portcove Desktop remains the flagship player experience; using another
 frontend is optional and never requires a player to use a terminal. The shared
@@ -18,24 +18,41 @@ schedule, and status; issues own detailed implementation and evidence. A named
 frontend below is a deliberate product-fit candidate, not a shipped-support
 claim.
 
+## Find the integration task
+
+| Task                                                       | Start here                                                                                                                                                        |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Select a compatible CLI and isolated library               | [Author setup](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library)                                                                                            |
+| Decide what the client supports and who maintains it       | [Capability and support claims](#capability-and-support-claims)                                                                                                   |
+| Inspect, plan, execute and read back a lifecycle operation | [Public author workflow](INTEGRATION-AUTHOR.md) and [operation binding](#runtime-and-operation-binding)                                                           |
+| Understand which component updates what                    | [Update ownership](#update-ownership)                                                                                                                             |
+| Reuse independent contract evidence or report a gap        | [Accepted consumer proof](#author-path-and-independent-consumer-proof) and [continuation/reporting](INTEGRATION-AUTHOR.md#evidence-and-continuation)              |
+| Connect a particular frontend                              | [Scoped frontend sequence](#deliberate-frontend-sequence), [Playnite](#user-ready-playnite-lifecycle), or [Steam/Steam Deck](#steam-and-steam-deck-without-decky) |
+
+The [domain glossary](../GLOSSARY.md) defines identity, source, evidence and
+operation terms. The [content-design contract](CONTENT-DESIGN.md) governs their
+human presentation without changing machine values or expanding support.
+
 ## What exists today
 
 Technical-alpha releases include separate CLI archives for the declared Windows,
 Linux, and macOS targets. Alpha 1 and Alpha 2 retain their original unversioned
 filenames and platform manifests; future releases use versioned CLI names and one aggregate
-checksum manifest. They do not require the desktop application to run. The CLI
-currently provides versioned JSON results, independently versioned JSONL
+checksum manifest. They do not require the desktop application to run. Published
+Alpha 2 exposes API 34; newer source examples require the compatible artifact
+identified in the [author guide](INTEGRATION-AUTHOR.md#choose-a-cli-and-fixture-library).
+The maintained CLI currently provides versioned JSON results, independently versioned JSONL
 operation events, schema and capability discovery, explicit library selection, stable
 error/exit behavior, durable activity readback, and a raw-stream supervised
 `exec` route. See [CLI contract](CLI.md) and [Releasing](RELEASING.md) for exact
 current behavior and package limitations.
 
-That shipped foundation is not yet the complete Public beta external-client
-promise.
-[#30](https://github.com/boburning/portcove/issues/30) owns demonstrated public
-contract gaps and compatibility policy, while
-[#243](https://github.com/boburning/portcove/issues/243) owns the bounded real
-consumer proof and integration-author experience. The Playnite source now builds
+Completed [#30](https://github.com/boburning/portcove/issues/30) and
+[#243](https://github.com/boburning/portcove/issues/243) establish their scoped
+public contract, compatibility and reference-consumer foundations. Closed
+[#1499](https://github.com/boburning/portcove/issues/1499) adds the identified
+packaged-agent exercise. Their evidence does not qualify every frontend or
+make a local candidate into a public release. The Playnite source now builds
 a local `.pext` candidate with explicit CLI/library selection and connection;
 [#910](https://github.com/boburning/portcove/issues/910) owns its remaining
 user-ready lifecycle product and acceptance. Planned behavior remains planned
@@ -72,6 +89,20 @@ integrations without private APIs, special permission, or per-port coordination.
 Portcove does not promise a first-party plugin for every launcher. Any additional
 first-party integration needs a demonstrated recurring user problem, reusable
 implementation, and explicit maintenance scope.
+
+## Update ownership
+
+| Update                | Owning boundary                                                                                   | Client consequence                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Portcove application  | Tauri host updater and [release/upgrade contracts](UPGRADING.md)                                  | Do not apply a game-update policy to Portcove itself. Published previews and current updater development retain their separate qualification limits.                    |
+| Managed game port     | Shared Core release selection, reviewed plans, activation and rollback                            | Present the selected library/port/release and actual consequences. Saving preferences is separate from executing a check, download or activation.                       |
+| Catalog or definition | [Signed catalog](SIGNED-CATALOG.md) and [definition-delivery](DEFINITION-DELIVERY.md) authorities | Metadata availability and publisher trust do not install game updates or override retained execution/source contracts. Format-1 and successor behavior remain distinct. |
+| Frontend or plugin    | That client's package, maintenance owner and host platform                                        | A client upgrade must negotiate its selected CLI and library contracts; it cannot silently migrate Core authority or claim another frontend's qualification.            |
+
+A registered external runtime remains user-owned. Its location/review and launch
+checks do not grant Portcove ownership of its files, saves or upgrades. Keep
+application release, game-port channel, upstream designation and test evidence
+separate when describing any update.
 
 ## Public interface expectations
 
@@ -173,12 +204,22 @@ updates, catalog updates, and frontend/plugin updates are distinct.
 
 The [integration author guide](INTEGRATION-AUTHOR.md) and
 [local Playnite reference](../integrations/playnite/README.md) provide the concrete
-schema-42 through schema-54 development path. The
+public development path. The author guide identifies the current tested
+API/event membership; the [schema history](reference/cli-schema-history.md)
+identifies document and compatibility changes. The
 [dated command audit and measurements](archive/2026-09-20-public-cli-consumer-audit.md)
 record the proportional capability mapping, process budgets, representative
-refresh and launch observations, and offline boundary. Their protocol fixtures
-and candidate checks remain distinct from final frontend, two-adapter and
-independent-consumer qualification.
+refresh and launch observations, and offline boundary. Their protocol fixtures and candidate checks retain their original
+scope; final frontend and platform claims need the appropriate independent
+observations.
+
+The [completed packaged-agent receipt](archive/2026-10-11-packaged-agent-consumer.md)
+and [final #1499 acceptance](https://github.com/boburning/portcove/issues/1499#issuecomment-6106634012)
+add identified Windows/Linux candidates, reviewed preparation, negative cases,
+packaged cancellation, lost-output readback and separately labeled offline
+Core/CLI fixtures. They retain failed attempts, synthetic-input limits and actual
+interventions. Consume that proof without repeating unchanged qualification;
+it is not published-package, retail-gameplay, Linux GUI or organic-adoption proof.
 
 The author guide owned by #243 progresses from locating/verifying the CLI and
 selecting a library, through listing installed ports and supervised launch, to

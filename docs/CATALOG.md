@@ -1,5 +1,50 @@
 # Catalog policy
 
+## Catalog author task routes
+
+The machine-readable catalog owns port, platform, source, release and
+qualification facts. Use these routes to describe a useful integration and its
+limits before preparing a change; stable IDs remain the operational references.
+
+| Task                                         | Start here                                                                                                                                                                       |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Define the required original game files      | [Original game-file requirements](#original-game-file-requirements), then the [shared source contract](ARCHITECTURE.md#original-game-files)                                      |
+| Explain what happens to saves and settings   | [Saved-data behavior](#saved-data-behavior), then [Core persistence](ARCHITECTURE.md#saves-and-settings) and [backups](ARCHITECTURE.md#backups)                                  |
+| Check releases and record maintenance limits | [Release checking](#release-checking), [continuous admission](#continuous-admission) and [channels, support and qualification](#channels-support-and-qualification)              |
+| Prepare and review the definition            | [Adding or changing a port](#adding-or-changing-a-port), [cover preparation](#default-covers) and [protected publication](#admission-decisions-and-protected-publication-target) |
+
+### Original game-file requirements
+
+Give players clearly defined requirements for their original game files and any
+required BIOS. Bind the labels, edition/representation facts and exact property
+checked to the declared source profiles and contracts. Distinguish an exact
+identity match from structural admission, an informational observation and a
+validator that has not run. The [shared inspector](ARCHITECTURE.md#original-game-files)
+owns these conclusions; a filename or descriptive label cannot supply them.
+The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
+the same source authority.
+
+### Saved-data behavior
+
+Explain how updates preserve saves and settings for the offered route. Declare
+the managed persistent locations and distinguish them from disposable runtime
+output and external player-owned files. Use the existing
+[synchronization and version-switch contract](ARCHITECTURE.md#saves-and-settings)
+and [backup ownership](ARCHITECTURE.md#backup-service-ownership); a non-owning
+registration does not acquire those management rights. Record an unknown or
+unsupported behavior at its actual scope rather than implying every file is
+backed up or every older game version can read newer saves.
+
+### Release checking
+
+Record release checking, required game files, saved-data behavior and
+implementation notes together for the offered route. Identify its release
+provider, offered channels, exact artifact and checksum requirements, then use
+the existing [release-selection and maintenance rules](#release-selection-and-maintenance).
+Separate safe selection of an artifact from qualification of that artifact and
+permission to install it. Keep pinned and user-managed limits explicit; a
+successful metadata check does not establish gameplay or authorize publication.
+
 ## Managed ReGaiden shared preferences
 
 The exact v0.4.1 Windows package has a closed consent-bearing managed route.
@@ -739,6 +784,8 @@ do not make an ambiguous basename acceptable. Catalog validation rejects
 missing platform entries, duplicate hints, traversal, cross-platform filename
 aliases, and macOS bundle directories in place of the executable inside the
 bundle.
+
+### Release selection and maintenance
 
 Release asset hints should identify a stable port, platform, architecture and
 package shape when automatic release selection is offered. A controlled N/N+1

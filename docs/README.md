@@ -1,7 +1,29 @@
 # Portcove documentation
 
-This map separates stable repository contracts from live planning and
-machine-readable product state.
+Start with the task you want to complete. Player guides describe the current
+product and its limits; contributor contracts explain the owners, checks and
+evidence behind it. Live work remains in GitHub issues and the Roadmap Project.
+
+## Play and manage games
+
+| Task                                                               | Start here                                                                                                          |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Understand what Portcove does and what is available                | [Player introduction and capabilities](../README.md)                                                                |
+| Choose a desktop or CLI download for your operating system and CPU | [Download choices](DOWNLOADS.md) and [published preview notes](#published-technical-previews)                       |
+| Install a first port, supply game files and launch                 | [First-play guide](../README.md#your-first-game) and [the observed application journey](media/first-play/README.md) |
+| Check files, manage updates or recover retained work               | [Player task guide](../README.md#manage-check-update-and-recover) and [CLI tasks](CLI.md#task-guides)               |
+| Upgrade Portcove or recover an application update                  | [Upgrade procedure](UPGRADING.md) and [observed update/recovery journey](media/application-update/README.md)        |
+| Understand a term or a verification claim                          | [Glossary](../GLOSSARY.md) and [content-design rules](CONTENT-DESIGN.md)                                            |
+
+## Connect another launcher
+
+Start with [integration levels and boundaries](INTEGRATIONS.md), then follow the
+[external-author task path](INTEGRATION-AUTHOR.md): select a compatible packaged
+CLI, discover capabilities and schemas, inspect isolated data, review a plan,
+execute an authorized operation, diagnose the result and read authoritative
+state back. The [CLI guide](CLI.md) owns current commands; the
+[schema-history reference](reference/cli-schema-history.md) explains version
+boundaries. Published Alpha 2 has an older API than current source examples.
 
 ## Published technical previews
 
@@ -16,30 +38,31 @@ machine-readable product state.
 | Authority                                                         | Owns                                                                                                                                      | Does not own                                             |
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | [Portcove Roadmap](https://github.com/users/boburning/projects/1) | Current work, priority, horizon, status, target release, blockers, deferred work, and new-port pipeline                                   | Durable implementation details or actual catalog support |
-| GitHub issues                                                     | Executable specifications, discussion, dependencies, acceptance criteria, and completion evidence                                         | Priority or release forecasts                            |
+| GitHub issues                                                     | Implementation-ready specifications, discussion, dependencies, acceptance criteria, and completion evidence                               | Priority or release forecasts                            |
 | [`catalog.json`](../crates/portcove-core/catalog/catalog.json)    | Actual ports, platforms, channels, sources, adapters, and qualification evidence                                                          | Product-level release scope                              |
 | Repository documentation                                          | Stable architecture, security, catalog admission, release-stage definitions, qualification policy, contributor rules, and dated snapshots | A mutable backlog                                        |
 
 ## Start by task
 
-These are current contracts. Proposed behavior belongs in its issue and live
+For contributors and maintainers, these are current contracts. Proposed behavior belongs in its issue and live
 Project item until implemented; dated outcomes remain historical evidence.
 
-| Task                                                                               | Current contract                                                                                                                                       |
-| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Architecture or cross-layer authority                                              | [Architecture and authority boundaries](ARCHITECTURE.md)                                                                                               |
-| Issue intake, dependencies, Project fields, or readiness                           | [Project governance](PROJECT-GOVERNANCE.md)                                                                                                            |
-| Branch, PR, independent review, or guarded merge                                   | [Contribution conventions](CONTRIBUTION-CONVENTIONS.md)                                                                                                |
-| Focused tests, selected CI, protected-policy validation, or shared Rust contention | [Quality workflow](QUALITY.md)                                                                                                                         |
-| Tool bootstrap, repository skills, native desktop sessions, or retained evidence   | [Development tooling and repository skills](DEVELOPMENT-TOOLS.md)                                                                                      |
-| Workspace layout, caches, worktrees, or cleanup                                    | [Development storage](DEVELOPMENT-STORAGE.md)                                                                                                          |
-| Catalog admission, port qualification, or support facts                            | [Catalog admission and qualification](CATALOG.md)                                                                                                      |
-| Definition delivery or catalog signing                                             | [Definition delivery](DEFINITION-DELIVERY.md) and [signed catalog delivery](SIGNED-CATALOG.md)                                                         |
-| Release, packaging, application signing, publication, or rollback                  | [Release process](RELEASING.md), [future delivery contract](DELIVERY.md), [application updater trust](UPDATER-TRUST.md), and [upgrading](UPGRADING.md) |
-| CLI or external frontend integration                                               | [CLI machine contract](CLI.md), [integration contract](INTEGRATIONS.md), and [integration author guide](INTEGRATION-AUTHOR.md)                         |
-| Repository rules or hosted settings                                                | [Repository settings](REPOSITORY-SETTINGS.md)                                                                                                          |
-| Security reports or vulnerability boundaries                                       | [Security policy](../SECURITY.md)                                                                                                                      |
-| Product targets and release-stage vocabulary                                       | [Product roadmap and release stages](ROADMAP.md)                                                                                                       |
+| Task                                                                               | Current contract                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Architecture or cross-layer authority                                              | [Architecture and authority boundaries](ARCHITECTURE.md)                                                                                                                                                          |
+| Issue intake, dependencies, Project fields, or readiness                           | [Project governance](PROJECT-GOVERNANCE.md)                                                                                                                                                                       |
+| Branch, PR, independent review, or guarded merge                                   | [Contribution conventions](CONTRIBUTION-CONVENTIONS.md)                                                                                                                                                           |
+| Focused tests, selected CI, protected-policy validation, or shared Rust contention | [Quality workflow](QUALITY.md)                                                                                                                                                                                    |
+| Tool bootstrap, repository skills, native desktop sessions, or retained evidence   | [Development tooling and repository skills](DEVELOPMENT-TOOLS.md)                                                                                                                                                 |
+| Workspace layout, caches, worktrees, or cleanup                                    | [Development storage](DEVELOPMENT-STORAGE.md)                                                                                                                                                                     |
+| Catalog admission, port qualification, or support facts                            | [Catalog admission and qualification](CATALOG.md)                                                                                                                                                                 |
+| Definition delivery or catalog signing                                             | [Definition delivery](DEFINITION-DELIVERY.md) and [signed catalog delivery](SIGNED-CATALOG.md)                                                                                                                    |
+| Release, packaging, application signing, publication, or rollback                  | [Release process](RELEASING.md), [future delivery contract](DELIVERY.md), [application updater trust](UPDATER-TRUST.md), and [upgrading](UPGRADING.md)                                                            |
+| CLI or external frontend integration                                               | [CLI machine contract](CLI.md), [integration contract](INTEGRATIONS.md), and [integration author guide](INTEGRATION-AUTHOR.md)                                                                                    |
+| Repository rules or hosted settings                                                | [Repository settings](REPOSITORY-SETTINGS.md)                                                                                                                                                                     |
+| Security reports or vulnerability boundaries                                       | [Security policy](../SECURITY.md)                                                                                                                                                                                 |
+| Product targets and release-stage vocabulary                                       | [Product roadmap and release stages](ROADMAP.md)                                                                                                                                                                  |
+| Domain terminology, content wording or a naming migration                          | [Glossary](../GLOSSARY.md), [content design](CONTENT-DESIGN.md), [domain guidance](agents/domain.md) and [source observation/registration decision](adr/0005-distinguish-source-observations-and-registration.md) |
 
 `RELEASING.md` is the current protected release process. `DELIVERY.md` describes
 the approved future delivery contract; it does not activate production updating,
@@ -60,6 +83,8 @@ including its compact task/reviewer handoff and ownership-first diagnosis.
 
 ## Product and presentation guidance
 
+- [Content-design contract](CONTENT-DESIGN.md)
+- [Domain glossary](../GLOSSARY.md)
 - [Design system](DESIGN-SYSTEM.md)
 - [Theme contract](THEME.md)
 - [Desktop localization and authoring](LOCALIZATION.md)
