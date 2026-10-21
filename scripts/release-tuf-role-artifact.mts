@@ -21,7 +21,10 @@ import {
 } from "./release-signing-handoff.mts";
 import { inspectTufSigningRole } from "./release-tuf-signing.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
+import {
+  requireReceivedSigningContext,
+  requireRetainedSigningContext,
+} from "./release-signing-context-artifact.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 
@@ -506,7 +509,11 @@ export async function receiveTufRoleArtifact(
   received.set(receipt, { context: contextReceipt, data, files, deadline });
   return receipt;
 }
-export async function requireReceivedTufRoleArtifact(receipt: object, phaseDeadline?: number) {
+async function readReceivedTufRoleArtifact(
+  receipt: object,
+  phaseDeadline: number | undefined,
+  provider: "fresh" | "retained",
+) {
   const actual = received.get(receipt);
   if (actual && phaseDeadline !== undefined) {
     if (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
@@ -515,7 +522,10 @@ export async function requireReceivedTufRoleArtifact(receipt: object, phaseDeadl
   }
   if (!actual || performance.now() >= actual.deadline)
     throw new Error("actual current TUF role custody required");
-  await requireReceivedSigningContext(actual.context, actual.deadline);
+  await (provider === "fresh" ? requireReceivedSigningContext : requireRetainedSigningContext)(
+    actual.context,
+    actual.deadline,
+  );
   await assertRoleProofInventory(actual.data.directory, actual.files);
   for (const file of actual.files) {
     await assertOwnedUnlinkedPath(actual.data.directory, file.path, "TUF role retained evidence");
@@ -523,12 +533,24 @@ export async function requireReceivedTufRoleArtifact(receipt: object, phaseDeadl
     if (bytes.length !== file.bytes || hash(bytes) !== file.sha256)
       throw new Error("TUF role retained proof changed");
   }
-  recheckTufRoleArtifactCustody(actual.data, actual.deadline);
+  if (provider === "fresh") recheckTufRoleArtifactCustody(actual.data, actual.deadline);
   if (performance.now() >= actual.deadline) throw new Error("TUF role phase deadline exhausted");
   return Object.freeze({
     role: actual.data.expected.role,
     envelope: { ...actual.data.envelope },
     expected: structuredClone(actual.data.expected),
+    provenance:
+      provider === "fresh"
+        ? ("fresh-provider-readback" as const)
+        : ("original-verified-snapshot" as const),
     authority: "none",
   });
+}
+export function requireReceivedTufRoleArtifact(receipt: object, phaseDeadline?: number) {
+  return readReceivedTufRoleArtifact(receipt, phaseDeadline, "fresh");
+}
+/** Rehashes the original authenticated completed-role proof and output without
+ * pretending to observe the provider again. No imported report can enter it. */
+export function requireRetainedTufRoleArtifact(receipt: object, phaseDeadline?: number) {
+  return readReceivedTufRoleArtifact(receipt, phaseDeadline, "retained");
 }
