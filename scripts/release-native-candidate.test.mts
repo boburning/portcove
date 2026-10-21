@@ -1,3 +1,12 @@
+import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { createRequire } from "node:module";
+import { mkdir, mkdtemp, readFile, writeFile, copyFile, rm } from "node:fs/promises";
+import { performance } from "node:perf_hooks";
+import { disposableTufWorkerFixture } from "./fixtures/tuf-worker-fixture.mts";
+import { signIsolatedTufRole, tufRoleDependencies } from "./release-tuf-signing.mts";
+import { signReleasePayload } from "./release-payload-signing.mts";
 import { readGitHubReleaseAsset } from "./github-binary.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -570,3 +579,237 @@ void test("native detached payload verifier uses the same pinned keyless tool wi
     /fixed native payload verifier/,
   );
 });
+
+void test(
+  "actual fixed Node CLI assembles disposable five-role Tough repository and verifies selected signed payload with retained refusals",
+  {
+    skip: !process.env.PORTCOVE_NATIVE_KEYLESS_FIXTURE_TOOL,
+    timeout: 180000,
+  },
+  async (t) => {
+    const execute = promisify(execFile),
+      sha = (value: Uint8Array) => createHash("sha256").update(value).digest("hex");
+    const sourceTool = process.env.PORTCOVE_NATIVE_KEYLESS_FIXTURE_TOOL!,
+      toolHash = process.env.PORTCOVE_NATIVE_KEYLESS_FIXTURE_SHA256!;
+    assert.match(toolHash, /^[a-f0-9]{64}$/u);
+    const toolBytes = await readFile(sourceTool);
+    assert.equal(sha(toolBytes), toolHash);
+    const checkout = fileURLToPath(new URL("..", import.meta.url));
+    await mkdir(path.join(checkout, "work/slice4"), { recursive: true });
+    const root = await mkdtemp(path.join(checkout, "work/slice4/native-keyless-cli-"));
+    t.diagnostic(`retained disposable public fixture: ${root}`);
+    const tool = {
+      path: path.join(
+        root,
+        process.platform === "win32" ? "portcove-release-tools.exe" : "portcove-release-tools",
+      ),
+      sha256: toolHash,
+    };
+    await writeFile(tool.path, toolBytes, { flag: "wx", mode: 0o700 });
+    const input = path.join(root, "context"),
+      keys = await disposableTufWorkerFixture(input);
+    const signed: Awaited<ReturnType<typeof signIsolatedTufRole>>[] = [];
+    for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
+      const key = Buffer.from(keys[role]);
+      const result = await signIsolatedTufRole(
+        {
+          role,
+          context_directory: input,
+          output: path.join(root, role),
+          tool,
+          signed_roles: tufRoleDependencies(role).map((name) => {
+            const item = signed.find((entry) => entry.role === name);
+            assert.ok(item);
+            return {
+              filename: item.filename,
+              path: item.path,
+              bytes: item.bytes,
+              sha256: item.sha256,
+            };
+          }),
+        },
+        {
+          deadline: performance.now() + 15000,
+          beforeKey: async () => {},
+          keyMaterial: async () => key,
+        },
+      );
+      assert.ok(key.every((byte) => byte === 0));
+      signed.push(result);
+      keys[role].fill(0);
+    }
+    const environment = {
+      SystemRoot: process.env.SystemRoot,
+      LANG: "C.UTF-8",
+      PATH: path.dirname(process.execPath),
+    };
+    const cli = fileURLToPath(new URL("./release-native-keyless-assembly.mts", import.meta.url));
+    const invoke = async (directory: string, name: string, plan: unknown) => {
+      const wire = Buffer.from(JSON.stringify(plan)),
+        filename = path.join(directory, name);
+      await writeFile(filename, wire, { flag: "wx", mode: 0o600 });
+      return execute(process.execPath, [cli, filename, sha(wire)], {
+        cwd: checkout,
+        env: environment,
+        timeout: 100000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      });
+    };
+    const assemblyPlan = {
+      schema_version: 1,
+      context_directory: input,
+      output_parent: root,
+      tool,
+      signed_roles: signed.map(({ filename, path, bytes, sha256 }) => ({
+        filename,
+        path,
+        bytes,
+        sha256,
+      })),
+    };
+    await invoke(root, "native-keyless-plan.json", assemblyPlan);
+    const assembly = JSON.parse(
+      await readFile(path.join(root, "native-keyless-result.json"), "utf8"),
+    ) as { assembled: { records: number; publication: { records_sha256: string } } };
+    assert.equal(assembly.assembled.records, 0);
+    assert.equal(assembly.assembled.publication.records_sha256, sha(Buffer.from("[]")));
+    const desktopRequire = createRequire(new URL("../apps/desktop/package.json", import.meta.url));
+    const cliRequire = createRequire(desktopRequire.resolve("@tauri-apps/cli/package.json"));
+    const addon = cliRequire.resolve(
+      `@tauri-apps/cli-${process.platform === "win32" ? "win32-x64-msvc" : "linux-x64-gnu"}`,
+    );
+    const launcher = path.join(root, "fixture-signer.cjs");
+    await writeFile(
+      launcher,
+      `require(${JSON.stringify(addon)}).run(process.argv.slice(2),"tauri",e=>{if(e)process.exitCode=1});`,
+      { flag: "wx" },
+    );
+    const privatePath = path.join(root, "disposable.key");
+    await execute(
+      process.execPath,
+      [launcher, "signer", "generate", "--ci", "--password", "", "--write-keys", privatePath],
+      { env: environment, timeout: 30000, maxBuffer: 65536, windowsHide: true },
+    );
+    const privateKey = await readFile(privatePath, "utf8"),
+      publicKey = `${privatePath}.pub`;
+    const version = "0.3.0-beta.1",
+      filename = "Portcove_0.3.0-beta.1_x64-setup.exe",
+      payload = Buffer.from(Array.from({ length: 180321 }, (_, i) => i % 251));
+    const artifact = path.join(root, filename);
+    await writeFile(artifact, payload, { flag: "wx" });
+    const keySha = sha(Buffer.from((await readFile(publicKey, "utf8")).trim(), "base64"));
+    let signaturePath: string;
+    try {
+      await signReleasePayload(
+        {
+          projectRoot: checkout,
+          payload: artifact,
+          publicKey,
+          output: path.join(root, "signed"),
+          request: {
+            schema_version: 1,
+            repository: "boburning/portcove",
+            version,
+            source_commit: "a".repeat(40),
+            platform_label: "windows-x86_64",
+            filename,
+            sha256: sha(payload),
+            bytes: payload.length,
+            public_key_sha256: keySha,
+            qualification_inventory_sha256: "b".repeat(64),
+            reservation_checkpoint: "c".repeat(40),
+            aggregate_archive_sha256: "d".repeat(64),
+            producer: { run_id: "1", run_attempt: 1, job_id: "2", artifact_id: "3" },
+          },
+          tools: {
+            node: { path: process.execPath, sha256: sha(await readFile(process.execPath)) },
+            tauriAddon: { path: addon, sha256: sha(await readFile(addon)) },
+            verifier: tool,
+          },
+        },
+        {
+          deadline: performance.now() + 60000,
+          beforeSign: async () => {},
+          keyMaterial: async () => ({ key: privateKey, password: "" }),
+        },
+      );
+      signaturePath = path.join(root, "signed", `${filename}.sig`);
+    } finally {
+      await rm(privatePath);
+    }
+    const payloadPlan = {
+      schema_version: 1,
+      artifact,
+      signature: signaturePath!,
+      public_key: publicKey,
+      public_key_sha256: keySha,
+      bytes: payload.length,
+      sha256: sha(payload),
+      version,
+      tool,
+      output_parent: root,
+    };
+    await invoke(root, "native-payload-plan.json", payloadPlan);
+    const result = JSON.parse(
+      await readFile(path.join(root, "native-payload-result.json"), "utf8"),
+    ) as { report: { signature_verified: boolean } };
+    assert.equal(result.report.signature_verified, true);
+    const negative = path.join(root, "tampered-payload");
+    await mkdir(negative);
+    const changed = Buffer.from(payload);
+    changed[0] = changed[0]! ^ 1;
+    await writeFile(path.join(negative, filename), changed);
+    await copyFile(signaturePath!, path.join(negative, "payload.sig"));
+    await copyFile(publicKey, path.join(negative, "public.key"));
+    await assert.rejects(
+      invoke(negative, "native-payload-plan.json", {
+        ...payloadPlan,
+        artifact: path.join(negative, filename),
+        signature: path.join(negative, "payload.sig"),
+        public_key: path.join(negative, "public.key"),
+        output_parent: negative,
+      }),
+    );
+    assert.equal(
+      (
+        JSON.parse(await readFile(path.join(negative, "native-payload-refusal.json"), "utf8")) as {
+          authority: string;
+        }
+      ).authority,
+      "none",
+    );
+    const corrupt = path.join(root, "corrupt-envelope");
+    await mkdir(corrupt);
+    const altered = Buffer.from('{"signed":{},"signatures":[]}');
+    const alteredPath = path.join(corrupt, "releases.json");
+    await writeFile(alteredPath, altered);
+    await assert.rejects(
+      invoke(corrupt, "native-keyless-plan.json", {
+        ...assemblyPlan,
+        output_parent: corrupt,
+        context_directory: path.join(corrupt, "context"),
+        signed_roles: [],
+      }),
+    );
+    // The exact original contexts/results remain public fixture evidence only.
+    await writeFile(
+      path.join(root, "qualification.json"),
+      JSON.stringify({
+        schema_version: 1,
+        source_tool_sha256: toolHash,
+        node_sha256: sha(await readFile(process.execPath)),
+        outcomes: [
+          "actual-cli-five-role-tough-assembled",
+          "actual-cli-selected-payload-verified",
+          "actual-cli-tampered-payload-refused",
+          "invalid-envelope-plan-refused",
+        ],
+        authority: "none",
+        scope:
+          "disposable crypto/CLI integration; no parent Task, native package or production qualification",
+      }),
+      { flag: "wx", mode: 0o600 },
+    );
+  },
+);
