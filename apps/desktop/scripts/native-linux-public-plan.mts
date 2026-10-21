@@ -28,9 +28,13 @@ function freeze<T>(value: T): Readonly<T> {
 
 export function inspectPublicNativeLinuxBinding(raw: unknown) {
   const value: unknown = structuredClone(raw);
-  exact(value, "candidate,network,profile_id,retained_state_bytes,schema_version,session,source");
+  exact(
+    value,
+    "candidate,network,phase,profile_id,retained_state_bytes,schema_version,session,source",
+  );
   assert.equal(value.schema_version, 1);
-  assert.ok(value.profile_id === "client-a" || value.profile_id === "client-b");
+  assert.ok(value.phase === "initial-v0-v1" || value.phase === "park-v0-with-v1");
+  assert.equal(value.profile_id, value.phase === "initial-v0-v1" ? "client-a" : "client-b");
   const session = inspectIsolatedNativeLinuxBinding(value.session);
   const attempt = `${session.linux_root}/invocations/${session.invocation_id}`;
   exact(value.candidate, "bytes,path,sha256");
@@ -91,6 +95,7 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
     source,
     retained_state_bytes: retainedStateBytes,
     required_writable_bytes: requiredBytes,
+    phase: value.phase,
     profile_id: value.profile_id,
     profile_home: `/native/profile/${value.profile_id}`,
     state: `${session.home}/state`,

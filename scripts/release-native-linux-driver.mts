@@ -117,13 +117,14 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
   assert.ok(
     isRecord(journey) &&
       Object.keys(journey).sort().join(",") ===
-        "candidate,network,profile_id,retained_state_bytes,source,versions",
+        "candidate,network,phase,profile_id,retained_state_bytes,source,versions",
   );
   const binding = inspectPublicNativeLinuxBinding({
     schema_version: 1,
     session: raw.binding,
     candidate: journey.candidate,
     network: journey.network,
+    phase: journey.phase,
     profile_id: journey.profile_id,
     retained_state_bytes: journey.retained_state_bytes,
     source: journey.source,
@@ -152,6 +153,7 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
       session: raw.binding,
       candidate: journey.candidate,
       network: journey.network,
+      phase: journey.phase,
       profile_id: journey.profile_id,
       retained_state_bytes: journey.retained_state_bytes,
       source: journey.source,

@@ -16,6 +16,7 @@ function fixture() {
   const attempt = `${root}/invocations/${invocation}`;
   return {
     schema_version: 1,
+    phase: "initial-v0-v1",
     profile_id: "client-a",
     session: {
       schema_version: 1,
@@ -141,6 +142,7 @@ void test("fixed guest dispatch requires explicit public schema and cannot reint
     stage_request_sha256: "5".repeat(64),
     public_journey: {
       candidate: input.candidate,
+      phase: input.phase,
       profile_id: input.profile_id,
       source: input.source,
       network: input.network,
@@ -207,4 +209,17 @@ void test("reopened namespaces keep stable profile meaning with distinct immutab
   assert.equal(initial.profile_home, restored.profile_home);
   assert.equal(initial.profile_home, "/native/profile/client-a");
   assert.throws(() => inspectPublicNativeLinuxBinding({ ...input, profile_id: "/caller/root" }));
+});
+
+void test("parked B profile is an explicit finite phase and cannot impersonate completed A", () => {
+  const initial = fixture();
+  const parked = inspectPublicNativeLinuxBinding({
+    ...initial,
+    phase: "park-v0-with-v1",
+    profile_id: "client-b",
+  });
+  assert.equal(parked.phase, "park-v0-with-v1");
+  assert.equal(parked.profile_home, "/native/profile/client-b");
+  assert.throws(() => inspectPublicNativeLinuxBinding({ ...initial, phase: "park-v0-with-v1" }));
+  assert.throws(() => inspectPublicNativeLinuxBinding({ ...initial, phase: "caller-accepted" }));
 });
