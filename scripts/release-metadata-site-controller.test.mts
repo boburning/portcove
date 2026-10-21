@@ -244,3 +244,53 @@ void test("actual metadata launcher schema reaches the original provider clock b
     "fixed launcher must reach the actual original-job read, but missing custody still refuses",
   );
 });
+
+void test("initial site reservation uses the real bootstrap descriptor and permanently refuses an existing seed", async () => {
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const { prepareInitialSiteDeploymentFromActualTufPublication } =
+    await import("./release-site-deployment.mts");
+  const { descriptor, published } = metadataBootstrapFixture();
+  const manifest = {
+    kind: "metadata-signing-context",
+    previous_site_pins: null,
+    facts: {
+      mode: "bootstrap",
+      descriptor,
+      namespace: "portcove-fixture",
+      checkpoint: "1".repeat(40),
+      previous_site_pins: null,
+      setup_plan_sha256: descriptor.setup_plan_sha256,
+      public_source_commit: "2".repeat(40),
+    },
+    binding: {
+      kind: "metadata-bootstrap",
+      descriptor_sha256: digest(descriptor),
+      records_sha256: digest([]),
+    },
+  };
+  const selected = inspectMetadataSiteReservation(
+    { metadata_bootstrap: descriptor, published_metadata: null, active_candidate: null },
+    manifest,
+  );
+  assert.equal(selected.mode, "bootstrap");
+  assert.equal(selected.candidate_sha256, digest(null));
+  for (const input of [
+    { metadata_bootstrap: descriptor, published_metadata: published },
+    { metadata_bootstrap: null, published_metadata: null },
+  ])
+    assert.throws(() => inspectMetadataSiteReservation(input, manifest));
+  assert.throws(() =>
+    inspectMetadataSiteReservation(
+      { metadata_bootstrap: descriptor, published_metadata: null },
+      { ...manifest, previous_site_pins: { root_sha256: descriptor.root_sha256 } },
+    ),
+  );
+  await assert.rejects(
+    prepareInitialSiteDeploymentFromActualTufPublication(
+      {},
+      process.cwd(),
+      performance.now() + 1000,
+    ),
+    /actual keyless/,
+  );
+});
