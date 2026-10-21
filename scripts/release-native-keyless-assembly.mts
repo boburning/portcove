@@ -110,5 +110,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const [filename, expected, ...rest] = process.argv.slice(2);
   if (!filename || !expected || rest.length)
     throw new Error("fixed native keyless plan and digest required");
-  await runNativeKeylessAssemblyPlan(filename, expected);
+  void runNativeKeylessAssemblyPlan(filename, expected).catch(() => {
+    console.error("native keyless assembly refused; retain original input and partial output");
+    process.exitCode = 1;
+  });
 }
