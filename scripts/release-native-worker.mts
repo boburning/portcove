@@ -15,6 +15,8 @@ import {
   readActualPublicJourneyProgress,
   claimActualPublicJourneyInvocation,
   recordActualWindowsPublicSettlement,
+  recordActualLinuxPublicSettlement,
+  readActualPublicJourneyParentPhase,
 } from "./release-native-attempt.mts";
 import {
   captureActualWindowsNativeInvocation,
@@ -23,8 +25,13 @@ import {
 } from "./release-native-windows-capture.mts";
 import {
   acquireActualPublicJourneyPair,
+  acquireActualPublicJourneyContinuationPair,
   materializeActualPublicJourneyPackage,
 } from "./release-native-public-pair.mts";
+import {
+  captureActualLinuxPublicJourney,
+  requireActualLinuxPublicCapture,
+} from "./release-native-linux-public-capture.mts";
 import { collectActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
 import {
   prepareActualNativeStageReport,
@@ -46,35 +53,67 @@ export async function runInstalledNativeWorker(configuration: string, configurat
   const linux =
     (await requireActualNativeParent(parent)).descriptor.platform_label === "linux-x86_64";
   if ((await readActualNativeWorkerDispatch(parent)) === "public") {
-    // Linux supplies its separate actual WSL/public capture join; never cast
-    // the public claim into a native-stage claim or reuse a report2 constructor.
-    if (linux) throw new Error("actual Linux public capture continuation is not connected yet");
-    const pair = await acquireActualPublicJourneyPair(parent);
-    const progress = await readActualPublicJourneyProgress(pair);
-    if (progress.phase !== "initial-v0-v1" && progress.phase !== "park-v0-with-v1")
+    const phase = await readActualPublicJourneyParentPhase(parent);
+    if (phase.phase === "completed")
       return {
         decision: "hold",
-        reason: "parked public B awaits authenticated V2 continuation; no repeated launch",
+        reason: "original public cohort already settled; no repeated launch or new acceptance",
+        phase,
+        authority: "none",
+      };
+    let pair: object;
+    if (phase.phase === "await-published-v2") {
+      if (!phase.historical_cohort_receipt)
+        throw new Error("actual retained public cohort routing receipt missing");
+      pair = await acquireActualPublicJourneyContinuationPair(
+        parent,
+        phase.historical_cohort_receipt,
+      );
+    } else pair = await acquireActualPublicJourneyPair(parent);
+    const progress = await readActualPublicJourneyProgress(pair);
+    if (
+      progress.phase !== "initial-v0-v1" &&
+      progress.phase !== "park-v0-with-v1" &&
+      !(linux && progress.phase === "continue-with-v2")
+    )
+      return {
+        decision: "hold",
+        reason:
+          "selected public phase has no connected Windows continuation; no invocation claimed",
         progress,
         authority: "none",
       };
     const prior_package = await materializeActualPublicJourneyPackage(pair, "prior");
     const candidate_package = await materializeActualPublicJourneyPackage(pair, "candidate");
-    const prior = await collectActualPublicWindowsCompilerIdentity(pair, "prior"),
-      candidate = await collectActualPublicWindowsCompilerIdentity(pair, "candidate");
+    const parked_package =
+      progress.phase === "continue-with-v2"
+        ? await materializeActualPublicJourneyPackage(pair, "parked")
+        : undefined;
+    const compiler = linux
+      ? undefined
+      : {
+          prior: await collectActualPublicWindowsCompilerIdentity(pair, "prior"),
+          candidate: await collectActualPublicWindowsCompilerIdentity(pair, "candidate"),
+        };
     const claim = await claimActualPublicJourneyInvocation(progress, {
       pair,
       prior_package,
       candidate_package,
-      compiler: { prior, candidate },
+      ...(parked_package ? { parked_package } : {}),
+      ...(compiler ? { compiler } : {}),
     });
-    const capture = await captureActualWindowsPublicJourney(claim);
-    await requireActualWindowsPublicCapture(capture);
-    const settlement = await recordActualWindowsPublicSettlement(capture);
+    const capture = linux
+      ? await captureActualLinuxPublicJourney(claim)
+      : await captureActualWindowsPublicJourney(claim);
+    if (linux) await requireActualLinuxPublicCapture(capture);
+    else await requireActualWindowsPublicCapture(capture);
+    const settlement = linux
+      ? await recordActualLinuxPublicSettlement(capture)
+      : await recordActualWindowsPublicSettlement(capture);
     return {
       decision: "hold",
       reason:
-        "initial public Windows capture and technical settlement retained; full parked B/V2 proof remains pending",
+        "public capture and technical settlement retained; independent full public acceptance remains pending",
       capture,
       settlement,
       authority: "none",

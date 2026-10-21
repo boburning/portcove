@@ -410,3 +410,16 @@ The source dependency composition preserves the exact reviewed Windows caller
 and incorporates the reviewed Linux capture/forward-repair source, including
 root's still-separate safe restart-supersession patch. No remote or host effects
 were performed by this connection work.
+
+The installed worker now consumes that explicit parent-phase route. Linux initial,
+parked and genuine V2 continuation each use their actual private pair, package,
+claim, capture and settlement consumers; parked V1 remains a distinct opaque
+input for V2. Completed history returns without a launch, and contradictory
+history propagates refusal. Windows initial/parked paths retain their compiler
+requirements; its unconnected V2 capture refuses before claiming an invocation.
+The actual worker module was imported in a fresh builtins-only child with all
+provider/native dependencies mocked: initial/parked/continuation ordering,
+completed idempotency, contradictory-history refusal and Windows continuation
+HOLD all passed. This is dispatch coverage only and cannot mint a real factory
+brand or native observation. Thirteen focused tests and three typed modules
+passed; actual host/setup/public acceptance remains pending.

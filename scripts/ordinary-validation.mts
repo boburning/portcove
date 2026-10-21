@@ -595,6 +595,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/release-native-windows-driver.test.mts",
       "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-linux-public-capture.test.mts",
     ],
   ],
   [
