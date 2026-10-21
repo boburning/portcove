@@ -204,7 +204,7 @@ export async function recoverPublishedPagesMetadata(
             published,
             verified_current_descriptor: currentFacts.descriptor,
             scope: "actual current public feed; unused next plan not published",
-            provider_mutations: 0,
+            pages_posts: 0,
             authority: "none",
           }),
           { flag: "wx", mode: 0o600 },
@@ -219,14 +219,14 @@ export async function recoverPublishedPagesMetadata(
       flag: "wx",
       mode: 0o600,
     });
-    return { directory, ...result, provider_mutations: 0, authority: "none" as const };
+    return { directory, ...result, pages_posts: 0, authority: "none" as const };
   } catch (error) {
     await writeFile(
       path.join(directory, "refusal.json"),
       JSON.stringify({
         outcome: "handoff-unresolved-or-ambiguous",
         automatic_retry: false,
-        provider_mutations: 0,
+        pages_posts: 0,
         authority: "none",
       }),
       { flag: "wx", mode: 0o600 },
