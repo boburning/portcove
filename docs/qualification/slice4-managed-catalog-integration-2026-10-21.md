@@ -78,13 +78,40 @@ was restored. The affected site/inspection checks then passed 25, failed zero,
 with one existing platform skip. A prior queued invocation refused source drift
 before executing. Those outcomes remain retained under `work/slice4`.
 
+## Cold-build measurement and bounded repair
+
+Ordinary hosted fixture `39626936673/1` passed functional checks on synthetic PR
+merge `f1d21e6958be023c8d820a308e7780262fe1fec8`, tree
+`c4b0d39d2413af34ab2c9cf52dc7c80a56516c82`, exactly the tree of reviewed source
+`b96688ce08c58dd6b22a422beb6ec040414e6e75`. Artifact `12357532158` had digest
+`16454bb4b15f9ef7cea48dc4b7f115190031baae55f7118c766c62e8f257158b`.
+It measured 266,714 ms for the cold build and 211,643,056 expanded tool bytes,
+including the 39,751,968-byte CLI. The archive fits, but that build exceeds the
+four-minute production tool job. Functional PASS is not timing acceptance.
+
+The tool-only `controller-tools` Cargo profile inherits release behavior with
+optimization level 1; the shipping release profile, features, dependencies and
+lockfile are unchanged. The fixed single locked build uses that profile for both
+helper binaries. The ordinary fixture now refuses a measured cold build over
+210,000 ms, reserving thirty seconds inside the existing four-minute proposal for
+setup/upload. This is a preparation allowance, not an observed guarantee of a
+future complete job or operation availability. The declared 99-minute estimate,
+100-minute hard ceiling, cache/archive/concurrency and seven-day limits remain.
+New hosted measurement is required before claiming fit. Node 24.22.1 from #2348 is
+reconciled with CLI inclusion, current workflow pins and isolated tool imports.
+
+Three focused recipe/inventory/environment cases passed. The fourth initially
+rejected the formatter's trailing comma in a source-owned argument array; its
+strict JSON literal guard was repaired and the affected case passed, with no
+recipe or runtime assertion removed. Both outcomes remain retained.
+
 ## Work still required
 
 This foundation does not activate a catalog controller. Authenticated whole-catalog
 semantic input/capture, actual protected catalog configuration and handoff, final
 same-controller signing/publication glue, current-site app continuations and
 bounded DAG/resource estimates remain integration work. The enhanced ordinary
-Linux tool-build fixture must establish actual release-build time/archive fit;
+Linux tool-build fixture must establish the repaired cold-build allowance fit;
 debug build timing cannot prove the existing four-minute production bound.
 
 The application setup proposal remains pinned to its reviewed source. These new
