@@ -41,6 +41,24 @@ def binding():
 
 
 class InertNativeInit(unittest.TestCase):
+    def test_update_helper_cannot_impersonate_same_image_application_relaunch(self):
+        self.assertEqual(
+            native.inspect_public_process_arguments("/tmp/.mount_App/usr/bin/portcove-desktop\0")["role"], "application"
+        )
+        helper = native.inspect_public_process_arguments(
+            "/tmp/.mount_App/usr/bin/portcove-desktop\0--portcove-apply-update\0" + "123\0"
+        )
+        self.assertEqual(helper["role"], "update-helper")
+        for raw in (
+            "/app\0--portcove-apply-update\0" + "0\0",
+            "/app\0unexpected\0--portcove-apply-update\0" + "123\0",
+            "/app\0--portcove-apply-update\0",
+            "/app",
+            "x" * 16385 + "\0",
+        ):
+            with self.assertRaises(RuntimeError):
+                native.inspect_public_process_arguments(raw)
+
     def test_public_runtime_absence_is_read_only_not_ready_without_clearing_legacy_failure(self):
         with patch.object(native.Path, "iterdir", return_value=[]):
             with self.assertRaises(native.RuntimeNotReady):

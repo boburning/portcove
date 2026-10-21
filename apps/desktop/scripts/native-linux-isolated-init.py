@@ -358,6 +358,27 @@ def inspect_public_runtime_mount(image, mountinfo, mounts):
     return selected[0]
 
 
+def inspect_public_process_arguments(raw):
+    require(
+        isinstance(raw, str) and 0 < len(raw.encode("utf-8")) <= 16384 and raw.endswith("\0"),
+        "ordinary process arguments differ",
+    )
+    arguments = raw[:-1].split("\0")
+    require(
+        0 < len(arguments) <= 16 and all(0 < len(value) <= 4096 for value in arguments),
+        "ordinary process argument bounds differ",
+    )
+    if "--portcove-apply-update" in arguments:
+        require(
+            len(arguments) == 3
+            and arguments[1] == "--portcove-apply-update"
+            and re.fullmatch(r"[1-9][0-9]{0,19}", arguments[2]),
+            "ordinary update helper arguments differ",
+        )
+        return {"role": "update-helper", "arguments": arguments}
+    return {"role": "application", "arguments": arguments}
+
+
 def runtime_snapshot(driver_pid, qualification_uid, public_mounts=None):
     # This fixed observation is available only through the trusted parent's FD.
     # No caller PID, pathname or command is accepted, and inaccessible evidence
@@ -391,6 +412,11 @@ def runtime_snapshot(driver_pid, qualification_uid, public_mounts=None):
             )
         uid_rows = [line.split()[1:] for line in status.splitlines() if line.startswith("Uid:")]
         require(len(uid_rows) == 1 and uid_rows[0] == [str(qualification_uid)] * 4, "actual candidate account differs")
+        public_arguments = None
+        if public_mounts is not None:
+            public_arguments = inspect_public_process_arguments(bounded_text(f"/proc/{pid}/cmdline", 16384))
+            if public_arguments["role"] == "update-helper":
+                continue  # Helper execution is not an ordinary application relaunch.
         maps = bounded_text(f"/proc/{pid}/maps", MIB)
         libraries = [
             {
@@ -423,6 +449,10 @@ def runtime_snapshot(driver_pid, qualification_uid, public_mounts=None):
                 and inspect_process_stat(bounded_text(f"/proc/{pid}/stat", 4096), pid) == process,
                 "ordinary public process/mount association changed",
             )
+            require(
+                bounded_text(f"/proc/{pid}/cmdline", 16384) == "\0".join(public_arguments["arguments"]) + "\0",
+                "ordinary public process mode changed",
+            )
             selected.append(
                 {
                     **process,
@@ -432,6 +462,7 @@ def runtime_snapshot(driver_pid, qualification_uid, public_mounts=None):
                     "loaded_libraries": libraries,
                     "creation_clock": process_creation_clock(process["creation_ticks"]),
                     "opaque_mount": association,
+                    **public_arguments,
                 }
             )
             continue

@@ -45,6 +45,21 @@ export function inspectLinuxPublicRuntime(
   assert.equal(raw.namespace_owner_pid, 1);
   assert.ok(isRecord(raw.process));
   const process = raw.process;
+  assert.equal(process.role, "application");
+  assert.ok(
+    Array.isArray(process.arguments) &&
+      process.arguments.length > 0 &&
+      process.arguments.length <= 16,
+  );
+  assert.ok(
+    process.arguments.every(
+      (value: unknown) => typeof value === "string" && value.length > 0 && value.length <= 4096,
+    ),
+  );
+  assert.ok(
+    !process.arguments.includes("--portcove-apply-update"),
+    "Update helper is not an application relaunch",
+  );
   assert.ok(Number.isSafeInteger(process.pid) && Number(process.pid) > 1);
   assert.ok(typeof process.creation_ticks === "string" && /^[0-9]+$/u.test(process.creation_ticks));
   assert.ok(isRecord(process.opaque_mount));

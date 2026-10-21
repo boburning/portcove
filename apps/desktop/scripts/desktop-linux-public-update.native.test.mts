@@ -74,6 +74,8 @@ void test("ordinary relaunch observation requires exact original opaque package 
     scope: "ordinary-public-broker-mounted-runtime",
     namespace_owner_pid: 1,
     process: {
+      role: "application",
+      arguments: ["/tmp/.mount_App/usr/bin/portcove-desktop"],
       pid: 10,
       creation_ticks: "1234",
       opaque_mount: {
@@ -91,6 +93,8 @@ void test("ordinary relaunch observation requires exact original opaque package 
     "1234",
   );
   for (const changed of [
+    { ...raw, process: { ...raw.process, role: "update-helper" } },
+    { ...raw, process: { ...raw.process, arguments: ["/app", "--portcove-apply-update", "12"] } },
     { ...raw, scope: "manual-package-compatibility" },
     { ...raw, namespace_owner_pid: 2 },
     {
