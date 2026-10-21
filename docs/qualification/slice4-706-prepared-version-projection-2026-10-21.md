@@ -91,6 +91,12 @@ risk/import/qualification selection passed 22/22 with zero skips. Type-aware lin
 passed all ten changed acquisition/caller/regression files. Separate source
 review checked every concrete asynchronous consumer, and independent test review
 checked the synthetic packed-entry scope and owned Git configuration repair.
+After composing the delivered Preview-withdrawal target, the actual Windows
+reader-sharing case also passed with a Node resolution hook refusing every
+nonbuiltin package (one case, zero skips, 2.775 seconds). This focused diagnostic
+exercises the original failing consumer without using installed dependencies;
+the hook and command are retained under `work/slice4/`. It is not a production
+loader or a changed helper-lane dependency policy.
 
 No provider protection, signing, publication, native execution or semantic
 acceptance follows from these tests. The existing approved risk is still too
