@@ -339,3 +339,27 @@ void test("fixed job adapter and source bootstrap refuse unknown operations with
     await assert.rejects(launchFixedControllerJob(value), /fixed complete controller operation/);
   assert.deepEqual(await readdir(root), []);
 });
+
+void test("complete job bootstrap refuses inherited cross-role credentials before tool acquisition", async () => {
+  const { assertControllerBootstrapEnvironment } = await import("./release-controller-job-bootstrap.mts");
+  assert.doesNotThrow(() => assertControllerBootstrapEnvironment({ GH_TOKEN: "ordinary-fixed-job-token" }));
+  for (const key of ["NODE_OPTIONS", "NODE_PATH", "PORTCOVE_CONTROL_APP_TOKEN", "PORTCOVE_ROLE_KEY", "PORTCOVE_ROLE_PASSWORD", "TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD", "PORTCOVE_TUF_RELEASES_KEY", "PORTCOVE_PROTECTION_APP_KEY"])
+    assert.throws(() => assertControllerBootstrapEnvironment({ [key]: "inert-fixture" }), /forbids inherited/);
+});
+
+void test("actual result routing keeps context, role and immutable-result attestation paths distinct", async () => {
+  const { fixedControllerResultAttestation } = await import("./release-controller-job.mts");
+  const directory = path.resolve(os.tmpdir(), "fixed-result-routing"),
+    context = "https://portcove.dev/attestations/release-signing-context/v1";
+  assert.equal(fixedControllerResultAttestation("coordinator", { decision: "held" }), null);
+  assert.equal(fixedControllerResultAttestation("coordinator", { decision: "metadata-context-prepared", attestation_required: false }), null);
+  assert.equal(fixedControllerResultAttestation("building", { decision: "candidate-building-admitted" }), null);
+  const payload = fixedControllerResultAttestation("payload", { context_upload: { directory, attestation: "pending" } });
+  assert.equal(payload?.predicate_type, context);
+  assert.equal(payload?.subject_path, path.join(directory, "signing-context-manifest.json"));
+  const publication = fixedControllerResultAttestation("release-publication", { artifact: { directory, attestation: "pending" } });
+  assert.equal(publication?.subject_path, path.join(directory, "upload", "immutable-release-result.json"));
+  assert.equal(publication?.predicate_type, "https://portcove.dev/attestations/immutable-release-result/v1");
+  assert.throws(() => fixedControllerResultAttestation("coordinator", { decision: "metadata-context-prepared", subject_path: "copied-report" }), /paths unavailable/);
+  assert.throws(() => fixedControllerResultAttestation("tuf-releases", { decision: "role-output-prepared", subject_path: "copied-report", predicate_path: "copied-predicate", predicate_type: context }), /paths unavailable/);
+});

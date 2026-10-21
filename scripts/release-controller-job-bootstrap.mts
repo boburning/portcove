@@ -26,6 +26,15 @@ function hex(raw: unknown, length = 64) {
     throw new Error("fixed tool digest required");
   return raw;
 }
+/** Keys belong only to the separate fixed socket client or observer step. */
+export function assertControllerBootstrapEnvironment(environment: NodeJS.ProcessEnv = process.env) {
+  if (environment.NODE_OPTIONS || environment.NODE_PATH ||
+    Object.entries(environment).some(([key, value]) => value &&
+      (["PORTCOVE_CONTROL_APP_TOKEN", "PORTCOVE_ROLE_KEY", "PORTCOVE_ROLE_PASSWORD",
+        "TAURI_SIGNING_PRIVATE_KEY", "TAURI_SIGNING_PRIVATE_KEY_PASSWORD"].includes(key) ||
+        /^PORTCOVE_TUF_[A-Z]+_KEY$/u.test(key) || /^PORTCOVE_[A-Z_]+_APP_KEY$/u.test(key))))
+    throw new Error("fixed controller bootstrap forbids inherited signing, observer or App credentials");
+}
 export async function launchFixedControllerJob(rawOperation: unknown) {
   if (
     ![
@@ -43,9 +52,8 @@ export async function launchFixedControllerJob(rawOperation: unknown) {
     typeof rawOperation !== "string"
   )
     throw new Error("fixed complete controller operation required");
+  assertControllerBootstrapEnvironment();
   if (
-    process.env.NODE_OPTIONS ||
-    process.env.NODE_PATH ||
     !process.env.RUNNER_TEMP ||
     !path.isAbsolute(process.env.RUNNER_TEMP)
   )
