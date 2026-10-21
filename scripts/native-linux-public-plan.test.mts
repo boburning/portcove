@@ -5,6 +5,11 @@ import {
   planPublicNativeLinuxCommand,
 } from "../apps/desktop/scripts/native-linux-public-plan.mts";
 
+import {
+  inspectNativeLinuxPublicStagePlan,
+  inspectNativeLinuxStagePlan,
+} from "./release-native-linux-driver.mts";
+
 function fixture() {
   const invocation = "a".repeat(64),
     root = "/home/qualification/portcove-native";
@@ -123,4 +128,50 @@ void test("ordinary namespace data refuses unknown roots, package swaps and over
     alter(input);
     assert.throws(() => inspectPublicNativeLinuxBinding(input));
   }
+});
+
+void test("fixed guest dispatch requires explicit public schema and cannot reinterpret a legacy native stage", () => {
+  const input = fixture();
+  const raw = {
+    schema_version: 3,
+    stage: "ordinary-public-update",
+    binding: input.session,
+    invocation_id: input.session.invocation_id,
+    stage_request_sha256: "5".repeat(64),
+    public_journey: {
+      candidate: input.candidate,
+      source: input.source,
+      network: input.network,
+      retained_state_bytes: input.retained_state_bytes,
+      versions: { prior: "1.0.0-beta.1", candidate: "1.0.0-beta.2" },
+    },
+  };
+  const parsed = inspectNativeLinuxPublicStagePlan(raw);
+  assert.equal(parsed.binding.candidate.sha256, input.candidate.sha256);
+  assert.deepEqual(parsed.versions, raw.public_journey.versions);
+  assert.equal(parsed.binding.authority, "none");
+  assert.throws(() => inspectNativeLinuxStagePlan(raw));
+  for (const changed of [
+    { ...raw, schema_version: 1 },
+    { ...raw, stage: "release-publication" },
+    { ...raw, invocation_id: "b".repeat(64) },
+    {
+      ...raw,
+      public_journey: {
+        ...raw.public_journey,
+        versions: { prior: "1.0.0-beta.2", candidate: "1.0.0-beta.2" },
+      },
+    },
+    {
+      ...raw,
+      public_journey: {
+        ...raw.public_journey,
+        network: { ...input.network, metadata_base_url: "https://other.invalid/" },
+      },
+    },
+    { ...raw, public_journey: { ...raw.public_journey, accepted: true } },
+  ])
+    assert.throws(() => inspectNativeLinuxPublicStagePlan(changed));
+  raw.public_journey.candidate.sha256 = "6".repeat(64);
+  assert.equal(parsed.binding.candidate.sha256, "1".repeat(64));
 });

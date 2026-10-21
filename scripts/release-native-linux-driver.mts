@@ -19,6 +19,7 @@ import {
   inspectNativeQualificationJourney,
   nativePrepublicationProfile,
 } from "./release-native-qualification-contract.mts";
+import { inspectPublicNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-public-plan.mts";
 export { inspectNativeLinuxHomeMount } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 export const nativeLinuxPreSignHarnessScenarios = Object.freeze([
   "empty-library",
@@ -104,6 +105,57 @@ export function inspectNativeLinuxStagePlan(raw: unknown) {
     journey,
   };
 }
+/** Explicit ordinary-public plan; legacy native stage plans never select it. */
+export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
+  assert.ok(isRecord(raw) && raw.schema_version === 3 && raw.stage === "ordinary-public-update");
+  assert.equal(
+    Object.keys(raw).sort().join(","),
+    "binding,invocation_id,public_journey,schema_version,stage,stage_request_sha256",
+  );
+  assert.match(String(raw.stage_request_sha256), /^[a-f0-9]{64}$/u);
+  const journey = raw.public_journey;
+  assert.ok(
+    isRecord(journey) &&
+      Object.keys(journey).sort().join(",") ===
+        "candidate,network,retained_state_bytes,source,versions",
+  );
+  const binding = inspectPublicNativeLinuxBinding({
+    schema_version: 1,
+    session: raw.binding,
+    candidate: journey.candidate,
+    network: journey.network,
+    retained_state_bytes: journey.retained_state_bytes,
+    source: journey.source,
+  });
+  assert.equal(raw.invocation_id, binding.session.invocation_id);
+  assert.ok(
+    isRecord(journey.versions) &&
+      Object.keys(journey.versions).sort().join(",") === "candidate,prior",
+  );
+  const prior = journey.versions.prior,
+    candidate = journey.versions.candidate;
+  assert.ok(
+    typeof prior === "string" &&
+      typeof candidate === "string" &&
+      prior.length <= 128 &&
+      candidate.length <= 128,
+  );
+  assert.match(prior, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u);
+  assert.match(candidate, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u);
+  assert.notEqual(prior, candidate);
+  return {
+    binding,
+    versions: { prior, candidate },
+    raw_binding: structuredClone({
+      schema_version: 1,
+      session: raw.binding,
+      candidate: journey.candidate,
+      network: journey.network,
+      retained_state_bytes: journey.retained_state_bytes,
+      source: journey.source,
+    }),
+  };
+}
 export async function requireFreshNativeLinuxOutput(filename: string) {
   try {
     await lstat(filename);
@@ -141,7 +193,8 @@ export async function runNativeLinuxDriver(
   assert.equal(process.platform, "linux");
   const raw = await boundedJson(planPath, planSha256);
   assert.ok(isRecord(raw));
-  const stagePlan = inspectNativeLinuxStagePlan(raw);
+  const publicPlan = raw.schema_version === 3 ? inspectNativeLinuxPublicStagePlan(raw) : null;
+  const stagePlan = publicPlan ? null : inspectNativeLinuxStagePlan(raw);
   assert.ok(
     typeof raw.stage_request_sha256 === "string" &&
       /^[a-f0-9]{64}$/u.test(raw.stage_request_sha256),
@@ -202,6 +255,72 @@ export async function runNativeLinuxDriver(
     mode: 0o600,
   });
   const started_at = new Date().toISOString();
+  if (publicPlan) {
+    const configuration = {
+      schema_version: 1,
+      kind: "ordinary-linux-public-update",
+      binding: { ...publicPlan.raw_binding, session: binding },
+      versions: publicPlan.versions,
+    };
+    const filename = `${binding.capture_root}/public-linux-configuration.json`,
+      bytes = Buffer.from(JSON.stringify(configuration));
+    await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
+    let status: number | null = null,
+      failure: string | null = null;
+    try {
+      const remaining = Math.min(
+        1750000,
+        Math.floor(Date.parse(binding.deadline_utc) - Date.now()),
+      );
+      assert.ok(remaining > 0);
+      status = await runResourceCommand(
+        "analysis",
+        process.execPath,
+        [
+          `${binding.controller.root}/apps/desktop/scripts/desktop-linux-public-update.mts`,
+          "--configuration",
+          filename,
+          "--configuration-sha256",
+          createHash("sha256").update(bytes).digest("hex"),
+          "--remaining-ms",
+          String(remaining),
+        ],
+        {
+          cwd: binding.controller.root,
+          environment: {
+            PATH: `${binding.linux_root}/tools:/usr/bin:/bin`,
+            HOME: `/home/${binding.linux_root.split("/")[2]}`,
+            LANG: "C.UTF-8",
+          },
+          exclusive: [`native-linux:${binding.account.uid}`],
+        },
+      );
+      assert.equal(status, 0, "Actual ordinary public AppImage harness failed");
+    } catch (error) {
+      failure = errorMessage(error);
+      throw error;
+    } finally {
+      await writeFile(
+        `${binding.capture_root}/linux-driver-result.json`,
+        JSON.stringify({
+          schema_version: 1,
+          invocation_id: binding.invocation_id,
+          stage_request_sha256: raw.stage_request_sha256,
+          stage: "ordinary-public-update",
+          started_at,
+          completed_at: new Date().toISOString(),
+          status,
+          failure,
+          home_mount: mount,
+          authority: "none",
+          native_acceptance: "not-established",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+    }
+    return;
+  }
+  assert.ok(stagePlan);
   const lifecycle: {
     id: string;
     binding_sha256: string;

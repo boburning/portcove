@@ -5,6 +5,7 @@ import { constants } from "node:fs";
 import { mkdir, open, readFile, statfs, writeFile, type FileHandle } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Builder, By, until, type WebDriver } from "selenium-webdriver";
 import { inspectPublicNativeLinuxBinding } from "./native-linux-public-plan.mts";
 import { inspectNativeLinuxHomeMount } from "./native-linux-isolated-plan.mts";
@@ -376,3 +377,63 @@ export async function runLinuxPublicUpdateJourney(
   if (failure) throw failure;
   return report;
 }
+
+/** Fixed credential-free guest CLI. A pinned plan is instructions, not a grant. */
+export async function runFixedLinuxPublicUpdateConfiguration(
+  filename: string,
+  expectedSha256: string,
+  remainingMilliseconds: number,
+) {
+  assert.equal(process.platform, "linux");
+  assert.ok(path.posix.isAbsolute(filename));
+  assert.match(expectedSha256, /^[a-f0-9]{64}$/u);
+  assert.ok(
+    Number.isSafeInteger(remainingMilliseconds) &&
+      remainingMilliseconds > 0 &&
+      remainingMilliseconds <= 1750000,
+  );
+  const deadline = performance.now() + remainingMilliseconds;
+  const before = await readPublicUpdateFile(filename, 128 * 1024);
+  assert.equal(before.sha256, expectedSha256);
+  const bytes = await readFile(filename);
+  assert.equal(bytes.length, before.bytes);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), expectedSha256);
+  const raw: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  assert.ok(
+    isRecord(raw) &&
+      Object.keys(raw).sort().join(",") === "binding,kind,schema_version,versions" &&
+      raw.schema_version === 1 &&
+      raw.kind === "ordinary-linux-public-update",
+  );
+  const binding = inspectPublicNativeLinuxBinding(raw.binding);
+  assert.equal(filename, `${binding.session.capture_root}/public-linux-configuration.json`);
+  assert.equal(
+    fileURLToPath(import.meta.url),
+    `${binding.session.controller.root}/apps/desktop/scripts/desktop-linux-public-update.mts`,
+  );
+  assert.ok(
+    isRecord(raw.versions) && Object.keys(raw.versions).sort().join(",") === "candidate,prior",
+  );
+  assert.ok(typeof raw.versions.prior === "string" && typeof raw.versions.candidate === "string");
+  assert.deepEqual(await readPublicUpdateFile(filename, 128 * 1024), before);
+  return runLinuxPublicUpdateJourney(
+    raw.binding,
+    { prior: raw.versions.prior, candidate: raw.versions.candidate },
+    deadline,
+  );
+}
+async function cli() {
+  const [flag, filename, shaFlag, sha, remainingFlag, remaining, ...rest] = process.argv.slice(2);
+  assert.ok(
+    flag === "--configuration" &&
+      filename &&
+      shaFlag === "--configuration-sha256" &&
+      sha &&
+      remainingFlag === "--remaining-ms" &&
+      remaining &&
+      !rest.length,
+  );
+  await runFixedLinuxPublicUpdateConfiguration(filename, sha, Number(remaining));
+}
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
+  await cli();
