@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
@@ -16,6 +17,7 @@ import {
 import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import {
+  deriveNativePublicationJourneys,
   inspectNativePublicationPredecessor,
   inspectNativeInitialPublicationJourney,
   collectConfiguredNativePublicationQualificationPair,
@@ -427,4 +429,106 @@ void test("inert native association requires exact selected package bytes, sourc
     inspectNativeQualificationAssociation(reports, full.request, archives, "payload-signing"),
     /full package profile/u,
   );
+});
+
+void test("shared data-only journey derivation binds exact prior inventory and refuses bootstrap on changed or nonempty prior", () => {
+  const f = metadataBootstrapFixture(),
+    payload = Buffer.from("disposable-payload-registry");
+  const payloadSha = createHash("sha256").update(payload).digest("hex");
+  const bootstrap = { ...f.descriptor, payload_key_registry_sha256: payloadSha };
+  const operation = "f".repeat(64),
+    repositorySha = releaseCanonicalDigest([]);
+  const published = { ...f.published, repository_sha256: repositorySha, operation_id: operation };
+  const pins = inspectPublicationAuthorities({
+    public_source: {
+      commit: "a".repeat(40),
+      root: { path: "release-public/root.json", bytes: 1, sha256: bootstrap.root_sha256 },
+      offline_targets: {
+        path: "release-public/targets.json",
+        bytes: 1,
+        sha256: bootstrap.offline_targets_sha256,
+      },
+      payload_key_registry: {
+        path: "release-public/payload.json",
+        bytes: payload.length,
+        sha256: payloadSha,
+      },
+    },
+    setup_plan_sha256: bootstrap.setup_plan_sha256,
+    initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
+  });
+  let reads = 0;
+  const input: Parameters<typeof deriveNativePublicationJourneys>[0] = {
+    files: new Map([["payload.json", payload]]),
+    coordinator_input: {
+      metadata_bootstrap: bootstrap,
+      published_metadata: published,
+      controller: {
+        capacity_attempt: {
+          schema_version: 2,
+          prior_operations: [
+            {
+              summary_schema_version: 1,
+              subject: { kind: "metadata-bootstrap", identity: releaseCanonicalDigest(bootstrap) },
+              kind: "upload",
+              destination_sha256: releaseCanonicalDigest(
+                "github-pages:boburning/portcove:complete-site",
+              ),
+              transient_retries: 0,
+              substantive_repairs: 0,
+              completed: true,
+              attempts: [
+                { checkpoint: "e".repeat(40), id: operation, operation_sha256: "1".repeat(64) },
+              ],
+            },
+          ],
+        },
+      },
+    },
+    manifest: {
+      facts: { opportunity: { base_commit: "a".repeat(40) } },
+      binding: { signatures_sha256: "3".repeat(64) },
+      previous_site_pins: {
+        repository_sha256: repositorySha,
+        root_sha256: published.root_sha256,
+        site_generation_sha256: published.publication.site_generation_sha256,
+      },
+    },
+    namespace: "qualification",
+    signed_context_sha256: "2".repeat(64),
+    platform_labels: ["windows-x86_64", "linux-x86_64"],
+    public_pins: pins,
+    api: {
+      request: () => {
+        reads++;
+        throw new Error("unexpected provider request");
+      },
+      graphql: () => {
+        reads++;
+        throw new Error("unexpected provider query");
+      },
+    },
+  };
+  const journeys = deriveNativePublicationJourneys(input);
+  assert.equal(journeys.length, 2);
+  assert.equal((journeys[0] as { kind: string }).kind, "initial-empty-feed");
+  assert.equal(reads, 0);
+  assert.throws(() =>
+    deriveNativePublicationJourneys({
+      ...input,
+      files: new Map([["payload.json", Buffer.from("changed")]]),
+    }),
+  );
+  assert.throws(() =>
+    deriveNativePublicationJourneys({
+      ...input,
+      coordinator_input: { ...input.coordinator_input, metadata_bootstrap: null },
+    }),
+  );
+  const record = Buffer.from(JSON.stringify({ version: "0.1.0-beta.1", artifact: {} }));
+  const recordSha = createHash("sha256").update(record).digest("hex");
+  const files = new Map(input.files);
+  files.set(`prior/targets/${recordSha}.releases/old.json`, record);
+  assert.throws(() => deriveNativePublicationJourneys({ ...input, files }), /prior differs/);
+  assert.equal(reads, 0);
 });

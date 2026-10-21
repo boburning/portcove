@@ -157,8 +157,170 @@ export function inspectNativeInitialPublicationJourney(raw: {
   });
 }
 
-/** The seven argument fixed entry deliberately cannot accept a journey,
- * expected-report JSON, caller trust boolean or injected provider. */
+/** Journey association only. The caller must establish actual Tough/source custody;
+ * this shared calculation cannot mint a qualification or local/hosted authority. */
+export function deriveNativePublicationJourneys(input: {
+  files: ReadonlyMap<string, Buffer>;
+  coordinator_input: Record<string, unknown>;
+  manifest: Record<string, unknown>;
+  namespace: string;
+  signed_context_sha256: string;
+  platform_labels: readonly string[];
+  public_pins: ReturnType<typeof inspectPublicationAuthorities>;
+  api: Pick<GitHubApiClient, "request" | "graphql">;
+}) {
+  const {
+    files,
+    manifest,
+    namespace,
+    api,
+    platform_labels,
+    public_pins: publicPins,
+    signed_context_sha256: signedContext,
+  } = input;
+  if (
+    !isRecord(manifest.facts) ||
+    !isRecord(manifest.facts.opportunity) ||
+    !isRecord(manifest.binding)
+  )
+    throw new Error("native journey context incomplete");
+  const binding = manifest.binding;
+  const before = { input: input.coordinator_input };
+  const required = (name: string) => {
+    const bytes = files.get(name);
+    if (!bytes) throw new Error("post-sign native authenticated input missing");
+    return bytes;
+  };
+  const prior = new Map(
+    [...files]
+      .filter(([name]) => name.startsWith("prior/") && name !== "prior/repository-manifest.json")
+      .map(([name, bytes]) => [name.slice(6), bytes]),
+  );
+  const priorRecords = new Map<string, Record<string, unknown>>();
+  for (const [name, bytes] of prior) {
+    if (!name.startsWith("targets/")) continue;
+    const match = /^targets\/([a-f0-9]{64})\.((?:releases|channels)\/.+\.json)$/u.exec(name);
+    if (!match) continue;
+    if (hash(bytes) !== match[1]) throw new Error("prior hashed target bytes differ");
+    const record: unknown = JSON.parse(bytes.toString("utf8"));
+    if (!isRecord(record) || priorRecords.has(match[2]!))
+      throw new Error("prior authenticated record inventory differs");
+    priorRecords.set(match[2]!, record);
+  }
+  const published = inspectPublishedMetadata(before.input.published_metadata);
+  if (
+    !published ||
+    !isRecord(manifest.previous_site_pins) ||
+    published.repository_sha256 !== digest(inventory(prior)) ||
+    published.repository_sha256 !== manifest.previous_site_pins.repository_sha256 ||
+    published.root_sha256 !== manifest.previous_site_pins.root_sha256 ||
+    published.publication.site_generation_sha256 !==
+      manifest.previous_site_pins.site_generation_sha256
+  )
+    throw new Error("post-sign native prior differs from actual current published seed");
+  let journeys: unknown[];
+  if (priorRecords.size === 0) {
+    const controller = before.input.controller;
+    if (
+      !isRecord(controller) ||
+      !isRecord(controller.capacity_attempt) ||
+      controller.capacity_attempt.schema_version !== 2
+    )
+      throw new Error("initial native branch requires actual bounded bootstrap history");
+    if (typeof binding.signatures_sha256 !== "string")
+      throw new Error("actual payload signature binding missing");
+    const journey = inspectNativeInitialPublicationJourney({
+      bootstrap: before.input.metadata_bootstrap,
+      published,
+      capacity_groups: controller.capacity_attempt.prior_operations,
+      public_pins: publicPins,
+      payload_sha256: hash(required("payload.json")),
+      signed_context_sha256: signedContext,
+      signatures_sha256: binding.signatures_sha256,
+      prior_records_sha256: digest(inventory(priorRecords.size === 0 ? new Map() : prior)),
+    });
+    journeys = platform_labels.map(() => journey);
+  } else {
+    const reader = createReleasePublicationReader(api),
+      releases = reader.releases(),
+      tags = reader.tags();
+    const versions = [
+      ...new Set(
+        [...priorRecords.values()]
+          .filter((record) => typeof record.version === "string" && record.artifact !== undefined)
+          .map((record) => String(record.version)),
+      ),
+    ];
+    // The authenticated current Tough seed defines predecessor eligibility.
+    // A recovered invocation may already have published this candidate's
+    // immutable Release while its Pages effect is still pending; that new
+    // Release cannot become its own predecessor. All provider rows remain
+    // bracketed, and publication admission separately verifies the full set.
+    const baseline = selectCoordinatorPublicationBaseline(
+        releases.filter((release) => versions.includes(release.tag_name.slice(1))),
+        versions,
+      ),
+      tag = tags.find((item) => item.name === `v${baseline.version}`);
+    if (!tag) throw new Error("actual publication baseline tag absent");
+    const prepared = peelReleaseReference(tag),
+      response = api.request("GET", `repos/boburning/portcove/git/commits/${prepared}`);
+    if (
+      response.status !== 200 ||
+      !isRecord(response.body) ||
+      !isRecord(response.body.tree) ||
+      typeof response.body.tree.sha !== "string"
+    )
+      throw new Error("actual baseline source tree absent");
+    const source = inspectPublishedApplicationSource(
+      api,
+      { schema_version: 1, namespace: namespace },
+      {
+        id: baseline.release.id,
+        version: baseline.version,
+        prepared_commit: prepared,
+        prepared_tree: response.body.tree.sha,
+      },
+    );
+    if (source.source_baseline.commit !== manifest.facts.opportunity.base_commit)
+      throw new Error(
+        "native predecessor differs from independently established publication baseline",
+      );
+    journeys = platform_labels.map((platform_label) => {
+      const records = [...priorRecords.values()].filter(
+        (record) =>
+          record.version === baseline.version &&
+          record.target === platform_label &&
+          record.source_commit === prepared &&
+          isRecord(record.artifact),
+      );
+      if (records.length !== 1)
+        throw new Error("exact admitted predecessor package absent or ambiguous");
+      const record = records[0]!;
+      if (!Array.isArray(record.evidence_ids))
+        throw new Error("prior native evidence reference absent");
+      const refs = record.evidence_ids.filter(
+        (entry: unknown) =>
+          typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
+      );
+      if (refs.length !== 1 || typeof refs[0] !== "string")
+        throw new Error("prior native evidence reference ambiguous");
+      const id = refs[0].split(":")[1],
+        check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
+      if (check.status !== 200)
+        throw new Error("authenticated historical native attribution unavailable");
+      return {
+        predecessor: inspectNativePublicationPredecessor(record, check.body),
+        signed_context_sha256: signedContext,
+        signatures_sha256: binding.signatures_sha256,
+      };
+    });
+    if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
+      throw new Error("publication baseline changed during native attribution");
+  }
+  return journeys;
+}
+
+/** The fixed entry cannot accept a journey, expected-report JSON or injected provider. */
 type NativePublicationPairArguments = [
   parent: string,
   locators: unknown,
@@ -217,7 +379,6 @@ async function collectNativePublicationPair(
     digest(manifest.facts.archives) !== digest(archives)
   )
     throw new Error("post-sign native acquired candidate differs from authenticated context");
-  const binding = manifest.binding;
   const signedContext = tuf.publication.repository_sha256;
   if (typeof signedContext !== "string")
     throw new Error("actual signed repository identity missing");
@@ -240,22 +401,6 @@ async function collectNativePublicationPair(
     hash(required("payload.json")) !== publicPins.public_source.payload_key_registry.sha256
   )
     throw new Error("post-sign native public anchors differ from ratified setup");
-  const prior = new Map(
-    [...files]
-      .filter(([name]) => name.startsWith("prior/") && name !== "prior/repository-manifest.json")
-      .map(([name, bytes]) => [name.slice(6), bytes]),
-  );
-  const priorRecords = new Map<string, Record<string, unknown>>();
-  for (const [name, bytes] of prior) {
-    if (!name.startsWith("targets/")) continue;
-    const match = /^targets\/([a-f0-9]{64})\.((?:releases|channels)\/.+\.json)$/u.exec(name);
-    if (!match) continue;
-    if (hash(bytes) !== match[1]) throw new Error("prior hashed target bytes differ");
-    const record: unknown = JSON.parse(bytes.toString("utf8"));
-    if (!isRecord(record) || priorRecords.has(match[2]!))
-      throw new Error("prior authenticated record inventory differs");
-    priorRecords.set(match[2]!, record);
-  }
   const directory = await mkdtemp(path.join(parent, "native-publication-inputs-"));
   let phase = "current-reservation";
   try {
@@ -284,16 +429,6 @@ async function collectNativePublicationPair(
     )
       throw new Error("post-sign native frozen opportunity changed");
     const published = inspectPublishedMetadata(before.input.published_metadata);
-    if (
-      !published ||
-      !isRecord(manifest.previous_site_pins) ||
-      published.repository_sha256 !== digest(inventory(prior)) ||
-      published.repository_sha256 !== manifest.previous_site_pins.repository_sha256 ||
-      published.root_sha256 !== manifest.previous_site_pins.root_sha256 ||
-      published.publication.site_generation_sha256 !==
-        manifest.previous_site_pins.site_generation_sha256
-    )
-      throw new Error("post-sign native prior differs from actual current published seed");
     await writeFile(
       path.join(directory, "reservation-before.json"),
       JSON.stringify({ checkpoint: before.checkpoint, published }),
@@ -343,105 +478,16 @@ async function collectNativePublicationPair(
       },
     };
     phase = "independent-native-journey";
-    let journeys: unknown[];
-    if (priorRecords.size === 0) {
-      const controller = before.input.controller;
-      if (
-        !isRecord(controller) ||
-        !isRecord(controller.capacity_attempt) ||
-        controller.capacity_attempt.schema_version !== 2
-      )
-        throw new Error("initial native branch requires actual bounded bootstrap history");
-      if (typeof binding.signatures_sha256 !== "string")
-        throw new Error("actual payload signature binding missing");
-      const journey = inspectNativeInitialPublicationJourney({
-        bootstrap: before.input.metadata_bootstrap,
-        published,
-        capacity_groups: controller.capacity_attempt.prior_operations,
-        public_pins: publicPins,
-        payload_sha256: hash(required("payload.json")),
-        signed_context_sha256: signedContext,
-        signatures_sha256: binding.signatures_sha256,
-        prior_records_sha256: digest(inventory(priorRecords.size === 0 ? new Map() : prior)),
-      });
-      journeys = expectedBefore.map(() => journey);
-    } else {
-      const reader = createReleasePublicationReader(api),
-        releases = reader.releases(),
-        tags = reader.tags();
-      const versions = [
-        ...new Set(
-          [...priorRecords.values()]
-            .filter((record) => typeof record.version === "string" && record.artifact !== undefined)
-            .map((record) => String(record.version)),
-        ),
-      ];
-      // The authenticated current Tough seed defines predecessor eligibility.
-      // A recovered invocation may already have published this candidate's
-      // immutable Release while its Pages effect is still pending; that new
-      // Release cannot become its own predecessor. All provider rows remain
-      // bracketed, and publication admission separately verifies the full set.
-      const baseline = selectCoordinatorPublicationBaseline(
-          releases.filter((release) => versions.includes(release.tag_name.slice(1))),
-          versions,
-        ),
-        tag = tags.find((item) => item.name === `v${baseline.version}`);
-      if (!tag) throw new Error("actual publication baseline tag absent");
-      const prepared = peelReleaseReference(tag),
-        response = api.request("GET", `repos/boburning/portcove/git/commits/${prepared}`);
-      if (
-        response.status !== 200 ||
-        !isRecord(response.body) ||
-        !isRecord(response.body.tree) ||
-        typeof response.body.tree.sha !== "string"
-      )
-        throw new Error("actual baseline source tree absent");
-      const source = inspectPublishedApplicationSource(
-        api,
-        { schema_version: 1, namespace: authorities.namespace },
-        {
-          id: baseline.release.id,
-          version: baseline.version,
-          prepared_commit: prepared,
-          prepared_tree: response.body.tree.sha,
-        },
-      );
-      if (source.source_baseline.commit !== manifest.facts.opportunity.base_commit)
-        throw new Error(
-          "native predecessor differs from independently established publication baseline",
-        );
-      journeys = expectedBefore.map((expected) => {
-        const records = [...priorRecords.values()].filter(
-          (record) =>
-            record.version === baseline.version &&
-            record.target === expected.platform_label &&
-            record.source_commit === prepared &&
-            isRecord(record.artifact),
-        );
-        if (records.length !== 1)
-          throw new Error("exact admitted predecessor package absent or ambiguous");
-        const record = records[0]!;
-        if (!Array.isArray(record.evidence_ids))
-          throw new Error("prior native evidence reference absent");
-        const refs = record.evidence_ids.filter(
-          (entry: unknown) =>
-            typeof entry === "string" && /^native-check:[1-9][0-9]*:[a-f0-9]{64}$/u.test(entry),
-        );
-        if (refs.length !== 1 || typeof refs[0] !== "string")
-          throw new Error("prior native evidence reference ambiguous");
-        const id = refs[0].split(":")[1],
-          check = api.request("GET", `repos/boburning/portcove/check-runs/${id}`);
-        if (check.status !== 200)
-          throw new Error("authenticated historical native attribution unavailable");
-        return {
-          predecessor: inspectNativePublicationPredecessor(record, check.body),
-          signed_context_sha256: signedContext,
-          signatures_sha256: binding.signatures_sha256,
-        };
-      });
-      if (digest(reader.releases()) !== digest(releases) || digest(reader.tags()) !== digest(tags))
-        throw new Error("publication baseline changed during native attribution");
-    }
+    const journeys = deriveNativePublicationJourneys({
+      files,
+      coordinator_input: before.input,
+      manifest,
+      namespace: authorities.namespace,
+      signed_context_sha256: signedContext,
+      platform_labels: expectedBefore.map((item) => item.platform_label),
+      public_pins: publicPins,
+      api,
+    });
     const expected = expectedBefore.map((item, index) =>
       inspectNativeQualificationExpectation({
         ...item,

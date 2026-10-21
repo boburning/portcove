@@ -48,6 +48,7 @@ import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
+import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 import {
   nativeCompatibilitySourcePaths,
@@ -934,6 +935,66 @@ export async function assembleActualNativePostSignRepository(controllerReceipt: 
     authority: "none" as const,
     scope:
       "local parent-owned keyless verification; native package capture still required" as const,
+  });
+}
+
+/** Local association reuses the hosted journey contract while retaining local
+ * source/Tough custody scope. No imported data can enter this private parent path. */
+export async function readActualNativePostSignJourney(controllerReceipt: object) {
+  const original = postSignControllers.get(controllerReceipt);
+  if (!original) throw new Error("actual post-sign source session required");
+  const verified = await assembleActualNativePostSignRepository(controllerReceipt);
+  const selected = await requireActualNativePostSignController(controllerReceipt);
+  const current = await original.source.recover();
+  if (current.checkpoint !== selected.checkpoint)
+    throw new Error("native post-sign journal changed before journey association");
+  const authorities = inspectNativePrepublicationAuthorities(
+    selected.parent.authority_configuration,
+  );
+  const context = verified.inputs.context;
+  const files = await readBoundedReleaseContextFiles(path.join(context.directory, "context"));
+  const manifestBytes = await readBoundedPublicBuildInputFile(
+    context.directory,
+    "signing-context-manifest.json",
+    1024 * 1024,
+  );
+  if (hash(manifestBytes) !== context.manifest_sha256)
+    throw new Error("native retained authenticated context manifest changed");
+  const manifest: unknown = JSON.parse(manifestBytes.toString("utf8"));
+  if (!isRecord(manifest) || typeof verified.publication.repository_sha256 !== "string")
+    throw new Error("native post-sign context identity missing");
+  const fileInventory = [...files]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
+  if (digest(fileInventory) !== digest(manifest.files))
+    throw new Error("native context files changed after authenticated keyless assembly");
+  const journeys = deriveNativePublicationJourneys({
+    files,
+    coordinator_input: current.input,
+    manifest,
+    namespace: authorities.namespace,
+    signed_context_sha256: verified.publication.repository_sha256,
+    platform_labels: [selected.parent.descriptor.platform_label],
+    public_pins: inspectPublicationAuthorities(authorities.publication),
+    api: original.source.api,
+  });
+  await requireActualNativePostSignController(controllerReceipt);
+  await writeFile(
+    path.join(verified.directory, "native-journey-source.json"),
+    JSON.stringify({
+      checkpoint: current.checkpoint,
+      journey: journeys[0],
+      repository_sha256: verified.publication.repository_sha256,
+      authority: "none",
+    }),
+    { flag: "wx", mode: 0o600 },
+  );
+  return Object.freeze({
+    ...verified,
+    journey: structuredClone(journeys[0]),
+    authority: "none" as const,
+    scope:
+      "actual local parent/Tough journey association; native execution still required" as const,
   });
 }
 
