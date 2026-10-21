@@ -12,6 +12,8 @@ import {
   capacityOperationSubject,
   capacityOperationCounters,
   inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+  assertPublicationResultDestination,
 } from "./release-capacity.mts";
 import {
   inspectMetadataRenewalDescriptor,
@@ -48,7 +50,11 @@ export class ProviderCapacityRefusal extends Error {
  * change retention, allocate candidates, or grant execution. An independently
  * admitted caller supplies one exact effect. No CLI or automatic retry exists.
  */
-type Request = { kind: "dispatch" | "upload" | "retention"; destination: string };
+type Request = {
+  kind: "dispatch" | "upload" | "retention";
+  destination: string;
+  site_expectation?: unknown;
+};
 export interface CapacityOperationOptions {
   remote?: { configuration: unknown; api: CoordinatorRemoteApi };
   executorIdentity?: unknown;
@@ -121,6 +127,17 @@ async function runOperation(
   options: InternalOptions = {},
 ) {
   const request = structuredClone(rawRequest);
+  if (
+    Object.keys(request).sort().join(",") !==
+    (request.site_expectation === undefined
+      ? "destination,kind"
+      : "destination,kind,site_expectation")
+  )
+    throw new Error("capacity operation request contains unsupported fields");
+  const site =
+    request.site_expectation === undefined
+      ? null
+      : inspectSitePublicationExpectation(request.site_expectation);
   const metadata =
     options.metadataRenewal === undefined
       ? null
@@ -175,6 +192,7 @@ async function runOperation(
   )
     throw new Error("bounded operation is held by capacity or another coordinator condition");
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
+  assertPublicationResultDestination(request.destination, candidate);
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
   const observedAt = metadataNow();
   if (maintenance) {
@@ -265,6 +283,7 @@ async function runOperation(
             },
           }),
     destination: request.destination,
+    ...(site ? { site_expectation: site } : {}),
     // An invocation-generated claim makes independent executors' pending bytes
     // distinct. Seeing somebody else's identical logical operation is not an
     // execution grant. There is no caller-supplied nonce or resume entry point.
