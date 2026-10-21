@@ -49,10 +49,17 @@ It receives no proxy capability, alternate URL or substituted certificate.
 `PublicNetworkRelay(policy, selector, 5, 6, deadline, listeners)` registers callbacks
 on the existing init selector. The join dispatches callable `key.data(mask)` and
 calls `tick()` each iteration; `close()` removes owned registrations and sockets.
-FD5 is init-to-parent and FD6 parent-to-init, exclusively private to init. The
+FD5 carries parent-to-init responses and FD6 init-to-parent requests, exclusively private to init. The
 parent pipes them to one fixed hash-qualified Python process in the same 64-task
 unit: `python3 -I -S -B HELPER --outer POLICY POLICY_SHA REMAINING_MS`. The parent
 retains the original deadline and process/tree cleanup; this is not a new budget.
+
+The integrated join uses fixed `--outer-controlled` mode with a fourth private
+stdio channel from the owned Node parent. Normal teardown requires one NULL
+stop on that channel. A clean framing EOF may arrive before the final namespace
+capture on a different pipe; it closes public sockets and waits at most two
+seconds inside the original deadline for the matching stop. EOF, truncated
+frames and normal process exit alone establish no successful journey.
 
 The outer helper verifies canonical TLS ClientHello/SNI plus the exact appointed
 public address before opening that address on TCP443. It forwards original bytes

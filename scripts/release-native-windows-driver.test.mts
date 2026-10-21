@@ -2,11 +2,184 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { mkdtemp, writeFile, link, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createHash } from "node:crypto";
+import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
 import {
   captureActualWindowsNativeInvocation,
   requireActualWindowsNativeCapture,
   inspectWindowsNativeDriverResult,
+  captureActualWindowsPublicJourney,
+  requireActualWindowsPublicCapture,
 } from "./release-native-windows-capture.mts";
+
+void test(
+  "actual fixed installer arguments satisfy the maintained strict account-work descendant guard",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "portcove-native-argv-"));
+    try {
+      const file = path.join(directory, "argv.ps1");
+      await writeFile(
+        file,
+        String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$driver=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_DRIVER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'driver parse failure'}
+$assignment=@($driver.FindAll({param($item)$item -is [Management.Automation.Language.AssignmentStatementAst] -and $item.Left.Extent.Text -ceq '$harnessArguments' -and $item.Operator -eq 'Equals'},$true))
+if($assignment.Count -ne 1){throw 'fixed installer argument source missing'}
+$work='C:\qualification\work\' + ('a'*64);$capture='C:\owner\capture\native-attempt-' + ('a'*64)
+$installer='C:\owner\inputs\prior.exe';$planValue=@{version='0.1.0-beta.1'};$bindingPath=Join-Path $capture 'account-binding.json';$bindingSha='b'*64
+$driverSourceRoot=[IO.Path]::GetDirectoryName($env:PORTCOVE_TEST_DRIVER)
+# Extracted AST text has no script-file automatic-variable binding in Invoke-Expression.
+# Supply that lexical source directory without changing any argument expression.
+Invoke-Expression ($assignment[0].Extent.Text.Replace('$PSScriptRoot','$driverSourceRoot'))
+$position=[Array]::IndexOf($harnessArguments,'-TestBase')
+if($position -lt 0){throw 'installer TestBase missing'}
+$TestBase=[string]$harnessArguments[$position+1]
+if($TestBase -cne (Join-Path $work 'installer')){throw 'fixed installer child differs'}
+$nativeAccount=[pscustomobject]@{binding=@{work_root=$work}}
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_INSTALLER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'installer parse failure'}
+$guard=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.IfStatementAst] -and $item.Extent.Text.StartsWith('if (-not $TestBase -or -not [IO.Path]::GetFullPath($TestBase).StartsWith(')},$true))
+if($guard.Count -ne 1){throw 'maintained strict TestBase guard missing'}
+Invoke-Expression $guard[0].Extent.Text
+$refused=0
+foreach($invalid in @($work,($work+'-sibling'))){$TestBase=$invalid;try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++}}
+if($refused -ne 2){throw 'root equality or sibling bypassed strict ownership'}
+Write-Output 'fixed-installer-descendant-pass'
+`,
+      );
+      const result = spawnSync(
+        "pwsh",
+        ["-NoLogo", "-NoProfile", "-NonInteractive", "-File", file],
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true,
+          env: {
+            ...process.env,
+            PORTCOVE_TEST_DRIVER: fileURLToPath(
+              new URL("./release-native-windows-driver.ps1", import.meta.url),
+            ),
+            PORTCOVE_TEST_INSTALLER: fileURLToPath(
+              new URL("./test-windows-installer.ps1", import.meta.url),
+            ),
+          },
+        },
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /fixed-installer-descendant-pass/u);
+    } finally {
+      assert.ok(
+        path.isAbsolute(directory) &&
+          path.dirname(directory) === path.resolve(tmpdir()) &&
+          path.basename(directory).startsWith("portcove-native-argv-"),
+      );
+      await rm(directory, { recursive: true });
+    }
+  },
+);
+
+void test("retained proof hashing handles empty streams and bounded raw preimages, refusing aliases and an expired original clock", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-public-proof-"));
+  try {
+    await writeFile(path.join(directory, "empty.bin"), Buffer.alloc(0));
+    const empty = await hashNativeCapturedFile(
+      directory,
+      "empty.bin",
+      1,
+      performance.now() + 10000,
+    );
+    assert.equal(empty.bytes, 0);
+    assert.equal(empty.sha256, createHash("sha256").digest("hex"));
+    const bytes = Buffer.alloc(5 * 1024 * 1024, 7);
+    await writeFile(path.join(directory, "payload.bin"), bytes);
+    const actual = await hashNativeCapturedFile(
+      directory,
+      "payload.bin",
+      bytes.length,
+      performance.now() + 10000,
+    );
+    assert.equal(actual.sha256, createHash("sha256").update(bytes).digest("hex"));
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "payload.bin", 4 * 1024 * 1024, performance.now() + 10000),
+    );
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "missing.bin", 1, performance.now() - 1),
+      /deadline exhausted/,
+    );
+    await link(path.join(directory, "payload.bin"), path.join(directory, "alias.bin"));
+    await assert.rejects(
+      hashNativeCapturedFile(directory, "payload.bin", bytes.length, performance.now() + 10000),
+    );
+  } finally {
+    assert.ok(
+      path.isAbsolute(directory) &&
+        path.dirname(directory) === path.resolve(tmpdir()) &&
+        path.basename(directory).startsWith("portcove-public-proof-"),
+    );
+    await rm(directory, { recursive: true });
+  }
+});
+
+void test("copied public claims and captures cannot invoke the fixed Windows supervisor", async () => {
+  await assert.rejects(
+    captureActualWindowsPublicJourney({ phase: "initial-v0-v1" }),
+    /actual freshly claimed public invocation/,
+  );
+  await assert.rejects(
+    requireActualWindowsPublicCapture({ authority: "none" }),
+    /actual fixed parent Windows public capture/,
+  );
+});
+
+void test(
+  "public Windows plan is a separate exact initial variant, without weakening pre-sign or publication selection",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_DRIVER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'driver parse failure'}
+$function=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Assert-DriverStageSelection')
+if($function.Count -ne 1){throw 'missing fixed driver selection'}
+Invoke-Expression $function[0].Extent.Text
+$plan=[ordered]@{schema_version=2;stage='ordinary-public-initial';journey=$null;predecessor=$null;boundary=@{};invocation_id='a'*64;request_sha256='b'*64;package=@{};tools=@{};version='0.1.0-beta.1';public_inputs=@{path='C:\capture\public-inputs.json';sha256='c'*64}}
+Assert-DriverStageSelection ($plan|ConvertTo-Json -Depth 5|ConvertFrom-Json)
+$park=$plan|ConvertTo-Json -Depth 5|ConvertFrom-Json;$park.stage='ordinary-public-park';Assert-DriverStageSelection $park
+$original=$plan|ConvertTo-Json -Depth 5 -Compress
+$refused=0
+foreach($change in @({param($p)$p.stage='release-publication'},{param($p)$p.schema_version=1},{param($p)$p.predecessor=@{path='other'}},{param($p)$p.public_inputs.sha256='bad'},{param($p)$p|Add-Member -NotePropertyName accepted -NotePropertyValue $true})){
+ $p=$original|ConvertFrom-Json;&$change $p
+ try {Assert-DriverStageSelection $p}catch{$refused++}
+}
+if($refused -ne 5){throw 'public plan crossover accepted'}
+Write-Output 'public-plan-contract-pass'
+`;
+    const result = spawnSync(
+      "pwsh",
+      ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script],
+      {
+        encoding: "utf8",
+        timeout: 15000,
+        windowsHide: true,
+        env: {
+          ...process.env,
+          PORTCOVE_TEST_DRIVER: fileURLToPath(
+            new URL("./release-native-windows-driver.ps1", import.meta.url),
+          ),
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /public-plan-contract-pass/u);
+  },
+);
 
 void test(
   "package rollback assertion requires actual predecessor identity, launch and unchanged installer-time data",
@@ -200,7 +373,7 @@ $valid=@(
   [ordered]@{stage='release-publication';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=$package}
 )
-foreach($value in $valid){Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}
+foreach($value in $valid){$value['schema_version']=1;Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}
 $invalid=@(
   [ordered]@{stage='public-accepted';journey=$null;predecessor=$null},
   [ordered]@{stage='payload-signing';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
@@ -209,7 +382,7 @@ $invalid=@(
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=124;sha256='a'*64}},
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=123;sha256='b'*64}}
 )
-$refused=0;foreach($value in $invalid){try{Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}catch{$refused++}}
+$refused=0;foreach($value in $invalid){$value['schema_version']=1;try{Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}catch{$refused++}}
 if($refused -ne 6){throw 'native stage guard widened'}
 [ordered]@{accepted=3;refused=6;scope='inert stage guard only'}|ConvertTo-Json -Compress
 `;

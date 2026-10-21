@@ -804,3 +804,25 @@ their applicable implementation proofs before activation.
 References inspected 2026-09-08: [TUF specification](https://theupdateframework.github.io/specification/latest/),
 [`tough`](https://github.com/awslabs/tough), [Tauri updater](https://v2.tauri.app/plugin/updater/)
 and downloaded `tough` 0.24.0 / `tauri-plugin-updater` 2.11.0 registry sources.
+
+### Exact public signature component control
+
+The existing `verify_packaged_application_update` example accepts the additive
+`public-signature-control CONFIG CONFIG_SHA256` command. Its strict schema-1 JSON
+contains absolute `payload_path` and `registry_path`, exact shipping `artifact`
+(`ArtifactIdentity`), `registry_sha256`, `prior_signature` and
+`prior_payload_key_id`. The parent must derive the V1 artifact, V0 signature and
+same-key association from actual authenticated public records and retain that
+provenance. A pinned config or registry digest alone does not authenticate them.
+
+The command reads only bounded regular inputs (64 KiB config/registry; 2 GiB
+payload), selects the exact public registry key and streams the same held V1
+payload through the shipping verifier twice. The V1 signature must first pass.
+It then rewinds the same handle and changes only the signature; only the typed
+`PayloadVerificationError::SignatureMismatch` succeeds as the negative control.
+Hash, length, parser, key and I/O errors fail the command. Output retains raw input
+digests and reports component-only scope, `authority: none` and native acceptance
+not established. No staging, installation, candidate execution or private key is
+involved. The public test fixture uses a deliberately altered signature; it does
+not establish an actual publicly released V0/V1 pair or native error subtype.
+The existing missing/wrong/valid packaged staging modes retain their behavior.

@@ -303,6 +303,58 @@ export function inspectNativeControllerVerificationCommand(
     throw new Error("native controller verifier flags or predicate differ");
 }
 
+/** Fixed same-job compiler provenance command only; it cannot issue a native
+ * result or appoint the prepared source supplied by the actual public pair. */
+export function inspectNativeReleaseVerificationCommand(
+  args: readonly string[],
+  directory: string,
+  expected: { source_commit: string; ref: string },
+) {
+  const filename = args[2];
+  if (
+    typeof filename !== "string" ||
+    !path.isAbsolute(directory) ||
+    !path.isAbsolute(filename) ||
+    path.resolve(filename) !== filename ||
+    !releasePathContains(directory, filename) ||
+    !/^compiler-result-(?:cli|desktop)-(?:linux|windows)-x86_64\.json$/u.test(
+      path.basename(filename),
+    ) ||
+    !/^[a-f0-9]{40}$/u.test(expected.source_commit) ||
+    !/^refs\/tags\/portcove-[a-z0-9]+(?:-[a-z0-9]+){0,5}-prepared\/v[0-9A-Za-z.+-]{1,128}$/u.test(
+      expected.ref,
+    ) ||
+    JSON.stringify(args) !==
+      JSON.stringify([
+        "attestation",
+        "verify",
+        filename,
+        "--hostname",
+        "github.com",
+        "--repo",
+        "boburning/portcove",
+        "--signer-workflow",
+        "boburning/portcove/.github/workflows/release.yml",
+        "--signer-digest",
+        expected.source_commit,
+        "--source-digest",
+        expected.source_commit,
+        "--source-ref",
+        expected.ref,
+        "--cert-oidc-issuer",
+        "https://token.actions.githubusercontent.com",
+        "--deny-self-hosted-runners",
+        "--predicate-type",
+        "https://slsa.dev/provenance/v1",
+        "--limit",
+        "5",
+        "--format",
+        "json",
+      ])
+  )
+    throw new Error("native public compiler attestation command differs");
+}
+
 async function sourceTransport(parent: Parent, directory: string) {
   await parent.recheck();
   const fixed = parent.transport_configuration;
@@ -408,7 +460,68 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, downloadAsset, recover, recheck, verifier };
+  const releaseVerifier = (identity: { source_commit: string; ref: string }) => {
+    const expected = Object.freeze({ ...identity });
+    if (!expected.ref.startsWith(`refs/tags/${parent.descriptor.namespace}-prepared/v`))
+      throw new Error("public compiler source escaped installed namespace");
+    const spawn: NonNullable<NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"]> = (
+      command,
+      args,
+      options,
+    ) => {
+      if (command !== "gh") throw new Error("native public verifier executable selection refused");
+      inspectNativeReleaseVerificationCommand(args, directory, expected);
+      checkToolIdentity();
+      const result = spawnSync(fixed.github_cli.path, args, {
+        ...options,
+        timeout: Math.min(options.timeout ?? 60000, remainingNativeParentBudget(60000)),
+        env,
+      });
+      checkToolIdentity();
+      return result;
+    };
+    return spawn;
+  };
+  return { api, download, downloadAsset, recover, recheck, verifier, releaseVerifier };
+}
+
+/** The public journey uses the same installed parent's read-only source tool
+ * and credential custody. It never adopts a hosted tool/admission brand or an
+ * incoming candidate. The protected descriptor appoints one fixed cohort rule. */
+export async function openActualNativePublicSource(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
+    throw new Error("actual protected public journey profile required");
+  const verifier = parent.transport_configuration.post_sign_verifier;
+  const git = parent.transport_configuration.windows_tools?.git;
+  const signature = parent.transport_configuration.public_signature_control;
+  if (
+    !verifier ||
+    !releasePathContains(parent.controller_root, verifier.path) ||
+    (signature && !releasePathContains(parent.controller_root, signature.path)) ||
+    (parent.descriptor.platform_label === "windows-x86_64" &&
+      (!git || !releasePathContains(parent.controller_root, git.path)))
+  )
+    throw new Error(
+      "public source tools must be staged inside the actual protected controller tree",
+    );
+  const directory = await mkdtemp(
+    path.join(parent.descriptor.capture_root, "native-public-source-"),
+  );
+  const source = await sourceTransport(parent, directory);
+  await parent.recheck();
+  return { parent, parent_receipt: parentReceipt, directory, source };
+}
+
+/** Routing data only. Both branches still require their existing actual source,
+ * claim and capture factories; no caller chooses a public/native stage. */
+export async function readActualNativeWorkerDispatch(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (!parent.descriptor.public_journey) return "candidate" as const;
+  const session = await openActualNativePublicSource(parentReceipt);
+  const current = await session.source.recover();
+  await parent.recheck();
+  return current.input.active_candidate === null ? ("public" as const) : ("candidate" as const);
 }
 
 const selections = new WeakMap<
@@ -1133,6 +1246,20 @@ export function inspectNativePredecessorReleaseAsset(
   rawAssets: unknown,
 ) {
   const candidate = inspectNativeQualificationCandidate(rawCandidate);
+  return inspectPublicImmutableReleaseAsset(rawRecord, candidate, rawRelease, rawAssets);
+}
+
+/** Exact public record/package association only, with no native or build
+ * artifact identity inferred from a Release asset identifier. */
+export function inspectPublicImmutableReleaseAsset(
+  rawRecord: unknown,
+  candidate: Pick<
+    ReturnType<typeof inspectNativeQualificationCandidate>,
+    "source_commit" | "source_tree" | "package"
+  >,
+  rawRelease: unknown,
+  rawAssets: unknown,
+) {
   if (
     !isRecord(rawRecord) ||
     !isRecord(rawRecord.artifact) ||

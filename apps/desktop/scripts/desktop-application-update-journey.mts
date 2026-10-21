@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readInstalledUpdateStatus } from "./desktop-installed-update-harness.mts";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
-async function openInstalledUpdateSettings(browser: WebDriver) {
+export async function openInstalledUpdateSettings(browser: WebDriver) {
   await browser
     .findElement(
       By.xpath(

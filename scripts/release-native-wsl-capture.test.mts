@@ -13,6 +13,43 @@ import {
   boundedNativeWslOperationTimeout,
   requireActualWslNativeCapture,
 } from "./release-native-wsl-capture.mts";
+void test("a retained hash cannot return usable bytes after its original clock expires during a read", async (context) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "native-capture-hash-clock-"));
+  await writeFile(path.join(directory, "retained.bin"), Buffer.alloc(65536, 1));
+  let now = 0;
+  const clock = context.mock.method(performance, "now", () => (now += 100));
+  try {
+    await assert.rejects(
+      hashRetainedNativeCaptureFile(directory, "retained.bin", 65536, 65536, 250),
+      /original capture hash budget exhausted/u,
+    );
+    assert.ok(now >= 300);
+  } finally {
+    clock.mock.restore();
+  }
+});
+void test("parked capture parsing refuses an exhausted original clock before opening or creating paths", async () => {
+  await assert.rejects(
+    retainNativeCaptureWire(
+      "missing-original.wire",
+      "must-not-create",
+      "a".repeat(64),
+      "b".repeat(64),
+      performance.now() - 1,
+    ),
+    /original capture read budget exhausted/u,
+  );
+  await assert.rejects(
+    retainNativeCaptureWire(
+      "missing-original.wire",
+      "must-not-create",
+      "a".repeat(64),
+      "b".repeat(64),
+      Number.NaN,
+    ),
+    /original capture read budget exhausted/u,
+  );
+});
 function fixture() {
   const id = "a".repeat(64),
     root = String.raw`E:\Portcove\controller`,
@@ -228,4 +265,60 @@ void test("guest operation budget intersects the original clock before any effec
     [1, NaN],
   ])
     assert.throws(() => boundedNativeWslOperationTimeout(pair[0]!, pair[1]!));
+});
+
+void test("ordinary public Windows-to-guest transport stages distinct V0 and V1 without native predecessor reinterpretation", () => {
+  const old = fixture();
+  const publicPlan = {
+    ...old,
+    schema_version: 3,
+    candidate: {
+      ...old.package,
+      path: old.package.path.replace("Portcove.AppImage", "Candidate.AppImage"),
+      sha256: "9".repeat(64),
+    },
+  };
+  const parsed = inspectWslNativeDriverPlan(publicPlan);
+  assert.equal(parsed.schema_version, 3);
+  assert.equal(parsed.package.sha256, old.package.sha256);
+  assert.equal(parsed.public_candidate?.sha256, publicPlan.candidate.sha256);
+  assert.equal(parsed.predecessor, null);
+  assert.equal(parsed.authority, "none");
+  for (const wrong of [
+    { ...publicPlan, schema_version: 1 },
+    { ...publicPlan, candidate: null },
+    { ...publicPlan, predecessor: publicPlan.candidate },
+    { ...publicPlan, candidate: { ...publicPlan.candidate, sha256: old.package.sha256 } },
+    {
+      ...publicPlan,
+      candidate: { ...publicPlan.candidate, path: String.raw`E:\other\Candidate.AppImage` },
+    },
+  ])
+    assert.throws(() => inspectWslNativeDriverPlan(wrong));
+});
+void test("continuation capsule is a bounded fixed original capture input and cannot reinterpret schema3", () => {
+  const raw = fixture();
+  const input = {
+    ...raw,
+    schema_version: 4,
+    candidate: { ...raw.package, sha256: "8".repeat(64) },
+    parked_capture: {
+      path: raw.capture_root + String.raw`\native-attempt-original\public-capture.stdout.bin`,
+      bytes: 123,
+      sha256: "7".repeat(64),
+    },
+  };
+  const parsed = inspectWslNativeDriverPlan(input);
+  assert.equal(parsed.schema_version, 4);
+  assert.equal(parsed.parked_capture?.bytes, 123);
+  for (const changed of [
+    { ...input, schema_version: 3 },
+    { ...input, parked_capture: null },
+    { ...input, parked_capture: { ...input.parked_capture, bytes: 272 * 1024 * 1024 + 1 } },
+    {
+      ...input,
+      parked_capture: { ...input.parked_capture, path: raw.capture_root + String.raw`\other.bin` },
+    },
+  ])
+    assert.throws(() => inspectWslNativeDriverPlan(changed));
 });

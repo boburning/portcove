@@ -87,10 +87,16 @@ def inspect_header(raw, invocation):
         and set(raw) == {"schema_version", "invocation_id", "entry", "bytes", "sha256"}
         and raw["schema_version"] == 1
         and raw["invocation_id"] == invocation
-        and raw["entry"] in ("request", "plan", "application", "candidate", "predecessor"),
+        and raw["entry"] in ("request", "plan", "application", "candidate", "predecessor", "parked_capture"),
         "fixed native transfer header differs",
     )
-    limit = 512 * MIB if raw["entry"] in ("application", "candidate", "predecessor") else 128 * 1024
+    limit = (
+        512 * MIB
+        if raw["entry"] in ("application", "candidate", "predecessor")
+        else 272 * MIB
+        if raw["entry"] == "parked_capture"
+        else 128 * 1024
+    )
     require(
         type(raw["bytes"]) is int
         and 0 < raw["bytes"] <= limit
@@ -125,7 +131,7 @@ def stage(root, invocation, header_sha):
     header = inspect_header(decode(line[:-1]), invocation)
     attempt = root / "invocations" / invocation
     make_directory(attempt)
-    for leaf in ("capture", "install", "work", "packages"):
+    for leaf in ("capture", "install", "work", "packages", "inputs"):
         make_directory(attempt / leaf)
     make_directory(attempt / "work/home")
     filename = (
@@ -137,6 +143,7 @@ def stage(root, invocation, header_sha):
                 "application": "install/Portcove.AppImage",
                 "candidate": "packages/Candidate.AppImage",
                 "predecessor": "packages/Predecessor.AppImage",
+                "parked_capture": "inputs/parked-public-capture.wire",
             }[header["entry"]]
         )
     )

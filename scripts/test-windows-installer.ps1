@@ -46,6 +46,7 @@ $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
 $ordinaryPublicClock = [Diagnostics.Stopwatch]::StartNew()
 $ordinaryPublicInputs = $null
+$ordinaryPublicPark = $false
 $ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
 if ($ordinaryPublicMode) {
     if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
@@ -72,8 +73,13 @@ if ($ordinaryPublicMode) {
         $ordinaryPublicInputs=[Text.UTF8Encoding]::new($false,$true).GetString([byte[]]$publicInputBytes) | ConvertFrom-Json
     } finally {$publicStream.Dispose()}
     $publicInputNames=@('schema_version','kind','prior_installer_sha256','prior_executable_sha256','prior_version','candidate_executable_sha256','candidate_installer_sha256','candidate_version')
+    if($ordinaryPublicInputs.schema_version -eq 2){
+        $publicInputNames+=@('phase')
+        if($ordinaryPublicInputs.phase -cne 'park-v0-with-v1'){throw 'Ordinary public update park phase differs'}
+        $ordinaryPublicPark=$true
+    }
     if ((@($ordinaryPublicInputs.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($publicInputNames | Sort-Object) -join '|') -or
-        $ordinaryPublicInputs.schema_version -ne 1 -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
+        $ordinaryPublicInputs.schema_version -notin @(1,2) -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
         throw 'Ordinary public update fixed input schema differs'
     }
     foreach ($field in @('prior_installer_sha256','prior_executable_sha256','candidate_executable_sha256','candidate_installer_sha256')) {
@@ -1442,6 +1448,7 @@ try {
                     binding=[IO.Path]::GetFullPath($NativeAccountBindingPath);binding_sha256=$NativeAccountBindingSha256;application=$application;output=$publicOutput;
                     prior_sha256=$ordinaryPublicInputs.prior_executable_sha256;prior_version=$ordinaryPublicInputs.prior_version;
                     candidate_sha256=$ordinaryPublicInputs.candidate_executable_sha256;candidate_installer_sha256=$ordinaryPublicInputs.candidate_installer_sha256;candidate_version=$ordinaryPublicInputs.candidate_version}}
+                if($ordinaryPublicPark){$publicConfiguration.schema_version=2;$publicConfiguration.journey['phase']='park-v0-with-v1'}
                 $publicConfigurationPath=Join-Path $evidenceParent 'ordinary-public-update.json'
                 $stream=[IO.File]::Open($publicConfigurationPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
                 try { $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($publicConfiguration|ConvertTo-Json -Depth 6 -Compress)+"`n");$stream.Write($bytes);$stream.Flush($true) } finally {$stream.Dispose()}
@@ -1451,12 +1458,22 @@ try {
                 & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-windows-update-test.mts') --ordinary-public $publicConfigurationPath $publicConfigurationSha $remaining
                 if ($LASTEXITCODE -ne 0) { throw 'Isolated ordinary public updater journey failed; retain raw preimages and process evidence' }
                 $currentPublicRegistration=@(Get-UninstallEntries $installRoot)
-                if ($currentPublicRegistration.Count -ne 1 -or $currentPublicRegistration[0].DisplayVersion -cne $ordinaryPublicInputs.candidate_version -or
-                    (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.candidate_executable_sha256) { throw 'Ordinary public V1 installation readback differs' }
+                $publicExpectedVersion=if($ordinaryPublicPark){$ordinaryPublicInputs.prior_version}else{$ordinaryPublicInputs.candidate_version}
+                $publicExpectedExecutable=if($ordinaryPublicPark){$ordinaryPublicInputs.prior_executable_sha256}else{$ordinaryPublicInputs.candidate_executable_sha256}
+                if ($currentPublicRegistration.Count -ne 1 -or $currentPublicRegistration[0].DisplayVersion -cne $publicExpectedVersion -or
+                    (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $publicExpectedExecutable) { throw 'Ordinary public installation readback differs' }
                 Assert-InstallerUserRegistration ([string]$currentPublicRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
                 $evidence.ordinary_public_update=[ordered]@{configuration_sha256=$publicConfigurationSha;output=$publicOutput;prior_version=$ordinaryPublicInputs.prior_version;
                     candidate_version=$ordinaryPublicInputs.candidate_version;registration=$currentPublicRegistration[0].PSPath;authority='none';native_acceptance='not-established'}
                 $evidence.uninstaller_sha256=(Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+                if($ordinaryPublicPark) {
+                    $completed=$true
+                    $parked=[ordered]@{application=$application;installed_executable_sha256=$publicExpectedExecutable;registered_version=$publicExpectedVersion;
+                        registration_path=$currentPublicRegistration[0].PSPath;public_update_output=$publicOutput;kept_installed=$true;authority='none';native_acceptance='not-established'}
+                    Write-InstallerEvidence 'public_v1_parked' $parked
+                    $parked|ConvertTo-Json -Depth 6 -Compress
+                    return
+                }
             } else {
                 & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-test.mts') `
                     --app $application --output $accountDesktopOutput --scenario empty-library --port 45874

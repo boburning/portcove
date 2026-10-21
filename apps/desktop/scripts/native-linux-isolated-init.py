@@ -8,6 +8,7 @@ candidate. Pure inspection tests do not establish a functioning Linux host.
 
 import base64
 import ctypes
+import datetime
 import hashlib
 import http.client
 import json
@@ -27,6 +28,10 @@ REQUEST_LIMIT = 2 * MIB
 RESPONSE_LIMIT = 16 * MIB
 SHA = re.compile(r"[a-f0-9]{64}\Z")
 ORIGINAL_START = time.monotonic()
+
+
+class RuntimeNotReady(RuntimeError):
+    """A normal restart may temporarily have zero or two owned app images."""
 
 
 def require(value, message):
@@ -64,20 +69,21 @@ def inspect_request(raw):
         raw["method"] in ("GET", "POST", "DELETE")
         and isinstance(raw["path"], str)
         and len(raw["path"]) <= 2048
-        and re.fullmatch(r"/(?:status|native-runtime|session(?:/[A-Za-z0-9._-]+)*)", raw["path"])
+        and re.fullmatch(r"/(?:status|native-runtime|native-public-runtime|session(?:/[A-Za-z0-9._-]+)*)", raw["path"])
         and not any(part in (".", "..") for part in raw["path"].split("/")),
         "private driver route differs",
     )
     data = body(raw["body_base64"], REQUEST_LIMIT)
     require(raw["method"] == "POST" or not data, "private driver read/delete body refused")
     require(
-        raw["path"] != "/native-runtime" or (raw["method"] == "GET" and not data),
+        raw["path"] not in ("/native-runtime", "/native-public-runtime") or (raw["method"] == "GET" and not data),
         "native runtime observation is read-only",
     )
     return raw["method"], raw["path"], data
 
 
 def inspect_binding(raw):
+    public = isinstance(raw, dict) and raw.get("schema_version") == 2
     require(
         isinstance(raw, dict)
         and set(raw)
@@ -93,11 +99,12 @@ def inspect_binding(raw):
             "environment",
             "tools",
             "timeout_seconds",
-        },
+        }
+        | ({"public"} if public else set()),
         "private native binding fields differ",
     )
     require(
-        raw["schema_version"] == 1
+        raw["schema_version"] in (1, 2)
         and isinstance(raw["nonce"], str)
         and re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", raw["nonce"]),
         "private native nonce differs",
@@ -112,7 +119,7 @@ def inspect_binding(raw):
         require(
             isinstance(raw[key], str)
             and len(raw[key]) <= 2048
-            and raw[key].startswith("/home/")
+            and (raw[key].startswith("/home/") if not public else raw[key].startswith("/native/"))
             and all(32 <= ord(value) < 127 for value in raw[key])
             and str(PurePosixPath(raw[key])) == raw[key]
             and ".." not in PurePosixPath(raw[key]).parts,
@@ -158,6 +165,44 @@ def inspect_binding(raw):
             and str(PurePosixPath(value)) == value
             and len(value) <= 2048,
             "private native data path escapes owned home",
+        )
+    if public:
+        selected = raw["public"]
+        require(
+            isinstance(selected, dict)
+            and set(selected)
+            == {
+                "invocation_id",
+                "profile_id",
+                "deadline_utc",
+                "services_sha256",
+                "fuse_sha256",
+                "network_sha256",
+                "fuse_policy_sha256",
+                "network_policy_sha256",
+            },
+            "ordinary public namespace binding differs",
+        )
+        require(
+            all(
+                isinstance(selected[key], str) and SHA.fullmatch(selected[key])
+                for key in selected
+                if key not in ("deadline_utc", "profile_id")
+            ),
+            "ordinary public namespace pins differ",
+        )
+        require(
+            selected["profile_id"] in ("client-a", "client-b")
+            and raw["home"] == "/native/profile/" + selected["profile_id"]
+            and raw["application_original"] == "/native/installation/Portcove.AppImage",
+            "ordinary public state/installation escaped shared bounded home",
+        )
+        require(isinstance(selected["deadline_utc"], str), "ordinary public deadline unavailable")
+        parsed = datetime.datetime.fromisoformat(selected["deadline_utc"].replace("Z", "+00:00"))
+        require(
+            parsed.tzinfo == datetime.UTC
+            and parsed.isoformat(timespec="milliseconds").replace("+00:00", "Z") == selected["deadline_utc"],
+            "ordinary public deadline is not canonical UTC",
         )
     return raw
 
@@ -272,7 +317,69 @@ def candidate_launch_root(processes, pid, driver_pid):
     raise RuntimeError("candidate launch ancestry unavailable")
 
 
-def runtime_snapshot(driver_pid, qualification_uid):
+def inspect_public_runtime_mount(image, mountinfo, mounts):
+    require(
+        isinstance(image, str) and Path(image).name == "portcove-desktop" and not image.endswith(" (deleted)"),
+        "ordinary public application image differs",
+    )
+    require(
+        re.fullmatch(r"/tmp/\.mount_[A-Za-z0-9._-]{1,64}/(?:[^/]+/)*portcove-desktop", image)
+        and ".." not in PurePosixPath(image).parts,
+        "ordinary public image is outside a private AppImage mount",
+    )
+    require(
+        isinstance(mountinfo, str) and len(mountinfo.encode("utf-8")) <= MIB,
+        "ordinary public mount inventory exceeds bound",
+    )
+    selected = []
+    for target, value in mounts.items():
+        require(re.fullmatch(r"/tmp/\.mount_[A-Za-z0-9._-]{1,64}", target), "ordinary public mountpoint differs")
+        if not image.startswith(target + "/"):
+            continue
+        mount = value["mount"]
+        rows = [line.split() for line in mountinfo.splitlines() if line.split()[4] == target]
+        require(len(rows) == 1, "ordinary public mounted image is absent or ambiguous")
+        row = rows[0]
+        separator = row.index("-")
+        require(
+            row[0] == mount["id"]
+            and row[separator + 1] == mount["filesystem"] == "fuse.AppImage"
+            and row[separator + 2] == mount["source"] == "/native/installation/Portcove.AppImage"
+            and {"ro", "nosuid", "nodev"} <= set(row[5].split(",")),
+            "ordinary public mount changed from retained broker result",
+        )
+        selected.append(json.loads(json.dumps(value)))
+    if not selected:
+        # The child writes mounted before handing the FUSE FD to AppImage,
+        # but FD4 may be serviced before PID1 consumes that original event.
+        # Absence never establishes package identity or a positive snapshot.
+        raise RuntimeNotReady("original broker mount association is not yet consumed")
+    require(len(selected) == 1, "one exact broker-mounted ordinary application is required")
+    return selected[0]
+
+
+def inspect_public_process_arguments(raw):
+    require(
+        isinstance(raw, str) and 0 < len(raw.encode("utf-8")) <= 16384 and raw.endswith("\0"),
+        "ordinary process arguments differ",
+    )
+    arguments = raw[:-1].split("\0")
+    require(
+        0 < len(arguments) <= 16 and all(0 < len(value) <= 4096 for value in arguments),
+        "ordinary process argument bounds differ",
+    )
+    if "--portcove-apply-update" in arguments:
+        require(
+            len(arguments) == 3
+            and arguments[1] == "--portcove-apply-update"
+            and re.fullmatch(r"[1-9][0-9]{0,19}", arguments[2]),
+            "ordinary update helper arguments differ",
+        )
+        return {"role": "update-helper", "arguments": arguments}
+    return {"role": "application", "arguments": arguments}
+
+
+def runtime_snapshot(driver_pid, qualification_uid, public_mounts=None):
     # This fixed observation is available only through the trusted parent's FD.
     # No caller PID, pathname or command is accepted, and inaccessible evidence
     # refuses rather than weakening the WebKit sandbox or requesting ptrace.
@@ -283,11 +390,12 @@ def runtime_snapshot(driver_pid, qualification_uid):
     for pid, process in processes.items():
         if process["comm"] != "portcove-desktop"[:15]:
             continue
+        owner = 1 if public_mounts is not None else driver_pid
         ancestor, visited = process["parent_pid"], set()
-        while ancestor != driver_pid and ancestor in processes and ancestor not in visited:
+        while ancestor != owner and ancestor in processes and ancestor not in visited:
             visited.add(ancestor)
             ancestor = processes[ancestor]["parent_pid"]
-        if ancestor != driver_pid:
+        if ancestor != owner:
             continue
         image = os.readlink(f"/proc/{pid}/exe")
         require(
@@ -295,8 +403,20 @@ def runtime_snapshot(driver_pid, qualification_uid):
             "actual candidate image differs",
         )
         status = bounded_text(f"/proc/{pid}/status", 32768)
+        if public_mounts is not None:
+            fields = dict(line.split(":", 1) for line in status.splitlines() if ":" in line)
+            require(
+                all(int(fields[name], 16) == 0 for name in ("CapEff", "CapPrm", "CapInh", "CapAmb"))
+                and fields["NoNewPrivs"].strip() == "1",
+                "ordinary application capabilities differ",
+            )
         uid_rows = [line.split()[1:] for line in status.splitlines() if line.startswith("Uid:")]
         require(len(uid_rows) == 1 and uid_rows[0] == [str(qualification_uid)] * 4, "actual candidate account differs")
+        public_arguments = None
+        if public_mounts is not None:
+            public_arguments = inspect_public_process_arguments(bounded_text(f"/proc/{pid}/cmdline", 16384))
+            if public_arguments["role"] == "update-helper":
+                continue  # Helper execution is not an ordinary application relaunch.
         maps = bounded_text(f"/proc/{pid}/maps", MIB)
         libraries = [
             {
@@ -315,6 +435,37 @@ def runtime_snapshot(driver_pid, qualification_uid):
             and os.readlink(f"/proc/{pid}/exe") == image,
             "native process or mapping changed during observation",
         )
+        if public_mounts is not None:
+            namespace = os.stat(f"/proc/{pid}/ns/mnt")
+            init_namespace = os.stat("/proc/1/ns/mnt")
+            require(
+                (namespace.st_dev, namespace.st_ino) == (init_namespace.st_dev, init_namespace.st_ino),
+                "ordinary application left the broker-owned mount namespace",
+            )
+            mountinfo = bounded_text(f"/proc/{pid}/mountinfo", MIB)
+            association = inspect_public_runtime_mount(image, mountinfo, public_mounts)
+            require(
+                bounded_text(f"/proc/{pid}/mountinfo", MIB) == mountinfo
+                and inspect_process_stat(bounded_text(f"/proc/{pid}/stat", 4096), pid) == process,
+                "ordinary public process/mount association changed",
+            )
+            require(
+                bounded_text(f"/proc/{pid}/cmdline", 16384) == "\0".join(public_arguments["arguments"]) + "\0",
+                "ordinary public process mode changed",
+            )
+            selected.append(
+                {
+                    **process,
+                    "uid": qualification_uid,
+                    "image": image,
+                    "image_sha256": executable_sha256,
+                    "loaded_libraries": libraries,
+                    "creation_clock": process_creation_clock(process["creation_ticks"]),
+                    "opaque_mount": association,
+                    **public_arguments,
+                }
+            )
+            continue
         root = candidate_launch_root(processes, pid, driver_pid)
         ancestry, cursor = [], pid
         while True:
@@ -364,6 +515,8 @@ def runtime_snapshot(driver_pid, qualification_uid):
                 },
             }
         )
+    if public_mounts is not None and len(selected) != 1:
+        raise RuntimeNotReady("one stable ordinary application image is not yet observable")
     require(len(selected) == 1, "one actual live candidate image required")
     boot = [line.split()[1] for line in bounded_text("/proc/stat", MIB).splitlines() if line.startswith("btime ")]
     require(len(boot) == 1 and boot[0].isdigit() and int(boot[0]) > 0, "native process clock origin unavailable")
@@ -374,6 +527,11 @@ def runtime_snapshot(driver_pid, qualification_uid):
         + f".{now // 1000000 % 1000:03d}Z",
         "process": selected[0],
         "driver_pid": driver_pid,
+        **(
+            {"scope": "ordinary-public-broker-mounted-runtime", "namespace_owner_pid": 1}
+            if public_mounts is not None
+            else {}
+        ),
         "kernel_release": os.uname().release,
         "architecture": os.uname().machine,
         "os_release": bounded_text("/etc/os-release", 16384),
@@ -430,7 +588,9 @@ def rewrite_session(data, binding):
     )
     # A mount alias changes only the launch path, never selected application
     # bytes or the product's trust/selection/configuration behavior.
-    options["application"] = "/native/application.AppImage"
+    options["application"] = (
+        "/native/installation/Portcove.AppImage" if binding["schema_version"] == 2 else "/native/application.AppImage"
+    )
     return json.dumps(raw, separators=(",", ":")).encode("utf-8")
 
 
@@ -443,6 +603,14 @@ def authority_record(cookie):
 
 def run(binding):
     end = ORIGINAL_START + binding["timeout_seconds"]
+    public = binding["schema_version"] == 2
+    if public:
+        remaining = (
+            datetime.datetime.fromisoformat(binding["public"]["deadline_utc"].replace("Z", "+00:00")).timestamp()
+            - time.time()
+        )
+        require(remaining > 0, "ordinary public deadline already expired")
+        end = min(end, time.monotonic() + remaining)
     require(sys.platform == "linux" and os.getpid() == 1, "private candidate namespace PID1 required")
     require(
         os.getuid() == binding["qualification_uid"] and os.getgid() == binding["qualification_gid"],
@@ -468,7 +636,8 @@ def run(binding):
         require(read_regular(actual, 128 * MIB) == value["sha256"], "native qualified tool changed")
     require(Path(sys.executable).resolve() == Path("/usr/bin/python3").resolve(), "fixed native Python required")
     require(
-        read_regular("/native/application.AppImage", 512 * MIB) == binding["application_sha256"],
+        read_regular("/native/installation/Portcove.AppImage" if public else "/native/application.AppImage", 512 * MIB)
+        == binding["application_sha256"],
         "native selected package changed",
     )
     require(time.monotonic() < end, "original native init lifetime exhausted before launch")
@@ -496,12 +665,45 @@ def run(binding):
         "DISPLAY": ":99",
         "GDK_BACKEND": "x11",
         "XAUTHORITY": str(auth),
-        "APPIMAGE_EXTRACT_AND_RUN": "1",
         **binding["environment"],
     }
+    if public:
+        environment["FUSERMOUNT_PROG"] = "/native/fuse.py"
+    else:
+        environment["APPIMAGE_EXTRACT_AND_RUN"] = "1"
     children = []
     selector = selectors.DefaultSelector()
+    services = worker = None
     try:
+        if public:
+            import types
+
+            helper = os.stat("/native/fuse.py", follow_symlinks=False)
+            require(
+                stat.S_ISREG(helper.st_mode)
+                and helper.st_nlink == 1
+                and helper.st_uid == os.getuid()
+                and helper.st_mode & 0o111
+                and not helper.st_mode & 0o6000,
+                "ordinary FUSE helper must be the appointed non-setuid executable source",
+            )
+            # Compile the exact bytes just hashed. The parent independently
+            # binds this fixed read-only module to its clean controller source.
+            with open("/native/public-services.py", "rb") as source:
+                data = source.read(MIB + 1)
+            require(
+                len(data) <= MIB and hashlib.sha256(data).hexdigest() == binding["public"]["services_sha256"],
+                "ordinary public services source differs",
+            )
+            module = types.ModuleType("fixed_native_public_services")
+            exec(compile(data, "/native/public-services.py", "exec"), module.__dict__)
+            services = module.PublicNativeServices(
+                {**binding["public"], "nonce": binding["nonce"]}, selector, end, send
+            )
+            require(
+                services.package_hashes[0] == binding["application_sha256"],
+                "ordinary initial package differs from appointed FUSE pair",
+            )
         send(
             {
                 "kind": "namespace-ready",
@@ -537,12 +739,50 @@ def run(binding):
         )
         children.append(driver)
         send({"kind": "driver-started", "pid": driver.pid})
+
+        def forward_driver(method, route, content):
+            connection = http.client.HTTPConnection(
+                "127.0.0.1", binding["port"], timeout=max(0.01, min(30, end - time.monotonic()))
+            )
+            try:
+                connection.request(method, route, content, {"Content-Type": "application/json", "Connection": "close"})
+                response = connection.getresponse()
+                result = response.read(RESPONSE_LIMIT + 1)
+                require(
+                    len(result) <= RESPONSE_LIMIT and 200 <= response.status <= 599,
+                    "private driver response exceeded bound",
+                )
+                return response.status, result
+            except ConnectionRefusedError:
+                require(method == "GET" and route == "/status", "native driver connection outcome is ambiguous")
+                return 503, b'{"value":{"error":"not-ready"}}'
+            finally:
+                connection.close()
+
+        def respond_driver(current, response):
+            status, result = response
+            require(time.monotonic() < end, "original native init lifetime exhausted")
+            send(
+                {
+                    "kind": "driver-response",
+                    "sequence": current,
+                    "response": {"status": status, "body_base64": base64.b64encode(result).decode("ascii")},
+                }
+            )
+
+        if public:
+            worker = module.FixedDriverHttpWorker(selector, end, forward_driver, respond_driver)
         selector.register(0, selectors.EVENT_READ)
         selector.register(4, selectors.EVENT_READ)
         buffer = b""
         while time.monotonic() < end:
+            if services is not None:
+                services.tick()
             require(display.poll() is None and driver.poll() is None, "native GUI process exited before settlement")
-            for key, _ in selector.select(min(0.25, max(0, end - time.monotonic()))):
+            for key, mask in selector.select(min(0.25, max(0, end - time.monotonic()))):
+                if callable(key.data):
+                    key.data(mask)
+                    continue
                 data = os.read(key.fd, 65536)
                 if key.fd == 0:
                     require(not data, "private native lifecycle input is not a command surface")
@@ -568,9 +808,23 @@ def run(binding):
                     )
                     sequence += 1
                     method, route, content = inspect_request(packet["request"])
-                    if route == "/native-runtime":
+                    if route in ("/native-runtime", "/native-public-runtime"):
+                        require(public == (route == "/native-public-runtime"), "runtime observation scope differs")
+                        try:
+                            snapshot = runtime_snapshot(
+                                driver.pid, binding["qualification_uid"], services.mounts if public else None
+                            )
+                        except (RuntimeNotReady, FileNotFoundError, ProcessLookupError):
+                            if not public:
+                                raise
+                            # Read-only observation may race ordinary exit and
+                            # relaunch. Security/identity assertion failures are
+                            # never converted to readiness or accepted reports.
+                            respond_driver(sequence, (503, b'{"state":"runtime-not-ready","authority":"none"}'))
+                            continue
                         result = json.dumps(
-                            runtime_snapshot(driver.pid, binding["qualification_uid"]), separators=(",", ":")
+                            snapshot,
+                            separators=(",", ":"),
                         ).encode("utf-8")
                         require(
                             len(result) <= RESPONSE_LIMIT and time.monotonic() < end,
@@ -586,40 +840,20 @@ def run(binding):
                         continue
                     if method == "POST" and route == "/session":
                         require(
-                            read_regular("/native/application.AppImage", 512 * MIB) == binding["application_sha256"],
+                            read_regular(
+                                "/native/installation/Portcove.AppImage" if public else "/native/application.AppImage",
+                                512 * MIB,
+                            )
+                            in (services.package_hashes if public else (binding["application_sha256"],)),
                             "native package changed before launch",
                         )
                         content = rewrite_session(content, binding)
-                    connection = http.client.HTTPConnection(
-                        "127.0.0.1", binding["port"], timeout=max(0.01, min(30, end - time.monotonic()))
-                    )
-                    try:
-                        connection.request(
-                            method, route, content, {"Content-Type": "application/json", "Connection": "close"}
-                        )
-                        response = connection.getresponse()
-                        result = response.read(RESPONSE_LIMIT + 1)
-                        require(
-                            len(result) <= RESPONSE_LIMIT and 200 <= response.status <= 599,
-                            "private driver response exceeded bound",
-                        )
-                        status = response.status
-                    except ConnectionRefusedError:
-                        require(method == "GET" and route == "/status", "native driver connection outcome is ambiguous")
-                        status, result = 503, b'{"value":{"error":"not-ready"}}'
-                    finally:
-                        connection.close()
-                    require(time.monotonic() < end, "original native init lifetime exhausted")
-                    send(
-                        {
-                            "kind": "driver-response",
-                            "sequence": sequence,
-                            "response": {"status": status, "body_base64": base64.b64encode(result).decode("ascii")},
-                        }
-                    )
+                    if worker is None:
+                        respond_driver(sequence, forward_driver(method, route, content))
+                    else:
+                        worker.submit(sequence, method, route, content)
         raise RuntimeError("original native init lifetime exhausted")
     finally:
-        selector.close()
         for child in reversed(children):
             if child.poll() is None:
                 child.terminate()
@@ -628,6 +862,17 @@ def run(binding):
                 except subprocess.TimeoutExpired:
                     child.kill()
                     child.wait(timeout=2)
+        try:
+            if worker is not None:
+                worker.close()
+        finally:
+            try:
+                if services is not None:
+                    settled = services.close()
+                    send({"kind": "public-services-stopped", "mounts_empty_observed": settled, "authority": "none"})
+                    require(settled, "ordinary FUSE mounts did not positively settle")
+            finally:
+                selector.close()
         # Exiting namespace PID1 lets the kernel tear down all descendants;
         # only the outer owner may attest positive held-cgroup emptiness.
 

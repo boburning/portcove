@@ -1,6 +1,7 @@
 /** Fixed Linux namespace mount/launch data. Inspection is never a scheduler,
  * native invocation, installed-host observation or acceptance authority. */
 import path from "node:path";
+import assert from "node:assert/strict";
 import { isRecord } from "../../../scripts/runtime-values.mts";
 
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
@@ -256,6 +257,44 @@ export function planIsolatedNativeLinuxCommand(raw: unknown, configurationPath: 
     executable: tool("bwrap"),
     arguments: args,
     credential_input: "none" as const,
+    authority: "none" as const,
+  });
+}
+
+export function inspectNativeLinuxHomeMount(
+  mountinfo: string,
+  home: string,
+  filesystem: { type: number; bsize: number; blocks: number },
+) {
+  assert.ok(Buffer.byteLength(mountinfo) <= 1024 * 1024);
+  assert.equal(filesystem.type, 0x01021994, "native state home must be hard-bounded tmpfs");
+  assert.ok(
+    Number.isSafeInteger(filesystem.bsize) &&
+      filesystem.bsize > 0 &&
+      Number.isSafeInteger(filesystem.blocks) &&
+      filesystem.blocks > 0,
+  );
+  const bytes = filesystem.bsize * filesystem.blocks;
+  assert.ok(Number.isSafeInteger(bytes) && bytes <= 512 * 1024 * 1024);
+  const matches = mountinfo.split("\n").filter((line) => line.split(" ")[4] === home);
+  assert.equal(matches.length, 1, "exact native home mount must be distinct");
+  const fields = matches[0]!.split(" "),
+    separator = fields.indexOf("-");
+  assert.ok(
+    separator >= 6 &&
+      fields[separator + 1] === "tmpfs" &&
+      fields[3] === "/" &&
+      fields[5]!.split(",").includes("rw"),
+  );
+  assert.ok(/^[1-9][0-9]*$/u.test(fields[0]!) && /^[0-9]+:[0-9]+$/u.test(fields[2]!));
+  return Object.freeze({
+    mount_id: fields[0]!,
+    parent_mount_id: fields[1]!,
+    device: fields[2]!,
+    root: "/",
+    mount_point: home,
+    filesystem: "tmpfs",
+    maximum_bytes: bytes,
     authority: "none" as const,
   });
 }

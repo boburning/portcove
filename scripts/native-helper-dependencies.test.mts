@@ -78,8 +78,23 @@ void test("actual declarations cover wrappers and every transitive conditional h
     "native-confirmation.ps1",
     "native-session.ps1",
     "native-startup-observation.ps1",
+    "native-linux-public-plan.mts",
   ])
     assert(files.includes(prefix + name));
+  for (const name of ["services", "network", "fuse"])
+    assert(nativeHelperSharedSources.includes(prefix + `native-linux-public-${name}.py`));
+});
+
+void test("fixed captured public init module does not permit another dynamic Python loader", async () => {
+  const file = prefix + "native-linux-isolated-init.py";
+  const source = await readFile(path.join(root, file), "utf8");
+  assert.deepEqual(nativeHelperSourceDependencies(file, source), []);
+  for (const changed of [
+    source.replace('"/native/public-services.py", "exec"', '"/native/other.py", "exec"'),
+    source + "\nexec('import foreign')\n",
+    source + '\nexec(compile(data, "/native/public-services.py", "exec"), module.__dict__)\n',
+  ])
+    assert.throws(() => nativeHelperSourceDependencies(file, changed), /Unsupported/);
 });
 
 void test("native wrapper imports reject added dynamic URLs and unregistered local modules", () => {

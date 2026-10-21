@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { execFileSync } from "node:child_process";
 import { spawnSync } from "node:child_process";
@@ -26,15 +27,19 @@ export type { CompilerSourceClosure } from "./release-compiler-source-closure.mt
 export async function prepareReleaseCompilerSourceClosure(
   sourceRoot: string,
   expected: { source_commit: string; source_tree: string },
+  options: { git?: string } = {},
 ): Promise<CompilerSourceClosure> {
   if (
     !/^[a-f0-9]{40}$/u.test(expected.source_commit) ||
     !/^[a-f0-9]{40}$/u.test(expected.source_tree)
   )
     throw new Error("fixed bootstrap source identity unavailable");
+  const executable = options.git ?? "git";
+  if (options.git !== undefined && !path.isAbsolute(executable))
+    throw new Error("fixed compiler closure Git path must be absolute");
   const git = (args: string[]) =>
     execFileSync(
-      "git",
+      executable,
       ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=", "-C", sourceRoot, ...args],
       {
         encoding: "utf8",
