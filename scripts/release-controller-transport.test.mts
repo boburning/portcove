@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, lstat, readdir } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { createHash } from "node:crypto";
@@ -11,6 +11,8 @@ import {
   controllerTransportClock,
   retainControllerUpload,
   retainControllerAttestation,
+  retainControllerRoleKey,
+  retainControllerJobSettlement,
   nextControllerTransport,
   acknowledgeControllerTransport,
   inspectControllerTransportEvent,
@@ -29,6 +31,53 @@ const identity = {
   GITHUB_SHA: "a".repeat(40),
   GITHUB_REF: "refs/tags/portcove-production-controller-test",
 };
+void test("concurrent marker readers see complete published bytes and duplicate publication cannot replace them", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "pump-marker-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const directory = path.join(root, "key");
+  await mkdir(directory);
+  const marker = path.join(root, "controller-transport-payload-role-key.json");
+  let publicationFailure: unknown;
+  const publishing = retainControllerRoleKey(root, "payload", directory).catch((error: unknown) => {
+    publicationFailure = error;
+  });
+  const deadline = performance.now() + 5000;
+  let observed: Buffer | undefined;
+  while (!observed) {
+    if (publicationFailure) throw publicationFailure;
+    if (performance.now() >= deadline) throw new Error("marker fixture publication timed out");
+    try {
+      observed = await readFile(marker);
+      assert.ok(observed.length > 0);
+      assert.equal((JSON.parse(observed.toString("utf8")) as { kind: string }).kind, "role-key");
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+      await delay(1);
+    }
+  }
+  await publishing;
+  const before = await lstat(marker);
+  assert.equal(before.nlink, 2);
+  const aliases = (await readdir(root)).filter((name) => name.includes(".retained-"));
+  assert.equal(aliases.length, 1);
+  assert.ok((await readFile(path.join(root, aliases[0]!))).equals(observed));
+  await assert.rejects(retainControllerRoleKey(root, "payload", directory), { code: "EEXIST" });
+  assert.ok((await readFile(marker)).equals(observed));
+  const after = await lstat(marker);
+  assert.equal(after.ino, before.ino);
+  assert.equal(after.ctimeMs, before.ctimeMs);
+  await retainControllerJobSettlement(root, "payload", 0, true);
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(root, "controller-job-settlement-payload.json"), "utf8")),
+    { exit_code: 0, requires_attestation: true },
+  );
+  assert.deepEqual(
+    JSON.parse(
+      await readFile(path.join(root, "release-control-payload-process-ended.json"), "utf8"),
+    ),
+    { exit_code: 0 },
+  );
+});
 void test("transport clock preserves provider-start budget across subprocesses and wall-clock rollback", () => {
   const clock = {
     controller_revision: identity.GITHUB_SHA,

@@ -9,7 +9,10 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 import { isRecord } from "./runtime-values.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { retainControllerAttestation } from "./release-controller-transport.mts";
+import {
+  retainControllerAttestation,
+  retainControllerJobSettlement,
+} from "./release-controller-transport.mts";
 
 function operation(raw: unknown) {
   if (
@@ -256,16 +259,7 @@ export async function runConfiguredFixedControllerJob(rawRole: unknown, deadline
     exitCode = 0;
     return completed;
   } finally {
-    await writeFile(
-      path.join(temporary(), `release-control-${phase}-process-ended.json`),
-      JSON.stringify({ exit_code: exitCode }),
-      { flag: "wx", mode: 0o600 },
-    );
-    await writeFile(
-      path.join(temporary(), `controller-job-settlement-${phase}.json`),
-      JSON.stringify({ exit_code: exitCode, requires_attestation: requiresAttestation }),
-      { flag: "wx", mode: 0o600 },
-    );
+    await retainControllerJobSettlement(temporary(), phase, exitCode, requiresAttestation);
   }
 }
 async function main() {

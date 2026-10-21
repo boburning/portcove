@@ -56,6 +56,16 @@ handoff/transport checks and the actual eleven-entry Pack pass after repair;
 the one Linux socket case remains skipped locally on Windows. Final hosted
 qualification must cover the composed source, including pending-context recovery.
 
+At `43ff33f`, the hosted eleven-entry tool fixture `39537415230` passes. CI
+`39537415404` still exposed a real Linux marker publication race: a concurrent
+reader could observe the newly created file before its bytes were complete.
+Public JSON markers and actual job settlement now publish complete, synced
+bytes with an atomic non-replacing hard link. The private staging alias stays
+retained to avoid changing the inode during readback. Artifact payload files
+keep their existing single-link checks. The focused complete-byte, duplicate
+refusal and inode-stability regression passes locally; Linux transport and final
+composed-source qualification remain separate hosted results.
+
 The event transport's local Linux-specific socket case is skipped on Windows;
 hosted Linux qualification remains a separate result. Synthetic files and
 disposable keys do not establish actual semantic, native, App, key-custody or

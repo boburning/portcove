@@ -3,7 +3,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash, randomBytes } from "node:crypto";
-import { appendFile, open, lstat, mkdir } from "node:fs/promises";
+import { appendFile, open, lstat, mkdir, link } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
@@ -47,7 +47,14 @@ function filename(root: string, phase: Phase, suffix: string) {
   return path.join(root, `controller-transport-${phase}-${suffix}.json`);
 }
 async function retain(file: string, value: unknown) {
-  return retainBytes(file, Buffer.from(JSON.stringify(value)));
+  // Readers must never observe the empty/partial wx file. Publish complete
+  // bytes without replacement. Keep the owned staging alias: unlinking it
+  // after publication would race the reader's inode/ctime stability check.
+  // Both names share bytes, contain only public routing data, and settle with
+  // this job's private temporary directory.
+  const staging = `${file}.retained-${randomBytes(16).toString("hex")}`;
+  await retainBytes(staging, Buffer.from(JSON.stringify(value)));
+  await link(staging, file);
 }
 async function retainBytes(file: string, bytes: Buffer) {
   const handle = await open(file, "wx", 0o600);
@@ -57,6 +64,29 @@ async function retainBytes(file: string, bytes: Buffer) {
   } finally {
     await handle.close();
   }
+}
+/** Settlement is routing data, never acceptance. Publish complete markers for
+ * concurrent readers; preserve the older bridge's exact separate schema. */
+export async function retainControllerJobSettlement(
+  root: string,
+  rawPhase: unknown,
+  exitCode: number,
+  requiresAttestation: boolean,
+) {
+  const phase = inspectReleaseControlPhase(rawPhase);
+  if (
+    !path.isAbsolute(root) ||
+    ![0, 1].includes(exitCode) ||
+    typeof requiresAttestation !== "boolean"
+  )
+    throw new Error("fixed job settlement differs");
+  await retain(path.join(root, `controller-job-settlement-${phase}.json`), {
+    exit_code: exitCode,
+    requires_attestation: requiresAttestation,
+  });
+  await retain(path.join(root, `release-control-${phase}-process-ended.json`), {
+    exit_code: exitCode,
+  });
 }
 function bundleRoute(phase: Phase) {
   if (!allowed(phase, "attest")) throw new Error("fixed attestation phase required");
