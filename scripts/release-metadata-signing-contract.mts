@@ -5,6 +5,8 @@ import {
   inspectMetadataRenewalDescriptor,
   inspectPublishedMetadata,
   assertMetadataRenewalBinding,
+  inspectMetadataBootstrapDescriptor,
+  assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -29,6 +31,40 @@ export function inspectMetadataSigningBinding(
     "checkpoint,descriptor,mode,namespace,previous_site_pins,public_source_commit,setup_plan_sha256",
   );
   exact(binding, "descriptor_sha256,kind,records_sha256");
+  if (facts.mode === "bootstrap") {
+    const descriptor = inspectMetadataBootstrapDescriptor(facts.descriptor);
+    if (
+      pins !== null ||
+      facts.previous_site_pins !== null ||
+      binding.kind !== "metadata-bootstrap" ||
+      binding.descriptor_sha256 !== digest(descriptor) ||
+      binding.records_sha256 !== digest([]) ||
+      descriptor.initial_records_sha256 !== binding.records_sha256 ||
+      facts.setup_plan_sha256 !== descriptor.setup_plan_sha256 ||
+      typeof facts.checkpoint !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(facts.checkpoint) ||
+      typeof facts.public_source_commit !== "string" ||
+      !/^[a-f0-9]{40}$/u.test(facts.public_source_commit)
+    )
+      throw new Error("initial metadata context differs from explicit empty setup binding");
+    return {
+      facts: {
+        mode: "bootstrap" as const,
+        namespace: inspectCoordinatorRemoteNamespace({
+          schema_version: 1,
+          namespace: facts.namespace,
+        }),
+        descriptor,
+        checkpoint: facts.checkpoint,
+        previous_site_pins: null,
+        setup_plan_sha256: descriptor.setup_plan_sha256,
+        public_source_commit: facts.public_source_commit,
+      },
+      binding,
+      previous_site_pins: null,
+      authority: "none" as const,
+    };
+  }
   exact(pins, "repository_sha256,root_sha256,site_generation_sha256");
   const descriptor = inspectMetadataRenewalDescriptor(facts.descriptor);
   for (const value of Object.values(pins)) sha(value);
@@ -83,6 +119,20 @@ export function inspectMetadataSigningReservation(
   now = metadataSigningNow(),
 ) {
   const context = inspectMetadataSigningBinding(rawFacts, rawBinding, rawPins);
+  if (context.facts.mode === "bootstrap") {
+    if (
+      !isRecord(rawState) ||
+      !isRecord(rawState.input) ||
+      digest(rawState.input.metadata_bootstrap) !== digest(context.facts.descriptor)
+    )
+      throw new Error("current initial metadata opportunity changed");
+    assertMetadataBootstrapBinding(
+      context.facts.descriptor,
+      inspectPublishedMetadata(rawState.input.published_metadata),
+      now,
+    );
+    return context.facts.descriptor;
+  }
   if (
     !isRecord(rawState) ||
     !isRecord(rawState.input) ||
@@ -93,6 +143,7 @@ export function inspectMetadataSigningReservation(
   assertMetadataRenewalBinding(context.facts.descriptor, published, now);
   if (
     !published ||
+    !context.previous_site_pins ||
     published.publication.site_generation_sha256 !==
       context.previous_site_pins.site_generation_sha256
   )

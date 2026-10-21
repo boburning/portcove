@@ -32,6 +32,7 @@ import {
 } from "./release-site-readback.mts";
 import {
   prepareSiteDeploymentFromActualTufPublication,
+  prepareInitialSiteDeploymentFromActualTufPublication,
   verifyPriorPublicSite,
   verifyUploadedSiteArchive,
   publishPreparedSiteDeployment,
@@ -68,7 +69,7 @@ export function inspectMetadataSiteReservation(rawInput: unknown, rawManifest: u
     !isRecord(rawManifest) ||
     rawManifest.kind !== "metadata-signing-context" ||
     !isRecord(rawManifest.facts) ||
-    rawManifest.facts.mode !== "renewal"
+    !["renewal", "bootstrap"].includes(String(rawManifest.facts.mode))
   )
     throw new Error("metadata site requires an explicit unchanged-feed context");
   const descriptor = inspectMetadataSigningReservation(
@@ -79,6 +80,7 @@ export function inspectMetadataSiteReservation(rawInput: unknown, rawManifest: u
   );
   return {
     descriptor,
+    mode: rawManifest.facts.mode === "bootstrap" ? ("bootstrap" as const) : ("renewal" as const),
     candidate_sha256: digest(rawInput.active_candidate ?? null),
     authority: "none" as const,
   };
@@ -157,7 +159,7 @@ export async function runMetadataSitePublicationController(
     identity.run_attempt !== tuf.tools.identity.run_attempt ||
     tuf.context.manifest.kind !== "metadata-signing-context" ||
     !isRecord(tuf.context.manifest.facts) ||
-    tuf.context.manifest.facts.mode !== "renewal"
+    !["renewal", "bootstrap"].includes(String(tuf.context.manifest.facts.mode))
   )
     throw new Error("metadata site actual context/current tools differ");
   const deadline = currentSiteJobDeadline(identity, outputParent, phaseDeadline);
@@ -172,30 +174,42 @@ export async function runMetadataSitePublicationController(
       });
       let checkpoint = recovered.checkpoint;
       const selected = inspectMetadataSiteReservation(recovered.input, tuf.context.manifest);
-      const pins = tuf.context.manifest.previous_site_pins;
+      const bootstrap = selected.mode === "bootstrap";
+      const rawPins = tuf.context.manifest.previous_site_pins;
+      const pins = isRecord(rawPins) ? rawPins : null;
       if (
-        !isRecord(pins) ||
-        pins.root_sha256 !== authorities.publication.public_source.root.sha256 ||
-        typeof pins.repository_sha256 !== "string" ||
-        typeof pins.root_sha256 !== "string" ||
-        typeof pins.site_generation_sha256 !== "string"
+        !bootstrap &&
+        (!isRecord(pins) ||
+          pins.root_sha256 !== authorities.publication.public_source.root.sha256 ||
+          typeof pins.repository_sha256 !== "string" ||
+          typeof pins.root_sha256 !== "string" ||
+          typeof pins.site_generation_sha256 !== "string")
       )
         throw new Error("metadata prior differs from protected public root");
-      const prior = await materializePublishedCompleteSite(
-        {
-          repository_sha256: pins.repository_sha256,
-          root_sha256: pins.root_sha256,
-          site_generation_sha256: pins.site_generation_sha256,
-        },
-        directory,
-        deadline,
-      );
-      const prepared = await prepareSiteDeploymentFromActualTufPublication(
-        actualTufReceipt,
-        prior.receipt,
-        directory,
-        deadline,
-      );
+      const prior = bootstrap
+        ? null
+        : await materializePublishedCompleteSite(
+            {
+              repository_sha256: String(pins!.repository_sha256),
+              root_sha256: String(pins!.root_sha256),
+              site_generation_sha256: String(pins!.site_generation_sha256),
+            },
+            directory,
+            deadline,
+          );
+      const prepared =
+        prior === null
+          ? await prepareInitialSiteDeploymentFromActualTufPublication(
+              actualTufReceipt,
+              directory,
+              deadline,
+            )
+          : await prepareSiteDeploymentFromActualTufPublication(
+              actualTufReceipt,
+              prior.receipt,
+              directory,
+              deadline,
+            );
       if (!prepared.changed)
         throw new Error("metadata site unchanged; reconcile existing public handoff");
       await verifyPriorPublicSite(prepared.session);
@@ -220,7 +234,7 @@ export async function runMetadataSitePublicationController(
       const fresh = async () => {
         if (++round > 5) throw new Error("metadata site control-round limit exhausted");
         await requireRetainedActualTufPublication(actualTufReceipt, deadline);
-        await requirePublishedCompleteSite(prior.receipt);
+        if (prior) await requirePublishedCompleteSite(prior.receipt);
         const source = await authenticateReleaseControlRound(
           path.join(directory, `controls-r${round}`),
           digest({ descriptor: selected.descriptor, generation: prepared.generation.generation }),
@@ -253,7 +267,9 @@ export async function runMetadataSitePublicationController(
           repository: recovered.repository,
           checkpoint,
           remote_configuration: remote,
-          metadata_renewal: selected.descriptor,
+          ...(bootstrap
+            ? { metadata_bootstrap: selected.descriptor }
+            : { metadata_renewal: selected.descriptor }),
           request: {
             kind: "upload",
             destination: "github-actions:boburning/portcove:complete-site-artifact",
@@ -328,7 +344,9 @@ export async function runMetadataSitePublicationController(
           repository: recovered.repository,
           checkpoint,
           remote_configuration: remote,
-          metadata_renewal: selected.descriptor,
+          ...(bootstrap
+            ? { metadata_bootstrap: selected.descriptor }
+            : { metadata_renewal: selected.descriptor }),
         },
         async () => {
           controls = await fresh();
@@ -342,7 +360,9 @@ export async function runMetadataSitePublicationController(
         published = inspectPublishedMetadata(completed.input.published_metadata);
       if (
         completed.checkpoint !== result.checkpoint ||
-        digest(completed.input.metadata_renewal) !== digest(selected.descriptor) ||
+        digest(
+          bootstrap ? completed.input.metadata_bootstrap : completed.input.metadata_renewal,
+        ) !== digest(selected.descriptor) ||
         digest(completed.input.active_candidate ?? null) !== selected.candidate_sha256 ||
         !published ||
         published.operation_id !== result.operation_id ||
@@ -353,6 +373,7 @@ export async function runMetadataSitePublicationController(
         throw new Error("metadata publication handoff differs; retain settled effects");
       const output = {
         decision: "metadata-site-published",
+        mode: selected.mode,
         directory,
         result,
         generation: prepared.generation.generation,

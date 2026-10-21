@@ -6,7 +6,12 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { spawnSync } from "node:child_process";
 import { isDeepStrictEqual } from "node:util";
-import { requireActualCoordinatorMetadataPreparation } from "./release-coordinator-driver.mts";
+import {
+  requireActualCoordinatorMetadataPreparation,
+  requireActualCoordinatorBootstrapPreparation,
+} from "./release-coordinator-driver.mts";
+import { inspectPreparedMetadataBootstrap } from "./release-bootstrap-preparation.mts";
+import { readConfiguredBootstrapSite } from "./release-bootstrap-public-inputs.mts";
 import { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -24,13 +29,18 @@ import { capacityExecutorIdentity, refreshCapacityExecutor } from "./release-cap
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
+import {
+  inspectMetadataSigningBinding,
+  inspectMetadataSigningReservation,
+} from "./release-metadata-signing-contract.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const inventory = (files: ReadonlyMap<string, Buffer>) =>
   [...files]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
-type Session = Awaited<ReturnType<typeof requireActualCoordinatorMetadataPreparation>>;
+type Session =
+  | Awaited<ReturnType<typeof requireActualCoordinatorMetadataPreparation>>
+  | Awaited<ReturnType<typeof requireActualCoordinatorBootstrapPreparation>>;
 type Executor = Parameters<typeof capacityExecutorIdentity>[0];
 type Controls = Awaited<ReturnType<Session["next_controls"]>>;
 type Owned = {
@@ -39,11 +49,14 @@ type Owned = {
   work: string;
   deadline: number;
   files: ReturnType<typeof inventory>;
-  descriptor: Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"];
+  descriptor:
+    | Awaited<ReturnType<typeof inspectPreparedMetadataRenewal>>["descriptor"]
+    | Awaited<ReturnType<typeof inspectPreparedMetadataBootstrap>>["descriptor"];
   control_facts: { pause: unknown; capacity: unknown };
   facts: Record<string, unknown>;
   binding: Record<string, unknown>;
   observed: number;
+  bootstrap_observed: number;
   source?: Controls;
   pending?: { executor: Executor; checkpoint: string; operation_id: string };
 };
@@ -121,17 +134,11 @@ async function snapshot(owned: Owned) {
   );
 }
 async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapshot>>) {
-  const site = await requirePublishedCompleteSite(owned.session.complete_site);
-  if (
-    !isRecord(state.input.published_metadata) ||
-    digest(state.input.metadata_renewal) !== digest(owned.descriptor) ||
-    state.input.published_metadata.repository_sha256 !== site.pins.repository_sha256 ||
-    state.input.published_metadata.root_sha256 !== site.pins.root_sha256 ||
-    !isRecord(state.input.published_metadata.publication) ||
-    state.input.published_metadata.publication.site_generation_sha256 !==
-      site.pins.site_generation_sha256
-  )
-    throw new Error("metadata context current seed/descriptor differs");
+  const site =
+    owned.session.mode === "renewal"
+      ? await requirePublishedCompleteSite(owned.session.complete_site)
+      : null;
+  inspectMetadataSigningReservation(owned.facts, owned.binding, site?.pins ?? null, state);
   if (!owned.pending) {
     if (state.checkpoint !== owned.session.checkpoint)
       throw new Error("metadata context initial checkpoint changed");
@@ -147,12 +154,12 @@ async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapsh
   if (
     !operation ||
     operation.id !== owned.pending.operation_id ||
-    !isRecord(operation.metadata_renewal) ||
-    operation.metadata_renewal.descriptor_sha256 !== digest(owned.descriptor) ||
-    operation.metadata_renewal.prior_repository_sha256 !==
-      owned.descriptor.prior_repository_sha256 ||
+    (owned.session.mode === "renewal"
+      ? operation.metadata_renewal?.descriptor_sha256
+      : operation.metadata_bootstrap?.descriptor_sha256) !== digest(owned.descriptor) ||
     operation.kind !== "upload" ||
-    operation.destination !== "github-actions:boburning/portcove:metadata-renewal-context" ||
+    operation.destination !==
+      `github-actions:boburning/portcove:metadata-${owned.session.mode}-context` ||
     digest(operation.executor_identity) !== digest(actual) ||
     !["pending", "succeeded", "recovered"].includes(String(operation.outcome))
   )
@@ -164,22 +171,34 @@ export async function prepareCoordinatorSigningContext(
   phaseDeadline = Infinity,
 ) {
   if (phaseDeadline !== Infinity) remaining({ deadline: phaseDeadline });
-  const session = await requireActualCoordinatorMetadataPreparation(
+  const getter =
+    isRecord(actualPreparation) && actualPreparation.decision === "metadata-bootstrap-prepared"
+      ? requireActualCoordinatorBootstrapPreparation
+      : requireActualCoordinatorMetadataPreparation;
+  const session = await getter(
       actualPreparation,
       phaseDeadline === Infinity ? undefined : phaseDeadline,
     ),
     deadline = Math.min(session.deadline, phaseDeadline);
   remaining({ deadline });
   const tools = await verifiedControllerToolPaths(session.tools),
-    prepared = await inspectPreparedMetadataRenewal(session.preparation),
-    site = await requirePublishedCompleteSite(session.complete_site),
+    prepared =
+      session.mode === "renewal"
+        ? await inspectPreparedMetadataRenewal(session.preparation)
+        : await inspectPreparedMetadataBootstrap(session.preparation),
+    site =
+      session.mode === "renewal" ? await requirePublishedCompleteSite(session.complete_site) : null,
     authorities = await requireControllerPublicationAuthorities("coordinator");
   if (
-    session.mode !== "renewal" ||
     session.namespace !== authorities.namespace ||
     prepared.verifier_sha256 !== hash(await readControllerToolFile(tools.rust)) ||
-    prepared.descriptor.root_sha256 !== site.pins.root_sha256 ||
-    prepared.descriptor.prior_repository_sha256 !== site.pins.repository_sha256
+    prepared.descriptor.root_sha256 !== authorities.publication.public_source.root.sha256 ||
+    (site !== null &&
+      (prepared.descriptor.kind !== "application-tuf-metadata-renewal" ||
+        prepared.descriptor.prior_repository_sha256 !== site.pins.repository_sha256)) ||
+    (session.mode === "bootstrap" &&
+      (prepared.descriptor.kind !== "application-tuf-initial-bootstrap" ||
+        prepared.descriptor.setup_plan_sha256 !== authorities.publication.setup_plan_sha256))
   )
     throw new Error("coordinator context requires actual unchanged-feed preparation");
   const source = await readBoundedReleaseContextFiles(prepared.prepared_root),
@@ -202,20 +221,23 @@ export async function prepareCoordinatorSigningContext(
   if (current.pause.publication_paused || !current.resource_policy_matches_controller)
     throw new Error("metadata preparation controls unavailable");
   const facts = {
-    mode: "renewal",
+    mode: session.mode,
     descriptor: prepared.descriptor,
     namespace: session.namespace,
     checkpoint: session.checkpoint,
-    previous_site_pins: site.pins,
+    previous_site_pins: site?.pins ?? null,
     setup_plan_sha256: authorities.publication.setup_plan_sha256,
     public_source_commit: pins.commit,
   };
   const binding = {
-    kind: "metadata-renewal",
+    kind: `metadata-${session.mode}`,
     descriptor_sha256: digest(prepared.descriptor),
-    records_sha256: prepared.descriptor.unchanged_records_sha256,
+    records_sha256:
+      prepared.descriptor.kind === "application-tuf-metadata-renewal"
+        ? prepared.descriptor.unchanged_records_sha256
+        : prepared.descriptor.initial_records_sha256,
   };
-  inspectMetadataSigningBinding(facts, binding, site.pins);
+  inspectMetadataSigningBinding(facts, binding, site?.pins ?? null);
   const owned: Owned = {
     session,
     directory,
@@ -230,6 +252,7 @@ export async function prepareCoordinatorSigningContext(
     facts,
     binding,
     observed: -Infinity,
+    bootstrap_observed: -Infinity,
   };
   try {
     for (const [name, bytes] of source) {
@@ -244,7 +267,7 @@ export async function prepareCoordinatorSigningContext(
     }
     const receipt = Object.freeze({
       kind: "actual-coordinator-metadata-signing-context",
-      mode: "renewal",
+      mode: session.mode,
       authority: "none",
     });
     contexts.set(receipt, owned);
@@ -303,8 +326,14 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
   }
   remaining(owned);
   const tools = await verifiedControllerToolPaths(owned.session.tools),
-    prepared = await inspectPreparedMetadataRenewal(owned.session.preparation),
-    site = await requirePublishedCompleteSite(owned.session.complete_site);
+    prepared =
+      owned.session.mode === "renewal"
+        ? await inspectPreparedMetadataRenewal(owned.session.preparation)
+        : await inspectPreparedMetadataBootstrap(owned.session.preparation),
+    site =
+      owned.session.mode === "renewal"
+        ? await requirePublishedCompleteSite(owned.session.complete_site)
+        : null;
   if (
     digest(prepared.descriptor) !== digest(owned.descriptor) ||
     digest(inventory(await readBoundedReleaseContextFiles(owned.directory))) !== digest(owned.files)
@@ -312,10 +341,14 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
     throw new Error("actual metadata context retained bytes changed");
   const current = await controls(owned);
   await verifyState(owned, await snapshot(owned));
-  await readPublicApplicationSiteMarker(site.generation, owned.deadline);
+  if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
+  else if (performance.now() - owned.bootstrap_observed >= 45000) {
+    await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
+    owned.bootstrap_observed = performance.now();
+  }
   remaining(owned);
   return Object.freeze({
-    mode: "renewal" as const,
+    mode: owned.session.mode,
     directory: owned.directory,
     context: path.join(owned.directory, "context.json"),
     binding: structuredClone(owned.binding),

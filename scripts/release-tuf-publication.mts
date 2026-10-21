@@ -12,6 +12,7 @@ import { verifiedControllerToolPaths } from "./release-controller-tool-admission
 import {
   inspectTufPublicationFacts,
   assertMetadataRenewalPublication,
+  assertMetadataBootstrapPublication,
 } from "./release-metadata-contract.mts";
 import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
@@ -331,7 +332,9 @@ export async function prepareActualTufPublication(
       manifest.binding,
       manifest.previous_site_pins,
     );
-    assertMetadataRenewalPublication(metadata.facts.descriptor, result.publication);
+    (metadata.facts.mode === "renewal"
+      ? assertMetadataRenewalPublication
+      : assertMetadataBootstrapPublication)(metadata.facts.descriptor, result.publication);
   }
   const receipt = Object.freeze({ kind: "actual-keyless-TUF-publication", authority: "none" });
   publications.set(receipt, {

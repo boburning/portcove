@@ -11,6 +11,8 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The [explicit initial metadata continuation](slice4-initial-metadata-preparation-2026-10-20.md#initial-context-and-complete-site-continuation-preparation) now connects genuine coordinator setup custody to the bounded context transport, five isolated role consumers, keyless Tough and initial complete-site caller. It uses null prior pins, an empty record set and the existing metadata-bootstrap journal subject. Local copied-tool/first-site and bundle checks passed; no provider publication or setup authority was exercised. Unresolved context-upload acknowledgement recovery and the final hosted DAG remain explicit follow-ons before consolidated setup.
+
 The [unchanged-feed site caller preparation](slice4-isolated-role-continuation-2026-10-20.md#unchanged-feed-site-caller-preparation) now connects authenticated metadata context and five-role custody to the existing keyless Tough, complete-site, journaled upload and Pages/readback path. It preserves the active candidate and uses maintenance controls. Complete run-artifact reads share the existing stable four-page/400-artifact ceiling. Local code and ten-entry bundle checks passed; actual metadata provider publication, genuine initial bootstrap continuation and final DAG qualification remain pending. No activation or additional authority is granted.
 
 The reviewed [whole-site continuation and fixed readiness bridge](slice4-complete-site-controller-2026-10-20.md)
@@ -34,8 +36,18 @@ selection, bounded separate-account Windows capture, six concrete pre-sign
 assertion joins and the distinct native App Check handoff with retained failure
 and GET-only recovery. Component fixtures and separate source review establish
 implementation scope only. Actual Task/account/App authentication and native
-host observations remain unobserved; post-sign package compatibility and the
-Linux separate-account backend remain independent engineering work. The
+host observations remain unobserved. The Windows post-sign implementation now
+selects and revalidates the exact completed five-role controller run, assembles
+its public signed context with the maintained keyless verifier, verifies candidate
+signatures, retrieves an immutable predecessor when required, and connects the
+existing account harness to initial-install or package-update/rollback report-2
+capture and native Check handoff. Its actual disposable fixed-Node/Rust/Tough
+qualification and retained failures are recorded in the same native receipt.
+Completion readback preserves the original native lineage across the metadata
+handoff while ordinary signing retains current-seed checks. The Linux
+separate-account backend and automatic native Check discovery remain independent
+engineering work. No native or ordinary public journey acceptance is inferred.
+The
 report-2 temporal/initial-empty-feed profile requires explicit selection in the
 consolidated conditional setup grant and keeps ordinary public update acceptance
 pending. This checkpoint grants no setup, signing, publication or execution.

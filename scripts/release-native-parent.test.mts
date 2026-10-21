@@ -3,9 +3,20 @@ import test from "node:test";
 import {
   inspectWindowsNativeParentSetup,
   requireActualNativeParent,
+  remainingNativeParentBudget,
 } from "./release-native-parent.mts";
 import { inspectLocalNativeTransport } from "./release-local-native-setup.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+
+void test("source, crypto, queue and native stages share the original finite parent lifetime without allocating a new clock", () => {
+  assert.equal(remainingNativeParentBudget(1800000, 600000), 1470000);
+  assert.equal(remainingNativeParentBudget(90000, 2020000), 50000);
+  assert.equal(remainingNativeParentBudget(90000, 1000), 90000);
+  for (const elapsed of [-1, NaN, Infinity, 2070000, 2070001])
+    assert.throws(() => remainingNativeParentBudget(90000, elapsed));
+  for (const maximum of [0, -1, NaN, Infinity])
+    assert.throws(() => remainingNativeParentBudget(maximum, 1000));
+});
 
 void test("initial Windows tool configuration is exact and cannot overlap credentials or qualify Linux", () => {
   const f = fixture();

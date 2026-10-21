@@ -8,7 +8,69 @@ import {
   nativePrepublicationPending,
   nativeInitialPackageScenarios,
   nativeEmptyRecordsSha256,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
+import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
+
+void test("explicit WSL account union keeps actual Windows broker SID distinct from guest UID and distribution", () => {
+  const account = {
+    kind: "windows-wsl-uid",
+    broker: "S-1-5-21-1-2-3-1001",
+    qualification: "1001",
+    distribution: {
+      name: "Ubuntu",
+      registration_id: "12345678-1234-1234-1234-123456789abc",
+      wsl_version: 2,
+    },
+  };
+  assert.deepEqual(inspectNativeQualificationAccount(account), account);
+  const input = report();
+  const linux = {
+    ...input,
+    platform_label: "linux-x86_64",
+    host: {
+      ...input.host,
+      os_version: "6.8.0",
+      minimum_platform: "ubuntu-24.04-x64",
+      account,
+      loaded_engine: { name: "WebKitGTK", version: "2.52.6", sha256: "a".repeat(64) },
+    },
+    runtime: { ...input.runtime, root_creation: { kind: "linux-starttime-ticks", value: "12345" } },
+    compatibility: { ...input.compatibility, minimum_os_version: "6.8.0" },
+  };
+  assert.deepEqual(inspectNativeReleaseQualification(linux).host.account, account);
+  assert.throws(
+    () => inspectNativeReleaseQualification({ ...input, host: { ...input.host, account } }),
+    /platform\/account/,
+  );
+  const config = nativeAuthorityConfigurationFixture();
+  config.native["linux-x86_64"]!.host.account = account;
+  assert.deepEqual(
+    inspectReleaseAuthorityConfiguration(config).native["linux-x86_64"].host.account,
+    account,
+  );
+  config.native["windows-x86_64"]!.host.account = account;
+  assert.throws(
+    () => inspectReleaseAuthorityConfiguration(config),
+    /WSL account belongs only to Linux/,
+  );
+  for (const invalid of [
+    { ...account, broker: "1000" },
+    { ...account, qualification: "S-1-5-21-1-2-3-1002" },
+    { ...account, qualification: "0" },
+    { ...account, qualification: "4294967295" },
+    { ...account, distribution: { ...account.distribution, name: "Ubuntu --user root" } },
+    { ...account, distribution: { ...account.distribution, registration_id: "unobserved" } },
+    { ...account, distribution: { ...account.distribution, wsl_version: 1 } },
+    { ...account, broker_uid: "1000" },
+  ])
+    assert.throws(() => inspectNativeQualificationAccount(invalid));
+  assert.deepEqual(
+    inspectNativeQualificationAccount({ kind: "linux-uid", broker: "1000", qualification: "1001" }),
+    { kind: "linux-uid", broker: "1000", qualification: "1001" },
+  );
+});
 
 function report(stage: "payload-signing" | "release-publication" = "payload-signing") {
   const sha = "a".repeat(64),

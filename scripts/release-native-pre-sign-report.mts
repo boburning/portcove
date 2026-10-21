@@ -50,7 +50,7 @@ function requireEqual(actual: unknown, expected: unknown, message: string) {
 
 /** Source declarations are explicitly distinct from actual runtime observations.
  * No input success flag can replace any of the concrete joins below. */
-export function reconstructNativePreSignReport(
+function reconstructNativeWindowsStageReport(
   prepared: NativeStageRequest,
   raw: unknown,
   source: ReturnType<typeof inspectNativeCompatibilitySources>,
@@ -62,8 +62,11 @@ export function reconstructNativePreSignReport(
     "binding,binding_sha256,bridge,capture,driver,evidence_sha256,installer,installer_harness_sha256,native,process_snapshot,runtime,version"
   )
     throw new Error("native pre-sign evidence inventory differs");
-  if (request.stage !== "payload-signing" || request.platform_label !== "windows-x86_64")
-    throw new Error("Windows pre-sign report only");
+  if (
+    request.platform_label !== "windows-x86_64" ||
+    (request.stage !== "payload-signing" && request.stage !== "release-publication")
+  )
+    throw new Error("Windows native stage report only");
   const driver = record(input.driver),
     installer = record(input.installer),
     runtime = record(input.runtime),
@@ -265,8 +268,14 @@ export function reconstructNativePreSignReport(
   const evidenceSha = text(input.evidence_sha256),
     captureSha = digest(capture);
   const report = inspectNativeReleaseQualification({
-    schema_version: 1,
-    stage: "payload-signing",
+    ...(request.stage === "release-publication"
+      ? {
+          schema_version: 2,
+          native_prepublication_profile: request.native_prepublication_profile,
+          pending_obligations: request.pending_obligations,
+        }
+      : { schema_version: 1 }),
+    stage: request.stage,
     platform_label: "windows-x86_64",
     candidate: request.candidate,
     producer: {
@@ -309,7 +318,7 @@ export function reconstructNativePreSignReport(
       catalog_formats: source.catalog_formats,
       library: source.library,
     },
-    journey: null,
+    journey: request.journey,
     scenarios: request.required_scenarios.map((name) => ({
       name,
       outcome: "passed",
@@ -325,6 +334,112 @@ export function reconstructNativePreSignReport(
   };
 }
 
+export function reconstructNativePreSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+) {
+  if (prepared.request.stage !== "payload-signing") throw new Error("Windows pre-sign report only");
+  return reconstructNativeWindowsStageReport(prepared, raw, source);
+}
+/** Pure report2 reconstruction still has no provenance. The actual parent must
+ * supply its privately retained successful payload verifier result separately. */
+export function reconstructNativePostSignReport(
+  prepared: NativeStageRequest,
+  raw: unknown,
+  source: ReturnType<typeof inspectNativeCompatibilitySources>,
+  rawCrypto: unknown,
+) {
+  const request = prepared.request,
+    crypto = record(rawCrypto),
+    input = record(raw),
+    details = record(record(input.installer).details);
+  if (
+    request.stage !== "release-publication" ||
+    request.native_report_schema_version !== 2 ||
+    !request.journey ||
+    crypto.signed_context_sha256 !== request.journey.signed_context_sha256 ||
+    crypto.signatures_sha256 !== request.journey.signatures_sha256 ||
+    typeof crypto.result_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(crypto.result_sha256) ||
+    crypto.sha256 !== request.candidate.package.sha256 ||
+    crypto.bytes !== request.candidate.package.bytes
+  )
+    throw new Error("post-sign native report requires exact private crypto/package journey");
+  if ("kind" in request.journey) {
+    if (
+      request.journey.kind !== "initial-empty-feed" ||
+      details.upgrade !== null ||
+      details.package_rollback !== null ||
+      details.update_path !== "explicit_bootstrap_destination"
+    )
+      throw new Error("initial native package stage cannot claim predecessor/update observations");
+  } else {
+    const predecessor = request.journey.predecessor,
+      upgrade = record(details.upgrade),
+      rollback = record(details.package_rollback),
+      smoke = record(rollback.smoke),
+      previousSmoke = record(upgrade.predecessor_smoke);
+    if (
+      details.update_path !== "registered_nsis_update" ||
+      upgrade.predecessor_installer_sha256 !== predecessor.package.sha256 ||
+      rollback.predecessor_installer_sha256 !== predecessor.package.sha256 ||
+      typeof upgrade.predecessor_executable_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(upgrade.predecessor_executable_sha256) ||
+      rollback.executable_sha256 !== upgrade.predecessor_executable_sha256 ||
+      rollback.install_exit_code !== 0 ||
+      rollback.registration_count !== 1 ||
+      smoke.responding !== true ||
+      smoke.exit_code !== 0 ||
+      previousSmoke.responding !== true ||
+      previousSmoke.exit_code !== 0 ||
+      rollback.database_present !== true ||
+      typeof rollback.sentinel_sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(rollback.sentinel_sha256) ||
+      typeof rollback.registered_version !== "string" ||
+      typeof crypto.predecessor_version !== "string" ||
+      rollback.registered_version !== crypto.predecessor_version ||
+      rollback.scope !==
+        "signed-package compatibility only; ordinary public updater journey remains pending"
+    )
+      throw new Error("post-sign native predecessor/rollback observations incomplete");
+    const capture = record(input.capture);
+    if (
+      !Array.isArray(capture.roots) ||
+      !capture.roots.some(
+        (root) =>
+          isRecord(root) &&
+          isRecord(root.image) &&
+          root.image.sha256 === predecessor.package.sha256,
+      )
+    )
+      throw new Error("actual predecessor package launch root missing");
+    const manifest = record(rollback.manifest_before_install);
+    if (!Array.isArray(manifest.library) || !manifest.library.length)
+      throw new Error("native rollback retained state absent");
+    requireEqual(
+      rollback.manifest_before_install,
+      rollback.manifest_after_install,
+      "native rollback installer changed retained state",
+    );
+    requireEqual(
+      rollback.manifest_after_launch,
+      details.preservation_manifest_before_uninstall,
+      "native rollback post-launch state not preserved by uninstall",
+    );
+    const sid = text(record(request.expected.host.account).qualification).toLowerCase();
+    if (
+      !text(rollback.registration_path)
+        .toLowerCase()
+        .startsWith(
+          `microsoft.powershell.core\\registry::hkey_users\\${sid}\\software\\microsoft\\windows\\currentversion\\uninstall\\`,
+        )
+    )
+      throw new Error("native rollback registration belongs to another account");
+  }
+  return reconstructNativeWindowsStageReport(prepared, raw, source);
+}
+
 const reports = new WeakMap<
   object,
   {
@@ -336,7 +451,7 @@ const reports = new WeakMap<
 >();
 /** Direct parent capture only. No injected reader, imported success report or
  * caller-provided semantic acceptance can enter this private map. */
-export async function prepareActualNativePreSignReport(captured: object) {
+export async function prepareActualNativeStageReport(captured: object) {
   const actual = await requireActualWindowsNativeCapture(captured);
   if (actual.status !== 0 || actual.result.failure !== null)
     throw new Error("actual native driver failed; preserve original capture before recovery");
@@ -371,6 +486,40 @@ export async function prepareActualNativePreSignReport(captured: object) {
     1024 * 1024,
   );
   const source = await readActualNativeSourceDeclarations(actual.source_selection);
+  let cryptography: Record<string, unknown> | null = null;
+  if (actual.request.request.stage === "release-publication") {
+    const proof = actual.payload_cryptography;
+    if (!proof) throw new Error("actual native post-sign cryptographic proof missing");
+    const cryptoBytes = await readBoundedPublicBuildInputFile(
+      actual.directory,
+      proof.file,
+      1024 * 1024,
+    );
+    if (hash(cryptoBytes) !== proof.sha256)
+      throw new Error("actual native payload crypto result changed");
+    const value = record(JSON.parse(cryptoBytes.toString("utf8"))),
+      report = record(value.report);
+    if (
+      report.signature_verified !== true ||
+      report.sha256 !== actual.request.request.candidate.package.sha256 ||
+      report.bytes !== actual.request.request.candidate.package.bytes
+    )
+      throw new Error("actual payload crypto/package binding differs");
+    await writeFile(path.join(directory, "payload-cryptography.json"), cryptoBytes, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    await bytes("payload-cryptography.json", 1024 * 1024);
+    cryptography = {
+      signed_context_sha256: proof.signed_context_sha256,
+      signatures_sha256: proof.signatures_sha256,
+      result_sha256: proof.sha256,
+      sha256: report.sha256,
+      bytes: report.bytes,
+      predecessor_version: actual.predecessor?.version ?? null,
+    };
+  }
+
   const stream = async (id: string, name: string) => {
     const value = await bytes(`${id}.${name}.bin`, 4 * 1024 * 1024);
     return { path: `${id}.${name}.bin`, bytes: value.byteLength, sha256: hash(value) };
@@ -464,24 +613,29 @@ export async function prepareActualNativePreSignReport(captured: object) {
       capture_sha256: evidenceSha,
     })),
   });
-  const prepared = reconstructNativePreSignReport(
-    actual.request,
-    {
-      driver,
-      installer,
-      installer_harness_sha256: hash(installerHarness),
-      process_snapshot: processSnapshot,
-      runtime,
-      native,
-      bridge,
-      capture: stage.capture,
-      binding,
-      binding_sha256: hash(bindingBytes),
-      version: actual.version,
-      evidence_sha256: evidenceSha,
-    },
-    source.declaration,
-  );
+  const evidenceInput = {
+    driver,
+    installer,
+    installer_harness_sha256: hash(installerHarness),
+    process_snapshot: processSnapshot,
+    runtime,
+    native,
+    bridge,
+    capture: stage.capture,
+    binding,
+    binding_sha256: hash(bindingBytes),
+    version: actual.version,
+    evidence_sha256: evidenceSha,
+  };
+  const prepared =
+    actual.request.request.stage === "payload-signing"
+      ? reconstructNativePreSignReport(actual.request, evidenceInput, source.declaration)
+      : reconstructNativePostSignReport(
+          actual.request,
+          evidenceInput,
+          source.declaration,
+          cryptography,
+        );
   const reportBytes = Buffer.from(JSON.stringify(prepared.report));
   await writeFile(path.join(directory, "stage-evidence.json"), JSON.stringify(evidence), {
     flag: "wx",
@@ -507,7 +661,7 @@ export async function prepareActualNativePreSignReport(captured: object) {
   );
   await requireActualWindowsNativeCapture(captured);
   const receipt = Object.freeze({
-    kind: "actual-direct-native-pre-sign-report",
+    kind: "actual-direct-native-stage-report",
     directory,
     report_sha256: digest(prepared.report),
     authority: "none",
@@ -522,9 +676,9 @@ export async function prepareActualNativePreSignReport(captured: object) {
   return receipt;
 }
 
-export async function requireActualNativePreSignReport(receipt: object) {
+export async function requireActualNativeStageReport(receipt: object) {
   const retained = reports.get(receipt);
-  if (!retained) throw new Error("actual direct native pre-sign report required");
+  if (!retained) throw new Error("actual direct native stage report required");
   const actual = await requireActualWindowsNativeCapture(retained.capture);
   await readActualNativeSourceDeclarations(actual.source_selection);
   for (const file of retained.files) {
@@ -544,6 +698,21 @@ export async function requireActualNativePreSignReport(receipt: object) {
   const report = inspectNativeReleaseQualification(raw);
   if (digest(report) !== retained.report_sha256) throw new Error("actual native report changed");
   return { ...actual, report, report_sha256: retained.report_sha256, authority: "none" as const };
+}
+
+/** Legacy pre-sign entrypoints retain their stage scope. */
+export async function prepareActualNativePreSignReport(captured: object) {
+  const actual = await requireActualWindowsNativeCapture(captured);
+  if (actual.request.request.stage !== "payload-signing")
+    throw new Error("actual pre-sign capture required");
+  return prepareActualNativeStageReport(captured);
+}
+export async function requireActualNativePreSignReport(receipt: object) {
+  if (!reports.has(receipt)) throw new Error("actual direct native pre-sign report required");
+  const actual = await requireActualNativeStageReport(receipt);
+  if (actual.report.stage !== "payload-signing")
+    throw new Error("actual direct native pre-sign report required");
+  return actual;
 }
 
 /** Failure retention cannot produce a Check or an acceptance brand. Incomplete

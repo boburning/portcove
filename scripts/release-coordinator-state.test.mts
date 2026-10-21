@@ -29,7 +29,11 @@ import {
   importCoordinatorCheckpoint,
   readRetainedCapacityOperation,
 } from "./release-coordinator-state.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import {
+  recoverRemoteCoordinator,
+  hydrateRetainedCoordinatorOperation,
+  hydrateRetainedCoordinatorCheckpoint,
+} from "./release-coordinator-recovery.mts";
 import {
   publishCoordinatorCheckpoint,
   CoordinatorRemoteError,
@@ -582,13 +586,32 @@ void test("allocation snapshot must match the whole preceding opportunity and ne
   assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), larger.checkpoint);
 });
 
-async function recoveryFixture(t: test.TestContext, signed = false) {
+async function recoveryFixture(t: test.TestContext, signed = false, publishedSeed = false) {
   const local = await fixture(t, signed);
-  const saved = await checkpointReleaseOpportunity(
+  let saved = await checkpointReleaseOpportunity(
     local.repository,
     local.initial.checkpoint,
     local.input,
   );
+  if (publishedSeed) {
+    const bounded = await checkpointReleaseOpportunity(local.repository, saved.checkpoint, {
+      ...local.input,
+      schema_version: 2,
+      controller: {
+        workflow: local.input.controller.workflow,
+        revision: local.input.controller.revision,
+        publication_paused: false,
+        capacity_attempt: capacityFixture(),
+      },
+    });
+    // Declared fixture feed, never public/Tough acceptance. Keep renewal outside
+    // its due window so this case still reaches active resumption authority.
+    saved = await recordPublishedMetadata(
+      local.repository,
+      bounded.checkpoint,
+      metadataFixture(Date.now() + 2 * 86_400_000).published,
+    );
+  }
   const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-recovery-parent-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
   const refs = new Map([
@@ -731,14 +754,15 @@ async function recoveryFixture(t: test.TestContext, signed = false) {
   return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
 }
 
-for (const changed of [false, true])
+for (const scenario of ["seeded", "changed", "unseeded"] as const)
   void test(
-    `trusted coordinator ${changed ? "refuses changed remote recovery before reading main" : "recovers active candidate then requires actual resumption authority before reading main"}`,
+    `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
     { timeout: 60000 },
     async (t) => {
       // Real Git recovery through the production default transport, with the gh
       // subprocess provider simulated. No OIDC, credential or protected POST.
-      const f = await recoveryFixture(t);
+      const changed = scenario === "changed";
+      const f = await recoveryFixture(t, false, scenario !== "unseeded");
       if (changed) f.faults.value = "changed";
       const projectRoot = fileURLToPath(new URL("..", import.meta.url));
       const parent = await mkdtemp(path.join(projectRoot, "work", "coordinator-fixture-"));
@@ -817,7 +841,7 @@ for (const changed of [false, true])
           return true;
         });
         assert.equal(mainReads, 0);
-      } else {
+      } else if (scenario === "seeded") {
         await assert.rejects(run, (error: unknown) => {
           assert.ok(error instanceof CoordinatorRemoteError);
           assert.ok(isRecord(error.evidence));
@@ -825,6 +849,12 @@ for (const changed of [false, true])
           assert.equal(error.evidence.checkpoint, f.saved.checkpoint);
           return true;
         });
+        assert.equal(mainReads, 0);
+      } else {
+        const held = await run;
+        assert.equal(held.decision, "held-bootstrap-tools");
+        assert.equal(held.checkpoint, f.saved.checkpoint);
+        assert.equal(held.authority, "none");
         assert.equal(mainReads, 0);
       }
       assert.deepEqual(f.refs, initialRefs);
@@ -2893,6 +2923,126 @@ void test(
       operation_sha256: String(proof.operation_sha256),
     });
     assert.equal(raw.id, first.operation.id);
+    // A newly recovered sparse journal does not contain arbitrary older
+    // compact checkpoints. Hydrate exactly the original three inert objects
+    // through the supplied owned read-only transport, without fetching parents.
+    const sparse = await mkdtemp(path.join(os.tmpdir(), "retained-operation-sparse-"));
+    t.after(() => rm(sparse, { recursive: true, force: true }));
+    execFileSync("git", ["init", "--bare", "-q", sparse], { windowsHide: true });
+    const retainedProof = {
+      checkpoint: String(proof.checkpoint),
+      id: String(proof.id),
+      operation_sha256: String(proof.operation_sha256),
+    };
+    assert.throws(() => readRetainedCapacityOperation(sparse, retainedProof));
+    const commitBytes = execFileSync("git", [
+      "-C",
+      f.bare,
+      "cat-file",
+      "commit",
+      retainedProof.checkpoint,
+    ]);
+    const commitText = commitBytes.toString("utf8"),
+      boundary = commitText.indexOf("\n\n"),
+      header = commitText.slice(0, boundary),
+      treeId = /^tree ([a-f0-9]{40})$/mu.exec(header)![1]!;
+    const treeBytes = execFileSync("git", ["-C", f.bare, "cat-file", "tree", treeId]),
+      blobId = treeBytes.subarray(-20).toString("hex");
+    const blobBytes = execFileSync("git", ["-C", f.bare, "cat-file", "blob", blobId]);
+    const actor = {
+      name: "Portcove release coordinator",
+      email: "coordinator@portcove.invalid",
+      date: "2000-01-01T00:00:00Z",
+    };
+    const bodies = new Map<string, unknown>([
+      [
+        `repos/boburning/portcove/git/commits/${retainedProof.checkpoint}`,
+        {
+          sha: retainedProof.checkpoint,
+          tree: { sha: treeId },
+          parents: [...header.matchAll(/^parent ([a-f0-9]{40})$/gmu)].map((match) => ({
+            sha: match[1],
+          })),
+          author: actor,
+          committer: actor,
+          message: commitText.slice(boundary + 2),
+        },
+      ],
+      [
+        `repos/boburning/portcove/git/trees/${treeId}`,
+        {
+          sha: treeId,
+          truncated: false,
+          tree: [{ path: "state.json", mode: "100644", type: "blob", sha: blobId }],
+        },
+      ],
+      [
+        `repos/boburning/portcove/git/blobs/${blobId}`,
+        {
+          sha: blobId,
+          encoding: "base64",
+          size: blobBytes.length,
+          content: blobBytes.toString("base64"),
+        },
+      ],
+    ]);
+    const reads: string[] = [];
+    const api = {
+      request(method: string, endpoint: string, body?: unknown) {
+        assert.equal(method, "GET");
+        assert.equal(body, undefined);
+        assert.ok(bodies.has(endpoint));
+        reads.push(endpoint);
+        return {
+          status: 200,
+          body: structuredClone(bodies.get(endpoint)),
+          headers: new Map<string, string>(),
+        };
+      },
+    };
+    const hydrated = await hydrateRetainedCoordinatorOperation(sparse, retainedProof, { api });
+    assert.deepEqual(hydrated, raw);
+    assert.equal(reads.length, 3);
+    const parentId = /^parent ([a-f0-9]{40})$/mu.exec(header)![1]!;
+    assert.throws(() =>
+      execFileSync("git", ["-C", sparse, "cat-file", "-e", parentId], {
+        stdio: "pipe",
+        windowsHide: true,
+      }),
+    );
+    assert.equal(
+      execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      "",
+    );
+    await assert.rejects(
+      hydrateRetainedCoordinatorOperation(
+        sparse,
+        { ...retainedProof, operation_sha256: "0".repeat(64) },
+        { api },
+      ),
+      /exact raw capacity operation/,
+    );
+    assert.equal(reads.length, 6);
+    const historical = await hydrateRetainedCoordinatorCheckpoint(
+      sparse,
+      retainedProof.checkpoint,
+      { api },
+    );
+    assert.equal(historical.checkpoint, retainedProof.checkpoint);
+    assert.equal(historical.authority, "none");
+    const originalHistorical: unknown = JSON.parse(blobBytes.toString("utf8"));
+    assert.ok(isRecord(originalHistorical));
+    assert.deepEqual(historical.input, originalHistorical.input);
+    assert.equal(reads.length, 9);
+    assert.equal(
+      execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      "",
+    );
+    await assert.rejects(
+      hydrateRetainedCoordinatorCheckpoint(sparse, "main", { api }),
+      /exact Git/,
+    );
+    assert.equal(reads.length, 9);
     assert.throws(() =>
       readRetainedCapacityOperation(f.bare, {
         checkpoint: String(proof.checkpoint),

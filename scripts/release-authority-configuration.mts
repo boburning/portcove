@@ -4,6 +4,7 @@ import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespa
 import {
   nativePrepublicationProfile,
   inspectNativeQualificationHarnessPath,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
@@ -65,25 +66,36 @@ function minimumVersion(value: unknown, minimum: string) {
 
 /** Public data locations under the existing ratified configuration digest.
  * Neither parsing these pins nor downloading their bytes grants signing. */
-export function inspectPublicationAuthorities(raw: unknown) {
+export function inspectPublicationAuthorities(raw: unknown, schemaVersion: unknown = 1) {
   const value: unknown = structuredClone(raw);
   exact(value, "initial_site_preimage_sha256,public_source,setup_plan_sha256");
-  exact(value.public_source, "commit,offline_targets,payload_key_registry,root");
+  const hasPreimage =
+    isRecord(value.public_source) && Object.hasOwn(value.public_source, "initial_site_preimage");
+  if (hasPreimage && schemaVersion !== 2)
+    throw new Error("historical setup preimage locator requires explicit schema2 configuration");
+  exact(
+    value.public_source,
+    hasPreimage
+      ? "commit,initial_site_preimage,offline_targets,payload_key_registry,root"
+      : "commit,offline_targets,payload_key_registry,root",
+  );
   const source = value.public_source;
+  const filePin = (file: unknown) => {
+    exact(file, "bytes,path,sha256");
+    if (
+      typeof file.path !== "string" ||
+      file.path.length > 256 ||
+      !file.path.endsWith(".json") ||
+      file.path.split("/").length > 8 ||
+      !file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
+      positive(file.bytes) > 1024 * 1024
+    )
+      throw new Error("publication public data path or byte bound differs");
+    return { path: file.path, bytes: Number(file.bytes), sha256: hex(file.sha256, 64) };
+  };
   const files = Object.fromEntries(
     (["root", "offline_targets", "payload_key_registry"] as const).map((name) => {
-      const file = source[name];
-      exact(file, "bytes,path,sha256");
-      if (
-        typeof file.path !== "string" ||
-        file.path.length > 256 ||
-        !file.path.endsWith(".json") ||
-        file.path.split("/").length > 8 ||
-        !file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
-        positive(file.bytes) > 1024 * 1024
-      )
-        throw new Error("publication public data path or byte bound differs");
-      return [name, { path: file.path, bytes: Number(file.bytes), sha256: hex(file.sha256, 64) }];
+      return [name, filePin(source[name])];
     }),
   ) as Record<
     "root" | "offline_targets" | "payload_key_registry",
@@ -91,8 +103,19 @@ export function inspectPublicationAuthorities(raw: unknown) {
   >;
   if (new Set(Object.values(files).map((file) => file.path)).size !== 3)
     throw new Error("publication public data paths are conflated");
+  const initial = hasPreimage ? filePin(source.initial_site_preimage) : undefined;
+  if (
+    initial &&
+    (initial.sha256 !== hex(value.initial_site_preimage_sha256, 64) ||
+      Object.values(files).some((file) => file.path === initial.path))
+  )
+    throw new Error("historical setup preimage locator differs from ratified preimage");
   return {
-    public_source: { commit: hex(source.commit, 40), ...files },
+    public_source: {
+      commit: hex(source.commit, 40),
+      ...files,
+      ...(initial ? { initial_site_preimage: initial } : {}),
+    },
     setup_plan_sha256: hex(value.setup_plan_sha256, 64),
     initial_site_preimage_sha256: hex(value.initial_site_preimage_sha256, 64),
   };
@@ -187,17 +210,24 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
         (platform === "windows-x86_64" ? "windows-11-26h2-x64" : "ubuntu-24.04-x64")
       )
         throw new Error("release authority minimum platform differs from initial beta");
-      exact(host.account, "broker,kind,qualification");
-      const accountKind = platform === "windows-x86_64" ? "windows-sid" : "linux-uid";
-      const accountPattern =
-        accountKind === "windows-sid" ? /^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u : /^[1-9][0-9]{0,9}$/u;
-      if (
-        host.account.kind !== accountKind ||
-        host.account.broker === host.account.qualification ||
-        !accountPattern.test(text(host.account.broker)) ||
-        !accountPattern.test(text(host.account.qualification))
-      )
-        throw new Error("release authority native accounts are unconfigured or conflated");
+      const crossHost = isRecord(host.account) && host.account.kind === "windows-wsl-uid";
+      if (crossHost) {
+        if (platform !== "linux-x86_64")
+          throw new Error("WSL account belongs only to Linux package qualification");
+        inspectNativeQualificationAccount(host.account);
+      } else {
+        exact(host.account, "broker,kind,qualification");
+        const accountKind = platform === "windows-x86_64" ? "windows-sid" : "linux-uid";
+        const accountPattern =
+          accountKind === "windows-sid" ? /^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u : /^[1-9][0-9]{0,9}$/u;
+        if (
+          host.account.kind !== accountKind ||
+          host.account.broker === host.account.qualification ||
+          !accountPattern.test(text(host.account.broker)) ||
+          !accountPattern.test(text(host.account.qualification))
+        )
+          throw new Error("release authority native accounts are unconfigured or conflated");
+      }
       exact(host.engine, "minimum_version,name");
       if (host.engine.name !== (platform === "windows-x86_64" ? "WebView2" : "WebKitGTK"))
         throw new Error("release authority native engine family differs");
@@ -250,7 +280,7 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
     native,
     ...(value.publication === undefined
       ? {}
-      : { publication: inspectPublicationAuthorities(value.publication) }),
+      : { publication: inspectPublicationAuthorities(value.publication, value.schema_version) }),
   };
 }
 export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuthorityConfiguration>;

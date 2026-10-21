@@ -82,7 +82,8 @@ function safe(name: string) {
 }
 function publicContextPath(name: string, kind: ContextKind) {
   return (
-    (kind === "metadata-signing-context" && name === "renewal.json") ||
+    (kind === "metadata-signing-context" &&
+      ["renewal.json", "initial-bootstrap.json"].includes(name)) ||
     [
       "context.json",
       "trusted-root.json",
@@ -132,8 +133,17 @@ export function inspectSigningContextArchive(raw: Buffer) {
     manifest,
     "authority,binding,control_facts,controller,facts,facts_sha256,files,kind,previous_site_pins,schema_version",
   );
-  exact(manifest.previous_site_pins, "repository_sha256,root_sha256,site_generation_sha256");
-  for (const value of Object.values(manifest.previous_site_pins)) sha(value);
+  const bootstrap =
+    manifest.kind === "metadata-signing-context" &&
+    isRecord(manifest.facts) &&
+    manifest.facts.mode === "bootstrap";
+  if (bootstrap) {
+    if (manifest.previous_site_pins !== null)
+      throw new Error("initial context cannot invent a prior site");
+  } else {
+    exact(manifest.previous_site_pins, "repository_sha256,root_sha256,site_generation_sha256");
+    for (const value of Object.values(manifest.previous_site_pins)) sha(value);
+  }
   if (
     manifest.schema_version !== 1 ||
     !["release-signing-context", "metadata-signing-context"].includes(String(manifest.kind)) ||
@@ -210,17 +220,36 @@ export function inspectSigningContextArchive(raw: Buffer) {
     !contextFiles.has("offline-targets.json") ||
     !contextFiles.has("payload.json") ||
     !contextFiles.has("records/reconstruction-manifest.json") ||
-    !contextFiles.has("prior/repository-manifest.json")
+    (!bootstrap && !contextFiles.has("prior/repository-manifest.json"))
   )
     throw new Error("signing context mandatory public inputs missing");
   if (kind === "metadata-signing-context") {
-    const declaration = contextFiles.get("renewal.json");
+    const declaration = contextFiles.get(bootstrap ? "initial-bootstrap.json" : "renewal.json");
     if (
       !declaration ||
       !isRecord(manifest.facts) ||
       digest(JSON.parse(declaration.toString("utf8"))) !== digest(manifest.facts.descriptor)
     )
       throw new Error("metadata signing descriptor bytes differ");
+    if (
+      bootstrap &&
+      (contextFiles.size !== 6 ||
+        contextFiles.has("prior/repository-manifest.json") ||
+        !contextFiles.has("initial-bootstrap.json"))
+    )
+      throw new Error("initial context must contain exactly its six public inputs");
+    if (bootstrap) {
+      const context: unknown = JSON.parse(contextFiles.get("context.json")!.toString("utf8"));
+      if (
+        !isRecord(context) ||
+        context.initial_bootstrap !== "initial-bootstrap.json" ||
+        Object.hasOwn(context, "previous_repository") ||
+        digest(
+          JSON.parse(contextFiles.get("records/reconstruction-manifest.json")!.toString("utf8")),
+        ) !== digest({ schema_version: 1, records: [] })
+      )
+        throw new Error("initial context cannot invent prior feed or release records");
+    }
   }
   const records: Files = new Map(
     [...contextFiles]
@@ -268,7 +297,9 @@ const requireProducerContext = (kind: ContextKind, receipt: object) =>
     : requireCoordinatorSigningContext(receipt);
 async function prepareContextArtifact(kind: ContextKind, contextReceipt: object, parent: string) {
   const context = await requireProducerContext(kind, contextReceipt);
-  if (!context.previous_site)
+  const bootstrap =
+    kind === "metadata-signing-context" && "mode" in context && context.mode === "bootstrap";
+  if (!context.previous_site && !bootstrap)
     throw new Error("actual complete published site custody required for context handoff");
   const files = await (kind === "release-signing-context"
     ? readReleaseSigningContextFiles(contextReceipt)
@@ -287,7 +318,7 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
     binding: context.binding,
     facts: context.facts,
     control_facts: context.control_facts,
-    previous_site_pins: context.previous_site.pins,
+    previous_site_pins: context.previous_site?.pins ?? null,
     facts_sha256: digest(context.facts),
     files: identities(files),
     authority: "none",
