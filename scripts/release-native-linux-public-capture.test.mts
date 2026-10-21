@@ -22,6 +22,14 @@ void test("raw public descriptors cannot enter actual Linux capture or rehydrate
     );
   }
 });
+void test("the same invocation cannot enter twice while its first authentication is pending", async () => {
+  const raw = {};
+  const first = captureActualLinuxPublicJourney(raw);
+  const second = captureActualLinuxPublicJourney(raw);
+  await assert.rejects(first, /actual freshly claimed public invocation required/u);
+  await assert.rejects(second, /one-shot; reconcile original retained invocation/u);
+});
+
 void test("technical closure requires original Linux unit generation and positive group emptiness", () => {
   const id = "a".repeat(64),
     request = "b".repeat(64),

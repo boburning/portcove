@@ -30,6 +30,7 @@ import { isRecord } from "./runtime-values.mts";
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 type Claim = Awaited<ReturnType<typeof requireActualPublicJourneyInvocation>>;
 type Captured = Awaited<ReturnType<typeof retainNativeCaptureWire>>;
+const invokedClaims = new WeakSet<object>();
 const captures = new WeakMap<
   object,
   {
@@ -90,6 +91,11 @@ export function inspectLinuxPublicTechnicalClosure(
 }
 
 export async function captureActualLinuxPublicJourney(claim: object) {
+  assert.ok(
+    !invokedClaims.has(claim),
+    "public Linux capture is one-shot; reconcile original retained invocation",
+  );
+  invokedClaims.add(claim); // Synchronous before the first await, including concurrent calls.
   const selected = await requireActualPublicJourneyInvocation(claim),
     parent = selected.parent;
   assert.equal(process.platform, "win32");
