@@ -26,8 +26,8 @@ commands states that Steam selection includes entries hidden by filters.
 
 Library and Find games share columns derived from usable space, with a 14rem
 preferred minimum (shrinking to the available width). Fixed 2:3 frames contain
-the complete image on a neutral stage. Artwork caps at 13.75rem independently
-of window height; narrow collection covers cap at 160px below 28em of collection width.
+the complete image on a neutral stage. Artwork caps at 220 CSS pixels, or 160 pixels
+in windows at most 680 pixels high; narrow covers also cap at 160 pixels below 28em of collection width.
 Unclassified and user artwork retain intrinsic padding and proportions; no logo
 crop classification is inferred. Missing artwork uses a quiet icon. Failed/stale
 feedback remains outside the identity button. Cover titles show two lines and
