@@ -346,6 +346,69 @@ complete public seed repository. Root and top-level targets keys stay offline.
 Renewing targets, changing delegation keys or changing the payload registry
 requires independently authorized offline setup.
 
+### One-key initial offline ceremony
+
+The maintained `portcove-release-tools` commands below prepare initial Root v1
+and top-level Targets v1 with one private key per signing process. They use
+existing Tough verification and fixed namespaces. They do not rotate keys,
+provision custody, generate production keys or authorize publication. The test-only
+repository generator and consolidated `build-tuf` mode are not this custody route.
+
+All configurations are strict schema 1 JSON, resolve paths relative to their
+configuration file and contain `generated_at` plus `output`. Public key inputs
+are `{ "path": "public-key.json", "sha256": "<raw-file-sha256>" }` objects;
+files contain only TUF `keytype`, `scheme` and `keyval.public`. Expected public
+hashes and the Root body digest must be independently reviewed before custody
+use. A digest reported by the proposal builder is a calculation, not approval.
+
+Before these steps, each independently authorized custodian can use
+`create-offline-key CONFIG` with exactly `{ "schema_version": 1,
+"output_directory": "NEW_CUSTODIAN_DIRECTORY" }`. It creates a new directory,
+one Ed25519 PKCS#8 `private.pk8` and its Tough-compatible `public.json` using the
+existing aws-lc/Tough implementation; it reads no existing private key. Standard
+output contains only public key ID/digest and fixed filenames. Unix output modes
+are directory 0700/files 0600; Windows ACL protection must be independently
+established and read back before production invocation. Existing or partial
+output is never replaced or silently regenerated. Each role's custody location,
+backup and public transfer are independently appointed at setup; never run nine
+production creations in one shared custody location. No production key creation
+is authorized by this implementation or its disposable tests.
+
+1. `prepare-offline-root CONFIG` reads **public files only**: exactly three
+   `root_public_keys`, and separate `targets_public_key`, `snapshot_public_key`
+   and `timestamp_public_key`, plus `expires`. It emits an unsigned Root proposal
+   and canonical `signed_body_sha256`. The fixed policy is consistent snapshots,
+   Root threshold two of three distinct keys and three distinct threshold-one
+   top-level roles. Existing Root expiry remains at most 365 days.
+2. Each custodian separately invokes `sign-offline-root CONFIG` with `root`, the
+   independently approved `signed_body_sha256` and exactly one `signing_key`.
+   The first custodian emits a partial; the second receives those public bytes
+   and emits a complete quorum over the identical original body. Existing
+   signatures are verified individually; duplicate IDs and foreign signers
+   refuse. A partial keeps threshold two and cannot bootstrap a repository.
+3. `finalize-offline-root CONFIG` accepts `root` and `signed_body_sha256`, with
+   **no private-key field**. It verifies the original complete threshold and
+   retains the exact signed bytes. No threshold-one verification projection is
+   emitted or accepted as Root metadata.
+4. The independent Targets custodian invokes `sign-offline-targets CONFIG` with
+   `trusted_root`, `trusted_root_sha256`, `payload_key_registry`,
+   `payload_key_registry_sha256`, `delegated_public_keys` containing public
+   `releases`/`preview`/`stable` objects, `version: 1`, `expires`, and exactly one
+   `signing_key`. It verifies the completed Root and fixed payload/delegation
+   contract, including distinct online keys and the existing 90-day ceiling.
+   It receives no online private key. Five separate `sign-tuf-role` jobs and
+   keyless `assemble-tuf` then consume these exact public offline bytes.
+
+Inputs are bounded regular files; linked/reparse ancestry refuses. Outputs use
+CreateNew and file sync, with no overwrite or automatic retry. An existing or
+partial output stays retained; inspect it and use a new explicitly reviewed
+output path rather than silently replacing it. Config/public-key/private-key
+limits are 64 KiB, signed metadata 1 MiB and the payload registry 256 KiB.
+Custodian isolation, offline transfer/media, protected file ownership, backup and
+restoration, final fingerprints and conditional execution authority still need
+actual initial setup evidence. See the scoped
+[one-key ceremony qualification](qualification/slice4-one-key-offline-ceremony-2026-10-21.md).
+
 Routine role jobs use `portcove-release-tools sign-tuf-role ROLE CONFIG.json`,
 where `ROLE` is exactly `releases`, `preview`, `stable`, `snapshot` or `timestamp`.
 Each strict schema-1 configuration contains `context`, `signing_key` and `output`;
