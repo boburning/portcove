@@ -9,9 +9,73 @@ import {
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
+  materializeCoordinatorPublishedSite,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import path from "node:path";
+import os from "node:os";
+import { capacityDigest } from "./release-capacity.mts";
+import { requirePublishedCompleteSite } from "./release-site-readback.mts";
+
+void test("coordinator keeps the real whole-site receipt through its default materialization seam", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "coordinator-public-site-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const files = new Map([
+    [".nojekyll", Buffer.alloc(0)],
+    ["application/metadata/1.root.json", Buffer.from("inert pinned root")],
+    ["application/metadata/timestamp.json", Buffer.from("inert metadata")],
+    ["catalog/targets/retained.json", Buffer.from("opaque independent catalog")],
+  ]);
+  const inventory = [...files].map(([path, bytes]) => ({
+    path,
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  }));
+  const root = inventory.find((file) => file.path === "application/metadata/1.root.json")!.sha256;
+  const unsigned = {
+    schema_version: 1,
+    previous_generation: null,
+    application_root_sha256: root,
+    files: inventory,
+  };
+  const marker = { ...unsigned, generation: capacityDigest(unsigned) };
+  files.set("publication.json", Buffer.from(JSON.stringify(marker)));
+  const pins = {
+    site_generation_sha256: marker.generation,
+    root_sha256: root,
+    repository_sha256: capacityDigest(
+      inventory
+        .filter((file) => file.path.startsWith("application/"))
+        .map((file) => ({ ...file, path: file.path.slice(12) })),
+    ),
+  };
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(init.credentials, "omit");
+    const result = new Response(
+      files.get(url.slice("https://boburning.github.io/portcove/".length)),
+    );
+    Object.defineProperty(result, "url", { value: url });
+    return result;
+  });
+  const acquired = await materializeCoordinatorPublishedSite(
+    pins,
+    parent,
+    performance.now() + 5000,
+  );
+  assert.equal(
+    (await requirePublishedCompleteSite(acquired.receipt)).generation.generation,
+    marker.generation,
+  );
+  await assert.rejects(requirePublishedCompleteSite(acquired));
+  await writeFile(
+    path.join(acquired.verified.directory, "catalog/targets/retained.json"),
+    "changed",
+  );
+  await assert.rejects(requirePublishedCompleteSite(acquired.receipt));
+});
 
 void test("coordinator budget includes original job setup and refuses missing duplicate or stale provider facts", () => {
   const expected = { run_id: "123", controller_revision: "a".repeat(40) };

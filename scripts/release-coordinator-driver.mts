@@ -93,7 +93,7 @@ const metadataPreparations = new WeakMap<
   {
     preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataRenewal>>;
     tools: Awaited<ReturnType<typeof receiveControllerTools>>;
-    complete_site: Awaited<ReturnType<typeof materializePublishedCompleteSite>>;
+    complete_site: Awaited<ReturnType<typeof materializePublishedCompleteSite>>["receipt"];
     controls: Awaited<ReturnType<typeof authenticateReleaseControlSource>>;
     reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>;
     repository: string;
@@ -109,6 +109,17 @@ const metadataPreparations = new WeakMap<
   }
 >();
 const project = fileURLToPath(new URL("..", import.meta.url));
+/** Actual public-byte custody only, not TUF/controller acceptance. Keep the
+ * opaque receipt distinct from its returned verified path/projection wrapper. */
+export async function materializeCoordinatorPublishedSite(
+  ...args: Parameters<typeof materializePublishedCompleteSite>
+) {
+  const materialized = await materializePublishedCompleteSite(...args);
+  return {
+    receipt: materialized.receipt,
+    verified: await requirePublishedCompleteSite(materialized.receipt),
+  };
+}
 export function coordinatorContinuationDeadline(current: number, requested?: number) {
   if (!Number.isFinite(current) || (requested !== undefined && !Number.isFinite(requested)))
     throw new Error("finite coordinator continuation deadline required");
@@ -1065,7 +1076,7 @@ async function prepareTrustedCoordinatorRenewalAt(
       tools.identity.run_attempt !== reader.admitted.run_attempt
     )
       throw new Error("metadata verifier tools differ from actual current coordinator");
-    const siteReceipt = await materializePublishedCompleteSite(
+    const site = await materializeCoordinatorPublishedSite(
       {
         site_generation_sha256: published.publication.site_generation_sha256,
         root_sha256: published.root_sha256,
@@ -1074,7 +1085,8 @@ async function prepareTrustedCoordinatorRenewalAt(
       directory,
       budget.monotonicDeadline,
     );
-    const component = await requirePublishedCompleteSite(siteReceipt);
+    const siteReceipt = site.receipt;
+    const component = site.verified;
     const existing = recovered.input.metadata_renewal;
     const generatedAt =
       isRecord(existing) &&
