@@ -257,8 +257,8 @@ export function currentApplicationSitePins(input: Record<string, unknown>) {
   if (!site || !application || !site.components.application)
     throw new Error("current authenticated application component/site cursor unavailable");
   return Object.freeze({
-    root_sha256: application.root_sha256,
-    repository_sha256: application.repository_sha256,
+    root_sha256: site.components.application.root_sha256,
+    repository_sha256: site.components.application.repository_sha256,
     site_generation_sha256: site.generation_sha256,
   });
 }
