@@ -291,7 +291,29 @@ export async function installScenarios({
       await browser.wait(until.elementLocated(dialog), 15_000);
       await browser.wait(until.elementIsEnabled(await browser.findElement(install)), 15_000);
     }
+    const previousInvocations = await executeBrowserScript(browser, () =>
+      [...document.querySelectorAll<HTMLElement>("[data-invocation-id]")].map(
+        (element) => element.dataset.invocationId,
+      ),
+    );
     await browser.findElement(install).click();
+    const invocationId = await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (previous) => {
+            const added = [...document.querySelectorAll<HTMLElement>("[data-invocation-id]")]
+              .map((element) => element.dataset.invocationId)
+              .filter((id) => id && !previous.includes(id));
+            return added.length === 1 ? added[0] : false;
+          },
+          previousInvocations,
+        ),
+      5_000,
+      "Reviewed install did not create exactly one owned invocation",
+    );
+    assert.ok(typeof invocationId === "string");
+    return invocationId;
   };
   const installActivity = async (port: FixturePort, status: ActivityStatus) => {
     const feed = transportValue("activity", success(await invoke("get_activities")));
@@ -346,7 +368,7 @@ export async function installScenarios({
       15_000,
     );
     await openFixture(port);
-    await reviewAndStart();
+    const completedInvocationId = await reviewAndStart();
     await waitForFixture(
       () => fixture.requests.length >= 2,
       "freshly reviewed retry never requested the fixture artifact",
@@ -368,6 +390,26 @@ export async function installScenarios({
       await exists(path.join(installed.active.path, installed.active.selected_executable)),
       true,
     );
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (id) => {
+            const record = [...document.querySelectorAll<HTMLElement>("[data-invocation-id]")].find(
+              (element) => element.dataset.invocationId === id,
+            );
+            return (
+              record
+                ?.querySelector('p[role="status"]')
+                ?.textContent?.trim()
+                .endsWith(": finished.") === true
+            );
+          },
+          completedInvocationId,
+        ),
+      15_000,
+      "Installed fixture's exact invocation did not settle before the next journey",
+    );
 
     const report = path.join(output, "install-progress-cancellation.json");
     await writeFile(
@@ -378,6 +420,7 @@ export async function installScenarios({
           artifact: installed.active.artifact,
           cancelled_activity: cancelled.id,
           succeeded_activity: succeeded.id,
+          succeeded_invocation_id: completedInvocationId,
           requests: fixture.requests,
           private_staging_absent: true,
           retry_installed_path: installed.active.path,

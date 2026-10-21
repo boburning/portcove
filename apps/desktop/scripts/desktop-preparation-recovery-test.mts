@@ -568,7 +568,7 @@ export async function interruptedPreparationScenario({
             .findElements(By.css('[data-slot="dialog-footer"] button'))
         ).map((button) => button.getText()),
       ),
-      ["Keep files", "Review again"],
+      ["Close", "Review again"],
     );
     await access(required(privatePath));
     assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));

@@ -79,16 +79,16 @@ export async function artworkScenario({
         });
         return transportValue("artwork_state", success(result));
       };
-      const fallbackVisual = async (selector: string, paletteIndex: number) =>
+      const fallbackVisual = async (selector: string, paletteIndex: number, quiet: boolean) =>
         executeBrowserScript(
           browser,
-          (selector, paletteIndex) => {
+          (selector, paletteIndex, quiet) => {
             const frame = document.querySelector<HTMLElement>(selector);
             if (!frame) throw new Error("Artwork frame unavailable");
             const roles = ["neutral", "yellow", "blue", "indigo", "green", "red"];
             const role = roles[paletteIndex];
             if (!role) throw new Error("Unknown generated artwork palette");
-            const token = `--color-art-${role}`;
+            const token = quiet ? "--color-bg-subtle" : `--color-art-${role}`;
             const computed = getComputedStyle(frame);
             const probe = document.createElement("span");
             probe.style.display = "none";
@@ -102,7 +102,11 @@ export async function artworkScenario({
             }
             return {
               source: frame.dataset.artworkSource,
-              initials: frame.querySelector(":scope > span")?.textContent,
+              initials: frame.querySelector(":scope > span")?.textContent?.trim(),
+              images: frame.querySelectorAll("img").length,
+              decorativeIcon: Boolean(
+                frame.querySelector(':scope > span > svg[aria-hidden="true"]'),
+              ),
               palette: computed.getPropertyValue("--art-color").trim(),
               expectedPalette: getComputedStyle(document.documentElement)
                 .getPropertyValue(token)
@@ -113,11 +117,16 @@ export async function artworkScenario({
           },
           selector,
           paletteIndex,
+          quiet,
         );
-      const expectFallbackVisual = async (selector: string, fallback: GeneratedArtworkFallback) => {
+      const expectFallbackVisual = async (
+        selector: string,
+        fallback: GeneratedArtworkFallback,
+        quiet = false,
+      ) => {
         const expected = {
           source: "generated_fallback",
-          initials: fallback.initials,
+          initials: quiet ? "" : fallback.initials,
         };
         const frame = await browser.wait(until.elementLocated(By.css(selector)), 10_000);
         await executeBrowserScript(
@@ -125,19 +134,30 @@ export async function artworkScenario({
           'arguments[0].scrollIntoView({ block: "center" });',
           frame,
         );
-        await browser.wait(async () => {
-          const actual = await fallbackVisual(selector, fallback.palette_index);
-          return (
-            actual.source === expected.source &&
-            actual.initials === expected.initials &&
-            actual.palette.length > 0 &&
-            actual.palette === actual.expectedPalette &&
-            actual.background === actual.expectedBackground
+        try {
+          await browser.wait(async () => {
+            const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
+            return (
+              actual.source === expected.source &&
+              actual.initials === expected.initials &&
+              actual.images === 0 &&
+              (!quiet || actual.decorativeIcon) &&
+              actual.palette.length > 0 &&
+              actual.palette === actual.expectedPalette &&
+              actual.background === actual.expectedBackground
+            );
+          }, 10_000);
+        } catch (error) {
+          throw new Error(
+            `Fallback presentation did not settle: ${JSON.stringify(await fallbackVisual(selector, fallback.palette_index, quiet))}`,
+            { cause: error },
           );
-        }, 10_000);
-        const actual = await fallbackVisual(selector, fallback.palette_index);
+        }
+        const actual = await fallbackVisual(selector, fallback.palette_index, quiet);
         assert.deepEqual({ source: actual.source, initials: actual.initials }, expected);
         assert.ok(actual.palette.length > 0);
+        assert.equal(actual.images, 0);
+        if (quiet) assert.equal(actual.decorativeIcon, true);
         assert.equal(actual.palette, actual.expectedPalette);
         assert.equal(actual.background, actual.expectedBackground);
       };
@@ -224,7 +244,7 @@ export async function artworkScenario({
       assert.equal(before.generated_fallback.style_version, 1);
       assert.ok(before.generated_fallback.palette_index >= 0);
       assert.ok(before.generated_fallback.palette_index < 6);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback);
+      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
       const stale = object(
         await invoke("reset_artwork", {
           portId,
@@ -329,7 +349,7 @@ export async function artworkScenario({
       const reset = await state("cover");
       assert.equal(reset.resolved_source.kind, "generated_fallback");
       assert.deepEqual(reset.generated_fallback, before.generated_fallback);
-      await expectFallbackVisual(".detail-cover", before.generated_fallback);
+      await expectFallbackVisual(".detail-cover", before.generated_fallback, true);
       assert.equal((await state("detail")).choice.asset_sha256, digest);
 
       const original = path.join(libraryRoot, "artwork", digest);

@@ -1322,7 +1322,10 @@ export async function preparationScenarios({
         return current &&
           (await current.isDisplayed()) &&
           (await current.getText()) === "Try launch" &&
-          (await current.isEnabled())
+          (await current.isEnabled()) &&
+          (await current.getAttribute("aria-disabled")) !== "true" &&
+          (await current.getAttribute("aria-busy")) !== "true" &&
+          (await executeBrowserScript(browser, (element) => element.isConnected, current))
           ? current
           : false;
       },
@@ -1365,7 +1368,7 @@ export async function preparationScenarios({
       throw error;
     }
 
-    await trial.click();
+    await clickVisible(browser, trial);
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
@@ -1410,7 +1413,12 @@ export async function preparationScenarios({
         const launch = await current.findElements(
           By.xpath('.//button[normalize-space(.)="Try launch"]'),
         );
-        return launch.length === 1 && (await launch[0]!.isEnabled());
+        return (
+          launch.length === 1 &&
+          (await launch[0]!.isEnabled()) &&
+          (await launch[0]!.getAttribute("aria-disabled")) !== "true" &&
+          (await launch[0]!.getAttribute("aria-busy")) !== "true"
+        );
       },
       15_000,
       "Library launch must settle before the card composition check",

@@ -3006,7 +3006,7 @@ try {
     assert.equal((await browser.findElements(By.id("port-search"))).length, 0);
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /This library has no ports yet/,
+      /Your library is empty/,
     );
     await browser.wait(
       until.elementLocated(
