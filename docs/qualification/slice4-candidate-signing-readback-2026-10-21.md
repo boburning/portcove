@@ -16,8 +16,13 @@ checks. Unrelated unresolved effects remain held. Recovery preserves candidate
 identity, phase and counters; returned locators establish original custody only.
 
 The callable retains the coordinator's original deadline and refresh callback;
-the fixed coordinator integration must supply its actual controls, tool receipt,
-executor and protected namespace. Release/site consumers reauthenticate the
+the default coordinator wake supplies its actual controls, same-job tool receipt,
+executor and protected namespace. It preserves pending context/Pages recovery and
+due renewal priority, then selects publishing/promoting before semantic waiting.
+The initial ordinal-zero observation precedes cached, freshness-checked maintenance
+rounds under the same original 170-second deadline. Returned fields are
+`decision: candidate-signing-custody-reused`, `checkpoint`, `candidate_phase`,
+`context_locator` and the ordered five `role_locators`, with `automatic_retry: false`. Release/site consumers reauthenticate the
 original locators and current publication eligibility. This preparation is not
 provider, signing, native, publication, resource-capacity or setup acceptance.
 
