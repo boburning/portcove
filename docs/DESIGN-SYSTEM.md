@@ -708,9 +708,10 @@ reset and filtering controls; hiding first-use tools must not clear preferences.
 
 Library's contextual Add games action and empty-state primary action open the
 same in-flow workspace. Keep source choice, current port identity and the next
-review action together. The initial stage list is orientation, not a claim that
-later checks passed. Files are checked against an explicitly selected port;
-folder search supplies multi-game recognition. Retain ambiguous/unsupported and
+review action together. Start with three intentions: choose a game or port,
+find games in a folder, or use an existing installation. Show only the selected
+route's actual inputs and requirements. Files are checked against an explicitly
+selected port; folder search supplies bounded recognition. Retain ambiguous/unsupported and
 unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.

@@ -979,3 +979,52 @@ it.each([false, true])(
     );
   },
 );
+
+it("shows the reviewed data location and compatibility unknown for a saved update without inventing another download", async () => {
+  const notice =
+    "External settings at C:/Shared/settings.json are outside Portcove's backup scope.";
+  const review = vi
+    .spyOn(desktopApi, "planGameUpdate")
+    .mockImplementation(async (_port, activate) => ({
+      ...plan,
+      activate,
+      plan: {
+        ...plan.plan,
+        action: "use_staged",
+        download_bytes: 0,
+        preservation_notices: [notice],
+      },
+    }));
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+      currentVersion="1.0"
+    />,
+  );
+  await click("Review game update");
+  expect(dialog()?.textContent).toContain("Current version: 1.0");
+  expect(dialog()?.textContent).toContain(plan.plan.output_location.user_data_root);
+  expect(dialog()?.textContent).toContain(
+    "Save compatibility between versions is not checked here",
+  );
+  expect(dialog()?.textContent).toContain(
+    "Keeping the previous game version is separate from backing up saved data",
+  );
+  expect(dialog()?.textContent).toContain(notice);
+  expect(dialog()?.textContent).toContain("No download; use the verified local release");
+  expect(dialog()?.textContent).not.toContain("Review download for later");
+  await click("Review keeping for later");
+  expect(review.mock.calls.map((call) => call.slice(0, 3))).toEqual([
+    ["sample", true, 9],
+    ["sample", false, 9],
+  ]);
+  expect(dialog()?.textContent).toContain("Your current version stays unchanged");
+  expect(dialog()?.textContent).toContain("Keep saved update for later");
+  expect(dialog()?.textContent).toContain(notice);
+  expect(apply).not.toHaveBeenCalled();
+});

@@ -791,7 +791,7 @@ export async function sourceDialogScenario({
     const sourceActivityInRecentPreview = sourceRegistrationIndex < 8;
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     const sourceActivity = By.xpath(
-      `//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file location update"]]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
+      `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceRegistration.id)}]//button[@aria-label=${JSON.stringify(`Open Game files settings for ${profileLabel}`)}]`,
     );
     await browser.wait(until.elementLocated(By.css(".activity-list")), 15_000);
     if (sourceActivityInRecentPreview)
@@ -838,7 +838,7 @@ export async function sourceDialogScenario({
 
     await click(By.xpath('//nav//button[contains(., "Activity")]'));
     const discoveryActivity = By.xpath(
-      '//div[contains(@class, "activity-row") and .//strong[normalize-space()="Game-file search"]]//button[@aria-label="Open Game files settings for Portcove library"]',
+      `//div[contains(@class, "activity-row") and @data-activity-id=${JSON.stringify(sourceDiscovery.id)}]//button[@aria-label="Open Game files settings for Portcove library"]`,
     );
     await browser.wait(until.elementLocated(discoveryActivity), 15_000);
     await click(discoveryActivity);

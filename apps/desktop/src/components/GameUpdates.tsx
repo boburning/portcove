@@ -331,7 +331,11 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         disabled={busy || pending}
         onClick={() => void review(!plan.activate)}
       >
-        {plan.activate ? "Review download for later" : "Review install now"}
+        {plan.activate
+          ? plan.plan.action === "download"
+            ? "Review download for later"
+            : "Review keeping for later"
+          : "Review install now"}
       </Button>
       <Button data-focusable variant="outline" disabled={busy || pending} onClick={dismissReview}>
         Cancel review
@@ -348,6 +352,7 @@ export function GameUpdateControl(props: Parameters<typeof useGameUpdateControl>
         }}
       >
         <DialogContent
+          className="@container/update-review"
           showCloseButton={false}
           finalFocus={() => {
             if (applying && actionRegion.current?.isConnected) return actionRegion.current;
@@ -461,7 +466,7 @@ function GameUpdateReview({
   const label = gameUpdateActionLabel(plan);
   if (!installPlanActionLabel(plan.plan.action))
     return (
-      <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px]">
+      <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
         <p className="mb-[5px]" role="alert">
           This version of Portcove cannot display this update plan. Review it again, or update
           Portcove if this continues.
@@ -469,13 +474,14 @@ function GameUpdateReview({
       </div>
     );
   return (
-    <div className="install-plan mt-[16px] grid grid-cols-[1fr_auto] [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px]">
+    <div className="install-plan mt-[16px] grid grid-cols-1 [align-items:end] gap-[18px] rounded-pc-lg border border-pc-border bg-pc-surface p-[14px] @min-[32rem]/update-review:grid-cols-2">
       <p className="mb-[5px]">
         <span className="mb-2 block text-pc-muted-foreground">
           Current version: {currentVersion ?? "Unavailable"}
         </span>
+        <span className="block text-pc-muted-foreground">Update candidate</span>
         <strong className="block text-[length:var(--text-sm)]">
-          Update: {plan.plan.release.version}
+          {plan.plan.release.version}
         </strong>{" "}
         · {releaseChannelPresentation(plan.plan.channel).label}
       </p>
@@ -487,7 +493,7 @@ function GameUpdateReview({
             : "No download; use the verified local release."}
       </p>
       {label && (
-        <p className="mb-[5px]">
+        <p className="col-span-full mb-[5px]">
           {plan.activate
             ? "The verified update becomes active and the current version remains available for rollback."
             : "This keeps the verified update for later. Your current version stays unchanged."}{" "}
@@ -504,6 +510,19 @@ function GameUpdateReview({
           {notice}
         </p>
       ))}
+      {label && plan.activate && (
+        <div className="col-span-full border-t border-pc-border pt-3 [overflow-wrap:anywhere]">
+          <span className="block text-pc-muted-foreground">Saves and settings folder</span>
+          <bdi dir="ltr" className="block">
+            {plan.plan.output_location.user_data_root}
+          </bdi>
+          <p className="mt-2 mb-0">
+            Keeping the previous game version is separate from backing up saved data. Save
+            compatibility between versions is not checked here. Review backup options in Saves and
+            storage.
+          </p>
+        </div>
+      )}
       {plan.plan.shared_preferences && (
         <p className="col-span-full text-[length:var(--text-sm)]">
           This update requires acceptance of ReGaiden's shared Windows preferences at{" "}

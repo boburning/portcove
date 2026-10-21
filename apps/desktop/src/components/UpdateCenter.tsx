@@ -6,6 +6,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import { focusAndReveal } from "../focus";
 import { gameIdentityLabel, gameTitle, gameProjectLabel } from "../port-identity";
 import { controlFocus } from "./ui/control-style";
+import { cn } from "cn";
 import type { DetailDestination } from "../view-model";
 import {
   activityHistoryPreview,
@@ -300,7 +301,8 @@ export function UpdateCenter({
         {installed.length > 0 && (
           <p className="update-explainer mb-4 text-xs leading-[var(--leading-comfortable)] text-pc-muted-foreground">
             {earlierBatch ? "Earlier update results cover " : "Update results cover "}
-            {checked.length} of {installed.length} installed games.
+            {checked.length} of {installed.length} installed{" "}
+            {installed.length === 1 ? "port" : "ports"}.
             {latestSavedCheck > 0 &&
               ` Latest saved check: ${formatActivityTime(latestSavedCheck)}.`}
           </p>
@@ -317,7 +319,7 @@ export function UpdateCenter({
             }
           />
         ) : (
-          <div className="update-list grid gap-2" data-focus-group>
+          <div className="update-list grid max-w-5xl gap-3" data-focus-group>
             {installed.map((port) => {
               const status = statuses.get(port.id)!;
               const action = presentPortAction(operationOwner, port.id, status, "launch", busy);
@@ -325,13 +327,24 @@ export function UpdateCenter({
               const savedCheck = savedByPort.get(port.id)?.check;
               const state = updateState(status, outcome, savedCheck, earlierBatch);
               const failure = failurePresentation(outcome?.error);
-              const renderActions = () => (
-                <div
-                  className="flex flex-wrap items-start justify-end gap-2"
-                  aria-label={`Actions for ${gameIdentityLabel(port)}`}
-                >
-                  {Boolean(status.staged || effectiveCheck(port.id)?.update_available) &&
-                    perform && (
+              const canReviewUpdate = Boolean(
+                (status.staged || effectiveCheck(port.id)?.update_available) && perform,
+              );
+              const canLaunch = Boolean(
+                onLaunch &&
+                status.readiness?.launchable &&
+                !status.readiness.pending_setup &&
+                status.readiness.blockers.length === 0 &&
+                !action.readiness.blocked,
+              );
+              const renderActions = () =>
+                (canReviewUpdate || canLaunch) && (
+                  <div
+                    className="flex flex-wrap items-start gap-2 border-t border-pc-border pt-3"
+                    role="group"
+                    aria-label={`Actions for ${gameIdentityLabel(port)}`}
+                  >
+                    {canReviewUpdate && (
                       <GameUpdateControl
                         key={JSON.stringify([
                           generation,
@@ -360,11 +373,7 @@ export function UpdateCenter({
                         }}
                       />
                     )}
-                  {onLaunch &&
-                    status.readiness?.launchable &&
-                    !status.readiness.pending_setup &&
-                    status.readiness.blockers.length === 0 &&
-                    !action.readiness.blocked && (
+                    {canLaunch && (
                       <Button
                         data-focusable
                         variant="primary"
@@ -372,19 +381,22 @@ export function UpdateCenter({
                         focusableWhenDisabled={Boolean(action.busy)}
                         aria-busy={Boolean(action.busy)}
                         title={action.assessment.reason}
-                        onClick={() => onLaunch(port.id)}
+                        onClick={() => onLaunch?.(port.id)}
                       >
                         {hasUnconfirmedLaunchInput(status, port) ? "Try launch" : "Play"}
                       </Button>
                     )}
-                </div>
-              );
+                  </div>
+                );
               return (
-                <div key={port.id} className="grid min-w-0 gap-2">
+                <div
+                  key={port.id}
+                  className="update-entry @container/update-entry grid min-w-0 gap-3 rounded-pc-lg border border-pc-border bg-pc-surface p-3"
+                >
                   <button
                     data-focusable
                     data-detail-origin={`updates:installed:${port.id}`}
-                    className={updateRowClass}
+                    className={cn(updateRowClass, "border-0 bg-transparent p-0 shadow-none")}
                     onClick={() => onSelect(port.id, `updates:installed:${port.id}`)}
                   >
                     <div className={`${updateMarkClass} ${updateMarkTones[state.tone]}`}>

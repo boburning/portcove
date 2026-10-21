@@ -206,3 +206,37 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
     .element(page.getByRole("button", { name: "Continue location change", exact: true }))
     .toBeVisible();
 });
+
+it("keeps actual App update entries and their independent Play actions reachable at enlarged and narrow widths", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.style.fontSize = "200%";
+  mount("collection");
+  await expect
+    .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
+    .toBeVisible();
+  await page.getByRole("button", { name: "Activity", exact: true }).click();
+  await page.getByRole("button", { name: "Updates", exact: true }).click();
+  const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  const play = page
+    .getByRole("button", { name: "Play", exact: true })
+    .first()
+    .element() as HTMLElement;
+  play.focus();
+  expect(document.activeElement).toBe(play);
+  let bounds = play.getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await page.screenshot({ path: "../../../../outputs/uiux-game-titles/enlarged-updates-960.png" });
+  document.documentElement.style.fontSize = "";
+  await page.viewport(320, 900);
+  play.scrollIntoView({ block: "nearest" });
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  expect(document.activeElement).toBe(play);
+  bounds = play.getBoundingClientRect();
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await page.screenshot({ path: "../../../../outputs/uiux-game-titles/narrow-updates-320.png" });
+});

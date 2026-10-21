@@ -1132,10 +1132,20 @@ export async function preparationScenarios({
       "Selected game files",
       "of free space before the game generates output",
       "previous version remains available for rollback",
-      "unfinished setup files kept for review",
-      "Do not launch the game from that window",
+      "can leave working files for review in Activity",
+      "Starting again keeps earlier unfinished work",
     ])
       assert.ok(preparationText.includes(expected), `preparation review omitted ${expected}`);
+    const windowGuidance = await browser.findElement(
+      By.xpath('//summary[normalize-space(.)="If setup opens another window"]'),
+    );
+    await windowGuidance.click();
+    assert.ok(
+      (await browser.findElement(preparationDialog).getText()).includes(
+        "close it without launching the game",
+      ),
+    );
+    await windowGuidance.click();
     const preparationLayout = await executeBrowserScript(browser, () => {
       const plan = document.querySelector(
         '[aria-labelledby="preparation-review-title"] .preparation-plan',
@@ -3140,9 +3150,7 @@ export async function preparationScenarios({
         .click();
       const cancelledRow = await browser.wait(
         until.elementLocated(
-          By.xpath(
-            '//div[contains(@class, "activity-row") and contains(@class, "cancelled")][.//strong[normalize-space(.)="Game-data setup"]]',
-          ),
+          By.css(`.activity-row.cancelled[data-activity-id="${required(activity).id}"]`),
         ),
         15_000,
         "Cancelled preparation must remain discoverable after navigating away",

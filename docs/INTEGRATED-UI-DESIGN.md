@@ -55,3 +55,20 @@ One final integration PR covers the complete candidate. Use focused behavioral c
 Check both themes, ordinary/short/wide desktops, browser text enlargement, 320 CSS-pixel reading, native sizing, text spacing, reduced motion, forced colors, names, keyboard/focus/selection and status announcements. Browser/AX/native/installed/physical-controller/actual screen-reader/real-file observations are distinct evidence classes. Record unavailable checks precisely without making them blockers for unrelated software work.
 
 Primary guidance used for concrete decisions: [WCAG reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html), [APG dialog focus](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/), [Fluent dialog scope](https://fluent2.microsoft.design/components/web/react/core/dialog/usage), [wizard sequencing](https://www.nngroup.com/articles/wizards/). These inform judgment; they do not require a vendor layout or turn an informational notice into a modal task.
+
+### Layout and task state refinements
+
+The compact Library readiness choice uses the query-area container, so it appears
+when that area's effective reading width is at most 46em. The wide choices and
+compact choice never compete in the keyboard order. Narrow navigation uses
+wrapping labeled destinations, with two columns when 320 CSS pixels permits it.
+Narrow collection art is capped at 160 CSS pixels; scrolling remains intentional.
+Activity rows keep one keyed parent across attention/running/recent grouping so
+settlement preserves focus and open diagnostics.
+
+Game-update entries keep identity, versions and independent actions inside one
+bounded panel. Their facts reflow against the entry's effective width. Activation
+reviews show the returned saves/settings location, preserve specific external
+notices, and say that keeping an old game version is separate from a save backup;
+this review has no save-compatibility assessment. Saved candidates use keeping
+language instead of inventing another download.

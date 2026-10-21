@@ -207,7 +207,7 @@ describe("update center presentation", () => {
     );
     expect(
       render(status, [{ port_id: port.id, ok: false, error: failureReport(), result: null }]),
-    ).toContain("Update results cover 0 of 1 installed games.");
+    ).toContain("Update results cover 0 of 1 installed port.");
 
     const savedCheck = {
       ...result,
@@ -218,14 +218,14 @@ describe("update center presentation", () => {
       { ...status, last_update_check: { checked_at: 1_700_000_000, check: savedCheck } },
       [{ port_id: port.id, ok: true, error: null, result: savedCheck }],
     );
-    expect(saved).toContain("Update results cover 1 of 1 installed games.");
+    expect(saved).toContain("Update results cover 1 of 1 installed port.");
     expect(saved).toContain("Latest saved check:");
     const savedStatus = {
       ...status,
       last_update_check: { checked_at: 1_700_000_000, check: savedCheck },
     };
     const restored = render(savedStatus);
-    expect(restored).toContain("Update results cover 1 of 1 installed games.");
+    expect(restored).toContain("Update results cover 1 of 1 installed port.");
     expect(restored).toContain(">No update found at last check</span>");
     expect(restored).toMatch(/<strong[^>]*>0<\/strong><span[^>]*>Updates available<\/span>/u);
     expect(restored).toContain("Latest saved check:");
@@ -244,7 +244,7 @@ describe("update center presentation", () => {
     expect(savedAvailable).toMatch(/<strong[^>]*>1<\/strong><span[^>]*>Updates available<\/span>/u);
     expect(savedAvailable).toContain(">2.0</span>");
     const changedInstall = render({ ...savedStatus, active: installRecord({ version: "2.0" }) });
-    expect(changedInstall).toContain("Update results cover 0 of 1 installed games.");
+    expect(changedInstall).toContain("Update results cover 0 of 1 installed port.");
     expect(changedInstall).toContain(">Not checked</span>");
     expect(changedInstall).not.toContain("Latest saved check:");
     const wrongPortCheck = render({
@@ -254,13 +254,13 @@ describe("update center presentation", () => {
         check: { ...savedCheck, port_id: "other-game" },
       },
     });
-    expect(wrongPortCheck).toContain("Update results cover 0 of 1 installed games.");
+    expect(wrongPortCheck).toContain("Update results cover 0 of 1 installed port.");
     for (const attempted of [
       { port_id: port.id, ok: false, error: failureReport(), result: null },
       { port_id: port.id, ok: true, error: null, result: null },
     ]) {
       const incomplete = render(savedStatus, [attempted]);
-      expect(incomplete).toContain("Update results cover 0 of 1 installed games.");
+      expect(incomplete).toContain("Update results cover 0 of 1 installed port.");
       expect(incomplete).toContain("Latest saved check:");
       expect(incomplete).toMatch(
         /<strong[^>]*>Unknown<\/strong><span[^>]*>Updates available<\/span>/u,
@@ -297,7 +297,7 @@ describe("update center presentation", () => {
       />,
     );
     expect(partial).toMatch(/<strong[^>]*>1\+<\/strong><span[^>]*>Updates available<\/span>/u);
-    expect(partial).toContain("Update results cover 1 of 2 installed games.");
+    expect(partial).toContain("Update results cover 1 of 2 installed ports.");
   });
 
   it("describes activity mutations with outcomes shared producers can support", () => {
@@ -507,7 +507,7 @@ it.each(["pending", "failed", "cancelled"] as const)(
       { port_id: port.id, ok: true, error: null, result: priorResult },
     ]);
     expect(html).toContain(">Update available at last check</span>");
-    expect(html).toContain("Earlier update results cover 1 of 1 installed games");
+    expect(html).toContain("Earlier update results cover 1 of 1 installed port");
     expect(html).toContain("Updates at last check");
     expect(html).toContain("Failed at last check");
     expect(html).toContain("Latest eligible at last check");
@@ -522,7 +522,7 @@ it("keeps individual failed and unavailable results visible without replacing th
   ]);
   expect(failed).toContain(">Earlier check failed</span>");
   expect(failed).toMatch(/<strong[^>]*>1<\/strong><span[^>]*>Failed at last check<\/span>/u);
-  expect(failed).toContain("Earlier update results cover 0 of 1 installed games");
+  expect(failed).toContain("Earlier update results cover 0 of 1 installed port");
   const unavailable = batchHtml({ status: "pending", hasResults: true }, [
     { port_id: port.id, ok: true, result: null, error: null },
   ]);
