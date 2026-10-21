@@ -1036,15 +1036,12 @@ export async function preparationScenarios({
     for (const candidate of allButtons) if (await candidate.isDisplayed()) visibleAll = candidate;
     if (visibleAll) await clickVisible(browser, visibleAll);
     else {
-      const { picker, list } = await openReadinessOptions(filters);
+      const { picker, list, listId } = await openReadinessOptions(filters);
       const all = await list.findElement(
         By.xpath('.//*[@role="option"][starts-with(normalize-space(.),"All (")]'),
       );
       await clickVisible(browser, all);
-      await browser.wait(
-        async () => (await picker.getAttribute("aria-expanded")) === "false",
-        5_000,
-      );
+      await waitReadinessClosed(picker, listId);
     }
     for (const favorite of await browser.findElements(
       By.css('[data-favorites-filter][aria-pressed="true"]'),
@@ -1052,7 +1049,7 @@ export async function preparationScenarios({
       await clickVisible(browser, favorite);
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
     await browser.wait(until.elementLocated(card), 15_000);
-    await browser.findElement(card).click();
+    await clickVisible(browser, await browser.findElement(card));
     if (waitForPreparation)
       await browser.wait(until.elementLocated(button("Review game preparation")), 15_000);
   }
@@ -1065,7 +1062,18 @@ export async function preparationScenarios({
     assert.ok(listId, "The readiness picker must name its owned listbox");
     const list = await browser.wait(until.elementLocated(By.id(listId)), 5_000);
     assert.equal(await list.getAttribute("role"), "listbox");
-    return { picker, list };
+    return { picker, list, listId };
+  }
+  async function waitReadinessClosed(picker: WebElement, listId: string) {
+    // SelectContent uses the default Portal lifecycle: the owned list unmounts
+    // after its closing phase. Expanded=false alone still leaves the modal shield.
+    await browser.wait(
+      async () =>
+        (await picker.getAttribute("aria-expanded")) === "false" &&
+        (await executeBrowserScript(browser, (id) => document.getElementById(id) === null, listId)),
+      5_000,
+      "The readiness listbox must finish closing before workspace interaction",
+    );
   }
   async function status(portId: string) {
     const result = await invoke("get_statuses");
@@ -1436,10 +1444,7 @@ export async function preparationScenarios({
     }
     if (compactReadiness) {
       await browser.actions().sendKeys(Key.ESCAPE).perform();
-      await browser.wait(
-        async () => (await compactReadiness.picker.getAttribute("aria-expanded")) === "false",
-        5_000,
-      );
+      await waitReadinessClosed(compactReadiness.picker, compactReadiness.listId);
     }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),

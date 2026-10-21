@@ -100,8 +100,15 @@ export async function cliHandoffScenario({
             ),
           );
           await browser.wait(
-            async () => (await picker.getAttribute("aria-expanded")) === "false",
+            async () =>
+              (await picker.getAttribute("aria-expanded")) === "false" &&
+              (await executeBrowserScript(
+                browser,
+                (id) => document.getElementById(id) === null,
+                listId,
+              )),
             5_000,
+            "The readiness listbox must finish closing before workspace interaction",
           );
         }
         for (const favorite of await browser.findElements(
