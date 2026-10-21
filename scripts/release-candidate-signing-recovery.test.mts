@@ -8,12 +8,14 @@ import { execFileSync } from "node:child_process";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { capacityDigest as digest } from "./release-capacity.mts";
 import { orderedJsonValue } from "./json-values.mts";
+import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
 import {
   inspectCandidateSigningOperation,
+  inspectCandidateSigningContextBinding,
   inspectCandidateSigningProvider,
   readCandidateSigningOperations,
   recoverCandidateSigningCustody,
@@ -164,6 +166,119 @@ void test("candidate phase, original tuple, role and bounded counters cannot be 
     inspectCandidateSigningOperation(operation("releases"), candidate, "snapshot"),
   );
 });
+void test("context binds DISTINCT prepared build and frozen opportunity source plus exact original compiler run", () => {
+  const frozen = {
+    source_commit: candidate.source_commit,
+    source_tree: candidate.source_tree,
+    base_commit: "8".repeat(40),
+    change_set_sha256: "9".repeat(64),
+    complete_change_set: true,
+    meaningful: true,
+    documentation_only: false,
+    urgency: false,
+    requested_channel: "preview",
+  };
+  const active = {
+    ...candidate,
+    frozen_opportunity: frozen,
+    release_run: { run_id: 77, attempt: 1, revision: candidate.prepared_commit },
+  };
+  const original = operation("payload");
+  const manifest = {
+    kind: "release-signing-context",
+    binding: {
+      source_commit: candidate.prepared_commit,
+      source_tree: candidate.prepared_tree,
+      version: candidate.version,
+      run_id: "77",
+      run_attempt: 1,
+    },
+    facts: { checkpoint: original.before_checkpoint, opportunity: structuredClone(frozen) },
+  };
+  assert.notEqual(candidate.source_commit, candidate.prepared_commit);
+  assert.notEqual(candidate.source_tree, candidate.prepared_tree);
+  assert.equal(inspectCandidateSigningContextBinding(manifest, active, original).authority, "none");
+  for (const binding of [
+    { ...manifest.binding, source_commit: candidate.source_commit },
+    { ...manifest.binding, source_tree: candidate.source_tree },
+    { ...manifest.binding, run_id: "78" },
+    { ...manifest.binding, run_attempt: 2 },
+  ])
+    assert.throws(() =>
+      inspectCandidateSigningContextBinding({ ...manifest, binding }, active, original),
+    );
+  for (const opportunity of [
+    { ...frozen, source_commit: candidate.prepared_commit },
+    { ...frozen, source_tree: candidate.prepared_tree },
+    { ...frozen, urgency: true },
+  ])
+    assert.throws(() =>
+      inspectCandidateSigningContextBinding(
+        { ...manifest, facts: { ...manifest.facts, opportunity } },
+        active,
+        original,
+      ),
+    );
+  assert.throws(() =>
+    inspectCandidateSigningContextBinding(
+      manifest,
+      { ...active, frozen_opportunity: undefined },
+      original,
+    ),
+  );
+  assert.throws(() =>
+    inspectCandidateSigningContextBinding(
+      manifest,
+      { ...active, release_run: { ...active.release_run, revision: candidate.source_commit } },
+      original,
+    ),
+  );
+  // A later bounded recovery retains the authenticated original build only via
+  // its exact existing public stage tuple, never by substituting today's run.
+  const recovered = {
+    ...active,
+    transient_retries: 1,
+    release_run: { ...active.release_run, run_id: 88 },
+  };
+  const proof = {
+    schema_version: 1,
+    candidate_sha256: candidateProgressIdentity(recovered),
+    controller_revision: "1".repeat(40),
+    locators: [{ kind: "compiler-check", id: "77", sha256: "2".repeat(64) }],
+  };
+  const attempt = {
+    previous_checkpoint: "3".repeat(40),
+    proof,
+    evidence_sha256: digest(proof),
+    release_run: active.release_run,
+    transient_retries: 0,
+    substantive_repairs: 0,
+  };
+  const history = [
+    { phase: "building", attempts: [attempt] },
+    { phase: "publishing", attempts: [attempt] },
+  ];
+  assert.doesNotThrow(() =>
+    inspectCandidateSigningContextBinding(
+      manifest,
+      { ...recovered, stage_evidence: history },
+      original,
+    ),
+  );
+  assert.throws(
+    () =>
+      inspectCandidateSigningContextBinding(
+        manifest,
+        {
+          ...recovered,
+          stage_evidence: [{ phase: "building", attempts: [{ ...attempt, transient_retries: 1 }] }],
+        },
+        original,
+      ),
+    /applicable building history/u,
+  );
+});
+
 void test("missing bundle, expiration, duplicate names, producer failure and artifact identity drift are HOLD", () => {
   const f = provider("context");
   const check = (run: unknown, job: unknown, inventory: unknown) =>

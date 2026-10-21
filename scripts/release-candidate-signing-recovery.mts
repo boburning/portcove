@@ -54,6 +54,7 @@ import {
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 
 const base = "repos/boburning/portcove";
 const roles = ["releases", "preview", "stable", "snapshot", "timestamp"] as const;
@@ -128,6 +129,79 @@ export function inspectCandidateSigningOperation(
   );
   return operation;
 }
+/** Distinct prepared-build and original-opportunity identities. This restricts
+ * an existing attested context; copied facts never establish eligibility. */
+export function inspectCandidateSigningContextBinding(
+  raw: unknown,
+  rawCandidate: unknown,
+  rawPayload: unknown,
+) {
+  const active = candidate(rawCandidate);
+  const payload = inspectCandidateSigningOperation(rawPayload, active, "payload");
+  assert.ok(settled(payload), "original payload signature effect is not settled");
+  assert.ok(
+    isRecord(raw) &&
+      raw.kind === "release-signing-context" &&
+      isRecord(raw.binding) &&
+      isRecord(raw.facts),
+  );
+  const binding = raw.binding,
+    facts = raw.facts;
+  assert.equal(
+    binding.source_commit,
+    active.prepared_commit,
+    "context build must bind prepared commit",
+  );
+  assert.equal(binding.source_tree, active.prepared_tree, "context build must bind prepared tree");
+  assert.equal(binding.version, active.version);
+  assert.equal(
+    facts.checkpoint,
+    payload.before_checkpoint,
+    "context does not bind original payload admission preimage",
+  );
+  assert.ok(
+    isRecord(active.frozen_opportunity) && isRecord(facts.opportunity),
+    "exact frozen opportunity missing",
+  );
+  assert.equal(active.frozen_opportunity.source_commit, active.source_commit);
+  assert.equal(active.frozen_opportunity.source_tree, active.source_tree);
+  assert.equal(
+    digest(facts.opportunity),
+    digest(active.frozen_opportunity),
+    "context original opportunity differs",
+  );
+  assert.ok(
+    typeof binding.run_id === "string" &&
+      /^[1-9][0-9]{0,15}$/u.test(binding.run_id) &&
+      typeof binding.run_attempt === "number" &&
+      Number.isSafeInteger(binding.run_attempt) &&
+      binding.run_attempt > 0,
+    "original compiler run identity missing",
+  );
+  const matchesRun = (value: unknown) =>
+    isRecord(value) &&
+    String(value.run_id) === binding.run_id &&
+    value.attempt === binding.run_attempt &&
+    value.revision === active.prepared_commit;
+  if (!matchesRun(active.release_run)) {
+    const history = inspectCandidateStageEvidence(active.stage_evidence, active);
+    assert.ok(
+      history.some(
+        (slot) =>
+          slot.phase === "building" &&
+          slot.attempts.some(
+            (attempt) =>
+              attempt.transient_retries === payload.candidate!.transient_retries &&
+              attempt.substantive_repairs === payload.candidate!.substantive_repairs &&
+              matchesRun(attempt.release_run),
+          ),
+      ),
+      "context original compiler run lacks exact current/applicable building history",
+    );
+  }
+  return { authority: "none" as const };
+}
+
 /** Complete original provider observations. Missing/expired/duplicates remain HOLD. */
 export function inspectCandidateSigningProvider(
   rawRun: unknown,
@@ -455,17 +529,8 @@ export async function recoverCandidateSigningCustody(
       assert.ok(
         isRecord(manifest.binding) && isRecord(manifest.controller) && isRecord(manifest.facts),
       );
-      assert.equal(manifest.kind, "release-signing-context");
-      assert.equal(manifest.binding.source_commit, active.source_commit);
-      assert.equal(manifest.binding.source_tree, active.source_tree);
-      assert.equal(manifest.binding.version, active.version);
       const payloadOperation = operations.get("payload")!;
-      assert.ok(settled(payloadOperation), "original payload signature effect is not settled");
-      assert.equal(
-        manifest.facts.checkpoint,
-        payloadOperation.before_checkpoint,
-        "context does not bind original payload admission preimage",
-      );
+      inspectCandidateSigningContextBinding(manifest, active, payloadOperation);
       assert.equal(
         digest(payloadOperation.executor_identity),
         digest(contextOperation.executor_identity),
