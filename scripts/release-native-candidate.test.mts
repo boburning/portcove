@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
+  inspectNativePostSignPackageMetadata,
+  acquireActualNativePostSignCandidate,
   inspectSelectedNativeCandidate,
   acquireActualNativeCandidate,
   requireActualNativeCandidate,
@@ -390,4 +392,52 @@ void test("imported parent and selected descriptors cannot start actual source c
     await assert.rejects(acquireActualNativeCandidate(raw), /actual installed native parent/);
     await assert.rejects(requireActualNativeCandidate(raw), /actual parent-owned/);
   }
+});
+
+void test("signed native package source binds the complete platform archive tuple and original compiler run", async (t) => {
+  const f = await trustedAssemblyFixture(t, "initial-beta-win-linux");
+  const facts = {
+    assembly: f.request,
+    archives: ["windows-x86_64", "linux-x86_64"].map((platform, index) => ({
+      platform,
+      artifact_id: 100 + index,
+      bytes: 123,
+      sha256: "d".repeat(64),
+    })),
+  };
+  const body = {
+    id: 100,
+    name: `release-build-windows-x86_64-${f.request.run_id}-${f.request.run_attempt}`,
+    expired: false,
+    size_in_bytes: 123,
+    digest: "sha256:" + "d".repeat(64),
+    workflow_run: {
+      id: Number(f.request.run_id),
+      repository_id: 1354613114,
+      head_repository_id: 1354613114,
+      head_sha: f.request.source_commit,
+    },
+  };
+  const result = await inspectNativePostSignPackageMetadata(facts, "windows-x86_64", body);
+  assert.equal(result.authority, "none");
+  assert.equal(result.archive.artifact_id, 100);
+  for (const changed of [
+    { ...body, id: 101 },
+    { ...body, expired: true },
+    { ...body, size_in_bytes: 124 },
+    { ...body, digest: "sha256:" + "e".repeat(64) },
+    { ...body, name: body.name + "-other" },
+    { ...body, workflow_run: { ...body.workflow_run, id: Number(f.request.run_id) + 1 } },
+    { ...body, workflow_run: { ...body.workflow_run, head_sha: "e".repeat(40) } },
+    { ...body, workflow_run: { ...body.workflow_run, head_repository_id: 1 } },
+  ])
+    await assert.rejects(inspectNativePostSignPackageMetadata(facts, "windows-x86_64", changed));
+  await assert.rejects(
+    inspectNativePostSignPackageMetadata(
+      { ...facts, archives: facts.archives.slice(0, 1) },
+      "windows-x86_64",
+      body,
+    ),
+  );
+  await assert.rejects(acquireActualNativePostSignCandidate({}), /actual installed native parent/);
 });

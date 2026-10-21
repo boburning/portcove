@@ -21,7 +21,7 @@ import {
   hydrateRetainedCoordinatorOperation,
 } from "./release-coordinator-recovery.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
-import { artifactName } from "./release-package-policy.mts";
+import { artifactName, releaseBuildArtifactName } from "./release-package-policy.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
@@ -38,6 +38,7 @@ import {
   inspectNativePrepublicationAuthorities,
   inspectPublicationAuthorities,
 } from "./release-authority-configuration.mts";
+import { discoverReleaseArtifactFiles } from "./release-artifact-archive.mts";
 import { inspectNativeKeylessAssemblyPlan } from "./release-native-keyless-assembly.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
@@ -401,7 +402,7 @@ const selections = new WeakMap<
     packageSha256: string;
     packageBytes: number;
     version: string;
-    facts: Readonly<PreparedReleaseAdmissionFacts>;
+    facts: Readonly<Pick<PreparedReleaseAdmissionFacts, "assembly" | "archives" | "checkpoint">>;
     request: ReturnType<typeof prepareNativeStageRequest>;
     recovery: ReturnType<typeof nativeInvocationIdentity>["counters"];
     recover: Awaited<ReturnType<typeof sourceTransport>>["recover"];
@@ -991,11 +992,205 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
   );
   return Object.freeze({
     ...verified,
+    manifest: structuredClone(manifest),
     journey: structuredClone(journeys[0]),
     authority: "none" as const,
     scope:
       "actual local parent/Tough journey association; native execution still required" as const,
   });
+}
+
+/** Exact data association only; the actual factory supplies independently
+ * authenticated context facts and real immutable provider readback. */
+export async function inspectNativePostSignPackageMetadata(
+  rawFacts: unknown,
+  platform: string,
+  raw: unknown,
+) {
+  if (!isRecord(rawFacts) || !Array.isArray(rawFacts.archives))
+    throw new Error("native signed context archive inventory absent");
+  const archives = rawFacts.archives.map((entry: unknown) => {
+    if (
+      !isRecord(entry) ||
+      Object.keys(entry).sort().join(",") !== "artifact_id,bytes,platform,sha256" ||
+      typeof entry.platform !== "string" ||
+      typeof entry.artifact_id !== "number" ||
+      !Number.isSafeInteger(entry.artifact_id) ||
+      entry.artifact_id < 1 ||
+      typeof entry.bytes !== "number" ||
+      !Number.isSafeInteger(entry.bytes) ||
+      entry.bytes < 22 ||
+      entry.bytes > 512 * 1024 * 1024 ||
+      typeof entry.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/u.test(entry.sha256)
+    )
+      throw new Error("native signed context archive identity invalid");
+    return {
+      platform: entry.platform,
+      artifact_id: entry.artifact_id,
+      bytes: entry.bytes,
+      sha256: entry.sha256,
+    };
+  });
+  const { accepted, labels } = await inspectTrustedAssemblyInput(rawFacts.assembly);
+  const matches = archives.filter((entry) => entry.platform === platform),
+    archive = matches[0];
+  if (
+    accepted.release_profile !== "initial-beta-win-linux" ||
+    labels.length !== 2 ||
+    archives.length !== 2 ||
+    new Set(archives.map((entry) => entry.artifact_id)).size !== 2 ||
+    archives
+      .map((entry) => entry.platform)
+      .sort()
+      .join(",") !== [...labels].sort().join(",") ||
+    !archive ||
+    matches.length !== 1 ||
+    !isRecord(raw) ||
+    raw.id !== archive.artifact_id ||
+    raw.name !== releaseBuildArtifactName(platform, accepted.run_id, accepted.run_attempt) ||
+    raw.expired !== false ||
+    raw.size_in_bytes !== archive.bytes ||
+    raw.digest !== `sha256:${archive.sha256}` ||
+    !isRecord(raw.workflow_run) ||
+    raw.workflow_run.id !== Number(accepted.run_id) ||
+    raw.workflow_run.repository_id !== 1354613114 ||
+    raw.workflow_run.head_repository_id !== 1354613114 ||
+    raw.workflow_run.head_sha !== accepted.source_commit
+  )
+    throw new Error("native package archive differs from exact signed candidate/compiler source");
+  return { accepted, archives, archive, authority: "none" as const };
+}
+
+/** The same installed parent owns signed-input/Tough verification, exact opaque
+ * package acquisition and the report2 request. It never imports a journey or
+ * substitutes a successful native/admission result for byte custody. */
+export async function acquireActualNativePostSignCandidate(parentReceipt: object) {
+  const controllerReceipt = await readActualNativePostSignController(parentReceipt);
+  const original = postSignControllers.get(controllerReceipt);
+  if (!original) throw new Error("actual native source session missing");
+  const verified = await readActualNativePostSignJourney(controllerReceipt);
+  const selected = await requireActualNativePostSignController(controllerReceipt);
+  const parent = selected.parent,
+    platform = parent.descriptor.platform_label;
+  const facts = verified.manifest.facts;
+  if (!isRecord(facts) || !Array.isArray(facts.archives))
+    throw new Error("native signed facts missing");
+  const rows = facts.archives.filter(
+    (entry: unknown) => isRecord(entry) && entry.platform === platform,
+  );
+  if (rows.length !== 1 || !isRecord(rows[0]) || typeof rows[0].artifact_id !== "number")
+    throw new Error("native signed platform archive absent");
+  const endpoint = `repos/boburning/portcove/actions/artifacts/${rows[0].artifact_id}`;
+  const read = () => {
+    const response = original.source.api.request("GET", endpoint);
+    if (response.status !== 200) throw new Error("native exact package archive unavailable");
+    return response.body;
+  };
+  const before = read(),
+    identity = await inspectNativePostSignPackageMetadata(facts, platform, before);
+  const archiveBytes = original.source.download(`${endpoint}/zip`, {
+    cwd: verified.directory,
+    maxBytes: identity.archive.bytes,
+    timeoutMs: remainingNativeParentBudget(120000),
+  });
+  let retained: { identity: Identity; bytes: Buffer } | undefined;
+  await discoverReleaseArtifactFiles(
+    archiveBytes,
+    { bytes: identity.archive.bytes, sha256: identity.archive.sha256 },
+    platform,
+    {
+      version: identity.accepted.version,
+      run_id: identity.accepted.run_id,
+      run_attempt: identity.accepted.run_attempt,
+      source_commit: identity.accepted.source_commit,
+    },
+    {
+      retainDesktopPackage: async (metadata, bytes) => {
+        if (retained) throw new Error("native signed updater package duplicated");
+        retained = { identity: structuredClone(metadata), bytes: Buffer.from(bytes) };
+      },
+    },
+  );
+  if (!retained) throw new Error("native signed updater package missing");
+  const after = read();
+  await inspectNativePostSignPackageMetadata(facts, platform, after);
+  if (digest(before) !== digest(after))
+    throw new Error("native exact package provider identity changed");
+  await requireActualNativePostSignController(controllerReceipt);
+  const selectedFacts = {
+    assembly: facts.assembly,
+    archives: identity.archives,
+    checkpoint: selected.checkpoint,
+  };
+  const packageIdentity = await inspectSelectedNativeCandidate(selectedFacts, platform, retained);
+  const current = await original.source.recover();
+  if (current.checkpoint !== selected.checkpoint || !isRecord(current.input.active_candidate))
+    throw new Error("native signed candidate reservation changed");
+  const recovery = {
+    transient_retries: current.input.active_candidate.transient_retries,
+    substantive_repairs: current.input.active_candidate.substantive_repairs,
+  };
+  const rawRequest = {
+    schema_version: 1,
+    stage: "release-publication",
+    platform_label: platform,
+    candidate: packageIdentity.candidate,
+    journey: verified.journey,
+    invocation_id: "0".repeat(64),
+    setup_descriptor_sha256: parent.descriptor_sha256,
+  };
+  const provisional = prepareNativeStageRequest(rawRequest, parent.authority_configuration);
+  const invocation = nativeInvocationIdentity(provisional, recovery);
+  const request = prepareNativeStageRequest(
+    { ...rawRequest, invocation_id: invocation.invocation_id },
+    parent.authority_configuration,
+  );
+  const packagePath = path.join(verified.directory, packageIdentity.candidate.package.filename);
+  await writeFile(packagePath, retained.bytes, { flag: "wx", mode: 0o600 });
+  await writeFile(path.join(verified.directory, "request.json"), JSON.stringify(request), {
+    flag: "wx",
+    mode: 0o600,
+  });
+  const receipt = Object.freeze({
+    kind: "actual-native-post-sign-candidate-selection",
+    directory: verified.directory,
+    authority: "none",
+    scope: "signed package/journey custody only; native execution pending",
+  });
+  selections.set(receipt, {
+    parent: parentReceipt,
+    directory: verified.directory,
+    packagePath,
+    packageSha256: packageIdentity.candidate.package.sha256,
+    packageBytes: packageIdentity.candidate.package.bytes,
+    version: packageIdentity.version,
+    facts: selectedFacts,
+    request,
+    recovery: invocation.counters,
+    recover: original.source.recover,
+    recheckSource: async () => {
+      await original.source.recheck();
+      await requireActualNativePostSignController(controllerReceipt);
+      const manifest = await readBoundedPublicBuildInputFile(
+        verified.inputs.context.directory,
+        "signing-context-manifest.json",
+        1024 * 1024,
+      );
+      if (hash(manifest) !== verified.inputs.context.manifest_sha256)
+        throw new Error("native signed source context changed after package selection");
+      const repositoryFiles = await readBoundedReleaseContextFiles(verified.repository);
+      const inventory = [...repositoryFiles]
+        .filter(([name]) => name !== "repository-manifest.json")
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
+      if (digest(inventory) !== verified.publication.repository_sha256)
+        throw new Error("native signed repository changed after package selection");
+    },
+    api: original.source.api,
+  });
+  await requireActualNativeCandidate(receipt);
+  return receipt;
 }
 
 /** No injected transport or incoming candidate tuple can enter this factory.
