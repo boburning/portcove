@@ -70,6 +70,8 @@ import {
 import {
   inspectPublishedMetadata,
   inspectMetadataRenewalDescriptor,
+  inspectMetadataBootstrapDescriptor,
+  assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 import {
   prepareAuthenticatedMetadataRenewal,
@@ -84,7 +86,19 @@ import {
 import { createReleaseReviewDispositionReceipt } from "./release-semantic-disposition-reader.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
-import { requireControllerReleaseAuthorities } from "./release-authority-configuration.mts";
+import {
+  requireControllerReleaseAuthorities,
+  requireControllerPublicationAuthorities,
+} from "./release-authority-configuration.mts";
+import {
+  readBootstrapPublicSource,
+  readConfiguredBootstrapSite,
+} from "./release-bootstrap-public-inputs.mts";
+import {
+  deriveMetadataBootstrapDescriptor,
+  prepareAuthenticatedMetadataBootstrap,
+  inspectPreparedMetadataBootstrap,
+} from "./release-bootstrap-preparation.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import {
   inspectPendingPagesReadback,
@@ -1401,6 +1415,407 @@ function coordinatorHasUnresolvedEffect(input: Record<string, unknown>) {
   return operation !== null && !["succeeded", "recovered"].includes(operation.outcome);
 }
 
+async function authenticateCoordinatorInitialControls(
+  directory: string,
+  factsSha: string,
+  reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>,
+  workflow: Buffer,
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
+  budget.check();
+  const ready = prepareControlReadiness(reader.identity, factsSha, "coordinator");
+  await writeFile(path.join(directory, "ready-coordinator.json"), `${JSON.stringify(ready)}\n`, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  await (
+    await import("./release-control-step-bridge.mts")
+  ).retainControlStepLocator(path.join(directory, "ready-coordinator.json"), "coordinator", 0);
+  const artifact = await waitForControlArtifact(
+    directory,
+    "observation",
+    {
+      phase: "coordinator",
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      run_id: String(reader.admitted.run_id),
+      run_attempt: reader.admitted.run_attempt,
+    },
+    { deadline: budget.deadline, phaseDeadline: budget.monotonicDeadline },
+  );
+  const controls = await authenticateReleaseControlSource(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+    observedArtifact: artifact,
+  });
+  budget.check();
+  return controls;
+}
+export function selectCoordinatorMetadataBootstrap(input: Record<string, unknown>, now: unknown) {
+  if (inspectPublishedMetadata(input.published_metadata)) return "closed";
+  if (coordinatorHasUnresolvedEffect(input)) return "held-unresolved-effect";
+  if (input.metadata_bootstrap == null) return "initial";
+  const descriptor = inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
+  assertMetadataBootstrapBinding(descriptor, null, now);
+  return "resume";
+}
+type BootstrapPreparation = {
+  preparation: Awaited<ReturnType<typeof prepareAuthenticatedMetadataBootstrap>>;
+  tools: Awaited<ReturnType<typeof receiveControllerTools>>;
+  controls: Awaited<ReturnType<typeof authenticateReleaseControlRound>>;
+  reader: Awaited<ReturnType<typeof authenticateControlReaderJob>>;
+  repository: string;
+  namespace: string;
+  checkpoint: string;
+  directory: string;
+  deadline: number;
+  authorities_sha256: string;
+  descriptor_sha256: string;
+  historical_path: string;
+  historical_sha256: string;
+  historical_preimage: Record<string, unknown>;
+  fresh_configured_site: Awaited<ReturnType<typeof readConfiguredBootstrapSite>>;
+  site_observed_at: number;
+  next_controls: (
+    phaseDeadline?: number,
+  ) => Promise<Awaited<ReturnType<typeof authenticateReleaseControlRound>>>;
+};
+const bootstrapPreparations = new WeakMap<object, BootstrapPreparation>();
+
+async function prepareTrustedCoordinatorBootstrapAt(
+  directory: string,
+  selected: Parameters<typeof requestTrustedSemanticReview>[1],
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: ReturnType<typeof coordinatorDeadline>,
+) {
+  if (inspectPublishedMetadata(recovered.input.published_metadata))
+    throw new Error("initial bootstrap permanently closed by actual published metadata");
+  if (coordinatorHasUnresolvedEffect(recovered.input))
+    return {
+      decision: "held-bootstrap-unresolved-effect",
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
+  if (!selected.tools)
+    return {
+      decision: "held-bootstrap-tools",
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
+  const authorities = await requireControllerPublicationAuthorities("coordinator");
+  if (
+    authorities.schema_version !== 2 ||
+    !authorities.publication.public_source.initial_site_preimage ||
+    authorities.namespace !== inspectCoordinatorRemoteNamespace(selected.remote_configuration)
+  )
+    throw new Error("explicit ratified schema2 initial setup source/namespace required");
+  const toolsReceipt = await receiveControllerTools(
+    directory,
+    selected.tools.artifact,
+    selected.tools.bundle,
+    { deadline: budget.monotonicDeadline },
+  );
+  const tools = await verifiedControllerToolPaths(toolsReceipt);
+  const workflow = await readProductionControllerWorkflowBytes();
+  const reader = await authenticateControlReaderJob(process.env, workflow, {
+    phase: "coordinator",
+    deadline: budget.monotonicDeadline,
+  });
+  if (
+    tools.identity.controller_revision !== reader.admitted.revision ||
+    tools.identity.controller_ref !== reader.admitted.execution_ref
+  )
+    throw new Error("same-source actual coordinator tools required for initial setup");
+  const oldDescriptor =
+    recovered.input.metadata_bootstrap == null
+      ? null
+      : inspectMetadataBootstrapDescriptor(recovered.input.metadata_bootstrap);
+  const generatedAt =
+    oldDescriptor?.generated_at ?? new Date().toISOString().replace(/\.\d{3}Z$/u, "Z");
+  const api = coordinatorApi(directory, budget, 16 * 1024 * 1024);
+  const initialSource = await authenticateCoordinatorInitialControls(
+    directory,
+    capacityDigest({ checkpoint: recovered.checkpoint, initial_setup: authorities.publication }),
+    reader,
+    workflow,
+    budget,
+  );
+  const initialFacts = initialSource.readMaintenance(api);
+  if (
+    initialFacts.reader.job_id !== reader.identity.job_id ||
+    initialFacts.reader.check_run_id !== reader.identity.check_run_id
+  )
+    throw new Error("same actual initial bootstrap reader required");
+  const initialIdentity = coordinatorMaintenanceIdentity(initialFacts);
+  const source = readBootstrapPublicSource(
+    api,
+    authorities.publication,
+    generatedAt,
+    budget.monotonicDeadline,
+  );
+  const descriptor =
+    oldDescriptor ??
+    deriveMetadataBootstrapDescriptor(authorities.publication, source.files, generatedAt);
+  assertMetadataBootstrapBinding(descriptor, null, new Date().toISOString());
+  const historicalPath = path.join(directory, "bootstrap-historical-owner-preimage.json");
+  await writeFile(historicalPath, source.files.get("initial_site_preimage")!, {
+    flag: "wx",
+    mode: 0o600,
+  });
+  const preparation = await prepareAuthenticatedMetadataBootstrap({
+    verifier: tools.rust,
+    verifier_sha256: createHash("sha256")
+      .update(await readControllerToolFile(tools.rust))
+      .digest("hex"),
+    publication: authorities.publication,
+    public_files: source.files,
+    descriptor,
+    output_parent: directory,
+    deadline: budget.monotonicDeadline,
+  });
+  const prepared = await inspectPreparedMetadataBootstrap(preparation);
+  const configured = await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+  await writeFile(
+    path.join(directory, "bootstrap-configured-site-initial.json"),
+    JSON.stringify(configured),
+    { flag: "wx", mode: 0o600 },
+  );
+  let round = 0;
+  let controlCheckpoint = recovered.checkpoint;
+  let identity: string | undefined = initialIdentity;
+  let refreshing = false,
+    refused = false;
+  let owned: BootstrapPreparation | undefined;
+  const controls = async (phaseDeadline?: number) => {
+    const deadline = owned
+      ? (owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline))
+      : coordinatorContinuationDeadline(budget.monotonicDeadline, phaseDeadline);
+    if (refreshing || refused) throw new Error("bootstrap controls already active or refused");
+    refreshing = true;
+    try {
+      if (++round > 14) throw new Error("bootstrap coordinator control rounds exhausted");
+      const control = await authenticateReleaseControlRound(
+        path.join(directory, `bootstrap-control-${round}`),
+        capacityDigest({ checkpoint: controlCheckpoint, descriptor }),
+        "coordinator",
+        round,
+        { deadline },
+      );
+      const facts = control.readMaintenance(metadataContinuationApi(directory, () => deadline));
+      if (
+        control.evidence_scope !== "github.com" ||
+        facts.reader.job_id !== reader.identity.job_id ||
+        facts.reader.check_run_id !== reader.identity.check_run_id
+      )
+        throw new Error("actual same coordinator bootstrap control reader required");
+      const currentIdentity = coordinatorMaintenanceIdentity(facts);
+      if (identity !== undefined && identity !== currentIdentity)
+        throw new Error("bootstrap controls changed across rounds");
+      identity = currentIdentity;
+      coordinatorContinuationDeadline(deadline);
+      return control;
+    } catch (error) {
+      refused = true;
+      throw error;
+    } finally {
+      refreshing = false;
+    }
+  };
+  const initialControls = await controls();
+  const initial = initialControls.readMaintenance(api);
+  if (
+    !isRecord(recovered.input.controller) ||
+    !isRecord(recovered.input.controller.capacity_attempt) ||
+    recovered.input.controller.capacity_attempt.schema_version !== 2 ||
+    !isRecord(initial.capacity_source.capacity) ||
+    !initial.resource_policy_matches_controller ||
+    initial.pause.publication_paused
+  )
+    throw new Error("bounded actual bootstrap maintenance state unavailable");
+  const oldCapacity = recovered.input.controller.capacity_attempt;
+  const input = structuredClone(recovered.input);
+  input.schema_version = 2;
+  input.now = new Date().toISOString();
+  input.metadata_bootstrap = descriptor;
+  input.controller = {
+    ...recovered.input.controller,
+    publication_paused: initial.pause.publication_paused,
+    capacity_attempt: {
+      ...initial.capacity_source.capacity,
+      schema_version: 2,
+      operation: structuredClone(oldCapacity.operation),
+      prior_operations: structuredClone(oldCapacity.prior_operations),
+    },
+  };
+  if (
+    !isRecord(input.controller) ||
+    assessBoundedCapacity(input.controller.capacity_attempt).eligibility !== "eligible"
+  )
+    return {
+      decision: "held-bootstrap-capacity",
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
+  const current = await readRemoteCoordinatorSnapshot(directory, selected.remote_configuration, {
+    transport: { cwd: directory, deadline: budget.monotonicDeadline },
+  });
+  if (
+    current.checkpoint !== recovered.checkpoint ||
+    inspectPublishedMetadata(current.input.published_metadata)
+  )
+    throw new Error("bootstrap checkpoint or no-prior state changed");
+  await verifiedControllerToolPaths(toolsReceipt);
+  await inspectPreparedMetadataBootstrap(preparation);
+  const repeated = readBootstrapPublicSource(
+    api,
+    authorities.publication,
+    generatedAt,
+    budget.monotonicDeadline,
+  );
+  if (capacityDigest(repeated.publication) !== capacityDigest(source.publication))
+    throw new Error("bootstrap ratified public source changed");
+  const lateSite = await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+  const siteObservedAt = performance.now();
+  await writeFile(
+    path.join(directory, "bootstrap-configured-site-before-cas.json"),
+    JSON.stringify(lateSite),
+    { flag: "wx", mode: 0o600 },
+  );
+  const beforeControls = await controls();
+  const fresh = beforeControls.readMaintenance(api);
+  if (coordinatorMaintenanceIdentity(fresh) !== identity)
+    throw new Error("bootstrap controls changed before journal CAS");
+  budget.check();
+  const saved = await checkpointReleaseOpportunity(
+    recovered.repository,
+    recovered.checkpoint,
+    input,
+  );
+  await publishCoordinatorCheckpoint(
+    recovered.repository,
+    saved.checkpoint,
+    selected.remote_configuration,
+    {
+      api: guardedCoordinatorJournal(directory, budget, () => {
+        if (coordinatorMaintenanceIdentity(beforeControls.readMaintenance(api)) !== identity)
+          throw new Error("bootstrap controls changed immediately before journal CAS");
+      }),
+    },
+  );
+  controlCheckpoint = saved.checkpoint;
+  const result = Object.freeze({
+    decision: "metadata-bootstrap-prepared",
+    directory,
+    checkpoint: saved.checkpoint,
+    descriptor,
+    context: prepared.context,
+    prepared_root: prepared.prepared_root,
+    files: prepared.files,
+    evidence_scope: "actual-tool-and-configured-provider-with-historical-ratified-setup-preimage",
+    authority: "none",
+  });
+  owned = {
+    preparation,
+    tools: toolsReceipt,
+    controls: beforeControls,
+    reader,
+    repository: recovered.repository,
+    namespace: authorities.namespace,
+    checkpoint: saved.checkpoint,
+    directory,
+    deadline: budget.monotonicDeadline,
+    authorities_sha256: capacityDigest(authorities),
+    descriptor_sha256: capacityDigest(descriptor),
+    historical_path: historicalPath,
+    historical_sha256: authorities.publication.initial_site_preimage_sha256,
+    historical_preimage: {
+      source_commit: source.publication.public_source.commit,
+      source_tree: source.source_tree,
+      path: source.publication.public_source.initial_site_preimage!.path,
+      sha256: authorities.publication.initial_site_preimage_sha256,
+      observed_at: source.historical.observed_at,
+      scope:
+        "historical owner-ratified setup evidence; not a fresh owner or user-site absence observation",
+    },
+    fresh_configured_site: lateSite,
+    site_observed_at: siteObservedAt,
+    next_controls: controls,
+  };
+  bootstrapPreparations.set(result, owned);
+  return result;
+}
+
+export async function requireActualCoordinatorBootstrapPreparation(
+  result: object,
+  phaseDeadline?: number,
+) {
+  const owned = bootstrapPreparations.get(result);
+  if (!owned) throw new Error("actual same-process coordinator bootstrap preparation required");
+  owned.deadline = coordinatorContinuationDeadline(owned.deadline, phaseDeadline);
+  return withCoordinatorDeadline(owned.deadline, async () => {
+    const authorities = await requireControllerPublicationAuthorities("coordinator");
+    if (capacityDigest(authorities) !== owned.authorities_sha256)
+      throw new Error("ratified bootstrap authority configuration changed");
+    await verifiedControllerToolPaths(owned.tools);
+    const prepared = await inspectPreparedMetadataBootstrap(owned.preparation, owned.deadline);
+    if (
+      capacityDigest(prepared.descriptor) !== owned.descriptor_sha256 ||
+      createHash("sha256")
+        .update(await readControllerToolFile(owned.historical_path, 128 * 1024))
+        .digest("hex") !== owned.historical_sha256
+    )
+      throw new Error("bootstrap preparation or historical ratified input changed");
+    const local = await recoverReleaseOpportunity(owned.repository, owned.checkpoint);
+    assertMetadataBootstrapBinding(
+      prepared.descriptor,
+      inspectPublishedMetadata(local.input.published_metadata),
+      new Date().toISOString(),
+    );
+    if (
+      capacityDigest(local.input.metadata_bootstrap) !== owned.descriptor_sha256 ||
+      coordinatorHasUnresolvedEffect(local.input)
+    )
+      throw new Error("bootstrap descriptor or current effect differs");
+    const controls = await owned.next_controls(owned.deadline);
+    const api = metadataContinuationApi(owned.directory, () => owned.deadline);
+    const facts = controls.readMaintenance(api);
+    if (facts.pause.publication_paused || !facts.resource_policy_matches_controller)
+      throw new Error("bootstrap maintenance unavailable");
+    const current = await readRemoteCoordinatorSnapshot(
+      owned.directory,
+      { schema_version: 1, namespace: owned.namespace },
+      { transport: { cwd: owned.directory, deadline: owned.deadline } },
+    );
+    if (current.checkpoint !== owned.checkpoint)
+      throw new Error("bootstrap remote checkpoint changed");
+    if (performance.now() - owned.site_observed_at >= 45000) {
+      owned.fresh_configured_site = await readConfiguredBootstrapSite(api, owned.deadline);
+      owned.site_observed_at = performance.now();
+    }
+    const late = controls.readMaintenance(api);
+    if (
+      late.pause.publication_paused ||
+      coordinatorMaintenanceIdentity(late) !== coordinatorMaintenanceIdentity(facts)
+    )
+      throw new Error("bootstrap maintenance changed around configured provider readback");
+    coordinatorContinuationDeadline(owned.deadline);
+    return {
+      mode: "bootstrap" as const,
+      preparation: owned.preparation,
+      tools: owned.tools,
+      controls,
+      reader: owned.reader,
+      repository: owned.repository,
+      namespace: owned.namespace,
+      checkpoint: owned.checkpoint,
+      deadline: owned.deadline,
+      next_controls: owned.next_controls,
+      historical_preimage: structuredClone(owned.historical_preimage),
+      fresh_configured_site: structuredClone(owned.fresh_configured_site),
+    };
+  });
+}
+
 /** A durable expected Pages generation routes GET-only recovery before waiting
  * on semantic/native work. Absence of an expectation cannot invent one. */
 export function selectCoordinatorPendingPagesRecovery(input: Record<string, unknown>) {
@@ -1463,7 +1878,20 @@ async function recoverTrustedCoordinatorPages(
   });
   const api = coordinatorApi(directory, budget, 256 * 1024);
   let round = 0;
-  let initialIdentity: string | undefined;
+  const initialSource = await authenticateCoordinatorInitialControls(
+    directory,
+    factsSha,
+    reader,
+    workflow,
+    budget,
+  );
+  const initialFacts = initialSource.readMaintenance(api);
+  if (
+    initialFacts.reader.job_id !== reader.identity.job_id ||
+    initialFacts.reader.check_run_id !== reader.identity.check_run_id
+  )
+    throw new Error("same actual initial Pages recovery reader required");
+  let initialIdentity: string | undefined = coordinatorMaintenanceIdentity(initialFacts);
   const freshBoundary = async () => {
     budget.check();
     if (++round > 4) throw new Error("Pages readback coordinator rounds exhausted");
@@ -1593,6 +2021,8 @@ async function requestTrustedSemanticReviewAt(
         selected.tools,
       );
     }
+    if (selectCoordinatorMetadataBootstrap(recovered.input, new Date().toISOString()) !== "closed")
+      return prepareTrustedCoordinatorBootstrapAt(directory, selected, recovered, budget);
     const renewal = selectCoordinatorMetadataRenewal(recovered.input, new Date().toISOString());
     if (["due", "resume"].includes(renewal)) {
       if (coordinatorHasUnresolvedEffect(recovered.input))

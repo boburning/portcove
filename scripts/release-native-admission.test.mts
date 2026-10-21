@@ -134,6 +134,39 @@ void test("initial native journey data binds completed exact bootstrap site effe
   const result = inspectNativeInitialPublicationJourney(input);
   assert.equal(result.kind, "initial-empty-feed");
   assert.equal(result.signed_context_sha256, input.signed_context_sha256);
+  const locatorPins = {
+    ...pins,
+    public_source: {
+      ...pins.public_source,
+      initial_site_preimage: {
+        path: "release-public/initial-site.json",
+        bytes: 123,
+        sha256: pins.initial_site_preimage_sha256,
+      },
+    },
+  };
+  const schema2 = inspectPublicationAuthorities(locatorPins, 2);
+  assert.deepEqual(
+    inspectNativeInitialPublicationJourney({
+      ...input,
+      authority_schema_version: 2,
+      public_pins: schema2,
+    }),
+    result,
+  );
+  assert.throws(
+    () => inspectNativeInitialPublicationJourney({ ...input, public_pins: schema2 }),
+    /schema2/,
+  );
+  assert.throws(
+    () =>
+      inspectNativeInitialPublicationJourney({
+        ...input,
+        authority_schema_version: 3,
+        public_pins: schema2,
+      }),
+    /schema/,
+  );
   for (const changed of [
     { ...input, prior_records_sha256: "4".repeat(64) },
     { ...input, published: { ...input.published, records_sha256: "4".repeat(64) } },

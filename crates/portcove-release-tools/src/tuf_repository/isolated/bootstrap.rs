@@ -3,6 +3,75 @@
 //! fixed caller must ratify the public Root/offline Targets and setup preimage.
 use super::*;
 
+#[derive(Debug, Serialize)]
+pub struct BootstrapContextReport {
+    pub schema_version: u32,
+    pub context_sha256: String,
+    pub descriptor_sha256: String,
+    pub root_sha256: String,
+    pub offline_targets_sha256: String,
+    pub payload_key_registry_sha256: String,
+    pub initial_records_sha256: String,
+    pub versions: BTreeMap<String, String>,
+    pub expires: BTreeMap<String, String>,
+    pub authority: &'static str,
+}
+
+/// Keyless preflight of only the existing explicit initial context. This
+/// authenticates public anchors and their constraints, not the setup preimage,
+/// its ratification or a permission to sign or publish.
+pub async fn inspect_tuf_bootstrap(
+    path: &Path,
+) -> Result<BootstrapContextReport, TufRepositoryError> {
+    let config: ContextConfig = parse_file(path, "initial public context")?;
+    if config.previous_repository.is_some() || config.initial_bootstrap.is_none() {
+        return invalid("bootstrap inspection requires only an explicit initial context");
+    }
+    let base = path.parent().unwrap_or_else(|| Path::new("."));
+    let initial = resolve(
+        base,
+        config.initial_bootstrap.as_ref().unwrap(),
+        "initial descriptor",
+    )?;
+    let context = load_context(path).await?;
+    let names = [
+        "targets",
+        "snapshot",
+        "timestamp",
+        "releases",
+        "preview",
+        "stable",
+    ];
+    Ok(BootstrapContextReport {
+        schema_version: 1,
+        context_sha256: sha256(&read_regular_bounded(
+            path,
+            MAX_CONFIG_BYTES,
+            "initial context",
+        )?),
+        descriptor_sha256: sha256(&read_regular_bounded(
+            &initial,
+            MAX_CONFIG_BYTES,
+            "initial descriptor",
+        )?),
+        root_sha256: sha256(&context.root_bytes),
+        offline_targets_sha256: sha256(&context.top_bytes),
+        payload_key_registry_sha256: sha256(bytes_at(&context.targets, "keys/payload.json")?),
+        initial_records_sha256: sha256(b"[]"),
+        versions: names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.to_string(), context.versions[index].to_string()))
+            .collect(),
+        expires: names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.to_string(), context.expires[index].to_string()))
+            .collect(),
+        authority: "none",
+    })
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct BootstrapDescriptor {

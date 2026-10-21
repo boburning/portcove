@@ -65,25 +65,36 @@ function minimumVersion(value: unknown, minimum: string) {
 
 /** Public data locations under the existing ratified configuration digest.
  * Neither parsing these pins nor downloading their bytes grants signing. */
-export function inspectPublicationAuthorities(raw: unknown) {
+export function inspectPublicationAuthorities(raw: unknown, schemaVersion: unknown = 1) {
   const value: unknown = structuredClone(raw);
   exact(value, "initial_site_preimage_sha256,public_source,setup_plan_sha256");
-  exact(value.public_source, "commit,offline_targets,payload_key_registry,root");
+  const hasPreimage =
+    isRecord(value.public_source) && Object.hasOwn(value.public_source, "initial_site_preimage");
+  if (hasPreimage && schemaVersion !== 2)
+    throw new Error("historical setup preimage locator requires explicit schema2 configuration");
+  exact(
+    value.public_source,
+    hasPreimage
+      ? "commit,initial_site_preimage,offline_targets,payload_key_registry,root"
+      : "commit,offline_targets,payload_key_registry,root",
+  );
   const source = value.public_source;
+  const filePin = (file: unknown) => {
+    exact(file, "bytes,path,sha256");
+    if (
+      typeof file.path !== "string" ||
+      file.path.length > 256 ||
+      !file.path.endsWith(".json") ||
+      file.path.split("/").length > 8 ||
+      !file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
+      positive(file.bytes) > 1024 * 1024
+    )
+      throw new Error("publication public data path or byte bound differs");
+    return { path: file.path, bytes: Number(file.bytes), sha256: hex(file.sha256, 64) };
+  };
   const files = Object.fromEntries(
     (["root", "offline_targets", "payload_key_registry"] as const).map((name) => {
-      const file = source[name];
-      exact(file, "bytes,path,sha256");
-      if (
-        typeof file.path !== "string" ||
-        file.path.length > 256 ||
-        !file.path.endsWith(".json") ||
-        file.path.split("/").length > 8 ||
-        !file.path.split("/").every((part) => /^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(part)) ||
-        positive(file.bytes) > 1024 * 1024
-      )
-        throw new Error("publication public data path or byte bound differs");
-      return [name, { path: file.path, bytes: Number(file.bytes), sha256: hex(file.sha256, 64) }];
+      return [name, filePin(source[name])];
     }),
   ) as Record<
     "root" | "offline_targets" | "payload_key_registry",
@@ -91,8 +102,19 @@ export function inspectPublicationAuthorities(raw: unknown) {
   >;
   if (new Set(Object.values(files).map((file) => file.path)).size !== 3)
     throw new Error("publication public data paths are conflated");
+  const initial = hasPreimage ? filePin(source.initial_site_preimage) : undefined;
+  if (
+    initial &&
+    (initial.sha256 !== hex(value.initial_site_preimage_sha256, 64) ||
+      Object.values(files).some((file) => file.path === initial.path))
+  )
+    throw new Error("historical setup preimage locator differs from ratified preimage");
   return {
-    public_source: { commit: hex(source.commit, 40), ...files },
+    public_source: {
+      commit: hex(source.commit, 40),
+      ...files,
+      ...(initial ? { initial_site_preimage: initial } : {}),
+    },
     setup_plan_sha256: hex(value.setup_plan_sha256, 64),
     initial_site_preimage_sha256: hex(value.initial_site_preimage_sha256, 64),
   };
@@ -250,7 +272,7 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
     native,
     ...(value.publication === undefined
       ? {}
-      : { publication: inspectPublicationAuthorities(value.publication) }),
+      : { publication: inspectPublicationAuthorities(value.publication, value.schema_version) }),
   };
 }
 export type ReleaseAuthorityConfiguration = ReturnType<typeof inspectReleaseAuthorityConfiguration>;
