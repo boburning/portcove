@@ -73,7 +73,7 @@ export async function launchFixedTufController(
 }
 if (
   process.argv[1] &&
-  /^release-tuf-launch\.(?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  /^release-tuf-launch(?:\.mts|(?:\.bundle)?\.mjs)$/u.test(path.basename(process.argv[1])) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {

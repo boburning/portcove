@@ -496,7 +496,7 @@ export async function runFixedTufRoleConfiguration(
 }
 if (
   process.argv[1] &&
-  /^release-tuf-controller\.(?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  /^release-tuf-controller(?:\.mts|(?:\.bundle)?\.mjs)$/u.test(path.basename(process.argv[1])) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   try {
