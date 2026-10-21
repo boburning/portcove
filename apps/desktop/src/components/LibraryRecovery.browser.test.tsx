@@ -47,16 +47,16 @@ it("keeps manual preparation distinct from checked restore and authority-changin
     expect(text).toContain(name);
   expect(text).toContain("A manual copy is unverified");
   expect(text).toContain("External game saves");
-  expect(text).toContain("switches library authority");
+  expect(text).toContain("then opens the new copy");
   expect(text).toContain("retroachievements.credentials");
-  expect(text).toContain("Checked restore and Move refuse these files");
+  expect(text).toContain("Checked restore and location changes refuse these files");
   expect(text).toContain("Temporary files may remain");
   expect(document.querySelector('input[type="checkbox"]')).toBeNull();
   await expect
     .element(page.getByRole("button", { name: "Restore from a library copy" }))
     .toBeEnabled();
   await expect
-    .element(page.getByRole("button", { name: "Move library", exact: true }))
+    .element(page.getByRole("button", { name: "Change library location", exact: true }))
     .toBeEnabled();
 });
 

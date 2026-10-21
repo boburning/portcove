@@ -67,12 +67,15 @@ export async function accessibleNavigationScenario({
         true,
         "The command palette must use the shared portal",
       );
+      const help = await browser.findElement(By.css(".palette-footer .controller-hint"));
+      if ((await help.getAttribute("open")) === null)
+        await help.findElement(By.css("summary")).click();
       const hints = async (inputMode: "keyboard" | "controller") =>
         executeBrowserScript(
           browser,
           (nextInputMode) => {
             document.documentElement.dataset.inputMode = nextInputMode;
-            return [...document.querySelectorAll(".palette-footer .controller-hint > span")]
+            return [...document.querySelectorAll(".palette-footer .controller-hint span")]
               .filter((element) => element.getClientRects().length > 0)
               .map((element) => element.textContent);
           },

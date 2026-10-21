@@ -2,6 +2,20 @@
   .collection-tools {
     align-items: center;
   }
+  .collection-readiness-compact {
+    display: none;
+  }
+  .collection-readiness-wide {
+    display: flex;
+  }
+  @container library-query (max-width: 46em) {
+    .collection-readiness-wide {
+      display: none;
+    }
+    .collection-readiness-compact {
+      display: block;
+    }
+  }
   .library-query-tools .search {
     flex: 1 1 17rem;
     max-width: 22rem;
@@ -44,9 +58,7 @@
   }
   .collection-project {
     margin-block-start: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .collection-cover .collection-actions {
@@ -155,7 +167,7 @@
   }
   @container collection (max-width: 28em) {
     .collection-cover .collection-art {
-      max-width: 200px;
+      max-width: 160px;
     }
     .collection-row {
       grid-template-columns: minmax(0, 1fr);

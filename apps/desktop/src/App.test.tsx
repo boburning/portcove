@@ -133,6 +133,6 @@ describe("Portcove app shell", () => {
       />,
     );
     expect(postActivation).not.toContain("Keep using original library");
-    expect(postActivation).toContain("recovery can only resume the move");
+    expect(postActivation).toContain("Continue to finish the location change");
   });
 });

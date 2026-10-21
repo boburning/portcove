@@ -150,7 +150,7 @@ for (const when of ["pending", "notice visible"] as const) {
       .element();
     // A deliberate user reading/focus choice, distinct from the old bottom baseline.
     owner().scrollTo({
-      top: owner().scrollTop + search.getBoundingClientRect().top - innerHeight / 2,
+      top: owner().scrollTop + search.getBoundingClientRect().top - Math.min(100, innerHeight / 5),
     });
     await userEvent.click(search);
     await painted();
@@ -289,13 +289,19 @@ it("preserves the current target through concurrent feedback and document-to-wor
   await running.removeNotice();
   const returned = point(running.origin);
   expect(returned.focused).toBe(true);
-  // The Notice removal changes document coordinates and may require scroll.
-  // Preserve the user's physical target, not the obsolete with-Notice number.
+  // Preserve physical position where the new layout has scroll range. If all
+  // content fits, clamp to that range and keep the actual target reachable.
+  const desired = current.scroll + returned.originDocumentTop - current.originDocumentTop;
+  const attainable = Math.min(returned.maximum, Math.max(0, desired));
   expect(
-    Math.abs(
-      returned.scroll - current.scroll - (returned.originDocumentTop - current.originDocumentTop),
-    ),
+    Math.abs(returned.scroll - attainable),
+    JSON.stringify({ current, returned }),
   ).toBeLessThanOrEqual(2);
-  expect(Math.abs(returned.originTop - current.originTop)).toBeLessThanOrEqual(2);
+  expect(
+    Math.abs(returned.originTop - current.originTop - (desired - attainable)),
+  ).toBeLessThanOrEqual(2);
+  const finalBounds = running.origin.getBoundingClientRect();
+  expect(finalBounds.top).toBeGreaterThanOrEqual(Math.max(0, viewport.top) - 1);
+  expect(finalBounds.bottom).toBeLessThanOrEqual(Math.min(innerHeight, viewport.bottom) + 1);
   expect(running.launch).toHaveBeenCalledOnce();
 });

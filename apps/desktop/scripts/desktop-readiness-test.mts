@@ -355,13 +355,18 @@ async function detailLayout(browser: WebDriver, summary: string) {
     (expectedSummary) => {
       const detail = document.querySelector(".detail-panel");
       const bounds = (selector: string) => detail?.querySelector(selector)?.getBoundingClientRect();
-      const summaryParagraph = [...(detail?.querySelectorAll(".detail-body > p") ?? [])].find(
-        (paragraph) => paragraph.textContent?.trim() === expectedSummary,
-      );
+      const summaryParagraph = [
+        ...(detail?.querySelectorAll('section[aria-labelledby="detail-about-this-port"] p') ?? []),
+      ].find((paragraph) => paragraph.textContent?.trim() === expectedSummary);
       return {
         state: detail?.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
         reason: detail?.querySelector(".detail-hero .hero-reason")?.textContent?.trim(),
         hasReason: Boolean(detail?.querySelector(".detail-hero .hero-reason")),
+        actionInHero: Boolean(
+          detail
+            ?.querySelector(".detail-hero")
+            ?.contains(detail.querySelector(".primary-actions button")),
+        ),
         reasonBottom: bounds(".detail-hero .hero-reason")?.bottom,
         heroBottom: bounds(".detail-hero")?.bottom,
         actionTop: bounds(".primary-actions button")?.top,
@@ -422,7 +427,7 @@ async function assertTrialLayout(browser: WebDriver, summary: string) {
     "artworkTop",
   ]);
   assert.ok(layout.reasonBottom <= layout.actionTop, JSON.stringify(layout));
-  assert.ok(layout.actionTop >= layout.heroBottom, JSON.stringify(layout));
+  assert.equal(layout.actionInHero, true, JSON.stringify(layout));
   assert.ok(layout.actionTop >= 0, JSON.stringify(layout));
   assert.ok(layout.actionBottom <= layout.viewportHeight, JSON.stringify(layout));
   assert.ok(layout.actionBottom <= layout.summaryTop, JSON.stringify(layout));
@@ -550,8 +555,12 @@ export async function readinessScenario({
       });
       artifacts.push(screenshot);
       await controls.click(By.css(".detail-back"));
-      await controls.click(controls.button("Review launch"));
+      await controls.click(By.css(`[data-detail-origin="library:card:${port.id}:review"]`));
       await browser.wait(until.elementLocated(By.css(".detail-panel")), 10_000);
+      assert.equal(
+        await browser.findElement(By.css(".detail-panel")).getAttribute("data-detail-port-id"),
+        port.id,
+      );
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(

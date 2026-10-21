@@ -19,10 +19,43 @@ function mount(journey: string) {
 }
 afterEach(() => {
   stopInteractiveScenarios();
+  document.documentElement.style.fontSize = "";
   sessionStorage.removeItem(recoveryKey);
   localStorage.clear();
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
+});
+
+it("uses a named compact readiness choice at narrow and enlarged widths without losing its filter", async () => {
+  await page.viewport(320, 900);
+  mount("library");
+  const readiness = page.getByRole("combobox", { name: /^Readiness/ });
+  await expect.element(readiness).toBeVisible();
+  await readiness.click();
+  await page.getByRole("option", { name: "Ready (2)", exact: true }).click();
+  await expect.poll(() => readiness.element().textContent).toContain("Ready (2)");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
+  await expect.poll(() => readiness.element().textContent).toContain("Ready (1)");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
+  expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
+  await page.viewport(1280, 800);
+  await expect.element(page.getByRole("button", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.element(readiness).not.toBeInTheDocument();
+  await page.viewport(1366, 768);
+  document.documentElement.style.fontSize = "200%";
+  await expect.element(readiness).toBeVisible();
+  await readiness.click();
+  await page.getByRole("option", { name: "All (1)", exact: true }).click();
+  await expect.poll(() => readiness.element().textContent).toContain("All (1)");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "");
+  await expect.poll(() => readiness.element().textContent).toContain("All (2)");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
+  expect(document.querySelector<HTMLElement>(".collection-readiness-wide")?.checkVisibility()).toBe(
+    false,
+  );
 });
 
 it("uses real App search, readiness filters, chips, artwork fallback, and details/back navigation", async () => {
@@ -118,9 +151,11 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await expect
     .element(
-      page.getByText("Fixture preparation is waiting. Complete, fail, or cancel it.", {
-        exact: true,
-      }),
+      page
+        .getByRole("dialog")
+        .getByText("Fixture preparation is waiting. Complete, fail, or cancel it.", {
+          exact: true,
+        }),
     )
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
@@ -148,11 +183,13 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
   mount("recovery");
   await expect
-    .element(page.getByRole("button", { name: "Resume move", exact: true }))
+    .element(page.getByRole("button", { name: "Continue location change", exact: true }))
     .toBeVisible();
   expect(
-    page.getByRole("button", { name: "Resume move", exact: true }).element().getBoundingClientRect()
-      .top,
+    page
+      .getByRole("button", { name: "Continue location change", exact: true })
+      .element()
+      .getBoundingClientRect().top,
   ).toBeLessThan(
     page
       .getByRole("button", { name: "Retry startup", exact: true })
@@ -166,6 +203,40 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   await expect
-    .element(page.getByRole("button", { name: "Resume move", exact: true }))
+    .element(page.getByRole("button", { name: "Continue location change", exact: true }))
     .toBeVisible();
+});
+
+it("keeps actual App update entries and their independent Play actions reachable at enlarged and narrow widths", async () => {
+  await page.viewport(960, 640);
+  document.documentElement.style.fontSize = "200%";
+  mount("collection");
+  await expect
+    .element(page.getByRole("button", { name: /^View details for Super Mario 64/ }).first())
+    .toBeVisible();
+  await page.getByRole("button", { name: "Activity", exact: true }).click();
+  await page.getByRole("button", { name: "Updates", exact: true }).click();
+  const main = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]')!;
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  const play = page
+    .getByRole("button", { name: "Play", exact: true })
+    .first()
+    .element() as HTMLElement;
+  play.focus();
+  expect(document.activeElement).toBe(play);
+  let bounds = play.getBoundingClientRect();
+  expect(bounds.left).toBeGreaterThanOrEqual(0);
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await page.screenshot({ path: "../../../../outputs/uiux-game-titles/enlarged-updates-960.png" });
+  document.documentElement.style.fontSize = "";
+  await page.viewport(320, 900);
+  play.scrollIntoView({ block: "nearest" });
+  expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(320);
+  expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  expect(document.activeElement).toBe(play);
+  bounds = play.getBoundingClientRect();
+  expect(bounds.right).toBeLessThanOrEqual(innerWidth);
+  expect(bounds.bottom).toBeLessThanOrEqual(innerHeight + 1);
+  await page.screenshot({ path: "../../../../outputs/uiux-game-titles/narrow-updates-320.png" });
 });

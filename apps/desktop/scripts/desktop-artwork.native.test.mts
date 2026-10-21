@@ -17,10 +17,22 @@ function segment(from: string, until: string) {
 void test("serialized local artwork fallback preserves generated identity and geometry", async () => {
   const image = {};
   const title = { textContent: "original" };
+  let quiet = false;
+  let showImage = false;
   const frame = {
     classList: ["detail-cover", "[--art-color:var(--color-art-indigo)]", "retained-class"],
     dataset: { artworkSource: "generated_fallback" },
-    querySelector: (selector: string) => (selector === "img" ? image : { textContent: "OW" }),
+    querySelector: (selector: string) =>
+      selector === "img"
+        ? showImage
+          ? image
+          : null
+        : selector.includes("svg")
+          ? quiet
+            ? {}
+            : null
+          : { textContent: quiet ? "" : "OW" },
+    querySelectorAll: () => (showImage ? [image] : []),
     getBoundingClientRect: () => ({ width: 200, height: 300 }),
     contains: (element: unknown) => element !== title,
   };
@@ -56,10 +68,17 @@ void test("serialized local artwork fallback preserves generated identity and ge
         args,
         getComputedStyle: (element: unknown) => ({
           objectFit: "contain",
-          backgroundColor: "rgb(95, 86, 205)",
+          backgroundColor: quiet ? "rgb(32, 32, 32)" : "rgb(95, 86, 205)",
           getPropertyValue: (name: string) => {
-            assert.equal(name, element === root ? "--color-art-indigo" : "--art-color");
-            return "#5f56cd";
+            assert.equal(
+              name,
+              element === root
+                ? quiet
+                  ? "--color-bg-subtle"
+                  : "--color-art-indigo"
+                : "--art-color",
+            );
+            return quiet ? "#202020" : "#5f56cd";
           },
         }),
       },
@@ -77,12 +96,34 @@ void test("serialized local artwork fallback preserves generated identity and ge
     JSON.stringify({
       source: "generated_fallback",
       initials: "OW",
+      images: 0,
+      decorativeIcon: false,
       palette: "#5f56cd",
       expectedPalette: "#5f56cd",
       background: "rgb(95, 86, 205)",
       expectedBackground: "rgb(95, 86, 205)",
     }),
   );
+  quiet = true;
+  const quietObservation: unknown = await runInNewContext(
+    `(async () => {${fallback} return fallbackVisual(".detail-cover", 3, true);})()`,
+    { executeBrowserScript, browser },
+  );
+  assert.equal(
+    JSON.stringify(quietObservation),
+    JSON.stringify({
+      source: "generated_fallback",
+      initials: "",
+      images: 0,
+      decorativeIcon: true,
+      palette: "#202020",
+      expectedPalette: "#202020",
+      background: "rgb(32, 32, 32)",
+      expectedBackground: "rgb(32, 32, 32)",
+    }),
+  );
+  quiet = false;
+  showImage = true;
   assert.equal(removed, true, "color probe must not remain in the rendered tree");
   const geometry = segment(
     "const geometry = await executeBrowserScript",

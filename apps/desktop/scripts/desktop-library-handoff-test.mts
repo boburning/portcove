@@ -193,21 +193,23 @@ export async function libraryHandoffScenario({
     artifacts.push(enlargedGuideImage);
     // Keep actual WebView enlargement through Move, checked Restore and the
     // interrupted-Move recovery actions, including native final consent.
-    const moveTrigger = button("Move library");
+    const moveTrigger = button("Change library location");
     const moveDialog = By.css('[aria-labelledby="move-library-title"]');
     await click(moveTrigger);
     await browser.wait(until.elementLocated(moveDialog), 15_000);
     await assertEscapeRestoresFocus(moveTrigger, moveDialog, "library move");
     await click(moveTrigger);
     await browser.findElement(By.id("library-destination")).sendKeys(destination);
-    await click(button("Review move"));
-    await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    await click(button("Review location change"));
+    await browser.wait(until.elementLocated(button("Copy and switch")), 15_000);
     const moveActionStyles = await assertPrimaryReviewAction(
       browser,
-      await browser.findElement(button("Move to this folder")),
+      await browser.findElement(button("Copy and switch")),
       await browser.findElement(button("Close")),
     );
-    const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
+    const plan = await browser
+      .findElement(By.css('[aria-label="Library location change"]'))
+      .getText();
     assert.ok(plan.includes(destination) && plan.includes(source));
     assert.ok(plan.includes(portId) && plan.includes(active.version));
     assert.ok(plan.includes("Saved game-file locations"));
@@ -220,7 +222,7 @@ export async function libraryHandoffScenario({
     assert.ok(plan.includes("this dialog cannot cancel it"));
     await click(
       By.xpath(
-        '//section[@aria-label="Library move plan"]//summary[starts-with(normalize-space(.), "Saved data")]',
+        '//section[@aria-label="Library location change"]//summary[starts-with(normalize-space(.), "Saved data")]',
       ),
     );
     const files = await browser.wait(
@@ -237,7 +239,7 @@ export async function libraryHandoffScenario({
       flag: "wx",
     });
     artifacts.push(reviewImage);
-    await click(button("Move to this folder"));
+    await click(button("Copy and switch"));
     const after = await browser.wait(async () => {
       const observed = await bootstrap();
       const expected = await realpath(destination).catch(() => undefined);
@@ -474,10 +476,10 @@ export async function libraryHandoffScenario({
     await browser.navigate().refresh();
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     await click(button("Library and storage"));
-    await click(button("Move library"));
+    await click(button("Change library location"));
     await browser.findElement(By.id("library-destination")).sendKeys(recoveryDestination);
-    await click(button("Review move"));
-    await browser.wait(until.elementLocated(button("Move to this folder")), 15_000);
+    await click(button("Review location change"));
+    await browser.wait(until.elementLocated(button("Copy and switch")), 15_000);
     const beforeRecovery = await bootstrap();
     // Arm the witness before the click: a fast copy may publish before WebDriver's
     // click response returns. Drain both branches before cleanup on any failure.
@@ -491,7 +493,7 @@ export async function libraryHandoffScenario({
     );
     const intervention = await Promise.allSettled([
       changeDuringCopy,
-      click(button("Move to this folder")),
+      click(button("Copy and switch")),
     ]);
     for (const result of intervention) if (result.status === "rejected") throw result.reason;
     await browser.wait(until.elementLocated(button("Keep using original library")), 15_000);

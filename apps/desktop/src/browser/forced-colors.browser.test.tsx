@@ -24,11 +24,11 @@ for (const theme of ["dark", "light"]) {
     );
     const selected = page.getByRole("button", { name: "All", exact: true });
     const ordinary = page.getByRole("button", { name: "Ready", exact: true });
-    expect(getComputedStyle(selected.element(), "::after").borderTopStyle).toBe("double");
+    expect(getComputedStyle(selected.element(), "::after").borderBottomStyle).toBe("solid");
     expect(
-      parseFloat(getComputedStyle(selected.element(), "::after").borderTopWidth),
-    ).toBeGreaterThanOrEqual(3);
-    expect(getComputedStyle(ordinary.element(), "::after").borderTopStyle).not.toBe("double");
+      parseFloat(getComputedStyle(selected.element(), "::after").borderBottomWidth),
+    ).toBeGreaterThanOrEqual(2);
+    expect(getComputedStyle(ordinary.element(), "::after").borderBottomWidth).toBe("0px");
     await userEvent.tab();
     await expect.element(selected).toHaveFocus();
     expect(getComputedStyle(selected.element()).outlineStyle).not.toBe("none");

@@ -22,7 +22,7 @@ export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
         disabled={disabled}
         onClick={() => setOpen(true)}
       >
-        Move library
+        Change library location
       </Button>
       {open && <LibraryMoveDialog close={() => setOpen(false)} />}
     </>
@@ -79,7 +79,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           LIBRARY STORAGE
         </p>
         <DialogTitle id="move-library-title" className="mb-2 text-xl">
-          Move your library
+          Change library location
         </DialogTitle>
         <DialogDescription id="move-library-description" className="mb-4 leading-relaxed">
           Portcove copies the library to the new location, verifies application versions, saves,
@@ -114,7 +114,11 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           </Button>
         </div>
         {plan && (
-          <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />
+          <LibraryCopySummary
+            plan={plan}
+            source={plan.source_root}
+            label="Library location change"
+          />
         )}
         {busy && <p role="status">{busy} Keep Portcove open until this finishes.</p>}
         {error != null && <p role="alert">{errorText(error)}</p>}
@@ -146,7 +150,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                   });
                 }}
               >
-                Move to this folder
+                Copy and switch
               </Button>
             ) : (
               <Button
@@ -158,7 +162,7 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
                   );
                 }}
               >
-                Review move
+                Review location change
               </Button>
             ))}
         </DialogFooter>
@@ -197,15 +201,15 @@ export function LibraryMoveRecovery({
   };
   return (
     <section aria-label="Library move recovery">
-      <h2 className="text-base">Finish the interrupted library move</h2>
+      <h2 className="text-base">Finish changing library location</h2>
       <p className="[overflow-wrap:anywhere] [unicode-bidi:plaintext]">
         Original library: {source}
       </p>
-      <p>Resume the move to check the new copy and finish switching libraries.</p>
+      <p>Continue to check the new copy and finish switching libraries.</p>
       {canKeepOriginal ? (
         <p>Keep using the original library before the new copy is activated.</p>
       ) : (
-        <p>The new copy is already activated, so recovery can only resume the move.</p>
+        <p>The new copy is already active. Continue to finish the location change.</p>
       )}
       <p>Neither option deletes the copied files.</p>
       <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
@@ -217,7 +221,7 @@ export function LibraryMoveRecovery({
             void recover(false);
           }}
         >
-          Resume move
+          Continue location change
         </Button>
         {canKeepOriginal && (
           <Button
@@ -232,7 +236,7 @@ export function LibraryMoveRecovery({
           </Button>
         )}
       </div>
-      {busy && <p role="status">Recovering the library move…</p>}
+      {busy && <p role="status">Recovering the library location change…</p>}
       {error && <p role="alert">{error}</p>}
     </section>
   );

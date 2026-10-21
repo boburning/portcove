@@ -1,8 +1,10 @@
-# Approved October 19 UI/UX implementation contract
+# Portcove UI/UX implementation history
+
+The owner’s 21 October integrated redesign supersedes the staged delivery and new-brand proposal below for the current candidate. [Integrated UI design](INTEGRATED-UI-DESIGN.md) is the current product contract; [#2362](https://github.com/boburning/portcove/issues/2362) owns its implementation. Deliver one integrated candidate and final integration PR, retaining the approved crab identity. The remaining text preserves dated context for the broader programme; it does not authorize an asset pack or intermediate product releases.
 
 Live ownership and completion remain in [#2222](https://github.com/boburning/portcove/issues/2222) and its finite work packages. This document records the owner-approved target, not live status. Audit report SHA256: 8ba197e72918cfa3550fcdb94da1b136c3aed2af066eda90a700ed14a4c76b23.
 
-## Owner-approved plan
+## Historical October 19 plan
 
 ## 1. Outcome and fixed decisions
 

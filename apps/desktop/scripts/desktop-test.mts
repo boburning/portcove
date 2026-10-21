@@ -3003,19 +3003,11 @@ try {
       `Add games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
     );
     await browser.manage().window().setRect({ width: 1280, height: 800 });
-    const search = await browser.findElement(By.id("port-search"));
-    await search.sendKeys("unmatched title");
-    const clearSearch = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Clear search and filters"]')),
-      5000,
-    );
+    assert.equal((await browser.findElements(By.id("port-search"))).length, 0);
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
-      /This library has no ports yet/,
+      /Your library is empty/,
     );
-    await captureScenarioScreenshot("filtered-empty-new-library");
-    await clearSearch.click();
-    assert.equal(await search.getAttribute("value"), "");
     await browser.wait(
       until.elementLocated(
         By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),
@@ -3034,9 +3026,13 @@ try {
       ),
       5_000,
     );
-    for (const name of ["Choose game files", "Search game-file folders", "Browse Find games"])
+    for (const name of [
+      "Choose a game or port",
+      "Find games in a folder",
+      "Use an existing installation",
+    ])
       assert.equal(
-        await browser.findElement(By.xpath(`//button[normalize-space(.)="${name}"]`)).isDisplayed(),
+        await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
         true,
         `Add games route is missing: ${name}`,
       );

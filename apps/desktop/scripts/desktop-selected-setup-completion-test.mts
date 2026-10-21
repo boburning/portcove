@@ -602,7 +602,7 @@ export async function selectedSetupCompletionScenario({
           5_000,
         );
         await enlargedStage("choose-inputs");
-        await click(button("Choose game files"));
+        await click(By.css('button[aria-label="Choose a game or port"]'));
         const query = await browser.findElement(By.id("port-search"));
         await query.sendKeys(port.name);
         const options = await browser.findElements(
@@ -642,7 +642,7 @@ export async function selectedSetupCompletionScenario({
           await browser.findElement(By.id("port-search")).getAttribute("value"),
           port.name,
         );
-        await click(button("Search game-file folders"));
+        await click(By.css('button[aria-label="Find games in a folder"]'));
       }
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
       await enlargedStage("scan-and-recognize");

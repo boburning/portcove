@@ -114,7 +114,7 @@ for (const width of [1200, 960]) {
     expect(action.getBoundingClientRect().top).toBeGreaterThan(
       title.getBoundingClientRect().bottom,
     );
-    await page.getByText("File and filter details", { exact: true }).click();
+    await page.getByText("File matching details", { exact: true }).click();
     const routeCheck = page.getByRole("heading", { name: "Game files for this route" });
     expect(routeCheck.element().getBoundingClientRect().top).toBeGreaterThan(
       action.getBoundingClientRect().bottom,

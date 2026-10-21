@@ -36,6 +36,6 @@ it.for(["dark", "light"])(
       width: before.width,
       height: before.height,
     });
-    expect(getComputedStyle(button.element(), "::after").borderTopStyle).toBe("double");
+    expect(getComputedStyle(button.element(), "::after").borderBottomStyle).toBe("solid");
   },
 );

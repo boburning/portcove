@@ -8,7 +8,7 @@ export function SettingsRow({ className, ...props }: ComponentProps<"article">) 
     <article
       data-slot="settings-row"
       className={cn(
-        "settings-row @container/row grid min-w-0 gap-3 border-t border-pc-border p-6 first:border-t-0",
+        "settings-row @container/row grid min-w-0 gap-3 border-t border-pc-border px-6 py-5 first:border-t-0 [&>h2]:text-base [&>h2]:leading-normal",
         className,
       )}
       {...props}
