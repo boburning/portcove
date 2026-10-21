@@ -9,10 +9,58 @@ import {
   coordinatorMaintenanceIdentity,
   coordinatorContinuationDeadline,
   coordinatorOriginalJobDeadline,
+  selectCoordinatorPendingPagesRecovery,
   materializeCoordinatorPublishedSite,
 } from "./release-coordinator-driver.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import { performance } from "node:perf_hooks";
+import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+
+void test("default wake selects only unresolved exact Pages expectations without fabricating one", () => {
+  const operation = pagesRecoveryOperationFixture();
+  const input = { controller: { capacity_attempt: { operation } } };
+  assert.equal(selectCoordinatorPendingPagesRecovery(input)?.operation.id, operation.id);
+  assert.equal(selectCoordinatorPendingPagesRecovery({}), null);
+  assert.equal(
+    selectCoordinatorPendingPagesRecovery({
+      controller: { capacity_attempt: { operation: null } },
+    }),
+    null,
+  );
+  assert.equal(
+    selectCoordinatorPendingPagesRecovery({
+      controller: {
+        capacity_attempt: {
+          operation: {
+            ...operation,
+            outcome: "succeeded",
+            completed_effects: [
+              {
+                remote_identity:
+                  "github-pages:boburning/portcove:" +
+                  operation.site_expectation.site_generation_sha256,
+                evidence_sha256: "9".repeat(64),
+              },
+            ],
+          },
+        },
+      },
+    }),
+    null,
+  );
+  assert.throws(() =>
+    selectCoordinatorPendingPagesRecovery({
+      controller: {
+        capacity_attempt: {
+          operation: {
+            ...operation,
+            site_expectation: { ...operation.site_expectation, artifact_id: 999 },
+          },
+        },
+      },
+    }),
+  );
+});
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
