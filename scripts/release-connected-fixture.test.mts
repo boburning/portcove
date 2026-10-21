@@ -37,6 +37,8 @@ import {
   requireOwnedImmutableReleaseCompletion,
 } from "./release-immutable-publication.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { applyReviewedPreviewWithdrawals } from "./release-preview-withdrawals.mts";
+import { releaseRecordManifestBytes } from "./release-signing-context.mts";
 import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import {
@@ -671,6 +673,107 @@ void test(
       for (const [name, bytes] of await files(publication.repository))
         if (name.startsWith("targets/") || /^metadata\/\d+\./u.test(name))
           assert.deepEqual(await readFile(path.join(renewed.repository, name)), bytes);
+      // Disposable crypto branch only: the pure reviewed-record transform joins
+      // the actual five isolated workers and maintained Tough assembler. This
+      // does not mint the actual semantic/payload factory's private receipt or
+      // establish a three-version installed-client journey.
+      const withdrawalWork = path.join(root, "withdrawal-work");
+      await mkdir(withdrawalWork);
+      const renewedPublic = [...(await files(renewed.repository))].filter(
+        ([name]) => name !== "repository-manifest.json",
+      );
+      const withdrawal = await prepareAuthenticatedMetadataRenewal({
+        verifier: tool,
+        verifier_sha256: toolSha,
+        trusted_root: path.join(context, "trusted-root.json"),
+        trusted_root_sha256: rootSha,
+        previous_repository: renewed.repository,
+        prior_repository_sha256: digest(
+          renewedPublic.map(([name, bytes]) => ({
+            path: name,
+            bytes: bytes.length,
+            sha256: hash(bytes),
+          })),
+        ),
+        generated_at: new Date(Date.parse(bootstrapContext.generated_at) + 2000)
+          .toISOString()
+          .replace(".000Z", "Z"),
+        output_parent: withdrawalWork,
+      });
+      const withdrawalPrepared = await inspectPreparedMetadataRenewal(withdrawal);
+      const withdrawalRecords = await files(path.join(withdrawalPrepared.prepared_root, "records"));
+      const withdrawalManifest: unknown = JSON.parse(
+        withdrawalRecords.get("reconstruction-manifest.json")!.toString(),
+      );
+      withdrawalRecords.delete("reconstruction-manifest.json");
+      const withdrawalRequests = [...withdrawalRecords]
+        .filter(([name]) => name.startsWith("channels/preview/"))
+        .map(([name, bytes]) => {
+          const promotion = JSON.parse(bytes.toString()) as {
+            release_path: string;
+            release_sha256: string;
+          };
+          return {
+            promotion_path: name,
+            promotion_sha256: hash(bytes),
+            release_path: promotion.release_path,
+            release_sha256: promotion.release_sha256,
+            reason: "Disposable withdrawal feed qualification; no production eligibility.",
+          };
+        });
+      assert.equal(withdrawalRequests.length, 2);
+      const transformed = applyReviewedPreviewWithdrawals(
+        withdrawalRecords,
+        withdrawalManifest,
+        { preview_withdrawals: withdrawalRequests },
+        "0.1.1-alpha.1",
+      );
+      for (const request of withdrawalRequests)
+        await writeFile(
+          path.join(withdrawalPrepared.prepared_root, "records", request.promotion_path),
+          transformed.files.get(request.promotion_path)!,
+        );
+      await writeFile(
+        path.join(withdrawalPrepared.prepared_root, "records/reconstruction-manifest.json"),
+        releaseRecordManifestBytes([transformed.manifest], transformed.files),
+      );
+      const withdrawn = await signAndAssemble(withdrawalPrepared.prepared_root, "withdrawal");
+      assert.notEqual(withdrawn.publication.records_sha256, renewed.publication.records_sha256);
+      for (const role of ["releases", "stable"] as const) {
+        const previous = JSON.parse(
+          await readFile(
+            path.join(
+              renewed.repository,
+              `metadata/${renewed.publication.versions[role]}.${role}.json`,
+            ),
+            "utf8",
+          ),
+        ) as { signed: { targets: unknown } };
+        const next = JSON.parse(
+          await readFile(
+            path.join(
+              withdrawn.repository,
+              `metadata/${withdrawn.publication.versions[role]}.${role}.json`,
+            ),
+            "utf8",
+          ),
+        ) as { signed: { targets: unknown } };
+        assert.deepEqual(next.signed.targets, previous.signed.targets);
+      }
+      for (const [name, bytes] of await files(renewed.repository))
+        if (name.startsWith("targets/") || /^metadata\/\d+\./u.test(name))
+          assert.deepEqual(await readFile(path.join(withdrawn.repository, name)), bytes);
+      const withdrawnSite = await composeSiteFiles({
+        previous: renewedSite.output,
+        expected_previous_generation: renewedSite.generation.generation,
+        application: withdrawn.repository,
+        application_root_sha256: rootSha,
+        output_parent: root,
+      });
+      assert.deepEqual(
+        await readFile(path.join(withdrawnSite.output, "catalog/targets/disposable.json")),
+        initialFiles.get("catalog/targets/disposable.json"),
+      );
       // Existing real Git journal, controlled provider, no hosted executor brand.
       // Lose the response after replacing the served complete site, then settle
       // only through fresh exact-byte public readback without repeating upload.
