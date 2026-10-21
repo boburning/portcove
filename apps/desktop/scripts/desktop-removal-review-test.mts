@@ -71,7 +71,21 @@ export async function removalReviewScenario({
     await open(port);
     const { button, click } = reviewControls(browser);
     const dialog = By.css('[aria-labelledby="removal-review-title"]');
-    await click(By.css("summary.advanced-summary"));
+    // The future-install folder summary is intentionally hidden when not
+    // deferred. Open management in this selected game's visible detail owner.
+    const management = By.css(
+      `[data-detail-port-id="${port.id}"] .detail-body > details.advanced-settings > summary.advanced-summary`,
+    );
+    const managementControls = await browser.findElements(management);
+    assert.equal(
+      managementControls.length,
+      1,
+      "Selected detail must have one management disclosure",
+    );
+    const managementControl = managementControls[0];
+    assert.ok(managementControl);
+    assert.match(await managementControl.getText(), /Technical details.*Commands and maintenance/s);
+    await click(management);
     const trigger = button(`Uninstall ${port.name}`);
     const review = async () => {
       await click(trigger);

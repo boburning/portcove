@@ -345,6 +345,185 @@ export async function sourceRemovalScenario({
         flag: "wx",
       });
       artifacts.push(compact);
+      // Diagnostic reads only: a native click is not an authoritative commit.
+      // No transport interception, mutation retry or reads inside the DOM poll.
+      const baselineActivityIds = new Set<string>();
+      let baselineAvailable = false;
+      const observe = async <Value,>(read: () => Promise<Value>) => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          return await Promise.race([
+            read(),
+            new Promise<never>((_resolve, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("Read-only witness exceeded 3000ms")),
+                3_000,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+      const retainRemovalWitness = async (
+        stage: "before-consent" | "after-consent" | "wait-failed",
+      ) => {
+        try {
+          const [bootstrapRead, sourceRead, activityRead, rowsRead] = await Promise.allSettled([
+            observe(async () => {
+              const reply = await invoke("get_bootstrap_status");
+              assert(isRecord(reply) && reply.ok === true);
+              const value = transportValue("desktop_bootstrap_status", reply.value);
+              return {
+                ready: value.ready,
+                generation: value.generation,
+                library_root: value.library_root,
+              };
+            }),
+            observe(async () => {
+              const reply = await invoke("get_sources");
+              assert(isRecord(reply) && reply.ok === true);
+              return transportValues("source", reply.value)
+                .filter((item) => item.profile_id === source.profile_id)
+                .map((item) => ({
+                  profile_id: item.profile_id,
+                  path: item.path,
+                  sha256: item.sha256,
+                }));
+            }),
+            observe(async () => {
+              const reply = await invoke("get_activities");
+              assert(isRecord(reply) && reply.ok === true);
+              return transportValue("activity", reply.value);
+            }),
+            observe(() =>
+              executeBrowserScript(
+                browser,
+                (profileId) => {
+                  const matches = [
+                    ...document.querySelectorAll<HTMLElement>(
+                      ".source-health-row[data-source-profile]",
+                    ),
+                  ].filter((row) => row.dataset.sourceProfile === profileId);
+                  return {
+                    total_matches: matches.length,
+                    rows: matches.slice(0, 4).map((row) => {
+                      const impact = row.querySelector(
+                        '[aria-label="Saved-location removal impact"]',
+                      );
+                      const owner = row.closest(
+                        "[data-saved-folders-workspace], section[aria-label], section[aria-labelledby]",
+                      );
+                      return {
+                        connected: row.isConnected,
+                        visible:
+                          row.getClientRects().length > 0 &&
+                          !row.closest("[hidden], [inert], [aria-hidden=true]") &&
+                          getComputedStyle(row).visibility !== "hidden",
+                        path: row.querySelector("code")?.textContent?.trim().slice(0, 240) ?? null,
+                        owner_label: owner?.getAttribute("aria-label")?.slice(0, 120) ?? null,
+                        owner_labelledby:
+                          owner?.getAttribute("aria-labelledby")?.slice(0, 120) ?? null,
+                        owner_origin:
+                          owner?.getAttribute("data-detail-origin")?.slice(0, 120) ?? null,
+                        impact_busy: impact?.getAttribute("aria-busy") ?? null,
+                        actions: [...row.querySelectorAll("button")]
+                          .slice(0, 4)
+                          .map((item) => item.textContent?.trim().slice(0, 100)),
+                        alerts: [...row.querySelectorAll('[role="alert"]')]
+                          .slice(0, 3)
+                          .map((item) => item.textContent?.trim().slice(0, 160)),
+                        statuses: [...row.querySelectorAll('[role="status"]')]
+                          .slice(0, 3)
+                          .map((item) => item.textContent?.trim().slice(0, 160)),
+                      };
+                    }),
+                  };
+                },
+                source.profile_id,
+              ),
+            ),
+          ]);
+          const observation = <Value,>(result: PromiseSettledResult<Value>) =>
+            result.status === "fulfilled"
+              ? { state: "observed" as const, value: result.value }
+              : { state: "unknown" as const, error: String(result.reason).slice(0, 280) };
+          let activityObservation: unknown;
+          if (activityRead.status === "fulfilled") {
+            const feed = activityRead.value;
+            if (stage === "before-consent") {
+              for (const record of feed.records) baselineActivityIds.add(record.id);
+              baselineAvailable = true;
+            }
+            const candidates = feed.records.filter(
+              (record) =>
+                record.operation === "remove_source" &&
+                record.target_kind === "source" &&
+                record.target_id === source.profile_id &&
+                !baselineActivityIds.has(record.id),
+            );
+            activityObservation = {
+              state: baselineAvailable ? "observed" : "baseline-unavailable",
+              relation: !baselineAvailable
+                ? "unavailable"
+                : candidates.length === 0
+                  ? "not-observed-or-not-emitted"
+                  : candidates.length === 1
+                    ? "single-unattributed-candidate"
+                    : "ambiguous-unattributed-candidates",
+              exact_invocation_correlation: false,
+              active_and_actionable_complete: feed.active_and_actionable_complete,
+              terminal_history_complete: feed.terminal_history_complete,
+              candidate_count: candidates.length,
+              candidates: candidates.slice(0, 4).map((record) => ({
+                id: record.id,
+                status: record.status,
+                cancellation: record.cancellation,
+                failure: record.failure
+                  ? {
+                      code: record.failure.code,
+                      presentation_key: record.failure.presentation.presentation_key,
+                      summary: record.failure.presentation.summary.slice(0, 280),
+                      mutation_state: record.failure.presentation.mutation_state,
+                    }
+                  : null,
+              })),
+            };
+          } else activityObservation = observation(activityRead);
+          const witness = path.join(output, `source-removal-${stage}-read-only-witness.json`);
+          await writeFile(
+            witness,
+            JSON.stringify(
+              {
+                stage,
+                sampled_at: new Date().toISOString(),
+                reviewed_context: {
+                  profile_id: source.profile_id,
+                  path: replacement,
+                  generation,
+                  library_root: library,
+                  preview_sha256: preview.preview_sha256,
+                },
+                atomic_snapshot: false,
+                bootstrap: observation(bootstrapRead),
+                sources: observation(sourceRead),
+                activities: activityObservation,
+                renderer: observation(rowsRead),
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(witness);
+        } catch (witnessError) {
+          // Diagnostic failure never replaces the original action/wait result.
+          process.stderr.write(
+            `Source-removal witness ${stage} unavailable: ${String(witnessError).slice(0, 280)}\n`,
+          );
+        }
+      };
+      await retainRemovalWitness("before-consent");
       await click(button("Remove saved location…"));
       await confirmNative(
         "Remove saved location?",
@@ -352,7 +531,13 @@ export async function sourceRemovalScenario({
         replacement,
         "source-native-confirmed",
       );
-      await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);
+      await retainRemovalWitness("after-consent");
+      try {
+        await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);
+      } catch (waitError) {
+        await retainRemovalWitness("wait-failed");
+        throw waitError;
+      }
       await enlargedStage("removed-location");
       assert.ok(!sources().some((item) => item.profile_id === source.profile_id));
       assert.deepEqual(others(), otherSources);

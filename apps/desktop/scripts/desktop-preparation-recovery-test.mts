@@ -321,14 +321,18 @@ export async function interruptedPreparationScenario({
       object(object(refusedPreview.error).presentation).summary,
       unprovenQuiescenceSummary,
     );
-    const interruptedRows = By.css(".activity-row.failed");
+    // Durable identity and presentation key were checked above. Match that
+    // recovered task and its current Core summary, not a historical sentence.
+    const recoveredSummary = required(required(recovered).failure).presentation.summary;
+    assert.ok(recoveredSummary.trim(), "Recovered failure must have a current Core summary");
+    const interruptedRows = By.css(`.activity-row.failed[data-activity-id="${activity.id}"]`);
     const findInterruptedRow = async () => {
       const candidates = await browser.findElements(interruptedRows);
       for (const candidate of candidates) {
         const text = await candidate.getText();
         if (
           text.includes("Game-data setup") &&
-          text.includes("Game preparation stopped before its outcome could be recorded") &&
+          text.includes(recoveredSummary) &&
           text.toLowerCase().includes("failed") &&
           text.includes("Review game preparation")
         ) {

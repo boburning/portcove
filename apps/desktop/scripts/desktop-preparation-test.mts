@@ -103,6 +103,14 @@ function beginLaunchContinuityTrace(token: string) {
     const style = getComputedStyle(element);
     return {
       tag: element.tagName,
+      notice: element.matches(".error-banner")
+        ? {
+            role: element.getAttribute("role"),
+            busy: element.getAttribute("aria-busy"),
+            heading: element.querySelector("strong")?.textContent?.trim().slice(0, 200),
+            text: element.textContent?.trim().slice(0, 800),
+          }
+        : undefined,
       className: element.getAttribute("class")?.slice(0, 320),
       box: box(element),
       position: style.position,
