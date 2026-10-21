@@ -38,6 +38,7 @@ import {
 } from "./fixtures/assembler-identity-fixture.mts";
 import { verifyControllerToolBootstrapJobIdentity } from "./assembler-job-identity.mts";
 import { launchFixedPayloadController } from "./release-controller-tool-launch.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 const sourceRoot = fileURLToPath(new URL("..", import.meta.url));
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -723,7 +724,7 @@ function fixture(closureChange: Record<string, unknown> = {}) {
     source_commit: "a".repeat(40),
     source_tree: "b".repeat(40),
     platform: "linux-x86_64",
-    node_version: "24.22.0",
+    node_version: controllerNodeVersion,
     bundler: "vite-plus@1.3.0",
     tauri_cli_version: "2.12.2",
     files: [...bytes].map(([name, content]) => ({
@@ -876,6 +877,18 @@ void test("opaque fixture tool archive requires exact complete inventory and ref
     controllerToolPaths.length + 1,
   );
   for (const archive of [
+    createAuditZip([
+      [
+        "manifest.json",
+        JSON.stringify({
+          ...f.manifest,
+          node_version: controllerNodeVersion.replace(/\d+$/u, (patch) =>
+            String(Number(patch) + 1),
+          ),
+        }),
+      ],
+      ...f.bytes,
+    ]),
     createAuditZip([["manifest.json", JSON.stringify(f.manifest)]]),
     createAuditZip([["../manifest.json", "x"]]),
     createAuditZip([["manifest.json", JSON.stringify(f.manifest)], ...f.bytes, ["extra", "x"]]),
@@ -973,6 +986,7 @@ void test("the receiver dependency closure loads without npm packages before any
   const files = [
     "release-controller-tool-admission",
     "release-controller-tools",
+    "controller-node-runtime",
     "release-compiler-source-closure",
     "github-controller-attestation",
     "assembler-job-identity",

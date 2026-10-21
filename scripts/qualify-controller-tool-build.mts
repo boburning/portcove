@@ -12,6 +12,7 @@ import {
   readControllerToolFile,
 } from "./release-controller-tools.mts";
 import { inspectReleaseCompilerSourceClosure } from "./release-compiler-source-closure.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 async function main() {
   const source = fileURLToPath(new URL("..", import.meta.url));
@@ -29,6 +30,7 @@ async function main() {
     return writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
   };
   let builtDirectory: string | null = null;
+  const nodeRuntime = { expected: controllerNodeVersion, observed: process.versions.node };
   try {
     const git = (argument: string) => {
       const result = spawnSync("git", ["rev-parse", argument], {
@@ -56,6 +58,8 @@ async function main() {
       evidence_scope: "ordinary-hosted-fixture",
       authority: "none",
     });
+    phase = "fixed-node-runtime";
+    assert.equal(nodeRuntime.observed, nodeRuntime.expected);
     phase = "actual-fixed-build";
     const built = await buildControllerTools(source, buildWork, expected);
     builtDirectory = built.directory;
@@ -96,7 +100,7 @@ async function main() {
     const nodeResult = invoke(node, ["--version"]);
     assert.equal(nodeResult.error, undefined);
     assert.equal(nodeResult.status, 0);
-    assert.equal(nodeResult.stdout.trim(), "v24.22.0");
+    assert.equal(nodeResult.stdout.trim(), `v${controllerNodeVersion}`);
     phase = "actual-tauri-addon-help";
     const addon = path.join(built.tools, "bin/tauri-addon.node");
     const tauri = (args: string[]) =>
@@ -172,6 +176,7 @@ async function main() {
       schema_version: 1,
       status: "pass",
       phase,
+      node_runtime: nodeRuntime,
       built_directory: builtDirectory,
       build_work: buildWork,
       source: expected,
@@ -189,6 +194,7 @@ async function main() {
       schema_version: 1,
       status: "fail",
       phase,
+      node_runtime: nodeRuntime,
       built_directory: builtDirectory,
       build_work: buildWork,
       evidence_scope: "ordinary-hosted-fixture",

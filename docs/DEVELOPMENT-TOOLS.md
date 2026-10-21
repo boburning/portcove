@@ -631,8 +631,17 @@ No ordinary validation command invokes these provisioning routes implicitly.
 The active toolchain authorities are `rust-toolchain.toml` for Rust,
 `.node-version` for Node, and the repository root `package.json` `packageManager`
 field for pnpm. GitHub workflows derive pnpm from that package manifest
-instead of copying its version. `scripts/dependency-automation.test.mts` checks
-those relationships together with Renovate coverage for nonstandard pins.
+instead of copying its version. Opaque controller tools compile the exact Node
+pin from `scripts/controller-node-runtime.mts`; the two production attesters,
+their complete workflow copy and the maintained held tool example keep exact
+inputs because they have no checkout.
+Renovate updates these representations with `.node-version` in the same Node
+proposal. `scripts/dependency-automation.test.mts` rejects drift and checks
+Renovate coverage for these and other nonstandard pins. Dated canary runtime
+identities remain historical evidence. Changes to the current controller workflow
+also require the reviewed workflow hashes in `scripts/release-capacity.mts` to be
+refreshed; the changed resource-policy digest still requires separate initial
+owner ratification and does not activate a release route.
 
 The root `package.json`, `pnpm-workspace.yaml`, and `pnpm-lock.yaml` are the sole
 JavaScript workspace and dependency-resolution authorities. Repository-wide

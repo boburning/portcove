@@ -18,6 +18,7 @@ import { collectReleaseRunEvidence } from "./release-run-evidence.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCompilerRiskAssessment706 } from "./linux-beta-risk-706.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 
 type Evidence = ReturnType<typeof collectReleaseRunEvidence>;
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -135,7 +136,7 @@ export function inspectReleaseCompilerReport(
     !isRecord(raw.rust_toolchain) ||
     raw.rust_toolchain.channel !== "1.99.1" ||
     !isRecord(raw.node) ||
-    raw.node.version !== "v24.22.0" ||
+    raw.node.version !== `v${controllerNodeVersion}` ||
     !isRecord(raw.tauri) ||
     raw.tauri.version !== "2.12.2" ||
     raw.tauri.native_package !==
