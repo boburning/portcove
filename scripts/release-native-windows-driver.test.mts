@@ -181,3 +181,55 @@ try{
     });
   },
 );
+
+void test(
+  "fixed driver admits only selected fresh initial or exact predecessor package stage without public updater flags",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+$tokens=$null;$errors=$null
+$ast=[Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_TEST_DRIVER,[ref]$tokens,[ref]$errors)
+if($errors.Count){throw 'driver parse failure'}
+$function=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Assert-DriverStageSelection')
+if($function.Count -ne 1){throw 'stage guard missing'}
+Invoke-Expression $function[0].Extent.Text
+$package=[ordered]@{bytes=123;sha256='a'*64}
+$valid=@(
+  [ordered]@{stage='payload-signing';journey=$null;predecessor=$null},
+  [ordered]@{stage='release-publication';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
+  [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=$package}
+)
+foreach($value in $valid){Assert-DriverStageSelection $value}
+$invalid=@(
+  [ordered]@{stage='public-accepted';journey=$null;predecessor=$null},
+  [ordered]@{stage='payload-signing';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
+  [ordered]@{stage='release-publication';journey=$null;predecessor=$null},
+  [ordered]@{stage='release-publication';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$package},
+  [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=124;sha256='a'*64}},
+  [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=123;sha256='b'*64}}
+)
+$refused=0;foreach($value in $invalid){try{Assert-DriverStageSelection $value}catch{$refused++}}
+if($refused -ne 6){throw 'native stage guard widened'}
+[ordered]@{accepted=3;refused=6;scope='inert stage guard only'}|ConvertTo-Json -Compress
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_DRIVER: fileURLToPath(
+          new URL("./release-native-windows-driver.ps1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), {
+      accepted: 3,
+      refused: 6,
+      scope: "inert stage guard only",
+    });
+  },
+);

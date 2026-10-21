@@ -34,6 +34,18 @@ function Assert-DriverOwnerPath([string]$Path) {
         $next=[IO.Path]::GetDirectoryName($cursor);if(-not $next -or $next -eq $cursor){break};$cursor=$next
     }
 }
+function Assert-DriverStageSelection($Value) {
+    if($Value.stage -cnotin @('payload-signing','release-publication')) {throw 'Native stage differs'}
+if($Value.stage -ceq 'payload-signing' -and ($null -ne $Value.journey -or $null -ne $Value.predecessor)) {throw 'Pre-sign driver cannot accept a publication journey'}
+if($Value.stage -ceq 'release-publication') {
+    if($null -eq $Value.journey) {throw 'Post-sign driver journey absent'}
+    $initial=$Value.journey.PSObject.Properties.Name -ccontains 'kind'
+    if($initial) {
+        if($Value.journey.kind -cne 'initial-empty-feed' -or $null -ne $Value.predecessor) {throw 'Initial package driver cannot claim a predecessor'}
+    } elseif($null -eq $Value.predecessor -or $Value.predecessor.sha256 -cne $Value.journey.predecessor.package.sha256 -or
+        $Value.predecessor.bytes -ne $Value.journey.predecessor.package.bytes) {throw 'Post-sign original predecessor differs'}
+}
+}
 function Read-DriverJson([string]$Path,[string]$Sha) {
     Assert-DriverOwnerPath $Path
     $item=Get-Item -LiteralPath $Path -Force
@@ -107,7 +119,8 @@ function Read-DriverHostObservation {
 
 $planValue=Read-DriverJson $Plan $ExpectedPlanSha256
 if($planValue.schema_version -ne 1 -or $planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
-    $planValue.request_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $planValue.stage -cne 'payload-signing') {throw 'Native driver plan differs'}
+    $planValue.request_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $planValue.stage -cnotin @('payload-signing','release-publication')) {throw 'Native driver plan differs'}
+Assert-DriverStageSelection $planValue
 $boundary=Read-DriverJson $planValue.boundary.path $planValue.boundary.sha256
 $capture=Join-Path $boundary.capture_root ('native-attempt-'+$planValue.invocation_id)
 if([IO.Path]::GetFullPath($Plan) -cne (Join-Path $capture 'windows-plan.json') -or
@@ -147,6 +160,20 @@ Copy-Item -LiteralPath $planValue.package.path -Destination $installer -ErrorAct
 if((Get-Item -LiteralPath $installer).Length -ne $planValue.package.bytes -or
     (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant() -cne $planValue.package.sha256){throw 'Native staged package differs'}
 Assert-DriverOwnerPath $installer
+$predecessorInstaller=$null
+if($null -ne $planValue.predecessor) {
+    $previous=$planValue.predecessor
+    Assert-DriverOwnerPath $previous.path
+    $previousName=[IO.Path]::GetFileName($previous.path)
+    if($previousName -cnotmatch '^predecessor-[A-Za-z0-9][A-Za-z0-9._+-]*[.]exe$' -or $previous.bytes -lt 1 -or $previous.bytes -gt 536870912 -or
+        (Get-Item -LiteralPath $previous.path).Length -ne $previous.bytes -or
+        (Get-FileHash -LiteralPath $previous.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $previous.sha256) {throw 'Native predecessor original package differs'}
+    $predecessorInstaller=Join-Path $inputDirectory $previousName
+    Copy-Item -LiteralPath $previous.path -Destination $predecessorInstaller -ErrorAction Stop
+    Assert-DriverOwnerPath $predecessorInstaller
+    if((Get-Item -LiteralPath $predecessorInstaller).Length -ne $previous.bytes -or
+        (Get-FileHash -LiteralPath $predecessorInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne $previous.sha256) {throw 'Native predecessor staged package differs'}
+}
 $derived=$boundary|Select-Object *;$derived.capture_root=$capture;$derived.work_root=$work
 $derivedPath=Join-Path $capture 'bridge-configuration.json';Write-NewDriverJson $derivedPath $derived
 $derivedSha=(Get-FileHash -LiteralPath $derivedPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -174,7 +201,9 @@ try {
     $bindingPath=Join-Path $capture 'account-binding.json';Write-NewDriverJson $bindingPath $binding
     $bindingSha=(Get-FileHash -LiteralPath $bindingPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $session=Open-PortcoveNativeAccountSession $bindingPath $bindingSha
-    $harness=Start-DriverChild 'harness' @('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'test-windows-installer.ps1'),'-InstallerPath',$installer,'-TestBase',$work,'-EvidencePath',(Join-Path $capture 'installer.json'),'-ExpectedVersion',$planValue.version,'-NativeAccountBindingPath',$bindingPath,'-NativeAccountBindingSha256',$bindingSha,'-NativeParentOwnsFinish')
+    $harnessArguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'test-windows-installer.ps1'),'-InstallerPath',$installer,'-TestBase',$work,'-EvidencePath',(Join-Path $capture 'installer.json'),'-ExpectedVersion',$planValue.version,'-NativeAccountBindingPath',$bindingPath,'-NativeAccountBindingSha256',$bindingSha,'-NativeParentOwnsFinish')
+    if($predecessorInstaller) {$harnessArguments+=@('-UpgradeFromInstallerPath',$predecessorInstaller,'-QualifyPackageRollback','-ExpectedPredecessorVersion',$planValue.predecessor.version)}
+    $harness=Start-DriverChild 'harness' $harnessArguments
     $children.Add($harness)
     while(-not $harness.process.HasExited) {
         foreach($child in $children){Save-DriverStreams $child}
