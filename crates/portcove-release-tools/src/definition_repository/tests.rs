@@ -346,3 +346,209 @@ async fn authenticated_catalog_prior_advances_without_erasing_immutable_history(
     assert!(files.contains("metadata/1.snapshot.json"));
     assert_ne!(first.repository_sha256, next.repository_sha256);
 }
+
+#[tokio::test]
+async fn physical_root_key_alias_cannot_supply_a_second_catalog_quorum_member() {
+    use aws_lc_rs::signature::Ed25519KeyPair;
+    use tough::schema::Role;
+    let fixture = Fixture::new().await;
+    let mut root: Signed<Root> =
+        serde_json::from_slice(&fs::read(fixture.root().join("root.json")).unwrap()).unwrap();
+    let original = root.signed.roles[&tough::schema::RoleType::Root].keyids[0].clone();
+    let removed = root.signed.roles[&tough::schema::RoleType::Root].keyids[1].clone();
+    let mut alias = serde_json::to_value(&root.signed.keys[&original]).unwrap();
+    alias["alias"] = json!("same physical key, different TUF id");
+    let alias: tough::schema::key::Key = serde_json::from_value(alias).unwrap();
+    let alias_id = alias.key_id().unwrap();
+    assert_ne!(original, alias_id);
+    root.signed.keys.remove(&removed);
+    root.signed.keys.insert(alias_id.clone(), alias);
+    root.signed
+        .roles
+        .get_mut(&tough::schema::RoleType::Root)
+        .unwrap()
+        .keyids[1] = alias_id.clone();
+    let key =
+        Ed25519KeyPair::from_pkcs8(&fs::read(fixture.root().join("key-0/private.pk8")).unwrap())
+            .unwrap();
+    let sig = hex::encode(key.sign(&root.signed.canonical_form().unwrap()).as_ref());
+    root.signatures=serde_json::from_value(json!([{"keyid":hex::encode(original.as_ref()),"sig":sig},{"keyid":hex::encode(alias_id.as_ref()),"sig":sig}])).unwrap();
+    // Control: ordinary signature verification sees two distinct valid TUF IDs.
+    root.signed.verify_role(&root).unwrap();
+    let error = policy::root(&root, Timestamp::now())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("without aliases"), "{error}");
+}
+#[tokio::test]
+async fn physical_delegated_key_alias_cannot_cross_catalog_roles() {
+    use tough::{
+        editor::signed::SignedRole,
+        key_source::LocalKeySource,
+        schema::{KeyHolder, RoleType},
+    };
+    let fixture = Fixture::new().await;
+    let root: Signed<Root> =
+        serde_json::from_slice(&fs::read(fixture.root().join("root.json")).unwrap()).unwrap();
+    let mut top: Signed<Targets> =
+        serde_json::from_slice(&fs::read(fixture.root().join("targets.json")).unwrap()).unwrap();
+    let d = top.signed.delegations.as_mut().unwrap();
+    let original = d.roles[0].keyids[0].clone();
+    let removed = d.roles[1].keyids[0].clone();
+    let mut alias = serde_json::to_value(&d.keys[&original]).unwrap();
+    alias["keyval"]["alias"] = json!("cross-role same physical key");
+    let alias: tough::schema::key::Key = serde_json::from_value(alias).unwrap();
+    let alias_id = alias.key_id().unwrap();
+    assert_ne!(original, alias_id);
+    d.keys.remove(&removed);
+    d.keys.insert(alias_id.clone(), alias);
+    d.roles[1].keyids = vec![alias_id];
+    let signed = SignedRole::new(
+        top.signed,
+        &KeyHolder::Root(root.signed.clone()),
+        &[Box::new(LocalKeySource {
+            path: fixture.root().join("key-3/private.pk8"),
+        }) as Box<dyn tough::key_source::KeySource>],
+        &aws_lc_rs::rand::SystemRandom::new(),
+    )
+    .await
+    .unwrap();
+    root.signed.verify_role(signed.signed()).unwrap();
+    assert_eq!(
+        signed.signed().signatures[0].keyid,
+        root.signed.roles[&RoleType::Targets].keyids[0]
+    );
+    let error = policy::top(&root.signed, signed.signed(), Timestamp::now())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("without aliases"), "{error}");
+}
+#[tokio::test]
+async fn same_version_valid_offline_targets_reencoding_preserves_prior_history() {
+    let fixture = Fixture::new().await;
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("original-repository"))
+        .await
+        .unwrap();
+    let original = fs::read(
+        fixture
+            .root()
+            .join("original-repository/metadata/1.targets.json"),
+    )
+    .unwrap();
+    let mut reencoded = original.clone();
+    reencoded.extend_from_slice(b" \n");
+    let parsed: Signed<Targets> = serde_json::from_slice(&reencoded).unwrap();
+    let root: Signed<Root> =
+        serde_json::from_slice(&fs::read(fixture.root().join("root.json")).unwrap()).unwrap();
+    root.signed.verify_role(&parsed).unwrap();
+    fs::write(fixture.root().join("targets.json"), &reencoded).unwrap();
+    let mut context = fixture.context_value();
+    context["offline_targets_sha256"] = json!(sha(&reencoded));
+    context["previous_repository"] = json!("original-repository");
+    fixture.set_context(context);
+    let error = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(error.contains("raw envelope replacement"), "{error}");
+    assert_eq!(
+        fs::read(
+            fixture
+                .root()
+                .join("original-repository/metadata/1.targets.json")
+        )
+        .unwrap(),
+        original
+    );
+}
+
+fn replace_bundle_revision(fixture: &Fixture, revision: u64) {
+    let bundle = fixture.root().join("bundle");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&fs::read(bundle.join("definitions/index.json")).unwrap()).unwrap();
+    index["definitions"][0]["revision"] = json!(revision);
+    let index = serde_json::to_vec(&index).unwrap();
+    fs::write(bundle.join("definitions/index.json"), &index).unwrap();
+    let policy_path = bundle.join("policy/official/fixture.json");
+    let mut policy: serde_json::Value =
+        serde_json::from_slice(&fs::read(&policy_path).unwrap()).unwrap();
+    policy["policy_revision"] = json!(revision);
+    policy["decision"]["definition_revision"] = json!(revision);
+    policy["decision"]["index_sha256"] = json!(sha(&index));
+    fs::write(policy_path, serde_json::to_vec(&policy).unwrap()).unwrap();
+    let mut report: serde_json::Value =
+        serde_json::from_slice(&fs::read(fixture.root().join("inspection.json")).unwrap()).unwrap();
+    report["index_sha256"] = json!(sha(&index));
+    report["definitions"][0]["revision"] = json!(revision);
+    report["definitions"][0]["policy_revision"] = json!(revision);
+    report["files"] = serde_json::to_value(bundle::identities(
+        &io::tree(&bundle, BUNDLE_FILES, BUNDLE_MAX).unwrap(),
+    ))
+    .unwrap();
+    let raw = serde_json::to_vec(&report).unwrap();
+    fs::write(fixture.root().join("inspection.json"), &raw).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&raw));
+    fixture.set_context(context);
+}
+#[tokio::test]
+async fn deletion_then_reintroduction_cannot_erase_authenticated_catalog_revision_floor() {
+    let mut fixture = Fixture::new().await;
+    replace_bundle_revision(&fixture, 5);
+    let original_bundle =
+        io::tree(&fixture.root().join("bundle"), BUNDLE_FILES, BUNDLE_MAX).unwrap();
+    let original_manifest = fs::read(fixture.root().join("inspection.json")).unwrap();
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("revision-five"))
+        .await
+        .unwrap();
+    for name in original_bundle.keys() {
+        fs::remove_file(fixture.root().join("bundle").join(name)).unwrap();
+    }
+    let empty_index =
+        serde_json::to_vec(&json!({"index_schema":1,"definitions":[],"contents":[]})).unwrap();
+    fs::write(
+        fixture.root().join("bundle/definitions/index.json"),
+        &empty_index,
+    )
+    .unwrap();
+    let files = io::tree(&fixture.root().join("bundle"), BUNDLE_FILES, BUNDLE_MAX).unwrap();
+    let empty_manifest=serde_json::to_vec(&json!({"publication_schema":1,"authority":"none","index_sha256":sha(&empty_index),"files":bundle::identities(&files),"definitions":[],"scope":"inert-managed-definition-publication-inspection"})).unwrap();
+    fs::write(fixture.root().join("inspection.json"), &empty_manifest).unwrap();
+    let mut context = fixture.context_value();
+    context["inspection_sha256"] = json!(sha(&empty_manifest));
+    context["previous_repository"] = json!("revision-five");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+    }
+    fixture.set_context(context);
+    fixture.roles = fixture.root().join("roles-empty");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("removed-current"))
+        .await
+        .unwrap();
+    for (name, bytes) in original_bundle {
+        fs::write(fixture.root().join("bundle").join(name), bytes).unwrap();
+    }
+    fs::write(fixture.root().join("inspection.json"), original_manifest).unwrap();
+    replace_bundle_revision(&fixture, 1);
+    let mut context = fixture.context_value();
+    context["previous_repository"] = json!("removed-current");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(3);
+    }
+    fixture.set_context(context);
+    let failure = load_context(&fixture.context)
+        .await
+        .err()
+        .unwrap()
+        .to_string();
+    assert!(
+        failure.contains("historical definition revision rollback"),
+        "{failure}"
+    );
+    assert!(!fixture.root().join("reintroduced").exists());
+}

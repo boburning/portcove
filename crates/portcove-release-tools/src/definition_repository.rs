@@ -29,6 +29,7 @@ type Files = BTreeMap<String, Vec<u8>>;
 const CONFIG_MAX: u64 = 64 * 1024;
 const ROOT_MAX: u64 = 1024 * 1024;
 const ROLE_MAX: u64 = 8 * 1024 * 1024;
+const INSPECTION_MAX: u64 = 4 * 1024 * 1024;
 const BUNDLE_MAX: u64 = 32 * 1024 * 1024;
 const BUNDLE_FILES: usize = 16385;
 fn invalid<T>(message: &str) -> Result<T> {
@@ -170,7 +171,7 @@ async fn load_context(path: &Path) -> Result<Context> {
     policy::top(&root.signed, &top, at)?;
     let bundle_path = io::resolve(base, &config.prepared_bundle)?;
     let inspection_path = io::resolve(base, &config.inspection)?;
-    let manifest = io::read(&inspection_path, ROLE_MAX)?;
+    let manifest = io::read(&inspection_path, INSPECTION_MAX)?;
     expected(&manifest, &config.inspection_sha256)?;
     let (targets, index_sha256) = bundle::inspect(&bundle_path, &manifest)?;
     let versions = config
@@ -206,7 +207,7 @@ async fn load_context(path: &Path) -> Result<Context> {
         (path.to_path_buf(), CONFIG_MAX, sha(&config_raw)),
         (root_path.clone(), ROOT_MAX, sha(&root_bytes)),
         (top_path.clone(), ROLE_MAX, sha(&top_bytes)),
-        (inspection_path.clone(), ROLE_MAX, sha(&manifest)),
+        (inspection_path.clone(), INSPECTION_MAX, sha(&manifest)),
     ];
     let mut trees = vec![(
         bundle_path.clone(),

@@ -70,7 +70,7 @@ pub(super) fn root(root: &Signed<Root>, at: Timestamp) -> Result<()> {
             if !matches!(public, tough::schema::key::Key::Ed25519 { .. })
                 || public.key_id()? != *id
                 || !ids.insert(id.clone())
-                || !materials.insert(serde_json::to_vec(public)?)
+                || !materials.insert(public_material(public)?)
             {
                 return invalid("catalog Root keys are not distinct exact Ed25519 identities");
             }
@@ -115,8 +115,8 @@ pub(super) fn delegations(root: &Root, top: &Targets) -> Result<()> {
     let mut materials = root
         .keys
         .values()
-        .map(serde_json::to_vec)
-        .collect::<std::result::Result<BTreeSet<_>, _>>()?;
+        .map(public_material)
+        .collect::<Result<BTreeSet<_>>>()?;
     for (index, (name, paths)) in [
         (
             "official-definitions",
@@ -148,7 +148,7 @@ pub(super) fn delegations(root: &Root, top: &Targets) -> Result<()> {
         if !matches!(public, tough::schema::key::Key::Ed25519 { .. })
             || public.key_id()? != *id
             || !ids.insert(id.clone())
-            || !materials.insert(serde_json::to_vec(public)?)
+            || !materials.insert(public_material(public)?)
         {
             return invalid(
                 "catalog delegated keys must be separate from every root/top-level key",
@@ -175,4 +175,17 @@ pub(super) fn ids(context: &Context, role: DefinitionOnlineRole) -> Result<Vec<u
         }
     };
     Ok(id.to_vec())
+}
+
+fn public_material(key: &tough::schema::key::Key) -> Result<Vec<u8>> {
+    match key {
+        tough::schema::key::Key::Ed25519 { keyval, _extra, .. }
+            if _extra.is_empty()
+                && keyval._extra.is_empty()
+                && keyval.public.as_ref().len() == 32 =>
+        {
+            Ok(keyval.public.as_ref().to_vec())
+        }
+        _ => invalid("catalog key must have exact public-only Ed25519 encoding without aliases"),
+    }
 }

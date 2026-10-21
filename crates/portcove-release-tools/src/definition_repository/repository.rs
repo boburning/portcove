@@ -201,6 +201,11 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
     verify_history(context, &files)?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
     policy::top(&context.root.signed, &top, context.at)?;
+    if context.top.signed.version == top.signed.version
+        && &context.top_bytes != at(&roles, "targets.json")?
+    {
+        return invalid("catalog same-version offline Targets raw envelope replacement");
+    }
     if context.top.signed.version < top.signed.version
         || (context.top.signed.version == top.signed.version
             && top.signed.canonical_form()? != context.top.signed.canonical_form()?)
@@ -234,50 +239,135 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
             return invalid("catalog immutable content changed");
         }
     }
-    revision_floors(&logical, &context.targets)?;
+    historical_revision_floors(&files, &context.targets)?;
     Ok(files)
 }
-fn revision_floors(old: &Files, new: &Files) -> Result<()> {
-    let old_index: serde_json::Value = serde_json::from_slice(at(old, "definitions/index.json")?)?;
-    let new_index: serde_json::Value = serde_json::from_slice(at(new, "definitions/index.json")?)?;
-    let entries = new_index["definitions"]
-        .as_array()
-        .ok_or_else(|| TufRepositoryError::Invalid("catalog index definitions absent".into()))?;
-    for previous in old_index["definitions"]
-        .as_array()
-        .ok_or_else(|| TufRepositoryError::Invalid("catalog old index definitions absent".into()))?
-    {
-        if let Some(next) = entries.iter().find(|v| {
-            v["namespace"] == previous["namespace"] && v["stable_id"] == previous["stable_id"]
-        }) {
-            let old_revision = previous["revision"].as_u64().ok_or_else(|| {
-                TufRepositoryError::Invalid("old definition revision invalid".into())
-            })?;
-            let new_revision = next["revision"].as_u64().ok_or_else(|| {
-                TufRepositoryError::Invalid("new definition revision invalid".into())
-            })?;
-            if new_revision < old_revision || (new_revision == old_revision && next != previous) {
-                return invalid("catalog definition revision rollback/equivocation");
+fn indexed_entries(bytes: &[u8]) -> Result<BTreeMap<(String, String), serde_json::Value>> {
+    let index: serde_json::Value = serde_json::from_slice(bytes)?;
+    let entries = index["definitions"].as_array().ok_or_else(|| {
+        TufRepositoryError::Invalid("catalog historical index definitions absent".into())
+    })?;
+    if entries.len() > 4096 {
+        return invalid("catalog historical index definition bound exceeded");
+    }
+    let mut map = BTreeMap::new();
+    for entry in entries {
+        let namespace = entry["namespace"].as_str().ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog historical namespace absent".into())
+        })?;
+        let id = entry["stable_id"].as_str().ok_or_else(|| {
+            TufRepositoryError::Invalid("catalog historical stable id absent".into())
+        })?;
+        if entry["revision"].as_u64().is_none_or(|v| v == 0)
+            || map
+                .insert((namespace.to_owned(), id.to_owned()), entry.clone())
+                .is_some()
+        {
+            return invalid("catalog historical definition revision/identity differs");
+        }
+    }
+    Ok(map)
+}
+fn historical_revision_floors(files: &Files, new: &Files) -> Result<()> {
+    let mut definitions: BTreeMap<(String, String), serde_json::Value> = BTreeMap::new();
+    let mut policies: BTreeMap<String, (u64, Vec<u8>)> = BTreeMap::new();
+    let mut seen = BTreeSet::new();
+    for (name, bytes) in files.iter().filter(|(n, _)| {
+        n.starts_with("metadata/")
+            && (n.ends_with(".official-definitions.json") || n.ends_with(".official-policy.json"))
+    }) {
+        let role: Signed<Targets> = serde_json::from_slice(bytes)?;
+        let definition_role = name.ends_with(".official-definitions.json");
+        for (target, identity) in &role.signed.targets {
+            if definition_role && target.raw() != "definitions/index.json" {
+                continue;
+            }
+            if !definition_role && !target.raw().starts_with("policy/official/") {
+                return invalid("catalog historical policy scope differs");
+            }
+            let path = format!(
+                "targets/{}.{}",
+                hex::encode(&identity.hashes.sha256),
+                target.raw()
+            );
+            if !seen.insert(path.clone()) {
+                continue;
+            }
+            let raw = at(files, &path)?;
+            let maximum = if definition_role {
+                4 * 1024 * 1024
+            } else {
+                65536
+            };
+            if raw.len() as u64 != identity.length
+                || raw.len() > maximum
+                || sha(raw) != hex::encode(&identity.hashes.sha256)
+            {
+                return invalid("catalog historical target identity/bound differs");
+            }
+            if definition_role {
+                for (id, entry) in indexed_entries(raw)? {
+                    if let Some(old) = definitions.get(&id) {
+                        let old_revision = old["revision"].as_u64().unwrap();
+                        let new_revision = entry["revision"].as_u64().unwrap();
+                        if new_revision == old_revision && old != &entry {
+                            return invalid("catalog retained definition history equivocates");
+                        }
+                        if new_revision < old_revision {
+                            continue;
+                        }
+                    }
+                    definitions.insert(id, entry);
+                }
+            } else {
+                let policy: serde_json::Value = serde_json::from_slice(raw)?;
+                let field = if target.raw().ends_with(".launch.json") {
+                    "revision"
+                } else {
+                    "policy_revision"
+                };
+                let revision = policy[field].as_u64().filter(|v| *v > 0).ok_or_else(|| {
+                    TufRepositoryError::Invalid(
+                        "catalog historical policy/launch revision absent".into(),
+                    )
+                })?;
+                if let Some((old_revision, old_bytes)) = policies.get(target.raw()) {
+                    if revision == *old_revision && old_bytes != raw {
+                        return invalid("catalog retained policy/launch history equivocates");
+                    }
+                    if revision < *old_revision {
+                        continue;
+                    }
+                }
+                policies.insert(target.raw().into(), (revision, raw.clone()));
             }
         }
     }
-    for (name, bytes) in old.iter().filter(|(n, _)| n.starts_with("policy/")) {
-        if let Some(next) = new.get(name) {
-            let a: serde_json::Value = serde_json::from_slice(bytes)?;
-            let b: serde_json::Value = serde_json::from_slice(next)?;
+    let current = indexed_entries(at(new, "definitions/index.json")?)?;
+    for (id, old) in definitions {
+        if let Some(next) = current.get(&id) {
+            let a = old["revision"].as_u64().unwrap();
+            let b = next["revision"].as_u64().unwrap();
+            if b < a || (b == a && next != &old) {
+                return invalid("catalog historical definition revision rollback/equivocation");
+            }
+        }
+    }
+    for (name, (revision, bytes)) in policies {
+        if let Some(next) = new.get(&name) {
+            let value: serde_json::Value = serde_json::from_slice(next)?;
             let field = if name.ends_with(".launch.json") {
                 "revision"
             } else {
                 "policy_revision"
             };
-            let av = a[field]
-                .as_u64()
-                .ok_or_else(|| TufRepositoryError::Invalid("old policy revision absent".into()))?;
-            let bv = b[field]
-                .as_u64()
-                .ok_or_else(|| TufRepositoryError::Invalid("new policy revision absent".into()))?;
-            if bv < av || (bv == av && bytes != next) {
-                return invalid("catalog policy/launch rollback or equal-revision replacement");
+            let next_revision = value[field].as_u64().ok_or_else(|| {
+                TufRepositoryError::Invalid("catalog current policy/launch revision absent".into())
+            })?;
+            if next_revision < revision || (next_revision == revision && next != &bytes) {
+                return invalid(
+                    "catalog historical policy/launch rollback or equal-revision replacement",
+                );
             }
         }
     }
