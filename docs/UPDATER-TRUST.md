@@ -346,8 +346,15 @@ for either safe normal exit or an explicit one-restart action. The strict bounde
 journal binds the selected candidate to the observed preference revision and choice,
 installed application context, and canonical current-library root under process and
 OS locks. Only Portcove-owned application installations are admitted. Compare-and-
-swap revisions stop stale exit observers, a different candidate cannot overwrite a
-pending intent, and explicit recovery clears only this journal. Normal Exit matches
+swap revisions stop stale exit observers. An explicit restart may supersede an older
+restart request only with a strictly newer staged candidate on the same channel,
+installed context and library root, before any native launch or replacement state.
+The apply lock either excludes this change while the previous helper owns admission,
+or publishes a higher revision that permanently fences that helper's old request.
+This proves revision exclusion, not helper process teardown. Started, failed,
+successful, ambiguous and unrelated intents remain subject to their existing
+recovery rules; automatic safe-exit requests cannot supersede a pending intent.
+Malformed-state recovery still clears only this journal. Normal Exit matches
 safe exit and Restart to apply matches the explicit action. Crash, OS shutdown,
 Steam Stop, missing hooks and every mismatched observation remain held on restart.
 A matching record permits only a fresh revalidation attempt; it does not establish
