@@ -18,6 +18,13 @@ import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.m
 const repository = "repos/boburning/portcove";
 type Issuer = { app_id: number; installation_id: number };
 
+/** Exact transport envelope shared with the existing original-attempt
+ * readback contract. Serialization alone never establishes capture authority. */
+export function prepareNativeCheckTransport(raw: unknown) {
+  const wire = prepareNativeQualificationCheck(raw);
+  return { method: "POST" as const, endpoint: `${repository}/check-runs`, body: wire.body };
+}
+
 /** Provider response integrity only. Appointment comes exclusively from the
  * private installed parent and its independently pinned global configuration. */
 export function inspectNativeIssuerBoundary(raw: unknown, expected: Issuer) {
@@ -133,7 +140,7 @@ export async function publishActualNativePreSignReport(receipt: object) {
     jwt = "";
   try {
     let actual = await requireActualNativePreSignReport(receipt);
-    const wire = prepareNativeQualificationCheck(actual.report);
+    const wire = prepareNativeCheckTransport(actual.report);
     const configuration = actual.parent.authority_configuration;
     const issuer = configuration.apps.native_qualification;
     const custody = actual.parent.transport_configuration.native_issuer;

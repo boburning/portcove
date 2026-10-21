@@ -4,11 +4,49 @@ import {
   inspectNativeIssuerBoundary,
   inspectNativeCheckAttempt,
   publishActualNativePreSignReport,
+  prepareNativeCheckTransport,
 } from "./release-native-check-broker.mts";
 import { inspectSemanticIssuerRequest } from "./release-semantic-issuer-http.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import { prepareNativeQualificationCheck } from "./release-native-acceptance.mts";
+import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
+import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
+import { inspectNativeCheckRecoveryPlan } from "./release-native-candidate.mts";
+
+void test("actual broker transport envelope round trips through the existing original-attempt recovery contract", () => {
+  const report = nativeQualificationFixture(),
+    authorities = nativeAuthorityConfigurationFixture();
+  const request = prepareNativeStageRequest(
+    {
+      schema_version: 1,
+      stage: report.stage,
+      platform_label: report.platform_label,
+      candidate: report.candidate,
+      journey: report.journey,
+      invocation_id: report.producer.invocation_id,
+      setup_descriptor_sha256: "a".repeat(64),
+    },
+    authorities,
+  );
+  const wire = prepareNativeCheckTransport(report);
+  assert.deepEqual(Object.keys(wire).sort(), ["body", "endpoint", "method"]);
+  assert.deepEqual(inspectNativeCheckRecoveryPlan(request, wire, authorities).wire.body, wire.body);
+  assert.throws(
+    () =>
+      inspectNativeCheckRecoveryPlan(request, prepareNativeQualificationCheck(report), authorities),
+    /original Check request/,
+  );
+  assert.throws(
+    () =>
+      inspectNativeCheckRecoveryPlan(
+        request,
+        { ...wire, endpoint: "repos/other/repository/check-runs" },
+        authorities,
+      ),
+    /original Check request/,
+  );
+});
 
 void test("native issuer boundary requires the exact isolated App installation and single repository", () => {
   const issuer = { app_id: 102, installation_id: 202 };
