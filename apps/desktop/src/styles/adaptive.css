@@ -1,4 +1,12 @@
 @layer utilities {
+  @media (height <= 680px) {
+    [data-library-header] {
+      margin-block-end: 12px;
+    }
+    .library-query-tools {
+      margin-block-end: 8px;
+    }
+  }
   .interface-workspace > .app-shell {
     height: 100%;
   }

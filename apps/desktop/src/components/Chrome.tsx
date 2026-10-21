@@ -234,7 +234,10 @@ export function PageHeader({
 }) {
   const copy = pageCopy(view, portCount ?? 0);
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-6">
+    <header
+      data-library-header={view === "library" || undefined}
+      className="mb-6 flex flex-wrap items-center justify-between gap-6"
+    >
       <div>
         <h1 tabIndex={-1}>{copy.title}</h1>
         {view === "library" && libraryCount !== undefined && (
