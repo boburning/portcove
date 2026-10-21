@@ -1544,6 +1544,22 @@ export async function preparationScenarios({
     const first = await seed("opengoal-jak1", "success");
     const second = await seed("opengoal-jak2", "success");
     const before = [await status(first.port.id), await status(second.port.id)];
+    // Geometry diagnostics use local reviewed test images, so late catalog
+    // downloads or failure notices cannot change the focused row mid-resize.
+    for (const [index, port] of [first.port, second.port].entries()) {
+      const image = path.join(output, `library-layout-${port.id}.jpg`);
+      await copyFile(
+        new URL(`./testdata/catalog-artwork-${index === 0 ? "red" : "blue"}.jpg`, import.meta.url),
+        image,
+      );
+      const imported = transportValue(
+        "artwork_state",
+        command(["artwork", "import", port.id, image, "--slot", "cover"]),
+      );
+      assert.equal(imported.availability, "available");
+      assert.equal(imported.resolved_source.kind, "local_import");
+      artifacts.push(image);
+    }
     // Establish the post-seeding render before measuring. An in-flight
     // workspace read may legitimately have observed the two fixture commits.
     await browser.navigate().refresh();
@@ -1597,6 +1613,28 @@ export async function preparationScenarios({
             ),
           15_000,
           "Both exact prepared Library entries must render before layout measurement",
+        );
+        await browser.wait(
+          () =>
+            executeBrowserScript(browser, () => {
+              const frames = [
+                ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
+              ];
+              return (
+                document.fonts.status === "loaded" &&
+                frames.length === 2 &&
+                frames.every((frame) => {
+                  const image = frame.querySelector("img");
+                  return (
+                    frame.dataset.artworkSource === "local_import" &&
+                    image?.complete &&
+                    image.naturalWidth > 0
+                  );
+                })
+              );
+            }),
+          10_000,
+          "Both owned local artwork images must load before the resize journey",
         );
         for (const layout of ["Covers", "Compact rows"]) {
           await clickVisible(browser, await browser.findElement(button(layout)));
