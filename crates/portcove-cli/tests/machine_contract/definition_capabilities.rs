@@ -2,6 +2,57 @@ use super::{json_stdout, portcove};
 use serde_json::json;
 
 #[test]
+fn definition_publication_inspection_is_offline_and_never_opens_a_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = temporary.path().join("unopened");
+    let bundle = temporary.path().join("bundle");
+    std::fs::create_dir_all(bundle.join("definitions")).unwrap();
+    let index = br#"{"index_schema":1,"definitions":[],"contents":[]}"#;
+    std::fs::write(bundle.join("definitions/index.json"), index).unwrap();
+    for mode in ["--json", "--jsonl"] {
+        let result = portcove(
+            &library,
+            &[
+                mode,
+                "catalog",
+                "inspect-definition-publication",
+                bundle.to_str().unwrap(),
+            ],
+        );
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let response = json_stdout(&result);
+        assert_eq!(
+            response["command"],
+            "catalog.inspect-definition-publication"
+        );
+        assert_eq!(response["data"]["authority"], "none");
+        assert_eq!(response["data"]["publication_schema"], 1);
+        assert_eq!(
+            response["data"]["files"][0]["target"],
+            "definitions/index.json"
+        );
+        assert_eq!(response["data"]["definitions"], json!([]));
+        assert!(!library.exists());
+    }
+    std::fs::write(bundle.join("extra.json"), b"{}").unwrap();
+    let result = portcove(
+        &library,
+        &[
+            "--json",
+            "catalog",
+            "inspect-definition-publication",
+            bundle.to_str().unwrap(),
+        ],
+    );
+    assert!(!result.status.success());
+    assert!(!library.exists());
+}
+
+#[test]
 fn definition_requirements_are_inspected_offline_without_opening_a_library() {
     let temporary = tempfile::tempdir().unwrap();
     let library = temporary.path().join("unopened");

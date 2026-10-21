@@ -38,6 +38,8 @@ pub(crate) enum CatalogCommand {
     CheckCapabilities { file: PathBuf },
     /// Validate inert catalog declarations without changing the trusted catalog.
     InspectProposal { file: PathBuf },
+    /// Inspect a fixed local managed-definition publication bundle without authority or library writes.
+    InspectDefinitionPublication { directory: PathBuf },
     /// Interpret an inert upstream observation against the embedded catalog.
     InspectObservation {
         port_id: String,
@@ -111,6 +113,7 @@ impl CatalogCommand {
             Self::Show { .. } => "catalog.show",
             Self::CheckCapabilities { .. } => "catalog.check-capabilities",
             Self::InspectProposal { .. } => "catalog.inspect-proposal",
+            Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
             Self::InspectObservation { .. } => "catalog.inspect-observation",
             Self::Status => "catalog.status",
             Self::DefinitionAuthority { .. } => "catalog.definition-authority",
@@ -235,6 +238,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectProposal { .. } => {
             unreachable!("proposal inspection executes before opening a library")
+        }
+        CatalogCommand::InspectDefinitionPublication { .. } => {
+            unreachable!("publication inspection executes before opening a library")
         }
         CatalogCommand::TrustKey { public_key, yes } => {
             let key = portcove_core::CatalogTrustKey::from_public_key(&public_key)?;

@@ -142,6 +142,25 @@ struct Document {
     assessments: Vec<Assessment>,
 }
 
+/// Inert linkage inspection, not an accepted launch decision or policy grant.
+pub(crate) fn inspect_publication_launch(
+    bytes: &[u8],
+    namespace: &str,
+    stable_id: &str,
+    policy_bytes: &[u8],
+) -> Result<u64> {
+    let document = Document::parse(bytes)?;
+    if document.namespace != namespace
+        || document.stable_id != stable_id
+        || document.policy_sha256 != digest(policy_bytes)
+    {
+        return Err(PortcoveError::verification(
+            "publication launch assessment differs from its exact policy",
+        ));
+    }
+    Ok(document.revision)
+}
+
 impl Document {
     fn parse(bytes: &[u8]) -> Result<Self> {
         if bytes.is_empty() || bytes.len() as u64 > super::MAX_POLICY_BYTES {

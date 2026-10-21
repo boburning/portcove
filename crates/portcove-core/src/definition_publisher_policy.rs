@@ -244,6 +244,38 @@ struct PolicyDocument {
     curated_transitions: Option<CuratedTransitions>,
 }
 
+/// Supplied-byte publication inspection only; never constructs an authenticated
+/// policy, installs a grant or consumes any durable replay/decision state.
+pub(crate) fn inspect_publication_policy(
+    bytes: &[u8],
+    projection: &crate::DefinitionCatalogProjection,
+    index_sha256: &str,
+) -> Result<(u32, u64, String, bool)> {
+    let document = PolicyDocument::parse(bytes)?;
+    if document.namespace != projection.entry().namespace()
+        || document.stable_id != projection.entry().port().id
+        || (!matches!(document.decision, PolicyDecision::Revoked)
+            && !document.binds_projection(projection, index_sha256)?)
+    {
+        return Err(PortcoveError::verification(
+            "publication policy differs from its exact definition",
+        ));
+    }
+    let launch = matches!(
+        document.decision,
+        PolicyDecision::ManagedGithub {
+            launch_checks: Some(1),
+            ..
+        }
+    );
+    Ok((
+        document.policy_schema,
+        document.policy_revision,
+        document.grant_id,
+        launch,
+    ))
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CuratedTransitions {

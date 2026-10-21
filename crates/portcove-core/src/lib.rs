@@ -29,6 +29,7 @@ mod definition_loader;
 #[cfg(test)]
 mod definition_policy_tests;
 mod definition_projection;
+mod definition_publication;
 mod definition_repository;
 mod durability;
 mod error;
@@ -145,6 +146,10 @@ pub use definition_eligibility::{
 pub use definition_entry::DefinitionEntryInspection;
 pub use definition_index::{DefinitionContentIndex, IndexedDefinition};
 pub use definition_projection::DefinitionCatalogProjection;
+pub use definition_publication::{
+    DefinitionPublicationFile, DefinitionPublicationIdentity, DefinitionPublicationInspection,
+    inspect_definition_publication, inspect_definition_publication_bytes,
+};
 pub use definition_repository::{
     AuthenticatedDefinitionCandidate, AuthenticatedDefinitionProvenance,
     DefinitionReplayDisposition, DefinitionReplayFloor, DefinitionRepositorySource,
