@@ -7,7 +7,11 @@ import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
 type SigningRole = "payload" | TufSigningRole;
-type ClockRole = SigningRole | "classification-writer" | "classification-observer";
+type ClockRole =
+  | SigningRole
+  | "classification-writer"
+  | "classification-observer"
+  | "candidate-building";
 type JobIdentity = {
   run_id: string;
   run_attempt: number;
@@ -38,11 +42,12 @@ function signingOriginalJobDeadline(
       "timestamp",
       "classification-writer",
       "classification-observer",
+      "candidate-building",
     ].includes(String(rawRole))
   )
     throw new Error("fixed online signing role required");
   const role = rawRole as ClockRole;
-  const maximum = role === "payload" ? 570000 : 115000;
+  const maximum = role === "payload" ? 570000 : role === "candidate-building" ? 405000 : 115000;
   if (
     !isRecord(raw) ||
     !Array.isArray(raw.jobs) ||
@@ -65,11 +70,13 @@ function signingOriginalJobDeadline(
     ids.add(job.id);
   }
   const name =
-    role === "classification-writer"
-      ? "Persist independently reviewed classification"
-      : role === "classification-observer"
-        ? "Observe release input protections"
-        : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`).reader_name;
+    role === "candidate-building"
+      ? "Authenticate release control inputs"
+      : role === "classification-writer"
+        ? "Persist independently reviewed classification"
+        : role === "classification-observer"
+          ? "Observe release input protections"
+          : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -163,4 +170,12 @@ export function currentClassificationJobDeadline(role: unknown, ...args: Current
   if (role !== "writer" && role !== "observer")
     throw new Error("fixed classification clock role required");
   return currentSigningJobDeadline(`classification-${role}`, ...args);
+}
+
+/** Admission clock only; this does not create an executor or signing role. */
+export function buildingOriginalJobDeadline(...args: BudgetArguments) {
+  return signingOriginalJobDeadline("candidate-building", ...args);
+}
+export function currentBuildingJobDeadline(...args: CurrentArguments) {
+  return currentSigningJobDeadline("candidate-building", ...args);
 }

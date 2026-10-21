@@ -6,6 +6,7 @@ import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 import {
   acquireReleaseAdmission,
+  runFixedBuildingConfiguration,
   requireActualReleaseAdmissionContext,
   acquireActualCandidateBuildingEligibility,
   requireActualCandidateBuildingEligibility,
@@ -917,4 +918,25 @@ void test("capacity bracketing snapshots aliased observations and initial ratifi
   assert.equal(reads, 2);
   assert.equal(result.capacity.eligibility, "ineligible");
   assert.ok(result.holds.includes("bounded-no-spend-attempt-ineligible"));
+});
+
+void test("fixed building caller refuses imported configuration and exhausted original clock before provider work", async () => {
+  for (const value of [
+    {},
+    { configuration: {}, tools: {}, native_locators: [] },
+    {
+      configuration: {},
+      tools: { artifact: {}, bundle: {} },
+      native_locators: [],
+      descriptor: { admitted: true },
+    },
+  ])
+    await assert.rejects(
+      runFixedBuildingConfiguration(value, process.cwd(), performance.now() + 1000),
+      /caller fields/,
+    );
+  await assert.rejects(
+    runFixedBuildingConfiguration({}, process.cwd(), performance.now() - 1),
+    /deadline/,
+  );
 });

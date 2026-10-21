@@ -16,6 +16,7 @@ import {
   tufOriginalJobDeadline,
   payloadOriginalJobDeadline,
   classificationOriginalJobDeadline,
+  buildingOriginalJobDeadline,
 } from "./release-signing-job-budget.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
@@ -188,4 +189,40 @@ void test("classification original job clocks keep their own names, first attemp
     );
     assert.throws(() => tufOriginalJobDeadline(`classification-${role}`, inventory, identity));
   }
+});
+
+void test("building admission original clock includes tools/acquisition and reserves cleanup inside seven minutes", () => {
+  const started = Date.parse("2026-10-20T00:00:00Z");
+  const job = {
+    id: 501,
+    run_id: Number(identity.run_id),
+    run_attempt: 1,
+    head_sha: identity.controller_revision,
+    status: "in_progress",
+    started_at: new Date(started).toISOString(),
+    name: "Authenticate release control inputs",
+  };
+  assert.equal(
+    buildingOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, started + 100000, 1000),
+    306000,
+  );
+  for (const bad of [
+    { ...job, name: "Sign admitted updater payloads" },
+    { ...job, run_attempt: 2 },
+    { ...job, head_sha: "b".repeat(40) },
+  ])
+    assert.throws(() =>
+      buildingOriginalJobDeadline(
+        { total_count: 1, jobs: [bad] },
+        identity,
+        started + 100000,
+        1000,
+      ),
+    );
+  assert.throws(() =>
+    buildingOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, started + 405000, 1000),
+  );
+  assert.throws(() =>
+    tufOriginalJobDeadline("candidate-building", { total_count: 1, jobs: [job] }, identity),
+  );
 });
