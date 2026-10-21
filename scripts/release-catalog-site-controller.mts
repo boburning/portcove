@@ -30,7 +30,7 @@ import {
   readRemoteCoordinatorSnapshot,
 } from "./release-coordinator-recovery.mts";
 import { assertCatalogPublicationBaseline } from "./release-catalog-metadata-contract.mts";
-import { inspectCatalogCapacitySubject } from "./release-catalog-publication-contract.mts";
+import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import {
@@ -188,14 +188,14 @@ export async function runCatalogSitePublicationController(
         transport: { cwd: directory, deadline },
       });
       let checkpoint = state.checkpoint;
-      const subject = inspectCatalogCapacitySubject(state.input.catalog_publication);
+      const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
       const reservation = (snapshot: { checkpoint: string; input: Record<string, unknown> }) => {
         if (
           snapshot.checkpoint !== checkpoint ||
           snapshot.input.active_candidate != null ||
-          digest(inspectCatalogCapacitySubject(snapshot.input.catalog_publication)) !==
+          digest(inspectCatalogPublicationDescriptor(snapshot.input.catalog_publication)) !==
             digest(subject) ||
-          digest(assertCatalogPublicationBaseline(subject.descriptor, snapshot.input)) !==
+          digest(assertCatalogPublicationBaseline(subject, snapshot.input)) !==
             digest(actual.descriptor)
         )
           throw new Error("catalog site current subject, components or checkpoint changed");
@@ -249,7 +249,7 @@ export async function runCatalogSitePublicationController(
         reservation(snapshot);
         const facts = controls.readMaintenance(api);
         if (
-          facts.reader.purpose !== "catalog-site-publication-controls" ||
+          facts.purpose !== "catalog-site-publication-controls" ||
           facts.pause.publication_paused ||
           !facts.resource_policy_matches_controller
         )
