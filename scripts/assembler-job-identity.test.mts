@@ -706,3 +706,28 @@ void test("complete controller D1 jobs authenticate distinct environments and ac
       await assert.rejects(verify(bad.token, wanted, bad));
   }
 });
+
+void test("classification signed identity cannot outlive its original job deadline", async () => {
+  const environment = "production-release-classification";
+  const wanted = {
+    ...expected,
+    audience: "portcove-release-classification-v1",
+    subject: controllerOidcSubject(expected.controller_ref, environment),
+  };
+  const good = fixture(
+    { aud: wanted.audience, sub: wanted.subject, environment },
+    {},
+    {
+      workflow: productionControllerWorkflow,
+      job: "Persist independently reviewed classification",
+    },
+  );
+  await assert.rejects(
+    verifyProductionClassificationWriterJobIdentity(good.token, wanted, {
+      ...good,
+      transport: { ...good.transport, deadline: performance.now() - 1 },
+    }),
+    /deadline/,
+  );
+  assert.equal(good.counts().requests, 0);
+});

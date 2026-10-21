@@ -215,7 +215,17 @@ async function runOperation(classification?: {
             : mode === "observe"
               ? verifyProtectionObserverJobIdentity
               : verifyClassificationWriterJobIdentity;
-      const identity = await verify(token, expected, { transport: { cwd: process.cwd() } }, phase);
+      const identity = await verify(
+        token,
+        expected,
+        {
+          transport: {
+            cwd: process.cwd(),
+            ...(classification ? { deadline: classification.deadline } : {}),
+          },
+        },
+        phase,
+      );
       if (observing) observerIdentity = identity;
       await receipt.writeFile(
         JSON.stringify({

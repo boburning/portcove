@@ -19,11 +19,14 @@ and retain the five-second cleanup reserve. Re-running another CLI step cannot
 restart that clock. The production writer uses ratified semantic/writer App IDs;
 the legacy producer-configuration consistency check remains intact.
 
-Focused validation: 38 tests passed with no skips across existing identity,
+Focused validation: 39 tests passed with no skips across existing identity,
 source-admission, classification-request and role-controller suites. An initial
 probe test expected duplicate/conflicting review to return a routing hold; the
 existing stricter matcher refused it. The test now verifies that refusal and zero
-writes. No production source or acceptance check was weakened.
+writes. Independent review found that the actual identity verifier had not
+received the original classification deadline. The call now forwards that same
+deadline; the added signed-identity test proves an expired original clock refuses
+before provider reads. No production source or acceptance check was weakened.
 
 This is the adapter portion of the complete workflow connection. Final DAG and
 closed locator serialization, actual worker/App configuration, public-key/custody
