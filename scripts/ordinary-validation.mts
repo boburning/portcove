@@ -336,14 +336,6 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ],
   ["scripts/release-preparation-source.mts", ["scripts/release-preparation-source.test.mts"]],
   ["scripts/release-coordinator-driver.mts", ["scripts/release-coordinator-driver.test.mts"]],
-  [
-    "scripts/release-run-artifact-inventory.mts",
-    ["scripts/release-run-artifact-inventory.test.mts"],
-  ],
-  [
-    "scripts/release-metadata-site-controller.mts",
-    ["scripts/release-metadata-site-controller.test.mts"],
-  ],
   ["scripts/release-coordinator-deadline.mts", ["scripts/release-coordinator-deadline.test.mts"]],
   ["scripts/release-review-request.mts", ["scripts/release-review-request.test.mts"]],
   ["scripts/release-candidate-dispatch.mts", ["scripts/release-candidate-dispatch.test.mts"]],
