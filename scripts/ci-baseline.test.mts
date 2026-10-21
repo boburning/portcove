@@ -38,6 +38,23 @@ void test("Linux reviewer boundary edits retain protected ownership and Python c
   }
 });
 
+void test("semantic source acquisition retains release ownership and its Python parser boundary contracts", () => {
+  for (const file of [
+    "scripts/release-semantic-source.mts",
+    "scripts/semantic-source-git.py",
+    "scripts/semantic-source-git.test.py",
+    "scripts/qualify-semantic-source.mts",
+  ]) {
+    const plan = make([file]);
+    assert.ok(plan.areas.includes("release-security"), file);
+    assert.ok(
+      baselineContractTests(plan).includes("scripts/release-semantic-source.test.mts"),
+      file,
+    );
+    assert.ok(baselineRequiresPython(plan), file);
+  }
+});
+
 const make = (files: string[]) =>
   buildValidationPlan({
     changes: files.map((file: string) => ({
