@@ -555,8 +555,12 @@ export async function readinessScenario({
       });
       artifacts.push(screenshot);
       await controls.click(By.css(".detail-back"));
-      await controls.click(controls.button("Review launch"));
+      await controls.click(By.css(`[data-detail-origin="library:card:${port.id}:review"]`));
       await browser.wait(until.elementLocated(By.css(".detail-panel")), 10_000);
+      assert.equal(
+        await browser.findElement(By.css(".detail-panel")).getAttribute("data-detail-port-id"),
+        port.id,
+      );
       await browser.wait(
         async () =>
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
