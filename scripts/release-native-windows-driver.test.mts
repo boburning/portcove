@@ -200,7 +200,7 @@ $valid=@(
   [ordered]@{stage='release-publication';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=$package}
 )
-foreach($value in $valid){Assert-DriverStageSelection $value}
+foreach($value in $valid){Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}
 $invalid=@(
   [ordered]@{stage='public-accepted';journey=$null;predecessor=$null},
   [ordered]@{stage='payload-signing';journey=[ordered]@{kind='initial-empty-feed'};predecessor=$null},
@@ -209,7 +209,7 @@ $invalid=@(
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=124;sha256='a'*64}},
   [ordered]@{stage='release-publication';journey=[ordered]@{predecessor=[ordered]@{package=$package}};predecessor=[ordered]@{bytes=123;sha256='b'*64}}
 )
-$refused=0;foreach($value in $invalid){try{Assert-DriverStageSelection $value}catch{$refused++}}
+$refused=0;foreach($value in $invalid){try{Assert-DriverStageSelection ($value|ConvertTo-Json -Depth 8|ConvertFrom-Json)}catch{$refused++}}
 if($refused -ne 6){throw 'native stage guard widened'}
 [ordered]@{accepted=3;refused=6;scope='inert stage guard only'}|ConvertTo-Json -Compress
 `;
