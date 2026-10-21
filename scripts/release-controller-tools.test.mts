@@ -51,8 +51,8 @@ void test("complete job composite has fixed worker syntax, exclusive key transpo
   const action: unknown = parsed.toJS();
   assert.ok(isRecord(action) && isRecord(action.runs));
   assert.equal(action.runs.using, "composite");
-  const steps = action.runs.steps;
-  assert.ok(Array.isArray(steps));
+  assert.ok(Array.isArray(action.runs.steps));
+  const steps: unknown[] = action.runs.steps;
   assert.equal(steps.length, 4);
   const pump = steps[1];
   assert.ok(isRecord(pump) && isRecord(pump.with));
