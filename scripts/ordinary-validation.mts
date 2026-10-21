@@ -621,6 +621,38 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/release-bootstrap-preparation.test.mts",
     ],
   ],
+  ...["fuse", "services"].flatMap((name): [string, string[]][] => [
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.test.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+  ]),
+  [
+    "apps/desktop/scripts/native-linux-public-plan.mts",
+    ["scripts/native-linux-public-plan.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-state.mts",
+    [
+      "apps/desktop/scripts/desktop-public-update-state.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-files.mts",
+    [
+      "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-linux-public-update.mts",
+    ["apps/desktop/scripts/desktop-linux-public-update.native.test.mts"],
+  ],
   ...[
     "apps/desktop/scripts/native-linux-public-network.py",
     "apps/desktop/scripts/native-linux-public-network.test.py",
@@ -974,6 +1006,10 @@ const releaseContractTests = Object.freeze([
   "scripts/native-linux-driver-http.test.mts",
   "scripts/native-linux-isolated-init.test.mts",
   "scripts/native-linux-isolated-plan.test.mts",
+  "scripts/native-linux-public-fuse.test.mts",
+  "scripts/native-linux-public-services.test.mts",
+  "scripts/native-linux-public-plan.test.mts",
+
   "scripts/release-native-linux-driver.test.mts",
   "scripts/native-qualification-linux-supervisor.test.mts",
   "scripts/native-qualification-linux-transfer.test.mts",
