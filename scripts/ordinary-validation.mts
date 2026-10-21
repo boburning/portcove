@@ -537,6 +537,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/release-catalog-review-request.mts",
     [
+      "scripts/release-catalog-review-maintenance.test.mts",
       "scripts/release-catalog-review-request.test.mts",
       "scripts/release-catalog-review-disposition.test.mts",
       "scripts/release-catalog-coordinator.test.mts",
@@ -773,6 +774,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   [
     "scripts/release-controller-wake.mts",
     [
+      "scripts/release-catalog-review-maintenance.test.mts",
       "scripts/release-controller-wake.test.mts",
       "scripts/release-controller-catalog-routing.test.mts",
     ],
@@ -1146,6 +1148,24 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/ordinary-validation.mts",
     [...selectionContractTests, "scripts/validation-evidence.test.mts"],
   ],
+  [
+    "scripts/release-capacity-operation.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  [
+    "scripts/release-coordinator-state.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  ["scripts/release-coordinator.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
+  [
+    "scripts/release-metadata-contract.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  [
+    "scripts/release-semantic-worker-recovery.mts",
+    ["scripts/release-catalog-review-maintenance.test.mts"],
+  ],
+  ["scripts/release-semantic-worker.mts", ["scripts/release-catalog-review-maintenance.test.mts"]],
 ]);
 
 const workflowTests = new Map([

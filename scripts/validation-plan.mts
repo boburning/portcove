@@ -304,6 +304,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-catalog-recovery.mts",
   "scripts/release-catalog-continuation.test.mts",
   "scripts/release-catalog-context-boundary.test.mts",
+  "scripts/release-catalog-review-maintenance.test.mts",
   "scripts/release-catalog-site-controller.mts",
   "scripts/fixtures/release-catalog-site-fixture.mts",
   "scripts/release-catalog-publication-contract.mts",
