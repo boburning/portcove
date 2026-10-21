@@ -203,7 +203,7 @@ void test("aggregate upload preimage is hash-bound in existing pending identity 
     /identity differs/u,
   );
   const { aggregate_expectation: _removed, ...without } = operation;
-  assert.throws(() => inspectCapacityOperation(without), /identity differs/u);
+  assert.throws(() => inspectCapacityOperation(without), /exact aggregate upload preimage/u);
   for (const files of [
     [],
     [...expectation.files, ...expectation.files],
@@ -270,9 +270,9 @@ void test("actual bounded archive member readback brackets complete inventory an
     const api = {
       request(method: string, endpoint: string) {
         assert.equal(method, "GET");
-        assert.equal(
+        assert.match(
           endpoint,
-          "repos/boburning/portcove/actions/runs/9988/artifacts?per_page=100&page=1",
+          /^repos\/boburning\/portcove\/actions\/runs\/9988\/artifacts\?per_page=100&page=[1-4]$/u,
         );
         reads++;
         const value =
@@ -292,7 +292,10 @@ void test("actual bounded archive member readback brackets complete inventory an
               : [value];
         return {
           status: 200,
-          body: { total_count: artifacts.length, artifacts },
+          body: {
+            total_count: fault === "over-cap" ? 401 : fault === "partial" ? 2 : artifacts.length,
+            artifacts: fault === "partial" && reads > 1 ? [] : artifacts,
+          },
           headers: new Map<string, string>(),
         };
       },
@@ -312,6 +315,8 @@ void test("actual bounded archive member readback brackets complete inventory an
   assert.deepEqual(result.artifact, { id: 99, sha256: sha(archive) });
   for (const fault of ["missing", "duplicate", "source", "bytes", "drift"])
     await assert.rejects(exercise(fault));
+  await assert.rejects(exercise("over-cap"), /artifact inventory incomplete/u);
+  await assert.rejects(exercise("partial"), /artifact inventory omitted records/u);
 });
 
 void test("building resume needs exact retained stage and never reinterprets imported eligibility", async () => {

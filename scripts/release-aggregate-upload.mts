@@ -1,3 +1,4 @@
+import { readCompleteRunArtifactInventory } from "./release-run-artifact-inventory.mts";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -70,49 +71,21 @@ export async function readAdmittedAggregateUpload(
     throw new Error("admitted aggregate source differs from durable upload preimage");
   const name = `trusted-release-final-${String(producer.run_id)}-${String(producer.run_attempt)}`;
   const inventory = () => {
-    const found: Record<string, unknown>[] = [];
-    const seen = new Set<number>();
-    let count: number | undefined;
-    for (let page = 1; page <= 10; page++) {
+    const complete = readCompleteRunArtifactInventory((page) => {
       active(deadline);
       const response = api.request(
         "GET",
         `${base}/actions/runs/${String(producer.run_id)}/artifacts?per_page=100&page=${page}`,
       );
       active(deadline);
-      const body = response.body;
-      if (
-        response.status !== 200 ||
-        !isRecord(body) ||
-        !Array.isArray(body.artifacts) ||
-        typeof body.total_count !== "number" ||
-        !Number.isSafeInteger(body.total_count) ||
-        body.total_count < 0 ||
-        body.total_count >= 1000 ||
-        body.artifacts.length > 100 ||
-        (count !== undefined && count !== body.total_count)
-      )
+      if (response.status !== 200)
         throw new Error("complete aggregate artifact inventory unavailable");
-      count = body.total_count;
-      for (const item of body.artifacts) {
-        if (
-          !isRecord(item) ||
-          typeof item.id !== "number" ||
-          !Number.isSafeInteger(item.id) ||
-          item.id < 1 ||
-          seen.has(item.id)
-        )
-          throw new Error("duplicate aggregate artifact identity");
-        seen.add(item.id);
-        if (item.name === name) found.push(item);
-      }
-      if (body.artifacts.length < 100) {
-        if (seen.size !== count || found.length !== 1)
-          throw new Error("exact unique aggregate artifact unavailable; absence is ambiguous");
-        return inspect(found[0]!);
-      }
-    }
-    throw new Error("aggregate artifact coverage exhausted");
+      return response.body;
+    });
+    const found = complete.artifacts.filter((item) => item.name === name);
+    if (found.length !== 1)
+      throw new Error("exact unique aggregate artifact unavailable; absence is ambiguous");
+    return inspect(found[0]!);
   };
   const inspect = (raw: Record<string, unknown>) => {
     if (

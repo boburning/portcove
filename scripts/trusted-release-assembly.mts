@@ -266,13 +266,14 @@ export async function assembleTrustedRelease(
 ) {
   const started = performance.now();
   const deadline = Math.min(started + maximumMilliseconds, options.deadline ?? Infinity);
-  const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawRequest);
-  const root = path.resolve(ownedRoot);
-  const input = await assertOwnedUnlinkedPath(root, inputRoot, "assembly input");
   const withinBound = () => {
     if (!Number.isFinite(deadline) || performance.now() >= deadline)
       throw new Error("assembly duration bound exhausted");
   };
+  withinBound();
+  const { accepted, policy, labels } = await inspectTrustedAssemblyInput(rawRequest);
+  const root = path.resolve(ownedRoot);
+  const input = await assertOwnedUnlinkedPath(root, inputRoot, "assembly input");
   for (const file of accepted.files) {
     await assertOwnedUnlinkedPath(
       root,
@@ -280,6 +281,7 @@ export async function assembleTrustedRelease(
       "assembly input file",
     );
   }
+  withinBound();
   const directory = await mkdtemp(path.join(root, "trusted-assembly-"));
   try {
     const staging = path.join(directory, "inputs");

@@ -76,6 +76,7 @@ void test(
     candidate.phase = "qualifying";
     candidate.release_run = { run_id: 12345, attempt: 1, revision: candidate.prepared_commit };
     const qualifying = await checkpointReleaseOpportunity(f.bare, f.migrated.checkpoint, input);
+    await publishCoordinatorCheckpoint(f.bare, qualifying.checkpoint, f.config, { api: f.api });
     const proof = {
       schema_version: 1,
       candidate_sha256: candidateProgressIdentity(candidate),
