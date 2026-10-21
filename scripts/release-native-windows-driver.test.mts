@@ -36,14 +36,14 @@ $null=New-Item -ItemType Directory $installRoot;$null=New-Item -ItemType Directo
 $application=Join-Path $installRoot 'portcove-desktop.exe';$uninstaller=Join-Path $installRoot 'uninstall.exe'
 [IO.File]::WriteAllText($application,'inert original V0 bytes; never execute');[IO.File]::WriteAllText($uninstaller,'inert uninstaller; never execute')
 $sid='S-1-5-21-1-2-3-1003';$nativeAccount=@{binding=@{account_sid=$sid}}
-$registered='Microsoft.PowerShell.Core\Registry::HKEY_USERS\'+$sid+'\Software\Microsoft\Windows\CurrentVersion\Uninstall\Portcove'
-$script:registration=[pscustomobject]@{PSPath=$registered;DisplayVersion='0.1.0-beta.1'}
+$registered='Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\Portcove'
+$script:registration=[pscustomobject]@{PSPath=$registered;account_sid=$sid;DisplayVersion='0.1.0-beta.1'}
 function Get-UninstallEntries {param($location) @($script:registration)}
 $continued=@{install_root=$installRoot;library_root=$libraryRoot;application=$application;uninstaller=$uninstaller;registration_path=$registered;uninstaller_sha256=(Get-FileHash $uninstaller).Hash.ToLowerInvariant()}
 $ordinaryPublicInputs=@{prior_version='0.1.0-beta.1';prior_executable_sha256=(Get-FileHash $application).Hash.ToLowerInvariant()}
 Invoke-Expression $guard[0].Extent.Text
 $refused=0
-$script:registration.PSPath=$registered.Replace($sid,'S-1-5-21-1-2-3-1002');try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++};$script:registration.PSPath=$registered
+$script:registration.account_sid='S-1-5-21-1-2-3-1002';try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++};$script:registration.account_sid=$sid
 $continued.library_root=Join-Path $runRoot 'other';try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++};$continued.library_root=$libraryRoot
 [IO.File]::AppendAllText($uninstaller,'changed');try{Invoke-Expression $guard[0].Extent.Text}catch{$refused++}
 if($refused -ne 3){throw 'original B guard widened'}

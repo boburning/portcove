@@ -664,6 +664,17 @@ void test("pre-sign reconstruction joins exact installed/host/runtime facts and 
     f.prepared.request.required_scenarios,
   );
   assert.equal(result.report.host.execution_context, "native-windows11-26h2-account");
+  const ownHive = structuredClone(f.evidence);
+  const ownSid = ownHive.installer.details.registration_path.match(/HKEY_USERS\\([^\\]+)\\/u)?.[1];
+  assert.ok(ownSid);
+  Object.assign(ownHive.installer.details, {
+    registration_account_sid: ownSid,
+  });
+  ownHive.installer.details.registration_path =
+    "Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove";
+  reconstructNativePreSignReport(f.prepared, ownHive, f.source);
+  Object.assign(ownHive.installer.details, { registration_account_sid: "S-1-5-21-1-2-3-9999" });
+  assert.throws(() => reconstructNativePreSignReport(f.prepared, ownHive, f.source));
   await assert.rejects(
     prepareActualNativePreSignReport({ ...result }),
     /actual fixed parent Windows capture/,

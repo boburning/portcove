@@ -423,6 +423,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/native-qualification-account-client.ps1",
   "scripts/native-qualification-account-client.mts",
   "scripts/native-qualification-account-adapter.psm1",
+  "scripts/native-qualification-account-registry.ps1",
   "apps/desktop/scripts/desktop-native-account-session.mts",
   "apps/desktop/scripts/desktop-windows-public-update.mts",
   "apps/desktop/scripts/desktop-windows-public-update-files.mts",

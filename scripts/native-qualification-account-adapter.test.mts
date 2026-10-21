@@ -4,7 +4,67 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 void test(
-  "installer registration uses the actual qualification SID hive without broker HKCU fallback",
+  "own-account registry joins held root, raw streams and positive settlement",
+  { skip: process.platform !== "win32" },
+  () => {
+    const script = String.raw`
+$ErrorActionPreference='Stop'
+Import-Module $env:PORTCOVE_TEST_NATIVE_ADAPTER
+$module=Get-Module native-qualification-account-adapter
+$directory=Join-Path ([IO.Path]::GetTempPath()) ('native-registry-'+[Guid]::NewGuid().ToString('N'))
+$null=[IO.Directory]::CreateDirectory($directory)
+try {
+ & $module {
+  param($directory)
+  $script:fixtureDirectory=$directory;$script:variation='good'
+  Set-Item Function:script:Start-PortcoveNativeAccountRoot -Value {
+   param($Session,$Id,$Executable,$Arguments,$Directory)
+   if($Arguments[4] -cne (Join-Path (Split-Path $env:PORTCOVE_TEST_NATIVE_ADAPTER) 'native-qualification-account-registry.ps1') -or $Arguments[5] -cne '-Invocation' -or $Arguments[6] -cne $Session.binding.invocation_id){throw 'reader argv widened'}
+   $value=[ordered]@{schema_version=1;invocation=$Session.binding.invocation_id;pid=456;account_sid=$Session.binding.account_sid;profile=$Session.binding.profile_root;hive_present=$true;provenance='target-account-HKCU';authority='none';uninstall=@();webview=@()}
+   switch($script:variation){'sid'{$value.account_sid='S-1-5-21-1-2-3-9999'}'profile'{$value.profile='C:\other'}'provenance'{$value.provenance='broker-HKU'}}
+   [IO.File]::WriteAllText((Join-Path $script:fixtureDirectory ($Id+'.stdout.bin')),($value|ConvertTo-Json -Compress),[Text.UTF8Encoding]::new($false))
+   [IO.File]::WriteAllText((Join-Path $script:fixtureDirectory ($Id+'.stderr.bin')),$(if($script:variation -eq 'stderr'){'original denial'}else{''}))
+   [pscustomobject]@{pid=456;started_filetime='134000000000000000';path=$Executable}
+  }
+  Set-Item Function:script:Invoke-PortcoveNativeAccountCommand -Value {
+   param($Session,$Operation,$Id)
+   if($Operation -cne 'readback'){throw 'unexpected registry operation'}
+   [pscustomobject]@{root_pid=456;root_created_filetime='134000000000000000';root_exited=$true;job_empty=($script:variation -ne 'live');remaining_pids=@();exit_code=$(if($script:variation -eq 'failed'){1}else{0})}
+  }
+  $session=[pscustomobject]@{keeper=@{pid=1};keeper_directory=$directory;binding=@{capture_root=$directory;account_sid='S-1-5-21-1-2-3-1002';profile_root='C:\Users\qualification';invocation_id=('a'*64)}}
+  $value=Read-PortcoveNativeOwnRegistry $session
+  if($value.account_sid -cne $session.binding.account_sid -or $value.provenance -cne 'target-account-HKCU'){throw 'positive identity lost'}
+  $refused=0
+  foreach($case in @('sid','profile','provenance','stderr','live','failed')){
+   $script:variation=$case
+   try{$null=Read-PortcoveNativeOwnRegistry $session}catch{$refused++}
+  }
+  if($refused -ne 6){throw 'registry identity/settlement refusal widened'}
+  $session.registry_sequence=16
+  try{$null=Read-PortcoveNativeOwnRegistry $session;throw 'budget accepted'}catch{if($_.Exception.Message -notmatch 'budget exhausted'){throw}}
+ } $directory
+ Write-Output 'fixed-own-registry-pass'
+} finally {Remove-Item -LiteralPath $directory -Recurse -Force}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], {
+      env: {
+        ...process.env,
+        PORTCOVE_TEST_NATIVE_ADAPTER: fileURLToPath(
+          new URL("./native-qualification-account-adapter.psm1", import.meta.url),
+        ),
+      },
+      encoding: "utf8",
+      timeout: 15000,
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /fixed-own-registry-pass/u);
+  },
+);
+
+void test(
+  "installer registration uses the held target SID and original HKCU provenance",
   { skip: process.platform !== "win32" },
   () => {
     const script = String.raw`
@@ -19,10 +79,10 @@ $base='Microsoft.PowerShell.Core\Registry::'
 $tail='\Software\Microsoft\Windows\CurrentVersion\Uninstall\Portcove'
 $sid='S-1-5-21-1-2-3-1002'
 Assert-InstallerUserRegistration ($base+'HKEY_CURRENT_USER'+$tail)
-Assert-InstallerUserRegistration ($base+'HKEY_USERS\'+$sid+$tail) $sid
+Assert-InstallerUserRegistration ($base+'HKEY_CURRENT_USER'+$tail) $sid $sid
 $refused=0
-foreach($wrong in @('HKEY_CURRENT_USER','HKEY_LOCAL_MACHINE',('HKEY_USERS\'+$sid+'0'),('HKEY_USERS\S-1-5-21-1-2-3-1001'))){
-  try{Assert-InstallerUserRegistration ($base+$wrong+$tail) $sid}catch{$refused++}
+foreach($wrong in @(('HKEY_USERS\'+$sid),'HKEY_LOCAL_MACHINE',('HKEY_USERS\'+$sid+'0'),('HKEY_USERS\S-1-5-21-1-2-3-1001'))){
+  try{Assert-InstallerUserRegistration ($base+$wrong+$tail) $sid $sid}catch{$refused++}
 }
 if($refused -ne 4){throw 'qualification hive ownership widened'}
 [ordered]@{positive_paths=2;refused_paths=$refused;scope='inert registry path assertions only'}|ConvertTo-Json -Compress

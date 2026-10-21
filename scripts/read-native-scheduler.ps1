@@ -96,7 +96,7 @@ if($paths.PSObject.Properties.Name -ccontains 'public_boundary'){
     $registered=[Environment]::ExpandEnvironmentVariables([string](Get-ItemProperty -LiteralPath $profileKey -Name ProfileImagePath -ErrorAction Stop).ProfileImagePath)
     if(-not [string]::Equals([IO.Path]::GetFullPath($registered),[IO.Path]::GetFullPath($public.profile_root),[StringComparison]::OrdinalIgnoreCase)){throw 'Public profile registration differs'}
     $publicAccountObservation=[ordered]@{account_name=[string]$user.Name;account_sid=[string]$user.SID.Value;enabled=[bool]$user.Enabled;profile_registered=$true;
-        hku_loaded=[bool](Test-Path -LiteralPath ('Registry::HKEY_USERS\'+$public.account_sid));
+        hku_loaded=$null; # Broker does not observe another account hive; actual target reader is required at launch.
         profile=(Read-PublicAccountRoot ([string]$public.profile_root) ([string]$public.account_sid));work=(Read-PublicAccountRoot ([string]$public.work_root) ([string]$public.account_sid))}
 }
 

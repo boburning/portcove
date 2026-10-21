@@ -147,15 +147,15 @@ if ([string]::IsNullOrWhiteSpace($TestBase)) {
 }
 
 function Get-UninstallEntries([string]$InstallLocation) {
-    $userRegistry = if ($nativeAccount) { Get-PortcoveNativeRegistryRoot $nativeAccount } else { 'HKCU:' }
     $roots = @(
-        "$userRegistry\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        $(if (-not $nativeAccount) { "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" }),
         "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*",
         "HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
     )
-    @($roots | ForEach-Object {
+    $userEntries = if ($nativeAccount) { @(Read-PortcoveNativeOwnRegistry $nativeAccount).uninstall } else { @() }
+    @(@($userEntries) + @($roots | Where-Object { $_ } | ForEach-Object {
         Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue
-    } | Where-Object {
+    }) | Where-Object {
         if (-not $InstallLocation) {
             return $_.DisplayName -eq "Portcove"
         }
@@ -173,13 +173,12 @@ function Get-UninstallEntries([string]$InstallLocation) {
     })
 }
 
-function Assert-InstallerUserRegistration([string]$RegistrationPath, [string]$QualificationSid = '') {
-    # HKCU in the fixed harness belongs to the broker. The isolated candidate's
-    # real loaded hive is addressed through its appointed SID instead.
-    $hive = if ($QualificationSid) { 'HKEY_USERS\' + $QualificationSid } else { 'HKEY_CURRENT_USER' }
-    $prefix = 'Microsoft.PowerShell.Core\Registry::' + $hive + '\Software\Microsoft\Windows\CurrentVersion\Uninstall\'
+function Assert-InstallerUserRegistration([string]$RegistrationPath, [string]$QualificationSid = '', [string]$ObservedSid = '') {
+    # HKCU provenance belongs to the held trusted reader token, not the broker.
+    if ($QualificationSid -and $ObservedSid -cne $QualificationSid) { throw 'Target-account registration SID differs' }
+    $prefix = 'Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Uninstall\'
     if (-not $RegistrationPath.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-        throw 'Expected installation ownership in the exact current-user qualification hive'
+        throw 'Expected installation ownership in the exact target-account HKCU observation'
     }
 }
 
@@ -445,7 +444,7 @@ if($ordinaryPublicContinue){
     if($originalRegistration.Count -ne 1 -or $originalRegistration[0].PSPath -cne $continued.registration_path -or
         $originalRegistration[0].DisplayVersion -cne $ordinaryPublicInputs.prior_version -or
         @(Get-UninstallEntries $installRoot).Count -ne 1){throw 'Public continuation requires exactly its original V0 registration'}
-    Assert-InstallerUserRegistration ([string]$originalRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+    Assert-InstallerUserRegistration ([string]$originalRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$originalRegistration[0].account_sid } else { '' })
     if((Get-FileHash -LiteralPath $continued.application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_executable_sha256 -or
         (Get-FileHash -LiteralPath $continued.uninstaller -Algorithm SHA256).Hash.ToLowerInvariant() -cne $continued.uninstaller_sha256){throw 'Public continuation original installed bytes differ'}
 }
@@ -516,17 +515,15 @@ function Write-InstallerEvidence([string]$Phase, $Details = $null) {
 }
 
 function Get-WebDriverHostBaseline([string]$RepositoryRoot = (Join-Path $PSScriptRoot "..")) {
-    $userRegistry = if ($nativeAccount) { Get-PortcoveNativeRegistryRoot $nativeAccount } else { 'HKCU:' }
     $registryPaths = @(
-        "$userRegistry\Software\Microsoft\EdgeUpdate\Clients\*",
+        $(if (-not $nativeAccount) { "HKCU:\Software\Microsoft\EdgeUpdate\Clients\*" }),
         "HKLM:\Software\Microsoft\EdgeUpdate\Clients\*",
         "HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients\*"
     )
-    $runtimeVersions = @($registryPaths | ForEach-Object {
-        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue |
-            Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } |
-            ForEach-Object { [string]$_.pv }
-    } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
+    $userVersions = if ($nativeAccount) { @(Read-PortcoveNativeOwnRegistry $nativeAccount).webview } else { @() }
+    $runtimeVersions = @(@($userVersions) + @($registryPaths | Where-Object { $_ } | ForEach-Object {
+        Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue
+    }) | Where-Object { $_.name -eq "Microsoft Edge WebView2 Runtime" } | ForEach-Object { [string]$_.pv } | Where-Object { $_ -match '^\d+\.\d+\.\d+\.\d+$' } | Sort-Object -Unique)
     $statePath = Join-Path $RepositoryRoot "work/tool-bin/tool-state.json"
     $toolState = if ([IO.File]::Exists($statePath)) {
         Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
@@ -1364,7 +1361,7 @@ try {
             throw "Installed registration does not match expected version $ExpectedVersion"
         }
         $qualificationSid = if ($nativeAccount) { [string]$nativeAccount.binding.account_sid } else { '' }
-        Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid
+        Assert-InstallerUserRegistration ([string]$registryEntries[0].PSPath) $qualificationSid $(if ($nativeAccount) { [string]$registryEntries[0].account_sid } else { '' })
     }
     $smoke = Invoke-ApplicationSmoke $application "candidate_smoke"
     if ((Get-FileHash -LiteralPath $sentinel -Algorithm SHA256).Hash -ne $sentinelHash) {
@@ -1399,6 +1396,7 @@ try {
                 installed_executable_sha256 = $installedHash
                 installed_executable_path = $application
                 install_root = $installRoot
+                registration_account_sid = if ($nativeAccount) { $nativeAccount.binding.account_sid } else { $null }
                 registration_path = $registryEntries[0].PSPath
                 uninstall_registration_count = @($registryEntries).Count
                 registered_version = $registryEntries[0].DisplayVersion
@@ -1513,14 +1511,14 @@ try {
                 $publicExpectedExecutable=if($ordinaryPublicPark){$ordinaryPublicInputs.prior_executable_sha256}else{$ordinaryPublicInputs.candidate_executable_sha256}
                 if ($currentPublicRegistration.Count -ne 1 -or $currentPublicRegistration[0].DisplayVersion -cne $publicExpectedVersion -or
                     (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $publicExpectedExecutable) { throw 'Ordinary public installation readback differs' }
-                Assert-InstallerUserRegistration ([string]$currentPublicRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+                Assert-InstallerUserRegistration ([string]$currentPublicRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$currentPublicRegistration[0].account_sid } else { '' })
                 $evidence.ordinary_public_update=[ordered]@{configuration_sha256=$publicConfigurationSha;output=$publicOutput;prior_version=$ordinaryPublicInputs.prior_version;
                     candidate_version=$ordinaryPublicInputs.candidate_version;registration=$currentPublicRegistration[0].PSPath;authority='none';native_acceptance='not-established'}
                 $evidence.uninstaller_sha256=(Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
                 if($ordinaryPublicPark) {
                     $completed=$true
                     $parked=[ordered]@{application=$application;installed_executable_sha256=$publicExpectedExecutable;registered_version=$publicExpectedVersion;
-                        registration_path=$currentPublicRegistration[0].PSPath;public_update_output=$publicOutput;kept_installed=$true;authority='none';native_acceptance='not-established'}
+                        registration_account_sid=$nativeAccount.binding.account_sid;registration_path=$currentPublicRegistration[0].PSPath;public_update_output=$publicOutput;kept_installed=$true;authority='none';native_acceptance='not-established'}
                     Write-InstallerEvidence 'public_v1_parked' $parked
                     $parked|ConvertTo-Json -Depth 6 -Compress
                     return
@@ -1555,11 +1553,11 @@ try {
         $rollbackAfter=Get-PreservationManifest $libraryRoot
         $rollbackRegistration=@(Get-UninstallEntries $installRoot)
         if ($rollbackRegistration.Count -ne 1) { throw 'Package rollback registration is absent or ambiguous' }
-        Assert-InstallerUserRegistration ([string]$rollbackRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+        Assert-InstallerUserRegistration ([string]$rollbackRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid) $(if ($nativeAccount) { [string]$rollbackRegistration[0].account_sid } else { '' })
         $rollbackSmoke=Invoke-ApplicationSmoke $application 'package_rollback_smoke'
         $packageRollback=[ordered]@{
             install_exit_code=$rollbackInstall.ExitCode;registered_version=$rollbackRegistration[0].DisplayVersion;
-            registration_path=$rollbackRegistration[0].PSPath;registration_count=$rollbackRegistration.Count;
+            registration_account_sid=$nativeAccount.binding.account_sid;registration_path=$rollbackRegistration[0].PSPath;registration_count=$rollbackRegistration.Count;
             executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
             predecessor_installer_sha256=$upgrade.predecessor_installer_sha256;smoke=$rollbackSmoke;
             manifest_before_install=$rollbackBefore;manifest_after_install=$rollbackAfter;
@@ -1639,6 +1637,7 @@ try {
         install_mode = $InstallMode
         update_path = if ($RendererUpdate) { "installed_app_renderer" } elseif ($installedUpdate) { "installed_app_helper" } elseif ($predecessor) { "registered_nsis_update" } else { "explicit_bootstrap_destination" }
         registered_version = $registryEntries[0].DisplayVersion
+        registration_account_sid = if ($nativeAccount) { $nativeAccount.binding.account_sid } else { $null }
         registration_path = $registryEntries[0].PSPath
         installed_executable_sha256 = $installedHash
         expected_executable = $expected

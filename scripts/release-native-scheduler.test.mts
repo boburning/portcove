@@ -233,7 +233,7 @@ void test("public account boundary requires its own observed owner ACL path with
     account_name: expected.public_account.account_name,
     account_sid: expected.public_account.account_sid,
     enabled: true,
-    hku_loaded: false,
+    hku_loaded: null,
     profile_registered: true,
     profile: {
       path: expected.public_account.profile_root,

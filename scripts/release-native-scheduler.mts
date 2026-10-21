@@ -171,7 +171,7 @@ export function inspectNativeSchedulerObservation(
       value.account_name !== expected.public_account.account_name ||
       value.enabled !== true ||
       value.profile_registered !== true ||
-      typeof value.hku_loaded !== "boolean"
+      value.hku_loaded !== null
     )
       throw new Error("actual public account/profile registration differs");
     for (const [key, expectedPath] of [
