@@ -12,6 +12,7 @@ import { requireControllerReleaseAuthorities } from "./release-authority-configu
 import { currentControllerJobDeadline } from "./release-signing-job-budget.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
+import { inspectAggregateOriginalUpload } from "./release-aggregate-locator.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function record(value: unknown) {
@@ -61,6 +62,7 @@ export function projectFixedControllerJobOutputs(
     predicate: Buffer;
     bundle: unknown;
   },
+  aggregatePredicate?: Buffer,
 ): Record<string, string> {
   const selected = role(rawRole),
     result = record(rawResult);
@@ -76,8 +78,52 @@ export function projectFixedControllerJobOutputs(
       : { mode: "held", stage: "held" };
   }
   if (selected === "building") {
-    if (result.decision !== "candidate-building-admitted") throw new Error("building output held");
-    return { descriptor: JSON.stringify(record(result.descriptor)) };
+    if (
+      ![
+        "candidate-building-and-aggregate-prepared",
+        "candidate-aggregate-readback-prepared",
+      ].includes(result.decision) ||
+      !aggregatePredicate ||
+      aggregatePredicate.length > 65536 ||
+      (result.decision === "candidate-aggregate-readback-prepared"
+        ? !["publishing", "promoting"].includes(String(result.stage))
+        : result.stage !== "building") ||
+      typeof result.subject_name !== "string" ||
+      !/^trusted-release-final-[1-9][0-9]*-1$/u.test(result.subject_name) ||
+      typeof result.subject_digest !== "string" ||
+      !/^sha256:[a-f0-9]{64}$/u.test(result.subject_digest) ||
+      result.predicate_type !== "https://portcove.dev/attestations/package-aggregate/v1"
+    )
+      throw new Error("building aggregate output held");
+    const predicate = record(JSON.parse(aggregatePredicate.toString("utf8"))),
+      original =
+        result.original_upload === undefined
+          ? undefined
+          : inspectAggregateOriginalUpload(result.original_upload),
+      uploaded = artifact(result.artifact);
+    if (
+      predicate.role !== "package-aggregate-assembler" ||
+      predicate.evidence_scope !== "github.com" ||
+      releaseCanonicalDigest(artifact(predicate.artifact)) !== releaseCanonicalDigest(uploaded) ||
+      record(predicate.artifact).name !== result.subject_name ||
+      result.subject_digest !== `sha256:${uploaded.sha256}` ||
+      predicate.producer_profile !==
+        (original ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1") ||
+      releaseCanonicalDigest(predicate.original_upload ?? null) !==
+        releaseCanonicalDigest(original ?? null)
+    )
+      throw new Error("aggregate producer lineage differs");
+    return {
+      descriptor: JSON.stringify(record(result.descriptor)),
+      artifact_id: String(uploaded.id),
+      artifact_sha256: uploaded.sha256,
+      subject_name: result.subject_name,
+      subject_digest: result.subject_digest,
+      predicate: aggregatePredicate.toString("utf8"),
+      predicate_type: result.predicate_type,
+      stage: String(result.stage),
+      ...(original ? { original_upload: JSON.stringify(original) } : {}),
+    };
   }
   if (selected === "site-publication") {
     if (!["site-published", "metadata-site-published"].includes(result.decision))
@@ -227,7 +273,17 @@ export async function finishFixedControllerJobOutputs(rawRole: unknown) {
         ),
       };
     }
-    const outputs = projectFixedControllerJobOutputs(selected, result, custody);
+    let aggregatePredicate: Buffer | undefined;
+    if (selected === "building") {
+      const actual = record(result);
+      if (
+        typeof actual.predicate_path !== "string" ||
+        path.basename(actual.predicate_path) !== "aggregate-predicate.json"
+      )
+        throw new Error("actual aggregate predicate locator unavailable");
+      aggregatePredicate = await read(actual.predicate_path);
+    }
+    const outputs = projectFixedControllerJobOutputs(selected, result, custody, aggregatePredicate);
     for (const [key, value] of Object.entries(outputs)) {
       if (Buffer.byteLength(value) > 65536) throw new Error("fixed output exceeds bound");
       const separator = `controller_${randomBytes(16).toString("hex")}`;

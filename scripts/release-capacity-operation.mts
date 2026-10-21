@@ -1,4 +1,8 @@
 import {
+  inspectAggregateUploadExpectation,
+  assertAggregateUploadCandidate,
+} from "./release-aggregate-contract.mts";
+import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
 } from "./release-coordinator-state.mts";
@@ -54,6 +58,7 @@ type Request = {
   kind: "dispatch" | "upload" | "retention";
   destination: string;
   site_expectation?: unknown;
+  aggregate_expectation?: unknown;
 };
 export interface CapacityOperationOptions {
   remote?: { configuration: unknown; api: CoordinatorRemoteApi };
@@ -129,11 +134,20 @@ async function runOperation(
   const request = structuredClone(rawRequest);
   if (
     Object.keys(request).sort().join(",") !==
-    (request.site_expectation === undefined
-      ? "destination,kind"
-      : "destination,kind,site_expectation")
+    [
+      "destination",
+      "kind",
+      ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
+      ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+    ]
+      .sort()
+      .join(",")
   )
     throw new Error("capacity operation request contains unsupported fields");
+  const aggregate =
+    request.aggregate_expectation === undefined
+      ? null
+      : inspectAggregateUploadExpectation(request.aggregate_expectation);
   const site =
     request.site_expectation === undefined
       ? null
@@ -191,7 +205,10 @@ async function runOperation(
     (!maintenance && recovered.plan.action !== "resume-active")
   )
     throw new Error("bounded operation is held by capacity or another coordinator condition");
+  if (request.destination === "github-actions:boburning/portcove:admitted-aggregate" && !aggregate)
+    throw new Error("admitted aggregate intent requires its exact upload preimage");
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
+  if (aggregate) assertAggregateUploadCandidate(candidate);
   assertPublicationResultDestination(request.destination, candidate);
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
   const observedAt = metadataNow();
@@ -284,6 +301,7 @@ async function runOperation(
           }),
     destination: request.destination,
     ...(site ? { site_expectation: site } : {}),
+    ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     // An invocation-generated claim makes independent executors' pending bytes
     // distinct. Seeing somebody else's identical logical operation is not an
     // execution grant. There is no caller-supplied nonce or resume entry point.

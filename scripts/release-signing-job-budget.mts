@@ -57,7 +57,7 @@ function signingOriginalJobDeadline(
     role === "payload"
       ? 570000
       : role === "candidate-building"
-        ? 405000
+        ? 525000
         : role === "coordinator"
           ? 170000
           : role === "release-publication"

@@ -30,7 +30,7 @@ export function controlBridgeOriginalDeadline(
     phase === "payload"
       ? 570000
       : phase === "admission"
-        ? 415000
+        ? 535000
         : phase === "coordinator"
           ? 170000
           : phase === "release-publication"

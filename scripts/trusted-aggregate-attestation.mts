@@ -1,3 +1,4 @@
+import { inspectAggregateOriginalUpload } from "./release-aggregate-contract.mts";
 import { verifyControllerArtifactStatement } from "./github-controller-attestation.mts";
 import { orderedJsonValue as canonical } from "./json-values.mts";
 import { createHash } from "node:crypto";
@@ -9,6 +10,7 @@ import { inspectBoundedZip } from "./bounded-zip.mts";
 import {
   inspectAssemblerIdentityExpectation,
   verifyAssemblerJobIdentity,
+  verifyAdmittedAssemblerJobIdentity,
 } from "./assembler-job-identity.mts";
 import type { AssemblerIdentityExpectation } from "./assembler-job-identity.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -221,6 +223,25 @@ function artifact(
  * verification itself. A supplied identity receipt cannot replace that call.
  * The result is input to existing actions/attest, never a signature or grant.
  */
+const admittedPreparations = new WeakSet<object>();
+const recoveredPreparations = new WeakMap<
+  object,
+  ReturnType<typeof inspectAggregateOriginalUpload>
+>();
+export function prepareRecoveredAdmittedAggregateAttestation(
+  original: unknown,
+  ...args: Parameters<typeof prepareAggregateAttestation>
+) {
+  recoveredPreparations.set(args[5], inspectAggregateOriginalUpload(structuredClone(original)));
+  admittedPreparations.add(args[5]);
+  return prepareAggregateAttestation(...args);
+}
+export function prepareAdmittedAggregateAttestation(
+  ...args: Parameters<typeof prepareAggregateAttestation>
+) {
+  admittedPreparations.add(args[5]);
+  return prepareAggregateAttestation(...args);
+}
 export async function prepareAggregateAttestation(
   token: string,
   rawExpected: AssemblerIdentityExpectation,
@@ -234,8 +255,19 @@ export async function prepareAggregateAttestation(
     download?: typeof readGitHubArtifactArchive;
     evidenceRequest?: ReleaseEvidenceRequest;
     evidence?: ReleaseEvidenceOptions;
+    deadline?: number;
   },
 ) {
+  const admitted = admittedPreparations.has(options);
+  const original = recoveredPreparations.get(options);
+  const deadline = Math.min(performance.now() + 120000, options.deadline ?? Infinity);
+  const remaining = (cap: number) => {
+    const left = deadline - performance.now();
+    if (!Number.isFinite(left) || left <= 0)
+      throw new Error("aggregate binding deadline exhausted");
+    return Math.max(1, Math.min(cap, Math.floor(left)));
+  };
+  remaining(1);
   const expected = inspectAssemblerIdentityExpectation(rawExpected);
   const request = structuredClone(rawRequest);
   const ids = [...rawCandidateArtifactIds];
@@ -288,7 +320,7 @@ export async function prepareAggregateAttestation(
     cwd: options.cwd,
     ...(options.spawn ? { spawn: options.spawn } : {}),
     maxBuffer: 128 * 1024,
-    timeoutMs: 15000,
+    timeoutMs: remaining(15000),
   });
   const get = () => {
     const response = parseIncludedResponse(
@@ -303,23 +335,27 @@ export async function prepareAggregateAttestation(
       ]),
     );
     if (response.status !== 200) throw new Error("new aggregate artifact unavailable");
-    return artifact(response.body, upload.artifact_id, upload.sha256, expected);
+    remaining(1);
+    return artifact(response.body, upload.artifact_id, upload.sha256, original ?? expected);
   };
   const before = get();
   const downloaded = (options.download ?? readGitHubArtifactArchive)(
     `repos/${repository}/actions/artifacts/${upload.artifact_id}/zip`,
-    { cwd: options.cwd, maxBytes: before.bytes, timeoutMs: 120000 },
+    { cwd: options.cwd, maxBytes: before.bytes, timeoutMs: remaining(120000) },
   );
   if (!Buffer.isBuffer(downloaded) || downloaded.length !== before.bytes)
     throw new Error("uploaded aggregate archive digest differs");
   const archive = Buffer.from(downloaded);
   if (hash(archive) !== upload.sha256) throw new Error("uploaded aggregate archive digest differs");
   verifyMembers(archive, files);
-  const identity = await verifyAssemblerJobIdentity(
-    token,
-    expected,
-    options.identity ?? { transport: { cwd: options.cwd } },
-  );
+  remaining(1);
+  const identity = await (
+    admitted ? verifyAdmittedAssemblerJobIdentity : verifyAssemblerJobIdentity
+  )(token, expected, options.identity ?? { transport: { cwd: options.cwd, deadline } });
+  if (original && original.run_id === expected.run_id && original.job_id === identity.job_id)
+    throw new Error(
+      "aggregate current custodian cannot impersonate its original terminal producer",
+    );
   if (!same(get(), before)) throw new Error("new aggregate artifact changed during binding");
   if (accepted.public_build_inputs && publicBefore && publicRequest)
     requireStablePublicBuildInputEvidence(
@@ -337,8 +373,13 @@ export async function prepareAggregateAttestation(
       (options.evidence || publicVerification?.evidence_scope !== "github.com"))
       ? "injected-provider"
       : "github.com";
+  remaining(1);
   const predicate = {
     schema_version: 1,
+    ...(admitted
+      ? { producer_profile: original ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1" }
+      : {}),
+    ...(original ? { original_upload: original } : {}),
     role: "package-aggregate-assembler",
     evidence_scope,
     repository,
@@ -398,10 +439,18 @@ export async function verifyAggregateAttestation(
     bytes: number;
     candidate: unknown;
     candidate_artifact_ids: number[];
+    producer_profile?: "admitted-aggregate-v1" | "admitted-aggregate-recovery-v1";
+    original_upload?: ReturnType<typeof inspectAggregateOriginalUpload>;
   },
   options: { spawn?: Spawn } = {},
 ) {
   const expected = structuredClone(rawExpected);
+  const original =
+    expected.original_upload === undefined
+      ? undefined
+      : inspectAggregateOriginalUpload(expected.original_upload);
+  if ((expected.producer_profile === "admitted-aggregate-recovery-v1") !== !!original)
+    throw new Error("aggregate recovery requires exact original upload association");
   if (
     !Buffer.isBuffer(rawArchive) ||
     rawArchive.length < 22 ||
@@ -465,7 +514,7 @@ export async function verifyAggregateAttestation(
       aggregatePredicateType,
       options,
     );
-    const name = `trusted-release-final-${expected.run_id}-${expected.run_attempt}`;
+    const name = `trusted-release-final-${original?.run_id ?? expected.run_id}-${original?.run_attempt ?? expected.run_attempt}`;
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||
       statement.predicateType !== aggregatePredicateType ||
@@ -486,6 +535,8 @@ export async function verifyAggregateAttestation(
       throw new Error("aggregate signed check-run identity is invalid");
     const expectedPredicate = {
       schema_version: 1,
+      ...(expected.producer_profile ? { producer_profile: expected.producer_profile } : {}),
+      ...(original ? { original_upload: original } : {}),
       role: "package-aggregate-assembler",
       evidence_scope: "github.com",
       repository,
@@ -557,6 +608,12 @@ export async function verifyUploadedAggregate(
   options: { spawn?: Spawn; download?: typeof readGitHubArtifactArchive } = {},
 ) {
   const expected = structuredClone(rawExpected);
+  const original =
+    expected.original_upload === undefined
+      ? undefined
+      : inspectAggregateOriginalUpload(expected.original_upload);
+  if ((expected.producer_profile === "admitted-aggregate-recovery-v1") !== !!original)
+    throw new Error("aggregate recovered receiver requires exact original upload");
   positive(expected.artifact_id);
   positive(expected.bundle_artifact_id);
   digest(expected.sha256);
@@ -657,7 +714,7 @@ export async function verifyUploadedAggregate(
         get(`actions/artifacts/${expected.artifact_id}`),
         expected.artifact_id,
         expected.sha256,
-        expected,
+        original ?? expected,
       ),
       bundle: artifact(
         get(`actions/artifacts/${expected.bundle_artifact_id}`),
@@ -762,4 +819,27 @@ export async function verifyUploadedAggregate(
       evidence,
     );
   }
+}
+
+/** Exact opaque member bytes only; no provenance or publication authority. */
+export async function verifyAggregateUploadBytes(archive: Buffer, assembly: unknown) {
+  const { files } = await expectedMembers(assembly);
+  verifyMembers(archive, files);
+  return files;
+}
+
+/** Maintained complete-pipeline receiver fixes the admitted producer contract. */
+export function verifyAdmittedUploadedAggregate(
+  ...args: Parameters<typeof verifyUploadedAggregate>
+) {
+  return verifyUploadedAggregate(
+    args[0],
+    {
+      ...args[1],
+      producer_profile: args[1].original_upload
+        ? "admitted-aggregate-recovery-v1"
+        : "admitted-aggregate-v1",
+    },
+    args[2],
+  );
 }
