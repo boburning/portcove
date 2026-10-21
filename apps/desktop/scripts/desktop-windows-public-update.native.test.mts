@@ -16,6 +16,7 @@ import {
   inspectWindowsPublicUpdateConfiguration,
   readWindowsPublicUserState,
   runFixedWindowsPublicUpdateConfiguration,
+  inspectWindowsPublicPreNativeRequest,
 } from "./desktop-windows-public-update.mts";
 import {
   retainWindowsPublicUpdatePreimages,
@@ -104,12 +105,20 @@ void test("V2 continuation has a separate exact schema with parent-retained B pa
     library_root: "C:\\qualification\\library",
     parked_executable_sha256: "a".repeat(64),
     parked_installer_sha256: "b".repeat(64),
+    parked_installer_bytes: 1024,
+    parked_release_path: "releases/v1.json",
+    parked_release_sha256: "4".repeat(64),
     parked_version: "0.1.0-beta.2",
     previous_invocation_id: "c".repeat(64),
     previous_report: {
       path: "C:\\capture\\old\\public-update-journey.json",
       bytes: 1024,
       sha256: "d".repeat(64),
+    },
+    previous_staging: {
+      path: "C:\\capture\\old\\parked-v1\\staging-staging.json",
+      bytes: 1024,
+      sha256: "5".repeat(64),
     },
     registration_path:
       "Microsoft.PowerShell.Core\\Registry::HKEY_USERS\\S-1-5-21-1-2-3-1003\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Portcove",
@@ -140,6 +149,73 @@ void test("V2 continuation has a separate exact schema with parent-retained B pa
   const value = inspectWindowsPublicUpdateConfiguration(raw);
   assert.equal(value.phase, "continue-with-v2");
   assert.deepEqual(value.continuation, continuation);
+  assert.ok(value.continuation);
+  const candidate = {
+    release_path: continuation.parked_release_path,
+    release_sha256: continuation.parked_release_sha256,
+    release: {
+      version: continuation.parked_version,
+      artifact: {
+        sha256: continuation.parked_installer_sha256,
+        bytes: continuation.parked_installer_bytes,
+      },
+    },
+    promotion: { eligible: true },
+  };
+  const staging = { schema_version: 1, phase: "verified", candidate };
+  const apply = {
+    schema_version: 4,
+    revision: 1,
+    intent: {
+      request: "restart-to-apply",
+      candidate,
+      installed: { current_version: "0.1.0-beta.1" },
+      library_root: "C:\\qualification\\runtime\\library",
+    },
+    termination: "restart-to-apply",
+    native_launch: null,
+    native_replacement: null,
+    native_exit_code: null,
+  };
+  assert.equal(
+    inspectWindowsPublicPreNativeRequest(
+      apply,
+      staging,
+      value.continuation,
+      "0.1.0-beta.1",
+      apply.intent.library_root,
+    ).revision,
+    1,
+  );
+  for (const mutate of [
+    (a: typeof apply) => {
+      a.intent.library_root += "-other";
+    },
+    (a: typeof apply) => {
+      a.intent.installed.current_version = "0.1.0-beta.2";
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release.version = "0.1.0-beta.4";
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release.artifact.sha256 = "9".repeat(64);
+    },
+    (a: typeof apply) => {
+      a.intent.candidate.release_sha256 = "9".repeat(64);
+    },
+  ]) {
+    const changed = structuredClone(apply);
+    mutate(changed);
+    assert.throws(() =>
+      inspectWindowsPublicPreNativeRequest(
+        changed,
+        staging,
+        value.continuation!,
+        "0.1.0-beta.1",
+        apply.intent.library_root,
+      ),
+    );
+  }
   for (const changed of [
     { ...raw, schema_version: 2 },
     { ...raw, journey: { ...raw.journey, phase: "park-v0-with-v1" } },

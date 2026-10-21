@@ -48,9 +48,13 @@ export function inspectWindowsPublicContinuationInput(raw: unknown) {
     "library_root",
     "parked_executable_sha256",
     "parked_installer_sha256",
+    "parked_installer_bytes",
+    "parked_release_path",
+    "parked_release_sha256",
     "parked_version",
     "previous_invocation_id",
     "previous_report",
+    "previous_staging",
     "registration_path",
     "run_root",
     "runtime_root",
@@ -65,29 +69,36 @@ export function inspectWindowsPublicContinuationInput(raw: unknown) {
     assert.ok(typeof value === "string" && value.length > 0 && value.length <= 32768);
     return value;
   };
-  assert.ok(isRecord(raw.previous_report));
-  const previous = raw.previous_report;
-  assert.deepEqual(Object.keys(previous).sort(), ["bytes", "path", "sha256"]);
-  assert.ok(typeof previous.path === "string" && path.win32.isAbsolute(previous.path));
+  const pin = (previous: unknown) => {
+    assert.ok(isRecord(previous));
+    assert.deepEqual(Object.keys(previous).sort(), ["bytes", "path", "sha256"]);
+    assert.ok(typeof previous.path === "string" && path.win32.isAbsolute(previous.path));
+    assert.ok(
+      Number.isSafeInteger(previous.bytes) &&
+        Number(previous.bytes) > 0 &&
+        Number(previous.bytes) <= 4 * 1024 * 1024,
+    );
+    assert.ok(typeof previous.sha256 === "string" && /^[a-f0-9]{64}$/u.test(previous.sha256));
+    return { path: previous.path, bytes: Number(previous.bytes), sha256: previous.sha256 };
+  };
   assert.ok(
-    Number.isSafeInteger(previous.bytes) &&
-      Number(previous.bytes) > 0 &&
-      Number(previous.bytes) <= 4 * 1024 * 1024,
+    Number.isSafeInteger(raw.parked_installer_bytes) &&
+      Number(raw.parked_installer_bytes) > 0 &&
+      Number(raw.parked_installer_bytes) <= 512 * 1024 * 1024,
   );
-  assert.ok(typeof previous.sha256 === "string" && /^[a-f0-9]{64}$/u.test(previous.sha256));
   const value = {
     application: text("application"),
     install_root: text("install_root"),
     library_root: text("library_root"),
     parked_executable_sha256: text("parked_executable_sha256"),
     parked_installer_sha256: text("parked_installer_sha256"),
+    parked_installer_bytes: Number(raw.parked_installer_bytes),
+    parked_release_path: text("parked_release_path"),
+    parked_release_sha256: text("parked_release_sha256"),
     parked_version: text("parked_version"),
     previous_invocation_id: text("previous_invocation_id"),
-    previous_report: {
-      path: previous.path,
-      bytes: Number(previous.bytes),
-      sha256: previous.sha256,
-    },
+    previous_report: pin(raw.previous_report),
+    previous_staging: pin(raw.previous_staging),
     registration_path: text("registration_path"),
     run_root: text("run_root"),
     runtime_root: text("runtime_root"),
@@ -101,9 +112,52 @@ export function inspectWindowsPublicContinuationInput(raw: unknown) {
     "parked_installer_sha256",
     "previous_invocation_id",
     "uninstaller_sha256",
+    "parked_release_sha256",
   ] as const)
     assert.match(value[name], /^[a-f0-9]{64}$/u);
   return value;
+}
+
+/** Raw native refusal is useful only for the exact original parked candidate,
+ * installed V0 and library, not merely a structurally pre-native request. */
+export function inspectWindowsPublicPreNativeRequest(
+  raw: unknown,
+  staging: unknown,
+  continuation: ReturnType<typeof inspectWindowsPublicContinuationInput>,
+  priorVersion: string,
+  library: string,
+) {
+  assert.ok(
+    isRecord(staging) &&
+      staging.schema_version === 1 &&
+      staging.phase === "verified" &&
+      isRecord(staging.candidate),
+  );
+  const candidate = staging.candidate;
+  assert.equal(candidate.release_path, continuation.parked_release_path);
+  assert.equal(candidate.release_sha256, continuation.parked_release_sha256);
+  assert.ok(isRecord(candidate.release) && isRecord(candidate.release.artifact));
+  assert.equal(candidate.release.version, continuation.parked_version);
+  assert.equal(candidate.release.artifact.sha256, continuation.parked_installer_sha256);
+  assert.equal(candidate.release.artifact.bytes, continuation.parked_installer_bytes);
+  assert.ok(isRecord(raw) && isRecord(raw.intent) && isRecord(raw.intent.installed));
+  assert.equal(raw.schema_version, publicUpdateApplySchemaVersion);
+  assert.ok(Number.isSafeInteger(raw.revision) && Number(raw.revision) > 0);
+  assert.equal(raw.intent.request, "restart-to-apply");
+  assert.equal(raw.termination, "restart-to-apply");
+  assert.equal(raw.native_launch, null);
+  assert.equal(raw.native_replacement, null);
+  assert.equal(raw.native_exit_code, null);
+  assert.deepEqual(raw.intent.candidate, candidate);
+  assert.equal(raw.intent.installed.current_version, priorVersion);
+  assert.ok(
+    typeof raw.intent.library_root === "string" && path.win32.isAbsolute(raw.intent.library_root),
+  );
+  assert.equal(
+    path.win32.resolve(raw.intent.library_root).toLowerCase(),
+    path.win32.resolve(library).toLowerCase(),
+  );
+  return { revision: Number(raw.revision), raw: structuredClone(raw), authority: "none" as const };
 }
 
 /** Inert identity comparison. Only the account broker supplies actual process observations. */
@@ -502,15 +556,24 @@ export async function runWindowsPublicUpdateJourney(
           ),
         ),
       );
-      assert.ok(isRecord(rawApply) && isRecord(rawApply.intent));
-      assert.equal(rawApply.schema_version, publicUpdateApplySchemaVersion);
-      assert.ok(Number.isSafeInteger(rawApply.revision) && Number(rawApply.revision) > 0);
-      assert.equal(rawApply.intent.request, "restart-to-apply");
-      assert.equal(rawApply.termination, "restart-to-apply");
-      assert.equal(rawApply.native_launch, null);
-      assert.equal(rawApply.native_replacement, null);
-      assert.equal(rawApply.native_exit_code, null);
-      report.pre_native_old_request = rawApply;
+      const stagedBytes = await readBoundedPublicUpdateBytes(
+        continuation.previous_staging.path,
+        4 * 1024 * 1024,
+        deadline,
+      );
+      assert.equal(stagedBytes.length, continuation.previous_staging.bytes);
+      assert.equal(
+        createHash("sha256").update(stagedBytes).digest("hex"),
+        continuation.previous_staging.sha256,
+      );
+      const preNative = inspectWindowsPublicPreNativeRequest(
+        rawApply,
+        JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(stagedBytes)),
+        continuation,
+        input.prior_version,
+        beforeState.library_root,
+      );
+      report.pre_native_old_request = preNative.raw;
       assert.equal(
         (await readWindowsPublicExecutable(input.application)).sha256,
         input.prior_sha256,
@@ -519,7 +582,7 @@ export async function runWindowsPublicUpdateJourney(
       assertWindowsPublicUserStatePreserved(beforeState, await readWindowsPublicUserState(current));
       const oldStatus = await readInstalledUpdateStatus(current);
       assert.ok(isRecord(oldStatus.apply) && isRecord(oldStatus.staged));
-      assert.equal(oldStatus.apply.revision, rawApply.revision);
+      assert.equal(oldStatus.apply.revision, preNative.revision);
       assert.equal(oldStatus.apply.native_launch, null);
       assert.deepEqual(oldStatus.staged, parkedStatus.staged);
       report.forward_staging = await driveInstalledForwardRepairToRestart(

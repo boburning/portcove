@@ -143,12 +143,31 @@ export async function readActualWindowsPublicContinuation(claim: object) {
     selected.parked_package.identity.version,
     selected.parked_package.identity.package.sha256,
   );
+  const stagingFile = "ordinary-public-update/parked-v1/staging-staging.json";
+  const originalStaging = await read(stagingFile);
+  const parkedSlot = selected.parked_package.identity;
+  assert.ok(
+    isRecord(originalStaging) &&
+      originalStaging.schema_version === 1 &&
+      originalStaging.phase === "verified" &&
+      isRecord(originalStaging.candidate),
+  );
+  const originalCandidate = originalStaging.candidate;
+  assert.equal(originalCandidate.release_path, parkedSlot.record_path);
+  assert.equal(originalCandidate.release_sha256, parkedSlot.record_sha256);
+  assert.ok(isRecord(originalCandidate.release) && isRecord(originalCandidate.release.artifact));
+  assert.equal(originalCandidate.release.version, parkedSlot.version);
+  assert.equal(originalCandidate.release.artifact.sha256, parkedSlot.package.sha256);
+  assert.equal(originalCandidate.release.artifact.bytes, parkedSlot.package.bytes);
   await requireActualPublicJourneyInvocation(claim);
   await requireActualWindowsPublicParent(selected.parent_receipt);
   const reportIdentity = previous.settled.files.find(
     (file) => file.path === "ordinary-public-update/public-update-journey.json",
   );
   assert.ok(reportIdentity);
+  const stagingIdentity = previous.settled.files.find((file) => file.path === stagingFile);
+  assert.ok(stagingIdentity);
+  await requireActualPublicJourneyInvocation(claim);
   return {
     ...result,
     previous_invocation_id: previous.marker.invocation_id,
@@ -157,5 +176,13 @@ export async function readActualWindowsPublicContinuation(claim: object) {
       bytes: reportIdentity.bytes,
       sha256: reportIdentity.sha256,
     },
+    previous_staging: {
+      path: path.join(previous.directory, stagingFile),
+      bytes: stagingIdentity.bytes,
+      sha256: stagingIdentity.sha256,
+    },
+    parked_release_path: parkedSlot.record_path,
+    parked_release_sha256: parkedSlot.record_sha256,
+    parked_installer_bytes: parkedSlot.package.bytes,
   };
 }

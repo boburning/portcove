@@ -84,7 +84,7 @@ if ($ordinaryPublicMode) {
         if($ordinaryPublicInputs.phase -cne 'continue-with-v2'){throw 'Ordinary public continuation phase differs'}
         $ordinaryPublicContinue=$true
         $continued=$ordinaryPublicInputs.continuation
-        $continuationNames='application,install_root,library_root,parked_executable_sha256,parked_installer_sha256,parked_version,previous_invocation_id,previous_report,registration_path,run_root,runtime_root,test_base,uninstaller,uninstaller_sha256,work_root'
+        $continuationNames='application,install_root,library_root,parked_executable_sha256,parked_installer_bytes,parked_installer_sha256,parked_release_path,parked_release_sha256,parked_version,previous_invocation_id,previous_report,previous_staging,registration_path,run_root,runtime_root,test_base,uninstaller,uninstaller_sha256,work_root'
         if((@($continued.PSObject.Properties.Name|Sort-Object)-join ',') -cne $continuationNames -or
             $continued.previous_invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
             (@($continued.previous_report.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'bytes,path,sha256' -or

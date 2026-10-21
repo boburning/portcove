@@ -99,6 +99,10 @@ export async function captureActualWindowsPublicJourney(claim: object) {
           continuation: {
             previous_invocation_id: continuation.previous_invocation_id,
             previous_report: continuation.previous_report,
+            previous_staging: continuation.previous_staging,
+            parked_release_path: continuation.parked_release_path,
+            parked_release_sha256: continuation.parked_release_sha256,
+            parked_installer_bytes: continuation.parked_installer_bytes,
             work_root: continuation.work_root,
             test_base: continuation.test_base,
             run_root: continuation.run_root,

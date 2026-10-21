@@ -539,3 +539,17 @@ caller now uses the maintained one-argument API. No candidate GUI/account logon,
 credential access, account/ACL/task provisioning, network proof or protected
 publication occurred. The earlier Windows-continuation HOLD descriptions above
 record earlier checkpoints; this section describes the connected source only.
+
+Independent review of the first connected V2 source (`b441a1c`) found that its
+post-old-Restart raw apply checks established pre-native structure but did not
+bind the intent to the exact original V1 candidate/V0/library. The repair now
+rehashes B's original `parked-v1/staging-staging.json` from its completed capture,
+checks its immutable release path/SHA and artifact version/length/SHA against the
+actual retained parked Tough slot, and pins that original file in the current
+child input. The child requires the entire raw intent SelectedCandidate to equal
+that original descriptor, its installed.current_version to equal V0 and its
+canonical library root to equal the observed original library. Changed candidate
+version, artifact/hash, release digest, installed version and library fixtures
+refuse. Sixteen connected/config/custody tests passed with zero skips; four
+changed TypeScript modules passed typed lint. The original reviewed source is
+preserved, and no native execution or new error-subtype claim is credited.
