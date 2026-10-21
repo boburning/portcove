@@ -126,6 +126,9 @@ export type DesktopError = Generated.TransportOutputs["desktop_desktop_error"];
 
 export type BootstrapStatus = Generated.TransportOutputs["desktop_bootstrap_status"];
 
+export type DesktopSupportBundleExport =
+  Generated.TransportOutputs["desktop_support_bundle_export"];
+
 export type ApplicationUpdatePreferences =
   Generated.TransportOutputs["desktop_application_update_preferences"];
 

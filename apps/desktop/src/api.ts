@@ -56,6 +56,7 @@ import type {
   CatalogDocument,
   DefinitionCapabilityReport,
   DefinitionCapabilityRequest,
+  DesktopSupportBundleExport,
   DoctorReport,
   GithubAuthStatus,
   GithubDeviceLogin,
@@ -533,7 +534,7 @@ export const desktopApi = {
   recheckHostTool: (toolId: string) => invoke<HostToolProbeResult>("recheck_host_tool", { toolId }),
   openHostToolOfficialSite: (toolId: string) =>
     invoke<void>("open_host_tool_official_site", { toolId }),
-  createSupportBundle: () => invoke<string>("create_support_bundle"),
+  createSupportBundle: () => invoke<DesktopSupportBundleExport>("create_support_bundle"),
   exportLibraryMetadata: (path: string) =>
     invoke<LibraryMetadataFile>("export_library_metadata", { path }),
   planLibraryMove: (destination: string) =>

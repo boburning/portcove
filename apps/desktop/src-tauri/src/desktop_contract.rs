@@ -416,6 +416,7 @@ pub fn export_transport_schemas() -> Value {
     json!({
         "output": {
             "bootstrap_status": output::<BootstrapStatus>(),
+            "support_bundle_export": output::<portcove_core::SupportBundleExport>(),
             "locale_preference": output::<DesktopLocalePreference>(),
             "backup_review": output::<BackupReview>(),
             "cli_command_context": output::<CliCommandContext>(),

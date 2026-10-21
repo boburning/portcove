@@ -738,6 +738,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/semantic-review-linux-supervisor.test.mts",
       "scripts/release-semantic-broker.test.mts",
+      "scripts/release-semantic-worker.test.mts",
     ],
   ]),
   ...[

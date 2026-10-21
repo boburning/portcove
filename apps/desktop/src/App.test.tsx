@@ -40,6 +40,12 @@ describe("Portcove app shell", () => {
       /data-slot="button" data-variant="outline"[^>]*>Use platform default<\/button>/,
     );
     expect(html).not.toContain("Install");
+    expect(html).toContain("Create support bundle");
+    expect(html).toContain("Game-file contents and saved credentials are excluded");
+    expect(html).toContain("Review the bundle before sharing it");
+    const exportButton = html.match(/<button([^>]*)>Create support bundle<\/button>/)?.[1];
+    expect(exportButton).toBeDefined();
+    expect(exportButton).not.toMatch(/\sdisabled(?:=|\s|$)/);
   });
 
   it("keeps unrecognized startup fields exact inside technical details", () => {
