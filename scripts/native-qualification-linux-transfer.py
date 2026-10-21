@@ -87,10 +87,10 @@ def inspect_header(raw, invocation):
         and set(raw) == {"schema_version", "invocation_id", "entry", "bytes", "sha256"}
         and raw["schema_version"] == 1
         and raw["invocation_id"] == invocation
-        and raw["entry"] in ("request", "plan", "application"),
+        and raw["entry"] in ("request", "plan", "application", "candidate", "predecessor"),
         "fixed native transfer header differs",
     )
-    limit = 512 * MIB if raw["entry"] == "application" else 128 * 1024
+    limit = 512 * MIB if raw["entry"] in ("application", "candidate", "predecessor") else 128 * 1024
     require(
         type(raw["bytes"]) is int
         and 0 < raw["bytes"] <= limit
@@ -125,15 +125,19 @@ def stage(root, invocation, header_sha):
     header = inspect_header(decode(line[:-1]), invocation)
     attempt = root / "invocations" / invocation
     make_directory(attempt)
-    for leaf in ("capture", "install", "work"):
+    for leaf in ("capture", "install", "work", "packages"):
         make_directory(attempt / leaf)
     make_directory(attempt / "work/home")
     filename = (
         attempt
         / (
-            {"request": "request.json", "plan": "plan.json", "application": "install/Portcove.AppImage"}[
-                header["entry"]
-            ]
+            {
+                "request": "request.json",
+                "plan": "plan.json",
+                "application": "install/Portcove.AppImage",
+                "candidate": "packages/Candidate.AppImage",
+                "predecessor": "packages/Predecessor.AppImage",
+            }[header["entry"]]
         )
     )
     partial = Path(str(filename) + ".partial")
@@ -155,7 +159,7 @@ def stage(root, invocation, header_sha):
                 view = view[written:]
         require(not sys.stdin.buffer.read(1), "native transfer has trailing bytes; preserve partial")
         require(digest.hexdigest() == header["sha256"], "native input digest differs; preserve partial")
-        os.fchmod(fd, 0o500 if header["entry"] == "application" else 0o400)
+        os.fchmod(fd, 0o500 if header["entry"] in ("application", "candidate", "predecessor") else 0o400)
         os.fsync(fd)
     finally:
         os.close(fd)

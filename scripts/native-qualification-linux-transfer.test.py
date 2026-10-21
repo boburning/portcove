@@ -22,6 +22,10 @@ class TransferTests(unittest.TestCase):
     def test_strict_header_no_caller_path_or_unbounded_payload(self):
         valid = {"schema_version": 1, "invocation_id": ID, "entry": "plan", "bytes": 4, "sha256": "b" * 64}
         self.assertEqual(transfer.inspect_header(valid, ID), valid)
+        predecessor = {**valid, "entry": "predecessor", "bytes": 512 * transfer.MIB}
+        self.assertEqual(transfer.inspect_header(predecessor, ID), predecessor)
+        with self.assertRaises(RuntimeError):
+            transfer.inspect_header({**predecessor, "bytes": 512 * transfer.MIB + 1}, ID)
         for changed in (
             {**valid, "entry": "../controller/source"},
             {**valid, "path": "/tmp/other"},

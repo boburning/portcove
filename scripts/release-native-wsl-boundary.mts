@@ -151,12 +151,19 @@ export function nativeWslInvocationCommands(
       requestSha256,
     ]);
   return Object.freeze({
-    stage(entry: "request" | "plan" | "application", bytes: number, sha256: string) {
+    stage(
+      entry: "request" | "plan" | "application" | "candidate" | "predecessor",
+      bytes: number,
+      sha256: string,
+    ) {
       if (
-        !["request", "plan", "application"].includes(entry) ||
+        !["request", "plan", "application", "candidate", "predecessor"].includes(entry) ||
         !Number.isSafeInteger(bytes) ||
         bytes < 1 ||
-        bytes > (entry === "application" ? 512 * 1024 * 1024 : 128 * 1024)
+        bytes >
+          (["application", "candidate", "predecessor"].includes(entry)
+            ? 512 * 1024 * 1024
+            : 128 * 1024)
       )
         throw new Error("fixed native input transfer differs");
       sha(sha256);

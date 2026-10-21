@@ -250,6 +250,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-native-wsl-host.mts",
   "scripts/read-native-wsl-host.ps1",
   "scripts/release-native-linux-driver.mts",
+  "scripts/release-native-linux-package.mts",
   "scripts/release-native-candidate.mts",
   "scripts/release-native-keyless-assembly.mts",
   "scripts/release-native-attempt.mts",

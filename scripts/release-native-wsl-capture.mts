@@ -180,8 +180,10 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   assert.ok(
     isRecord(raw) &&
       Object.keys(raw).sort().join(",") ===
-        "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,request_sha256,schema_version,stage_request_sha256" &&
-      raw.schema_version === 1,
+        (raw.schema_version === 2
+          ? "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,predecessor,request_sha256,schema_version,stage_request_sha256"
+          : "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,request_sha256,schema_version,stage_request_sha256") &&
+      (raw.schema_version === 1 || raw.schema_version === 2),
   );
   for (const key of ["invocation_id", "request_sha256", "plan_sha256", "stage_request_sha256"])
     assert.ok(typeof raw[key] === "string" && /^[a-f0-9]{64}$/u.test(raw[key]));
@@ -208,6 +210,25 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   );
   const relative = path.win32.relative(raw.capture_root, raw.package.path);
   assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
+  let predecessor: { path: string; bytes: number; sha256: string } | null = null;
+  if (raw.schema_version === 2 && raw.predecessor !== null) {
+    const value = raw.predecessor;
+    assert.ok(
+      isRecord(value) &&
+        Object.keys(value).sort().join(",") === "bytes,path,sha256" &&
+        typeof value.path === "string" &&
+        path.win32.isAbsolute(value.path) &&
+        Number.isSafeInteger(value.bytes) &&
+        Number(value.bytes) > 0 &&
+        Number(value.bytes) <= 512 * 1024 * 1024 &&
+        typeof value.sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(value.sha256),
+    );
+    const relative = path.win32.relative(raw.capture_root, value.path);
+    assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
+    assert.notEqual(value.sha256, raw.package.sha256);
+    predecessor = { path: value.path, bytes: Number(value.bytes), sha256: value.sha256 };
+  }
   assert.ok(
     isRecord(raw.node) &&
       Object.keys(raw.node).sort().join(",") === "path,sha256" &&
@@ -243,7 +264,7 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       machine_id_sha256: raw.host_expected.machine_id_sha256,
       minimum_os_version: raw.host_expected.minimum_os_version,
     },
-    schema_version: 1 as const,
+    schema_version: raw.schema_version === 2 ? (2 as const) : (1 as const),
     invocation_id: String(raw.invocation_id),
     request_sha256: String(raw.request_sha256),
     plan_sha256: String(raw.plan_sha256),
@@ -256,6 +277,7 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       bytes: Number(raw.package.bytes),
       sha256: raw.package.sha256,
     },
+    predecessor,
     node: { path: raw.node.path, sha256: raw.node.sha256 },
     parent_deadline_utc: raw.parent_deadline_utc,
     boundary,
@@ -334,22 +356,27 @@ async function runPreparedWslDriver(raw: unknown) {
       Math.min(60000, budget()),
     );
   }
-  const packageInfo = await lstat(prepared.package.path);
-  assert.ok(
-    packageInfo.isFile() &&
-      !packageInfo.isSymbolicLink() &&
-      packageInfo.nlink === 1 &&
-      packageInfo.size === prepared.package.bytes,
-  );
-  const command = commands.stage("application", prepared.package.bytes, prepared.package.sha256);
-  await runFixedWsl(
-    command,
-    packageInput(command.header, prepared.package.path),
-    directory,
-    "stage-application",
-    65536,
-    Math.min(180000, budget()),
-  );
+  for (const [entry, identity] of [
+    [prepared.schema_version === 2 ? "candidate" : "application", prepared.package],
+    ...(prepared.predecessor ? [["predecessor", prepared.predecessor] as const] : []),
+  ] as const) {
+    const packageInfo = await lstat(identity.path);
+    assert.ok(
+      packageInfo.isFile() &&
+        !packageInfo.isSymbolicLink() &&
+        packageInfo.nlink === 1 &&
+        packageInfo.size === identity.bytes,
+    );
+    const command = commands.stage(entry, identity.bytes, identity.sha256);
+    await runFixedWsl(
+      command,
+      packageInput(command.header, identity.path),
+      directory,
+      `stage-${entry}`,
+      65536,
+      Math.min(180000, budget()),
+    );
+  }
   let status: number | null = null,
     failure: string | null = null;
   try {
@@ -469,11 +496,13 @@ export async function captureActualWslNativeInvocation(claim: object) {
     request = selected.request.request;
   assert.equal(process.platform, "win32");
   assert.equal(parent.descriptor.platform_label, "linux-x86_64");
-  assert.equal(
-    request.stage,
-    "payload-signing",
-    "post-sign guest package lifecycle is not yet connected; no guest effect authorized by this adapter",
-  );
+  const postSign = request.stage === "release-publication";
+  if (postSign) {
+    assert.equal(request.native_report_schema_version, 2);
+    assert.equal(request.native_prepublication_profile, "signed-package-compatibility-v1");
+    assert.ok(request.journey && selected.payload_cryptography);
+    assert.equal(Boolean(selected.predecessor), "predecessor" in request.journey);
+  } else assert.equal(request.stage, "payload-signing");
   const account = parent.authority_configuration.native["linux-x86_64"].host.account;
   const boundary = inspectNativeWslBoundary(
     parent.boundary_configuration,
@@ -539,11 +568,23 @@ export async function captureActualWslNativeInvocation(claim: object) {
   };
   const planBytes = Buffer.from(
     JSON.stringify({
-      schema_version: 1,
+      schema_version: postSign ? 2 : 1,
       invocation_id: invocation,
       stage_request_sha256: selected.request.request_sha256,
       stage: request.stage,
       binding,
+      ...(postSign
+        ? {
+            stage_request: request,
+            predecessor: selected.predecessor
+              ? {
+                  bytes: selected.predecessor.bytes,
+                  sha256: selected.predecessor.sha256,
+                  version: selected.predecessor.version,
+                }
+              : null,
+          }
+        : {}),
     }),
   );
   const requestBytes = Buffer.from(
@@ -590,7 +631,18 @@ export async function captureActualWslNativeInvocation(claim: object) {
       controller_revision: parent.descriptor.controller_revision,
       controller_tree: parent.controller_tree,
     },
-    schema_version: 1,
+    schema_version: postSign ? 2 : 1,
+    ...(postSign
+      ? {
+          predecessor: selected.predecessor
+            ? {
+                path: selected.predecessor.path,
+                bytes: selected.predecessor.bytes,
+                sha256: selected.predecessor.sha256,
+              }
+            : null,
+        }
+      : {}),
     invocation_id: invocation,
     request_sha256: sha(requestBytes),
     plan_sha256: sha(planBytes),

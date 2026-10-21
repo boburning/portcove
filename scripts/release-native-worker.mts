@@ -6,10 +6,7 @@ import {
   establishActualNativeParent,
   requireActualNativeParent,
 } from "./release-native-parent.mts";
-import {
-  acquireActualNativeStageCandidate,
-  requireActualNativeCandidate,
-} from "./release-native-candidate.mts";
+import { acquireActualNativeStageCandidate } from "./release-native-candidate.mts";
 import { claimActualNativeInvocation } from "./release-native-attempt.mts";
 import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
 import {
@@ -32,11 +29,6 @@ export async function runInstalledNativeWorker(configuration: string, configurat
   const linux =
     (await requireActualNativeParent(parent)).descriptor.platform_label === "linux-x86_64";
   const candidate = await acquireActualNativeStageCandidate(parent);
-  if (
-    linux &&
-    (await requireActualNativeCandidate(candidate)).request.request.stage !== "payload-signing"
-  )
-    throw new Error("post-sign WSL package lifecycle remains held; no native invocation claimed");
   const claim = await claimActualNativeInvocation(candidate);
   if (claim.decision === "readback-only")
     return {
