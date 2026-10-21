@@ -46,7 +46,7 @@ One details button owns artwork/title/port identity. Favorite, Play/review,
 update review and menus are siblings, never nested controls. Routine Stable and
 maintenance facts stay out of ordinary entries. Play remains beside a secondary
 downloaded-update review link. Steam bulk selection uses its existing chooser.
-The Ready to play checkmark and label use the semantic success foreground in
+The Ready to play checkmark and label use the quiet semantic muted foreground in
 both covers and rows, without an additional badge background. Text and icon
 continue to convey readiness independently of color.
 Counts are library entries, including separate ports for one game. Details put
@@ -453,8 +453,8 @@ reference composition's fixed frame width or column count is not a window rule.
 
 The scrolling workspace fills the available window width. Library and Catalog
 grids use that width to add columns as the window grows; the 1600x1000 reference
-does not impose a maximum collection width or column count. Catalog tracks are
-bounded at 13.75rem and can shrink below the shared 14rem preferred track minimum
+does not impose a maximum collection width or column count. Artwork is
+bounded at 13.75rem; tracks can shrink below the shared 14rem preferred minimum
 when the available width requires it. Library and Catalog share artwork geometry
 independent of window height. Text-heavy workspaces retain a readable inner
 content width; that content limit must not constrain the scrolling viewport or

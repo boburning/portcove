@@ -73,10 +73,6 @@
       margin-block-end: var(--space-4);
       gap: var(--space-3);
     }
-    [data-library-header] .header-tools {
-      width: auto;
-      margin-inline-start: auto;
-    }
     .app-shell > main {
       min-width: 0;
       overflow: visible;
@@ -89,6 +85,10 @@
     .header-tools .search {
       width: 100%;
       flex: 1 1 12rem;
+    }
+    [data-library-header] .header-tools {
+      width: auto;
+      margin-inline-start: auto;
     }
     .settings-section-index {
       position: static;

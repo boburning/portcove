@@ -34,20 +34,6 @@
     flex-direction: column;
     gap: 8px;
   }
-  .collection-cover .collection-identity,
-  .collection-cover .collection-state,
-  .collection-cover .collection-actions {
-    width: min(100%, var(--collection-art-limit));
-  }
-  .collection-cover .collection-state {
-    min-height: 3rem;
-  }
-  .catalog-card .card-content {
-    width: min(100%, var(--collection-art-limit));
-  }
-  .catalog-card .collection-title {
-    margin-block-start: 0;
-  }
   .collection-identity {
     display: grid;
     width: 100%;
@@ -75,6 +61,20 @@
     overflow-wrap: anywhere;
   }
 
+  .collection-cover .collection-identity,
+  .collection-cover .collection-state,
+  .collection-cover .collection-actions {
+    width: min(100%, var(--collection-art-limit));
+  }
+  .collection-cover .collection-state {
+    min-height: 3rem;
+  }
+  .catalog-card .card-content {
+    width: min(100%, var(--collection-art-limit));
+  }
+  .catalog-card .collection-title {
+    margin-block-start: 0;
+  }
   .collection-cover .collection-actions {
     justify-content: flex-start;
   }
