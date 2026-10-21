@@ -445,6 +445,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
     ],
   ],
   [
@@ -484,6 +485,37 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-site-composer.test.mts", "scripts/release-site-readback.test.mts"],
   ],
   ["scripts/release-catalog-inspection.mts", ["scripts/release-catalog-inspection.test.mts"]],
+  ["scripts/release-catalog-semantic.mts", ["scripts/release-catalog-semantic.test.mts"]],
+  [
+    "scripts/release-catalog-signing.mts",
+    ["scripts/release-catalog-signing.test.mts", "scripts/release-catalog-recovery.test.mts"],
+  ],
+  ["scripts/release-catalog-signing-context.mts", ["scripts/release-catalog-signing.test.mts"]],
+  ["scripts/release-catalog-signing-contract.mts", ["scripts/release-catalog-signing.test.mts"]],
+  [
+    "scripts/release-catalog-source.mts",
+    ["scripts/release-catalog-source.test.mts", "scripts/release-catalog-coordinator.test.mts"],
+  ],
+  [
+    "scripts/release-catalog-review-request.mts",
+    [
+      "scripts/release-catalog-review-request.test.mts",
+      "scripts/release-catalog-review-disposition.test.mts",
+      "scripts/release-catalog-coordinator.test.mts",
+    ],
+  ],
+  [
+    "scripts/release-catalog-review-disposition.mts",
+    [
+      "scripts/release-catalog-review-disposition.test.mts",
+      "scripts/release-catalog-coordinator.test.mts",
+    ],
+  ],
+  ["scripts/release-catalog-coordinator.mts", ["scripts/release-catalog-coordinator.test.mts"]],
+  [
+    "scripts/release-catalog-site-controller.mts",
+    ["scripts/release-catalog-site-controller.test.mts"],
+  ],
   [
     "scripts/release-catalog-publication-contract.mts",
     ["scripts/release-capacity-operation.test.mts"],
@@ -696,7 +728,13 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     "scripts/release-native-publication-admission.mts",
     ["scripts/release-native-admission.test.mts"],
   ],
-  ["scripts/release-controller-wake.mts", ["scripts/release-controller-wake.test.mts"]],
+  [
+    "scripts/release-controller-wake.mts",
+    [
+      "scripts/release-controller-wake.test.mts",
+      "scripts/release-controller-catalog-routing.test.mts",
+    ],
+  ],
   ["scripts/release-publication-result.mts", ["scripts/release-publication-result.test.mts"]],
   [
     "scripts/release-publication-result-artifact.mts",
@@ -711,6 +749,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     [
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
+      "scripts/release-catalog-authorities.test.mts",
     ],
   ],
   ...["fuse", "services"].flatMap((name): [string, string[]][] => [
