@@ -18,6 +18,7 @@ import {
   requireVerifiedWindowsDesktopCompilerIdentity,
 } from "./release-compiler-evidence.mts";
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
+import { controllerNodeVersion } from "./controller-node-runtime.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const roles = [
   "node",
@@ -84,7 +85,7 @@ async function fixture(t: test.TestContext) {
         cargo_version: "cargo 1.99.1 (inert fixture)",
         rustc_version: "rustc 1.99.1 (inert fixture)",
       },
-      node: { version: "v24.22.0" },
+      node: { version: `v${controllerNodeVersion}` },
       tauri: {
         version: "2.12.2",
         native_package: platform.startsWith("windows")
@@ -365,6 +366,9 @@ void test("changed inputs/job/source/refusal/target/tool/invocation and report l
   for (const item of f.reports)
     assert.equal(inspectReleaseCompilerReport(item.raw, item.expected).authority, "none");
   for (const change of [
+    (raw: (typeof f.reports)[number]["raw"]) => {
+      raw.node.version = `v${controllerNodeVersion.replace(/\d+$/u, (patch) => String(Number(patch) + 1))}`;
+    },
     (raw: (typeof f.reports)[number]["raw"]) => {
       raw.evidence_scope = "injected-executor";
     },

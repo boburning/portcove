@@ -199,8 +199,18 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.node-version$/"],
-      "matchStrings": ["(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
+      "managerFilePatterns": [
+        "/^\\.node-version$/",
+        "/^scripts\\/controller-node-runtime\\.mts$/",
+        "/^\\.github\\/workflows\\/application-update-production\\.yml$/",
+        "/^docs\\/qualification\\/application-update-production\\.complete\\.yml$/",
+        "/^docs\\/qualification\\/application-update-production\\.controller-tools\\.yml$/"
+      ],
+      "matchStrings": [
+        "^(?<currentValue>\\d+\\.\\d+\\.\\d+)[\\r\\n]*$",
+        "export[ \\t]+const[ \\t]+controllerNodeVersion[ \\t]*=[ \\t]*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\";",
+        "(?:^|\\r?\\n)[ \\t]+node-version:[ \\t]*[\"']?(?<currentValue>\\d+\\.\\d+\\.\\d+)[\"']?[ \\t]*(?:\\r?\\n|$)"
+      ],
       "depNameTemplate": "node",
       "datasourceTemplate": "node-version",
       "versioningTemplate": "node"
