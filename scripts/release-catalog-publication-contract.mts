@@ -15,6 +15,38 @@ function sha(raw: unknown, length = 64): asserts raw is string {
 function nullableSha(raw: unknown): asserts raw is string | null {
   if (raw !== null) sha(raw);
 }
+/** Inert initial journal identity. It carries no semantic result, capacity
+ * promise or permission to sign/publish; actual consumers reauthenticate setup. */
+export function inspectCatalogInitialization(raw: unknown) {
+  if (raw == null) return null;
+  exact(
+    raw,
+    "authority,initial_site_preimage_sha256,kind,publisher_configuration_sha256,root_sha256,schema_version,setup_plan_sha256,source_commit,source_tree",
+  );
+  if (raw.schema_version !== 1 || raw.kind !== "catalog-initialization" || raw.authority !== "none")
+    throw new Error("explicit inert catalog initialization required");
+  for (const field of [
+    "initial_site_preimage_sha256",
+    "publisher_configuration_sha256",
+    "root_sha256",
+    "setup_plan_sha256",
+  ])
+    sha(raw[field]);
+  sha(raw.source_commit, 40);
+  sha(raw.source_tree, 40);
+  return {
+    schema_version: 1 as const,
+    kind: "catalog-initialization" as const,
+    authority: "none" as const,
+    source_commit: raw.source_commit,
+    source_tree: raw.source_tree,
+    initial_site_preimage_sha256: String(raw.initial_site_preimage_sha256),
+    publisher_configuration_sha256: String(raw.publisher_configuration_sha256),
+    root_sha256: String(raw.root_sha256),
+    setup_plan_sha256: String(raw.setup_plan_sha256),
+  };
+}
+
 export function inspectCatalogPublicationDescriptor(raw: unknown) {
   exact(
     raw,

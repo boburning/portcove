@@ -1,5 +1,8 @@
 import { inspectPublicationReportRepair } from "./release-report-repair-contract.mts";
-import { inspectCatalogPublicationDescriptor } from "./release-catalog-publication-contract.mts";
+import {
+  inspectCatalogPublicationDescriptor,
+  inspectCatalogInitialization,
+} from "./release-catalog-publication-contract.mts";
 import {
   inspectPublishedCatalogMetadata,
   currentPublishedSite,
@@ -399,6 +402,7 @@ type Authority = {
   metadata_renewal_sha256?: string;
   metadata_bootstrap_sha256?: string;
   catalog_publication_sha256?: string;
+  catalog_initialization_sha256?: string;
   published_catalog_metadata_sha256?: string;
   published_site_sha256?: string;
 };
@@ -493,6 +497,7 @@ export function planReleaseOpportunity(input: unknown) {
       "review_request",
       "review_disposition",
       "catalog_publication",
+      "catalog_initialization",
       "published_catalog_metadata",
       "published_site",
     ],
@@ -506,6 +511,7 @@ export function planReleaseOpportunity(input: unknown) {
   const active = validateActive(input.active_candidate);
   const hasMetadata =
     Object.hasOwn(input, "catalog_publication") ||
+    Object.hasOwn(input, "catalog_initialization") ||
     Object.hasOwn(input, "published_catalog_metadata") ||
     Object.hasOwn(input, "published_site") ||
     Object.hasOwn(input, "published_metadata") ||
@@ -521,6 +527,7 @@ export function planReleaseOpportunity(input: unknown) {
       input.controller.capacity_attempt.schema_version !== 2)
   )
     throw new Error("metadata journal fields require bounded capacity schema2");
+  const catalogInitialization = inspectCatalogInitialization(input.catalog_initialization);
   const publishedMetadata = inspectPublishedMetadata(input.published_metadata);
   const publishedCatalog = inspectPublishedCatalogMetadata(input.published_catalog_metadata);
   const publishedSite = currentPublishedSite(input);
@@ -547,6 +554,13 @@ export function planReleaseOpportunity(input: unknown) {
       ? null
       : inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
   if (catalogPublication) {
+    if (
+      catalogInitialization &&
+      (catalogPublication.prior.catalog_root_sha256 !== catalogInitialization.root_sha256 ||
+        catalogPublication.publisher_configuration_sha256 !==
+          catalogInitialization.publisher_configuration_sha256)
+    )
+      throw new Error("catalog subject differs from initial setup identity");
     const authority: Authority = {
       ...siteAuthority,
       controller_workflow: controller.workflow,
@@ -582,7 +596,7 @@ export function planReleaseOpportunity(input: unknown) {
   }
   if (input.opportunity === null) {
     if (
-      (!metadataBootstrap && !publishedSite) ||
+      (!metadataBootstrap && !publishedSite && !catalogInitialization) ||
       active ||
       publication.reserved_versions.length !== 0
     )
@@ -597,6 +611,9 @@ export function planReleaseOpportunity(input: unknown) {
       publication_sha256: capacityDigest(input.publication),
       ...(metadataBootstrap
         ? { metadata_bootstrap_sha256: capacityDigest(metadataBootstrap) }
+        : {}),
+      ...(catalogInitialization
+        ? { catalog_initialization_sha256: capacityDigest(catalogInitialization) }
         : {}),
       ...(controller.capacity ? { capacity_attempt: controller.capacity } : {}),
       ...(Object.hasOwn(input, "published_metadata")
@@ -620,9 +637,11 @@ export function planReleaseOpportunity(input: unknown) {
         ? "publication emergency pause is active"
         : controller.capacity?.eligibility !== "eligible"
           ? "bounded initial metadata state is held"
-          : metadataBootstrap
-            ? "explicit initial metadata state has no semantic release opportunity"
-            : "catalog-only published site has no application release opportunity",
+          : catalogInitialization && !publishedSite
+            ? "inert catalog initialization awaits an authenticated complete opportunity"
+            : metadataBootstrap
+              ? "explicit initial metadata state has no semantic release opportunity"
+              : "catalog-only published site has no application release opportunity",
       authority,
     );
   }

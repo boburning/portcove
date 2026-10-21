@@ -6,6 +6,7 @@ import {
 } from "./release-catalog-metadata-contract.mts";
 import {
   inspectCatalogCapacitySubject,
+  inspectCatalogInitialization,
   catalogPublicationLifecycle,
   assertCatalogSitePublicationBinding,
 } from "./release-catalog-publication-contract.mts";
@@ -940,6 +941,25 @@ function validateCapacityV2(
     throw new Error("new Release intent requires exact provider preimage");
   if (newIntent && after.aggregate_expectation)
     assertAggregateUploadCandidate(next.active_candidate);
+  const previousCatalogInitialization = inspectCatalogInitialization(
+    previous.catalog_initialization,
+  );
+  const nextCatalogInitialization = inspectCatalogInitialization(next.catalog_initialization);
+  if (
+    previousCatalogInitialization &&
+    capacityDigest(previousCatalogInitialization) !== capacityDigest(nextCatalogInitialization)
+  )
+    throw new Error("catalog initialization identity cannot disappear or be replaced");
+  if (
+    !previousCatalogInitialization &&
+    nextCatalogInitialization &&
+    (currentPublishedSite(previous) ||
+      currentPublishedSite(next) ||
+      previous.active_candidate != null ||
+      next.active_candidate != null ||
+      (before && !["succeeded", "recovered"].includes(before.outcome)))
+  )
+    throw new Error("catalog initialization cannot replace published or unresolved state");
   const previousBootstrap =
     previous.metadata_bootstrap == null
       ? null
