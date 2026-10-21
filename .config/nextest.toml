@@ -7,6 +7,14 @@ test-threads = 2
 status-level = "pass"
 final-status-level = "slow"
 
+# Explicitly ignored host SDK diagnostic: fifteen-minute cooperative probe with
+# one minute for its final retained error log. Never changes the product clock.
+[[profile.default.overrides]]
+platform = 'cfg(windows)'
+filter = 'package(portcove-core) & test(/^cartridge_build::cvlod::local_profile::timing_tests::cvlod_host_sdk_stage_timings$/)'
+slow-timeout = { period = "30s", terminate-after = 32, grace-period = "0s" }
+success-output = "immediate"
+
 # Credential-publication fixtures reached the 30s Windows harness cutoff; import
 # setup alone took about 20s, and move covers both publication boundaries.
 # Retain complete fixtures/assertions, two workers, zero retries and finite 60s.

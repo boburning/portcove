@@ -654,6 +654,17 @@ deadline precede atomic publication. CVLoD uses one clock from private SDK
 preparation through generation, compilation and pre-publication packaging;
 individual commands do not renew it. Other cartridge recipes retain their
 20-minute allowance.
+
+Bounded post-link diagnostics distinguish generated-source verification, full
+input verification, packaging, import inspection, final input verification,
+output inventory and receipt/activation. A failure preserves its original code,
+message and technical context while adding the failing stage, its elapsed time
+and at most seven completed stage timings without overwriting existing details.
+The immutable receipt records completed pre-activation timings only. These
+observations neither extend the clock nor prove accepted output or quiescence.
+An explicitly ignored Windows SDK timing probe separately measures existing
+SDK functions in a fresh private directory; its single uncontrolled-cache run
+does not establish whole-build attribution or cold-cache throughput.
 Cancellation and the separate process-tree closure deadline are unchanged.
 Both captured private SDK inventories must exactly match the compiled profile
 before execution. Existing post-execution checks still rehash every captured

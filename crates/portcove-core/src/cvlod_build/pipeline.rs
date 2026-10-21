@@ -18,6 +18,10 @@ use std::{
     time::Instant,
 };
 
+#[path = "pipeline_timings.rs"]
+mod timings;
+use timings::{PostLinkStage, PostLinkTimings};
+
 pub(super) const DXC: BuildArchive = BuildArchive {
     name: "cvlod-dxc-1.7.2308.zip",
     url: "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.7.2308/dxc_2023_08_14.zip",
@@ -621,91 +625,111 @@ pub(super) fn prepare_install(
         "game",
         executor.compile(&build, Stage::Game, "LodRecomp", quiesced)?,
     );
-    if inventory(&project, &checkpoint)? != generated_source {
-        return Err(PortcoveError::verification(
-            "CVLoD build changed its generated source inputs",
-        ));
-    }
-    inputs.verify(&preparation.source, &checkpoint)?;
-    // The preceding full rehash equals this manifest-bound capture.
-    local_profile::verify_captured(&inputs, &local, &checkpoint)?;
-    let package = work.join("package");
-    fs::create_dir(&package)?;
-    for (from, name) in [
-        (build.join("LodRecomp.exe"), "LodRecomp.exe"),
-        (archive_root(work, SDL).join("lib/x64/SDL2.dll"), "SDL2.dll"),
-        (
-            project.join("lib/rt64/src/contrib/dxc/bin/x64/dxcompiler.dll"),
-            "dxcompiler.dll",
-        ),
-        (
-            project.join("lib/rt64/src/contrib/dxc/bin/x64/dxil.dll"),
-            "dxil.dll",
-        ),
-        (project.join("rom.z64"), super::RECIPE.original_filename()),
-    ] {
-        copy_verified(&from, &package.join(name), &checkpoint)?;
-    }
-    let assets = inventory(&project.join("assets"), &checkpoint)?;
-    if assets.len() != 80 {
-        return Err(PortcoveError::verification(
-            "CVLoD runtime asset count differs",
-        ));
-    }
-    for file in assets {
-        copy_verified(
-            &project.join("assets").join(&file.path),
-            &package.join("assets").join(file.path),
-            &checkpoint,
-        )?;
-    }
-    write_new(&package.join("portable.txt"), b"")?;
-    let public_roots = archives.len() + sources::raw_roots(work)?.len();
-    for (index, root) in inputs
-        .roots
-        .iter()
-        .enumerate()
-        .filter(|(i, _)| *i < public_roots)
-    {
-        // Include public component notices, never Microsoft SDK/tool bytes.
-        for file in &inputs.identities[index] {
-            let name = file
-                .path
-                .rsplit('/')
-                .next()
-                .unwrap_or_default()
-                .to_ascii_lowercase();
-            if name.contains("license")
-                || name.starts_with("copying")
-                || name.starts_with("notice")
-                || ["ftl.txt", "gplv2.txt"].contains(&name.as_str())
-            {
-                copy_verified(
-                    &root.join(&file.path),
-                    &package
-                        .join("licenses")
-                        .join(index.to_string())
-                        .join(&file.path),
-                    &checkpoint,
-                )?;
+    let mut timings = PostLinkTimings::default();
+    timings.run(PostLinkStage::GeneratedSourceIntegrity, || {
+        if inventory(&project, &checkpoint)? != generated_source {
+            return Err(PortcoveError::verification(
+                "CVLoD build changed its generated source inputs",
+            ));
+        }
+        Ok(())
+    })?;
+    timings.run(PostLinkStage::InputIntegrityBeforePackage, || {
+        inputs.verify(&preparation.source, &checkpoint)?;
+        // The preceding full rehash equals this manifest-bound capture.
+        local_profile::verify_captured(&inputs, &local, &checkpoint)
+    })?;
+    let package = timings.run(PostLinkStage::PackagePreparation, || {
+        let package = work.join("package");
+        fs::create_dir(&package)?;
+        for (from, name) in [
+            (build.join("LodRecomp.exe"), "LodRecomp.exe"),
+            (archive_root(work, SDL).join("lib/x64/SDL2.dll"), "SDL2.dll"),
+            (
+                project.join("lib/rt64/src/contrib/dxc/bin/x64/dxcompiler.dll"),
+                "dxcompiler.dll",
+            ),
+            (
+                project.join("lib/rt64/src/contrib/dxc/bin/x64/dxil.dll"),
+                "dxil.dll",
+            ),
+            (project.join("rom.z64"), super::RECIPE.original_filename()),
+        ] {
+            copy_verified(&from, &package.join(name), &checkpoint)?;
+        }
+        let assets = inventory(&project.join("assets"), &checkpoint)?;
+        if assets.len() != 80 {
+            return Err(PortcoveError::verification(
+                "CVLoD runtime asset count differs",
+            ));
+        }
+        for file in assets {
+            copy_verified(
+                &project.join("assets").join(&file.path),
+                &package.join("assets").join(file.path),
+                &checkpoint,
+            )?;
+        }
+        write_new(&package.join("portable.txt"), b"")?;
+        let public_roots = archives.len() + sources::raw_roots(work)?.len();
+        for (index, root) in inputs
+            .roots
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| *i < public_roots)
+        {
+            // Include public component notices, never Microsoft SDK/tool bytes.
+            for file in &inputs.identities[index] {
+                let name = file
+                    .path
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or_default()
+                    .to_ascii_lowercase();
+                if name.contains("license")
+                    || name.starts_with("copying")
+                    || name.starts_with("notice")
+                    || ["ftl.txt", "gplv2.txt"].contains(&name.as_str())
+                {
+                    copy_verified(
+                        &root.join(&file.path),
+                        &package
+                            .join("licenses")
+                            .join(index.to_string())
+                            .join(&file.path),
+                        &checkpoint,
+                    )?;
+                }
             }
         }
-    }
-    let mut imports = BTreeMap::new();
-    for name in ["LodRecomp.exe", "SDL2.dll", "dxcompiler.dll", "dxil.dll"] {
-        imports.insert(
-            name,
-            inspect_image(&executor, &package.join(name), quiesced)?,
-        );
-    }
-    inputs.verify(&preparation.source, &checkpoint)?;
-    if !*quiesced {
-        return Err(PortcoveError::state(
-            "CVLoD builder has no process-tree quiescence proof",
-        ));
-    }
-    let output = inventory(&package, &checkpoint)?;
+        Ok(package)
+    })?;
+    let imports = timings.run(PostLinkStage::ImportInspection, || {
+        let mut imports = BTreeMap::new();
+        for name in ["LodRecomp.exe", "SDL2.dll", "dxcompiler.dll", "dxil.dll"] {
+            imports.insert(
+                name,
+                inspect_image(&executor, &package.join(name), quiesced)?,
+            );
+        }
+        Ok(imports)
+    })?;
+    timings.run(PostLinkStage::FinalInputIntegrity, || {
+        inputs.verify(&preparation.source, &checkpoint)?;
+        if !*quiesced {
+            return Err(PortcoveError::state(
+                "CVLoD builder has no process-tree quiescence proof",
+            ));
+        }
+        Ok(())
+    })?;
+    let output = timings.run(PostLinkStage::OutputInventory, || {
+        inventory(&package, &checkpoint)
+    })?;
     commands.extend(executor.commands.into_inner());
+    // The immutable receipt records completed pre-activation stages only.
+    let post_link_timings = timings.completed();
+    timings.run(PostLinkStage::ReceiptAndActivation, || {
     write_new(
         &package.join(RECEIPT),
         &serde_json::to_vec_pretty(&serde_json::json!({
@@ -715,7 +739,7 @@ pub(super) fn prepare_install(
             "local_toolchain_manifest_sha256":local_profile::identity(),"input_tree_sha256":inputs.identities.iter().map(|v|serde_json::to_vec(v).map(|b|digest(&b))).collect::<std::result::Result<Vec<_>,_>>()?,
             "lifetime_patch":{"before_sha256":PATCH_BEFORE,"after_sha256":PATCH_AFTER},"rmlui_compiler_options_patch":{"before_sha256":compiler_options::BEFORE,"after_sha256":compiler_options::AFTER},"generation":generation,"commands":commands,"compilation":plans,
             "objects_per_invocation":OBJECT_BATCH_LIMIT,"mixed_objects_per_invocation":2,"rmlui_objects_per_invocation":OBJECT_BATCH_LIMIT,"helpers_per_invocation":8,"dry_run_before_execution":true,"execution_deadline_seconds":super::RECIPE.execution_budget().as_secs(),
-            "elapsed_ms":deadline.elapsed().as_millis(),"recompiler_imports":recompiler_imports,"imports":imports,"runtime_files":output,"builder_quiesced":true,"game_executed_by_builder":false
+            "elapsed_ms":deadline.elapsed().as_millis(),"post_link_timings":post_link_timings,"recompiler_imports":recompiler_imports,"imports":imports,"runtime_files":output,"builder_quiesced":true,"game_executed_by_builder":false
         }))?,
     )?;
     checkpoint()?;
@@ -733,6 +757,7 @@ pub(super) fn prepare_install(
     crate::durability::rename_noreplace(payload, &work.join("primary-runtime-input"))?;
     crate::durability::rename_noreplace(&package, payload)?;
     checkpoint()
+    })
 }
 
 pub(super) fn validate_command_result(

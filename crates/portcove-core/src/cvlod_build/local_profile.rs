@@ -341,6 +341,10 @@ mod tests {
     }
 }
 
+#[cfg(all(test, windows))]
+#[path = "local_profile_timing_tests.rs"]
+mod timing_tests;
+
 /// Bind a freshly captured inventory to the compiled profile. This is not a
 /// filesystem observation: BuildInputs::verify still rehashes every captured root
 /// after execution. Together, those comparisons retain exact manifest identity
