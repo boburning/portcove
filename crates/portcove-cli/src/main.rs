@@ -1252,6 +1252,17 @@ async fn execute_with_qualification_environment(
 
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
+        command: CatalogCommand::InspectDefinitionPublication { directory },
+    } = &cli.command
+    {
+        render_success(
+            mode,
+            "catalog.inspect-definition-publication",
+            portcove_core::inspect_definition_publication(directory)?,
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
         command: CatalogCommand::InspectProposal { file },
     } = &cli.command
     {

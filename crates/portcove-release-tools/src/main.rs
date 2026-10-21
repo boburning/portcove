@@ -9,6 +9,49 @@ fn main() {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let arguments: Vec<_> = std::env::args().skip(1).collect();
+    if let [command, config] = arguments.as_slice()
+        && matches!(
+            command.as_str(),
+            "sign-offline-definition-targets" | "assemble-definition-repository"
+        )
+    {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        if command == "sign-offline-definition-targets" {
+            let report = runtime.block_on(
+                portcove_release_tools::definition_repository::sign_offline_definition_targets(
+                    Path::new(config),
+                ),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+        } else {
+            let report = runtime.block_on(
+                portcove_release_tools::definition_repository::assemble_definition_repository(
+                    Path::new(config),
+                ),
+            )?;
+            println!("{}", serde_json::to_string(&report)?);
+        }
+        return Ok(());
+    }
+    if let [command, role, config] = arguments.as_slice()
+        && command == "sign-definition-role"
+    {
+        let role =
+            portcove_release_tools::definition_repository::DefinitionOnlineRole::parse(role)?;
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        let report = runtime.block_on(
+            portcove_release_tools::definition_repository::sign_definition_role(
+                role,
+                Path::new(config),
+            ),
+        )?;
+        println!("{}", serde_json::to_string(&report)?);
+        return Ok(());
+    }
     if let [command, config] = arguments.as_slice() {
         if command == "create-offline-key" {
             let runtime = tokio::runtime::Builder::new_current_thread()

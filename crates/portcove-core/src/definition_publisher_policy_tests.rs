@@ -137,7 +137,7 @@ async fn managed_signed_policy_refuses_schema_scope_confusion() {
     assert_signed_managed_policy_refused(document).await;
 }
 
-fn availability_for(targets: &[(String, Vec<u8>)], id: &str, revision: u64) -> Value {
+pub(super) fn availability_for(targets: &[(String, Vec<u8>)], id: &str, revision: u64) -> Value {
     let index: Value = serde_json::from_slice(&targets[0].1).unwrap();
     let target = index["definitions"][0]["target"].as_str().unwrap();
     let bytes = &targets.iter().find(|(name, _)| name == target).unwrap().1;

@@ -9,6 +9,9 @@ import { capacityDigest } from "./release-capacity.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
+import { inspectSiteGeneration, isSafeSitePath } from "./release-site-generation.mts";
+import type { SiteGeneration } from "./release-site-generation.mts";
+export { isSafeSitePath } from "./release-site-generation.mts";
 
 const run = promisify(execFile);
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -21,13 +24,7 @@ interface SiteFile {
   bytes: number;
   sha256: string;
 }
-interface Generation {
-  schema_version: 1;
-  previous_generation: string | null;
-  application_root_sha256: string;
-  files: SiteFile[];
-  generation: string;
-}
+type Generation = SiteGeneration;
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
 
@@ -74,16 +71,6 @@ async function boundedFile(file: string, maximum: number, qualifiedTool = false)
     await handle.close();
   }
 }
-export const isSafeSitePath = (name: string) =>
-  name === ".nojekyll" ||
-  (name.length <= 512 &&
-    name.split("/").length <= 16 &&
-    name
-      .split("/")
-      .every(
-        (segment) =>
-          /^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(segment) && segment !== "." && segment !== "..",
-      ));
 async function tree(root: string, deadline?: number): Promise<Files> {
   remaining(deadline);
   const rootInfo = await lstat(root);
@@ -122,36 +109,23 @@ function identities(files: Files): SiteFile[] {
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: sha(bytes) }));
 }
-function inspectPrior(files: Files, expected: string, rootHash: string) {
+function inspectPrior(files: Files, expected: string) {
   const marker = files.get("publication.json");
   if (!marker || marker.length > 4 * 1024 * 1024)
     throw new Error("prior site generation marker unavailable");
-  const value: unknown = JSON.parse(marker.toString("utf8"));
-  if (
-    !isRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "application_root_sha256,files,generation,previous_generation,schema_version" ||
-    value.schema_version !== 1 ||
-    value.generation !== expected ||
-    value.application_root_sha256 !== rootHash ||
-    !(value.previous_generation === null || digest(value.previous_generation)) ||
-    !Array.isArray(value.files)
-  )
-    throw new Error("prior site generation identity differs");
+  if (!Buffer.from(marker.toString("utf8"), "utf8").equals(marker))
+    throw new Error("prior site marker is not UTF-8");
+  let value;
+  try {
+    value = inspectSiteGeneration(JSON.parse(marker.toString("utf8")), expected);
+  } catch (cause) {
+    throw new Error("prior site generation differs", { cause });
+  }
   const original = new Map(files);
   original.delete("publication.json");
-  const wanted = {
-    schema_version: 1 as const,
-    previous_generation: value.previous_generation,
-    application_root_sha256: rootHash,
-    files: identities(original),
-  };
-  if (
-    JSON.stringify(value.files) !== JSON.stringify(wanted.files) ||
-    capacityDigest(wanted) !== expected
-  )
+  if (JSON.stringify(value.files) !== JSON.stringify(identities(original)))
     throw new Error("prior site bytes differ from independently expected generation");
-  return { ...wanted, generation: expected };
+  return value;
 }
 
 /** Bounded filesystem readback only. A matching marker is not authentication;
@@ -163,7 +137,23 @@ export async function readComposedSite(
   deadline?: number,
 ) {
   const files = await tree(directory, deadline);
-  const generation = inspectPrior(files, expected, rootHash);
+  const generation = inspectPrior(files, expected);
+  if (generation.application_root_sha256 !== rootHash)
+    throw new Error("prior application root differs");
+  return { files, generation };
+}
+
+/** Catalog custody uses its own expected root, never the application's root. */
+export async function readComposedCatalogSite(
+  directory: string,
+  expected: string,
+  rootHash: string,
+  deadline?: number,
+) {
+  const files = await tree(directory, deadline);
+  const generation = inspectPrior(files, expected);
+  if (generation.schema_version !== 2 || generation.catalog_root_sha256 !== rootHash)
+    throw new Error("prior catalog root differs");
   return { files, generation };
 }
 
@@ -210,9 +200,19 @@ export async function composeSiteFiles(request: {
       !name.startsWith("catalog/")
     )
       throw new Error("prior site has an unowned component; preserve and reconcile");
-  const prior = request.previous
-    ? inspectPrior(old, request.expected_previous_generation!, request.application_root_sha256)
-    : null;
+  const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
+
+  if (
+    prior &&
+    prior.application_root_sha256 !== request.application_root_sha256 &&
+    !(
+      prior.application_root_sha256 === null &&
+      ![...old.keys()].some((name) => name.startsWith("application/"))
+    )
+  )
+    throw new Error("prior application root differs");
+  if (prior?.schema_version === 2 && prior.catalog_root_sha256 === request.application_root_sha256)
+    throw new Error("application and catalog roots must differ");
   const app = await tree(request.application, request.deadline);
   const next: Files = new Map([...old].filter(([name]) => name.startsWith("catalog/")));
   for (const [name, bytes] of app) {
@@ -246,12 +246,21 @@ export async function composeSiteFiles(request: {
     [...next.values()].reduce((total, bytes) => total + bytes.length, 0) > maximumBytes
   )
     throw new Error("complete site exceeds fixed publication bound");
-  const body = {
-    schema_version: 1 as const,
-    previous_generation: request.expected_previous_generation,
-    application_root_sha256: request.application_root_sha256,
-    files: nextFiles,
-  };
+  const body =
+    prior?.schema_version === 2
+      ? {
+          schema_version: 2 as const,
+          previous_generation: request.expected_previous_generation,
+          application_root_sha256: request.application_root_sha256,
+          catalog_root_sha256: prior.catalog_root_sha256,
+          files: nextFiles,
+        }
+      : {
+          schema_version: 1 as const,
+          previous_generation: request.expected_previous_generation,
+          application_root_sha256: request.application_root_sha256,
+          files: nextFiles,
+        };
   const generation: Generation = { ...body, generation: capacityDigest(body) };
   next.set("publication.json", Buffer.from(JSON.stringify(generation)));
   if ([...next.values()].reduce((total, bytes) => total + bytes.length, 0) > maximumBytes)
@@ -264,7 +273,7 @@ export async function composeSiteFiles(request: {
     await writeFile(path.join(output, name), bytes, { flag: "wx", mode: 0o600 });
   }
   const observed = await tree(output, request.deadline);
-  inspectPrior(observed, generation.generation, request.application_root_sha256);
+  inspectPrior(observed, generation.generation);
   return {
     authority: "none",
     changed: true,
@@ -272,6 +281,125 @@ export async function composeSiteFiles(request: {
     generation,
     qualification:
       "Complete-site bytes only; provider prior-state/executor/deployment/public readback remain required",
+  };
+}
+
+/** Catalog byte composition only. The caller must independently verify the
+ * catalog TUF tree and original whole-site generation. Neither input names nor
+ * a self-consistent marker confer signing or deployment authority. */
+export async function composeCatalogSiteFiles(request: {
+  previous: string | null;
+  expected_previous_generation: string | null;
+  catalog: string;
+  catalog_root_sha256: string;
+  output_parent: string;
+  deadline?: number;
+}) {
+  remaining(request.deadline);
+  if (
+    !digest(request.catalog_root_sha256) ||
+    ![
+      request.catalog,
+      request.output_parent,
+      ...(request.previous ? [request.previous] : []),
+    ].every((name) => path.isAbsolute(name)) ||
+    (request.previous === null
+      ? request.expected_previous_generation !== null
+      : !digest(request.expected_previous_generation)) ||
+    [request.catalog, ...(request.previous ? [request.previous] : [])].some((input) =>
+      releasePathContains(input, request.output_parent),
+    )
+  )
+    throw new Error("exact independent catalog site identities unavailable");
+  const old = request.previous
+    ? await tree(request.previous, request.deadline)
+    : new Map<string, Buffer>();
+  for (const name of old.keys())
+    if (
+      name !== "publication.json" &&
+      name !== ".nojekyll" &&
+      !name.startsWith("application/metadata/") &&
+      !name.startsWith("application/targets/") &&
+      !name.startsWith("catalog/")
+    )
+      throw new Error("prior site has an unowned component");
+  const prior = request.previous ? inspectPrior(old, request.expected_previous_generation!) : null;
+  if (
+    [...old.keys()].some((name) => name.startsWith("catalog/")) &&
+    (prior?.schema_version !== 2 || prior.catalog_root_sha256 === null)
+  )
+    throw new Error(
+      "existing catalog bytes require independently reconciled catalog root and history",
+    );
+  if (
+    prior?.schema_version === 2 &&
+    prior.catalog_root_sha256 !== null &&
+    prior.catalog_root_sha256 !== request.catalog_root_sha256
+  )
+    throw new Error("catalog root replacement requires independent authority");
+  if (prior?.application_root_sha256 === request.catalog_root_sha256)
+    throw new Error("application and catalog roots must differ");
+  const catalog = await tree(request.catalog, request.deadline);
+  const next: Files = new Map([...old].filter(([name]) => name.startsWith("application/")));
+  for (const [name, bytes] of catalog) {
+    if (!name.startsWith("metadata/") && !name.startsWith("targets/")) {
+      if (name === "repository-manifest.json") continue;
+      throw new Error("catalog component has unexpected publication content");
+    }
+    next.set(`catalog/${name}`, bytes);
+  }
+  if (!next.has("catalog/metadata/timestamp.json")) throw new Error("catalog timestamp absent");
+  for (const [name, bytes] of old)
+    if (
+      (name.startsWith("application/") ||
+        name.startsWith("catalog/targets/") ||
+        /^catalog\/metadata\/\d+\./u.test(name)) &&
+      !next.get(name)?.equals(bytes)
+    )
+      throw new Error(`immutable site history would be removed or changed: ${name}`);
+  next.set(".nojekyll", Buffer.alloc(0));
+  const nextFiles = identities(next);
+  if (
+    prior?.schema_version === 2 &&
+    prior.catalog_root_sha256 === request.catalog_root_sha256 &&
+    JSON.stringify(prior.files) === JSON.stringify(nextFiles)
+  )
+    return {
+      authority: "none",
+      changed: false,
+      output: request.previous!,
+      generation: prior,
+      qualification: "Exact existing site bytes; no deployment or new generation required",
+    };
+  const body = {
+    schema_version: 2 as const,
+    previous_generation: request.expected_previous_generation,
+    application_root_sha256: prior?.application_root_sha256 ?? null,
+    catalog_root_sha256: request.catalog_root_sha256,
+    files: nextFiles,
+  };
+  const generation: Generation = { ...body, generation: capacityDigest(body) };
+  next.set("publication.json", Buffer.from(JSON.stringify(generation)));
+  if (
+    next.size > maximumFiles ||
+    [...next.values()].reduce((total, bytes) => total + bytes.length, 0) > maximumBytes
+  )
+    throw new Error("complete catalog site exceeds fixed publication bound");
+  const output = await mkdtemp(path.join(request.output_parent, "site-"));
+  await chmod(output, 0o700);
+  for (const [name, bytes] of next) {
+    remaining(request.deadline);
+    await mkdir(path.dirname(path.join(output, name)), { recursive: true, mode: 0o700 });
+    await writeFile(path.join(output, name), bytes, { flag: "wx", mode: 0o600 });
+  }
+  inspectPrior(await tree(output, request.deadline), generation.generation);
+  return {
+    authority: "none",
+    changed: true,
+    output,
+    generation,
+    qualification:
+      "Complete-site bytes only; catalog admission, provider/executor and public readback remain required",
   };
 }
 

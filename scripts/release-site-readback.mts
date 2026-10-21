@@ -1,8 +1,9 @@
+import { inspectSiteGeneration } from "./release-site-generation.mts";
 import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
-import { isSafeSitePath, readComposedSite } from "./release-site-composer.mts";
+import { readComposedSite, readComposedCatalogSite } from "./release-site-composer.mts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
@@ -11,7 +12,6 @@ import type { GitHubRestReader } from "./github-api.mts";
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
 const maximumBytes = 256 * 1024 * 1024;
-const maximumFileBytes = 64 * 1024 * 1024;
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
@@ -24,6 +24,7 @@ type PublishedPins = {
 const completeSiteCustody = new WeakMap<
   object,
   {
+    component: "application" | "catalog";
     directory: string;
     rootPath: string;
     markerSha256: string;
@@ -34,18 +35,17 @@ const completeSiteCustody = new WeakMap<
 /** Retrieve only bytes acquired in this process from the fixed public origin.
  * This custody does not authenticate TUF, appoint a root or grant deployment.
  * Every use rechecks the complete tree, including the untouched catalog. */
-export async function requirePublishedCompleteSite(receipt: unknown) {
+async function requireCompleteSite(receipt: unknown, component: "application" | "catalog") {
   const retained =
     typeof receipt === "object" && receipt !== null ? completeSiteCustody.get(receipt) : undefined;
-  if (!retained) throw new Error("actual complete public site custody required");
-  const { files, generation } = await readComposedSite(
-    retained.directory,
-    retained.pins.site_generation_sha256,
-    retained.pins.root_sha256,
-  );
+  if (!retained || retained.component !== component)
+    throw new Error("actual complete matching component public site custody required");
+  const { files, generation } = await (
+    component === "application" ? readComposedSite : readComposedCatalogSite
+  )(retained.directory, retained.pins.site_generation_sha256, retained.pins.root_sha256);
   const application = generation.files
-    .filter((file) => file.path.startsWith("application/"))
-    .map((file) => ({ ...file, path: file.path.slice(12) }));
+    .filter((file) => file.path.startsWith(`${component}/`))
+    .map((file) => ({ ...file, path: file.path.slice(component.length + 1) }));
   if (
     hash(files.get("publication.json") ?? Buffer.alloc(0)) !== retained.markerSha256 ||
     capacityDigest(application) !== retained.pins.repository_sha256 ||
@@ -57,17 +57,27 @@ export async function requirePublishedCompleteSite(receipt: unknown) {
     throw new Error("retained public application bytes changed");
   return {
     directory: retained.directory,
-    application: path.join(retained.directory, "application"),
+    component_directory: path.join(retained.directory, component),
     root_path: retained.rootPath,
     generation,
     pins: structuredClone(retained.pins),
   };
 }
 
+export async function requirePublishedCompleteSite(receipt: unknown) {
+  const { component_directory, ...observed } = await requireCompleteSite(receipt, "application");
+  return { ...observed, application: component_directory };
+}
+export async function requirePublishedCatalogCompleteSite(receipt: unknown) {
+  const { component_directory, ...observed } = await requireCompleteSite(receipt, "catalog");
+  return { ...observed, catalog: component_directory };
+}
+
 /** Recover the whole journal-pinned site for fresh signing/composition workers.
  * The application still requires the pinned Tough verifier before signing.
  * Catalog bytes are preserved as opaque, independently owned content. */
-export async function materializePublishedCompleteSite(
+async function materializeCompleteSite(
+  component: "application" | "catalog",
   raw: PublishedPins,
   privateParent: string,
   phaseDeadline?: number,
@@ -100,11 +110,17 @@ export async function materializePublishedCompleteSite(
     const read = publicReader(Math.min(performance.now() + 120_000, phaseDeadline ?? Infinity));
     const first = await read("publication.json", 4 * 1024 * 1024);
     const observed = marker(JSON.parse(first.toString("utf8")), expected.site_generation_sha256);
-    if (observed.application_root_sha256 !== expected.root_sha256)
+    if (
+      (component === "application"
+        ? observed.application_root_sha256
+        : observed.schema_version === 2
+          ? observed.catalog_root_sha256
+          : null) !== expected.root_sha256
+    )
       throw new Error("complete site root differs from independently pinned root");
     const application = observed.files
-      .filter((file) => file.path.startsWith("application/"))
-      .map((file) => ({ ...file, path: file.path.slice(12) }));
+      .filter((file) => file.path.startsWith(`${component}/`))
+      .map((file) => ({ ...file, path: file.path.slice(component.length + 1) }));
     const roots = application.filter(
       (file) =>
         /^metadata\/[1-9][0-9]*\.root\.json$/u.test(file.path) &&
@@ -152,12 +168,13 @@ export async function materializePublishedCompleteSite(
     if (phaseDeadline !== undefined && performance.now() >= phaseDeadline)
       throw new Error("complete site phase deadline exhausted before custody");
     completeSiteCustody.set(receipt, {
+      component,
       directory,
       pins: expected,
-      rootPath: path.join(directory, "application", roots[0]!.path),
+      rootPath: path.join(directory, component, roots[0]!.path),
       markerSha256: hash(first),
     });
-    return { receipt, ...(await requirePublishedCompleteSite(receipt)) };
+    return { receipt, ...(await requireCompleteSite(receipt, component)) };
   } catch (error) {
     await writeFile(
       path.join(retained, "refusal.json"),
@@ -166,6 +183,33 @@ export async function materializePublishedCompleteSite(
     );
     throw new Error(`complete site materialization refused; retain ${retained}`, { cause: error });
   }
+}
+
+export async function materializePublishedCompleteSite(
+  raw: PublishedPins,
+  parent: string,
+  deadline?: number,
+) {
+  const { component_directory, ...observed } = await materializeCompleteSite(
+    "application",
+    raw,
+    parent,
+    deadline,
+  );
+  return { ...observed, application: component_directory };
+}
+export async function materializePublishedCatalogCompleteSite(
+  raw: PublishedPins,
+  parent: string,
+  deadline?: number,
+) {
+  const { component_directory, ...observed } = await materializeCompleteSite(
+    "catalog",
+    raw,
+    parent,
+    deadline,
+  );
+  return { ...observed, catalog: component_directory };
 }
 
 /** One-time setup preimage, not routine admission or publication authority.
@@ -301,56 +345,11 @@ export async function observeInitialApplicationSite(
 }
 
 function marker(value: unknown, expected: string) {
-  if (
-    !isRecord(value) ||
-    Object.keys(value).sort().join(",") !==
-      "application_root_sha256,files,generation,previous_generation,schema_version" ||
-    value.schema_version !== 1 ||
-    value.generation !== expected ||
-    !digest(value.application_root_sha256) ||
-    !(value.previous_generation === null || digest(value.previous_generation)) ||
-    !Array.isArray(value.files) ||
-    value.files.length > maximumFiles
-  )
-    throw new Error("public site generation schema differs");
-  const seen = new Set<string>();
-  let total = 0;
-  const files = value.files.map((file: unknown) => {
-    if (
-      !isRecord(file) ||
-      Object.keys(file).sort().join(",") !== "bytes,path,sha256" ||
-      typeof file.path !== "string" ||
-      file.path.length > 512 ||
-      !/^(?:\.nojekyll|(?:application\/(?:metadata|targets)|catalog)\/)/u.test(file.path) ||
-      !isSafeSitePath(file.path) ||
-      seen.has(file.path) ||
-      !digest(file.sha256) ||
-      typeof file.bytes !== "number" ||
-      !Number.isSafeInteger(file.bytes) ||
-      file.bytes < 0 ||
-      file.bytes > maximumFileBytes
-    )
-      throw new Error("public site inventory differs");
-    seen.add(file.path);
-    total += file.bytes;
-    return { path: file.path, bytes: file.bytes, sha256: file.sha256 };
-  });
-  if (
-    total > maximumBytes ||
-    !seen.has("application/metadata/timestamp.json") ||
-    !seen.has(".nojekyll") ||
-    JSON.stringify(files.map((file) => file.path)) !== JSON.stringify([...seen].sort())
-  )
-    throw new Error("public site inventory bound/order differs");
-  const unsigned = {
-    schema_version: 1,
-    previous_generation: value.previous_generation,
-    application_root_sha256: value.application_root_sha256,
-    files,
-  };
-  if (capacityDigest(unsigned) !== expected)
-    throw new Error("public site inventory digest differs");
-  return { ...unsigned, generation: expected };
+  try {
+    return inspectSiteGeneration(value, expected);
+  } catch (cause) {
+    throw new Error("public site generation differs", { cause });
+  }
 }
 
 function publicReader(deadline: number) {

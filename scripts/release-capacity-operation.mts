@@ -1,5 +1,15 @@
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
+  inspectPublishedCatalogMetadata,
+  inspectPublishedSite,
+  assertCatalogPublicationBaseline,
+} from "./release-catalog-metadata-contract.mts";
+import {
+  inspectCatalogPublicationDescriptor,
+  catalogPublicationLifecycle,
+  assertCatalogSitePublicationBinding,
+} from "./release-catalog-publication-contract.mts";
+import {
   inspectReleaseEffectExpectation,
   assertReleaseEffectBinding,
 } from "./release-effect-contract.mts";
@@ -65,6 +75,7 @@ type Request = {
   site_expectation?: unknown;
   release_expectation?: unknown;
   aggregate_expectation?: unknown;
+  catalog_site_expectation?: unknown;
 };
 export interface CapacityOperationOptions {
   remote?: { configuration: unknown; api: CoordinatorRemoteApi };
@@ -82,6 +93,7 @@ type Effect = (
 type InternalOptions = CapacityOperationOptions & {
   metadataRenewal?: unknown;
   metadataBootstrap?: unknown;
+  catalogPublication?: unknown;
   metadataRecovery?: "transient" | "substantive-repair";
 };
 export async function runBoundedCapacityOperation(
@@ -124,6 +136,21 @@ export async function runBoundedMetadataBootstrapOperation(
     ...(options.recovery ? { metadataRecovery: options.recovery } : {}),
   });
 }
+export async function runBoundedCatalogPublicationOperation(
+  repository: string,
+  expected: string,
+  descriptor: unknown,
+  request: Request,
+  readBoundary: () => Promise<unknown>,
+  effect: Effect,
+  options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
+) {
+  return runOperation(repository, expected, request, readBoundary, effect, {
+    ...options,
+    catalogPublication: descriptor,
+    ...(options.recovery ? { metadataRecovery: options.recovery } : {}),
+  });
+}
 function metadataNow() {
   const [base, fraction = ""] = new Date().toISOString().slice(0, -1).split(".");
   const trimmed = fraction.replace(/0+$/u, "");
@@ -146,6 +173,7 @@ async function runOperation(
       ...(request.release_expectation === undefined ? [] : ["release_expectation"]),
       ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
       ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+      ...(request.catalog_site_expectation === undefined ? [] : ["catalog_site_expectation"]),
     ]
       .sort()
       .join(",")
@@ -171,8 +199,21 @@ async function runOperation(
     options.metadataBootstrap === undefined
       ? null
       : inspectMetadataBootstrapDescriptor(structuredClone(options.metadataBootstrap));
-  if (metadata && bootstrap) throw new Error("one exact metadata subject required");
-  const maintenance = metadata ?? bootstrap;
+  const catalog =
+    options.catalogPublication === undefined
+      ? null
+      : inspectCatalogPublicationDescriptor(structuredClone(options.catalogPublication));
+  if ([metadata, bootstrap, catalog].filter(Boolean).length > 1)
+    throw new Error("one exact publication subject required");
+  const maintenance = catalog ?? metadata ?? bootstrap;
+  const catalogSite =
+    request.catalog_site_expectation === undefined
+      ? null
+      : catalog
+        ? assertCatalogSitePublicationBinding(catalog, request.catalog_site_expectation)
+        : (() => {
+            throw new Error("catalog site expectation requires explicit catalog subject");
+          })();
   const executor =
     options.executorIdentity === undefined
       ? null
@@ -219,14 +260,19 @@ async function runOperation(
   if (request.destination === "github-actions:boburning/portcove:admitted-aggregate" && !aggregate)
     throw new Error("admitted aggregate intent requires its exact upload preimage");
   const candidate = isRecord(input.active_candidate) ? input.active_candidate : null;
+  if (catalog && candidate)
+    throw new Error("catalog cannot bypass existing application reservation");
+  if (catalog) assertCatalogPublicationBaseline(catalog, input);
   if (aggregate) assertAggregateUploadCandidate(candidate);
   assertPublicationResultDestination(request.destination, candidate);
   let metadataCounters = { transient_retries: 0, substantive_repairs: 0 };
   const observedAt = metadataNow();
   if (maintenance) {
-    const subject = bootstrap
-      ? { kind: "metadata-bootstrap", identity: capacityDigest(bootstrap) }
-      : { kind: "metadata-renewal", identity: metadata!.prior_repository_sha256 };
+    const subject = catalog
+      ? { kind: "catalog-publication", identity: catalogPublicationLifecycle(catalog) }
+      : bootstrap
+        ? { kind: "metadata-bootstrap", identity: capacityDigest(bootstrap) }
+        : { kind: "metadata-renewal", identity: metadata!.prior_repository_sha256 };
     if (bootstrap) {
       assertMetadataBootstrapBinding(
         bootstrap,
@@ -308,37 +354,47 @@ async function runOperation(
     throw new Error("Release preimage required before effect");
   const identity = {
     before_checkpoint: expected,
-    ...(bootstrap
+    ...(catalog
       ? {
-          metadata_bootstrap: {
-            descriptor_sha256: capacityDigest(bootstrap),
-            setup_plan_sha256: bootstrap.setup_plan_sha256,
-            initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
+          catalog_publication: {
+            descriptor: catalog,
+            descriptor_sha256: capacityDigest(catalog),
             observed_at: observedAt,
             ...metadataCounters,
           },
         }
-      : metadata
+      : bootstrap
         ? {
-            metadata_renewal: {
-              descriptor_sha256: capacityDigest(metadata),
-              prior_repository_sha256: metadata.prior_repository_sha256,
+            metadata_bootstrap: {
+              descriptor_sha256: capacityDigest(bootstrap),
+              setup_plan_sha256: bootstrap.setup_plan_sha256,
+              initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
               observed_at: observedAt,
               ...metadataCounters,
             },
           }
-        : {
-            candidate: {
-              source_commit: candidate?.source_commit,
-              prepared_commit: candidate?.prepared_commit,
-              version: candidate?.version,
-              transient_retries: candidate?.transient_retries,
-              substantive_repairs: candidate?.substantive_repairs,
-            },
-          }),
+        : metadata
+          ? {
+              metadata_renewal: {
+                descriptor_sha256: capacityDigest(metadata),
+                prior_repository_sha256: metadata.prior_repository_sha256,
+                observed_at: observedAt,
+                ...metadataCounters,
+              },
+            }
+          : {
+              candidate: {
+                source_commit: candidate?.source_commit,
+                prepared_commit: candidate?.prepared_commit,
+                version: candidate?.version,
+                transient_retries: candidate?.transient_retries,
+                substantive_repairs: candidate?.substantive_repairs,
+              },
+            }),
     destination: request.destination,
     ...(releaseExpectation ? { release_expectation: releaseExpectation } : {}),
     ...(site ? { site_expectation: site } : {}),
+    ...(catalogSite ? { catalog_site_expectation: catalogSite } : {}),
     ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     // An invocation-generated claim makes independent executors' pending bytes
     // distinct. Seeing somebody else's identical logical operation is not an
@@ -463,6 +519,7 @@ async function runOperation(
         inspectPublishedMetadata(input.published_metadata),
         metadataNow(),
       );
+    if (catalog) assertCatalogPublicationBaseline(catalog, owned.input);
     await effect(recordCompleted, {
       checkpoint: current,
       operation: structuredClone(inspectCapacityOperation(operation)!),
@@ -609,8 +666,55 @@ export async function recordPublishedMetadata(
   raw: unknown,
   options: Pick<CapacityOperationOptions, "remote"> = {},
 ) {
-  const published = inspectPublishedMetadata(structuredClone(raw));
+  return recordPublishedComponent(repository, expected, "application", raw, undefined, options);
+}
+export async function recordPublishedCatalogMetadata(
+  repository: string,
+  expected: string,
+  raw: unknown,
+  site: unknown,
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  return recordPublishedComponent(repository, expected, "catalog", raw, site, options);
+}
+/** One CAS updates the affected component plus the global site cursor. The
+ * other component's original publication provenance is preserved verbatim. */
+export async function recordPublishedSitePublication(
+  repository: string,
+  expected: string,
+  raw: { component: "application" | "catalog"; metadata: unknown; site: unknown },
+  options: Pick<CapacityOperationOptions, "remote"> = {},
+) {
+  const value = structuredClone(raw);
+  if (
+    Object.keys(value).sort().join(",") !== "component,metadata,site" ||
+    !["application", "catalog"].includes(value.component)
+  )
+    throw new Error("one exact site component/readback required");
+  return recordPublishedComponent(
+    repository,
+    expected,
+    value.component,
+    value.metadata,
+    value.site,
+    options,
+  );
+}
+async function recordPublishedComponent(
+  repository: string,
+  expected: string,
+  component: "application" | "catalog",
+  raw: unknown,
+  site: unknown,
+  options: Pick<CapacityOperationOptions, "remote">,
+) {
+  const published =
+    component === "catalog"
+      ? inspectPublishedCatalogMetadata(structuredClone(raw))
+      : inspectPublishedMetadata(structuredClone(raw));
   if (!published) throw new Error("published metadata result absent");
+  const cursor = site === undefined ? undefined : inspectPublishedSite(structuredClone(site));
+  if (site !== undefined && !cursor) throw new Error("actual site cursor absent");
   const remote = options.remote
     ? {
         configuration: structuredClone(options.remote.configuration),
@@ -630,7 +734,11 @@ export async function recordPublishedMetadata(
     throw new Error("published metadata requires existing bounded coordinator");
   const capacity = input.controller.capacity_attempt;
   capacity.schema_version = 2;
-  input.published_metadata = structuredClone(published);
+  if (component === "catalog") {
+    input.published_catalog_metadata = structuredClone(published);
+    input.catalog_publication = null;
+  } else input.published_metadata = structuredClone(published);
+  if (cursor) input.published_site = cursor;
   capacity.prior_operations = expectedCompactCapacityOperations(recovered.input, input, expected);
   const result = await checkpointReleaseOpportunity(repository, expected, input);
   if (remote) {
@@ -644,6 +752,8 @@ export async function recordPublishedMetadata(
         {
           checkpoint: result.checkpoint,
           published_metadata: published,
+          ...(cursor ? { published_site: cursor } : {}),
+          component,
           checkpoint_transport_error:
             error instanceof CoordinatorRemoteError
               ? error.evidence

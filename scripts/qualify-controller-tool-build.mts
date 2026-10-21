@@ -2,7 +2,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { lstat, mkdir, writeFile } from "node:fs/promises";
+import { performance } from "node:perf_hooks";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildControllerTools } from "./release-controller-tool-build.mts";
@@ -30,6 +31,7 @@ async function main() {
     return writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
   };
   let builtDirectory: string | null = null;
+  let buildMilliseconds: number | null = null;
   const nodeRuntime = { expected: controllerNodeVersion, observed: process.versions.node };
   try {
     const git = (argument: string) => {
@@ -61,7 +63,9 @@ async function main() {
     phase = "fixed-node-runtime";
     assert.equal(nodeRuntime.observed, nodeRuntime.expected);
     phase = "actual-fixed-build";
+    const buildStarted = performance.now();
     const built = await buildControllerTools(source, buildWork, expected);
+    buildMilliseconds = Math.ceil(performance.now() - buildStarted);
     builtDirectory = built.directory;
     await record("manifest.json", built.manifest);
     phase = "opaque-tool-readback";
@@ -145,6 +149,57 @@ async function main() {
     assert.equal(rust.error, undefined);
     assert.equal(rust.status, 1);
     assert.match(rust.stderr, /usage: portcove-release-tools/u);
+    phase = "actual-core-cli-inert-inspection";
+    const cli = path.join(built.tools, "bin/portcove");
+    const cliVersion = invoke(cli, ["--version"]);
+    assert.equal(cliVersion.error, undefined);
+    assert.equal(cliVersion.status, 0);
+    assert.match(cliVersion.stdout.trim(), /^portcove \d+\.\d+\.\d+/u);
+    const bundle = path.join(directory, "empty-definition-bundle");
+    const unopenedLibrary = path.join(directory, "unopened-library");
+    await mkdir(path.join(bundle, "definitions"), { recursive: true, mode: 0o700 });
+    const index = Buffer.from('{"index_schema":1,"definitions":[],"contents":[]}');
+    await writeFile(path.join(bundle, "definitions/index.json"), index, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    const inspect = () =>
+      invoke(cli, [
+        "--library",
+        unopenedLibrary,
+        "--json",
+        "catalog",
+        "inspect-definition-publication",
+        bundle,
+      ]);
+    const inspected = inspect();
+    assert.equal(inspected.error, undefined);
+    assert.equal(inspected.status, 0, inspected.stderr);
+    const inspectedJson: unknown = JSON.parse(inspected.stdout);
+    assert.ok(
+      typeof inspectedJson === "object" && inspectedJson !== null && "data" in inspectedJson,
+    );
+    assert.deepEqual(inspectedJson.data, {
+      publication_schema: 1,
+      authority: "none",
+      index_sha256: createHash("sha256").update(index).digest("hex"),
+      files: [
+        {
+          target: "definitions/index.json",
+          bytes: index.length,
+          sha256: createHash("sha256").update(index).digest("hex"),
+        },
+      ],
+      definitions: [],
+      scope: "inert-managed-definition-publication-inspection",
+    });
+    await assert.rejects(lstat(unopenedLibrary), { code: "ENOENT" });
+    await record("core-cli-inspection.json", inspectedJson);
+    await writeFile(path.join(bundle, "extra.json"), "{}", { flag: "wx", mode: 0o600 });
+    const extra = inspect();
+    assert.equal(extra.error, undefined);
+    assert.notEqual(extra.status, 0);
+    await assert.rejects(lstat(unopenedLibrary), { code: "ENOENT" });
     phase = "actual-connected-disposable-release";
     const rustFile = built.manifest.files.find(
       (file) => file.path === "bin/portcove-release-tools",
@@ -171,6 +226,14 @@ async function main() {
       process.stderr.write(connected.stdout);
       throw new Error("connected disposable release fixture refused");
     }
+    phase = "cold-build-budget";
+    // The held production job retains its four-minute ceiling. Reserve thirty
+    // seconds for checkout/dependency setup/upload; this measured build is not
+    // a guarantee of later operation availability or full-job completion.
+    assert.ok(
+      buildMilliseconds <= 210000,
+      "cold fixed tool build exceeds its preparation allowance",
+    );
     phase = "complete";
     await record("result.json", {
       schema_version: 1,
@@ -179,6 +242,13 @@ async function main() {
       node_runtime: nodeRuntime,
       built_directory: builtDirectory,
       build_work: buildWork,
+      build_milliseconds: buildMilliseconds,
+      build_allowance_milliseconds: 210000,
+      build_profile: "controller-tools",
+      tool_expanded_bytes: built.manifest.files.reduce((total, file) => total + file.bytes, 0),
+      core_cli_bytes: built.manifest.files.find((file) => file.path === "bin/portcove")!.bytes,
+      core_cli_smoke:
+        "version-and-inert-empty-bundle-inspection-with-extra-file-refusal; no library or admission",
       source: expected,
       evidence_scope: "ordinary-hosted-fixture",
       rust_smoke: "usage-refusal-only",
@@ -194,6 +264,9 @@ async function main() {
       schema_version: 1,
       status: "fail",
       phase,
+      build_milliseconds: buildMilliseconds,
+      build_allowance_milliseconds: 210000,
+      build_profile: "controller-tools",
       node_runtime: nodeRuntime,
       built_directory: builtDirectory,
       build_work: buildWork,

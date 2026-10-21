@@ -9,6 +9,21 @@ It grants nothing. The complete controller and automatic wake now have installed
 [complete held controller](application-update-production.complete.yml) retains identical review bytes; it is not activated. The older aggregate-only proposal is
 retained as historical evidence.
 
+## Managed catalog publication integration
+
+The [2026-10-21 catalog integration receipt](slice4-managed-catalog-integration-2026-10-21.md)
+records new executable Core/CLI inspection, separate Tough roles, bounded
+coordinator subjects, component metadata/site cursor and whole-site composition.
+Its connected actual-tool fixture includes a signed policy correction consumed
+by Core. This is independently executable engineering evidence; it is neither
+#246's real unchanged-client journey nor #315 protected acceptance.
+
+The application setup source below remains its exact reviewed proposal. New
+catalog/tool/native source must be reconciled into any replacement runnable
+revision/digest/resource/#706 boundary before activation. Catalog semantic,
+protected custody/configuration and publication integration remain separate;
+no production authority is inferred from these implementation results.
+
 ## Consolidated conditional initial setup
 
 The current reviewable proposal is [the consolidated procedure](slice4-consolidated-initial-setup-2026-10-21.md). It replaces the historical series of per-attempt VHD/admin instructions for the normal application path. Its raw SHA-256 is 72287ecc0cd28ed940c3630f2eefb6478954d5f36437cdb2209c1c5e2cdeb80a. No setup operation is authorized or observed by this document.

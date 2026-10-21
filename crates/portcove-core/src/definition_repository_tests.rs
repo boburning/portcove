@@ -400,6 +400,9 @@ impl RepositoryFixture {
 #[path = "definition_publisher_policy_tests.rs"]
 mod publisher_policy_tests;
 
+#[path = "definition_publication_connected_tests.rs"]
+mod publication_connected;
+
 fn repository_targets() -> (String, Vec<(String, Vec<u8>)>) {
     let catalog = Catalog::embedded().unwrap();
     let port_id = catalog.ports()[0].id.clone();

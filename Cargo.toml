@@ -103,3 +103,10 @@ opt-level = 3
 
 [profile.test.package.ed25519-dalek]
 opt-level = 3
+
+# Fixed controller helpers are not shipping packages. Bound their cold build
+# without changing the release profile, feature set or production job timeout.
+[profile.controller-tools]
+inherits = "release"
+opt-level = 0
+strip = "symbols"

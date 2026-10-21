@@ -501,6 +501,10 @@ export async function checkpointReleaseOpportunity(
     throw new Error("first coordinator checkpoint cannot invent an active reservation");
   else if (input.review_request != null || input.review_disposition != null)
     throw new Error("first coordinator checkpoint cannot invent a frozen review request");
+  else if (input.published_catalog_metadata != null || input.published_site != null)
+    throw new Error(
+      "first coordinator checkpoint cannot invent catalog publication or a global site cursor",
+    );
   const verifies = preparationVerifies(git, input);
   // Clearing a completed active candidate still verifies its exact allocation.
   if (previous && !active(input)) verifies.push(...preparationVerifies(git, previous.input));

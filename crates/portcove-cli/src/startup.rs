@@ -37,6 +37,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::Show { .. }
             | CatalogCommand::Status
             | CatalogCommand::InspectProposal { .. } => ReadOnly,
+            CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
             | CatalogCommand::Update { apply, .. } => apply_mode(*apply),
             CatalogCommand::CheckCapabilities { .. }
@@ -203,6 +204,7 @@ mod tests {
             "catalog show p",
             "catalog status",
             "catalog inspect-proposal file",
+            "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
             "source list",

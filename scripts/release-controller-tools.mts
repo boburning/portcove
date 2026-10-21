@@ -32,6 +32,7 @@ export const controllerToolAssets = Object.freeze([
 export const controllerToolPaths = Object.freeze(
   [
     "bin/node",
+    "bin/portcove",
     "bin/portcove-release-tools",
     "bin/tauri-addon.node",
     controllerCompilerSourceAsset,

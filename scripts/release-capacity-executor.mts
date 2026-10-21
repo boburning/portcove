@@ -1,5 +1,10 @@
 import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { inspectAggregateUploadExpectation } from "./release-aggregate-contract.mts";
+import {
+  inspectCatalogPublicationDescriptor,
+  inspectCatalogSitePublicationExpectation,
+  assertCatalogSitePublicationBinding,
+} from "./release-catalog-publication-contract.mts";
 import { performance } from "node:perf_hooks";
 import {
   inspectAssemblerIdentityExpectation,
@@ -20,6 +25,7 @@ import {
   runBoundedCapacityOperation,
   runBoundedMetadataRenewalOperation,
   runBoundedMetadataBootstrapOperation,
+  runBoundedCatalogPublicationOperation,
   recordPublishedMetadata,
 } from "./release-capacity-operation.mts";
 import {
@@ -136,6 +142,7 @@ interface OwnedEffectRequest {
   site_expectation?: unknown;
   release_expectation?: unknown;
   aggregate_expectation?: unknown;
+  catalog_site_expectation?: unknown;
 }
 
 /** Scope validation only. A matching destination cannot mint an executor session
@@ -152,6 +159,7 @@ export function assertCapacityExecutorEffectScope(
       ...(request.release_expectation === undefined ? [] : ["release_expectation"]),
       ...(request.site_expectation === undefined ? [] : ["site_expectation"]),
       ...(request.aggregate_expectation === undefined ? [] : ["aggregate_expectation"]),
+      ...(request.catalog_site_expectation === undefined ? [] : ["catalog_site_expectation"]),
     ]
       .sort()
       .join(",")
@@ -164,7 +172,8 @@ export function assertCapacityExecutorEffectScope(
       request.kind !== "upload" ||
       expected.effect.destination !== request.destination ||
       request.aggregate_expectation !== undefined ||
-      request.site_expectation !== undefined
+      request.site_expectation !== undefined ||
+      request.catalog_site_expectation !== undefined
     )
       throw new Error("Release expectation outside fixed publisher scope");
   }
@@ -179,12 +188,15 @@ export function assertCapacityExecutorEffectScope(
     if (
       role !== "aggregate-assembly" ||
       request.site_expectation !== undefined ||
+      request.catalog_site_expectation !== undefined ||
       request.kind !== "upload" ||
       request.destination !== "github-actions:boburning/portcove:admitted-aggregate"
     )
       throw new Error("aggregate expectation is outside admitted assembler scope");
   }
   if (request.site_expectation !== undefined) {
+    if (request.catalog_site_expectation !== undefined)
+      throw new Error("site effect requires exactly one application or catalog expectation");
     inspectSitePublicationExpectation(request.site_expectation);
     if (
       role !== "site-publication" ||
@@ -192,6 +204,15 @@ export function assertCapacityExecutorEffectScope(
       request.destination !== "github-pages:boburning/portcove:complete-site"
     )
       throw new Error("site expectation is outside the authenticated executor's fixed scope");
+  }
+  if (request.catalog_site_expectation !== undefined) {
+    inspectCatalogSitePublicationExpectation(request.catalog_site_expectation);
+    if (
+      role !== "site-publication" ||
+      request.kind !== "upload" ||
+      request.destination !== "github-pages:boburning/portcove:complete-site"
+    )
+      throw new Error("catalog site expectation outside sole Pages executor scope");
   }
   // Destinations describe a stable logical effect within the candidate or
   // metadata lifecycle. Regenerated artifact/run/descriptor IDs cannot reset
@@ -216,33 +237,43 @@ export function assertCapacityExecutorEffectScope(
               [
                 "github-actions:boburning/portcove:metadata-renewal-context",
                 "github-actions:boburning/portcove:metadata-bootstrap-context",
+                "github-actions:boburning/portcove:catalog-publication-context",
               ].includes(request.destination))
-          : role === "payload-signing"
+          : [
+                "catalog-definitions",
+                "catalog-policy",
+                "catalog-snapshot",
+                "catalog-timestamp",
+              ].includes(role)
             ? request.kind === "upload" &&
-              /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
-                request.destination,
-              )
-            : role.startsWith("tuf-") &&
-                [
-                  "tuf-releases",
-                  "tuf-preview",
-                  "tuf-stable",
-                  "tuf-snapshot",
-                  "tuf-timestamp",
-                ].includes(role)
+              request.destination ===
+                `github-actions:boburning/portcove:catalog-tuf-role-${role.slice("catalog-".length)}`
+            : role === "payload-signing"
               ? request.kind === "upload" &&
-                new RegExp(
-                  `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
-                  "u",
-                ).test(request.destination)
-              : role === "release-publication" &&
-                request.kind === "upload" &&
-                (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:payload-signatures|payload-signing-context)$/u.test(
                   request.destination,
-                ) ||
-                  /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
+                )
+              : role.startsWith("tuf-") &&
+                  [
+                    "tuf-releases",
+                    "tuf-preview",
+                    "tuf-stable",
+                    "tuf-snapshot",
+                    "tuf-timestamp",
+                  ].includes(role)
+                ? request.kind === "upload" &&
+                  new RegExp(
+                    `^github-actions:boburning/portcove:[A-Za-z0-9._-]{1,128}:${role}-envelope$`,
+                    "u",
+                  ).test(request.destination)
+                : role === "release-publication" &&
+                  request.kind === "upload" &&
+                  (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                     request.destination,
-                  ));
+                  ) ||
+                    /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result(?::recovery-(?:[1-2]-[0-3]|0-[1-3]))?$/u.test(
+                      request.destination,
+                    ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
 }
 
@@ -251,11 +282,63 @@ export function assertCapacityExecutorEffectScope(
  * exact descriptor, pending/nonce, counters, provider readback and settlement. */
 export function inspectCapacityExecutorSubject(
   role: CapacityExecutorRole,
-  raw: { request: OwnedEffectRequest; metadata_renewal?: unknown; metadata_bootstrap?: unknown },
+  raw: {
+    request: OwnedEffectRequest;
+    metadata_renewal?: unknown;
+    metadata_bootstrap?: unknown;
+    catalog_publication?: unknown;
+  },
 ) {
   const value = structuredClone(raw);
   const renewal = value.metadata_renewal !== undefined,
     bootstrap = value.metadata_bootstrap !== undefined;
+  if (value.catalog_publication !== undefined) {
+    if (
+      renewal ||
+      bootstrap ||
+      value.request.site_expectation !== undefined ||
+      value.request.release_expectation !== undefined ||
+      value.request.aggregate_expectation !== undefined
+    )
+      throw new Error("catalog subject cannot reuse application/metadata authority");
+    const descriptor = inspectCatalogPublicationDescriptor(value.catalog_publication);
+    if (
+      ![
+        "coordinator",
+        "site-publication",
+        "catalog-definitions",
+        "catalog-policy",
+        "catalog-snapshot",
+        "catalog-timestamp",
+      ].includes(role)
+    )
+      throw new Error(
+        "catalog subject requires explicitly appointed catalog or sole site executor",
+      );
+    if (
+      role === "coordinator" &&
+      (value.request.kind !== "upload" ||
+        value.request.destination !==
+          "github-actions:boburning/portcove:catalog-publication-context")
+    )
+      throw new Error("catalog coordinator requires exact context upload");
+    if (
+      role === "site-publication" &&
+      (value.request.destination === "github-pages:boburning/portcove:complete-site") !==
+        (value.request.catalog_site_expectation !== undefined)
+    )
+      throw new Error("catalog Pages requires exact catalog site expectation");
+    if (value.request.catalog_site_expectation !== undefined)
+      assertCatalogSitePublicationBinding(descriptor, value.request.catalog_site_expectation);
+    assertCapacityExecutorEffectScope(role, value.request);
+    return { kind: "catalog-publication" as const, descriptor };
+  }
+  if (
+    role.startsWith("catalog-") ||
+    value.request.catalog_site_expectation !== undefined ||
+    value.request.destination === "github-actions:boburning/portcove:catalog-publication-context"
+  )
+    throw new Error("catalog effect requires explicit catalog subject");
   if (renewal && bootstrap) throw new Error("exactly one metadata subject required");
   if (renewal || bootstrap) {
     if (
@@ -314,6 +397,7 @@ async function executeOwnedCapacityEffectWithinScope(
     request: OwnedEffectRequest;
     metadata_renewal?: unknown;
     metadata_bootstrap?: unknown;
+    catalog_publication?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
   readBoundary: () => Promise<unknown>,
@@ -391,9 +475,11 @@ async function executeOwnedCapacityEffectWithinScope(
             options,
           )
         : await (
-            subject.kind === "metadata-renewal"
-              ? runBoundedMetadataRenewalOperation
-              : runBoundedMetadataBootstrapOperation
+            subject.kind === "catalog-publication"
+              ? runBoundedCatalogPublicationOperation
+              : subject.kind === "metadata-renewal"
+                ? runBoundedMetadataRenewalOperation
+                : runBoundedMetadataBootstrapOperation
           )(
             input.repository,
             input.checkpoint,
