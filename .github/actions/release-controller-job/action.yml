@@ -23,6 +23,27 @@ outputs:
   descriptor:
     description: Existing reservation-bound aggregate request
     value: ${{ steps.output.outputs.descriptor }}
+  artifact_id:
+    description: Exact admitted aggregate artifact
+    value: ${{ steps.output.outputs.artifact_id }}
+  artifact_sha256:
+    description: Exact opaque aggregate digest
+    value: ${{ steps.output.outputs.artifact_sha256 }}
+  subject_name:
+    description: Actual aggregate attestation subject
+    value: ${{ steps.output.outputs.subject_name }}
+  subject_digest:
+    description: Actual aggregate attestation digest
+    value: ${{ steps.output.outputs.subject_digest }}
+  predicate:
+    description: Bounded actual aggregate predicate for separate attester
+    value: ${{ steps.output.outputs.predicate }}
+  predicate_type:
+    description: Fixed aggregate predicate type
+    value: ${{ steps.output.outputs.predicate_type }}
+  original_upload:
+    description: Exact original producer for resumed aggregate custody
+    value: ${{ steps.output.outputs.original_upload }}
   context_locator:
     description: Immutable context and attestation locators
     value: ${{ steps.output.outputs.context_locator }}

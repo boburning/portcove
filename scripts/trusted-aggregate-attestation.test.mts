@@ -1,3 +1,4 @@
+import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -14,12 +15,107 @@ import {
   verifyUploadedAggregate,
   aggregatePredicateType,
   stageAggregatePackages,
+  prepareRecoveredAdmittedAggregateAttestation,
 } from "./trusted-aggregate-attestation.mts";
+import { controllerOidcSubject } from "./assembler-job-identity.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+
+void test("current admitted custodian binds original failed-run artifact without relabeling or replacing its producer", async (t) => {
+  const f = await fixture(t);
+  const subject = controllerOidcSubject(expected.controller_ref, "production-release-admission");
+  const current = assemblerIdentityFixture(
+    { sub: subject, environment: "production-release-admission" },
+    {},
+    { workflow: productionControllerWorkflow, job: "Authenticate release control inputs" },
+  );
+  const original = {
+    actor_id: "1122",
+    before_checkpoint: "b".repeat(40),
+    check_run_id: "776",
+    controller_revision: expected.controller_revision,
+    execution_ref: expected.controller_ref,
+    expectation_sha256: "e".repeat(64),
+    job_id: 500,
+    operation_id: "d".repeat(64),
+    run_attempt: 1,
+    run_id: "7777",
+    workflow: productionControllerWorkflow,
+  };
+  const result = await prepareRecoveredAdmittedAggregateAttestation(
+    original,
+    current.token,
+    { ...expected, subject },
+    f.request,
+    [1, 2, 3, 4],
+    f.upload,
+    {
+      ...f.options,
+      identity: current,
+      spawn: (...args) => {
+        const response = f.options.spawn(...args);
+        const split = response.stdout.indexOf("\r\n\r\n") + 4;
+        const body: unknown = JSON.parse(response.stdout.slice(split));
+        assert.ok(isRecord(body) && isRecord(body.workflow_run));
+        body.name = "trusted-release-final-7777-1";
+        body.workflow_run.id = 7777;
+        return { ...response, stdout: response.stdout.slice(0, split) + JSON.stringify(body) };
+      },
+    },
+  );
+  assert.equal(result.predicate.producer_profile, "admitted-aggregate-recovery-v1");
+  assert.deepEqual(result.predicate.original_upload, original);
+  assert.equal(result.predicate.artifact.id, 99);
+  assert.equal(result.predicate.artifact.name, "trusted-release-final-7777-1");
+  assert.equal(result.predicate.assembler.run_id, expected.run_id);
+  assert.equal(result.predicate.assembler.job_id, 501);
+  const v = await verificationFixture(t);
+  const predicate = { ...result.predicate, evidence_scope: "github.com" };
+  v.value[0]!.verificationResult.statement.predicate = predicate;
+  v.value[0]!.verificationResult.statement.subject[0]!.name = result.subject_name;
+  const verificationExpected = {
+    ...v.verificationExpected,
+    producer_profile: "admitted-aggregate-recovery-v1" as const,
+    original_upload: original,
+  };
+  const accepted = await verifyAggregateAttestation(
+    v.root,
+    v.archive,
+    Buffer.from("synthetic fixed verifier result"),
+    verificationExpected,
+    { spawn: v.spawn },
+  );
+  assert.equal(accepted.evidence_scope, "injected-provider");
+  await assert.rejects(
+    verifyAggregateAttestation(
+      v.root,
+      v.archive,
+      Buffer.from("synthetic"),
+      v.verificationExpected,
+      { spawn: v.spawn },
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      /subject|predicate/u.test(error.cause.message),
+  );
+  await assert.rejects(
+    verifyAggregateAttestation(
+      v.root,
+      v.archive,
+      Buffer.from("synthetic"),
+      { ...verificationExpected, original_upload: { ...original, job_id: 999 } },
+      { spawn: v.spawn },
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      /predicate/u.test(error.cause.message),
+  );
+});
 
 void test("fixed finalizer staging materializes all six beta packages and checksum without replacing prior bytes", async (t) => {
   const f = await fixture(t, "initial-beta-win-linux");

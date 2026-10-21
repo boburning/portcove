@@ -1,3 +1,4 @@
+import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
   validateCapacityTransition,
   verifyRetainedCapacityOperation,
@@ -43,7 +44,11 @@ function canonical(value: unknown): string {
 
 function gitRepository(repository: string) {
   const env = {
-    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_"))),
+    ...Object.fromEntries(
+      Object.entries(readOnlyReleaseChildEnvironment() ?? process.env).filter(
+        ([key]) => !key.startsWith("GIT_"),
+      ),
+    ),
     GIT_NO_REPLACE_OBJECTS: "1",
     GIT_NO_LAZY_FETCH: "1",
     GIT_AUTHOR_NAME: "Portcove release coordinator",

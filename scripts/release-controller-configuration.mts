@@ -8,7 +8,7 @@ import {
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import { tufRoleDependencies } from "./release-tuf-signing.mts";
 import { inspectTufRoleArtifactExpected } from "./release-tuf-role-artifact.mts";
-import { inspectControllerAggregateLocator } from "./release-payload-preparation.mts";
+import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 
 type Fixed = {
   controller_revision: string;
@@ -188,7 +188,7 @@ export function prepareFixedControllerConfiguration(input: {
     run_attempt: 1,
   });
   const aggregate = () => {
-    const built = output(needs, "aggregate"),
+    const built = output(needs, "independent_admission"),
       signed = output(needs, "attest");
     return inspectControllerAggregateLocator({
       controller_revision: fixed.controller_revision,
@@ -199,6 +199,9 @@ export function prepareFixedControllerConfiguration(input: {
       sha256: hex(built.artifact_sha256),
       bundle_artifact_id: positive(signed.bundle_artifact_id),
       bundle_sha256: hex(signed.bundle_artifact_sha256),
+      ...(built.original_upload === undefined || built.original_upload === ""
+        ? {}
+        : { original_upload: json(built.original_upload) }),
     });
   };
   if (operation === "payload")
