@@ -1682,6 +1682,13 @@ export async function preparationScenarios({
                   5000,
                   "The focused Library action must remain visible after resizing",
                 );
+                observations.push({
+                  phase: "settled-focused-resize-200",
+                  requestedWindow,
+                  window: await browser.manage().window().getRect(),
+                  ...(await measure()),
+                  continuity: await executeBrowserScript(browser, launchContinuityPoint, more),
+                });
                 assert.equal(state.zoom, "200");
                 assert.equal(state.query, "Jak");
                 assert.equal(state.layout, layout === "Covers" ? "covers" : "rows");
@@ -1766,11 +1773,17 @@ export async function preparationScenarios({
         assert.deepEqual((await status(port.id)).active, before[index]!.active);
       }
     } finally {
-      const file = path.join(output, "native-library-layout-observations.json");
-      await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
-      artifacts.push(file);
-      await shortcut("0");
-      await browser.manage().window().setRect(originalWindow);
+      try {
+        const file = path.join(output, "native-library-layout-observations.json");
+        await writeFile(file, JSON.stringify(observations, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(file);
+      } finally {
+        try {
+          await shortcut("0");
+        } finally {
+          await browser.manage().window().setRect(originalWindow);
+        }
+      }
     }
   });
   await scenario("native-ready-detail-composition", async () => {
