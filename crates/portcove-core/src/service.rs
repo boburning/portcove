@@ -1074,7 +1074,7 @@ impl PortcoveService {
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
         let recipe = port.release.managed_build.get(&platform).copied();
         let auxiliary_downloads =
-            recipe.map_or_else(Vec::new, |recipe| recipe.acquisition_assets());
+            recipe.map_or_else(|| Ok(Vec::new()), |recipe| recipe.acquisition_assets())?;
         let primary_and_runtime_bytes = release.asset.size.saturating_add(
             bundled_runtime
                 .as_ref()

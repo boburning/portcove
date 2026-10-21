@@ -28,6 +28,9 @@ mod render96;
 #[path = "gundam_build.rs"]
 mod gundam;
 
+#[path = "cvlod_build.rs"]
+pub(crate) mod cvlod;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 pub enum CartridgeBuildRecipe {
@@ -43,6 +46,8 @@ pub enum CartridgeBuildRecipe {
     Render96UsSourceV1,
     #[serde(rename = "gundam-wing-snes-source-c7aaaa152192-japan-offline")]
     GundamWingSnesSourceV1,
+    #[serde(rename = "cvlod-n64-source-cb8548d145a1-ui-lifetime-v1")]
+    CvlodSourceV1,
 }
 
 #[cfg(test)]
@@ -186,7 +191,8 @@ impl CartridgeBuildRecipe {
             Self::AdvanceWarsGbaSourceV1
             | Self::EarthBoundSnesSourceV1
             | Self::GundamWingSnesSourceV1
-            | Self::Render96UsSourceV1 => {
+            | Self::Render96UsSourceV1
+            | Self::CvlodSourceV1 => {
                 return Err(PortcoveError::state(
                     "source-only recipe has no NES cycle facts",
                 ));
@@ -204,6 +210,7 @@ impl CartridgeBuildRecipe {
             Self::EarthBoundSnesSourceV1 => source_build::SourceRecipe::EarthBoundUsa.archives(),
             Self::GundamWingSnesSourceV1 => source_build::SourceRecipe::GundamWingJapan.archives(),
             Self::Render96UsSourceV1 => render96::archives(),
+            Self::CvlodSourceV1 => cvlod::archives(),
         }
     }
 
@@ -214,11 +221,15 @@ impl CartridgeBuildRecipe {
             Self::GundamWingSnesSourceV1 => Some(source_build::SourceRecipe::GundamWingJapan),
             Self::YoshisCookieNesCycle110
             | Self::DrMarioNesCycle130Usa
-            | Self::Render96UsSourceV1 => None,
+            | Self::Render96UsSourceV1
+            | Self::CvlodSourceV1 => None,
         }
     }
 
     pub(crate) fn original_filename(self) -> &'static str {
+        if self == Self::CvlodSourceV1 {
+            return ".portcove-cvlod-build-original.z64";
+        }
         if self == Self::Render96UsSourceV1 {
             return "baserom.us.z64";
         }
@@ -227,10 +238,14 @@ impl CartridgeBuildRecipe {
     }
 
     pub(crate) fn fixed_launch_arguments_only(self) -> bool {
-        self.source_recipe().is_some() || self == Self::Render96UsSourceV1
+        self.source_recipe().is_some()
+            || matches!(self, Self::Render96UsSourceV1 | Self::CvlodSourceV1)
     }
 
     pub(crate) fn require_runtime_environment(self) -> Result<()> {
+        if self == Self::CvlodSourceV1 {
+            return cvlod::require_runtime_environment();
+        }
         if self == Self::Render96UsSourceV1 {
             return source_build::SourceRecipe::EarthBoundUsa.require_runtime_environment();
         }
@@ -240,20 +255,47 @@ impl CartridgeBuildRecipe {
         }
     }
 
-    pub(crate) fn acquisition_assets(self) -> Vec<ReleaseAsset> {
-        self.archives()
+    pub(crate) fn acquisition_assets(self) -> Result<Vec<ReleaseAsset>> {
+        let mut assets: Vec<_> = self
+            .archives()
             .into_iter()
             .map(|archive| archive.asset())
-            .collect()
+            .collect();
+        if self == Self::CvlodSourceV1 {
+            assets.extend(cvlod::blobs()?.into_iter().map(|b| b.asset));
+        }
+        Ok(assets)
     }
 
     pub(crate) fn temporary_bytes(self, primary_bytes: u64) -> u64 {
+        if self == Self::CvlodSourceV1 {
+            return primary_bytes.saturating_add(12 * 1024 * 1024 * 1024);
+        }
         if self == Self::GundamWingSnesSourceV1 {
             // The authenticated setup archive expands to 861 MiB in addition
             // to the 798 MiB toolchain, SDK, archive spools and private build.
             return primary_bytes.saturating_add(4 * 1024 * 1024 * 1024);
         }
         primary_bytes.saturating_add(STAGING_CAPACITY_BYTES)
+    }
+
+    fn execution_budget(self) -> Duration {
+        // CVLoD includes the private SDK copy, recompiler generation and the
+        // fixed 851-object game graph and private packaging in one clock. Other
+        // recipes retain their existing allowance; no invocation can renew it.
+        Duration::from_secs(match self {
+            Self::CvlodSourceV1 => 40 * 60,
+            _ => 20 * 60,
+        })
+    }
+
+    fn check_execution_deadline(self, elapsed: Duration) -> Result<()> {
+        if elapsed > self.execution_budget() {
+            return Err(PortcoveError::launch(
+                "cartridge build exceeded its finite execution deadline",
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn minimum_template_version(self) -> u32 {
@@ -263,6 +305,15 @@ impl CartridgeBuildRecipe {
             Self::AdvanceWarsGbaSourceV1 | Self::EarthBoundSnesSourceV1 => 9,
             Self::Render96UsSourceV1 => 13,
             Self::GundamWingSnesSourceV1 => 14,
+            Self::CvlodSourceV1 => 3,
+        }
+    }
+
+    pub(crate) fn capability_template(self) -> &'static str {
+        if self == Self::CvlodSourceV1 {
+            "n64-recomp-portable"
+        } else {
+            "staged-source-portable"
         }
     }
 
@@ -297,6 +348,9 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
         .ok_or_else(|| PortcoveError::verification("cartridge recipe requires Windows x64"))?;
     if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
         return render96::validate_port(port, profile);
+    }
+    if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+        return cvlod::validate_port(port, profile);
     }
     if let Some(source_recipe) = recipe.source_recipe() {
         return source_recipe.validate_port(port, profile);
@@ -375,6 +429,9 @@ pub(crate) fn validate_port(port: &PortDefinition, profile: &SourceProfile) -> R
 
 impl CartridgeBuildPreparation {
     pub(crate) fn storage_identity(&self, primary_sha256: &str) -> Result<String> {
+        if self.recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+            return cvlod::storage_identity(primary_sha256, &self.source);
+        }
         if self.recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
             return render96::storage_identity(primary_sha256, &self.source);
         }
@@ -386,6 +443,9 @@ impl CartridgeBuildPreparation {
 
     pub(crate) fn new(recipe: CartridgeBuildRecipe, source: SourceRecord) -> Result<Self> {
         verify_original(recipe, &source, &|| Ok(()))?;
+        if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+            cvlod::require_build_prerequisites()?;
+        }
         Ok(Self {
             recipe,
             source,
@@ -395,6 +455,9 @@ impl CartridgeBuildPreparation {
     }
 
     pub(crate) fn verify_release(&self, release: &ResolvedRelease) -> Result<()> {
+        if self.recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+            return cvlod::verify_release(release);
+        }
         if self.recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
             return render96::verify_release(release);
         }
@@ -434,6 +497,9 @@ pub(crate) fn verify_original(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
+    if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+        return cvlod::verify_original(source, checkpoint);
+    }
     if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
         return render96::verify_original(source, checkpoint);
     }
@@ -455,18 +521,21 @@ pub(crate) fn verify_original(
     checkpoint()
 }
 
-pub(crate) fn source_roots(work: &Path, recipe: CartridgeBuildRecipe) -> Vec<PathBuf> {
-    recipe
+pub(crate) fn source_roots(work: &Path, recipe: CartridgeBuildRecipe) -> Result<Vec<PathBuf>> {
+    if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+        return cvlod::source_roots(work);
+    }
+    Ok(recipe
         .archives()
         .into_iter()
         .map(|archive| {
             work.join(archive.name.trim_end_matches(".zip"))
                 .join(archive.root)
         })
-        .collect()
+        .collect())
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 struct FileIdentity {
     path: String,
     size: u64,
@@ -616,7 +685,7 @@ impl BuildInputs {
         recipe: CartridgeBuildRecipe,
         checkpoint: &dyn Fn() -> Result<()>,
     ) -> Result<Self> {
-        let roots = source_roots(work, recipe);
+        let roots = source_roots(work, recipe)?;
         let identities = roots
             .iter()
             .map(|r| inventory(r, checkpoint))
@@ -678,6 +747,33 @@ impl BuildInputs {
         }
         Ok(path)
     }
+
+    fn verified_tool_path(&self, path: &Path) -> Result<PathBuf> {
+        let mut matches = Vec::new();
+        for (root, files) in self.roots.iter().zip(&self.identities) {
+            if let Ok(relative) = path.strip_prefix(root) {
+                let relative =
+                    crate::path::unicode(relative, "CVLoD build tool")?.replace('\\', "/");
+                if let Some(file) = files.iter().find(|f| f.path == relative) {
+                    matches.push(file);
+                }
+            }
+        }
+        let [expected] = matches.as_slice() else {
+            return Err(PortcoveError::verification(
+                "CVLoD tool is outside its captured fixed inputs",
+            ));
+        };
+        crate::path::refuse_symlink_ancestors(path)?;
+        let (sha, size) =
+            crate::adapter::hash_file_bounded_with_checkpoint(path, expected.size, || Ok(()))?;
+        if sha != expected.sha256 || size != expected.size {
+            return Err(PortcoveError::verification(
+                "CVLoD captured build tool changed",
+            ));
+        }
+        Ok(path.to_path_buf())
+    }
 }
 
 struct BuildSession<'a> {
@@ -692,6 +788,8 @@ struct BuildSession<'a> {
 struct BuildCommandOutput {
     output: String,
     stdout: Option<String>,
+    stderr: Option<String>,
+    exit_code: Option<i32>,
 }
 
 impl BuildCommandOutput {
@@ -722,6 +820,48 @@ impl BuildSession<'_> {
         quiesced: &mut bool,
         configure: impl FnOnce(&mut crate::process::NativeToolLaunchSpec) -> Result<()>,
     ) -> Result<BuildCommandOutput> {
+        self.run_command(
+            arguments,
+            self.inputs.tool(program)?,
+            phase,
+            quiesced,
+            configure,
+            false,
+        )
+    }
+
+    fn run_cvlod_configured(
+        &self,
+        arguments: &[String],
+        program: &Path,
+        phase: &str,
+        quiesced: &mut bool,
+        configure: impl FnOnce(&mut crate::process::NativeToolLaunchSpec) -> Result<()>,
+    ) -> Result<BuildCommandOutput> {
+        if self.inputs.recipe != CartridgeBuildRecipe::CvlodSourceV1 {
+            return Err(PortcoveError::verification(
+                "CVLoD command requires its fixed recipe",
+            ));
+        }
+        self.run_command(
+            arguments,
+            self.inputs.verified_tool_path(program)?,
+            phase,
+            quiesced,
+            configure,
+            true,
+        )
+    }
+
+    fn run_command(
+        &self,
+        arguments: &[String],
+        program: PathBuf,
+        phase: &str,
+        quiesced: &mut bool,
+        configure: impl FnOnce(&mut crate::process::NativeToolLaunchSpec) -> Result<()>,
+        cvlod_capture: bool,
+    ) -> Result<BuildCommandOutput> {
         crate::activity_diagnostics::require_managed_install_phase(phase, self.port_id)?;
         let Self {
             inputs,
@@ -733,17 +873,12 @@ impl BuildSession<'_> {
         } = self;
         let checkpoint = || {
             operation.checkpoint()?;
-            if deadline.elapsed() > Duration::from_secs(20 * 60) {
-                return Err(PortcoveError::launch(
-                    "cartridge build exceeded its finite execution deadline",
-                ));
-            }
-            Ok(())
+            inputs.recipe.check_execution_deadline(deadline.elapsed())
         };
         checkpoint()?;
         let mut command = crate::ChildProcessPolicy::native_tool_spec(
             crate::ChildProcessClass::ManagedBuilder,
-            inputs.tool(program)?,
+            program,
         )?;
         let toolroot = inputs.toolroot()?;
         let path = std::env::join_paths([toolroot.join("bin"), toolroot.join("python")])
@@ -821,14 +956,35 @@ impl BuildSession<'_> {
             library.record_managed_install_diagnostic(snapshot, port_id)?;
         }
         let result = result?;
-        if !result.status.success() {
+        if cvlod_capture {
+            let snapshot = captured.as_ref().ok_or_else(|| {
+                PortcoveError::verification("CVLoD command has no diagnostic capture")
+            })?;
+            if !child_quiesced
+                || snapshot.activity_id != operation.operation_id()
+                || snapshot.phase != phase
+                || !snapshot.complete
+                || snapshot.stdout.truncated
+                || snapshot.stderr.truncated
+                || snapshot.stream_limit_bytes != 2 * 1024 * 1024
+                || snapshot.stdout.observed_bytes > snapshot.stream_limit_bytes
+                || snapshot.stderr.observed_bytes > snapshot.stream_limit_bytes
+                || snapshot.stdout.text.len() as u64 > snapshot.stream_limit_bytes
+                || snapshot.stderr.text.len() as u64 > snapshot.stream_limit_bytes
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD command capture or process-tree drain is incomplete",
+                ));
+            }
+            cvlod::validate_command_result(phase, &result.status, snapshot)?;
+        } else if !result.status.success() {
             return Err(
                 PortcoveError::install("pinned cartridge build command failed")
                     .detail("phase", phase)
                     .detail("output", result.output),
             );
         }
-        if result.truncated {
+        if !cvlod_capture && result.truncated {
             return Err(PortcoveError::verification(
                 "cartridge build command output was incomplete",
             ));
@@ -837,8 +993,13 @@ impl BuildSession<'_> {
         Ok(BuildCommandOutput {
             output: result.output,
             stdout: captured
+                .as_ref()
                 .filter(|snapshot| snapshot.complete && !snapshot.stdout.truncated)
-                .map(|snapshot| snapshot.stdout.text),
+                .map(|snapshot| snapshot.stdout.text.clone()),
+            stderr: captured
+                .filter(|snapshot| snapshot.complete && !snapshot.stderr.truncated)
+                .map(|snapshot| snapshot.stderr.text),
+            exit_code: result.status.code(),
         })
     }
 }
@@ -1264,6 +1425,9 @@ fn prepare_install_inner(
     }
     let checkpoint = || operation.checkpoint();
     let recipe = preparation.recipe;
+    if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+        return cvlod::prepare_install(work, payload, preparation, library, operation, quiesced);
+    }
     if recipe == CartridgeBuildRecipe::Render96UsSourceV1 {
         return render96::prepare_install(work, payload, preparation, library, operation, quiesced);
     }
@@ -1382,7 +1546,8 @@ fn prepare_install_inner(
         CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
         | CartridgeBuildRecipe::EarthBoundSnesSourceV1
         | CartridgeBuildRecipe::GundamWingSnesSourceV1
-        | CartridgeBuildRecipe::Render96UsSourceV1 => {
+        | CartridgeBuildRecipe::Render96UsSourceV1
+        | CartridgeBuildRecipe::CvlodSourceV1 => {
             return Err(PortcoveError::state(
                 "source-only recipe reached NES cycle configuration",
             ));

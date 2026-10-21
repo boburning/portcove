@@ -24,6 +24,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+#[cfg(test)]
+#[path = "cvlod_download_tests.rs"]
+mod cvlod_download_tests;
+
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -309,12 +313,17 @@ impl InstallQualification {
 
     #[cfg(test)]
     pub(crate) fn test(executable: &str) -> Self {
+        Self::test_for_port("sample", executable)
+    }
+
+    #[cfg(test)]
+    fn test_for_port(port_id: &str, executable: &str) -> Self {
         let mut port = crate::Catalog::embedded()
             .unwrap()
             .port("zelda64-recomp")
             .unwrap()
             .clone();
-        port.id = "sample".into();
+        port.id = port_id.into();
         port.source_profile = None;
         port.presentation = None;
         port.source_environment = None;
@@ -436,8 +445,8 @@ struct InstallLifecycle {
     record: LifecycleOperation,
 }
 
-// This existing nullable field is used here only for managed PS1 Install
-// workers. None remains the legacy/non-managed Install contract.
+// This existing nullable field tracks joined managed preparation workers and
+// CVLoD blob mutations. None remains the legacy/non-managed Install contract.
 async fn run_managed_install_worker(
     lifecycle: &mut InstallLifecycle,
     operation: &OperationCoordinator,
@@ -456,6 +465,86 @@ async fn run_managed_install_worker(
     lifecycle.store.put(&mut completed)?;
     lifecycle.record = completed;
     result
+}
+
+async fn run_cvlod_blob_transfer(
+    lifecycle: &mut InstallLifecycle,
+    transfer: impl std::future::Future<Output = (Result<()>, bool)>,
+) -> Result<()> {
+    lifecycle.record.preparation_process_quiesced = Some(false);
+    lifecycle.store.put(&mut lifecycle.record)?;
+    let (result, quiesced) = transfer.await;
+    let mut completed = lifecycle.record.clone();
+    completed.preparation_process_quiesced = Some(quiesced);
+    lifecycle.store.put(&mut completed)?;
+    lifecycle.record = completed;
+    result
+}
+
+struct CvlodBlobWrite {
+    result: Result<u64>,
+    drained: bool,
+}
+
+// Tokio File can queue a blocking write before poll_write returns Ready. Every
+// post-open exit must join that mutation before the lifecycle admits cleanup.
+async fn write_cvlod_blob_stream<S, B, E, W>(
+    mut stream: S,
+    writer: &mut W,
+    asset: &ReleaseAsset,
+    operation: &OperationCoordinator,
+) -> CvlodBlobWrite
+where
+    S: futures_util::Stream<Item = std::result::Result<B, E>> + Unpin,
+    B: AsRef<[u8]>,
+    E: std::fmt::Display,
+    W: tokio::io::AsyncWrite + Unpin,
+{
+    let result = async {
+        let mut completed = 0u64;
+        let mut hash = Sha256::new();
+        while let Some(chunk) = operation
+            .interruptible(async { Ok(stream.next().await) })
+            .await?
+        {
+            let chunk = chunk.map_err(|e| PortcoveError::network(e.to_string()))?;
+            let bytes: &[u8] = chunk.as_ref();
+            completed = completed
+                .checked_add(bytes.len() as u64)
+                .ok_or_else(|| PortcoveError::verification("CVLoD fixed blob size overflow"))?;
+            if completed > asset.size {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob exceeds its exact size",
+                ));
+            }
+            hash.update(bytes);
+            writer.write_all(bytes).await?;
+        }
+        if completed != asset.size || hex::encode(hash.finalize()) != asset.sha256 {
+            return Err(PortcoveError::verification(
+                "CVLoD fixed blob differs from its reviewed Git bytes",
+            ));
+        }
+        operation.checkpoint()?;
+        Ok(completed)
+    }
+    .await;
+    // Deliberately non-interruptible. A failed/ambiguous drain retains the
+    // private journal with false quiescence proof, including the original error.
+    match writer.flush().await {
+        Ok(()) => CvlodBlobWrite {
+            result,
+            drained: true,
+        },
+        Err(drain) => CvlodBlobWrite {
+            result: Err(match result {
+                Err(original) => original.detail("cvlod_blob_drain_error", drain.to_string()),
+                Ok(_) => PortcoveError::install("CVLoD fixed blob write did not drain")
+                    .detail("cvlod_blob_drain_error", drain.to_string()),
+            }),
+            drained: false,
+        },
+    }
 }
 
 // Artifact transfers can legitimately run for hours, so they have no total
@@ -972,6 +1061,43 @@ impl Installer {
                     .await?;
                 operation.checkpoint()?;
             }
+            if preparation.recipe == crate::CartridgeBuildRecipe::CvlodSourceV1 {
+                let client = reqwest::Client::builder()
+                    .user_agent(concat!("Portcove/", env!("CARGO_PKG_VERSION")))
+                    .connect_timeout(self.network_bounds.0)
+                    .read_timeout(self.network_bounds.1)
+                    .https_only(true)
+                    .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                        if attempt.url().scheme() == "https"
+                            && attempt.url().host_str() == Some("raw.githubusercontent.com")
+                            && attempt.previous().len() < 5
+                        {
+                            attempt.follow()
+                        } else {
+                            attempt
+                                .error("CVLoD fixed blob redirect left its exact HTTPS transport")
+                        }
+                    }))
+                    .build()
+                    .map_err(|error| PortcoveError::network(error.to_string()))?;
+                for blob in crate::cartridge_build::cvlod::blobs()? {
+                    let destination = work.join(blob.relative);
+                    crate::path::refuse_symlink_ancestors(&destination)?;
+                    fs::create_dir_all(destination.parent().expect("fixed blob has a parent"))?;
+                    run_cvlod_blob_transfer(
+                        lifecycle,
+                        self.download_fixed_cvlod_blob(
+                            &client,
+                            &blob.asset,
+                            &destination,
+                            operation,
+                            emit,
+                        ),
+                    )
+                    .await?;
+                    operation.checkpoint()?;
+                }
+            }
             let payload = payload_root.clone();
             let library = self.library.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {
@@ -1039,7 +1165,21 @@ impl Installer {
         lifecycle.store.put(&mut lifecycle.record)?;
         self.faults
             .check(LifecycleFaultPoint::InstallMetadataCommitted)?;
-        if let Err(error) = fs::remove_dir_all(&lifecycle.operation_root) {
+        let cleanup = (|| -> Result<()> {
+            #[cfg(windows)]
+            if lifecycle.record.port_id == "cvlod-recomp"
+                && lifecycle.record.preparation_process_quiesced.is_some()
+            {
+                crate::cartridge_build::cvlod::cleanup::unlink_published_private_wininet_junction(
+                    &self.library,
+                    &lifecycle.record,
+                    &lifecycle.operation_root,
+                )?;
+            }
+            fs::remove_dir_all(&lifecycle.operation_root)?;
+            Ok(())
+        })();
+        if let Err(error) = cleanup {
             lifecycle.record.phase = LifecyclePhase::CleanupPending;
             lifecycle.record.last_error = Some(error.to_string());
             lifecycle.store.put(&mut lifecycle.record)?;
@@ -1169,6 +1309,69 @@ impl Installer {
     {
         self.download_scoped(asset, destination, operation, emit, None)
             .await
+    }
+
+    /// Only the closed CVLoD recipe supplies these requests. Keep archive
+    /// extraction and publisher-scoped acquisition outside this raw-file path.
+    async fn download_fixed_cvlod_blob<F>(
+        &self,
+        client: &reqwest::Client,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> (Result<()>, bool)
+    where
+        F: FnMut(OperationEvent),
+    {
+        let mut quiesced = true;
+        let result = async {
+            let url = reqwest::Url::parse(&asset.url)
+                .map_err(|_| PortcoveError::verification("invalid fixed CVLoD blob URL"))?;
+            if url.scheme() != "https"
+                || url.host_str() != Some("raw.githubusercontent.com")
+                || asset.size > 64 * 1024 * 1024
+                || asset.sha256.len() != 64
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob request differs",
+                ));
+            }
+            let response = operation
+                .interruptible(async {
+                    client
+                        .get(url)
+                        .send()
+                        .await
+                        .map_err(|e| PortcoveError::network(e.to_string()))?
+                        .error_for_status()
+                        .map_err(|e| PortcoveError::network(e.to_string()))
+                })
+                .await?;
+            if response
+                .content_length()
+                .is_some_and(|size| size != asset.size)
+            {
+                return Err(PortcoveError::verification(
+                    "CVLoD fixed blob response size differs",
+                ));
+            }
+            crate::path::refuse_symlink_ancestors(destination)?;
+            let mut file = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(destination)
+                .await?;
+            let outcome =
+                write_cvlod_blob_stream(response.bytes_stream(), &mut file, asset, operation).await;
+            quiesced = outcome.drained;
+            let completed = outcome.result?;
+            file.sync_all().await?;
+            emit(operation.progress("download", completed, Some(asset.size)));
+            operation.checkpoint()
+        }
+        .await;
+        (result, quiesced)
     }
 
     async fn download_scoped<F>(
@@ -5748,6 +5951,139 @@ mod tests {
             false,
         )
         .await;
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn cvlod_legacy_publication_and_recovery_preserve_untracked_cleanup() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+            thread,
+        };
+        for interrupted in [false, true] {
+            let temporary = tempfile::tempdir().unwrap();
+            let archive_path = temporary.path().join("legacy.zip");
+            let mut writer = zip::ZipWriter::new(File::create(&archive_path).unwrap());
+            writer
+                .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+                .unwrap();
+            writer.write_all(b"verified legacy fixture").unwrap();
+            writer.finish().unwrap();
+            let archive_bytes = fs::read(&archive_path).unwrap();
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let address = listener.local_addr().unwrap();
+            let response = archive_bytes.clone();
+            let stopped = Arc::new(AtomicBool::new(false));
+            let server_stop = Arc::clone(&stopped);
+            let server = thread::spawn(move || {
+                let (mut stream, _) = loop {
+                    if server_stop.load(Ordering::Acquire) {
+                        return false;
+                    }
+                    match listener.accept() {
+                        Ok(connection) => break connection,
+                        Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(5));
+                        }
+                        Err(error) => panic!("legacy fixture accept failed: {error}"),
+                    }
+                };
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                stream
+                    .set_write_timeout(Some(Duration::from_secs(2)))
+                    .unwrap();
+                let mut request = [0u8; 1024];
+                let _ = stream.read(&mut request);
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    response.len()
+                )
+                .unwrap();
+                stream.write_all(&response).unwrap();
+                true
+            });
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let installer = if interrupted {
+                Installer::with_faults(
+                    library.clone(),
+                    Arc::new(FailOnce {
+                        point: LifecycleFaultPoint::InstallMetadataCommitted,
+                        fired: AtomicBool::new(false),
+                    }),
+                )
+                .unwrap()
+            } else {
+                Installer::new(library.clone()).unwrap()
+            };
+            let request = InstallRequest {
+                port_id: "cvlod-recomp".into(),
+                output_root: library.versions_dir().join("cvlod-recomp"),
+                release: ResolvedRelease {
+                    version: "legacy-fixture".into(),
+                    channel: crate::ReleaseChannel::Stable,
+                    published_at: None,
+                    asset: crate::ReleaseAsset {
+                        name: "legacy.zip".into(),
+                        url: format!("http://{address}/legacy.zip"),
+                        size: archive_bytes.len() as u64,
+                        sha256: hex::encode(Sha256::digest(&archive_bytes)),
+                    },
+                },
+                activate: true,
+                managed: None,
+                qualification: InstallQualification::test_for_port(
+                    "cvlod-recomp",
+                    "sample-game.exe",
+                ),
+            };
+            let result = installer
+                .install(request, &OperationCoordinator::new("install", None), |_| {})
+                .await;
+            stopped.store(true, Ordering::Release);
+            assert!(
+                server.join().unwrap(),
+                "legacy request was not served: {result:?}"
+            );
+            let store = OperationStore::new(library.clone());
+            if interrupted {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("injected lifecycle failure")
+                );
+                let retained = store.all().unwrap();
+                assert_eq!(retained.len(), 1);
+                assert_eq!(retained[0].phase, LifecyclePhase::MetadataCommitted);
+                assert_eq!(retained[0].preparation_process_quiesced, None);
+                crate::PortcoveService::new(library.clone()).unwrap();
+            } else {
+                assert!(result.unwrap().verified);
+            }
+            assert!(store.all().unwrap().is_empty());
+            assert_eq!(fs::read_dir(library.staging_dir()).unwrap().count(), 0);
+            let install = library
+                .install_by_version("cvlod-recomp", "legacy-fixture")
+                .unwrap()
+                .unwrap();
+            assert_eq!(
+                fs::read(install.path.join("sample-game.exe")).unwrap(),
+                b"verified legacy fixture"
+            );
+            assert!(
+                Installer::new(library.clone())
+                    .unwrap()
+                    .verify(&install)
+                    .unwrap()
+                    .valid
+            );
+            assert_eq!(fs::read(&archive_path).unwrap(), archive_bytes);
+        }
     }
 
     async fn assert_external_install_recovery(point: LifecycleFaultPoint) {
