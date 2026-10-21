@@ -43,19 +43,23 @@ it.for(["dark", "light"] as const)(
       expect(box.left).toBeGreaterThanOrEqual(workspace.left);
       expect(box.right).toBeLessThanOrEqual(workspace.right);
     }
-    const about = page
-      .getByRole("button", { name: "About Portcove", exact: true })
+    const settings = page
+      .getByRole("button", { name: "Settings", exact: true })
       .element() as HTMLElement;
-    about.scrollIntoView({ block: "nearest" });
+    settings.scrollIntoView({ block: "nearest" });
     expect(
-      about.getBoundingClientRect().bottom,
-      "sidebar footer must remain reachable",
+      settings.getBoundingClientRect().bottom,
+      "Settings must remain reachable",
     ).toBeLessThanOrEqual(innerHeight + 1);
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(960);
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-shell-${theme}-960.png`,
     });
-    await userEvent.click(page.getByRole("button", { name: "About Portcove", exact: true }));
+    await userEvent.click(page.getByRole("button", { name: "Settings", exact: true }));
+    await page
+      .getByRole("navigation", { name: "Settings categories" })
+      .getByRole("button", { name: "About", exact: true })
+      .click();
     await expect
       .element(page.getByRole("heading", { name: "About Portcove", exact: true }).first())
       .toBeVisible();

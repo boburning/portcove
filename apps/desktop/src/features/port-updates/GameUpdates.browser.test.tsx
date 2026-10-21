@@ -10,6 +10,7 @@ import { useOperationState, type Perform } from "../operations/use-operation-sta
 vi.mock("../../desktop-events", () => ({ listenDesktopEvent: async () => () => undefined }));
 import { GameUpdateControl, UpdatePolicyControl } from "../../components/GameUpdates";
 import { UpdateCenter } from "../../components/UpdateCenter";
+import { StatusLayer } from "../../components/Chrome";
 
 const plan: GameUpdatePlan = {
   assessment: { action: "update", availability: "allowed", reason: "available" },
@@ -92,6 +93,39 @@ async function click(label: string, contains = false) {
 function dialog() {
   return document.body.querySelector("[data-game-update-review]");
 }
+
+it("leaves a running update with valid focus without cancelling or changing its reviewed target", async () => {
+  const expected = { ...plan, activate: true, plan_sha256: "install-reviewed" };
+  vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue(expected);
+  let finish!: (value: InstallRecord) => void;
+  const apply = vi.spyOn(desktopApi, "applyGameUpdate").mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  const cancel = vi.spyOn(desktopApi, "cancelOperation");
+  await root.rerender(
+    <GameUpdateControl
+      portId="sample"
+      generation={9}
+      policy="notify"
+      busy={false}
+      perform={perform}
+    />,
+  );
+  await click("Review game update");
+  await click("Download and install update");
+  await click("Continue browsing");
+  expect(dialog()).toBeNull();
+  expect(document.activeElement).toBe(
+    container.querySelector('section[aria-label="Review game update"]'),
+  );
+  expect(apply.mock.calls[0]?.slice(0, 4)).toEqual(["sample", true, expected.plan_sha256, 9]);
+  expect(cancel).not.toHaveBeenCalled();
+  await act(async () => finish(stagedUpdate));
+  expect(cancel).not.toHaveBeenCalled();
+});
 async function pressEscape() {
   await act(async () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
@@ -137,6 +171,8 @@ it("reviews without execution and submits the exact download-only plan on confir
       perform={perform}
     />,
   );
+  await click("What would you like to do?", true);
+  await click("Download for later");
   await click("Review game update");
   expect(apply).not.toHaveBeenCalled();
   expect(desktopApi.planGameUpdate).toHaveBeenCalledExactlyOnceWith("sample", false, 9);
@@ -411,14 +447,12 @@ it("shows only the newest game review when two row requests complete out of orde
   expect(document.activeElement).toBe(reviewButtons[1]);
 });
 
-it.each([
-  ["notify", false],
-  ["stage", false],
-  ["automatic", true],
-] as const)(
-  "retains the %s policy default for the first identified review",
-  async (policy, activate) => {
-    const review = vi.spyOn(desktopApi, "planGameUpdate").mockResolvedValue({ ...plan, activate });
+it.each(["notify", "stage", "automatic"] as const)(
+  "uses the explicit immediate choice independently of the %s future policy",
+  async (policy) => {
+    const review = vi
+      .spyOn(desktopApi, "planGameUpdate")
+      .mockResolvedValue({ ...plan, activate: true });
     const apply = vi.spyOn(desktopApi, "applyGameUpdate");
     await root.rerender(
       <GameUpdateControl
@@ -429,10 +463,10 @@ it.each([
         perform={perform}
       />,
     );
-    expect(container.querySelector('[data-slot="select-trigger"]')).toBeNull();
+    expect(container.textContent).toContain("What would you like to do?");
     expect(dialog()).toBeNull();
     await click("Review game update");
-    expect(review).toHaveBeenCalledExactlyOnceWith("sample", activate, 9);
+    expect(review).toHaveBeenCalledExactlyOnceWith("sample", true, 9);
     expect(dialog()?.textContent).toContain("2.0");
     expect(apply).not.toHaveBeenCalled();
   },
@@ -461,6 +495,8 @@ it("requires another review when the chosen action changes and binds activation 
   );
   expect(container.textContent).not.toContain("This update");
   expect(document.body.textContent).not.toContain("Review install now");
+  await click("What would you like to do?", true);
+  await click("Download for later");
   await click("Review game update");
   expect(dialog()?.textContent).toContain("2.0");
   expect(dialog()?.textContent).toContain("Your current version stays unchanged");
@@ -702,14 +738,21 @@ let actualOperation: ReturnType<typeof useOperationState>;
 function ActualOperationFixture({ generation = 9 }: { generation?: number }) {
   actualOperation = useOperationState({ refresh: refreshOperation, libraryGeneration: generation });
   return (
-    <GameUpdateControl
-      key={generation}
-      portId="sample"
-      generation={generation}
-      policy="notify"
-      busy={Boolean(actualOperation.busy)}
-      perform={actualOperation.perform}
-    />
+    <>
+      <StatusLayer
+        invocations={actualOperation.invocations}
+        dismissInvocation={actualOperation.dismissInvocation}
+        clearError={() => actualOperation.setError(undefined)}
+      />
+      <GameUpdateControl
+        key={generation}
+        portId="sample"
+        generation={generation}
+        policy="notify"
+        busy={Boolean(actualOperation.busy)}
+        perform={actualOperation.perform}
+      />
+    </>
   );
 }
 function updateFailure(
@@ -747,10 +790,15 @@ it.each([
     await click("Review game update");
     await click("Download update for later");
     expect(container.textContent).toContain(failure.presentation.summary);
-    const outcome = container.querySelector("[data-game-update-outcome]");
+    const outcome = container.querySelector(
+      cancelled ? "[data-game-update-outcome]" : "[data-invocation-id] [role=alert]",
+    );
     expect(outcome?.textContent).toContain(failure.presentation.summary);
     expect(outcome?.textContent).toContain(consequence);
     expect(outcome?.getAttribute("role")).toBe(cancelled ? "status" : "alert");
+    expect(container.querySelectorAll('[role="alert"], [data-game-update-outcome]')).toHaveLength(
+      1,
+    );
     expect(container.textContent).not.toContain("Update did not complete");
     expect(actualOperation.error).toBe(cancelled ? undefined : failure);
     expect(apply).toHaveBeenCalledTimes(1);

@@ -118,9 +118,11 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await userEvent.click(page.getByRole("button", { name: "Prepare game data", exact: true }));
   await expect
     .element(
-      page.getByText("Fixture preparation is waiting. Complete, fail, or cancel it.", {
-        exact: true,
-      }),
+      page
+        .getByRole("dialog")
+        .getByText("Fixture preparation is waiting. Complete, fail, or cancel it.", {
+          exact: true,
+        }),
     )
     .toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Cancel preparation", exact: true }));
@@ -148,11 +150,13 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
 it("renders recovery choices, returns to Library via the actual bootstrap hook, and resets", async () => {
   mount("recovery");
   await expect
-    .element(page.getByRole("button", { name: "Resume move", exact: true }))
+    .element(page.getByRole("button", { name: "Continue location change", exact: true }))
     .toBeVisible();
   expect(
-    page.getByRole("button", { name: "Resume move", exact: true }).element().getBoundingClientRect()
-      .top,
+    page
+      .getByRole("button", { name: "Continue location change", exact: true })
+      .element()
+      .getBoundingClientRect().top,
   ).toBeLessThan(
     page
       .getByRole("button", { name: "Retry startup", exact: true })
@@ -166,6 +170,6 @@ it("renders recovery choices, returns to Library via the actual bootstrap hook, 
   await expect.element(page.getByPlaceholder("Game or port name")).toBeVisible();
   await userEvent.click(page.getByRole("button", { name: "Reset journey", exact: true }));
   await expect
-    .element(page.getByRole("button", { name: "Resume move", exact: true }))
+    .element(page.getByRole("button", { name: "Continue location change", exact: true }))
     .toBeVisible();
 });

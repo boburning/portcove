@@ -137,6 +137,7 @@ import {
   assertPrimaryReviewAction,
   captureAccessibilityReport,
   clickVisible,
+  chooseGameUpdateDisposition,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
@@ -685,6 +686,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         await browser.wait(async () => (await review.getText()).includes(explanation), 5_000);
@@ -753,6 +755,7 @@ async function assertReviewedUpdateOutcomes({
       });
       let scenarioError;
       try {
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         const review = await browser.wait(until.elementLocated(dialog), 15_000);
         const applyAction = await waitForReviewedUpdateAction(
@@ -768,7 +771,13 @@ async function assertReviewedUpdateOutcomes({
 
         await clickVisible(browser, applyAction);
         const outcome = await browser.wait(
-          until.elementLocated(By.css("[data-game-update-outcome]")),
+          until.elementLocated(
+            cancelled
+              ? By.css("[data-game-update-outcome]")
+              : By.xpath(
+                  '(//*[@data-invocation-id][starts-with(@aria-label,"Update game")]//*[@role="alert"])[last()]',
+                ),
+          ),
           5_000,
         );
         await browser.wait(
@@ -808,6 +817,7 @@ async function assertReviewedUpdateOutcomes({
           path.join(output, `reviewed-update-outcome-${mutation}-accessibility.json`),
           artifacts,
         );
+        await chooseGameUpdateDisposition(browser, "download");
         await clickVisible(browser, await browser.findElement(button("Review game update")));
         await browser.wait(until.elementLocated(dialog), 5_000);
         await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -841,6 +851,7 @@ async function assertReviewedUpdateOutcomes({
       assert.equal(observation.channels, 1);
       assert.equal(observation.restored, true);
     }
+    await chooseGameUpdateDisposition(browser, "download");
     await clickVisible(browser, await browser.findElement(button("Review game update")));
     await browser.wait(until.elementLocated(dialog), 5_000);
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
@@ -2241,12 +2252,14 @@ export async function preparationScenarios({
   await scenario("native-game-update-review", async () => {
     const { port } = await seed("opengoal-jak1", "success");
     await open(port, false);
-    const updateControl = await browser.findElement(
-      By.css('section[aria-label="Review game update"]'),
+    await clickVisible(browser, await browser.findElement(button("Check for updates")));
+    const updateControl = await browser.wait(
+      until.elementLocated(By.css('section[aria-label="Review game update"]')),
+      15_000,
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
-      0,
+      1,
     );
     const before = await status(port.id);
     const activityBefore = (await invoke("get_activities")).value;
@@ -2259,7 +2272,7 @@ export async function preparationScenarios({
       5_000,
       "Game update review did not show its release confirmation",
     );
-    // A disposition is offered only after the current release has been reviewed.
+    // The immediate disposition is explicit; changing it requests a new bound plan.
     const initialReviewText = await review.getText();
     const keepForLater = await review.findElements(button("Review download for later"));
     if (keepForLater.length) {

@@ -35,8 +35,10 @@ export function PreparationControl({
   const [operationId, setOperationId] = useState<string>();
   const request = useRef(0);
   const completed = useRef(false);
+  const observing = useRef(true);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const reviewTitle = useRef<HTMLHeadingElement>(null);
+  const actionRegion = useRef<HTMLElement>(null);
   useEffect(
     () => () => {
       request.current += 1;
@@ -47,6 +49,7 @@ export function PreparationControl({
     setPlan(undefined);
   };
   const review = async () => {
+    observing.current = true;
     completed.current = false;
     const current = ++request.current;
     setPending("review");
@@ -74,7 +77,9 @@ export function PreparationControl({
         if (event.type === "started") setOperationId(event.operation_id);
         if (event.type === "message") setMessage(event.message);
       });
-      if (result) onPrepared?.();
+      // Readback may already have removed this control. The parent completion
+      // owner validates its target/epoch and connected workspace before focusing.
+      if (result && observing.current) onPrepared?.();
       if (request.current === current) completed.current = Boolean(result);
       if (request.current === current)
         setMessage(
@@ -97,7 +102,12 @@ export function PreparationControl({
     }
   };
   return (
-    <section aria-label="Prepare game data" className="preparation-control">
+    <section
+      ref={actionRegion}
+      tabIndex={-1}
+      aria-label="Prepare game data"
+      className="preparation-control"
+    >
       {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
       <p>
         Portcove will use your selected original files to prepare this installed version. Your
@@ -125,10 +135,17 @@ export function PreparationControl({
           }}
         >
           <DialogContent
+            className="@container/preparation"
             showCloseButton={false}
             initialFocus={reviewTitle}
             finalFocus={() => {
               const fallback = focusFallback?.();
+              if (!observing.current)
+                return fallback?.isConnected
+                  ? fallback
+                  : actionRegion.current?.isConnected
+                    ? actionRegion.current
+                    : false;
               if (focusFallback && !fallback?.isConnected) return false;
               if (completed.current && fallback?.isConnected) return fallback;
               // Popup cleanup precedes this commit's removal of the opener's
@@ -155,11 +172,12 @@ export function PreparationControl({
             </DialogDescription>
             {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
             <div
-              className="preparation-plan mt-[16px] grid gap-4 rounded-pc-lg border border-[var(--color-interactive-border)] bg-[var(--color-interactive-subtle)] p-[14px] [overflow-wrap:anywhere]"
+              className="preparation-plan mt-4 grid gap-4 [overflow-wrap:anywhere]"
               aria-label="Preparation plan"
             >
-              <dl className="m-0 grid gap-3">
-                <div>
+              <h3 className="m-0 text-base">Files used</h3>
+              <dl className="m-0 grid gap-3 rounded-pc-md border border-pc-border bg-pc-surface p-4 @min-[30rem]/preparation:grid-cols-2">
+                <div className="col-span-full">
                   <dt className="text-pc-secondary-foreground">Installed version</dt>
                   <dd className="m-0 font-semibold">{plan.inputs.install.version}</dd>
                 </div>
@@ -172,6 +190,7 @@ export function PreparationControl({
                   <dd className="m-0">{plan.inputs.source.path}</dd>
                 </div>
               </dl>
+              <h3 className="m-0 text-base">What changes</h3>
               <p className="m-0">
                 Portcove needs at least{" "}
                 {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space
@@ -181,15 +200,18 @@ export function PreparationControl({
                 Your original files and current installation remain unchanged. The verified result
                 becomes active, and your previous version remains available for rollback.
               </p>
+              <h3 className="m-0 text-base">During setup</h3>
               <p className="m-0">
-                If preparation is cancelled or interrupted, check Recent activity for any unfinished
-                setup files kept for review. Starting again uses the selected original files without
-                erasing earlier unfinished work.
+                You can continue browsing and revisit this task in Activity. Keep Portcove open
+                until it finishes.
               </p>
               <p className="m-0">
-                If setup opens a window, complete setup there, then choose its option to close
-                setup. Do not launch the game from that window. Portcove will verify and activate
-                the prepared result afterward.
+                Cancelled or interrupted setup can leave working files for review in Activity.
+                Starting again keeps earlier unfinished work.
+              </p>
+              <p className="m-0">
+                If setup opens another window, finish setup and close it without launching the game.
+                Portcove then verifies and activates the prepared result.
               </p>
               {pending === "prepare" && message && (
                 <p className="m-0" role="status">
@@ -205,6 +227,18 @@ export function PreparationControl({
               )}
             </div>
             <DialogFooter className="mt-4">
+              {pending === "prepare" && (
+                <Button
+                  data-focusable
+                  variant="outline"
+                  onClick={() => {
+                    observing.current = false;
+                    setPlan(undefined);
+                  }}
+                >
+                  Continue browsing
+                </Button>
+              )}
               <Button
                 data-focusable
                 variant="primary"

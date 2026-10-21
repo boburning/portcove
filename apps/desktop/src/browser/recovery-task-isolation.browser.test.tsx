@@ -118,6 +118,14 @@ it("keeps another port's retained cleanup identity through cancelled review and 
       document.querySelector(`[data-recovery-operation="${retained.operation_id}"]`)?.textContent,
     ).toContain(retained.operation_id);
     await page.getByRole("button", { name: "Review unfinished setup files", exact: true }).click();
+    const account = page.getByRole("dialog", {
+      name: "Files left by unfinished setup",
+      exact: true,
+    });
+    await expect.element(account).toBeVisible();
+    for (const fact of facts) expect(account.element().textContent).toContain(fact);
+    expect(remove).not.toHaveBeenCalled();
+    await page.getByRole("button", { name: "Review cleanup…", exact: true }).click();
     const dialog = page.getByRole("dialog", {
       name: "Delete files left by unfinished setup?",
       exact: true,
@@ -158,7 +166,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
   await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull();
   await openRetained();
   expect(JSON.stringify(retained)).toBe(recorded);
-  expect(preview.mock.calls).toEqual(Array.from({ length: 3 }, () => [retained.operation_id, 1]));
+  expect(preview.mock.calls).toEqual(Array.from({ length: 6 }, () => [retained.operation_id, 1]));
   await capture("recovery-after-dark");
   await page.getByRole("button", { name: "Keep files", exact: true }).click();
   expect(remove).not.toHaveBeenCalled();

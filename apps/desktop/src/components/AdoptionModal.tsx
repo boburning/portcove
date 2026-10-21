@@ -78,11 +78,8 @@ export function AdoptionModal({
         <span className="mb-4 grid size-11 place-items-center rounded-lg border border-pc-interactive bg-pc-selection text-pc-selection-foreground">
           <Icon glyph={FolderInput} size="lg" />
         </span>
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          COPY EXISTING INSTALLATION
-        </p>
         <DialogTitle ref={titleRef} tabIndex={-1} id="adopt-title" className="mb-2 text-xl">
-          Add an existing installation to Portcove
+          Copy an existing installation
         </DialogTitle>
         <DialogDescription id="adopt-description" className="mb-4 leading-relaxed">
           Copy this installation and any supported saved data into Portcove. The original folder

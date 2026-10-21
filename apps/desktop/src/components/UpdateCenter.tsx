@@ -54,7 +54,7 @@ import {
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
-  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start overflow-hidden px-1 py-0 text-ellipsis text-xs font-normal text-pc-secondary-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
+  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start px-1 py-0 text-start text-sm font-semibold whitespace-normal wrap-anywhere text-pc-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
 const activityDetailsClass =
   "activity-details mt-[calc(var(--space-1)_*_-1)] col-[2/-1] min-w-0 text-xs";
 const activityTones: Record<string, { indicator: string; status: string }> = {
@@ -349,6 +349,7 @@ export function UpdateCenter({
                         perform={perform}
                         compact
                         gameName={gameIdentityLabel(port)}
+                        currentVersion={status.active?.version}
                         reviewScope={{
                           active: reviewingUpdate === port.id,
                           claim: () => {
@@ -652,6 +653,28 @@ function ActivityHistory({
     ...(reviewedActivityId ? [reviewedActivityId] : []),
   ]);
   const protectedIds = new Set(protectedActivityIds);
+  const attentionIds = new Set([
+    ...(activityFeed?.attention_required_activity_ids ?? []),
+    ...(activityFeed?.recovery_required_activity_ids ?? []),
+  ]);
+  const groups = [
+    {
+      label: "Needs attention",
+      records: visibleActivities.filter((item) => attentionIds.has(item.id)),
+    },
+    {
+      label: "In progress",
+      records: visibleActivities.filter(
+        (item) => !attentionIds.has(item.id) && item.status === "running",
+      ),
+    },
+    {
+      label: "Recent",
+      records: visibleActivities.filter(
+        (item) => !attentionIds.has(item.id) && item.status !== "running",
+      ),
+    },
+  ];
   const visibleFinishedCount = visibleActivities.filter(
     (activity) =>
       ["succeeded", "failed", "cancelled"].includes(activity.status) &&
@@ -661,10 +684,7 @@ function ActivityHistory({
     <section className="activity-history mt-7 border-t border-pc-border pt-6">
       <div className="activity-heading mb-3 flex items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-            ACTIVITY HISTORY
-          </p>
-          <h2 className="mb-0 text-lg">Recent activity</h2>
+          <h2 className="mb-0 text-lg">Task records</h2>
         </div>
         <small className="text-xs text-pc-muted-foreground">
           {activityFeed ? (
@@ -696,19 +716,26 @@ function ActivityHistory({
         </div>
       ) : (
         <div className="activity-list grid gap-1.5">
-          {visibleActivities.map((activity) => (
-            <ActivityRow
-              operation={operationEvents?.get(activity.id)}
-              activity={activity}
-              names={names}
-              sourceNames={sourceNames}
-              onSelect={onSelect}
-              onOpenSettings={onOpenSettings}
-              key={activity.id}
-              generation={generation}
-              nowSeconds={nowSeconds}
-            />
-          ))}
+          {groups
+            .filter((group) => group.records.length > 0)
+            .map((group) => (
+              <section key={group.label} aria-label={group.label} className="mb-4 grid gap-2">
+                <h3 className="mb-1 text-sm text-pc-muted-foreground">{group.label}</h3>
+                {group.records.map((activity) => (
+                  <ActivityRow
+                    operation={operationEvents?.get(activity.id)}
+                    activity={activity}
+                    names={names}
+                    sourceNames={sourceNames}
+                    onSelect={onSelect}
+                    onOpenSettings={onOpenSettings}
+                    key={activity.id}
+                    generation={generation}
+                    nowSeconds={nowSeconds}
+                  />
+                ))}
+              </section>
+            ))}
         </div>
       )}
     </section>
@@ -752,13 +779,15 @@ function ActivityRow({
         <Icon glyph={presentation.icon} size="sm" />
       </span>
       <div className="activity-main min-w-0">
-        <strong className="block text-xs">{operationLabel(activity.operation)}</strong>
         <ActivityTargetLink
           activity={activity}
           target={target}
           onSelect={onSelect}
           onOpenSettings={onOpenSettings}
         />
+        <span className="mt-1 block text-xs text-pc-muted-foreground">
+          {operationLabel(activity.operation)}
+        </span>
       </div>
       <span
         className="activity-time text-end text-[length:var(--text-2xs)] whitespace-nowrap text-pc-muted-foreground max-[65rem]:hidden"

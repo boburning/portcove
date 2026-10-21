@@ -5,7 +5,6 @@ import axe from "axe-core";
 import { PageHeader, Sidebar } from "./Chrome";
 import { observeVisibleTarget } from "../../scripts/browser-readiness.mts";
 import { prepareCaptureTarget } from "../../test/capture-target";
-import { captureTargetScreenshot } from "../browser/capture-target";
 
 afterEach(async () => {
   await cleanup();
@@ -25,7 +24,7 @@ for (const platform of ["Win32", "MacIntel"]) {
         exact: true,
       });
       await expect.element(button).toBeVisible();
-      expect(button.element().querySelector("kbd")?.textContent).toBe(shortcut);
+      expect(button.element().textContent).toContain(shortcut);
       const result = await axe.run(button.element(), {
         runOnly: { type: "rule", values: ["label-content-name-mismatch"] },
       });
@@ -40,31 +39,29 @@ it.for([
   [1280, "dark"],
   [1280, "light"],
 ] as const)(
-  "captures the complete real sidebar footer at %spx in %s",
-  async ([width, theme], context) => {
+  "keeps primary destinations reachable without task tools competing in the sidebar at %spx in %s",
+  async ([width, theme]) => {
     await page.viewport(width, 640);
     document.documentElement.dataset.theme = theme;
-    const onAdopt = vi.fn();
+    const setView = vi.fn();
     await render(
       <Sidebar
         view="library"
-        setView={vi.fn()}
+        setView={setView}
         installedCount={3}
         updateCount={0}
         activities={[]}
-        onAdopt={onAdopt}
       />,
     );
-    const footer = document.querySelector(".sidebar-footer")!;
-    expect(footer.textContent).toContain("Copy existing installation");
-    await captureTargetScreenshot(
-      footer,
-      `../../../../outputs/slice5-cards/sidebar-footer-${theme}-${width}.png`,
-      "sidebar-footer",
-      context,
+    expect(document.querySelector(".sidebar-footer")?.textContent ?? "").not.toContain(
+      "Copy existing installation",
     );
-    await page.getByRole("button", { name: "Copy existing installation" }).click();
-    expect(onAdopt).toHaveBeenCalledTimes(1);
+    for (const label of ["Library", "Find games", "Activity", "Settings"])
+      await expect
+        .element(page.getByRole("button", { name: new RegExp(`^${label}`) }))
+        .toBeVisible();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    expect(setView).toHaveBeenCalledWith("settings");
   },
 );
 

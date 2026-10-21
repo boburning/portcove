@@ -3034,9 +3034,13 @@ try {
       ),
       5_000,
     );
-    for (const name of ["Choose game files", "Search game-file folders", "Browse Find games"])
+    for (const name of [
+      "Choose a game or port",
+      "Find games in a folder",
+      "Use an existing installation",
+    ])
       assert.equal(
-        await browser.findElement(By.xpath(`//button[normalize-space(.)="${name}"]`)).isDisplayed(),
+        await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
         true,
         `Add games route is missing: ${name}`,
       );

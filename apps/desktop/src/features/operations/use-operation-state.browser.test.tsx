@@ -6,6 +6,7 @@ import { targetInvocationContext } from "./invocation-state";
 import { failureReport } from "../../test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
 import { InvocationOwnerProvider } from "./invocation-owner";
+import type { ActivityRecord, OperationEvent } from "../../types";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/event")>()),
@@ -17,11 +18,18 @@ let state!: ReturnType<typeof useOperationState>;
 const refresh = vi.fn<() => Promise<unknown>>();
 const invalidate = vi.fn();
 const openActivity = vi.fn();
-function Fixture({ generation = 7 }: { generation?: number }) {
+function Fixture({
+  generation = 7,
+  activities = [],
+}: {
+  generation?: number;
+  activities?: ActivityRecord[];
+}) {
   state = useOperationState({
     refresh,
     invalidateDiagnostics: invalidate,
     libraryGeneration: generation,
+    activities,
   });
   return (
     <StatusLayer
@@ -58,6 +66,98 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+});
+
+it("binds only an owned root event to the original invocation and ignores events after settlement", async () => {
+  const done = deferred<string>();
+  let report!: (event: OperationEvent) => void;
+  let running!: Promise<unknown>;
+  const started = (id: string, parent: string | null = null): OperationEvent => ({
+    schema_version: 2,
+    operation_id: id,
+    parent_operation_id: parent,
+    target: null,
+    sequence: 1,
+    timestamp_ms: 1,
+    operation: "prepare",
+    type: "started",
+  });
+  await act(async () => {
+    running = state.perform(
+      "prepare",
+      (accept) => {
+        report = accept!;
+        return done.promise;
+      },
+      { context: context("A") },
+    );
+    report(started("child", "owned-root"));
+  });
+  expect([...state.invocations.values()][0]?.context.activityId).toBeUndefined();
+  await act(async () => {
+    report(started("owned-root"));
+    report(started("unexpected-other-root"));
+  });
+  const record = [...state.invocations.values()][0]!;
+  expect(record.context.target.id).toBe("A");
+  expect(record.context.activityId).toBe("owned-root");
+  await act(async () => {
+    done.resolve("prepared");
+    await running;
+  });
+  expect([...state.invocations.values()][0]?.phase).toBe("settled");
+  await act(async () => report(started("late-root")));
+  expect([...state.invocations.values()][0]?.context.activityId).toBe("owned-root");
+  expect(state.operationEvents.has("late-root")).toBe(false);
+});
+
+it("does not revive completed work when durable terminal readback precedes the first owned event", async () => {
+  const held = deferred<string>();
+  let report!: (event: OperationEvent) => void;
+  let running!: Promise<unknown>;
+  await act(async () => {
+    running = state.perform(
+      "prepare",
+      (accept) => {
+        report = accept!;
+        return held.promise;
+      },
+      { context: context("A") },
+    );
+  });
+  const terminal: ActivityRecord = {
+    id: "owned-root",
+    target_id: "A",
+    target_kind: "port",
+    operation: "prepare",
+    status: "succeeded",
+    started_at: 1,
+    finished_at: 2,
+    cancellation: null,
+    failure: null,
+    message: null,
+  };
+  await act(async () => root.render(<Fixture activities={[terminal]} />));
+  await act(async () =>
+    report({
+      schema_version: 2,
+      operation_id: terminal.id,
+      parent_operation_id: null,
+      target: null,
+      sequence: 1,
+      timestamp_ms: 1,
+      operation: "prepare",
+      type: "started",
+    }),
+  );
+  expect(state.operationEvents.has(terminal.id)).toBe(false);
+  expect(state.operation).toBeUndefined();
+  expect([...state.invocations.values()][0]?.context.activityId).toBe(terminal.id);
+  await act(async () => {
+    held.resolve("done");
+    await running;
+  });
+  expect([...state.invocations.values()][0]?.phase).toBe("settled");
 });
 
 it("retains two independently attributed failures after out-of-order settlement", async () => {

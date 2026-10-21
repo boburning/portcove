@@ -123,6 +123,21 @@ export function reviewControls(browser: WebDriver) {
   };
 }
 
+export async function chooseGameUpdateDisposition(
+  browser: WebDriver,
+  choice: "install" | "download",
+) {
+  const trigger = await browser.wait(
+    until.elementLocated(By.css('section[aria-label="Review game update"] [role="combobox"]')),
+    15_000,
+  );
+  await clickVisible(browser, trigger);
+  const label = choice === "install" ? "Install update" : "Download for later";
+  await reviewControls(browser).click(
+    By.xpath(`//*[@role="option"][normalize-space(.)="${label}"]`),
+  );
+}
+
 /** Settings panels stay mounted while hidden; locating their controls is insufficient. */
 export async function selectGameFilesSettings(browser: WebDriver) {
   await reviewControls(browser).click(

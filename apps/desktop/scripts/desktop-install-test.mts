@@ -60,6 +60,7 @@ import { executeBrowserScript } from "./browser-script.mts";
 import assert from "node:assert/strict";
 import { copyFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { chooseGameUpdateDisposition } from "./desktop-review-controls.mts";
 import { By, Key, until } from "selenium-webdriver";
 import { fileIdentity } from "../../../scripts/development-evidence.mts";
 import {
@@ -717,8 +718,10 @@ export async function installScenarios({
     );
 
     await openFixture(port, true);
+    await browser.findElement(button("Check for updates")).click();
     const updateControl = By.css('section[aria-label="Review game update"]');
     await browser.wait(until.elementLocated(updateControl), 15_000);
+    await chooseGameUpdateDisposition(browser, "download");
     await browser.findElement(button("Review game update")).click();
     const review = By.css("[data-game-update-review]");
     await browser.wait(until.elementLocated(review), 15_000);

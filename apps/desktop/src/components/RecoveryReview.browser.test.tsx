@@ -128,7 +128,7 @@ it("retains every recorded item and full long names and paths", () => {
   expect(html).not.toContain("raw-machine-secret");
 });
 
-it("reviews exact private files and preserved paths before cleanup", async () => {
+it("inspects exact retained facts without deleting, then refreshes the bound plan for separate cleanup", async () => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const preview: PreparationCleanupPreview = {
     format_version: 1,
@@ -180,7 +180,7 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     const review = [...host.querySelectorAll("button")].find((button) =>
       button.textContent?.includes("Review unfinished setup files"),
     );
-    expect(review?.dataset.variant).toBe("destructive");
+    expect(review?.dataset.variant).toBe("outline");
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith("owned-operation", 7);
     expect(document.body.textContent).toContain(preview.retained_path);
@@ -188,6 +188,18 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
     expect(document.body.textContent).toContain(preview.source_path);
     expect(document.body.textContent).toContain(preview.persistent_data_path);
     expect(document.body.textContent).toContain("private.bin");
+    expect(document.body.textContent).toContain("Files left by unfinished setup");
+    expect(document.body.textContent).not.toContain("Delete files left by unfinished setup?");
+    expect(document.body.textContent).not.toContain("Setup working folder to delete");
+    expect(cleanup).not.toHaveBeenCalled();
+    const updated = { ...preview, preview_sha256: "c".repeat(64) };
+    load.mockResolvedValue(updated);
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Review cleanup…")
+        ?.click(),
+    );
+    expect(load).toHaveBeenCalledTimes(2);
     expect(document.body.textContent).toContain("Setup working folder to delete");
     expect(document.body.textContent).toContain("Link or special entry");
     expect(document.body.textContent).toContain("cannot be recovered");
@@ -198,7 +210,7 @@ it("reviews exact private files and preserved paths before cleanup", async () =>
       button.textContent?.includes("Delete setup working files"),
     );
     await act(async () => apply?.click());
-    expect(cleanup).toHaveBeenCalledWith("owned-operation", preview.preview_sha256, 7);
+    expect(cleanup).toHaveBeenCalledWith("owned-operation", updated.preview_sha256, 7);
     expect(changed).toHaveBeenCalledOnce();
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   } finally {
@@ -259,6 +271,12 @@ it("explains that journal-only cleanup has no private entries to remove", async 
     );
     await act(async () => review?.click());
     expect(load).toHaveBeenCalledWith(preview.operation_id, 8);
+    expect(document.body.textContent).toContain("Files left by unfinished setup");
+    await act(async () =>
+      [...document.body.querySelectorAll("button")]
+        .find((button) => button.textContent === "Review cleanup…")
+        ?.click(),
+    );
     expect(document.body.textContent).toContain("0 files");
     expect(document.body.textContent).toContain("Affected entries (0)");
     expect(document.body.querySelector("#preparation-cleanup-description")?.textContent).toBe(

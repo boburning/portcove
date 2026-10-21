@@ -22,7 +22,6 @@ import {
   CircleUserRound,
   Command,
   Download,
-  FolderInput,
   HardDrive,
   Library,
   LoaderCircle,
@@ -90,8 +89,6 @@ export function Sidebar({
   installedCount,
   updateCount,
   activities,
-  onAdopt,
-  onAbout,
   controller,
 }: {
   view: View;
@@ -99,8 +96,6 @@ export function Sidebar({
   installedCount: number;
   updateCount: number;
   activities: ActivityRecord[];
-  onAdopt: () => void;
-  onAbout?: (() => void) | undefined;
   controller?: string | undefined;
 }) {
   const activityState = navigationActivityState(activities);
@@ -143,7 +138,7 @@ export function Sidebar({
             <span className="nav-label min-w-0 flex-1">{item.label}</span>
             {item.view === "library" && (
               <b
-                className="rounded-pc-md bg-[var(--color-warning-subtle)] p-[2px_7px] text-[length:var(--text-xs)] text-[var(--color-warning-text)]"
+                className="rounded-pc-md bg-pc-surface-muted px-2 py-0.5 text-xs text-pc-muted-foreground"
                 aria-label={`${installedCount} in library`}
               >
                 {installedCount}
@@ -156,25 +151,11 @@ export function Sidebar({
           </Button>
         ))}
       </nav>
-      <div className="sidebar-footer mt-auto">
-        {onAbout && (
-          <Button data-focusable variant="ghost" className="mb-2 w-full" onClick={onAbout}>
-            <Icon glyph={CircleUserRound} />
-            <span className="sidebar-action-label">About Portcove</span>
-          </Button>
-        )}
-        <Button
-          data-focusable
-          variant="outline"
-          size="lg"
-          className="w-full whitespace-normal"
-          onClick={onAdopt}
-        >
-          <Icon glyph={FolderInput} />
-          <span className="sidebar-action-label">Copy existing installation</span>
-        </Button>
-        <NavigationHints controller={controller} workspace />
-      </div>
+      {controller && (
+        <div className="sidebar-footer mt-auto">
+          <NavigationHints controller={controller} workspace />
+        </div>
+      )}
     </aside>
   );
 }
@@ -238,7 +219,7 @@ export function PageHeader({
   return (
     <header
       data-library-header={view === "library" || undefined}
-      className="mb-6 flex flex-wrap items-center justify-between gap-6"
+      className="page-header mb-5 flex flex-wrap items-start justify-between gap-4"
     >
       <div>
         <h1 tabIndex={-1}>{copy.title}</h1>
@@ -261,15 +242,15 @@ export function PageHeader({
         <Button
           data-focusable
           data-detail-origin={`command-trigger:${view}`}
-          variant="outline"
-          size="lg"
-          className="command-trigger h-[var(--control-height-lg)] min-h-[var(--control-height-lg)] bg-[var(--color-bg-elevated)] p-[0_var(--space-3)] whitespace-nowrap text-[var(--color-text-secondary)]"
+          variant="ghost"
+          size="sm"
+          className="command-trigger whitespace-nowrap text-pc-muted-foreground"
           onClick={onOpenCommands}
           aria-label={`Commands ${commandShortcut("K")}: open command palette`}
         >
           <Icon glyph={Command} />
           <span className="max-[65rem]:hidden">Commands </span>
-          <Shortcut className="ms-1">{commandShortcut("K")}</Shortcut>
+          <span className="ms-1 text-xs">{commandShortcut("K")}</span>
         </Button>
       </div>
     </header>
@@ -1510,7 +1491,7 @@ export function SettingsView({
 
   const renderCategoryNavigation = () => (
     <nav
-      className="settings-section-index sticky top-0 z-10 flex flex-wrap items-start gap-2 bg-pc-background py-2 min-[65rem]:flex-col"
+      className="settings-section-index sticky top-0 z-10 flex flex-wrap items-start gap-1 bg-pc-background py-2 min-[65rem]:flex-col"
       aria-label="Settings categories"
       data-focus-group
     >
@@ -1537,7 +1518,6 @@ export function SettingsView({
     <SettingsSection
       id="library-storage"
       active={selectedCategory === "library-storage"}
-      eyebrow="STORAGE LOCATIONS"
       title="Library and storage"
       description="Choose which Portcove library opens at startup. Each game’s install folder is reviewed separately from its game page."
     >
@@ -1565,7 +1545,6 @@ export function SettingsView({
     <SettingsSection
       id="game-files"
       active={selectedCategory === "game-files"}
-      eyebrow="GAME FILES"
       title="Game files"
       description="Review saved file locations and the optional disc tools used to check or prepare files."
     >
@@ -1614,7 +1593,6 @@ export function SettingsView({
     <SettingsSection
       id="advanced"
       active={selectedCategory === "advanced"}
-      eyebrow="ADVANCED"
       title="Advanced"
       description="Review custom catalog sources, diagnostic tools and privacy information."
     >
@@ -1650,7 +1628,6 @@ export function SettingsView({
     <SettingsSection
       id="updates"
       active={selectedCategory === "updates"}
-      eyebrow="UPDATES"
       title="Portcove & catalog updates"
       description="Manage verified Portcove application and catalog updates here. Open Updates in Activity for game updates."
       action={
@@ -1683,13 +1660,12 @@ export function SettingsView({
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid items-start gap-6 min-[65rem]:grid-cols-[10rem_minmax(0,1fr)]">
+    <section className="settings-grid grid max-w-[72rem] items-start gap-6 min-[65rem]:grid-cols-[10rem_minmax(0,1fr)]">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
           id="appearance"
           active={selectedCategory === "appearance"}
-          eyebrow="DISPLAY"
           title="Appearance"
           description="Choose how Portcove looks on this device."
         >
@@ -1703,7 +1679,6 @@ export function SettingsView({
         <SettingsSection
           id="integrations"
           active={selectedCategory === "integrations"}
-          eyebrow="INTEGRATIONS"
           title="Integrations"
           description="Connect optional services. You don't need an account to play."
         >
@@ -1713,7 +1688,6 @@ export function SettingsView({
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          eyebrow="PORTCOVE"
           title="About Portcove"
           description="Version, project information and acknowledgements."
         >
@@ -1727,7 +1701,6 @@ export function SettingsView({
 function SettingsSection({
   active = true,
   id,
-  eyebrow,
   title,
   description,
   action,
@@ -1735,7 +1708,6 @@ function SettingsSection({
 }: {
   active?: boolean;
   id: string;
-  eyebrow: string;
   title: string;
   description: string;
   action?: ReactNode;
@@ -1751,9 +1723,6 @@ function SettingsSection({
       aria-labelledby={headingId}
     >
       <div className="settings-section-heading py-2">
-        <p className="eyebrow mb-[6px] text-[length:var(--text-xs)] font-bold tracking-[0.16em] text-[var(--color-primary-text)]">
-          {eyebrow}
-        </p>
         <h2
           id={headingId}
           tabIndex={-1}

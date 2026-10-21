@@ -319,32 +319,53 @@ export function PortBrowser({
         role="group"
         aria-label={view === "library" ? "Library filters" : "Release channel filters"}
       >
-        {filterOptions(view).map((item) => (
-          <Button
-            data-focusable
-            aria-pressed={
-              composedLibrary ? libraryReadiness === item : filterSelected(filter, item)
-            }
-            key={item}
-            variant={
-              (composedLibrary ? libraryReadiness === item : filterSelected(filter, item))
-                ? "selected"
-                : "outline"
-            }
-            size="sm"
-            disabled={!composedLibrary && unresolvedFilter && item !== "all"}
-            onClick={() =>
-              composedLibrary
-                ? setLibraryReadiness?.(item)
-                : setFilter((current) =>
-                    view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
-                  )
-            }
-          >
-            {filterLabel(item)}
-            {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
-          </Button>
-        ))}
+        {composedLibrary && (
+          <div className="collection-readiness-compact max-w-full min-w-0">
+            <ChoiceSelect
+              label="Readiness"
+              value={libraryReadiness}
+              options={filterOptions(view).map((item) => ({
+                value: item,
+                label: `${filterLabel(item)} (${readinessCount(item as "all" | "ready" | "setup")})`,
+              }))}
+              onChange={(value) => setLibraryReadiness?.(value)}
+            />
+          </div>
+        )}
+        <div
+          className={
+            composedLibrary
+              ? "collection-readiness-wide flex flex-wrap gap-1"
+              : "flex flex-wrap gap-1"
+          }
+        >
+          {filterOptions(view).map((item) => (
+            <Button
+              data-focusable
+              aria-pressed={
+                composedLibrary ? libraryReadiness === item : filterSelected(filter, item)
+              }
+              key={item}
+              variant={
+                (composedLibrary ? libraryReadiness === item : filterSelected(filter, item))
+                  ? "selected"
+                  : "outline"
+              }
+              size="sm"
+              disabled={!composedLibrary && unresolvedFilter && item !== "all"}
+              onClick={() =>
+                composedLibrary
+                  ? setLibraryReadiness?.(item)
+                  : setFilter((current) =>
+                      view === "catalog" ? toggleCatalogChannel(current, item, queryContext) : item,
+                    )
+              }
+            >
+              {filterLabel(item)}
+              {composedLibrary && ` (${readinessCount(item as "all" | "ready" | "setup")})`}
+            </Button>
+          ))}
+        </div>
         {favorites && (
           <Button
             data-focusable
@@ -1150,10 +1171,8 @@ function PortCardContents({
 }) {
   const renderTitle = () => (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 text-base leading-[1.2]" title={gameTitle(port)}>
-        <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
-          {gameTitle(port)}
-        </span>
+      <h2 className="m-0 text-base leading-[1.2]">
+        <span>{gameTitle(port)}</span>
       </h2>
     </div>
   );
@@ -1207,9 +1226,7 @@ function PortCardContents({
           className="m-0 min-h-[1.5em] text-xs leading-normal text-pc-muted-foreground"
           title={gameProjectLabel(port) ? port.name : undefined}
         >
-          <span className="line-clamp-1 @max-[60rem]/collection:line-clamp-none">
-            {gameProjectLabel(port) ? port.name : undefined}
-          </span>
+          <span>{gameProjectLabel(port) ? port.name : undefined}</span>
         </p>
         {stateLabel}
         {setup && (
@@ -1495,9 +1512,9 @@ function cardInstallationLabel(port: PortDefinition, status: PortStatus | undefi
   return !status
     ? "Installation status unknown"
     : status.active
-      ? status.active.version
+      ? `Installed ${status.active.version}`
       : status?.external_runtime
-        ? `External ${status.external_runtime.version}`
+        ? `External installation ${status.external_runtime.version}`
         : port.release.provider === "user-prepared"
           ? "Prepare game"
           : "Not installed";

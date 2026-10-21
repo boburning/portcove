@@ -40,8 +40,30 @@ export function LibraryRecovery({
   const installed = ports.filter((port) => statuses.get(port.id)?.active);
   return (
     <SettingsRow className="library-recovery min-w-0 wrap-anywhere" data-focus-group>
-      <h2>Library recovery</h2>
-      <p>Prepare a recovery copy, restore a checked copy, or move the active library.</p>
+      <h2>Recovery copies and library location</h2>
+      <p>
+        Keep a manual recovery copy, restore a checked copy, or change where this library is stored.
+      </p>
+      <dl className="my-4 grid gap-3 text-sm [&_dd]:m-0 [&_dt]:font-semibold">
+        <div>
+          <dt>Game-save backups</dt>
+          <dd>Back up supported managed saves from each game’s Saves and storage page.</dd>
+        </div>
+        <div>
+          <dt>Metadata export</dt>
+          <dd>
+            Records versions, saved file locations and settings. It contains no game content, saves,
+            backups or credentials.
+          </dd>
+        </div>
+        <div>
+          <dt>Manual recovery copy</dt>
+          <dd>
+            Keep a matching metadata export and library content copy. Original game files, BIOS
+            files and external installations need separate handling.
+          </dd>
+        </div>
+      </dl>
       <details>
         <summary className="cursor-pointer py-2 font-semibold">Prepare a recovery copy</summary>
         <p>
@@ -128,8 +150,8 @@ export function LibraryRecovery({
           <p>
             Some installed versions keep protected RetroAchievements sign-in files inside their
             version folder. Do not put <code>retroachievements.credentials</code> or its numeric
-            temporary files in a recovery copy. Checked restore and Move refuse these files; they do
-            not silently filter an entire library copy.
+            temporary files in a recovery copy. Checked restore and location changes refuse these
+            files; they do not silently filter an entire library copy.
           </p>
           <p>
             Open the affected version, sign out and close it. Temporary files may remain. If a
@@ -192,10 +214,11 @@ export function LibraryRecovery({
         disabled={Boolean(busy) || preparing || !libraryRoot}
         libraryRoot={libraryRoot}
       />
-      <h3>Move the active library</h3>
+      <h3>Change library location</h3>
       <p>
-        Move copies and verifies the current library, then switches library authority. It keeps the
-        old folder and is separate from preparing a recovery copy.
+        Portcove copies and verifies the current library, then opens the new copy. The old copy will
+        remain; this does not free space on the original drive. This is separate from preparing a
+        recovery copy.
       </p>
       <LibraryMoveButton disabled={Boolean(busy) || preparing} />
     </SettingsRow>

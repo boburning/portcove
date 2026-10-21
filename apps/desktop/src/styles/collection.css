@@ -2,6 +2,9 @@
   .collection-tools {
     align-items: center;
   }
+  .collection-readiness-compact {
+    display: none;
+  }
   .library-query-tools .search {
     flex: 1 1 17rem;
     max-width: 22rem;
@@ -44,9 +47,7 @@
   }
   .collection-project {
     margin-block-start: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
 
   .collection-cover .collection-actions {
@@ -135,6 +136,12 @@
     }
   }
   @container collection (max-width: 46em) {
+    .collection-readiness-wide {
+      display: none;
+    }
+    .collection-readiness-compact {
+      display: block;
+    }
     .collection-row {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px 16px;
