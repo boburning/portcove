@@ -204,6 +204,18 @@ export function prepareFixedControllerConfiguration(input: {
         : { original_upload: json(built.original_upload) }),
     });
   };
+  const coordinated = output(needs, "coordinator");
+  const resumed = coordinated.signing_custody === "reused";
+  if (
+    resumed &&
+    (coordinated.mode !== "release" ||
+      !["publishing", "promoting"].includes(String(coordinated.stage)))
+  )
+    throw new Error("original signing custody requires later candidate phase");
+  if (operation === "payload" && coordinated.mode !== "release")
+    throw new Error("payload requires release coordinator mode");
+  if (operation === "payload" && resumed)
+    throw new Error("retained signing custody cannot repeat payload signing");
   if (operation === "payload")
     return {
       configuration: {
@@ -215,24 +227,39 @@ export function prepareFixedControllerConfiguration(input: {
       tools,
       native_locators: nativeLocators(input.native_locators),
     };
-  const coordinated = output(needs, "coordinator");
   if (coordinated.mode !== "release" && coordinated.mode !== "metadata")
     throw new Error("fixed coordinator mode unavailable");
   const context = contextLocator(
-    output(needs, coordinated.mode === "metadata" ? "coordinator" : "payload_signing")
+    output(needs, coordinated.mode === "metadata" || resumed ? "coordinator" : "payload_signing")
       .context_locator,
     fixed,
   );
   const context_kind =
     coordinated.mode === "metadata" ? "metadata-signing-context" : "release-signing-context";
+  let retainedRoles: unknown[] | undefined;
+  if (resumed) {
+    if (
+      typeof coordinated.role_locators !== "string" ||
+      Buffer.byteLength(coordinated.role_locators) > 65536
+    )
+      throw new Error("bounded original role locators unavailable");
+    const parsed: unknown = JSON.parse(coordinated.role_locators);
+    if (!Array.isArray(parsed) || parsed.length !== 5)
+      throw new Error("five original role locators required");
+    retainedRoles = parsed;
+  }
   const roleLocator = (role: string) => {
-    const value = inspectTufRoleArtifactExpected(json(output(needs, `tuf_${role}`).role_locator));
+    const value = inspectTufRoleArtifactExpected(
+      resumed
+        ? retainedRoles![["releases", "preview", "stable", "snapshot", "timestamp"].indexOf(role)]
+        : json(output(needs, `tuf_${role}`).role_locator),
+    );
     if (
       value.role !== role ||
       value.controller.controller_revision !== fixed.controller_revision ||
       value.controller.source_tree !== fixed.source_tree ||
       value.controller.controller_ref !== fixed.controller_ref ||
-      value.controller.run_id !== fixed.run_id ||
+      (!resumed && value.controller.run_id !== fixed.run_id) ||
       value.controller.run_attempt !== 1 ||
       value.context_manifest_sha256 !== context.manifest_sha256 ||
       value.context_binding_sha256 !== context.binding_sha256 ||
@@ -242,6 +269,7 @@ export function prepareFixedControllerConfiguration(input: {
     return value;
   };
   if (typeof operation === "string" && operation.startsWith("tuf-")) {
+    if (resumed) throw new Error("retained signing custody cannot repeat TUF signing");
     const role = operation.slice(4) as Parameters<typeof tufRoleDependencies>[0];
     return {
       role,

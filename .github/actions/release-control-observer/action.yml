@@ -1,0 +1,594 @@
+name: Observe requested release input protections
+description: Fixed GET-only isolated observer; Administration-write credential never enters reader jobs
+inputs:
+  phase:
+    description: Fixed phase from the immutable controller
+    required: true
+  rounds:
+    description: Maximum continuation ordinal
+    required: true
+  initial:
+    description: Include initial ordinal-zero handshake
+    default: "false"
+  app_id:
+    description: Selected isolated protection observer App
+    required: true
+  private_key:
+    description: Isolated observer credential released only after actual readiness
+    required: true
+  installation_id:
+    description: Exact ratified isolated observer installation
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: ready0
+      if: ${{ inputs.initial == 'true' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE"
+    - id: observer0
+      if: ${{ steps.ready0.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready0.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer0.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer0.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE"
+    - if: ${{ steps.ready0.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready1
+      if: ${{ fromJSON(inputs.rounds) >= 1 }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 1
+    - id: observer1
+      if: ${{ steps.ready1.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready1.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer1.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer1.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 1
+    - if: ${{ steps.ready1.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r1
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r1/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready2
+      if: ${{ fromJSON(inputs.rounds) >= 2 && steps.ready1.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 2
+    - id: observer2
+      if: ${{ steps.ready2.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready2.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer2.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer2.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 2
+    - if: ${{ steps.ready2.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r2
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r2/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready3
+      if: ${{ fromJSON(inputs.rounds) >= 3 && steps.ready2.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 3
+    - id: observer3
+      if: ${{ steps.ready3.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready3.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer3.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer3.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 3
+    - if: ${{ steps.ready3.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r3
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r3/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready4
+      if: ${{ fromJSON(inputs.rounds) >= 4 && steps.ready3.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 4
+    - id: observer4
+      if: ${{ steps.ready4.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready4.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer4.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer4.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 4
+    - if: ${{ steps.ready4.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r4
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r4/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready5
+      if: ${{ fromJSON(inputs.rounds) >= 5 && steps.ready4.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 5
+    - id: observer5
+      if: ${{ steps.ready5.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready5.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer5.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer5.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 5
+    - if: ${{ steps.ready5.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r5
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r5/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready6
+      if: ${{ fromJSON(inputs.rounds) >= 6 && steps.ready5.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 6
+    - id: observer6
+      if: ${{ steps.ready6.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready6.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer6.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer6.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 6
+    - if: ${{ steps.ready6.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r6
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r6/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready7
+      if: ${{ fromJSON(inputs.rounds) >= 7 && steps.ready6.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 7
+    - id: observer7
+      if: ${{ steps.ready7.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready7.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer7.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer7.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 7
+    - if: ${{ steps.ready7.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r7
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r7/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready8
+      if: ${{ fromJSON(inputs.rounds) >= 8 && steps.ready7.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 8
+    - id: observer8
+      if: ${{ steps.ready8.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready8.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer8.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer8.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 8
+    - if: ${{ steps.ready8.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r8
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r8/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready9
+      if: ${{ fromJSON(inputs.rounds) >= 9 && steps.ready8.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 9
+    - id: observer9
+      if: ${{ steps.ready9.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready9.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer9.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer9.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 9
+    - if: ${{ steps.ready9.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r9
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r9/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready10
+      if: ${{ fromJSON(inputs.rounds) >= 10 && steps.ready9.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 10
+    - id: observer10
+      if: ${{ steps.ready10.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready10.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer10.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer10.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 10
+    - if: ${{ steps.ready10.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r10
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r10/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready11
+      if: ${{ fromJSON(inputs.rounds) >= 11 && steps.ready10.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 11
+    - id: observer11
+      if: ${{ steps.ready11.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready11.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer11.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer11.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 11
+    - if: ${{ steps.ready11.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r11
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r11/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready12
+      if: ${{ fromJSON(inputs.rounds) >= 12 && steps.ready11.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 12
+    - id: observer12
+      if: ${{ steps.ready12.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready12.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer12.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer12.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 12
+    - if: ${{ steps.ready12.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r12
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r12/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready13
+      if: ${{ fromJSON(inputs.rounds) >= 13 && steps.ready12.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 13
+    - id: observer13
+      if: ${{ steps.ready13.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready13.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer13.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer13.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 13
+    - if: ${{ steps.ready13.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r13
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r13/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0
+    - id: ready14
+      if: ${{ fromJSON(inputs.rounds) >= 14 && steps.ready13.outcome == 'success' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+      run: node scripts/release-control-ready.mts "$PORTCOVE_STEP_PHASE" 14
+    - id: observer14
+      if: ${{ steps.ready14.outcome == 'success' }}
+      uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: boburning
+        repositories: portcove
+        permission-administration: write
+        permission-metadata: read
+    - if: ${{ steps.ready14.outcome == 'success' }}
+      shell: bash
+      env:
+        PORTCOVE_STEP_PHASE: ${{ inputs.phase }}
+        PORTCOVE_CONTROL_APP_TOKEN: ${{ steps.observer14.outputs.token }}
+        PORTCOVE_EXPECTED_INSTALLATION_ID: ${{ inputs.installation_id }}
+        PORTCOVE_OBSERVED_INSTALLATION_ID: ${{ steps.observer14.outputs.installation-id }}
+      run: >
+        [[ "$PORTCOVE_EXPECTED_INSTALLATION_ID" =~ ^[1-9][0-9]*$ && "$PORTCOVE_OBSERVED_INSTALLATION_ID" ==
+        "$PORTCOVE_EXPECTED_INSTALLATION_ID" ]]
+
+        node scripts/release-reviewed-inputs.mts "observe-production-$PORTCOVE_STEP_PHASE" 14
+    - if: ${{ steps.ready14.outcome == 'success' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: trusted-release-control-${{ inputs.phase }}-observation-${{ github.run_id }}-${{ github.run_attempt }}-r14
+        path: ${{ runner.temp }}/release-control-ready-${{ inputs.phase }}-r14/observation-${{ inputs.phase }}.json
+        if-no-files-found: error
+        overwrite: false
+        retention-days: 7
+        compression-level: 0

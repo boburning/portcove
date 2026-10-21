@@ -197,7 +197,8 @@ void test("bounded eligibility never claims availability, headroom or reservatio
   assert.equal(result.reservation, "none");
   assert.equal(result.authority, "none");
   assert.equal(result.resource_estimate.total_job_minutes, 100);
-  assert.equal(result.resource_estimate.input_receipts, 3);
+  assert.equal(result.resource_estimate.input_receipts, 163);
+  assert.equal(result.resource_estimate.declared_job_minutes, 99);
   assert.equal(result.resource_estimate.retention_days, 7);
 });
 void test("changed account, stop, budget, visibility, runner or resource policy refuses even a rehashed observation", () => {
@@ -227,29 +228,37 @@ void test("changed account, stop, budget, visibility, runner or resource policy 
   changed.boundary.configuration_generation = "changed";
   assert.equal(assessBoundedCapacity(changed).eligibility, "ineligible");
 });
-void test("historical resource ratification preserves its limits and cannot silently cover the changed held controller", async () => {
+void test("complete held controller policy replaces historical pins without appointing capacity authority", async () => {
   for (const [file, expected] of [
     [
-      "docs/qualification/application-update-production.aggregate.yml",
+      "docs/qualification/application-update-production.complete.yml",
       slice4CapacityResources.aggregate_workflow_sha256,
     ],
     [
-      "docs/qualification/release-reviewed-inputs.held.yml",
+      "docs/qualification/application-update-production.complete.yml",
       slice4CapacityResources.input_workflow_sha256,
+    ],
+    [
+      "docs/qualification/application-update-wake.held.yml",
+      slice4CapacityResources.wake_workflow_sha256,
     ],
   ] as const) {
     const bytes = await readFile(new URL(`../${file}`, import.meta.url));
     const current = createHash("sha256").update(bytes).digest("hex");
-    if (file.endsWith("application-update-production.aggregate.yml"))
-      assert.notEqual(
-        current,
-        expected,
-        "new observer source requires final coherent resource requalification",
-      );
-    else assert.equal(current, expected);
+    assert.equal(current, expected);
   }
-  assert.deepEqual(slice4CapacityResources.aggregate_job_minutes, [5, 25, 30, 5, 20]);
-  assert.deepEqual(slice4CapacityResources.input_job_minutes, [5, 5, 5]);
+  assert.equal(
+    [
+      ...slice4CapacityResources.aggregate_job_minutes,
+      ...slice4CapacityResources.input_job_minutes,
+      ...slice4CapacityResources.wake_job_minutes,
+    ].reduce((a, b) => a + b, 0),
+    99,
+  );
+  const historical = capacityFixture();
+  historical.ratification.resource_policy_sha256 = "1".repeat(64);
+  assert.equal(assessBoundedCapacity(historical).eligibility, "ineligible");
+  assert.equal(assessBoundedCapacity(historical).reason, "capacity resource policy changed");
   assert.equal(slice4CapacityResources.cancel_in_progress, false);
   assert.equal(slice4CapacityResources.shared_cache, false);
   assert.equal(slice4CapacityResources.paid_fallback, false);

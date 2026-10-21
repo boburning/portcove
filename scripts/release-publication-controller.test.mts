@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import {
   runDistinctPublicationEffects,
+  inspectPublicationAggregateContext,
   publicationOriginalJobDeadline,
   publicationResultDestination,
   inspectRetainedResultUpload,
@@ -321,4 +322,69 @@ void test("same-job handoff routes only the exact pending report and retains exc
       else process.env[name] = value;
     await rm(root, { recursive: true, force: true });
   }
+});
+
+void test("publication preserves old signed context while an actual recovery custodian reattests the same aggregate", () => {
+  const revision = "a".repeat(40),
+    ref = "refs/tags/portcove-production-controller-fixture";
+  const original = {
+    controller_revision: revision,
+    controller_ref: ref,
+    run_id: "91",
+    run_attempt: 1,
+  };
+  const current = { ...original, run_id: "92" };
+  const aggregate = {
+    ...original,
+    artifact_id: 11,
+    sha256: "b".repeat(64),
+    bundle_artifact_id: 12,
+    bundle_sha256: "c".repeat(64),
+  };
+  const binding = { aggregate_sha256: aggregate.sha256 };
+  assert.equal(
+    inspectPublicationAggregateContext(aggregate, original, binding, current).authority,
+    "none",
+  );
+  const originalUpload = {
+    actor_id: "93",
+    before_checkpoint: "d".repeat(40),
+    check_run_id: "94",
+    controller_revision: revision,
+    execution_ref: ref,
+    expectation_sha256: "e".repeat(64),
+    job_id: 95,
+    operation_id: "f".repeat(64),
+    run_attempt: 1,
+    run_id: "91",
+    workflow: ".github/workflows/application-update-production.yml",
+  };
+  const recovered = {
+    ...aggregate,
+    run_id: current.run_id,
+    bundle_artifact_id: 13,
+    original_upload: originalUpload,
+  };
+  assert.equal(
+    inspectPublicationAggregateContext(recovered, original, binding, current).authority,
+    "none",
+  );
+  for (const changed of [
+    { ...recovered, original_upload: undefined },
+    { ...recovered, run_id: "99" },
+    { ...recovered, controller_revision: "0".repeat(40) },
+    { ...recovered, controller_ref: "refs/tags/portcove-production-controller-other" },
+    { ...recovered, sha256: "0".repeat(64) },
+    { ...recovered, original_upload: { ...originalUpload, operation_id: "invalid" } },
+  ])
+    assert.throws(() => inspectPublicationAggregateContext(changed, original, binding, current));
+  // Parsed routing never manufactures the actual admitted aggregate or signer.
+  assert.throws(() =>
+    inspectPublicationAggregateContext(
+      recovered,
+      original,
+      { aggregate_sha256: "0".repeat(64) },
+      current,
+    ),
+  );
 });
