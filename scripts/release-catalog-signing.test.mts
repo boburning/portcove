@@ -5,6 +5,8 @@ import path from "node:path";
 import os from "node:os";
 import { mkdir, mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
+import { stripTypeScriptTypes } from "node:module";
+import { runInNewContext } from "node:vm";
 import { isRecord } from "./runtime-values.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import {
@@ -416,6 +418,59 @@ void test("catalog descriptor checkpoint uses existing journal CAS and preserves
     (await recoverReleaseOpportunity(journal, checkpoint.checkpoint)).checkpoint,
     checkpoint.checkpoint,
   );
+});
+void test("actual coordinator journal wrapper rechecks controls at every REST and GraphQL mutation after export delay", async () => {
+  const source = await readFile(
+      new URL("./release-coordinator-driver.mts", import.meta.url),
+      "utf8",
+    ),
+    start = source.indexOf("function guardedCoordinatorJournal("),
+    end = source.indexOf("/** Provider inventory facts only.", start);
+  assert.ok(start > 0 && end > start);
+  const observed: string[] = [],
+    journal = {
+      request(method: string) {
+        observed.push(method);
+        return {};
+      },
+      graphql(query: string) {
+        observed.push(query);
+        return {};
+      },
+    };
+  const raw: unknown = runInNewContext(
+    `${stripTypeScriptTypes(source.slice(start, end))}\nguardedCoordinatorJournal`,
+    { createCoordinatorJournalApi: () => journal },
+    { timeout: 1000, contextCodeGeneration: { strings: false, wasm: false } },
+  );
+  assert.equal(typeof raw, "function");
+  const make = raw as (
+    directory: string,
+    budget: { check: () => void; monotonicDeadline: number },
+    guard: () => void,
+  ) => typeof journal;
+  let expired = false;
+  const guarded = make("inert", { monotonicDeadline: 100, check() {} }, () => {
+    observed.push("guard");
+    if (expired) throw new Error("original controls expired");
+  });
+  guarded.request("GET");
+  guarded.request("POST");
+  guarded.graphql("mutation($input:Input!){updateRefs(input:$input){clientMutationId}}");
+  assert.deepEqual(observed, [
+    "GET",
+    "guard",
+    "POST",
+    "guard",
+    "mutation($input:Input!){updateRefs(input:$input){clientMutationId}}",
+  ]);
+  expired = true;
+  const before = observed.filter((value) => value !== "guard").length;
+  assert.throws(() => guarded.request("POST"), /expired/);
+  assert.throws(() => guarded.graphql("mutation{updateRefs}"), /expired/);
+  assert.equal(observed.filter((value) => value !== "guard").length, before);
+  guarded.request("GET");
+  assert.equal(observed.at(-1), "GET");
 });
 void test("catalog context transports exact independent purpose, full byte inventory and lossless u64 wire", () => {
   const f = fixture(),

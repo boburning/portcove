@@ -320,7 +320,25 @@ export async function prepareActualCoordinatorCatalogSigning(
           recovered.repository,
           persisted.checkpoint,
           { schema_version: 1, namespace: authorities.namespace },
-          { api: createCoordinatorJournalApi(directory, budget.monotonicDeadline) },
+          {
+            api: guardedCoordinatorJournal(directory, budget, () => {
+              budget.check();
+              if (
+                catalogCoordinatorMaintenanceIdentity(initialControls.readMaintenance(api)) !==
+                stable
+              )
+                throw new Error("catalog controls changed before provider journal mutation");
+              const currentProof = readCatalogCoordinatorReview(
+                api,
+                authorities,
+                inputs.opportunity,
+                inputs.check_id,
+              );
+              if (currentProof.proof_sha256 !== semantic.proof_sha256)
+                throw new Error("catalog selected Check changed before journal mutation");
+              budget.check();
+            }),
+          },
         );
         const readback = await readRemoteCoordinatorSnapshot(
           directory,
@@ -835,6 +853,10 @@ function guardedCoordinatorJournal(
   return {
     request: (...args: Parameters<typeof journal.request>) => {
       budget.check();
+      if (args[0] !== "GET") {
+        beforeMutation();
+        budget.check();
+      }
       return journal.request(...args);
     },
     graphql: (...args: Parameters<typeof journal.graphql>) => {
