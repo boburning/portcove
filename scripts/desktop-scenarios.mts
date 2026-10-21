@@ -863,7 +863,8 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
-    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
+    selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
+      selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 300_000
       : 0,
   );
