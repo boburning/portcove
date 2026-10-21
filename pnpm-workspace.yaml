@@ -1,6 +1,10 @@
 packages:
   - apps/desktop
 
+# The active environment (Vite+ by default) owns runtime and package-manager selection.
+runtimeOnFail: ignore
+pmOnFail: ignore
+
 allowBuilds:
   "@swc/core": true
 minimumReleaseAge: 1440

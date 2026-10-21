@@ -60,17 +60,63 @@ if ($env:GITHUB_ACTIONS -ne "true" -and $env:PORTCOVE_CONTAINER_GUEST -ne "1") {
     & node (Join-Path $PSScriptRoot "resource-command.mts") verify-bootstrap
     if ($LASTEXITCODE -ne 0) { throw "Bootstrap resource inheritance is invalid" }
 }
-function Install-SelectedFrontend {
-    if ((& node --version) -ne "v$requiredNodeVersion") { throw "Node $requiredNodeVersion is required for frontend setup" }
+function Remove-LegacyRuntimeShims {
+    $legacy = @("node", "corepack", "pnpm") | ForEach-Object { Join-Path $shimDirectory "$_.cmd" } |
+        Where-Object { Test-Path -LiteralPath $_ }
+    if (-not $legacy) { return }
+    $statePath = [string]$toolPaths.statePath
+    foreach ($candidate in @($shimDirectory, $statePath) + @($legacy)) {
+        $item = Get-Item -LiteralPath $candidate -Force
+        if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint -or
+            ($candidate -ne $shimDirectory -and $item.PSIsContainer)) {
+            throw "Refusing legacy runtime shim cleanup through a link or non-file: $candidate"
+        }
+    }
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    if ($state.format_version -ne 1 -or $state.shim_directory -ne $shimDirectory -or
+        $state.shared_root -ne $sharedRoot -or $state.package_manager -notmatch '^pnpm@\d+\.\d+\.\d+$' -or
+        $state.node -isnot [string] -or -not [IO.Path]::IsPathFullyQualified($state.node)) {
+        throw "Unrecognized legacy runtime shim state in $statePath; inspect checkout shims before retrying bootstrap"
+    }
+    foreach ($candidate in $legacy) {
+        $content = [IO.File]::ReadAllText($candidate)
+        $match = [regex]::Match($content, '\A@echo off\r\n(?<call>call )?"(?<target>[^"&|<>^%!\r\n]+)"(?: "(?<prefix>[^"&|<>^%!\r\n]+)")? %\*\r\n\z')
+        $target = $match.Groups['target'].Value
+        $prefix = $match.Groups['prefix'].Value
+        $name = [IO.Path]::GetFileNameWithoutExtension($candidate)
+        $call = if ([IO.Path]::GetExtension($target) -in @(".cmd", ".bat")) { "call " } else { "" }
+        $recognized = $match.Success -and [IO.Path]::IsPathFullyQualified($target) -and
+            [IO.Path]::GetFullPath($target) -ne $candidate -and $match.Groups['call'].Value -ceq $call
+        $recognized = $recognized -and $(switch ($name) {
+            "node" { $target -eq $state.node -and -not $prefix }
+            "corepack" { $target -eq $state.corepack -and -not $prefix }
+            "pnpm" {
+                if ($prefix) { $target -eq $state.corepack -and $prefix -ceq $state.package_manager }
+                else { [IO.Path]::GetFileName($target) -in @("pnpm", "pnpm.cmd", "pnpm.exe", "pnpm.ps1") }
+            }
+        })
+        if (-not $recognized) {
+            throw "Unrecognized checkout runtime shim $candidate; inspect and remove it explicitly before retrying bootstrap"
+        }
+    }
+    # Validate the complete set before removing any file; preserve foreign replacements.
+    foreach ($candidate in $legacy) { Remove-Item -LiteralPath $candidate -Force }
+}
+
+$wantsAqua = -not $capabilityPlan -or $capabilityPlan.setup.aqua
+if ($wantsAqua -or ($capabilityPlan -and $capabilityPlan.setup.frontend)) {
+    if ((& node --version) -ne "v$requiredNodeVersion" -or $LASTEXITCODE -ne 0) {
+        throw "Node $requiredNodeVersion is required for development setup"
+    }
+    Remove-LegacyRuntimeShims
     $pnpmVersion = ([string]$toolPaths.pins.packageManager).Split('@')[1]
     $providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
-    if ($providedPnpm -and ((& pnpm --version) -eq $pnpmVersion)) {
-        & pnpm install --frozen-lockfile
-    } elseif (Get-Command corepack -ErrorAction SilentlyContinue) {
-        & corepack ([string]$toolPaths.pins.packageManager) install --frozen-lockfile
-    } else {
-        throw "Provide pnpm $pnpmVersion on PATH; Corepack is an optional provisioning provider"
+    if (-not $providedPnpm -or (& pnpm --version) -ne $pnpmVersion -or $LASTEXITCODE -ne 0) {
+        throw "Provide pnpm $pnpmVersion on PATH before development setup"
     }
+}
+function Install-SelectedFrontend {
+    & pnpm install --frozen-lockfile
     if ($LASTEXITCODE -ne 0) { throw "Requested frontend dependency provisioning failed" }
     & node (Join-Path $PSScriptRoot "hooks-install.mts")
     if ($LASTEXITCODE -ne 0) { throw "Explicit development hook setup failed; existing hooks were preserved" }
@@ -118,19 +164,6 @@ function Test-ReportedVersion([string]$Executable, [string[]]$Arguments, [string
         return $LASTEXITCODE -eq 0 -and $reported -match "(?<![0-9])$([regex]::Escape($Version))(?![0-9])"
     }
     catch { return $false }
-}
-
-function Resolve-StableCommandPath([string]$CommandPath) {
-    $resolved = (Resolve-Path -LiteralPath $CommandPath).Path
-    $parent = Get-Item -LiteralPath (Split-Path -Parent $resolved) -Force
-    if ($parent.LinkType) {
-        $target = $parent.ResolveLinkTarget($true)
-        if ($target) {
-            $candidate = Join-Path $target.FullName (Split-Path -Leaf $resolved)
-            if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
-        }
-    }
-    return $resolved
 }
 
 function Write-CommandShim([string]$Name, [string]$Executable, [string[]]$Prefix = @()) {
@@ -475,29 +508,9 @@ try {
             Remove-Item -LiteralPath $stale -Recurse -Force
         }
     }
-$wantsAqua = -not $capabilityPlan -or $capabilityPlan.setup.aqua
 if ($wantsAqua) {
 $resolvedAqua = Install-PinnedAqua
 Write-CommandShim "aqua" $resolvedAqua
-$pnpmSpec = [string]$toolPaths.pins.packageManager
-$node = Get-Command node.exe -ErrorAction SilentlyContinue
-if (-not $node -or -not (Test-ReportedVersion $node.Source @("--version") $requiredNodeVersion)) {
-    throw "Node $requiredNodeVersion is required before bootstrapping checkout shims"
-}
-$resolvedNode = Resolve-StableCommandPath $node.Source
-$resolvedCorepack = $null
-$providedPnpm = Get-Command pnpm -ErrorAction SilentlyContinue
-Write-CommandShim "node" $resolvedNode
-if ($providedPnpm -and (Test-ReportedVersion $providedPnpm.Source @("--version") ($pnpmSpec.Split('@')[1]))) {
-    $resolvedPnpm = Resolve-StableCommandPath $providedPnpm.Source
-    Write-CommandShim "pnpm" $resolvedPnpm
-} else {
-    $corepack = Get-Command corepack.cmd -ErrorAction SilentlyContinue
-    if (-not $corepack) { throw "Provide $pnpmSpec on PATH; Corepack is optional" }
-    $resolvedCorepack = Resolve-StableCommandPath $corepack.Source
-    Write-CommandShim "corepack" $resolvedCorepack
-    Write-CommandShim "pnpm" $resolvedCorepack @($pnpmSpec)
-}
 }
 
 $oldPath = $env:PATH
@@ -552,9 +565,6 @@ try {
         shim_directory = $shimDirectory
         aqua = $resolvedAqua
         aqua_root = $aquaRoot
-        node = $resolvedNode
-        corepack = $resolvedCorepack
-        package_manager = $pnpmSpec
         desktop = $desktopState
     }
     $statePath = [string]$toolPaths.statePath

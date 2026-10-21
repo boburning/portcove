@@ -151,20 +151,30 @@ Each entry records its upstream project, platforms, release channels, required l
 
 Requirements:
 
-- Rust 1.99.1
-- Node.js 24.21.0
-- pnpm at the version specified by `packageManager` in [`package.json`](package.json)
+- Rust at the version specified in [`rust-toolchain.toml`](rust-toolchain.toml)
+- [Global Vite+](https://viteplus.dev/guide/global-cli) with environment management
+  enabled, to select Node from [`.node-version`](.node-version) and pnpm from
+  [`package.json`](package.json). An existing manager providing those exact versions
+  also works; there is no separate Portcove Node installation.
 - the [Tauri 2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 Development storage defaults are portable: a checkout may use the Windows system drive when its physical paths and free capacity pass preflight. Prefer an SSD for fixture-heavy work. A stricter machine-local policy can impose additional restrictions without changing repository defaults. See [docs/DEVELOPMENT-STORAGE.md](docs/DEVELOPMENT-STORAGE.md) for the storage checks and private-policy boundary.
 
-Run the desktop app from the repository root:
+From the repository root, set up frontend dependencies and hooks, then run the
+desktop app. Repeat setup after pulling toolchain changes; it refreshes hooks
+even when dependencies are already installed.
 
 ```powershell
 node scripts/dev-storage.mts preflight
-node scripts/dev-storage.mts run -- pnpm install --frozen-lockfile
+./scripts/bootstrap-quality-tools.ps1 -Profile frontend
 node scripts/dev-storage.mts run -- pnpm --dir apps/desktop desktop:dev
 ```
+
+On Linux/macOS, use `./scripts/bootstrap-quality-tools.sh --profile frontend`
+for the setup step. `vp env install` explicitly provisions the checkout's Node
+and pnpm when needed; `vp env current` shows the selected versions. See
+[development setup](docs/DEVELOPMENT-TOOLS.md#frontend-workflow) for daily and
+Core-only profiles.
 
 Build the CLI using the repository storage wrapper:
 

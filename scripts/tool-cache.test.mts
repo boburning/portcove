@@ -503,7 +503,7 @@ void test("historical Aqua roots invalidate checkout state before any executable
   assert.ok(readToolState({ paths: item.paths }));
 });
 
-void test("checkout environment prepends only the local shims and scopes Aqua", (t) => {
+void test("checkout environment prepends quality-tool shims without reordering active providers", (t) => {
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   const original = { Path: "C:\\Windows", TOKEN: "kept" };
@@ -514,6 +514,47 @@ void test("checkout environment prepends only the local shims and scopes Aqua", 
   assert.equal(result.PSModulePath, item.paths.powershellModules);
   assert.equal(result.TOKEN, "kept");
   assert.deepEqual(original, { Path: "C:\\Windows", TOKEN: "kept" });
+  const empty = checkoutToolEnvironment({}, { paths: item.paths });
+  assert.equal(empty.PATH, item.paths.shimDirectory);
+});
+
+void test("checkout children preserve the selected external pnpm provider", (t) => {
+  const item = fixture();
+  t.after(() => rmSync(item.root, { recursive: true, force: true }));
+  const selected = path.join(item.root, "selected provider");
+  const other = path.join(item.root, "other provider");
+  const version = readToolPins().packageManager.split("@")[1];
+  assert.ok(version);
+  for (const [directory, reported] of [
+    [selected, version],
+    [other, "0.0.0"],
+  ] as const) {
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      path.join(directory, process.platform === "win32" ? "pnpm.cmd" : "pnpm"),
+      process.platform === "win32"
+        ? `@echo off\r\necho ${reported}\r\n`
+        : `#!/bin/sh\necho ${reported}\n`,
+      { mode: 0o755 },
+    );
+  }
+  const key = Object.keys(process.env).find((name) => name.toLowerCase() === "path") ?? "PATH";
+  const inherited = [selected, path.dirname(process.execPath), other].join(path.delimiter);
+  const environment = { ...process.env, [key]: inherited };
+  const child = checkoutToolEnvironment(environment, { paths: item.paths });
+  assert.equal(child[key], `${item.paths.shimDirectory}${path.delimiter}${inherited}`);
+  const command = process.platform === "win32" ? process.env.ComSpec || "cmd.exe" : "pnpm";
+  const args = process.platform === "win32" ? ["/d", "/s", "/c", "pnpm --version"] : ["--version"];
+  const result = spawnSync(command, args, {
+    env: child,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 5_000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), version);
+  assert.equal(environment[key], inherited);
 });
 
 void test("state is rejected after pin drift or missing desktop payloads", (t) => {

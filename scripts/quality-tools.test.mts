@@ -333,6 +333,77 @@ try {
 );
 
 void test(
+  "bootstrap retires only recognized legacy runtime shims without changing provider or quality tools",
+  { skip: spawnSync("pwsh", ["--version"], { timeout: 5_000 }).status !== 0 },
+  () => {
+    const source = fileURLToPath(new URL("./bootstrap-quality-tools.ps1", import.meta.url));
+    const command = String.raw`
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PORTCOVE_SHIM_FIXTURE_SOURCE, [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw ($errors | Out-String) }
+foreach ($name in @('Write-CommandShim','Remove-LegacyRuntimeShims')) {
+  $definition = @($ast.FindAll({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name}, $true))
+  if ($definition.Count -ne 1) { throw "Expected one production function $name" }
+  . ([scriptblock]::Create($definition[0].Extent.Text))
+}
+$fixture = Join-Path ([IO.Path]::GetTempPath()) ('portcove legacy shims ' + [guid]::NewGuid())
+$shimDirectory = Join-Path $fixture 'checkout shims'
+$sharedRoot = Join-Path $fixture 'shared'
+$toolPaths = @{statePath=(Join-Path $shimDirectory 'tool-state.json')}
+$state = @{format_version=1;shared_root=$sharedRoot;shim_directory=$shimDirectory;node=(Join-Path $fixture 'old node/node.exe');corepack=(Join-Path $fixture 'old node/corepack.cmd');package_manager='pnpm@12.4.1'}
+try {
+  New-Item -ItemType Directory -Force $shimDirectory | Out-Null
+  $state | ConvertTo-Json | Set-Content -LiteralPath $toolPaths.statePath
+  $stateBefore = [IO.File]::ReadAllText($toolPaths.statePath)
+  $quality = Join-Path $shimDirectory 'aqua.cmd'
+  [IO.File]::WriteAllText($quality, 'retained quality shim')
+  $provider = Join-Path $fixture 'pnpm.cmd'
+  [IO.File]::WriteAllText($provider, 'external provider')
+  Write-CommandShim 'node' $state.node
+  Write-CommandShim 'corepack' $state.corepack
+  Write-CommandShim 'pnpm' $state.corepack @($state.package_manager)
+  Remove-LegacyRuntimeShims
+  foreach ($name in @('node','corepack','pnpm')) {
+    if (Test-Path -LiteralPath (Join-Path $shimDirectory "$name.cmd")) { throw "Legacy $name shim survived" }
+  }
+  if ([IO.File]::ReadAllText($quality) -cne 'retained quality shim' -or [IO.File]::ReadAllText($provider) -cne 'external provider' -or [IO.File]::ReadAllText($toolPaths.statePath) -cne $stateBefore) { throw 'Unrelated quality tool, provider or state changed' }
+  Write-CommandShim 'pnpm' $provider
+  Remove-LegacyRuntimeShims
+  if (Test-Path -LiteralPath (Join-Path $shimDirectory 'pnpm.cmd')) { throw 'Legacy direct pnpm shim survived' }
+  Write-CommandShim 'node' $state.node
+  Write-CommandShim 'corepack' $state.corepack
+  $foreign = Join-Path $shimDirectory 'pnpm.cmd'
+  [IO.File]::WriteAllText($foreign, '@echo custom provider')
+  $before = @('node','corepack','pnpm') | ForEach-Object { [IO.File]::ReadAllText((Join-Path $shimDirectory "$_.cmd")) }
+  $rejected = $false
+  try { Remove-LegacyRuntimeShims } catch { $rejected = $_.Exception.Message -like 'Unrecognized checkout runtime shim*' }
+  if (-not $rejected) { throw 'Foreign replacement was not refused' }
+  $after = @('node','corepack','pnpm') | ForEach-Object { [IO.File]::ReadAllText((Join-Path $shimDirectory "$_.cmd")) }
+  if (Compare-Object $before $after) { throw 'Partial cleanup occurred before recognizing all shims' }
+  Write-CommandShim 'pnpm' $provider
+  $state.shim_directory = Join-Path $fixture 'other checkout'
+  $state | ConvertTo-Json | Set-Content -LiteralPath $toolPaths.statePath
+  $rejected = $false
+  try { Remove-LegacyRuntimeShims } catch { $rejected = $_.Exception.Message -like 'Unrecognized legacy runtime shim state*' }
+  if (-not $rejected -or -not (Test-Path -LiteralPath $foreign)) { throw 'Foreign checkout state was not preserved' }
+  'legacy-retirement-passed'
+} finally {
+  if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture -Recurse -Force }
+}
+`;
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", command], {
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10_000,
+      env: { ...process.env, PORTCOVE_SHIM_FIXTURE_SOURCE: source },
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    assert.match(result.stdout, /legacy-retirement-passed/u);
+  },
+);
+
+void test(
   "cached and downloaded EdgeDriver rejection never reaches the executable probe",
   { skip: process.platform !== "win32", timeout: 20_000 },
   () => {

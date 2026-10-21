@@ -163,7 +163,7 @@ for (const theme of ["dark", "light"]) {
       const field = page.getByRole("textbox", { name: label, exact: true });
       const element = field.element() as HTMLTextAreaElement;
       element.focus();
-      await userEvent.keyboard("{Control>}a{/Control}");
+      await userEvent.keyboard("{ControlOrMeta>}a{/ControlOrMeta}");
       await expect.element(field).toHaveFocus();
       expect(element.selectionEnd - element.selectionStart).toBe(element.value.length);
       expect(element.readOnly).toBe(true);

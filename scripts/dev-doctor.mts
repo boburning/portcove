@@ -147,6 +147,67 @@ function powershellAnalyzerDefinition(): ToolDefinition {
   };
 }
 
+function probePnpmVersion(
+  command: string,
+  version: string | null,
+  run: DoctorRunner,
+  options: SpawnSyncOptionsWithStringEncoding,
+) {
+  const deadline = Date.now() + 15_000;
+  const environment: NodeJS.ProcessEnv = { ...options.env, COREPACK_ENABLE_NETWORK: "0" };
+  delete environment.VP_DUMP_DIRS;
+  const invoke = (executable: string, args: string[], env: NodeJS.ProcessEnv) => {
+    const timeout = deadline - Date.now();
+    if (timeout <= 0)
+      throw Object.assign(new Error("pnpm observation timed out"), { code: "ETIMEDOUT" });
+    return run(executable, args, { ...options, env, timeout });
+  };
+  const layoutDump = (output: string) => /^(?:layout|data|bin|cache|config|state)\t/mu.test(output);
+  // The supported Vite+ installer probe exits before shim acquisition. Other
+  // pnpm providers ignore it and retain their ordinary version observation.
+  const initial = invoke(command, ["--version"], { ...environment, VP_DUMP_DIRS: "1" });
+  if (initial.error || initial.status !== 0 || !layoutDump(initial.stdout ?? "")) return initial;
+  const directories = [...(initial.stdout ?? "").matchAll(/^bin\t([^\r\n]+)$/gmu)];
+  const bin = directories[0]?.[1];
+  if (directories.length !== 1 || !bin || !path.isAbsolute(bin) || bin.includes("\0"))
+    throw new Error("Vite+ did not report an absolute executable directory");
+  const resolved = invoke(
+    path.join(bin, process.platform === "win32" ? "vp.exe" : "vp"),
+    ["env", "current", "pnpm", "--json"],
+    environment,
+  );
+  if (resolved.error || resolved.status !== 0) return resolved;
+  const metadata: unknown = JSON.parse(resolved.stdout ?? "");
+  const manager = isRecord(metadata) ? metadata.package_manager : null;
+  if (
+    !isRecord(manager) ||
+    manager.name !== "pnpm" ||
+    manager.installed !== true ||
+    typeof manager.version !== "string" ||
+    (version !== null && manager.version !== version) ||
+    !isRecord(manager.bin_paths) ||
+    typeof manager.bin_paths.pnpm !== "string" ||
+    !path.isAbsolute(manager.bin_paths.pnpm) ||
+    manager.bin_paths.pnpm.includes("\0")
+  )
+    throw new Error(
+      "The repository-pinned pnpm payload is not installed in the selected environment",
+    );
+  const searchPath =
+    Object.entries(environment).find(([key]) => key.toLowerCase() === "path")?.[1] ?? "";
+  const payloadEnvironment = Object.fromEntries(
+    Object.entries(environment).filter(([key]) => key.toLowerCase() !== "path"),
+  );
+  const observed = invoke(manager.bin_paths.pnpm, ["--version"], {
+    ...payloadEnvironment,
+    PATH: `${path.dirname(process.execPath)}${path.delimiter}${searchPath}`,
+    VP_DUMP_DIRS: "1",
+  });
+  if (layoutDump(observed.stdout ?? ""))
+    throw new Error("Vite+ resolved pnpm to another acquiring shim");
+  return observed;
+}
+
 export function probeTool(
   definition: ToolDefinition,
   run: DoctorRunner = spawnCommand,
@@ -159,14 +220,18 @@ export function probeTool(
       : {};
   let result;
   try {
-    result = run(command[0], command.slice(1), {
+    const probeOptions: SpawnSyncOptionsWithStringEncoding = {
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
       timeout: 15_000,
       maxBuffer: 256 * 1024,
       env: options.environment ?? process.env,
-    });
+    };
+    result =
+      id === "pnpm" && command.length === 2 && command[1] === "--version"
+        ? probePnpmVersion(command[0], version, run, probeOptions)
+        : run(command[0], command.slice(1), probeOptions);
   } catch (error) {
     return {
       id,
@@ -212,7 +277,7 @@ export function pnpmDefinition(version: string): ToolDefinition {
     id: "pnpm",
     version,
     command: ["pnpm", "--version"],
-    remediation: "provide the repository-pinned pnpm on PATH; Corepack is optional",
+    remediation: "run vp env install, then provide the repository-pinned pnpm on PATH",
   };
 }
 
@@ -756,12 +821,7 @@ export async function collectDoctor(options: DoctorOptions = {}): Promise<Doctor
           ? "activate the .node-version runtime, then run ./scripts/bootstrap-quality-tools.ps1"
           : "activate the repository .node-version runtime",
     },
-    {
-      id: "pnpm",
-      command: ["pnpm", "--version"],
-      version: packageManagerVersion,
-      remediation: "./scripts/bootstrap-quality-tools.ps1",
-    },
+    pnpmDefinition(packageManagerVersion),
     {
       id: "rustc",
       command: ["rustc", "--version"],

@@ -153,7 +153,7 @@ void test("supported hooks work from a linked worktree and noninteractive Git cl
   assert.equal(git(cwd, "status", "--porcelain").trim(), "");
 });
 
-void test("real Git hooks use the installed runtime without ambient Node and reject stale setup", () => {
+void test("real Git hooks use the installed runtime without ambient Node and recover through setup refresh", () => {
   const cwd = fixture();
   const runtimeDir = path.join(cwd, ".vite-hooks/_/runtime ' with spaces");
   mkdirSync(runtimeDir, { recursive: true });
@@ -213,6 +213,23 @@ void test("real Git hooks use the installed runtime without ambient Node and rej
   writeFileSync(path.join(cwd, ".node-version"), process.versions.node);
   unlinkSync(runtime);
   assert.match(commit().stderr, /Hook runtime unavailable/);
+  const commonBefore = readFileSync(path.join(cwd, ".git/config"), "utf8");
+  const siblingRuntime = path.join(sibling, ".vite-hooks/_/portcove-node");
+  const siblingBefore = readFileSync(siblingRuntime, "utf8");
+  const siblingPreferences = configureHooks(sibling, "status", env);
+  configureHooks(cwd, "install", env);
+  assert.equal(readFileSync(path.join(cwd, ".git/config"), "utf8"), commonBefore);
+  assert.equal(readFileSync(siblingRuntime, "utf8"), siblingBefore);
+  assert.equal(configureHooks(sibling, "status", env), siblingPreferences);
+  writeFileSync(path.join(cwd, "sample.js"), "export const refreshed = true;\n");
+  git(cwd, "add", "sample.js");
+  const refreshed = commit();
+  assert.equal(
+    refreshed.status,
+    0,
+    refreshed.stderr || refreshed.stdout || refreshed.error?.message,
+  );
+  assert.equal(git(cwd, "show", "HEAD:sample.js"), "export const refreshed = true;\n");
   unlinkSync(path.join(cwd, ".vite-hooks/_/portcove-node"));
   assert.match(commit().stderr, /Hook runtime missing/);
   assert.equal(process.env.PATH, originalPath);
@@ -228,6 +245,7 @@ void test("hook status, disabled preferences and foreign managers preserve runti
   configureHooks(cwd, "disable", env);
   assert.match(configureHooks(cwd, "install", env), /remain disabled/);
   git(cwd, "config", "--worktree", "core.hooksPath", "foreign-hooks");
+  assert.match(configureHooks(cwd, "install", env), /Existing hook manager preserved/);
   assert.match(configureHooks(cwd, "enable", env), /Existing hook manager preserved/);
   assert.equal(readFileSync(launcher, "utf8"), before);
 });
