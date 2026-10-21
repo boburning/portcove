@@ -11,6 +11,8 @@ It grants nothing. The runnable workflow remains admission-only. The
 
 ## Current local runtime checkpoint
 
+The [explicit initial metadata continuation](slice4-initial-metadata-preparation-2026-10-20.md#initial-context-and-complete-site-continuation-preparation) now connects genuine coordinator setup custody to the bounded context transport, five isolated role consumers, keyless Tough and initial complete-site caller. It uses null prior pins, an empty record set and the existing metadata-bootstrap journal subject. Local copied-tool/first-site and bundle checks passed; no provider publication or setup authority was exercised. Unresolved context-upload acknowledgement recovery and the final hosted DAG remain explicit follow-ons before consolidated setup.
+
 The [unchanged-feed site caller preparation](slice4-isolated-role-continuation-2026-10-20.md#unchanged-feed-site-caller-preparation) now connects authenticated metadata context and five-role custody to the existing keyless Tough, complete-site, journaled upload and Pages/readback path. It preserves the active candidate and uses maintenance controls. Complete run-artifact reads share the existing stable four-page/400-artifact ceiling. Local code and ten-entry bundle checks passed; actual metadata provider publication, genuine initial bootstrap continuation and final DAG qualification remain pending. No activation or additional authority is granted.
 
 The reviewed [whole-site continuation and fixed readiness bridge](slice4-complete-site-controller-2026-10-20.md)

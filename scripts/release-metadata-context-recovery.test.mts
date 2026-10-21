@@ -393,3 +393,50 @@ void test("serialized metadata preparation cannot enter the actual recovery tran
   );
   assert.deepEqual(await readdir(directory), []);
 });
+
+void test("initial context retry binds only its own settled bootstrap descriptor and destination", async () => {
+  const f = fixture();
+  const { descriptor } = (
+    await import("./fixtures/release-metadata-fixture.mts")
+  ).metadataBootstrapFixture();
+  const { id: _id, outcome, completed_effects, failure_evidence, recovery, ...prior } = f.raw;
+  const { metadata_renewal: _renewal, ...shared } = prior;
+  const identity = {
+    ...shared,
+    destination: "github-actions:boburning/portcove:metadata-bootstrap-context",
+    metadata_bootstrap: {
+      descriptor_sha256: digest(descriptor),
+      setup_plan_sha256: descriptor.setup_plan_sha256,
+      initial_site_preimage_sha256: descriptor.initial_site_preimage_sha256,
+      observed_at: descriptor.generated_at,
+      transient_retries: 0,
+      substantive_repairs: 0,
+    },
+  };
+  const raw = {
+    ...identity,
+    id: digest(identity),
+    outcome,
+    completed_effects,
+    failure_evidence,
+    recovery,
+  };
+  const operation = inspectMetadataContextRetryOperation(raw, descriptor);
+  assert.equal(operation.metadata_bootstrap?.descriptor_sha256, digest(descriptor));
+  assert.equal(
+    inspectMetadataContextRetryProvider(
+      f.run,
+      f.run,
+      f.job,
+      { total_count: 0, artifacts: [] },
+      operation,
+      f.controller,
+    ).artifact,
+    null,
+  );
+  assert.throws(() => inspectMetadataContextRetryOperation(raw, f.descriptor));
+  assert.throws(() => inspectMetadataContextRetryOperation(f.raw, descriptor));
+  assert.throws(() =>
+    inspectMetadataContextRetryOperation(raw, { ...descriptor, setup_plan_sha256: "f".repeat(64) }),
+  );
+});

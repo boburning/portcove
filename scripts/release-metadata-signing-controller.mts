@@ -37,7 +37,7 @@ export async function completeCoordinatorSigningContext(
     if (reconciliation.decision === "reused") {
       const result = Object.freeze({
         decision: "metadata-context-reused",
-        mode: "renewal",
+        mode: context.mode,
         context_locator: reconciliation.locator,
         original_operation_id: reconciliation.operation_id,
         attestation_required: false,
@@ -88,13 +88,15 @@ export async function completeCoordinatorSigningContext(
           repository: current.coordinator_repository,
           checkpoint: current.checkpoint,
           remote_configuration: { schema_version: 1, namespace: current.namespace },
-          metadata_renewal: current.descriptor,
+          ...(current.mode === "renewal"
+            ? { metadata_renewal: current.descriptor }
+            : { metadata_bootstrap: current.descriptor }),
           ...(reconciliation.decision === "transient-recovery"
             ? { recovery: reconciliation.recovery }
             : {}),
           request: {
             kind: "upload",
-            destination: "github-actions:boburning/portcove:metadata-renewal-context",
+            destination: `github-actions:boburning/portcove:metadata-${current.mode}-context`,
           },
         },
         async () =>
@@ -117,7 +119,7 @@ export async function completeCoordinatorSigningContext(
       signingContextRemaining(deadline, 15000);
       const result = Object.freeze({
         decision: "metadata-context-prepared",
-        mode: "renewal",
+        mode: context.mode,
         attestation_required: true,
         directory,
         artifact: { id: handoff.artifact_id, sha256: handoff.sha256 },

@@ -586,13 +586,32 @@ void test("allocation snapshot must match the whole preceding opportunity and ne
   assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), larger.checkpoint);
 });
 
-async function recoveryFixture(t: test.TestContext, signed = false) {
+async function recoveryFixture(t: test.TestContext, signed = false, publishedSeed = false) {
   const local = await fixture(t, signed);
-  const saved = await checkpointReleaseOpportunity(
+  let saved = await checkpointReleaseOpportunity(
     local.repository,
     local.initial.checkpoint,
     local.input,
   );
+  if (publishedSeed) {
+    const bounded = await checkpointReleaseOpportunity(local.repository, saved.checkpoint, {
+      ...local.input,
+      schema_version: 2,
+      controller: {
+        workflow: local.input.controller.workflow,
+        revision: local.input.controller.revision,
+        publication_paused: false,
+        capacity_attempt: capacityFixture(),
+      },
+    });
+    // Declared fixture feed, never public/Tough acceptance. Keep renewal outside
+    // its due window so this case still reaches active resumption authority.
+    saved = await recordPublishedMetadata(
+      local.repository,
+      bounded.checkpoint,
+      metadataFixture(Date.now() + 2 * 86_400_000).published,
+    );
+  }
   const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-recovery-parent-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
   const refs = new Map([
@@ -735,14 +754,15 @@ async function recoveryFixture(t: test.TestContext, signed = false) {
   return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
 }
 
-for (const changed of [false, true])
+for (const scenario of ["seeded", "changed", "unseeded"] as const)
   void test(
-    `trusted coordinator ${changed ? "refuses changed remote recovery before reading main" : "recovers active candidate then requires actual resumption authority before reading main"}`,
+    `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
     { timeout: 60000 },
     async (t) => {
       // Real Git recovery through the production default transport, with the gh
       // subprocess provider simulated. No OIDC, credential or protected POST.
-      const f = await recoveryFixture(t);
+      const changed = scenario === "changed";
+      const f = await recoveryFixture(t, false, scenario !== "unseeded");
       if (changed) f.faults.value = "changed";
       const projectRoot = fileURLToPath(new URL("..", import.meta.url));
       const parent = await mkdtemp(path.join(projectRoot, "work", "coordinator-fixture-"));
@@ -821,7 +841,7 @@ for (const changed of [false, true])
           return true;
         });
         assert.equal(mainReads, 0);
-      } else {
+      } else if (scenario === "seeded") {
         await assert.rejects(run, (error: unknown) => {
           assert.ok(error instanceof CoordinatorRemoteError);
           assert.ok(isRecord(error.evidence));
@@ -829,6 +849,12 @@ for (const changed of [false, true])
           assert.equal(error.evidence.checkpoint, f.saved.checkpoint);
           return true;
         });
+        assert.equal(mainReads, 0);
+      } else {
+        const held = await run;
+        assert.equal(held.decision, "held-bootstrap-tools");
+        assert.equal(held.checkpoint, f.saved.checkpoint);
+        assert.equal(held.authority, "none");
         assert.equal(mainReads, 0);
       }
       assert.deepEqual(f.refs, initialRefs);

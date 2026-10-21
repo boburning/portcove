@@ -115,3 +115,95 @@ void test("uploaded ZIP must contain exactly the actual deterministic tar, befor
   ])
     assert.throws(() => inspectSiteArtifactArchive(archive, expected));
 });
+
+void test(
+  "actual initial keyless Tough assembly composes a first complete site without a fabricated prior",
+  {
+    skip:
+      !process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_TOOL ||
+      !process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_FIXTURE,
+    timeout: 30000,
+  },
+  async () => {
+    const { readFile, copyFile, mkdir, rm, mkdtemp } = await import("node:fs/promises");
+    const { assembleIsolatedTufPublication } = await import("./release-tuf-publication.mts");
+    const { composeSiteFiles, readComposedSite } = await import("./release-site-composer.mts");
+    const { releaseCanonicalDigest } = await import("./release-canonical.mts");
+    const source = process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_FIXTURE!,
+      tool = process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_TOOL!,
+      sha256 = process.env.PORTCOVE_TUF_BOOTSTRAP_SITE_SHA256;
+    assert.ok(sha256 && /^[a-f0-9]{64}$/u.test(sha256));
+    assert.equal(
+      createHash("sha256")
+        .update(await readFile(tool))
+        .digest("hex"),
+      sha256,
+    );
+    const root = await mkdtemp(path.join(os.tmpdir(), "initial-site-keyless-")),
+      input = path.join(root, "inputs");
+    let passed = false;
+    try {
+      await mkdir(path.join(input, "records"), { recursive: true });
+      for (const name of [
+        "context.json",
+        "initial-bootstrap.json",
+        "trusted-root.json",
+        "offline-targets.json",
+        "payload.json",
+        "records/reconstruction-manifest.json",
+      ])
+        await copyFile(path.join(source, name), path.join(input, name));
+      const envelopes = [];
+      for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"]) {
+        const filename = `${role}.json`,
+          file = path.join(source, "envelopes", filename),
+          bytes = await readFile(file);
+        envelopes.push({
+          filename,
+          path: file,
+          bytes: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        });
+      }
+      const result = await assembleIsolatedTufPublication(
+        {
+          context_directory: input,
+          tool: { path: tool, sha256 },
+          signed_roles: envelopes,
+          output_parent: root,
+        },
+        performance.now() + 15000,
+      );
+      assert.equal(result.publication.records_sha256, releaseCanonicalDigest([]));
+      const rootSHA = createHash("sha256")
+        .update(await readFile(path.join(input, "trusted-root.json")))
+        .digest("hex");
+      const composed = await composeSiteFiles({
+        previous: null,
+        expected_previous_generation: null,
+        application: result.repository,
+        application_root_sha256: rootSHA,
+        output_parent: root,
+        deadline: performance.now() + 10000,
+      });
+      assert.equal(composed.generation.previous_generation, null);
+      assert.equal(composed.changed, true);
+      const readback = await readComposedSite(
+        composed.output,
+        composed.generation.generation,
+        rootSHA,
+        performance.now() + 10000,
+      );
+      assert.ok(readback.files.has("application/metadata/timestamp.json"));
+      assert.ok(
+        ![...readback.files.keys()].some(
+          (name) => name.includes("prior/") || name.includes("releases/fake"),
+        ),
+      );
+      passed = true;
+    } finally {
+      if (passed) await rm(root, { recursive: true, force: true });
+      else process.stderr.write(`Retain initial keyless site evidence: ${root}\n`);
+    }
+  },
+);

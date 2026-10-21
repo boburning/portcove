@@ -120,6 +120,7 @@ void test("renewal role journal binding needs the exact live published seed and 
 void test("renewal context public contract preserves exact u64 and distinguishes unchanged feed from release/bootstrap claims", () => {
   const f = fixture(),
     result = inspectMetadataSigningBinding(f.facts, f.binding, f.pins);
+  assert.ok(result.facts.descriptor.kind === "application-tuf-metadata-renewal");
   assert.equal(result.authority, "none");
   assert.equal(result.facts.descriptor.next_versions.releases, "9007199254740994");
   f.facts.descriptor.next_versions.releases = "7";
@@ -181,4 +182,48 @@ void test("serialized coordinator results or caller pending cannot mint context 
     /actual coordinator/,
   );
   assert.deepEqual(await readdir(parent), []);
+});
+
+void test("initial metadata binding requires explicit empty setup, null prior and current same-descriptor journal", async () => {
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const f = metadataBootstrapFixture();
+  const facts = {
+    mode: "bootstrap",
+    descriptor: f.descriptor,
+    namespace: "portcove-test",
+    checkpoint: "1".repeat(40),
+    previous_site_pins: null,
+    setup_plan_sha256: f.descriptor.setup_plan_sha256,
+    public_source_commit: "2".repeat(40),
+  };
+  const binding = {
+    kind: "metadata-bootstrap",
+    descriptor_sha256: digest(f.descriptor),
+    records_sha256: digest([]),
+  };
+  const actual = inspectMetadataSigningBinding(facts, binding, null);
+  assert.equal(actual.facts.mode, "bootstrap");
+  assert.equal(actual.previous_site_pins, null);
+  assert.deepEqual(
+    inspectMetadataSigningReservation(facts, binding, null, {
+      input: { metadata_bootstrap: f.descriptor, published_metadata: null },
+    }),
+    f.descriptor,
+  );
+  for (const altered of [
+    { ...facts, previous_site_pins: { repository_sha256: "a".repeat(64) } },
+    { ...facts, setup_plan_sha256: "b".repeat(64) },
+    { ...facts, mode: "renewal" },
+    { ...facts, descriptor: { ...f.descriptor, initial_records_sha256: "c".repeat(64) } },
+  ])
+    assert.throws(() => inspectMetadataSigningBinding(altered, binding, null));
+  for (const state of [
+    { metadata_bootstrap: null, published_metadata: null },
+    { metadata_bootstrap: f.descriptor, published_metadata: f.published },
+  ])
+    assert.throws(() => inspectMetadataSigningReservation(facts, binding, null, { input: state }));
+  await assert.rejects(
+    prepareCoordinatorSigningContext({ decision: "metadata-bootstrap-prepared" }, process.cwd()),
+    /same-process/,
+  );
 });

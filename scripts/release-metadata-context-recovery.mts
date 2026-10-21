@@ -33,7 +33,9 @@ import {
 } from "./release-signing-context-artifact.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 const hash = (value: Buffer) => createHash("sha256").update(value).digest("hex");
-const destination = "github-actions:boburning/portcove:metadata-renewal-context";
+function metadataDestination(descriptor: unknown) {
+  return `github-actions:boburning/portcove:metadata-${isRecord(descriptor) && descriptor.kind === "application-tuf-initial-bootstrap" ? "bootstrap" : "renewal"}-context`;
+}
 type Context = Awaited<ReturnType<typeof requireCoordinatorSigningContext>>;
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 function originalProducer(operation: Operation) {
@@ -78,11 +80,14 @@ export function inspectRecoveredMetadataContextBinding(
 /** Data integrity only; callers cannot turn this projection into an executor. */
 export function inspectMetadataContextRetryOperation(raw: unknown, descriptor: unknown) {
   const operation = inspectCapacityOperation(raw);
+  const bootstrap = isRecord(descriptor) && descriptor.kind === "application-tuf-initial-bootstrap";
   if (
     !operation ||
     operation.kind !== "upload" ||
-    operation.destination !== destination ||
-    operation.metadata_renewal?.descriptor_sha256 !== digest(descriptor) ||
+    operation.destination !== metadataDestination(descriptor) ||
+    (bootstrap
+      ? operation.metadata_bootstrap?.descriptor_sha256
+      : operation.metadata_renewal?.descriptor_sha256) !== digest(descriptor) ||
     !operation.executor_identity ||
     operation.executor_identity.role !== "coordinator" ||
     !["succeeded", "recovered"].includes(operation.outcome) ||
@@ -100,17 +105,22 @@ async function priorOperation(context: Context, raw: unknown) {
   if (!isRecord(raw) || !isRecord(raw.controller) || !isRecord(raw.controller.capacity_attempt))
     throw new Error("metadata context journal capacity unavailable");
   const capacity = raw.controller.capacity_attempt;
+  const destination = metadataDestination(context.descriptor),
+    bootstrap = context.descriptor.kind === "application-tuf-initial-bootstrap",
+    subject = bootstrap ? digest(context.descriptor) : context.descriptor.prior_repository_sha256;
   const operations = new Map<string, Operation>();
   const current = inspectCapacityOperation(capacity.operation);
   if (
     current?.destination === destination &&
-    current.metadata_renewal?.prior_repository_sha256 === context.descriptor.prior_repository_sha256
+    (bootstrap
+      ? current.metadata_bootstrap?.descriptor_sha256
+      : current.metadata_renewal?.descriptor_sha256) === digest(context.descriptor)
   )
     operations.set(current.id, inspectMetadataContextRetryOperation(current, context.descriptor));
   for (const group of inspectCompactCapacityOperations(capacity.prior_operations)) {
     if (
-      group.subject.kind !== "metadata-renewal" ||
-      group.subject.identity !== context.descriptor.prior_repository_sha256 ||
+      group.subject.kind !== (bootstrap ? "metadata-bootstrap" : "metadata-renewal") ||
+      group.subject.identity !== subject ||
       group.kind !== "upload" ||
       group.destination_sha256 !== digest(destination)
     )
