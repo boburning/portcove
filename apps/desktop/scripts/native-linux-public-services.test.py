@@ -147,6 +147,11 @@ class PosixContracts(unittest.TestCase):
             )
             try:
                 worker.submit(1, "GET", "/status", b"")
+                # This case tests a late, settled result. An expired clock must
+                # not race the separate live-worker/ambiguous-teardown refusal.
+                self.assertIsNotNone(worker.thread)
+                worker.thread.join(timeout=1)
+                self.assertFalse(worker.thread.is_alive())
                 worker.end = time.monotonic() - 1
                 for key, mask in selection.select(1):
                     with self.assertRaisesRegex(RuntimeError, "original lifetime"):

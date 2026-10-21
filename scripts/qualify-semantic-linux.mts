@@ -52,6 +52,37 @@ export function inspectLinuxQualificationConfiguration(raw: unknown) {
   };
 }
 
+/** Inert settlement decoding only; callers retain and authenticate original bytes. */
+export function inspectLinuxQualificationSettlement(
+  status: number,
+  isolation: unknown,
+  mode: string,
+) {
+  if (mode !== "fixture" && mode !== "codex-fixture")
+    throw new Error("fixed qualification mode required");
+  if (
+    status !== 0 ||
+    !isRecord(isolation) ||
+    isolation.mode !== mode ||
+    isolation.authority !== "none" ||
+    isolation.cgroup_verified !== true ||
+    isolation.namespaces_verified !== true ||
+    isolation.capture_complete !== true ||
+    isolation.cgroup_empty !== true ||
+    isolation.unit_settled !== true ||
+    isolation.network_settled !== true ||
+    isolation.network_refused !== false ||
+    isolation.forced_termination !== false ||
+    isolation.failure !== null ||
+    isolation.auth_refreshed !== false ||
+    isolation.exit_code !== 0 ||
+    !Array.isArray(isolation.cleanup_errors) ||
+    isolation.cleanup_errors.length
+  )
+    throw new Error("inert Linux qualification lacks positive original settlement");
+  return { authority: "none" as const, semantic_acceptance: false as const };
+}
+
 async function qualify(mode: string, configurationPath: string) {
   if (
     process.platform !== "linux" ||
@@ -180,26 +211,7 @@ async function qualify(mode: string, configurationPath: string) {
   const isolation: unknown = JSON.parse(
     await readFile(path.join(root, "capture/isolation.json"), "utf8"),
   );
-  if (
-    status !== 0 ||
-    !isRecord(isolation) ||
-    isolation.mode !== mode ||
-    isolation.authority !== "none" ||
-    isolation.cgroup_verified !== true ||
-    isolation.namespaces_verified !== true ||
-    isolation.capture_complete !== true ||
-    isolation.cgroup_empty !== true ||
-    isolation.unit_settled !== true ||
-    isolation.network_settled !== true ||
-    isolation.network_refused !== false ||
-    isolation.forced_termination !== false ||
-    isolation.failure !== null ||
-    isolation.auth_refreshed !== false ||
-    isolation.exit_code !== 0 ||
-    !Array.isArray(isolation.cleanup_errors) ||
-    isolation.cleanup_errors.length
-  )
-    throw new Error(`inert Linux qualification refused; preserve all evidence at ${root}`);
+  inspectLinuxQualificationSettlement(status, isolation, mode);
   return {
     scope: "inert-linux-boundary-only",
     mode,
