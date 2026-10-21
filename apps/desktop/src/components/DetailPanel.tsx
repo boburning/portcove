@@ -278,13 +278,15 @@ export function DetailPanel(props: DetailPanelProps) {
       ));
   const renderDetailBody = () => (
     <DetailBody
-      header={
+      header={(action) => (
         <DetailHero
           port={port}
           state={state}
           missingSourceLabels={!installed ? missingSourceLabels : []}
-        />
-      }
+        >
+          {action}
+        </DetailHero>
+      )}
       observations={
         <>
           {!props.browsingMatch && (
@@ -378,18 +380,21 @@ function DetailHero({
   port,
   state,
   missingSourceLabels,
+  children,
 }: {
   port: PortDefinition;
   state: DetailState;
   missingSourceLabels: string[];
+  children: ReactNode;
 }) {
   return (
-    <div className="detail-hero flex items-start gap-4">
+    <div className="detail-hero flex flex-col items-start gap-5 @min-[32rem]/detail:flex-row @min-[32rem]/detail:gap-7">
       <ArtworkImage
         port={port}
-        className="detail-cover aspect-[2/3] w-16 flex-none rounded-pc-md bg-[var(--art-color)]"
+        quietFallback
+        className="detail-cover aspect-[2/3] w-[80px] flex-none rounded-pc-md border border-pc-border bg-[var(--art-color)] @min-[24rem]/detail:w-[120px] @min-[48rem]/detail:w-[160px]"
       />
-      <div className="min-w-0">
+      <div className="w-full min-w-0 flex-1 [overflow-wrap:anywhere] @min-[32rem]/detail:self-center">
         <p className="mb-1 text-xs text-[var(--color-text-secondary)]">
           {port.platforms.map((platform) => platformLabel(platform)).join(" · ")}
         </p>
@@ -431,6 +436,14 @@ function DetailHero({
             </strong>
           </p>
         )}
+        <div
+          className={cn(
+            "detail-current-action mt-4",
+            state.tone === "ready" ? "max-w-80" : "max-w-xl",
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -472,7 +485,7 @@ function DetailBody({
   actions,
   openLibraryStorage,
 }: {
-  header: ReactNode;
+  header: (action: ReactNode) => ReactNode;
   observations: ReactNode;
   installCancellations?: ActivityRecord[] | undefined;
   perform?: Perform | undefined;
@@ -509,18 +522,10 @@ function DetailBody({
 }) {
   const managedPreparation = needsManagedPreparation(port, installed);
   const external = port.release.provider === "user-prepared" || Boolean(status?.external_runtime);
-  const compactActions = installed && !status?.external_runtime && launchReady && !pendingSetup;
   return (
     <div className="detail-body pb-10">
-      <div
-        className={cn(
-          "detail-summary grid gap-3 border-b border-pc-border pb-5",
-          compactActions &&
-            "@min-[48rem]/detail:grid-cols-[minmax(0,1fr)_16rem] @min-[48rem]/detail:items-center",
-        )}
-      >
-        {header}
-        <div className={compactActions ? "w-full max-w-80" : undefined}>
+      <div className="detail-summary">
+        {header(
           <StatusActionsGroup
             installCancellations={installCancellations}
             port={port}
@@ -541,22 +546,32 @@ function DetailBody({
             onChanged={externalRuntimeChanged}
             actions={actions}
             openLibraryStorage={openLibraryStorage}
-          />
-        </div>
+          />,
+        )}
       </div>
-      {installed && !external && (
-        <UpdatesGroup
-          perform={perform}
-          port={port}
-          status={status}
-          installed={installed}
-          deferSetupChoices={deferSetupChoices}
-          selectedChannel={selectedChannel}
-          policy={policy}
-          libraryGeneration={libraryGeneration}
-          busy={busy}
-          actions={actions}
-        />
+      <DetailGroup title="About this port">
+        <p className="m-0 max-w-[72ch] leading-[var(--leading-relaxed)] text-pc-muted-foreground">
+          {port.summary}
+        </p>
+      </DetailGroup>
+      {status?.active && (
+        <DetailGroup title="Installation and version">
+          <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
+        </DetailGroup>
+      )}
+      {status?.external_runtime && (
+        <DetailGroup title="Existing installation">
+          <dl className="m-0 grid gap-4 text-sm [&_dd]:m-0 [&_dd]:mt-1 [&_dd]:[overflow-wrap:anywhere] [&_dt]:text-pc-muted-foreground">
+            <div>
+              <dt>Folder</dt>
+              <dd>{status.external_runtime.path}</dd>
+            </div>
+            <div>
+              <dt>Who maintains it</dt>
+              <dd>You maintain this folder and its updates.</dd>
+            </div>
+          </dl>
+        </DetailGroup>
       )}
       <RequirementsGroup
         key={`requirements:${port.id}:${libraryGeneration}`}
@@ -567,24 +582,13 @@ function DetailBody({
         pendingSetup={pendingSetup}
         busy={busy}
       />
-      <p className="leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
-        {port.summary}
-      </p>
       <details className="my-4">
         <summary className="cursor-pointer py-2 text-sm font-medium">
           File and filter details
         </summary>
         {observations}
       </details>
-      <NavigationHints />
-      <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
-      <DetailArtwork key={`artwork:${port.id}:${libraryGeneration}`} port={port} />
-      {status?.active && (
-        <DetailGroup title="Installation and version">
-          <InstallationVersionSummary status={status} selectedChannel={selectedChannel} />
-        </DetailGroup>
-      )}
-      {!installed && !external && (
+      {!external && (
         <UpdatesGroup
           perform={perform}
           port={port}
@@ -628,15 +632,27 @@ function DetailBody({
       )}
       <DetailGroup title="Compatibility and testing">
         <CompatibilitySummary port={port} />
-        <DetailQualificationSummary
-          port={port}
-          sourceInspection={sources.sourceInspection}
-          biosInspection={sources.biosInspection}
-        />
+        <details>
+          <summary data-focusable className="cursor-pointer py-2 text-sm font-medium">
+            Recorded checks
+          </summary>
+          <div className="grid gap-4 pt-3">
+            <DetailQualificationSummary
+              port={port}
+              sourceInspection={sources.sourceInspection}
+              biosInspection={sources.biosInspection}
+            />
+          </div>
+        </details>
       </DetailGroup>
       <DetailGroup title="Project and release">
         <ProjectReleaseSummary port={port} />
       </DetailGroup>
+      <DetailGroup title="Artwork">
+        <ArtworkControls key={`controls:${port.id}:${libraryGeneration}`} port={port} />
+        <DetailArtwork key={`artwork:${port.id}:${libraryGeneration}`} port={port} />
+      </DetailGroup>
+      <NavigationHints />
       {(!external || hasRecordedChecks(port, sources)) && (
         <TechnicalDetails
           libraryGeneration={libraryGeneration}

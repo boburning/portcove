@@ -1952,8 +1952,7 @@ export async function preparationScenarios({
                 if (image) return image.complete && image.naturalWidth > 0;
                 return (
                   frame?.dataset.artworkSource === "generated_fallback" &&
-                  frame.querySelector(":scope > span")?.textContent ===
-                    expected.generated_fallback.initials &&
+                  Boolean(frame.querySelector(':scope > span > svg[aria-hidden="true"]')) &&
                   (expected.availability !== "available" ||
                     frame.textContent?.includes("Image unavailable"))
                 );
@@ -1981,6 +1980,10 @@ export async function preparationScenarios({
               const main = document.querySelector("main");
               return {
                 title: document.querySelector("#port-detail-title")?.textContent?.trim(),
+                portId: document
+                  .querySelector("[data-detail-port-id]")
+                  ?.getAttribute("data-detail-port-id"),
+                actionInHero: Boolean(action.closest(".detail-hero")),
                 state: document.querySelector(".detail-hero .hero-state")?.textContent?.trim(),
                 groups: [...document.querySelectorAll(".detail-body .detail-group > h2")].map(
                   (heading) => heading.textContent?.trim(),
@@ -2004,14 +2007,18 @@ export async function preparationScenarios({
           });
           artifacts.push(screenshot);
           assert.equal(hierarchy.title, gameTitle(port));
+          assert.equal(hierarchy.portId, port.id);
+          assert.equal(hierarchy.actionInHero, true);
           assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "Updates",
-            "Requirements",
+            "About this port",
             "Installation and version",
+            "Requirements",
+            "Updates",
             "Saves and storage",
             "Compatibility and testing",
             "Project and release",
+            "Artwork",
           ]);
           assert.equal(hierarchy.horizontalOverflow, false);
           assert.ok(
