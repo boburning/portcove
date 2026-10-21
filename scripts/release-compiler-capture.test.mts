@@ -1,10 +1,31 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdir, readFile, writeFile, link } from "node:fs/promises";
+import { mkdir, readFile, writeFile, link, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import test from "node:test";
 import { releasePublicBuildProvenanceFixture } from "./fixtures/release-public-build-provenance-fixture.mts";
-import { captureReleaseCompiler, releaseCompilerEnvironment } from "./release-compiler-capture.mts";
+import {
+  captureReleaseCompiler,
+  releaseCompilerEnvironment,
+  captureWindowsDesktopExecutable,
+} from "./release-compiler-capture.mts";
+
+void test("post-bundling executable observation reads one fixed regular output without modifying it", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-desktop-compiler-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "release"));
+  const file = path.join(root, "release", "portcove-desktop.exe");
+  const bytes = Buffer.from("inert __TAURI_BUNDLE_TYPE_VAR_UNK compiler bytes");
+  await writeFile(file, bytes);
+  const observation = await captureWindowsDesktopExecutable(root);
+  assert.equal(observation.sha256, createHash("sha256").update(bytes).digest("hex"));
+  assert.deepEqual(await readFile(file), bytes);
+  assert.notEqual(observation.nsis_sha256, observation.sha256);
+  await link(file, path.join(root, "alias.exe"));
+  await assert.rejects(captureWindowsDesktopExecutable(root), /unlinked|alias/u);
+});
 
 async function fixture(t: test.TestContext) {
   const f = await releasePublicBuildProvenanceFixture(t);

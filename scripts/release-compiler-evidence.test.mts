@@ -12,7 +12,9 @@ import {
   collectReleaseCompilerEvidence,
   inspectReleaseCompilerReport,
   requireVerifiedReleaseCompilerEvidence,
+  requireVerifiedWindowsDesktopCompilerIdentity,
 } from "./release-compiler-evidence.mts";
+import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const roles = [
   "node",
@@ -203,6 +205,9 @@ async function fixture(t: test.TestContext) {
               exit_code: null,
               failure: null,
               outputs: [],
+              ...(Object.hasOwn(item.raw, "desktop_executable")
+                ? { desktop_executable: null }
+                : {}),
               invocation: { ...item.raw.invocation, finished_at: null },
             }),
           ),
@@ -291,7 +296,61 @@ void test("actual bounded report transport and complete cross-platform output/pa
   assert.equal(receipt.evidence_scope, "injected-provider");
   await assert.rejects(requireVerifiedReleaseCompilerEvidence(receipt), /actual same-process/);
   await assert.rejects(
+    requireVerifiedWindowsDesktopCompilerIdentity(receipt),
+    /actual same-process/,
+  );
+  await assert.rejects(
     requireVerifiedReleaseCompilerEvidence(structuredClone(receipt)),
+    /actual same-process/,
+  );
+});
+
+void test("schema3 desktop identity remains bound to the exact Windows interface and NSIS slot", async (t) => {
+  const f = await fixture(t);
+  const item = f.reports.find(
+    (entry) => entry.raw.platform === "windows-x86_64" && entry.raw.interface === "desktop",
+  );
+  assert.ok(item);
+  const executable = projectWindowsNsisExecutable(
+    Buffer.from("inert __TAURI_BUNDLE_TYPE_VAR_UNK bytes"),
+  );
+  const report = { ...item.raw, schema_version: 3, desktop_executable: executable };
+  assert.deepEqual(
+    inspectReleaseCompilerReport(report, item.expected).desktop_executable,
+    executable,
+  );
+  assert.equal(inspectReleaseCompilerReport(item.raw, item.expected).desktop_executable, null);
+  Object.assign(item.raw, report);
+  f.refresh();
+  const receipt = await f.collect();
+  assert.equal(receipt.evidence_scope, "injected-provider");
+  const observation =
+    receipt.state === "verified-compiler-output-bindings"
+      ? receipt.observations.find((entry) => entry.platform === "windows-x86_64")
+      : null;
+  assert.deepEqual(observation?.desktop.desktop_executable, executable);
+  await assert.rejects(
+    requireVerifiedWindowsDesktopCompilerIdentity(receipt),
+    /actual same-process/,
+  );
+  await assert.rejects(
+    requireVerifiedWindowsDesktopCompilerIdentity(structuredClone(receipt)),
+    /actual same-process/,
+  );
+  assert.throws(() =>
+    inspectReleaseCompilerReport(
+      { ...report, desktop_executable: { ...executable, filename: "foreign.exe" } },
+      item.expected,
+    ),
+  );
+  assert.throws(() =>
+    inspectReleaseCompilerReport(
+      { ...report, interface: "cli" },
+      { ...item.expected, interface: "cli" },
+    ),
+  );
+  await assert.rejects(
+    requireVerifiedWindowsDesktopCompilerIdentity({ ...report, evidence_scope: "github.com" }),
     /actual same-process/,
   );
 });
