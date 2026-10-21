@@ -1,5 +1,5 @@
 use super::*;
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::TryStreamExt;
 use tough::{
     RepositoryLoader, TargetName, Transport, TransportError, TransportErrorKind, TransportStream,
     schema::{Role, Snapshot, Timestamp as TufTimestamp},
@@ -24,7 +24,7 @@ impl Transport for PublicTransport {
             .get(url.path().trim_start_matches('/'))
             .cloned()
             .ok_or_else(|| TransportError::new(TransportErrorKind::FileNotFound, url.as_str()))?;
-        Ok(futures_util::stream::once(async move { Ok(bytes.into()) }).boxed())
+        Ok(Box::pin(futures_util::stream::iter([Ok(bytes.into())])))
     }
 }
 fn at<'a>(files: &'a Files, name: &str) -> Result<&'a Vec<u8>> {
@@ -80,7 +80,7 @@ fn current_roles(files: &Files) -> Result<Files> {
 }
 async fn authenticate(root: &[u8], files: &Files) -> Result<Files> {
     let repository = RepositoryLoader::new(
-        root,
+        &root,
         url::Url::parse("https://catalog.invalid/metadata/").unwrap(),
         url::Url::parse("https://catalog.invalid/targets/").unwrap(),
     )
@@ -479,7 +479,7 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
                 TufRepositoryError::Invalid("catalog output parent absent".into())
             })?,
         )?;
-        let mut builder = fs::DirBuilder::new();
+        let builder = fs::DirBuilder::new();
         #[cfg(unix)]
         {
             use std::os::unix::fs::DirBuilderExt;

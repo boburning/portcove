@@ -255,9 +255,9 @@ async fn load_context(path: &Path) -> Result<Context> {
         inputs.push(previous);
     } else if !config.previous_repository.is_null() {
         return invalid("catalog prior repository must be an explicit path or null");
-    } else if (context.versions.iter().any(|v| v.get() != 1)
+    } else if context.versions.iter().any(|v| v.get() != 1)
         || context.top.signed.version.get() != 1
-        || context.root.signed.version.get() != 1)
+        || context.root.signed.version.get() != 1
     {
         return invalid(
             "initial catalog publication requires explicit version one for every online role",
