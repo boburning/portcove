@@ -1,7 +1,10 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
-import { nativePrepublicationProfile } from "./release-native-qualification-contract.mts";
+import {
+  nativePrepublicationProfile,
+  inspectNativeQualificationHarnessPath,
+} from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
   readProductionControllerWorkflowBytes,
@@ -170,12 +173,8 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
       exact(expected, "compatibility,host,producer");
       exact(expected.producer, "harness,source_commit,source_tree");
       exact(expected.producer.harness, "path,sha256");
-      if (
-        typeof expected.producer.harness.path !== "string" ||
-        !/^scripts\/[A-Za-z0-9][A-Za-z0-9._-]*\.ps1$/u.test(expected.producer.harness.path) ||
-        !isRecord(expected.host) ||
-        !isRecord(expected.compatibility)
-      )
+      inspectNativeQualificationHarnessPath(expected.producer.harness.path);
+      if (!isRecord(expected.host) || !isRecord(expected.compatibility))
         throw new Error("release authority native fixed expectations absent");
       const host = expected.host;
       exact(host, "account,engine,machine_id_sha256,minimum_platform,qualification_profile");

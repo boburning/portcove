@@ -230,6 +230,19 @@ const nativeScenarioFiles = new Set([
 // qualification, and updater authorities. Node contract tests are protected
 // with their implementations so a gate cannot weaken its own required proof.
 const releaseSecurityFiles = withNodeTestCompanions([
+  "scripts/release-native-stage-capture.mts",
+  "scripts/release-native-scheduler.mts",
+  "scripts/release-native-parent.mts",
+  "scripts/release-native-candidate.mts",
+  "scripts/release-native-attempt.mts",
+  "scripts/release-native-source-contract.mts",
+  "scripts/release-native-pre-sign-report.mts",
+  "scripts/release-native-check-broker.mts",
+  "scripts/release-native-worker.mts",
+  "scripts/release-native-windows-capture.mts",
+  "scripts/release-native-windows-driver.ps1",
+  "scripts/release-local-native-setup.mts",
+  "scripts/read-native-scheduler.ps1",
   "scripts/release-classification-request.mts",
   ".github/release.yml",
   ".agents/skills/portcove-port-qualification/SKILL.md",

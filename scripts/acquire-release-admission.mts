@@ -279,6 +279,10 @@ export async function acquireReleaseAdmission(
     controls?: AuthenticatedReleaseControlSource;
     controlPhase?: ReleaseControlPhase;
     compiler?: ReleaseCompilerAdmissionPrerequisite;
+    // Inert updater package custody only; full archive verification precedes it.
+    retainDesktopPackage?: NonNullable<
+      Parameters<typeof discoverReleaseArtifactFiles>[4]
+    >["retainDesktopPackage"];
     // Fixed caller obtains actual native Check receipts against these privately
     // acquired candidate facts. Serialized reports are never prerequisites.
     establishNative?: (
@@ -690,13 +694,18 @@ export async function acquireReleaseAdmission(
           run_attempt: evidenceRequest.attempt,
           source_commit: active.prepared_commit,
         },
-        options.compiler
-          ? {
-              retainCliPackage: async (identity, bytes) => {
-                cliPackages.set(identity.filename, bytes);
-              },
-            }
-          : {},
+        {
+          ...(options.retainDesktopPackage
+            ? { retainDesktopPackage: options.retainDesktopPackage }
+            : {}),
+          ...(options.compiler
+            ? {
+                retainCliPackage: async (identity, bytes) => {
+                  cliPackages.set(identity.filename, bytes);
+                },
+              }
+            : {}),
+        },
       );
       files.push(...discovered.files);
       declarations.push(discovered.declared_producer);
