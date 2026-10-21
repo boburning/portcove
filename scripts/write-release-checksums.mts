@@ -275,6 +275,12 @@ async function main() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  await main();
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    await main();
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

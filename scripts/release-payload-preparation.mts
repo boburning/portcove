@@ -902,65 +902,71 @@ export async function runPayloadSigningController(
   return result;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try {
-    if (process.argv.length !== 3)
-      throw new Error("choose the fixed trusted preparation configuration");
-    const raw: unknown = JSON.parse(
-      (await readBounded(process.argv[2]!, 64 * 1024)).toString("utf8"),
-    );
-    if (
-      !isRecord(raw) ||
-      !isRecord(raw.configuration) ||
-      !isRecord(raw.tools) ||
-      !isRecord(raw.tools.artifact) ||
-      !isRecord(raw.tools.bundle) ||
-      !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
-      !isDeepStrictEqual(Object.keys(raw).sort(), [
-        "configuration",
-        "native_locators",
-        "signer_identity",
-        "tools",
-      ])
-    )
-      throw new Error("fixed payload caller configuration differs");
-    const receipt = await receiveControllerTools(
-      project,
-      raw.tools.artifact as unknown as ControllerToolArtifactExpected,
-      raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
-    );
-    const tools = await verifiedControllerToolPaths(receipt);
-    const selected = inspectPayloadPreparationConfiguration({
-      ...raw.configuration,
-      projectRoot: project,
-      output: path.join(project, "work", "payload-preparation"),
-    });
-    await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
-    const result = await runPayloadSigningController(
-      {
-        ...selected,
-        projectRoot: tools.root,
-        output: path.join(tools.root, "work", "payload-preparation"),
-        publicKey: path.join(tools.root, "work", "admitted-public.key"),
-      },
-      raw.signer_identity,
-      receipt,
-      raw.native_locators,
-    );
-    process.exitCode = result.decision === "signed" ? 0 : 2;
-  } catch {
-    console.error(
-      "held payload signing controller refused; retain bounded public preparation evidence",
-    );
-    process.exitCode = 2;
-  } finally {
-    if (process.env.RUNNER_TEMP)
-      await writeFile(
-        path.join(process.env.RUNNER_TEMP, "payload-preparation-process-ended.json"),
-        JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
-        { flag: "wx", mode: 0o600 },
-      ).catch(() => {
-        process.exitCode = 2;
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    try {
+      if (process.argv.length !== 3)
+        throw new Error("choose the fixed trusted preparation configuration");
+      const raw: unknown = JSON.parse(
+        (await readBounded(process.argv[2]!, 64 * 1024)).toString("utf8"),
+      );
+      if (
+        !isRecord(raw) ||
+        !isRecord(raw.configuration) ||
+        !isRecord(raw.tools) ||
+        !isRecord(raw.tools.artifact) ||
+        !isRecord(raw.tools.bundle) ||
+        !isDeepStrictEqual(Object.keys(raw.tools).sort(), ["artifact", "bundle"]) ||
+        !isDeepStrictEqual(Object.keys(raw).sort(), [
+          "configuration",
+          "native_locators",
+          "signer_identity",
+          "tools",
+        ])
+      )
+        throw new Error("fixed payload caller configuration differs");
+      const receipt = await receiveControllerTools(
+        project,
+        raw.tools.artifact as unknown as ControllerToolArtifactExpected,
+        raw.tools.bundle as unknown as { artifact_id: number; sha256: string },
+      );
+      const tools = await verifiedControllerToolPaths(receipt);
+      const selected = inspectPayloadPreparationConfiguration({
+        ...raw.configuration,
+        projectRoot: project,
+        output: path.join(project, "work", "payload-preparation"),
       });
+      await mkdir(path.join(tools.root, "work"), { mode: 0o700 });
+      const result = await runPayloadSigningController(
+        {
+          ...selected,
+          projectRoot: tools.root,
+          output: path.join(tools.root, "work", "payload-preparation"),
+          publicKey: path.join(tools.root, "work", "admitted-public.key"),
+        },
+        raw.signer_identity,
+        receipt,
+        raw.native_locators,
+      );
+      process.exitCode = result.decision === "signed" ? 0 : 2;
+    } catch {
+      console.error(
+        "held payload signing controller refused; retain bounded public preparation evidence",
+      );
+      process.exitCode = 2;
+    } finally {
+      if (process.env.RUNNER_TEMP)
+        await writeFile(
+          path.join(process.env.RUNNER_TEMP, "payload-preparation-process-ended.json"),
+          JSON.stringify({ exit_code: process.exitCode ?? 0, authority: "none" }),
+          { flag: "wx", mode: 0o600 },
+        ).catch(() => {
+          process.exitCode = 2;
+        });
+    }
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

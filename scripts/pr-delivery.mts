@@ -2046,54 +2046,60 @@ async function main(argv: string[]) {
   throw new Error(`unknown command: ${command}`);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  try {
-    await main(process.argv.slice(2));
-  } catch (error) {
-    const safeError = sanitizeOperationError(error);
-    if (process.argv[2] === "inspect" && process.argv.slice(3).includes("--json")) {
-      console.log(
-        JSON.stringify({
-          format_version: 1,
-          observation: "unknown",
-          error: {
-            code: "inspection_failed",
-            message: safeError.message.slice(0, 512),
-          },
-        }),
-      );
-    } else if (process.argv.slice(3).includes("--json")) {
-      console.log(
-        JSON.stringify(
-          githubOperationEnvelope({
-            operation: `pr-delivery.${process.argv[2] ?? "unknown"}`,
-            status: error instanceof DeliveryOutcomeError ? error.operationStatus : "failed",
-            summary: safeError.message,
-            evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
-            error,
-          }),
-        ),
-      );
-    }
-    let reference = null;
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
     try {
-      const directory = path.join(projectRoot, "work/pr-delivery");
-      mkdirSync(directory, { recursive: true });
-      reference = path.join(directory, `${randomUUID()}.json`);
-      writeFileSync(
-        reference,
-        JSON.stringify({
-          error: safeError,
-          evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
-        }),
-        { flag: "wx" },
+      await main(process.argv.slice(2));
+    } catch (error) {
+      const safeError = sanitizeOperationError(error);
+      if (process.argv[2] === "inspect" && process.argv.slice(3).includes("--json")) {
+        console.log(
+          JSON.stringify({
+            format_version: 1,
+            observation: "unknown",
+            error: {
+              code: "inspection_failed",
+              message: safeError.message.slice(0, 512),
+            },
+          }),
+        );
+      } else if (process.argv.slice(3).includes("--json")) {
+        console.log(
+          JSON.stringify(
+            githubOperationEnvelope({
+              operation: `pr-delivery.${process.argv[2] ?? "unknown"}`,
+              status: error instanceof DeliveryOutcomeError ? error.operationStatus : "failed",
+              summary: safeError.message,
+              evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
+              error,
+            }),
+          ),
+        );
+      }
+      let reference = null;
+      try {
+        const directory = path.join(projectRoot, "work/pr-delivery");
+        mkdirSync(directory, { recursive: true });
+        reference = path.join(directory, `${randomUUID()}.json`);
+        writeFileSync(
+          reference,
+          JSON.stringify({
+            error: safeError,
+            evidence: error instanceof DeliveryOutcomeError ? error.operationEvidence : {},
+          }),
+          { flag: "wx" },
+        );
+      } catch {
+        /* Preserve the original operation failure. */
+      }
+      console.error(
+        renderBoundedSummary("pr-delivery failed", [safeError.message], { reference }).text,
       );
-    } catch {
-      /* Preserve the original operation failure. */
+      process.exitCode = 1;
     }
-    console.error(
-      renderBoundedSummary("pr-delivery failed", [safeError.message], { reference }).text,
-    );
-    process.exitCode = 1;
   }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

@@ -441,15 +441,21 @@ export async function prepareReleaseVersion(
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [repository, inputPath] = process.argv.slice(2);
-  if (process.argv.length !== 4 || !repository || !inputPath)
-    throw new Error("usage: prepare-release-version.mts REPOSITORY INPUT.json");
-  const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
-  if (!isRecord(input)) throw new Error("version preparation input must be an object");
-  console.log(
-    JSON.stringify(
-      await prepareReleaseVersion(repository, input.classification, input.published_versions),
-    ),
-  );
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const [repository, inputPath] = process.argv.slice(2);
+    if (process.argv.length !== 4 || !repository || !inputPath)
+      throw new Error("usage: prepare-release-version.mts REPOSITORY INPUT.json");
+    const input: unknown = JSON.parse(await readFile(inputPath, "utf8"));
+    if (!isRecord(input)) throw new Error("version preparation input must be an object");
+    console.log(
+      JSON.stringify(
+        await prepareReleaseVersion(repository, input.classification, input.published_versions),
+      ),
+    );
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

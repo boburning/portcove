@@ -644,22 +644,28 @@ async function readInput(filename: string): Promise<unknown> {
   return JSON.parse(await readFile(filename, "utf8"));
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const filename = process.argv[2];
-  if (process.argv.length !== 3 || !filename)
-    throw new Error("usage: release-coordinator.mts INPUT.json");
-  const input = await readInput(path.resolve(filename));
-  object(input, "release coordinator input");
-  const controller = isRecord(input.controller) ? input.controller : {};
-  if (
-    process.env.PORTCOVE_CONTROLLER_REVISION &&
-    controller.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
-  )
-    throw new Error("coordinator input does not match the executing controller revision");
-  if (
-    process.env.PORTCOVE_CONTROLLER_WORKFLOW &&
-    controller.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
-  )
-    throw new Error("coordinator input does not match the executing controller workflow");
-  console.log(JSON.stringify(planReleaseOpportunity(input), null, 2));
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const filename = process.argv[2];
+    if (process.argv.length !== 3 || !filename)
+      throw new Error("usage: release-coordinator.mts INPUT.json");
+    const input = await readInput(path.resolve(filename));
+    object(input, "release coordinator input");
+    const controller = isRecord(input.controller) ? input.controller : {};
+    if (
+      process.env.PORTCOVE_CONTROLLER_REVISION &&
+      controller.revision !== process.env.PORTCOVE_CONTROLLER_REVISION
+    )
+      throw new Error("coordinator input does not match the executing controller revision");
+    if (
+      process.env.PORTCOVE_CONTROLLER_WORKFLOW &&
+      controller.workflow !== process.env.PORTCOVE_CONTROLLER_WORKFLOW
+    )
+      throw new Error("coordinator input does not match the executing controller workflow");
+    console.log(JSON.stringify(planReleaseOpportunity(input), null, 2));
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

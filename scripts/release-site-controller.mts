@@ -217,19 +217,21 @@ if (
   ) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  try {
-    const mode = process.argv[2];
-    if ((mode === "--ready" || mode === "--uploaded") && process.argv.length === 3)
-      await siteUploadBridge(mode);
-    else
-      throw new Error(
-        "whole-site CLI permits only fixed upload step handoff; run uses verified bundle export",
-      );
-  } catch {
+  void runSiteUploadCli().catch(() => {
     console.error("fixed site upload bridge refused; retain original pending intent and evidence");
     process.exitCode = 1;
-  }
+  });
 }
+async function runSiteUploadCli() {
+  const mode = process.argv[2];
+  if ((mode === "--ready" || mode === "--uploaded") && process.argv.length === 3)
+    await siteUploadBridge(mode);
+  else
+    throw new Error(
+      "whole-site CLI permits only fixed upload step handoff; run uses verified bundle export",
+    );
+}
+
 async function retain(filename: string, value: unknown) {
   const file = await open(filename, "wx", 0o600);
   try {

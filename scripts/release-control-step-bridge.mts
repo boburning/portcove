@@ -248,6 +248,12 @@ if (
   /^release-control-step-bridge[.](?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
+  void runControlBridgeCli().catch(() => {
+    console.error("fixed readiness upload refused; retain original attempt");
+    process.exitCode = 2;
+  });
+}
+async function runControlBridgeCli() {
   try {
     if (process.argv.length !== 4 || !process.env.RUNNER_TEMP || !process.env.GITHUB_OUTPUT)
       throw new Error("fixed readiness bridge requires phase/ordinal and Actions output");

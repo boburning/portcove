@@ -1533,7 +1533,7 @@ async function continueTrustedSemanticReview(
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+async function runCoordinatorCli() {
   const [directory, selectionFile] = process.argv.slice(2);
   if (process.argv.length !== 4 || !directory || !selectionFile)
     throw new Error("usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json");
@@ -1575,4 +1575,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
             ),
     ),
   );
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void runCoordinatorCli().catch(() => {
+    console.error(
+      "usage: release-coordinator-driver.mts PRIVATE_PARENT SELECTION.json; fixed coordinator refused, retain evidence",
+    );
+    process.exitCode = 1;
+  });
 }
