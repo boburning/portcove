@@ -145,7 +145,7 @@ export async function removalReviewScenario({
     assert.ok(typeof initialConsentText === "string");
     for (const expected of [port.name, port.id, ...initialPreview.managed_paths])
       assert.ok(initialConsentText.includes(expected), `native consent omitted ${expected}`);
-    assert.ok(initialConsentText.includes("game files are kept"));
+    assert.ok(initialConsentText.includes("Backups and original game files will be kept"));
     assert.ok(initialConsentText.includes("saved release-channel and update-policy settings"));
     assert.ok(!initialConsentText.includes("review you just read"));
     await assertManagedFolders(initialPreview.managed_paths);

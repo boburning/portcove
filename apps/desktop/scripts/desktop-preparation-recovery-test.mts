@@ -477,11 +477,11 @@ export async function interruptedPreparationScenario({
     artifacts.push(evidence);
     await executeBrowserScript(browser, 'arguments[0].scrollIntoView({ block: "start" });', row);
     const review = await browser.wait(
-      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"]`)),
+      until.elementLocated(By.css(`[data-recovery-operation="${activity.id}"] > details`)),
       15_000,
     );
     await review.findElement(By.css("summary")).click();
-    assert.match(await review.getText(), /Retained preparation files/);
+    assert.match(await review.getText(), /Unfinished setup files/);
     assert.ok((await review.getText()).includes(required(privatePath)));
     assert.match(await review.getText(), /this interrupted setup cannot resume/);
     let controls = reviewControls(browser);
@@ -541,7 +541,7 @@ export async function interruptedPreparationScenario({
           button.getText(),
         ),
       ),
-      ["Keep retained files", "Review again"],
+      ["Keep files", "Review again"],
     );
     await access(required(privatePath));
     assert.ok(command(["doctor"]).repair.items.some((item) => item.operation_id === activity.id));
@@ -601,7 +601,7 @@ export async function interruptedPreparationScenario({
     const cleanupActionStyles = await assertDestructiveReviewAction(
       browser,
       await browser.findElement(controls.button("Delete setup working files")),
-      await browser.findElement(controls.button("Keep retained files")),
+      await browser.findElement(controls.button("Keep files")),
     );
     const cleanupText = await browser.findElement(cleanupDialog).getText();
     for (const expected of [
@@ -626,7 +626,7 @@ export async function interruptedPreparationScenario({
       flag: "wx",
     });
     artifacts.push(cleanupImage);
-    await controls.click(controls.button("Keep retained files"));
+    await controls.click(controls.button("Keep files"));
     await access(required(privatePath));
 
     await clickVisible(browser, cleanupReview);
@@ -679,7 +679,7 @@ export async function interruptedPreparationScenario({
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
-    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"]`);
+    const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
     let recoveredReview = await browser.wait(until.elementLocated(recoveredReviewLocator), 15_000);
     await recoveredReview.findElement(By.css("summary")).click();
     await browser.wait(
@@ -775,7 +775,9 @@ export async function interruptedPreparationScenario({
     controls = reviewControls(browser);
     await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
-    const journalOnlyReviewLocator = By.css(`[data-recovery-operation="${journalOnlyId}"]`);
+    const journalOnlyReviewLocator = By.css(
+      `[data-recovery-operation="${journalOnlyId}"] > details`,
+    );
     await browser.wait(until.elementLocated(journalOnlyReviewLocator), 15_000);
     await browser.wait(
       async () =>
@@ -826,7 +828,7 @@ export async function interruptedPreparationScenario({
     assert.ok(journalOnlyText.includes("before clearing this record"));
     assert.ok(!journalOnlyText.includes("before deleting these files"));
     assert.ok(journalOnlyText.includes("Cancel"));
-    assert.ok(!journalOnlyText.includes("Keep retained files"));
+    assert.ok(!journalOnlyText.includes("Keep files"));
     assert.match(journalOnlyText, /0 files/);
     assert.match(
       journalOnlyText,
