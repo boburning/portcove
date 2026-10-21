@@ -1674,6 +1674,52 @@ export async function preparationScenarios({
               const more = await browser.findElement(By.css(target));
               await clickVisible(browser, more);
               await browser.wait(until.elementLocated(By.css('[role="menu"]')), 5000);
+              const menuFocus = await browser.switchTo().activeElement();
+              const feedbackBefore = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              // Owned DOM-only geometry diagnostic: this does not report a Core
+              // artwork failure or change either imported asset/selection.
+              await executeBrowserScript(
+                browser,
+                async (element) => {
+                  const state = element
+                    .closest(".collection-entry")
+                    ?.querySelector(".collection-state");
+                  if (!state) throw new Error("Owned Library state region missing");
+                  const notice = document.createElement("p");
+                  notice.dataset.ownedArtworkFeedback = "true";
+                  notice.className = "m-0 text-pc-muted-foreground";
+                  notice.textContent = "Image unavailable";
+                  state.prepend(notice);
+                  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                },
+                more,
+              );
+              const feedbackWithMenu = await executeBrowserScript(
+                browser,
+                launchContinuityPoint,
+                more,
+              );
+              assert.equal(
+                await executeBrowserScript(
+                  browser,
+                  (element) => document.activeElement === element,
+                  menuFocus,
+                ),
+                true,
+                "Library feedback must not take focus from the open menu",
+              );
+              assert.equal(feedbackWithMenu.scrollTop, feedbackBefore.scrollTop);
+              observations.push({
+                phase: "owned-dom-artwork-feedback-with-menu",
+                limitation: "DOM-only geometry diagnostic; no Core artwork-failure claim",
+                before: feedbackBefore,
+                after: feedbackWithMenu,
+              });
               await browser.actions().sendKeys(Key.ESCAPE).perform();
               await browser.wait(
                 () =>
@@ -1760,11 +1806,23 @@ export async function preparationScenarios({
                         Array.from(document.images).every((image) => image.complete) &&
                         document.activeElement === element &&
                         localStorage.getItem("portcove.appearance.interface-size") === "200",
+                      feedbackFixture:
+                        "Owned DOM-only artwork feedback; imported artwork remains available",
                     }),
                     more,
                   ),
               });
               artifacts.push(capture.image.path, capture.receipt);
+              await executeBrowserScript(
+                browser,
+                (element) => {
+                  element
+                    .closest(".collection-entry")
+                    ?.querySelector("[data-owned-artwork-feedback]")
+                    ?.remove();
+                },
+                more,
+              );
               await browser.manage().window().setRect({ width: 960, height: 640 });
             }
           }

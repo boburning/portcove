@@ -1137,7 +1137,13 @@ resize cycle with the exact overflow trigger focused. Observations distinguish
 requested outer size, actual outer size, effective viewport and scroll-owner
 geometry. Query, view, entry count and trigger focus must survive the cycle;
 the existing 300%/400% reflow and detail-return checks still apply. This is a
-bounded native fixture check, not large-collection, gameplay, OS DPI, physical
+bounded native fixture check. It also inserts an explicitly recorded DOM-only
+artwork-feedback notice while the menu is open, checks menu focus/scroll,
+returns to the exact trigger and keeps it visible through resizing. This layout
+perturbation does not establish a Core artwork failure or provider behavior.
+The notice is removed after capture; imported artwork and selections remain
+unchanged. It is not
+large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`

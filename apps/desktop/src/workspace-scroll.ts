@@ -30,6 +30,16 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
     let revealRequested = false;
     let feedbackHeight = feedback?.getBoundingClientRect().height;
     let feedbackChangePending = false;
+    let focusedCard: HTMLElement | null = null;
+    let cardHeight: number | undefined;
+    const cardObserver = new ResizeObserver(() => {
+      const height = focusedCard?.getBoundingClientRect().height;
+      if (height === cardHeight) return;
+      cardHeight = height;
+      // Only a still-visible focus anchor may follow changing Library content.
+      // An overlay or the player's scroll choice must not pull the page back.
+      if (anchor?.element === document.activeElement) reconcile(true);
+    });
     const overlayOpen = () => navigationScope() !== document;
     const remember = (event?: Event) => {
       // The resize route owns scroll-owner transfer, not a content observer.
@@ -46,17 +56,30 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
         anchor = undefined;
         return;
       }
+      const workspaceBounds = element.getBoundingClientRect();
       const visible = (item: HTMLElement) => {
         const rect = item.getBoundingClientRect();
         return (
           rect.height > 0 &&
-          rect.bottom > Math.max(0, element.getBoundingClientRect().top) &&
-          rect.top < innerHeight
+          rect.bottom > Math.max(0, workspaceBounds.top) &&
+          rect.top < Math.min(innerHeight, workspaceBounds.bottom)
         );
       };
       const active = document.activeElement;
+      const libraryCard =
+        active instanceof HTMLElement && element.contains(active)
+          ? active.closest<HTMLElement>(".collection-entry")
+          : null;
+      if (libraryCard !== focusedCard) {
+        cardObserver.disconnect();
+        focusedCard = libraryCard;
+        cardHeight = focusedCard?.getBoundingClientRect().height;
+        if (focusedCard) cardObserver.observe(focusedCard);
+      }
       const focused =
-        active instanceof HTMLElement && element.contains(active) && visible(active)
+        active instanceof HTMLElement &&
+        element.contains(active) &&
+        (visible(active) || (event?.type === "focusin" && libraryCard))
           ? active
           : undefined;
       const reading =
@@ -67,6 +90,9 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
       anchor = reading
         ? { element: reading, top: reading.getBoundingClientRect().top, scope: scope() }
         : undefined;
+      // Menu return can restore focus after artwork feedback already changed
+      // the card. Reveal that explicit return, without moving focus itself.
+      if (event?.type === "focusin" && libraryCard) reconcile(true);
     };
     const reconcile = (reveal: boolean) => {
       revealRequested ||= reveal;
@@ -155,6 +181,7 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
     return () => {
       cancelAnimationFrame(frame);
       observer?.disconnect();
+      cardObserver.disconnect();
       document.removeEventListener("scroll", remember, true);
       document.removeEventListener("focusin", remember, true);
       window.removeEventListener("resize", resize);
