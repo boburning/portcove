@@ -1398,12 +1398,13 @@ next retry restores the complete exact asset set, and a published release is
 refused without mutation. The fixture has no network, tag, release, credential,
 or publication authority.
 
-After a successful rehearsal or publication handoff, an isolated
-cleanup job with only `actions: write` deletes transient workflow artifacts. A
-failed run retains them for no more than one day for diagnosis. Tags containing
-a SemVer prerelease suffix are marked as prereleases automatically. Tauri updater
-metadata remains disabled until Portcove has an explicit signed desktop
-self-update contract.
+Rehearsal, draft publication and failed runs retain immutable attempt artifacts
+under the seven-day policy above. There is no automatic early-deletion job or
+additional cleanup credential. Earlier deletion requires independently verified
+successor custody and exact IDs; expiry proves neither custody nor headroom.
+Tags containing a SemVer prerelease suffix are marked as prereleases automatically.
+The signed application-updater path remains subject to #534's separately approved
+initial configuration and applicable native/public acceptance.
 
 The verified inventory adds or replaces one marked desktop-first download
 section in the draft body while preserving reviewed prose and GitHub's
@@ -1418,7 +1419,7 @@ outputs.
 
 ## Release rehearsal
 
-Run the **Release** workflow manually from GitHub Actions before the first v1 tag or after changing packaging. A manual run executes the same cheap identity gate, reusable exhaustive qualification, bound release validation, three-platform matrix and dedicated Intel build, immediate downstream native Intel verification, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but the tag-only attestation and publication jobs remain disabled. It deletes the transient copies only after those contracts pass. A failed rehearsal retains its artifacts for no more than one day for diagnosis; a successful rehearsal keeps the run logs and verification result without consuming ongoing Actions artifact storage. A rehearsal never creates an attestation, tag, draft release, or published release.
+The **Release** workflow also offers a separate manual packaging rehearsal. A manual run executes the same cheap identity gate, reusable exhaustive qualification, bound release validation, selected package profile, read-only assembly, SBOM generation, payload finalization, public checksum verification, and internal SBOM-subject checksum verification, but tag-only attestation and publication remain disabled. Successful and failed rehearsals retain attempt artifacts under the seven-day policy. A rehearsal never creates an attestation, tag, draft release, or published release. This diagnostic entry point is separate from #534's automatic fixed-controller path and is not a recurring owner step for that path.
 
 From an authenticated GitHub CLI, start and follow the rehearsal with:
 

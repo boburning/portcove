@@ -1,3 +1,4 @@
+import { inspectReleaseEffectExpectation } from "./release-effect-contract.mts";
 import { requireActualCandidatePhaseAdvance } from "./release-candidate-progress.mts";
 import { materializePublicationUpdaterRoots } from "./release-publication-inputs.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
@@ -169,7 +170,10 @@ function expectedIdentity(raw: ReleasePublicationIdentity) {
     assets: input.assets.sort((a, b) => a.filename.localeCompare(b.filename)),
   };
 }
-function release(raw: unknown, wanted: ReturnType<typeof expectedIdentity>) {
+function release(
+  raw: unknown,
+  wanted: Pick<ReturnType<typeof expectedIdentity>, "version" | "source_commit">,
+) {
   const version = classifyApplicationVersion(wanted.version);
   if (
     !isRecord(raw) ||
@@ -820,6 +824,35 @@ export function readImmutableReleaseState(
   identity: ReleasePublicationIdentity,
 ) {
   const wanted = expectedIdentity(identity);
+  return readImmutableReleaseCustodyState(api, {
+    version: wanted.version,
+    source_commit: wanted.source_commit,
+    asset_names: wanted.assets.map((asset) => asset.filename),
+  });
+}
+
+/** Raw GET custody only. A complete-byte identity remains mandatory for all
+ * transition/effect and publication consumers. No placeholder lengths/hashes
+ * are manufactured when an authenticated context omits a document length. */
+export function readImmutableReleaseCustodyState(
+  api: GitHubRestReader,
+  rawIdentity: { version: string; source_commit: string; asset_names: readonly string[] },
+) {
+  const wanted = structuredClone(rawIdentity);
+  if (
+    Object.keys(wanted).sort().join(",") !== "asset_names,source_commit,version" ||
+    !/^[a-f0-9]{40}$/u.test(wanted.source_commit) ||
+    !Array.isArray(wanted.asset_names) ||
+    wanted.asset_names.length < 1 ||
+    wanted.asset_names.length > 32 ||
+    wanted.asset_names.some(
+      (name) => typeof name !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._+-]{0,200}$/u.test(name),
+    ) ||
+    new Set(wanted.asset_names.map((name: string) => name.toLowerCase())).size !==
+      wanted.asset_names.length
+  )
+    throw new Error("bounded immutable Release custody identity required");
+  wanted.version = classifyApplicationVersion(wanted.version).version;
   const all: Record<string, unknown>[] = [];
   for (let page = 1; page <= 16; page++) {
     const response = api.request("GET", `${base}/releases?per_page=100&page=${page}`);
@@ -897,7 +930,7 @@ export function readImmutableReleaseState(
     if (result.status !== 200 || !Array.isArray(result.body) || result.body.length > 100)
       throw new Error("complete release asset readback unavailable");
     collected.push(...(result.body as unknown[]));
-    if (collected.length > wanted.assets.length)
+    if (collected.length > wanted.asset_names.length)
       throw new Error("unexpected release assets; preserve and reconcile");
     if (result.body.length < 100) {
       const detail = api.request("GET", `${base}/releases/${current.id}`);
@@ -1063,7 +1096,10 @@ export async function advanceImmutableReleasePublication(
     // operation allowance and exclusive write/readback ownership. A document saying
     // enabled:true is not an authenticated immutability-setting observation.
     effect: (
-      effect: ImmutableReleaseEffect & { effect_request_sha256: string },
+      effect: ImmutableReleaseEffect & {
+        effect_request_sha256: string;
+        release_expectation: ReturnType<typeof inspectReleaseEffectExpectation>;
+      },
       operation: () => Promise<{ remote_identity: string; evidence_sha256: string }>,
     ) => Promise<{ checkpoint: string; operation_id: string; evidence_sha256: string }>;
     api?: GitHubRestReader;
@@ -1105,8 +1141,25 @@ export async function advanceImmutableReleasePublication(
         ...next,
         evidence_scope: options.api || options.fetch ? "injected-provider" : "github.com",
       };
+    const releaseExpectation = inspectReleaseEffectExpectation({
+      before_checkpoint: state.checkpoint,
+      effect_request_sha256: capacityDigest({ checkpoint: state.checkpoint, effect: next.effect }),
+      effect: next.effect,
+      identity: session.identity,
+      prior: {
+        release_id: before.release === null ? null : Number(before.release.id),
+        assets: assets(
+          before.assets,
+          session.identity.assets,
+          before.release === null ? 1 : Number(before.release.id),
+          session.identity.version,
+          before.release?.draft === true,
+        ).map(({ id, filename, bytes, sha256 }) => ({ id, filename, bytes, sha256 })),
+      },
+    });
     const effect = {
       ...structuredClone(next.effect),
+      release_expectation: releaseExpectation,
       effect_request_sha256: capacityDigest({ checkpoint: state.checkpoint, effect: next.effect }),
     };
     if (effect.kind === "upload-asset") Object.freeze(effect.asset);
@@ -1128,6 +1181,36 @@ export async function advanceImmutableReleasePublication(
       let observed: ReturnType<typeof readImmutableReleaseState> | null = null;
       const settlement = await options.effect(effect, async () => {
         if (started) throw new Error("a release effect may execute only once");
+        publicationRemaining(options.deadline);
+        const immediate = readImmutableReleaseState(api, session.identity);
+        const immediateNext = proposeImmutableReleaseTransition(
+          session.identity,
+          immediate.release,
+          immediate.assets,
+        );
+        if (
+          immediateNext.decision !== "effect" ||
+          capacityDigest(immediateNext.effect) !== capacityDigest(next.effect) ||
+          capacityDigest(
+            assets(
+              immediate.assets,
+              session.identity.assets,
+              immediate.release === null ? 1 : Number(immediate.release.id),
+              session.identity.version,
+              immediate.release?.draft === true,
+            ),
+          ) !==
+            capacityDigest(
+              assets(
+                before.assets,
+                session.identity.assets,
+                before.release === null ? 1 : Number(before.release.id),
+                session.identity.version,
+                before.release?.draft === true,
+              ),
+            )
+        )
+          throw new Error("Release preimage changed before provider mutation");
         publicationRemaining(options.deadline);
         started = true;
         await performImmutableReleaseEffect(
@@ -1359,7 +1442,11 @@ export async function advanceOwnedImmutableReleasePublication(
           repository: input.repository,
           checkpoint: state.checkpoint,
           remote_configuration: input.remote_configuration,
-          request: { kind: "upload", destination: effect.destination },
+          request: {
+            kind: "upload",
+            destination: effect.destination,
+            release_expectation: effect.release_expectation,
+          },
         },
         readBoundary,
         async () => {

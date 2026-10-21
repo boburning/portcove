@@ -1,8 +1,7 @@
 # Complete held controller integration — 2026-10-21
 
 This is a reviewable initial configuration, not activation or provider enforcement.
-The [complete controller](application-update-production.complete.yml) stays outside
-`.github/workflows`; the automatic wake remains held. Existing D1/D2/D3 decisions,
+The [complete controller](application-update-production.complete.yml) now has identical source under `.github/workflows/application-update-production.yml`; the wake likewise has an installed, configuration-held source. Existing D1/D2/D3 decisions,
 $0 stop-usage, standard public runners, cache/archive limits, seven-day retention,
 retry limits and admission holds remain intact.
 
@@ -83,3 +82,44 @@ public delivery, signing custody, provider configuration or production acceptanc
 
 #254 stays Done; #315/#534/#246 acceptance remains pending. Chameleon protected
 acceptance is unset. Production remains held and slice 5 is excluded.
+
+## Installed source and initial configuration hold
+
+The complete controller and automatic wake now occupy their actual workflow paths.
+Their retained proposals are byte-identical, and the capacity policy pins both
+exact sources. This removes a future source-copy step before the final reviewed
+controller/tag/tool identities can be bound.
+
+The controller starts no job unless its existing admission configuration is
+nonempty and its configured source/ref match the provider source/ref. Its first
+secret-free bootstrap still validates the exact protected tag, source, actor,
+workflow bytes and grant; every credential role retains its own admission. The
+wake starts no job without its existing selected wake configuration. No new
+activation mechanism, App, key or protected setting is installed by this source
+change. Authenticated repository-variable inventory returned HTTP success with
+zero variables before authoring. Refresh that preimage before delivery and retain
+the provider's automatic skipped wake as its own limited observation.
+
+Actual YAML dependency evaluation proves that empty configuration starts zero
+jobs, including downstream `always()` branches. Actual Bash bootstrap checks
+continue to reject changed identities before checkout. The focused installed
+workflow/admission/wake/capacity selection passed 42 checks; initial test feedback
+concerned the retired literal-false expectation and scalar YAML `needs` syntax.
+Those test assumptions were repaired; the production source checks remain intact.
+Configuration presence is routing, never acceptance. Actual runtime, credentials,
+protections, custody, signing, public proof and the exact initial grant remain
+separate prerequisites.
+
+Normal cleanup uses the already selected seven-day provider retention and positive
+owned process/namespace teardown. No early DELETE permission or cleanup App is
+added. Expiry is not successor custody or capacity. Actual cleanup observations
+remain acceptance evidence to collect in the authorized journey.
+
+The first installed-source CI (`39547918663/1`) retained two failures: an obsolete
+whole-workflow assertion prohibited even the isolated observer, and pinned
+Actionlint did not recognize the provider's optional `queue: max` syntax. The
+assertion now checks actual per-job observer credential isolation. Both workflows
+use the ordinary one-pending-run concurrency behavior, with unchanged groups and
+`cancel-in-progress: false`; bounded wake coalescing cannot cancel a running
+controller, replace durable coordinator intent or authorize a retry. No linter
+suppression, tool migration or increased queue/resource ceiling is introduced.

@@ -337,6 +337,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-candidate-signing-recovery.test.mts"],
   ],
   [
+    "scripts/release-pending-release-recovery.mts",
+    ["scripts/release-pending-release-recovery.test.mts"],
+  ],
+  ["scripts/release-effect-contract.mts", ["scripts/release-pending-release-recovery.test.mts"]],
+  [
     "scripts/release-run-artifact-inventory.mts",
     ["scripts/release-run-artifact-inventory.test.mts"],
   ],
@@ -861,7 +866,14 @@ const explicitNodeTests = new Map<string, readonly string[]>([
 
 const workflowTests = new Map([
   ["controller-tool-build-fixture.yml", ["scripts/release-controller-tools.test.mts"]],
-  ["application-update-production.yml", ["scripts/production-controller-admission.test.mts"]],
+  [
+    "application-update-production.yml",
+    ["scripts/production-controller-admission.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
+  [
+    "application-update-wake.yml",
+    ["scripts/release-controller-wake.test.mts", "scripts/release-production-dag.test.mts"],
+  ],
   ["release.yml", ["scripts/release-workflow.test.mts"]],
   ["qualification.yml", ["scripts/qualification-coverage.test.mts"]],
   ["configured-upstream-observer.yml", ["scripts/upstream-observer.test.mts"]],
@@ -913,6 +925,7 @@ const releaseContractTests = Object.freeze([
   "scripts/release-metadata-signing-context.test.mts",
   "scripts/release-metadata-context-recovery.test.mts",
   "scripts/release-candidate-signing-recovery.test.mts",
+  "scripts/release-pending-release-recovery.test.mts",
   "scripts/release-run-artifact-inventory.test.mts",
   "scripts/release-metadata-site-controller.test.mts",
   "scripts/release-signing-context.test.mts",
