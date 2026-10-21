@@ -100,6 +100,13 @@ step. Use display names with stable IDs when identification matters. Say
 cancelled prompt can be neutral, but a stopped operation may have committed
 changes or retained recovery files; describe those consequences explicitly.
 
+Use command-specific CLI summaries for reads, reviews and mutations. Preserve
+actual counts, known identities and relevant retained paths; a successful batch
+is not a substitute for its per-item outcomes. Reserve full field documents
+for JSON/JSONL or an explicit export. Group help by the player's task, and make
+each argument explain its actual purpose or precondition. A confirmation flag
+must not claim a plan or fingerprint check that its command does not perform.
+
 For CLI human errors, the pattern is `Error: {safe summary}` followed by
 `Next step: {supported action}` when one exists. For interface errors, keep the
 same cause/outcome/remedy structure near the affected task. Preserve known
@@ -113,6 +120,10 @@ has stopped. Core's terminal result and authoritative status/activity readback
 establish the outcome. Dismissing a notice does not cancel, resume or clean work.
 When readback fails after a known mutation, retain the known result and identify
 what could not be refreshed.
+
+Use neutral `Operation cancelled.` for a cancelled operation while retaining
+its known mutation/recovery facts. Do not use that completion wording for a
+cancellation request that has only been accepted.
 
 ## Capitalization, numbers, dates and identifiers
 
@@ -149,6 +160,12 @@ and result. Essential consequences and remedies remain visible before opening
 a disclosure. Never reveal credentials or unrestricted private/raw errors just
 because a section is called Technical details; use the existing redaction and
 sharing boundaries.
+
+In CLI human output, `--technical-details` supplies the existing redacted
+error/activity detail and the exact file or declaration hashes for inert catalog
+inspections. Essential outcome, consent and recovery facts stay in the default
+summary. Human layout and wording remain independent of the versioned machine
+response, error and exit contracts.
 
 Documentation examples name the build/artifact/environment when behavior differs
 between releases. Authentic media keeps its original provenance and limits;

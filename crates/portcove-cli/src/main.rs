@@ -1,30 +1,36 @@
 use std::{
     io::{self, IsTerminal, Read, Write},
-    path::PathBuf,
     process::ExitCode,
 };
 
-use clap::{Args, Parser, Subcommand, ValueEnum, error::ErrorKind};
+use clap::{Parser, error::ErrorKind};
 use portcove_core::{
     API_SCHEMA_VERSION, ApplicationRuntimeGuard, BackupAction, CapabilityDocument,
     ChildProcessClass, ChildProcessPolicy, ErrorCode, GithubDeviceLogin, GithubDeviceLoginState,
     GithubReleaseProvider, HostPreferenceStore, IdentifiedLaunchRequest, InstallOverrides,
-    LaunchSignal, LaunchStdio, OperationCoordinator, OperationEvent, OperationEventKind,
-    PortcoveError, PortcoveService, ReleaseChannel, Result, SourceImportMode, SourceVerification,
-    UpdatePolicy, forward_launch_signal,
+    LaunchSignal, LaunchStdio, OperationCoordinator, OperationEvent, PortcoveError,
+    PortcoveService, Result, SourceImportMode, SourceVerification, UpdatePolicy,
+    forward_launch_signal,
 };
 use schemars::JsonSchema;
 use serde::Serialize;
 use tracing_subscriber::EnvFilter;
-use uuid::Uuid;
+
+#[cfg(test)]
+use portcove_core::OperationEventKind;
+
+mod args;
+use args::*;
 
 mod cancellation;
 mod catalog;
 mod startup;
 use catalog::CatalogCommand;
 mod human;
+mod human_adapters;
+mod progress;
+use progress::HumanProgress;
 mod schema;
-use schema::SchemaContract;
 
 // Read-only consumers can identify a compatible standalone CLI without
 // executing an arbitrary PATH candidate. Keep this marker versioned whenever
@@ -36,1003 +42,6 @@ static PORTCOVE_CLI_STEAM_EXEC_IDENTITY: &[u8] = concat!(
     "|capability=exec"
 )
 .as_bytes();
-
-#[derive(Debug, Parser)]
-#[command(
-    name = "portcove",
-    version,
-    about = "Install, update, and play native game ports.",
-    after_help = "Start with `catalog list`, then `catalog show PORT_ID` and `plan PORT_ID` before installing. Use `status PORT_ID` to inspect readiness and `exec PORT_ID` to launch. External clients can discover `capabilities` and `schema export`, select an explicit `--library`, and use `--json`, `--jsonl`, and `--non-interactive`. Read durable results with `activity`; handle stable exit codes and machine error objects; `exec` keeps game streams raw. See https://github.com/boburning/portcove/blob/main/docs/INTEGRATION-AUTHOR.md."
-)]
-struct Cli {
-    /// Include redacted technical error and activity details in human-readable output.
-    #[arg(long, global = true)]
-    technical_details: bool,
-    /// Select a library for this invocation; overrides the saved default and PORTCOVE_LIBRARY.
-    #[arg(long, global = true, env = "PORTCOVE_LIBRARY")]
-    library: Option<PathBuf>,
-    #[cfg(feature = "qualification-fixtures")]
-    #[arg(
-        long,
-        global = true,
-        hide = true,
-        requires = "qualification_provider_library"
-    )]
-    qualification_provider_origin: Option<String>,
-    #[cfg(feature = "qualification-fixtures")]
-    #[arg(long, global = true, hide = true, requires_all = ["qualification_provider_origin", "library"])]
-    qualification_provider_library: Option<PathBuf>,
-    /// Emit one versioned JSON result for an external client.
-    #[arg(long, global = true, conflicts_with = "jsonl")]
-    json: bool,
-    /// Emit versioned operation events as JSON Lines for an external client.
-    #[arg(long, global = true, conflicts_with = "json")]
-    jsonl: bool,
-    /// Reject commands that need a confirmation prompt instead of waiting for input.
-    #[arg(long, global = true)]
-    non_interactive: bool,
-    /// Increase diagnostic logging on stderr; repeat for more detail.
-    #[arg(short, long, action = clap::ArgAction::Count, global = true)]
-    verbose: u8,
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Debug, Subcommand)]
-enum Commands {
-    /// Import and select local artwork independently of game installation.
-    Artwork {
-        #[command(subcommand)]
-        command: ArtworkCommand,
-    },
-    /// Select, inspect, export, import, or move a Portcove library.
-    Library {
-        #[command(subcommand)]
-        command: LibraryCommand,
-    },
-    /// Inspect or configure GitHub authentication for release downloads.
-    Auth {
-        #[command(subcommand)]
-        command: AuthCommand,
-    },
-    /// Create, inspect, restore, or delete managed save backups.
-    Backup {
-        #[command(subcommand)]
-        command: BackupCommand,
-    },
-    /// Browse ports and inspect or update the trusted catalog.
-    Catalog {
-        #[command(subcommand)]
-        command: CatalogCommand,
-    },
-    /// Discover and register player-owned game files without uploading them.
-    Source {
-        #[command(subcommand)]
-        command: SourceCommand,
-    },
-    /// Inspect or register a player-owned, catalog-accepted runtime without copying it.
-    External {
-        #[command(subcommand)]
-        command: ExternalCommand,
-    },
-    /// Inspect and configure optional disc preparation tools for this host.
-    Tool {
-        #[command(subcommand)]
-        command: ToolCommand,
-    },
-    /// Show installation, source, launch, and update readiness.
-    Status { port_id: Option<String> },
-    /// Read recent operations and their durable outcomes.
-    Activity {
-        #[command(subcommand)]
-        command: Option<ActivityCommand>,
-        /// Maximum recent activities to return (1 to 200).
-        #[arg(long, default_value_t = 50, value_parser = clap::value_parser!(u16).range(1..=200))]
-        limit: u16,
-    },
-    /// Request cancellation of a running operation by its activity ID.
-    Cancel { operation_id: String },
-    /// Read a caller-known durable launch request without starting or recovering a game.
-    Launch {
-        #[command(subcommand)]
-        command: LaunchCommand,
-    },
-    /// Show library storage use and managed locations.
-    Storage,
-    /// Diagnose host, library, and tool prerequisites.
-    Doctor,
-    /// Show Portcove product and version information without opening a library.
-    About,
-    /// Preview requirements and actions for installing a port.
-    Plan {
-        port_id: String,
-        #[arg(long, value_enum)]
-        channel: Option<ChannelArg>,
-        #[arg(long)]
-        output_dir: Option<PathBuf>,
-    },
-    /// Review or apply the first managed install using separately registered inputs.
-    Installation {
-        #[command(subcommand)]
-        command: InstallationCommand,
-    },
-    /// Inspect and prepare exact managed game inputs.
-    Preparation {
-        #[command(subcommand)]
-        command: PreparationCommand,
-    },
-    /// Show managed installation and persistent-data paths for a port.
-    Paths { port_id: String },
-    /// Check installed ports for available game updates without applying them.
-    Check(UpdateTargetArgs),
-    /// Check installed ports and follow each port's game update settings.
-    Reconcile(UpdateTargetArgs),
-    /// Install or stage a selected port release in its managed destination.
-    Install(InstallArgs),
-    /// Review and register an existing managed port installation.
-    Adopt(AdoptArgs),
-    /// Reuse the current installation when its required runtime is present, or install a selected release.
-    Ensure(EnsureArgs),
-    /// Install or stage available game updates for installed ports.
-    Update(UpdateArgs),
-    /// Verify the installed files for one port against recorded hashes.
-    Verify { port_id: String },
-    /// Make a staged release the current installed version.
-    Activate {
-        /// Port with a staged release to activate.
-        port_id: String,
-    },
-    /// Return to the retained previous installed version.
-    Rollback {
-        /// Port whose retained previous version should become current.
-        port_id: String,
-    },
-    /// Read the exact managed-version removal preview without changing files.
-    RemovePreview { port_id: String },
-    /// Remove managed installed versions while keeping persistent saved data.
-    Remove {
-        /// Port whose managed installed versions should be removed.
-        port_id: String,
-        /// Confirm the reviewed removal without an interactive prompt.
-        #[arg(long)]
-        yes: bool,
-        /// Require the current removal inventory to match a separately reviewed preview.
-        #[arg(long)]
-        expected_preview: Option<String>,
-    },
-    /// Set the preferred game-release channel for a port.
-    Channel {
-        #[command(subcommand)]
-        command: ChannelCommand,
-    },
-    /// Set how Portcove handles future game updates for a port.
-    Policy {
-        #[command(subcommand)]
-        command: PolicyCommand,
-    },
-    /// Review or change where future game installs are placed.
-    Output {
-        #[command(subcommand)]
-        command: OutputCommand,
-    },
-    /// Launch an installed port and supervise its raw game process streams.
-    Exec(ExecArgs),
-    /// Discover supported CLI operations and machine contract versions.
-    Capabilities,
-    /// Export authoritative machine input or output JSON schemas.
-    Schema {
-        #[command(subcommand)]
-        command: SchemaCommand,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum ActivityCommand {
-    /// Read the retained, redacted diagnostic capture for one activity.
-    Log { activity_id: String },
-}
-
-#[derive(Debug, Subcommand)]
-enum InstallationCommand {
-    /// Resolve the exact release, destination and registered inputs without mutation.
-    Plan {
-        /// Catalog port ID whose managed install should be reviewed.
-        port_id: String,
-    },
-    /// Install only when the reviewed inputs still match under the port lock.
-    Run {
-        /// Catalog port ID used for the preceding installation plan.
-        port_id: String,
-        /// Plan SHA-256 returned by `installation plan`; changed inputs refuse the install.
-        #[arg(long)]
-        expected_plan: String,
-        /// Accept the exact shared-preferences scope shown by this plan. --yes alone is insufficient.
-        #[arg(long)]
-        acknowledge_shared_preferences: bool,
-        /// Confirm this reviewed install without a prompt; the plan check still applies.
-        #[arg(long)]
-        yes: bool,
-    },
-    #[cfg(feature = "qualification-fixtures")]
-    #[command(hide = true)]
-    QualificationUpdatePlan { port_id: String },
-    #[cfg(feature = "qualification-fixtures")]
-    #[command(hide = true)]
-    QualificationUpdateRun {
-        port_id: String,
-        #[arg(long)]
-        expected_plan: String,
-        #[arg(long)]
-        acknowledge_shared_preferences: bool,
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-enum ArtworkSlotArg {
-    Cover,
-    Detail,
-}
-
-impl From<ArtworkSlotArg> for portcove_core::ArtworkSlot {
-    fn from(slot: ArtworkSlotArg) -> Self {
-        match slot {
-            ArtworkSlotArg::Cover => Self::Cover,
-            ArtworkSlotArg::Detail => Self::Detail,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-enum DestinationArtworkRoleArg {
-    PortraitCover,
-    LandscapeCover,
-    HeroBanner,
-}
-
-impl From<DestinationArtworkRoleArg> for portcove_core::DestinationArtworkRole {
-    fn from(role: DestinationArtworkRoleArg) -> Self {
-        match role {
-            DestinationArtworkRoleArg::PortraitCover => Self::PortraitCover,
-            DestinationArtworkRoleArg::LandscapeCover => Self::LandscapeCover,
-            DestinationArtworkRoleArg::HeroBanner => Self::HeroBanner,
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum ArtworkCommand {
-    /// Observe a semantic destination role without fetching or writing artwork.
-    Handoff {
-        port_id: String,
-        #[arg(long, value_enum)]
-        role: DestinationArtworkRoleArg,
-    },
-    /// Read exact accepted local original bytes against a previously observed binding.
-    HandoffBytes {
-        port_id: String,
-        #[arg(long, value_enum)]
-        role: DestinationArtworkRoleArg,
-        #[arg(long)]
-        expected_library_id: String,
-        #[arg(long)]
-        expected_revision: u64,
-        #[arg(long)]
-        expected_asset_sha256: String,
-    },
-    /// Show the effective artwork and source for a port and slot.
-    Show {
-        port_id: String,
-        #[arg(long, value_enum, default_value = "cover")]
-        slot: ArtworkSlotArg,
-    },
-    /// Import a local image for one port without changing its installation.
-    Import {
-        port_id: String,
-        path: PathBuf,
-        #[arg(long, value_enum, default_value = "cover")]
-        slot: ArtworkSlotArg,
-        /// Require the artwork revision to match the value previously read.
-        #[arg(long)]
-        expected_revision: Option<u64>,
-    },
-    /// Return a port and slot to catalog or generated artwork.
-    Reset {
-        port_id: String,
-        #[arg(long, value_enum, default_value = "cover")]
-        slot: ArtworkSlotArg,
-        /// Require the artwork revision to match the value previously read.
-        #[arg(long)]
-        expected_revision: Option<u64>,
-    },
-    /// Remove only regenerable artwork cache files.
-    ClearCache,
-    /// List imported artwork assets no longer referenced by a port.
-    Unused,
-    /// Delete one unreferenced imported asset after confirmation.
-    RemoveUnused {
-        asset_sha256: String,
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-impl ArtworkCommand {
-    fn name(&self) -> &'static str {
-        match self {
-            Self::Handoff { .. } => "artwork.handoff",
-            Self::HandoffBytes { .. } => "artwork.handoff-bytes",
-            Self::Show { .. } => "artwork.show",
-            Self::Import { .. } => "artwork.import",
-            Self::Reset { .. } => "artwork.reset",
-            Self::ClearCache => "artwork.clear-cache",
-            Self::Unused => "artwork.unused",
-            Self::RemoveUnused { .. } => "artwork.remove-unused",
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum LaunchCommand {
-    /// Return the retained request, or null when absent; absence is not a successful outcome.
-    Show { request_id: Uuid },
-    /// Recover an unfinished request after its recorded supervisor has exited.
-    Recover { request_id: Uuid },
-}
-
-#[derive(Debug, Subcommand)]
-enum ExternalCommand {
-    /// Review a replacement folder against the existing retained runtime contract.
-    RelinkPreview { port_id: String, path: PathBuf },
-    /// Change only the registered external folder; preserve all external files.
-    Relink {
-        port_id: String,
-        path: PathBuf,
-        #[arg(long)]
-        expected_preview: String,
-        #[arg(long)]
-        acknowledge_shared_preferences: bool,
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Compare a player-owned runtime with the exact accepted package contract.
-    Preview {
-        /// Catalog port ID offering use-in-place runtime registration.
-        port_id: String,
-        /// Root folder of the already prepared runtime; no files are copied.
-        path: PathBuf,
-    },
-    /// Register a reviewed runtime; no external file becomes Portcove-owned.
-    Register {
-        /// Catalog port ID offering use-in-place runtime registration.
-        port_id: String,
-        /// Root folder of the already prepared runtime; Portcove uses it in place.
-        path: PathBuf,
-        /// Require the exact external preview reviewed by the caller.
-        #[arg(long)]
-        expected_preview: Option<String>,
-        /// Accept the displayed shared preference rewrite scope for this exact preview.
-        #[arg(long, requires = "expected_preview")]
-        acknowledge_shared_preferences: bool,
-        /// Confirm the freshly reviewed registration without a prompt; files are rechecked.
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Review registration removal without changing any external files.
-    RemovalPreview { port_id: String },
-    /// Remove only Portcove's registration, preserving every external file.
-    Remove {
-        /// Catalog port ID whose external registration should be forgotten.
-        port_id: String,
-        /// Require the exact removal preview reviewed by the caller.
-        #[arg(long)]
-        expected_preview: Option<String>,
-        /// Confirm forgetting the registration without a prompt; external files stay in place.
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum AuthCommand {
-    /// Show whether release-download credentials are available.
-    Status,
-    /// Begin GitHub device login and save the resulting credential.
-    Login,
-    /// Save a supplied GitHub token for release downloads.
-    SetToken {
-        #[arg(
-            long,
-            help = "Read the token from standard input without placing it in argv"
-        )]
-        stdin: bool,
-    },
-    /// Remove the saved GitHub credential from this host.
-    Logout,
-}
-
-#[derive(Debug, Subcommand)]
-enum BackupCommand {
-    /// Review the exact qualified Ghostship 2.0.0 snapshot recovery route.
-    GhostshipLegacyPlan { backup_id: String },
-    /// Recover qualified legacy data into a fresh retained-runtime derivative.
-    GhostshipLegacyRecover {
-        backup_id: String,
-        #[arg(long)]
-        expected_plan: String,
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Copy and verify managed persistent data for one port.
-    Create { port_id: String },
-    /// List retained backups and their verification state.
-    List { port_id: String },
-    /// Delete one backup after confirmation; does not remove live saved data.
-    Delete {
-        port_id: String,
-        backup_id: String,
-        /// Confirm permanent removal of this backup.
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Restore a selected backup after confirmation.
-    Restore {
-        port_id: String,
-        backup_id: String,
-        /// Confirm replacement of the affected managed saved data.
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum LibraryCommand {
-    /// Show the effective library and whether it came from --library, saved preferences, or default.
-    Show,
-    /// Open the selected library and report its stable identity and effective location.
-    Identity,
-    /// Save an existing empty directory or recognizable Portcove library as the host default.
-    Set { path: PathBuf },
-    /// Clear the saved library, including recovery from malformed or future preferences.
-    Reset,
-    /// Review restoring metadata and copied content into --library's new or empty root.
-    #[command(
-        after_help = "Review first: portcove --library <new-or-empty-root> --json library import <metadata.json> <copied-library-folder>\nThen repeat the same inputs with --apply --expected-plan <plan-sha256> from that review. Import does not merge libraries or modify the input backup."
-    )]
-    Import {
-        /// Metadata JSON written by `library export`; contains no payload bytes.
-        metadata: PathBuf,
-        /// Copied library folder containing the exported content roots; never modified by import.
-        content_root: PathBuf,
-        /// Apply the reviewed import into --library's new or empty root; requires --expected-plan.
-        #[arg(long, requires = "expected_plan")]
-        apply: bool,
-        /// Plan SHA-256 from this import review; changed metadata or payloads refuse the import.
-        #[arg(long, requires = "apply")]
-        expected_plan: Option<String>,
-    },
-    /// Resume an interrupted import using --library <destination>; the input backup remains unchanged.
-    ResumeImport,
-    /// Retain an incomplete import using --library <destination>; the incomplete destination stays closed and no copied files are deleted.
-    AbortImport,
-    /// Export metadata without application files, saves, or original sources.
-    Export {
-        /// Write metadata to PATH instead of printing it.
-        #[arg(long)]
-        output: Option<PathBuf>,
-    },
-    /// Review a verified copy; applying retains the old directory as a recovery copy.
-    #[command(
-        after_help = "Review first: portcove --library <original> --json library move <new-directory>\nClose other Portcove clients and finish launch/lifecycle recovery before applying. Then repeat with --apply --expected-plan <plan-sha256> from that review. Original game-file references stay at their original paths."
-    )]
-    Move {
-        /// New directory beneath an existing parent; must not overlap the original library.
-        destination: PathBuf,
-        /// Apply the reviewed copy; retain the original as a recovery copy.
-        #[arg(long, requires = "expected_plan")]
-        apply: bool,
-        /// Plan SHA-256 from this move review; changed inputs refuse the move.
-        #[arg(long, requires = "apply")]
-        expected_plan: Option<String>,
-    },
-    /// Resume an interrupted move using --library <original>, the retained original directory.
-    ResumeMove,
-    /// Reactivate an unpublished original using --library <original>; refuses after authority publication and copied files remain.
-    AbortMove,
-}
-
-#[derive(Debug, Subcommand)]
-enum PreparationCommand {
-    /// Review the installed artifact, registered source, tools and default host setup.
-    Plan { port_id: String },
-    /// Prepare a private installation from an unchanged reviewed plan.
-    Run {
-        port_id: String,
-        #[arg(long)]
-        expected_plan: String,
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Review the exact private files retained by an interrupted preparation.
-    CleanupPlan { operation_id: String },
-    /// Remove only the unchanged private files from a reviewed cleanup plan.
-    Cleanup {
-        operation_id: String,
-        #[arg(long)]
-        expected_preview: String,
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum SourceCommand {
-    /// Search only explicitly selected folders and profiles; never registers a candidate.
-    Discover(SourceDiscoveryArgs),
-    /// Open and search Portcove's game-file folder for a file profile.
-    Inbox {
-        #[command(subcommand)]
-        command: SourceInboxCommand,
-    },
-    /// Manage explicitly selected folders used for catalog-wide game-file discovery.
-    Roots {
-        #[command(subcommand)]
-        command: GameFileRootCommand,
-    },
-    /// Validate and register a player-owned game file at its current location.
-    Add {
-        profile_id: String,
-        path: PathBuf,
-        /// Require the selected file to match this SHA-256 digest.
-        #[arg(long)]
-        expected_sha256: Option<String>,
-    },
-    /// Review a new location for the same registered game files; apply only the reviewed plan.
-    Relink {
-        /// Registered source whose location is changing.
-        profile_id: String,
-        /// Replacement game-file path to review.
-        path: PathBuf,
-        /// Save the reviewed new location.
-        #[arg(long, requires = "expected_plan")]
-        apply: bool,
-        /// Exact plan fingerprint returned by the review.
-        #[arg(long, requires = "apply")]
-        expected_plan: Option<String>,
-    },
-    /// List registered game-file locations and their profile IDs.
-    List,
-    /// Inspect a registered source without changing its bytes or saved baseline.
-    Inspect { profile_id: String },
-    /// Explicitly refresh route-bound game-file observations for one port on this host.
-    Query(SourceQueryArgs),
-    /// Recheck registered game files against their saved baselines.
-    Verify(SourceVerifyArgs),
-    /// Forget a source registration without deleting its file.
-    Remove {
-        profile_id: String,
-        /// Confirm forgetting this registration without a prompt.
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Args)]
-struct SourceQueryArgs {
-    port_id: String,
-    #[arg(long, value_enum)]
-    route: GameFileQueryRouteArg,
-    #[arg(long, value_enum, default_value = "stable")]
-    channel: ChannelArg,
-    #[arg(long, default_value_t = 300)]
-    maximum_age_seconds: u32,
-    #[arg(long, default_value_t = 2 * 1024 * 1024 * 1024)]
-    max_file_bytes: u64,
-    #[arg(long, default_value_t = 32 * 1024 * 1024 * 1024)]
-    max_hash_bytes: u64,
-    #[arg(long, default_value_t = 30_000)]
-    max_elapsed_ms: u64,
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum GameFileQueryRouteArg {
-    ManagedInstall,
-    ExternalRegistration,
-    ManagedLaunch,
-    ExternalLaunch,
-}
-
-impl From<GameFileQueryRouteArg> for portcove_core::GameFileRouteKind {
-    fn from(value: GameFileQueryRouteArg) -> Self {
-        match value {
-            GameFileQueryRouteArg::ManagedInstall => Self::ManagedInstall,
-            GameFileQueryRouteArg::ExternalRegistration => Self::ExternalRegistration,
-            GameFileQueryRouteArg::ManagedLaunch => Self::ManagedLaunch,
-            GameFileQueryRouteArg::ExternalLaunch => Self::ExternalLaunch,
-        }
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum GameFileRootCommand {
-    /// List saved folders, including currently unavailable locations.
-    List,
-    /// Scan every available saved folder against the current catalog.
-    Scan(GameFileRootScanArgs),
-    /// Read the last completed scan and whether its inputs still match.
-    Snapshot,
-    /// Save one available folder; adding the same folder again is idempotent.
-    Add { path: PathBuf },
-    /// Update one saved identity after a mount or folder path changes.
-    Relink { root_id: String, path: PathBuf },
-    /// Forget one saved folder without changing files, registrations or installs.
-    Remove { root_id: String },
-}
-
-#[derive(Debug, Args)]
-struct GameFileRootScanArgs {
-    #[arg(long)]
-    max_entries: Option<u32>,
-    #[arg(long)]
-    max_depth: Option<u32>,
-    #[arg(long)]
-    max_file_bytes: Option<u64>,
-    #[arg(long)]
-    max_hash_bytes: Option<u64>,
-    #[arg(long)]
-    max_candidates: Option<u32>,
-}
-
-impl GameFileRootScanArgs {
-    fn limits(self) -> portcove_core::SourceDiscoveryLimits {
-        source_limits(
-            self.max_entries,
-            self.max_depth,
-            self.max_file_bytes,
-            self.max_hash_bytes,
-            self.max_candidates,
-        )
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum SourceInboxCommand {
-    /// Return the core-owned profile folder without changing it.
-    Path { profile_id: String },
-    /// Create the validated profile folder and show it in the system file manager.
-    Open { profile_id: String },
-    /// Scan only one profile folder; never registers an unresolved candidate.
-    Scan(SourceInboxScanArgs),
-    /// Review or apply a copy, explicit move, or current-location registration.
-    Import {
-        profile_id: String,
-        path: PathBuf,
-        #[arg(long, value_enum, default_value_t = SourceImportModeArg::Copy)]
-        mode: SourceImportModeArg,
-        #[arg(long, requires = "expected_plan")]
-        apply: bool,
-        #[arg(long, requires = "apply")]
-        expected_plan: Option<String>,
-        /// Confirm deletion of the original after a verified move publication.
-        #[arg(long)]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum SourceImportModeArg {
-    Copy,
-    Move,
-    UseCurrentLocation,
-}
-
-impl From<SourceImportModeArg> for SourceImportMode {
-    fn from(value: SourceImportModeArg) -> Self {
-        match value {
-            SourceImportModeArg::Copy => Self::Copy,
-            SourceImportModeArg::Move => Self::Move,
-            SourceImportModeArg::UseCurrentLocation => Self::UseCurrentLocation,
-        }
-    }
-}
-
-#[derive(Debug, Args)]
-struct SourceInboxScanArgs {
-    profile_id: String,
-    #[arg(long)]
-    max_entries: Option<u32>,
-    #[arg(long)]
-    max_depth: Option<u32>,
-    #[arg(long)]
-    max_file_bytes: Option<u64>,
-    #[arg(long)]
-    max_hash_bytes: Option<u64>,
-    #[arg(long)]
-    max_candidates: Option<u32>,
-}
-
-impl SourceInboxScanArgs {
-    fn limits(self) -> portcove_core::SourceDiscoveryLimits {
-        source_limits(
-            self.max_entries,
-            self.max_depth,
-            self.max_file_bytes,
-            self.max_hash_bytes,
-            self.max_candidates,
-        )
-    }
-}
-
-#[derive(Debug, Subcommand)]
-enum ToolCommand {
-    /// Show resolution, source, purpose, and official setup reference for every tool.
-    List,
-    /// Validate a native executable with the tool's fixed probe before saving it.
-    SetPath {
-        tool_id: String,
-        executable_path: PathBuf,
-    },
-    /// Clear the saved path without changing an environment override or any library.
-    ClearPath { tool_id: String },
-}
-
-#[derive(Debug, Args)]
-struct SourceVerifyArgs {
-    profile_id: Option<String>,
-    #[arg(long, conflicts_with = "profile_id")]
-    all: bool,
-}
-
-#[derive(Debug, Args)]
-struct SourceDiscoveryArgs {
-    #[arg(long = "root", required = true)]
-    roots: Vec<PathBuf>,
-    #[arg(long = "profile", required = true)]
-    profiles: Vec<String>,
-    #[arg(long)]
-    max_entries: Option<u32>,
-    #[arg(long)]
-    max_depth: Option<u32>,
-    #[arg(long)]
-    max_file_bytes: Option<u64>,
-    #[arg(long)]
-    max_hash_bytes: Option<u64>,
-    #[arg(long)]
-    max_candidates: Option<u32>,
-}
-
-impl SourceDiscoveryArgs {
-    fn request(self) -> portcove_core::SourceDiscoveryRequest {
-        portcove_core::SourceDiscoveryRequest {
-            roots: self.roots,
-            profile_ids: self.profiles,
-            limits: source_limits(
-                self.max_entries,
-                self.max_depth,
-                self.max_file_bytes,
-                self.max_hash_bytes,
-                self.max_candidates,
-            ),
-        }
-    }
-}
-
-fn source_limits(
-    max_entries: Option<u32>,
-    max_depth: Option<u32>,
-    max_file_bytes: Option<u64>,
-    max_hash_bytes: Option<u64>,
-    max_candidates: Option<u32>,
-) -> portcove_core::SourceDiscoveryLimits {
-    let defaults = portcove_core::SourceDiscoveryLimits::default();
-    portcove_core::SourceDiscoveryLimits {
-        max_entries: max_entries.unwrap_or(defaults.max_entries),
-        max_depth: max_depth.unwrap_or(defaults.max_depth),
-        max_file_bytes: max_file_bytes.unwrap_or(defaults.max_file_bytes),
-        max_hash_bytes: max_hash_bytes.unwrap_or(defaults.max_hash_bytes),
-        max_candidates: max_candidates.unwrap_or(defaults.max_candidates),
-    }
-}
-
-#[derive(Debug, Args)]
-struct InstallArgs {
-    /// Catalog port to install.
-    port_id: String,
-    /// Release channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
-    #[arg(long, value_enum)]
-    channel: Option<ChannelArg>,
-    /// Override the registered game file for this installation.
-    #[arg(long)]
-    source: Option<PathBuf>,
-    /// Override the registered BIOS file for this installation.
-    #[arg(long)]
-    bios: Option<PathBuf>,
-    /// Place a new install in this folder instead of its saved destination.
-    #[arg(long)]
-    output_dir: Option<PathBuf>,
-    /// Prepare a release without making it the current installed version.
-    #[arg(long)]
-    stage: bool,
-}
-
-#[derive(Debug, Args)]
-struct EnsureArgs {
-    /// Port to use or install.
-    port_id: String,
-    /// Release channel if needed: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
-    #[arg(long, value_enum)]
-    channel: Option<ChannelArg>,
-    /// Override the source game file used if installation is needed.
-    #[arg(long)]
-    source: Option<PathBuf>,
-    /// Override the BIOS file used if installation is needed.
-    #[arg(long)]
-    bios: Option<PathBuf>,
-    /// Folder for a new install; an existing install is not moved.
-    #[arg(long)]
-    output_dir: Option<PathBuf>,
-}
-
-#[derive(Debug, Subcommand)]
-enum OutputCommand {
-    /// Show the saved and effective future install folder for one game.
-    Show { port_id: String },
-    /// Review a future install folder without changing files or settings.
-    Preview {
-        port_id: String,
-        /// Omit PATH to preview resetting to the library default.
-        path: Option<PathBuf>,
-    },
-    /// Save a reviewed future install folder. Existing installs are not moved.
-    Set {
-        port_id: String,
-        path: PathBuf,
-        #[arg(long)]
-        expected_preview: String,
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Return future installs to the library default. Existing installs are not moved.
-    Reset {
-        port_id: String,
-        #[arg(long)]
-        expected_preview: String,
-        #[arg(long)]
-        yes: bool,
-    },
-    /// Review or apply relocation of every installed version for one game.
-    Move {
-        port_id: String,
-        path: PathBuf,
-        #[arg(long, requires = "expected_plan")]
-        apply: bool,
-        #[arg(long, requires = "apply")]
-        expected_plan: Option<String>,
-        #[arg(long, requires = "apply")]
-        yes: bool,
-    },
-}
-
-#[derive(Debug, Args)]
-struct UpdateArgs {
-    /// Installed port to update.
-    port_id: Option<String>,
-    /// Update every eligible installed port instead of one PORT_ID.
-    #[arg(long, conflicts_with = "port_id")]
-    all: bool,
-    /// Override the registered game file for the update.
-    #[arg(long)]
-    source: Option<PathBuf>,
-    /// Override the registered BIOS file for the update.
-    #[arg(long)]
-    bios: Option<PathBuf>,
-    /// Prepare an update without making it the current installed version.
-    #[arg(long)]
-    stage: bool,
-}
-
-#[derive(Debug, Args)]
-struct UpdateTargetArgs {
-    /// Installed port to check or reconcile.
-    port_id: Option<String>,
-    /// Use every installed port instead of one PORT_ID.
-    #[arg(long, conflicts_with = "port_id")]
-    all: bool,
-}
-
-#[derive(Debug, Args)]
-struct AdoptArgs {
-    /// Existing managed installation folder to review.
-    path: PathBuf,
-    /// Require adoption to resolve to this catalog port ID.
-    #[arg(long)]
-    port: Option<String>,
-    /// Confirm registering the reviewed installation.
-    #[arg(long)]
-    yes: bool,
-}
-
-#[derive(Debug, Args)]
-struct ExecArgs {
-    /// Installed port to launch.
-    port_id: String,
-    /// Override the registered game file for this launch.
-    #[arg(long)]
-    source: Option<PathBuf>,
-    /// Caller-known UUID for durable launch observation; a fresh UUID is generated by default.
-    #[arg(long)]
-    request_id: Option<Uuid>,
-    /// Pass the remaining arguments to the game after `--`.
-    #[arg(last = true, allow_hyphen_values = true)]
-    game_args: Vec<String>,
-}
-
-#[derive(Debug, Subcommand)]
-enum ChannelCommand {
-    /// Save the preferred channel: stable (Stable), preview (Preview), or rolling (Rolling); beta is a compatibility alias.
-    Set {
-        port_id: String,
-        #[arg(value_enum)]
-        channel: ChannelArg,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum PolicyCommand {
-    /// Save notify, stage, or automatic handling for future game updates.
-    Set {
-        port_id: String,
-        #[arg(value_enum)]
-        policy: PolicyArg,
-    },
-}
-
-#[derive(Debug, Subcommand)]
-enum SchemaCommand {
-    /// Export JSON schemas for CLI input or serialized output.
-    Export {
-        /// Choose input (default) or output contract shapes.
-        #[arg(long, value_enum, default_value = "input")]
-        contract: SchemaContract,
-    },
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum ChannelArg {
-    Stable,
-    /// Preview releases; beta is a compatibility alias for the same stream.
-    #[value(name = "preview", alias = "beta")]
-    Beta,
-    Rolling,
-}
-
-impl From<ChannelArg> for ReleaseChannel {
-    fn from(value: ChannelArg) -> Self {
-        match value {
-            ChannelArg::Stable => Self::Stable,
-            ChannelArg::Beta => Self::Beta,
-            ChannelArg::Rolling => Self::Rolling,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, ValueEnum)]
-enum PolicyArg {
-    Notify,
-    Stage,
-    Automatic,
-}
-
-impl From<PolicyArg> for UpdatePolicy {
-    fn from(value: PolicyArg) -> Self {
-        match value {
-            PolicyArg::Notify => Self::Notify,
-            PolicyArg::Stage => Self::Stage,
-            PolicyArg::Automatic => Self::Automatic,
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OutputMode {
@@ -1255,10 +264,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         command: CatalogCommand::InspectDefinitionPublication { directory },
     } = &cli.command
     {
-        render_success(
+        render_read_success(
             mode,
             "catalog.inspect-definition-publication",
             portcove_core::inspect_definition_publication(directory)?,
+            |report| catalog::publication_inspection(report, cli.technical_details),
         )?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -1266,10 +276,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         command: CatalogCommand::InspectProposal { file },
     } = &cli.command
     {
-        render_success(
+        render_read_success(
             mode,
             "catalog.inspect-proposal",
             portcove_core::Catalog::inspect_proposal(file)?,
+            |report| catalog::proposal_inspection(report, cli.technical_details),
         )?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -1281,7 +292,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
     } = &cli.command
     {
         let report = portcove_core::inspect_definition_capabilities(file)?;
-        render_success(mode, "catalog.check-capabilities", report)?;
+        render_read_success(
+            mode,
+            "catalog.check-capabilities",
+            report,
+            catalog::definition_capabilities,
+        )?;
         return Ok(ExitCode::SUCCESS);
     }
     if matches!(&cli.command, Commands::About) {
@@ -1310,7 +326,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             *repository_id,
             file,
         )?;
-        render_success(mode, "catalog.inspect-observation", report)?;
+        render_read_success(mode, "catalog.inspect-observation", report, |report| {
+            catalog::upstream_observation(
+                report,
+                catalog
+                    .port(port_id)
+                    .expect("port was resolved before inspection"),
+            )
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
     let platform_default = portcove_core::Library::default_root()?;
@@ -1334,11 +357,22 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         command: LaunchCommand::Show { request_id },
     } = &cli.command
     {
-        render_success(
-            mode,
-            "launch.show",
-            library.launch_request(&request_id.to_string())?,
-        )?;
+        let record = library.launch_request(&request_id.to_string())?;
+        // Observation must remain available even when current catalog/provider
+        // initialization fails. This optional human lookup never advances recovery.
+        let display_service = if mode == OutputMode::Human {
+            PortcoveService::new_read_only(library).ok()
+        } else {
+            None
+        };
+        render_read_success(mode, "launch.show", record, |record| {
+            human_adapters::launch_record(
+                record.as_ref(),
+                &request_id.to_string(),
+                display_service.as_ref().map(PortcoveService::catalog),
+                cli.technical_details,
+            )
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
     #[cfg(feature = "qualification-fixtures")]
@@ -1401,7 +435,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command: InstallationCommand::Plan { port_id },
         } => {
             let review = service.plan_game_install(&port_id).await?;
-            let text = human::game_install_plan(&review);
+            let text = human::game_install_plan(&review, service.catalog());
             render_read_success(mode, "installation.plan", review, |_| text.clone())?;
         }
         Commands::Installation {
@@ -1425,11 +459,16 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     acknowledge_shared_preferences.then_some(expected_plan.as_str()),
                 )
                 .await?;
-            let mut progress = progress_renderer(mode);
+            let mut progress = progress_renderer(mode, service.catalog());
             let installed = service
                 .apply_game_install(&port_id, &authorization.token, &mut progress)
                 .await?;
-            render_success(mode, "installation.run", installed)?;
+            render_read_success(mode, "installation.run", installed, |result| {
+                format!(
+                    "Reviewed installation completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            })?;
         }
         #[cfg(feature = "qualification-fixtures")]
         Commands::Installation {
@@ -1440,7 +479,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "installation.qualification-update-plan",
                 review,
-                human::game_update_plan,
+                |value| human::game_update_plan(value, service.catalog()),
             )?;
         }
         #[cfg(feature = "qualification-fixtures")]
@@ -1466,17 +505,32 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     acknowledge_shared_preferences.then_some(expected_plan.as_str()),
                 )
                 .await?;
-            let mut progress = progress_renderer(mode);
+            let mut progress = progress_renderer(mode, service.catalog());
             let installed = service
                 .apply_game_update(&port_id, true, &authorization.token, &mut progress)
                 .await?;
-            render_success(mode, "installation.qualification-update-run", installed)?;
+            render_read_success(
+                mode,
+                "installation.qualification-update-run",
+                installed,
+                |result| {
+                    format!(
+                        "Reviewed fixture update completed\n{}",
+                        human::install_result(result, service.catalog())
+                    )
+                },
+            )?;
         }
         Commands::Artwork { command } => {
             execute_artwork(&service, command, mode, cli.non_interactive)?
         }
         Commands::Cancel { operation_id } => {
-            render_success(mode, "cancel", service.request_cancellation(&operation_id)?)?;
+            render_read_success(
+                mode,
+                "cancel",
+                service.request_cancellation(&operation_id)?,
+                |state| human::cancellation_requested(state, &operation_id),
+            )?;
         }
         Commands::Library { .. } => {
             unreachable!("library commands handle exclusive access before opening a service")
@@ -1512,21 +566,32 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         }
                         let result = github.poll_device_login(&login.session_id).await?;
                         if result.state == GithubDeviceLoginState::Complete {
-                            render_success(mode, "auth.login", result)?;
+                            render_read_success(
+                                mode,
+                                "auth.login",
+                                result,
+                                human_adapters::device_login_result,
+                            )?;
                             break;
                         }
                     }
                 }
                 AuthCommand::SetToken { stdin } => {
                     let token = read_token(stdin, cli.non_interactive)?;
-                    render_success(
+                    render_read_success(
                         mode,
                         "auth.set-token",
                         github.store_personal_token(&token).await?,
+                        human::auth_status,
                     )?;
                 }
                 AuthCommand::Logout => {
-                    render_success(mode, "auth.logout", github.logout().await?)?;
+                    render_read_success(
+                        mode,
+                        "auth.logout",
+                        github.logout().await?,
+                        human::auth_status,
+                    )?;
                 }
             }
         }
@@ -1567,16 +632,22 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
             let authorization =
                 service.authorize_ghostship_legacy_recovery(&backup_id, &expected_plan)?;
-            render_success(
+            render_read_success(
                 mode,
                 "backup.ghostship-legacy-recover",
                 service.recover_ghostship_legacy_data(&backup_id, &authorization.token)?,
+                |result| human_adapters::ghostship_recovery(result, service.catalog()),
             )?;
         }
         Commands::Backup {
             command: BackupCommand::Create { port_id },
         } => {
-            render_success(mode, "backup.create", service.create_backup(&port_id)?)?;
+            render_read_success(
+                mode,
+                "backup.create",
+                service.create_backup(&port_id)?,
+                |result| human::backup_created(result, service.catalog()),
+            )?;
         }
         Commands::Backup {
             command: BackupCommand::List { port_id },
@@ -1585,7 +656,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "backup.list",
                 service.list_backups(&port_id)?,
-                |backups| human::backup_list(&port_id, backups),
+                |backups| human::backup_list(&port_id, backups, service.catalog()),
             )?;
         }
         Commands::Backup {
@@ -1606,7 +677,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 io::stdout().flush()?;
             }
             if !confirmation(
-                &format!("Permanently delete backup {backup_id} for {port_id}?"),
+                &format!(
+                    "Permanently delete backup {} for {}?",
+                    human::clean(&backup_id),
+                    human::port_name(service.catalog(), &port_id)
+                ),
                 yes,
                 cli.non_interactive,
             )? {
@@ -1619,10 +694,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 BackupAction::Delete,
                 &preview.preview_sha256,
             )?;
-            render_success(
+            render_read_success(
                 mode,
                 "backup.delete",
                 service.delete_backup(&port_id, &backup_id, &authorization.token)?,
+                |result| human::backup_deleted(result, service.catalog()),
             )?;
         }
         Commands::Backup {
@@ -1644,7 +720,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             }
             if !confirmation(
                 &format!(
-                    "Restore backup {backup_id} for {port_id}? Replace this port's managed saved data."
+                    "Restore backup {} for {}? Replace this port's managed saves and settings.",
+                    human::clean(&backup_id),
+                    human::port_name(service.catalog(), &port_id)
                 ),
                 yes,
                 cli.non_interactive,
@@ -1658,10 +736,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 BackupAction::Restore,
                 &preview.preview_sha256,
             )?;
-            render_success(
+            render_read_success(
                 mode,
                 "backup.restore",
                 service.restore_backup(&port_id, &backup_id, &authorization.token)?,
+                |result| human::backup_restored(result, service.catalog()),
             )?;
         }
 
@@ -1671,7 +750,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             render_read_success(
                 mode,
                 "source.discover",
-                service.discover_sources_with_progress(&args.request(), progress_renderer(mode))?,
+                service.discover_sources_with_progress(
+                    &args.request(),
+                    progress_renderer(mode, service.catalog()),
+                )?,
                 |report| human::source_discovery(report, service.catalog()),
             )?;
         }
@@ -1679,10 +761,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command: SourceCommand::Inbox { command },
         } => match command {
             SourceInboxCommand::Path { profile_id } => {
-                render_success(
+                render_read_success(
                     mode,
                     "source.inbox.path",
                     service.source_inbox_paths(Some(&profile_id))?,
+                    |paths| human_adapters::inbox_paths(paths, service.catalog()),
                 )?;
             }
             SourceInboxCommand::Open { profile_id } => {
@@ -1690,19 +773,22 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 open_cli_directory(paths.profile.as_deref().ok_or_else(|| {
                     PortcoveError::state("prepared Source Inbox has no profile path")
                 })?)?;
-                render_success(mode, "source.inbox.open", paths)?;
+                render_read_success(mode, "source.inbox.open", paths, |paths| {
+                    human_adapters::inbox_paths(paths, service.catalog())
+                })?;
             }
             SourceInboxCommand::Scan(args) => {
                 let profile_id = args.profile_id.clone();
                 let limits = args.limits();
-                render_success(
+                render_read_success(
                     mode,
                     "source.inbox.scan",
                     service.scan_source_inbox_with_progress(
                         &profile_id,
                         &limits,
-                        progress_renderer(mode),
+                        progress_renderer(mode, service.catalog()),
                     )?,
+                    |result| human_adapters::inbox_resolution(result, service.catalog()),
                 )?;
             }
             SourceInboxCommand::Import {
@@ -1715,10 +801,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let import_mode = SourceImportMode::from(import_mode);
                 if !apply {
-                    render_success(
+                    render_read_success(
                         mode,
                         "source.inbox.import",
                         service.plan_source_import(&profile_id, &path, import_mode)?,
+                        |result| human::source_import_plan(result, service.catalog()),
                     )?;
                 } else {
                     let expected_plan = expected_plan
@@ -1727,7 +814,8 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     let authorization = if import_mode == SourceImportMode::Move {
                         require_confirmation(
                             &format!(
-                                "Move the game files for {profile_id} into Portcove's game-file folder? The original is deleted only after the copy is checked and its new location is saved."
+                                "Move the game files for {} into Portcove's game-file folder? The original is deleted only after the copy is checked and its new location is saved.",
+                                human::profile_name(service.catalog(), &profile_id)
                             ),
                             yes,
                             cli.non_interactive,
@@ -1740,7 +828,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     } else {
                         None
                     };
-                    render_success(
+                    render_read_success(
                         mode,
                         "source.inbox.import",
                         service.import_source_with_progress(
@@ -1749,8 +837,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                             import_mode,
                             expected_plan,
                             authorization.as_deref(),
-                            progress_renderer(mode),
+                            progress_renderer(mode, service.catalog()),
                         )?,
+                        |result| human::source_import_result(result, service.catalog()),
                     )?;
                 }
             }
@@ -1767,8 +856,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             GameFileRootCommand::Scan(args) => render_read_success(
                 mode,
                 "source.roots.scan",
-                service
-                    .scan_game_file_roots_with_progress(&args.limits(), progress_renderer(mode))?,
+                service.scan_game_file_roots_with_progress(
+                    &args.limits(),
+                    progress_renderer(mode, service.catalog()),
+                )?,
                 human::game_file_scan,
             )?,
             GameFileRootCommand::Snapshot => render_read_success(
@@ -1777,24 +868,43 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_scan_snapshot()?,
                 human::game_file_scan_snapshot,
             )?,
-            GameFileRootCommand::Add { path } => render_success(
+            GameFileRootCommand::Add { path } => render_read_success(
                 mode,
                 "source.roots.add",
                 service.library().add_game_file_root(&path)?,
+                |root| {
+                    format!(
+                        "Game-file folder saved\n{}",
+                        human::game_file_roots(std::slice::from_ref(root))
+                    )
+                },
             )?,
-            GameFileRootCommand::Relink { root_id, path } => render_success(
+            GameFileRootCommand::Relink { root_id, path } => render_read_success(
                 mode,
                 "source.roots.relink",
                 service.library().relink_game_file_root(&root_id, &path)?,
+                |root| {
+                    format!(
+                        "Game-file folder saved\n{}",
+                        human::game_file_roots(std::slice::from_ref(root))
+                    )
+                },
             )?,
-            GameFileRootCommand::Remove { root_id } => render_success(
-                mode,
-                "source.roots.remove",
-                serde_json::json!({
-                    "root_id": root_id,
-                    "removed": service.library().remove_game_file_root(&root_id)?,
-                }),
-            )?,
+            GameFileRootCommand::Remove { root_id } => {
+                let removed = service.library().remove_game_file_root(&root_id)?;
+                render_read_success(
+                    mode,
+                    "source.roots.remove",
+                    serde_json::json!({"root_id": root_id, "removed": removed}),
+                    |_| {
+                        format!(
+                            "Game-file folder registration {}: {}\nThe folder's files and existing game-file registrations remain in place.",
+                            if removed { "removed" } else { "not found" },
+                            human::clean(&root_id)
+                        )
+                    },
+                )?;
+            }
         },
         Commands::Source {
             command:
@@ -1804,7 +914,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     expected_sha256,
                 },
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "source.add",
                 if let Some(digest) = expected_sha256 {
@@ -1812,6 +922,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 } else {
                     service.register_source(&profile_id, &path)?
                 },
+                |result| human::source_record(result, service.catalog()),
             )?;
         }
         Commands::Source {
@@ -1821,7 +932,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "source.list",
                 service.library().sources()?,
-                |sources| human::source_list(sources),
+                |sources| human::source_list(sources, service.catalog()),
             )?;
         }
         Commands::Source {
@@ -1854,8 +965,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             render_read_success(
                 mode,
                 "source.query",
-                service.refresh_game_file_query_with_progress(&request, progress_renderer(mode))?,
-                human::game_file_query,
+                service.refresh_game_file_query_with_progress(
+                    &request,
+                    progress_renderer(mode, service.catalog()),
+                )?,
+                |value| human::game_file_query(value, service.catalog()),
             )?;
         }
         Commands::Source {
@@ -1868,7 +982,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 },
         } => {
             if apply {
-                render_success(
+                render_read_success(
                     mode,
                     "source.relink",
                     service.relink_source(
@@ -1878,12 +992,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                             PortcoveError::usage("--apply requires --expected-plan")
                         })?,
                     )?,
+                    |result| human::source_record(result, service.catalog()),
                 )?;
             } else {
-                render_success(
+                render_read_success(
                     mode,
                     "source.relink",
                     service.plan_source_relink(&profile_id, &path)?,
+                    |result| human::source_relink_plan(result, service.catalog()),
                 )?;
             }
         }
@@ -1913,7 +1029,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         }
                     })
                     .collect::<Vec<_>>();
-                render_success(mode, "source.verify", outcomes)?;
+                render_read_success(mode, "source.verify", outcomes, |results| {
+                    human_adapters::source_batch(results, service.catalog(), cli.technical_details)
+                })?;
             } else {
                 let profile_id = args
                     .profile_id
@@ -1929,19 +1047,28 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } => {
             let preview = service.preview_source_removal(&profile_id)?;
             if mode == OutputMode::Human {
-                println!("{}", human::document(&preview)?);
+                println!(
+                    "{}",
+                    human::source_removal_preview(&preview, service.catalog())
+                );
             }
             let impact = if preview.installed_dependent_port_ids.is_empty() {
                 "No installed port currently depends on it.".to_owned()
             } else {
                 format!(
-                    "These installed ports may need their game-file location added again: {}.",
-                    preview.installed_dependent_port_ids.join(", ")
+                    "These installed ports depend on this saved registration and may need the game files registered again: {}.",
+                    preview
+                        .installed_dependent_port_ids
+                        .iter()
+                        .map(|id| human::port_name(service.catalog(), id))
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )
             };
             require_confirmation(
                 &format!(
-                    "Remove saved location for {profile_id}? The game files stay where they are. {impact}"
+                    "Remove {} from Portcove? The original game files will not be deleted or changed. {impact}",
+                    human::profile_name(service.catalog(), &profile_id)
                 ),
                 yes,
                 cli.non_interactive,
@@ -1949,18 +1076,26 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             let authorization =
                 service.authorize_source_removal(&profile_id, &preview.preview_sha256)?;
             let removed = service.remove_source(&profile_id, &authorization.token)?;
-            render_success(
+            render_read_success(
                 mode,
                 "source.remove",
                 serde_json::json!({ "removed": true, "preview": removed }),
+                |_| {
+                    format!(
+                        "Game-file registration removed: {}\nThe original game files remain in place.\n{impact}",
+                        human::profile_name(service.catalog(), &profile_id)
+                    )
+                },
             )?;
         }
         Commands::Status { port_id } => {
             if let Some(port_id) = port_id {
-                render_read_success(mode, "status", service.status(&port_id)?, human::status)?;
+                render_read_success(mode, "status", service.status(&port_id)?, |value| {
+                    human::status(value, service.catalog())
+                })?;
             } else {
                 render_read_success(mode, "status", service.statuses()?, |statuses| {
-                    human::statuses(statuses)
+                    human::statuses(statuses, service.catalog())
                 })?;
             }
         }
@@ -1990,10 +1125,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             command: LaunchCommand::Recover { request_id },
         } => {
             service.recover_launch_session(&request_id.to_string())?;
-            render_success(
+            render_read_success(
                 mode,
                 "launch.recover",
                 service.library().launch_request(&request_id.to_string())?,
+                |record| {
+                    human_adapters::launch_record(
+                        record.as_ref(),
+                        &request_id.to_string(),
+                        Some(service.catalog()),
+                        cli.technical_details,
+                    )
+                },
             )?;
         }
         Commands::Launch {
@@ -2012,7 +1155,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "doctor",
                 service.doctor_with_preferences(&preferences)?,
-                human::doctor,
+                |value| human::doctor(value, service.catalog()),
             )?;
         }
         Commands::About => unreachable!("about exits before opening the library"),
@@ -2027,7 +1170,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service
                     .plan_install_at(&port_id, channel.map(Into::into), output_dir.as_deref())
                     .await?,
-                human::plan,
+                |value| human::plan(value, service.catalog()),
             )?;
         }
         Commands::Preparation {
@@ -2043,7 +1186,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         mode: portcove_core::PreparationMode::Default,
                     },
                 )?,
-                human::preparation_plan,
+                |value| human::preparation_plan(value, service.catalog()),
             )?;
         }
         Commands::Preparation {
@@ -2065,7 +1208,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 ));
             }
             if mode == OutputMode::Human {
-                println!("{}", human::preparation_plan(&plan));
+                println!("{}", human::preparation_plan(&plan, service.catalog()));
             }
             require_confirmation(
                 "Prepare game data in a private copy and activate the verified result?",
@@ -2077,9 +1220,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 &port_id,
                 options,
                 &authorization.token,
-                progress_renderer(mode),
+                progress_renderer(mode, service.catalog()),
             )?;
-            render_success(mode, "preparation.run", prepared)?;
+            render_read_success(mode, "preparation.run", prepared, |result| {
+                format!(
+                    "Game preparation completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            })?;
         }
         Commands::Preparation {
             command: PreparationCommand::CleanupPlan { operation_id },
@@ -2088,7 +1236,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 mode,
                 "preparation.cleanup-plan",
                 service.preview_preparation_cleanup(&operation_id)?,
-                human::preparation_cleanup,
+                |value| human::preparation_cleanup(value, service.catalog()),
             )?;
         }
         Commands::Preparation {
@@ -2101,7 +1249,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } => {
             let preview = service.preview_preparation_cleanup(&operation_id)?;
             if mode == OutputMode::Human {
-                println!("{}", human::preparation_cleanup(&preview));
+                println!(
+                    "{}",
+                    human::preparation_cleanup(&preview, service.catalog())
+                );
             }
             if preview.preview_sha256 != expected_preview {
                 return Err(PortcoveError::conflict(
@@ -2115,27 +1266,30 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             )?;
             let authorization =
                 service.authorize_preparation_cleanup(&operation_id, &expected_preview)?;
-            render_success(
+            render_read_success(
                 mode,
                 "preparation.cleanup",
                 service.cleanup_preparation(&operation_id, &authorization.token)?,
+                |result| human_adapters::preparation_cleaned(result),
             )?;
         }
         Commands::Paths { port_id } => {
-            render_read_success(mode, "paths", service.port_paths(&port_id)?, human::paths)?;
+            render_read_success(mode, "paths", service.port_paths(&port_id)?, |value| {
+                human::paths(value, service.catalog())
+            })?;
         }
         Commands::Output { command } => match command {
             OutputCommand::Show { port_id } => render_read_success(
                 mode,
                 "output.show",
                 service.output_location(&port_id, None)?,
-                human::output_location,
+                |value| human::output_location(value, service.catalog()),
             )?,
             OutputCommand::Preview { port_id, path } => render_read_success(
                 mode,
                 "output.preview",
                 service.preview_output_directory(&port_id, path.as_deref())?,
-                human::output_preview,
+                |value| human::output_preview(value, service.catalog()),
             )?,
             OutputCommand::Set {
                 port_id,
@@ -2145,7 +1299,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let preview = service.preview_output_directory(&port_id, Some(&path))?;
                 if mode == OutputMode::Human {
-                    println!("{}", human::output_preview(&preview));
+                    println!("{}", human::output_preview(&preview, service.catalog()));
                 }
                 if preview.preview_sha256 != expected_preview {
                     return Err(PortcoveError::conflict(
@@ -2162,7 +1316,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     Some(&path),
                     &expected_preview,
                 )?;
-                render_success(
+                render_read_success(
                     mode,
                     "output.set",
                     service.apply_output_directory_change(
@@ -2170,6 +1324,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         Some(&path),
                         &authorization.token,
                     )?,
+                    |result| human::output_location(result, service.catalog()),
                 )?;
             }
             OutputCommand::Reset {
@@ -2179,7 +1334,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let preview = service.preview_output_directory(&port_id, None)?;
                 if mode == OutputMode::Human {
-                    println!("{}", human::output_preview(&preview));
+                    println!("{}", human::output_preview(&preview, service.catalog()));
                 }
                 if preview.preview_sha256 != expected_preview {
                     return Err(PortcoveError::conflict(
@@ -2193,10 +1348,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 )?;
                 let authorization =
                     service.authorize_output_directory_change(&port_id, None, &expected_preview)?;
-                render_success(
+                render_read_success(
                     mode,
                     "output.reset",
                     service.apply_output_directory_change(&port_id, None, &authorization.token)?,
+                    |result| human::output_location(result, service.catalog()),
                 )?;
             }
             OutputCommand::Move {
@@ -2208,10 +1364,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let plan = service.plan_output_relocation(&port_id, &path)?;
                 if !apply {
-                    render_read_success(mode, "output.move", plan, human::output_relocation_plan)?;
+                    render_read_success(mode, "output.move", plan, |value| {
+                        human::output_relocation_plan(value, service.catalog())
+                    })?;
                 } else {
                     if mode == OutputMode::Human {
-                        println!("{}", human::output_relocation_plan(&plan));
+                        println!(
+                            "{}",
+                            human::output_relocation_plan(&plan, service.catalog())
+                        );
                     }
                     let expected_plan = expected_plan
                         .as_deref()
@@ -2228,10 +1389,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     )?;
                     let authorization =
                         service.authorize_output_relocation(&port_id, &path, expected_plan)?;
-                    render_success(
+                    render_read_success(
                         mode,
                         "output.move",
                         service.relocate_output(&port_id, &path, &authorization.token)?,
+                        |result| human::output_relocation_result(result, service.catalog()),
                     )?;
                 }
             }
@@ -2253,12 +1415,25 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         Err(error) => PortBatchOutcome::failure(port_id, &error),
                     })
                     .collect::<Vec<_>>();
-                render_success(mode, "check", checked)?;
+                render_read_success(mode, "check", checked, |results| {
+                    human_adapters::port_batch(
+                        "Update checks",
+                        results,
+                        service.catalog(),
+                        cli.technical_details,
+                        human::update_check,
+                    )
+                })?;
             } else {
                 let port_id = args
                     .port_id
                     .ok_or_else(|| PortcoveError::usage("provide PORT_ID or --all"))?;
-                render_success(mode, "check", service.check_update(&port_id).await?)?;
+                render_read_success(
+                    mode,
+                    "check",
+                    service.check_update(&port_id).await?,
+                    |result| human::update_check(result, service.catalog()),
+                )?;
             }
         }
         Commands::Reconcile(args) => {
@@ -2269,7 +1444,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     .into_iter()
                     .filter(|status| status.active.is_some())
                 {
-                    let mut progress = progress_renderer(mode);
+                    let mut progress = progress_renderer(mode, service.catalog());
                     match service.reconcile(&status.port_id, &mut progress).await {
                         Ok(result) => {
                             reconciled.push(PortBatchOutcome::success(status.port_id, result))
@@ -2279,7 +1454,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         }
                     }
                 }
-                render_success(mode, "reconcile", reconciled)?;
+                render_read_success(mode, "reconcile", reconciled, |results| {
+                    human_adapters::port_batch(
+                        "Game update results",
+                        results,
+                        service.catalog(),
+                        cli.technical_details,
+                        human::reconcile_result,
+                    )
+                })?;
             } else {
                 let port_id = args
                     .port_id
@@ -2289,16 +1472,17 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         println!("{notice}");
                     }
                 }
-                let mut progress = progress_renderer(mode);
-                render_success(
+                let mut progress = progress_renderer(mode, service.catalog());
+                render_read_success(
                     mode,
                     "reconcile",
                     service.reconcile(&port_id, &mut progress).await?,
+                    |result| human::reconcile_result(result, service.catalog()),
                 )?;
             }
         }
         Commands::Install(args) => {
-            let mut progress = progress_renderer(mode);
+            let mut progress = progress_renderer(mode, service.catalog());
             let install = service
                 .install_at(
                     &args.port_id,
@@ -2312,10 +1496,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     &mut progress,
                 )
                 .await?;
-            render_success(mode, "install", install)?;
+            render_read_success(mode, "install", install, |result| {
+                format!(
+                    "Install request completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            })?;
         }
         Commands::Ensure(args) => {
-            let mut progress = progress_renderer(mode);
+            let mut progress = progress_renderer(mode, service.catalog());
             let install = service
                 .ensure_at(
                     &args.port_id,
@@ -2326,7 +1515,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     &mut progress,
                 )
                 .await?;
-            render_success(mode, "ensure", install)?;
+            render_read_success(mode, "ensure", install, |result| {
+                format!(
+                    "Ensure request completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            })?;
         }
         Commands::Update(args) => {
             if args.all {
@@ -2342,7 +1536,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     .filter(|status| status.active.is_some())
                 {
                     let activate = !args.stage && status.update_policy != UpdatePolicy::Stage;
-                    let mut progress = progress_renderer(mode);
+                    let mut progress = progress_renderer(mode, service.catalog());
                     let port_id = status.port_id;
                     if mode == OutputMode::Human {
                         for notice in service.catalog().port(&port_id)?.preservation_notices() {
@@ -2359,12 +1553,20 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         },
                     );
                 }
-                render_success(mode, "update", updated)?;
+                render_read_success(mode, "update", updated, |results| {
+                    human_adapters::port_batch(
+                        "Update results",
+                        results,
+                        service.catalog(),
+                        cli.technical_details,
+                        human::install_result,
+                    )
+                })?;
             } else {
                 let port_id = args
                     .port_id
                     .ok_or_else(|| PortcoveError::usage("provide PORT_ID or --all"))?;
-                let mut progress = progress_renderer(mode);
+                let mut progress = progress_renderer(mode, service.catalog());
                 let install = service
                     .update(
                         &port_id,
@@ -2374,18 +1576,42 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         &mut progress,
                     )
                     .await?;
-                render_success(mode, "update", install)?;
+                render_read_success(mode, "update", install, |result| {
+                    human::install_result(result, service.catalog())
+                })?;
             }
         }
-        Commands::Verify { port_id } => render_success(mode, "verify", service.verify(&port_id)?)?,
-        Commands::Activate { port_id } => {
-            render_success(mode, "activate", service.activate_staged(&port_id)?)?
+        Commands::Verify { port_id } => {
+            render_read_success(mode, "verify", service.verify(&port_id)?, |report| {
+                human::verification_report(report, &port_id, service.catalog())
+            })?
         }
+        Commands::Activate { port_id } => render_read_success(
+            mode,
+            "activate",
+            service.activate_staged(&port_id)?,
+            |result| {
+                format!(
+                    "Staged activation completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            },
+        )?,
         Commands::Rollback { port_id } => {
-            render_success(mode, "rollback", service.rollback(&port_id)?)?
+            render_read_success(mode, "rollback", service.rollback(&port_id)?, |result| {
+                format!(
+                    "Rollback completed\n{}",
+                    human::install_result(result, service.catalog())
+                )
+            })?
         }
         Commands::RemovePreview { port_id } => {
-            render_success(mode, "remove.preview", service.preview_removal(&port_id)?)?;
+            render_read_success(
+                mode,
+                "remove.preview",
+                service.preview_removal(&port_id)?,
+                |result| human::removal_preview(result, service.catalog()),
+            )?;
         }
         Commands::Remove {
             port_id,
@@ -2402,28 +1628,44 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 ));
             }
             if mode == OutputMode::Human {
-                println!("{}", human::document(&preview)?);
+                println!("{}", human::removal_preview(&preview, service.catalog()));
             }
             require_confirmation(
                 &format!(
-                    "Remove managed versions for {port_id}? Persistent data will be kept. Sign-ins stored only in installed versions will be deleted."
+                    "Remove all managed application versions for {}? Saves and settings in Portcove's persistent data folder will be kept. Sign-ins stored only in installed versions will be deleted.",
+                    human::port_name(service.catalog(), &port_id)
                 ),
                 yes,
                 cli.non_interactive,
             )?;
             let authorization = service.authorize_removal(&port_id, &preview.preview_sha256)?;
-            render_success(
+            let removed = service.remove(&port_id, &authorization.token)?;
+            let removed_count = removed.len();
+            render_read_success(
                 mode,
                 "remove",
-                serde_json::json!({ "removed": service.remove(&port_id, &authorization.token)? }),
+                serde_json::json!({ "removed": removed }),
+                |_| {
+                    format!(
+                        "{} for {}.\nSaves and settings retained at: {}",
+                        if removed_count > 0 {
+                            format!("Managed application versions removed: {removed_count}")
+                        } else {
+                            "No managed application versions to remove".to_owned()
+                        },
+                        human::port_name(service.catalog(), &port_id),
+                        human::clean(&preview.persistent_data_path.display().to_string())
+                    )
+                },
             )?;
         }
         Commands::External { command } => match command {
             ExternalCommand::RelinkPreview { port_id, path } => {
-                render_success(
+                render_read_success(
                     mode,
                     "external.relink-preview",
                     service.preview_external_runtime_relink(&port_id, &path)?,
+                    |result| human::external_relink_preview(result, service.catalog()),
                 )?;
             }
             ExternalCommand::Relink {
@@ -2440,11 +1682,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     ));
                 }
                 if mode == OutputMode::Human {
-                    println!("{}", human::document(&preview)?);
+                    println!(
+                        "{}",
+                        human::external_relink_preview(&preview, service.catalog())
+                    );
                 }
                 if let Some(shared) = &preview.proposed.shared_preferences {
                     if mode == OutputMode::Human {
-                        println!("{}", shared.write_scope_disclosure()?);
+                        println!("{}", human::clean(&shared.write_scope_disclosure()?));
                     }
                     if !acknowledge_shared_preferences {
                         return Err(PortcoveError::usage(
@@ -2458,7 +1703,8 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 require_confirmation(
                     &format!(
-                        "Change {port_id} from {} to {}? All external game files, settings and saves stay in place. Portcove does not copy, update, back up or delete either folder.",
+                        "Change {} from {} to {}? All external game files, settings and saves stay in place. Portcove does not copy, update, back up or delete either folder.",
+                        human::port_name(service.catalog(), &port_id),
                         preview.previous_path.display(),
                         preview.proposed.path.display()
                     ),
@@ -2471,17 +1717,19 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                     &expected_preview,
                     acknowledge_shared_preferences.then_some(expected_preview.as_str()),
                 )?;
-                render_success(
+                render_read_success(
                     mode,
                     "external.relink",
                     service.relink_external_runtime(&port_id, &path, &authorization.token)?,
+                    |result| human::external_runtime(result, service.catalog()),
                 )?;
             }
             ExternalCommand::Preview { port_id, path } => {
-                render_success(
+                render_read_success(
                     mode,
                     "external.preview",
                     service.preview_external_runtime(&port_id, &path)?,
+                    |result| human::external_preview(result, service.catalog()),
                 )?;
             }
             ExternalCommand::Register {
@@ -2493,11 +1741,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let preview = service.preview_external_runtime(&port_id, &path)?;
                 if mode == OutputMode::Human {
-                    println!("{}", human::document(&preview)?);
+                    println!("{}", human::external_preview(&preview, service.catalog()));
                 }
                 if let Some(shared) = &preview.shared_preferences {
                     if mode == OutputMode::Human {
-                        println!("{}", shared.write_scope_disclosure()?);
+                        println!("{}", human::clean(&shared.write_scope_disclosure()?));
                     }
                     if !acknowledge_shared_preferences {
                         return Err(PortcoveError::usage(
@@ -2511,7 +1759,8 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 }
                 require_confirmation(
                     &format!(
-                        "Use the installation at {}? Portcove will use it in place. It will not copy, update, back up, or delete its files.",
+                        "Use the installation for {} at {}? Portcove will use it in place. It will not copy, update, back up, or delete its files.",
+                        human::port_name(service.catalog(), &port_id),
                         preview.path.display()
                     ),
                     yes,
@@ -2526,17 +1775,19 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                             .unwrap_or(&preview.preview_sha256),
                         acknowledge_shared_preferences.then_some(preview.preview_sha256.as_str()),
                     )?;
-                render_success(
+                render_read_success(
                     mode,
                     "external.register",
                     service.register_external_runtime(&port_id, &path, &authorization.token)?,
+                    |result| human::external_runtime(result, service.catalog()),
                 )?;
             }
             ExternalCommand::RemovalPreview { port_id } => {
-                render_success(
+                render_read_success(
                     mode,
                     "external.removal-preview",
                     service.preview_external_removal(&port_id)?,
+                    |result| human::external_removal_preview(result, service.catalog()),
                 )?;
             }
             ExternalCommand::Remove {
@@ -2546,11 +1797,15 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             } => {
                 let preview = service.preview_external_removal(&port_id)?;
                 if mode == OutputMode::Human {
-                    println!("{}", human::document(&preview)?);
+                    println!(
+                        "{}",
+                        human::external_removal_preview(&preview, service.catalog())
+                    );
                 }
                 require_confirmation(
                     &format!(
-                        "Stop using this installation for {port_id}? The files at {} and all other external files will stay where they are.",
+                        "Stop using this installation for {}? The files at {} and all other external files will stay where they are.",
+                        human::port_name(service.catalog(), &port_id),
                         preview.path.display()
                     ),
                     yes,
@@ -2562,17 +1817,18 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                         .as_deref()
                         .unwrap_or(&preview.preview_sha256),
                 )?;
-                render_success(
+                render_read_success(
                     mode,
                     "external.remove",
                     service.remove_external_runtime(&port_id, &authorization.token)?,
+                    |record| human_adapters::external_removed(record, service.catalog()),
                 )?;
             }
         },
         Commands::Adopt(args) => {
             let preview = service.preview_adoption(&args.path, args.port.as_deref())?;
             if mode == OutputMode::Human {
-                println!("{}", human::document(&preview)?);
+                println!("{}", human::adoption_preview(&preview, service.catalog()));
             }
             require_confirmation(
                 "Copy this installation into Portcove? The original will be left untouched.",
@@ -2584,28 +1840,36 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 args.port.as_deref(),
                 &preview.plan_sha256,
             )?;
-            render_success(
+            render_read_success(
                 mode,
                 "adopt",
                 service.adopt(&args.path, args.port.as_deref(), &authorization.token)?,
+                |result| {
+                    format!(
+                        "Existing installation copied\n{}",
+                        human::install_result(result, service.catalog())
+                    )
+                },
             )?;
         }
         Commands::Channel {
             command: ChannelCommand::Set { port_id, channel },
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "channel.set",
                 service.set_channel(&port_id, channel.into())?,
+                |result| human::status(result, service.catalog()),
             )?;
         }
         Commands::Policy {
             command: PolicyCommand::Set { port_id, policy },
         } => {
-            render_success(
+            render_read_success(
                 mode,
                 "policy.set",
                 service.set_update_policy(&port_id, policy.into())?,
+                |result| human::status(result, service.catalog()),
             )?;
         }
         Commands::Exec(args) => {
@@ -2714,23 +1978,39 @@ fn execute_library(
 ) -> Result<()> {
     let name = library_command_name(command);
     match command {
-        LibraryCommand::Show => render_success(
+        LibraryCommand::Show => render_read_success(
             mode,
             name,
             preferences.resolve(invocation_root, platform_default)?,
+            human_adapters::library_selection,
         )?,
         LibraryCommand::Identity => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let library = portcove_core::Library::open(&root)?;
-            render_success(mode, name, library.identity_record()?)?;
+            render_read_success(
+                mode,
+                name,
+                library.identity_record()?,
+                human_adapters::library_identity,
+            )?;
         }
         LibraryCommand::Set { path } => {
             preferences.set_library(path)?;
-            render_success(mode, name, preferences.resolve(None, platform_default)?)?;
+            render_read_success(
+                mode,
+                name,
+                preferences.resolve(None, platform_default)?,
+                human_adapters::library_selection,
+            )?;
         }
         LibraryCommand::Reset => {
             preferences.reset()?;
-            render_success(mode, name, preferences.resolve(None, platform_default)?)?;
+            render_read_success(
+                mode,
+                name,
+                preferences.resolve(None, platform_default)?,
+                human_adapters::library_selection,
+            )?;
         }
         LibraryCommand::Import {
             metadata,
@@ -2739,7 +2019,7 @@ fn execute_library(
             expected_plan,
         } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 PortcoveService::import_library(
@@ -2750,6 +2030,7 @@ fn execute_library(
                         PortcoveError::usage("applying an import requires --expected-plan")
                     })?,
                 )?,
+                human::library_import_result,
             )?;
         }
         LibraryCommand::Import {
@@ -2758,19 +2039,30 @@ fn execute_library(
             ..
         } => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 PortcoveService::plan_library_import(metadata, content_root, &root)?,
+                human::library_import_plan,
             )?;
         }
         LibraryCommand::ResumeImport => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::resume_library_import(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::resume_library_import(&root)?,
+                human::library_import_result,
+            )?
         }
         LibraryCommand::AbortImport => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
-            render_success(mode, name, PortcoveService::abort_library_import(&root)?)?
+            render_read_success(
+                mode,
+                name,
+                PortcoveService::abort_library_import(&root)?,
+                human::library_import_result,
+            )?
         }
         LibraryCommand::ResumeMove => {
             let root = preferences.resolve(invocation_root, platform_default)?.root;
@@ -2824,9 +2116,19 @@ fn execute_library(
             let root = preferences.resolve(invocation_root, platform_default)?.root;
             let service = PortcoveService::new_read_only(portcove_core::Library::open(root)?)?;
             if let Some(path) = output {
-                render_success(mode, name, service.write_library_metadata(path)?)?;
+                render_read_success(
+                    mode,
+                    name,
+                    service.write_library_metadata(path)?,
+                    human::library_metadata_file,
+                )?;
             } else {
-                render_success(mode, name, service.export_library_metadata()?)?;
+                render_read_success(
+                    mode,
+                    name,
+                    service.export_library_metadata()?,
+                    human::library_metadata,
+                )?;
             }
         }
     }
@@ -2855,21 +2157,45 @@ fn read_token(stdin: bool, non_interactive: bool) -> Result<String> {
 }
 
 fn render_device_prompt(mode: OutputMode, login: &GithubDeviceLogin) -> Result<()> {
+    write_device_prompt(
+        mode,
+        login,
+        &mut io::stdout().lock(),
+        &mut io::stderr().lock(),
+    )
+}
+
+fn write_device_prompt(
+    mode: OutputMode,
+    login: &GithubDeviceLogin,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> Result<()> {
     let message = format!(
         "Open {} and enter code {}",
         login.verification_uri, login.user_code
     );
     match mode {
-        OutputMode::Human => println!("{message}"),
-        OutputMode::Json => eprintln!("{message}"),
-        OutputMode::Jsonl => println!(
+        OutputMode::Human => writeln!(
+            stdout,
+            "Open {} and enter code {} to sign in to GitHub.\nExpires: {}",
+            human::clean(&login.verification_uri),
+            human::clean(&login.user_code),
+            i64::try_from(login.expires_at).map_or_else(
+                |_| "Unknown expiry (invalid timestamp)".into(),
+                human::utc_time
+            )
+        )?,
+        OutputMode::Json => writeln!(stderr, "{message}")?,
+        OutputMode::Jsonl => writeln!(
+            stdout,
             "{}",
             serde_json::to_string(&serde_json::json!({
                 "schema_version": API_SCHEMA_VERSION,
                 "type": "device_authorization",
                 "data": login,
             }))?
-        ),
+        )?,
     }
     Ok(())
 }
@@ -2884,7 +2210,7 @@ fn render_about(mode: OutputMode) -> Result<()> {
     };
     if mode == OutputMode::Human {
         println!(
-            "Portcove {}\nInstall, update, and play native game ports.\n{}\nLicense: {}",
+            "Portcove {}\nManage native game ports from a local Portcove library.\n{}\nLicense: {}",
             about.version, about.repository, about.license
         );
         Ok(())
@@ -3033,8 +2359,11 @@ fn open_cli_directory(path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
-    let mut human_progress = HumanProgress::new(io::stderr().is_terminal());
+fn progress_renderer(
+    mode: OutputMode,
+    catalog: &portcove_core::Catalog,
+) -> impl FnMut(OperationEvent) + '_ {
+    let mut human_progress = HumanProgress::with_catalog(io::stderr().is_terminal(), catalog);
     move |event| match mode {
         OutputMode::Jsonl => println!(
             "{}",
@@ -3042,111 +2371,6 @@ fn progress_renderer(mode: OutputMode) -> impl FnMut(OperationEvent) {
         ),
         OutputMode::Human => eprint!("{}", human_progress.render(&event)),
         OutputMode::Json => {}
-    }
-}
-
-struct HumanProgress {
-    interactive: bool,
-    phase: Option<String>,
-    latest: Option<(u64, Option<u64>)>,
-    completed_line: bool,
-    inline_line: bool,
-}
-
-impl HumanProgress {
-    fn new(interactive: bool) -> Self {
-        Self {
-            interactive,
-            phase: None,
-            latest: None,
-            completed_line: false,
-            inline_line: false,
-        }
-    }
-
-    fn render(&mut self, event: &OperationEvent) -> String {
-        let mut output = String::new();
-        match &event.event {
-            OperationEventKind::Progress {
-                phase,
-                completed,
-                total,
-            } => {
-                if self.phase.as_deref() != Some(phase) {
-                    output.push_str(&self.end_phase());
-                    self.phase = Some(phase.clone());
-                    self.completed_line = false;
-                    if !self.interactive {
-                        output.push_str(&format!("{phase}: started\n"));
-                    }
-                }
-                self.latest = Some((*completed, *total));
-                if self.interactive {
-                    if let Some(total) = total {
-                        output.push_str(&format!("\r{phase}: {completed}/{total} bytes"));
-                        self.inline_line = true;
-                    }
-                } else if total.is_some_and(|total| *completed >= total) && !self.completed_line {
-                    output.push_str(&format!("{phase}: {completed}/{} bytes\n", total.unwrap()));
-                    self.completed_line = true;
-                }
-            }
-            OperationEventKind::Finished { .. } => output.push_str(&self.end_phase()),
-            OperationEventKind::SourceCandidate {
-                profile_id, path, ..
-            } => {
-                output.push_str(&self.break_inline_line());
-                output.push_str(&format!(
-                    "Exact candidate for {profile_id}: {}\n",
-                    path.display()
-                ));
-            }
-            OperationEventKind::Message { message, .. } => {
-                output.push_str(&self.break_inline_line());
-                output.push_str(message);
-                output.push('\n');
-            }
-            OperationEventKind::Started => {
-                output.push_str(&self.break_inline_line());
-                output.push_str(&format!(
-                    "{} {}\n",
-                    event.operation,
-                    event
-                        .target
-                        .as_ref()
-                        .map(|target| target.id.as_str())
-                        .unwrap_or_default()
-                ));
-            }
-        }
-        output
-    }
-
-    fn break_inline_line(&mut self) -> String {
-        if self.inline_line {
-            self.inline_line = false;
-            "\n".into()
-        } else {
-            String::new()
-        }
-    }
-
-    fn end_phase(&mut self) -> String {
-        let mut output = self.break_inline_line();
-        if !self.interactive
-            && !self.completed_line
-            && let (Some(phase), Some((completed, total))) = (&self.phase, self.latest)
-        {
-            match total {
-                Some(total) => {
-                    output.push_str(&format!("{phase}: {completed}/{total} bytes\n"));
-                }
-                None => output.push_str(&format!("{phase}: {completed} bytes\n")),
-            }
-        }
-        self.phase = None;
-        self.latest = None;
-        output
     }
 }
 
@@ -3195,7 +2419,10 @@ where
 
 fn render_error(mode: OutputMode, command: &str, error: &PortcoveError, technical_details: bool) {
     match mode {
-        OutputMode::Human => eprintln!("{}", human::failure(&error.report(), technical_details)),
+        OutputMode::Human => eprintln!(
+            "{}",
+            human_adapters::error(command, error, technical_details)
+        ),
         OutputMode::Json => println!(
             "{}",
             serde_json::to_string(&ApiResponse::<serde_json::Value> {
@@ -3238,10 +2465,11 @@ fn execute_artwork(
 ) -> Result<()> {
     let name = command.name();
     match command {
-        ArtworkCommand::Handoff { port_id, role } => render_success(
+        ArtworkCommand::Handoff { port_id, role } => render_read_success(
             mode,
             name,
             service.destination_artwork(&port_id, role.into())?,
+            |result| human_adapters::artwork_handoff(result, service.catalog()),
         ),
         ArtworkCommand::HandoffBytes {
             port_id,
@@ -3249,7 +2477,7 @@ fn execute_artwork(
             expected_library_id,
             expected_revision,
             expected_asset_sha256,
-        } => render_success(
+        } => render_read_success(
             mode,
             name,
             service.destination_artwork_bytes(
@@ -3259,10 +2487,14 @@ fn execute_artwork(
                 expected_revision,
                 &expected_asset_sha256,
             )?,
+            |result| human_adapters::artwork_bytes(result, service.catalog()),
         ),
-        ArtworkCommand::Show { port_id, slot } => {
-            render_success(mode, name, service.artwork(&port_id, slot.into())?)
-        }
+        ArtworkCommand::Show { port_id, slot } => render_read_success(
+            mode,
+            name,
+            service.artwork(&port_id, slot.into())?,
+            |result| human_adapters::artwork_state(result, service.catalog()),
+        ),
         ArtworkCommand::Import {
             port_id,
             path,
@@ -3274,10 +2506,11 @@ fn execute_artwork(
                 Some(value) => value,
                 None => service.artwork(&port_id, slot)?.choice.revision,
             };
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 service.import_artwork(&port_id, slot, &path, revision)?,
+                |result| human_adapters::artwork_state(result, service.catalog()),
             )
         }
         ArtworkCommand::Reset {
@@ -3290,10 +2523,27 @@ fn execute_artwork(
                 Some(value) => value,
                 None => service.artwork(&port_id, slot)?.choice.revision,
             };
-            render_success(mode, name, service.reset_artwork(&port_id, slot, revision)?)
+            render_read_success(
+                mode,
+                name,
+                service.reset_artwork(&port_id, slot, revision)?,
+                |result| human_adapters::artwork_state(result, service.catalog()),
+            )
         }
-        ArtworkCommand::ClearCache => render_success(mode, name, service.clear_artwork_cache()?),
-        ArtworkCommand::Unused => render_success(mode, name, service.unused_local_artwork()?),
+        ArtworkCommand::ClearCache => {
+            render_read_success(mode, name, service.clear_artwork_cache()?, |result| {
+                format!(
+                    "Artwork cache cleared: {} files, {}. Local originals remain in place.",
+                    result.removed_files,
+                    human::format_bytes(result.removed_bytes)
+                )
+            })
+        }
+        ArtworkCommand::Unused => {
+            render_read_success(mode, name, service.unused_local_artwork()?, |assets| {
+                human_adapters::unused_artwork(assets)
+            })
+        }
         ArtworkCommand::RemoveUnused { asset_sha256, yes } => {
             require_confirmation(
                 "Remove this unused managed local image? The original file outside the library is retained.",
@@ -3301,10 +2551,16 @@ fn execute_artwork(
                 non_interactive,
             )?;
             service.remove_unused_local_artwork(&asset_sha256)?;
-            render_success(
+            render_read_success(
                 mode,
                 name,
                 serde_json::json!({"removed":true,"asset_sha256":asset_sha256}),
+                |_| {
+                    format!(
+                        "Unused local artwork removed\nSHA-256: {}\nThe original file outside the library remains in place.",
+                        human::clean(&asset_sha256)
+                    )
+                },
             )
         }
     }
@@ -3317,11 +2573,16 @@ fn confirmation(prompt: &str, yes: bool, non_interactive: bool) -> Result<bool> 
     if non_interactive {
         return Err(PortcoveError::usage("confirmation required; pass --yes"));
     }
-    eprint!("{prompt} [y/N] ");
-    io::stderr().flush()?;
+    write_confirmation_prompt(&mut io::stderr().lock(), prompt)?;
     let mut answer = String::new();
     io::stdin().read_line(&mut answer)?;
     Ok(answer.trim().eq_ignore_ascii_case("y") || answer.trim().eq_ignore_ascii_case("yes"))
+}
+
+fn write_confirmation_prompt(output: &mut impl Write, prompt: &str) -> Result<()> {
+    write!(output, "{} [y/N] ", human::clean(prompt))?;
+    output.flush()?;
+    Ok(())
 }
 
 fn render_backup_cancellation(mode: OutputMode, command: &str, label: &str) -> Result<()> {
@@ -3477,6 +2738,24 @@ fn command_name(command: &Commands) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn consent_prompt_keeps_external_paths_on_one_control_safe_line() {
+        let mut output = Vec::new();
+        super::write_confirmation_prompt(
+            &mut output,
+            "Change Game (game-id) from /owned/日本語\r\nProceed?\u{1b}[2J to /owned/new\tlocation? External files stay in place.",
+        )
+        .unwrap();
+        let text = String::from_utf8(output).unwrap();
+        assert!(!text.chars().any(char::is_control), "{text:?}");
+        assert!(text.contains("Game (game-id)"));
+        assert!(text.contains("/owned/日本語"));
+        assert!(text.contains("/owned/new location"));
+        assert!(text.contains("External files stay in place."));
+        assert_eq!(text.matches("[y/N]").count(), 1);
+        assert!(text.ends_with(" [y/N] "));
+    }
+
     #[test]
     fn definition_authority_requires_reviewed_explicit_apply_and_has_no_root_input() {
         let review = Cli::try_parse_from(["portcove", "catalog", "definition-authority"]).unwrap();
@@ -3830,7 +3109,7 @@ mod tests {
         }
         assert_eq!(
             output,
-            "download: started\ndownload: 100/100 bytes\nverify: started\nverify: 5/10 bytes\n"
+            "Downloading release files: started\nDownloading release files: 100 B of 100 B\nChecking file identity: started\nChecking file identity: 5 of 10 units\n"
         );
         assert!(!output.contains('\r'));
     }
@@ -3850,7 +3129,7 @@ mod tests {
         let last = renderer.render(&progress_event(OperationEventKind::Finished {
             result: portcove_core::OperationResult::Succeeded,
         }));
-        assert_eq!(first, "\rdownload: 10/100 bytes");
+        assert_eq!(first, "\rDownloading release files: 10 B of 100 B");
         assert_eq!(message, "\nChecking file\n");
         assert!(last.is_empty());
     }
@@ -4607,5 +3886,71 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(poll, super::DeviceLoginWait::Poll);
+    }
+
+    #[test]
+    fn device_prompt_identifies_github_and_preserves_machine_streams_and_data() {
+        let mut login = super::GithubDeviceLogin {
+            session_id: "private-device-session-canary".into(),
+            user_code: "ABCD-1234\r\n\u{1b}[2J".into(),
+            verification_uri: "https://github.com/login/device\t".into(),
+            expires_at: 42,
+            interval_seconds: 5,
+        };
+        let original = serde_json::to_value(&login).unwrap();
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        super::write_device_prompt(super::OutputMode::Human, &login, &mut stdout, &mut stderr)
+            .unwrap();
+        assert!(stderr.is_empty());
+        let human = String::from_utf8(stdout).unwrap();
+        assert!(human.contains("https://github.com/login/device"));
+        assert!(human.contains("ABCD-1234"));
+        assert!(human.contains("to sign in to GitHub."));
+        assert!(human.contains("Expires: 1970-01-01T00:00:42Z"));
+        assert!(!human.contains("private-device-session-canary"));
+        assert!(
+            !human
+                .chars()
+                .any(|value| value.is_control() && value != '\n')
+        );
+        assert_eq!(human.lines().count(), 2);
+
+        for mode in [super::OutputMode::Json, super::OutputMode::Jsonl] {
+            let mut stdout = Vec::new();
+            let mut stderr = Vec::new();
+            super::write_device_prompt(mode, &login, &mut stdout, &mut stderr).unwrap();
+            if mode == super::OutputMode::Json {
+                assert!(stdout.is_empty());
+                assert_eq!(
+                    String::from_utf8(stderr).unwrap(),
+                    format!(
+                        "Open {} and enter code {}\n",
+                        login.verification_uri, login.user_code
+                    )
+                );
+            } else {
+                assert!(stderr.is_empty());
+                let value: serde_json::Value = serde_json::from_slice(&stdout).unwrap();
+                assert_eq!(value["schema_version"], portcove_core::API_SCHEMA_VERSION);
+                assert_eq!(value["type"], "device_authorization");
+                assert_eq!(value["data"], original);
+            }
+        }
+        assert_eq!(serde_json::to_value(&login).unwrap(), original);
+        login.expires_at = u64::MAX;
+        let mut stdout = Vec::new();
+        super::write_device_prompt(
+            super::OutputMode::Human,
+            &login,
+            &mut stdout,
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert!(
+            String::from_utf8(stdout)
+                .unwrap()
+                .contains("Unknown expiry (invalid timestamp)")
+        );
     }
 }
