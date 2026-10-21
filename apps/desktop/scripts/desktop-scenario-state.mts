@@ -1,6 +1,6 @@
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import type { PortStatus } from "../src/transport-types.generated.js";
-import { isRecord } from "../../../scripts/runtime-values.mts";
+import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 export interface OwnedFixtureContext {
   cli: string;
   library: string;
@@ -9,6 +9,7 @@ export interface OwnedFixtureContext {
 }
 interface FixtureProcessResult {
   status: number | null;
+  signal?: string | null;
   stdout?: string | null;
   stderr?: string | null;
   error?: unknown;
@@ -46,20 +47,39 @@ export function ownedFixtureCommand(
   spawn: FixtureSpawn = spawnCommand,
 ): FixtureCommand {
   return (args: readonly string[], selectedLibrary = library) => {
-    const result = spawn(
-      cli,
-      ["--library", selectedLibrary, "--json", "--non-interactive", ...args],
-      {
+    const timeout = args[0] === "adopt" ? 60_000 : 15_000;
+    const started = performance.now();
+    let result: FixtureProcessResult | undefined;
+    try {
+      result = spawn(cli, ["--library", selectedLibrary, "--json", "--non-interactive", ...args], {
         encoding: "utf8",
         windowsHide: true,
-        timeout: 15_000,
+        timeout,
         env: {
           ...process.env,
           ...(catalogPath === undefined ? {} : { PORTCOVE_QUALIFICATION_CATALOG: catalogPath }),
           PORTCOVE_PREFERENCES: path.join(output, "preferences.json"),
         },
-      },
-    );
+      });
+      if (result.error) throw new Error(errorMessage(result.error), { cause: result.error });
+    } catch (error) {
+      const observation = {
+        family: args[0],
+        timeout_ms: timeout,
+        elapsed_ms: Math.round(performance.now() - started),
+        status: result?.status,
+        signal: result?.signal,
+        stdout: result?.stdout?.slice(0, 1_000),
+        stderr: result?.stderr?.slice(0, 1_000),
+        process_result_available: result !== undefined,
+      };
+      throw new Error(
+        `Owned fixture CLI failed: ${errorMessage(error)}; ${JSON.stringify(observation)}`,
+        {
+          cause: result?.error ?? error,
+        },
+      );
+    }
     assert.equal(result.status, 0, result.stderr || result.stdout || undefined);
     assert.equal(typeof result.stdout, "string", "Owned CLI response must contain JSON text");
     assert(typeof result.stdout === "string");
