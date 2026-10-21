@@ -892,6 +892,39 @@ conflict/migration decision is needed to change an install's source. Unknown or
 unsupported management operations remain unavailable with stable reasons; launch
 integration does not imply full lifecycle management or sandbox confinement.
 
+## Managed publication tooling
+
+`portcove --json catalog inspect-definition-publication DIRECTORY` inspects an
+inert prepared bundle without opening preferences or a Library. The directory
+contains `definitions/index.json`, exactly its `sha256/*.json` content, and the
+corresponding `policy/official/<stable_id>.json` plus required `.launch.json`
+records. Core reuses the definition, capability, publisher and launch parsers;
+missing, extra, changed, linked or unsupported content refuses. The bounds are
+16,385 files and 32 MiB in total, with 4 MiB indexed leaves and 64 KiB policy
+records. Its exact file/definition manifest grants no semantic or publisher
+acceptance. An empty index is bootstrap preparation, not a delivered definition.
+
+The release tool provides `sign-offline-definition-targets CONFIG`,
+`sign-definition-role ROLE CONFIG` and `assemble-definition-repository CONFIG`.
+Catalog Root and offline Targets remain separate from application authority.
+Online roles are `official-definitions`, `official-policy`, `snapshot` and
+`timestamp`; each signing invocation reads only its one appointed private key.
+Keyless assembly uses Tough to authenticate the exact public closure, preserving
+immutable history and semantic revision floors. It cannot appoint a publisher or
+replace protected acceptance. Version strings in the public tool report preserve
+positive u64 identities without JavaScript numeric conversion.
+
+The existing coordinator models a catalog publication as its own bounded subject,
+without allocating an application version. Both publishers use the same complete
+site and pending-effect owner: a global site cursor advances with one component's
+metadata, while the other component's publication provenance remains intact.
+Schema 2 site markers name separate application/catalog roots; legacy app markers
+remain readable. A marker or byte digest is not a TUF verifier. Actual callers
+must authenticate the prior complete site and preserve both histories before the
+sole Pages writer. The site's 6,000-file / 256 MiB bound remains independent of
+producer and historical-repository bounds. Protected configuration, admission,
+source/producer binding and the live controller integration remain required.
+
 ## Verification boundary
 
 The design fixtures cover decision outcomes, independent evidence dimensions,
