@@ -6,6 +6,7 @@ import {
   inspectMetadataBootstrapDescriptor,
 } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectPreviewWithdrawals } from "./release-preview-withdrawals.mts";
 import { inspectCandidateStageEvidence } from "./release-candidate-progress-contract.mts";
 import {
   inspectReleaseReviewRequest,
@@ -226,6 +227,11 @@ export function validateOpportunity(opportunity: unknown) {
   if (opportunity.requested_channel !== "preview" && opportunity.requested_channel !== "stable")
     throw new Error("requested channel must be preview or stable");
   object(opportunity.classification, "reviewed classification");
+  if (opportunity.classification.preview_withdrawals !== undefined) {
+    inspectPreviewWithdrawals(opportunity.classification.preview_withdrawals);
+    if (opportunity.requested_channel !== "preview")
+      throw new Error("Preview withdrawals cannot appoint Stable eligibility");
+  }
   if (
     opportunity.classification.source_commit !== opportunity.source_commit ||
     opportunity.classification.reviewed_commit !== opportunity.source_commit ||
