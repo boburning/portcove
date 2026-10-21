@@ -177,6 +177,102 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
   };
 }
 
+/** Hydrate only a raw operation receipt explicitly named by the current
+ * journal's compact summary. No refs, history traversal or provider mutation. */
+export async function hydrateRetainedCoordinatorOperation(repository: string, proof: unknown) {
+  if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
+    throw new Error("retained operation proof schema differs");
+  oid(proof.checkpoint);
+  if (
+    typeof proof.id !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.id) ||
+    typeof proof.operation_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(proof.operation_sha256)
+  )
+    throw new Error("retained operation proof identity differs");
+  const api = new GitHubApiClient((args, input) =>
+    createGitHubRunner({
+      cwd: repository,
+      maxBuffer: 256 * 1024,
+      timeoutMs: coordinatorCommandTimeout(15000),
+    })([...args, "--hostname", "github.com"], input),
+  );
+  const get = (suffix: string) => {
+    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+    if (result.status !== 200) throw new Error("retained operation unavailable");
+    return result.body;
+  };
+  const commit = inspectRemoteCommitObject(
+    get(`git/commits/${proof.checkpoint}`),
+    proof.checkpoint,
+  );
+  const raw = get(`git/trees/${commit.tree}`);
+  if (
+    !isRecord(raw) ||
+    raw.sha !== commit.tree ||
+    raw.truncated !== false ||
+    !Array.isArray(raw.tree) ||
+    raw.tree.length !== 1
+  )
+    throw new Error("retained checkpoint tree differs");
+  const entry: unknown = raw.tree[0];
+  if (
+    !isRecord(entry) ||
+    entry.path !== "state.json" ||
+    entry.mode !== "100644" ||
+    entry.type !== "blob"
+  )
+    throw new Error("retained checkpoint member differs");
+  oid(entry.sha);
+  const tree = inspectRemoteGitObject(
+    "tree",
+    commit.tree,
+    Buffer.concat([Buffer.from("100644 state.json\0"), Buffer.from(entry.sha, "hex")]),
+  );
+  const blobRaw = get(`git/blobs/${entry.sha}`);
+  if (
+    !isRecord(blobRaw) ||
+    blobRaw.sha !== entry.sha ||
+    blobRaw.encoding !== "base64" ||
+    typeof blobRaw.size !== "number" ||
+    !Number.isSafeInteger(blobRaw.size) ||
+    blobRaw.size < 1 ||
+    blobRaw.size > 65536 ||
+    typeof blobRaw.content !== "string" ||
+    blobRaw.content.length > 90 * 1024
+  )
+    throw new Error("retained checkpoint payload exceeds bound");
+  const bytes = Buffer.from(blobRaw.content, "base64");
+  if (bytes.length !== blobRaw.size) throw new Error("retained checkpoint payload differs");
+  const blob = inspectRemoteGitObject("blob", entry.sha, bytes);
+  const env = {
+    PATH: process.env.PATH,
+    SystemRoot: process.env.SystemRoot,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: process.platform === "win32" ? "NUL" : "/dev/null",
+    GIT_NO_LAZY_FETCH: "1",
+    GIT_NO_REPLACE_OBJECTS: "1",
+    GIT_CONFIG_COUNT: "1",
+    GIT_CONFIG_KEY_0: "core.hooksPath",
+    GIT_CONFIG_VALUE_0: process.platform === "win32" ? "NUL" : "/dev/null",
+  };
+  for (const object of [commit.object, tree, blob]) {
+    const id = execFileSync("git", ["hash-object", "-w", "-t", object.kind, "--stdin"], {
+      cwd: repository,
+      env,
+      input: object.bytes,
+      encoding: "utf8",
+      timeout: coordinatorCommandTimeout(),
+      maxBuffer: 128 * 1024,
+      windowsHide: true,
+    }).trim();
+    checkCoordinatorDeadline();
+    if (id !== object.oid) throw new Error("retained checkpoint import differs");
+  }
+  const { readRetainedCapacityOperation } = await import("./release-coordinator-state.mts");
+  return readRetainedCapacityOperation(repository, proof);
+}
+
 /** Read the minimum raw recovery closure without Git writes, planner imports,
  * source checkout or a complete allocation inventory. The admitted caller
  * supplies separately ratified namespace configuration and a fixed transport.

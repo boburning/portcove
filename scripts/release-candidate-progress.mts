@@ -26,7 +26,6 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
-import { requireOwnedImmutableReleaseCompletion } from "./release-immutable-publication.mts";
 
 type Phase = "building" | "publishing" | "promoting";
 type Locator = { kind: string; id: string; sha256: string | null };
@@ -47,6 +46,11 @@ async function actualProof(receipt: object, target: Phase) {
       },
     };
   }
+  // Completion is needed only at this actual phase boundary. A static edge
+  // back to the publisher forms an async bundle-initialization cycle through
+  // the admission CLI, even when its guarded main never executes.
+  const { requireOwnedImmutableReleaseCompletion } =
+    await import("./release-immutable-publication.mts");
   const completed =
     target === "promoting" ? await requireOwnedImmutableReleaseCompletion(receipt) : null;
   const originalContext = completed?.original_context ?? receipt;

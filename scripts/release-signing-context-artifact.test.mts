@@ -5,6 +5,8 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
@@ -15,6 +17,7 @@ import {
   prepareSigningContextPredicate,
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
+  requireRetainedSigningContext,
   signingContextPredicateType,
   handoffSigningContextArtifact,
 } from "./release-signing-context-artifact.mts";
@@ -277,6 +280,11 @@ void test("injected complete provider/attestation path proves data association b
   assert.equal(result.publication_admission, "not-established");
   assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  await assert.rejects(
+    requireRetainedSigningContext(result, performance.now() + 1000),
+    /actual authenticated/,
+  );
+  assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   for (const fault of ["job", "certificate", "drift"]) {
     const changed = fixture();
     changed.faults.value = fault;
@@ -289,6 +297,56 @@ void test("injected complete provider/attestation path proves data association b
       ),
       /retain/,
     );
+  }
+});
+void test("the fixed default transport shares one finite context read budget across the complete callable graph", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "context-default-transport-")),
+    f = fixture();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  // Simulated provider at the OS transport boundary only. The maintained
+  // default receiver still performs all archive/certificate/producer joins;
+  // production has no imported-proof or test-only constructor.
+  const mocked = t.mock.method(
+    childProcess,
+    "spawnSync",
+    (command: unknown, args: readonly string[]) => {
+      assert.equal(command, "gh");
+      let stdout: string | Buffer;
+      if (args[0] === "attestation") stdout = f.options.spawn("gh", args).stdout;
+      else {
+        const endpoint = args.find((value) => value.startsWith("repos/boburning/portcove/"));
+        assert.ok(endpoint);
+        if (endpoint.endsWith("/zip")) stdout = f.options.download(endpoint);
+        else {
+          const response = f.options.api.request("GET", endpoint);
+          stdout = `HTTP/2.0 200 OK\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(response.body)}`;
+        }
+      }
+      return {
+        pid: 1,
+        output: [],
+        status: 0,
+        signal: null,
+        stdout,
+        stderr: typeof stdout === "string" ? "" : Buffer.alloc(0),
+      };
+    },
+  );
+  syncBuiltinESMExports();
+  try {
+    const receipt = await receiveSigningContextArtifact(
+      root,
+      f.expected,
+      performance.now() + 15000,
+    );
+    assert.equal(receipt.evidence_scope, "github.com");
+    for (let round = 0; round < 62; round++) await requireReceivedSigningContext(receipt);
+    assert.deepEqual(f.counts(), { requests: 384, downloads: 2 });
+    await assert.rejects(requireReceivedSigningContext(receipt), /readback budget exceeded/);
+    assert.deepEqual(f.counts(), { requests: 384, downloads: 2 });
+  } finally {
+    mocked.mock.restore();
+    syncBuiltinESMExports();
   }
 });
 void test("missing private producer receipt and exhausted receiver budget refuse before effects", async (t) => {

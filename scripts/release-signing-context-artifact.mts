@@ -613,7 +613,10 @@ export async function receiveSigningContextArtifact(
       );
     const get = (suffix: string) => {
       signingContextRemaining(deadline, 15000);
-      if (++requests > 48) throw new Error("context complete provider readback budget exceeded");
+      // One original phase only: initial12 + at most62 six-GET refreshes. The
+      // fixed five-role/assembly/native/Release graph requires more than48;
+      // neither later getters nor retained-proof reads reset this counter.
+      if (++requests > 384) throw new Error("context complete provider readback budget exceeded");
       const response = api.request("GET", `repos/boburning/portcove/${suffix}`);
       signingContextRemaining(deadline, 15000);
       if (response.status !== 200) throw new Error("context provider response unavailable");
@@ -883,7 +886,11 @@ export async function receiveSigningContextArtifact(
   }
 }
 
-export async function requireReceivedSigningContext(receipt: object, phaseDeadline?: number) {
+async function readReceivedSigningContext(
+  receipt: object,
+  phaseDeadline: number | undefined,
+  provider: "fresh" | "retained",
+) {
   const actual = received.get(receipt);
   if (!actual) throw new Error("actual authenticated signing context receiver required");
   if (phaseDeadline !== undefined) actual.tighten(phaseDeadline);
@@ -905,12 +912,25 @@ export async function requireReceivedSigningContext(receipt: object, phaseDeadli
     digest(actual.files)
   )
     throw new Error("authenticated signing context retained inventory changed");
-  actual.refresh();
+  if (provider === "fresh") actual.refresh();
   return Object.freeze({
     directory: actual.directory,
     context: path.join(actual.context, "context.json"),
     manifest: structuredClone(actual.manifest),
     publication_admission: "not-established",
+    provenance:
+      provider === "fresh"
+        ? ("fresh-provider-readback" as const)
+        : ("original-verified-snapshot" as const),
     authority: "none",
   });
+}
+export function requireReceivedSigningContext(receipt: object, phaseDeadline?: number) {
+  return readReceivedSigningContext(receipt, phaseDeadline, "fresh");
+}
+/** Historical immutable provenance only. All originally authenticated statement,
+ * certificate/provider proof and complete context bytes are rehashed; no new
+ * provider observation, current eligibility or protected authority is implied. */
+export function requireRetainedSigningContext(receipt: object, phaseDeadline?: number) {
+  return readReceivedSigningContext(receipt, phaseDeadline, "retained");
 }
