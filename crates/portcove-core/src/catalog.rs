@@ -2417,7 +2417,7 @@ mod tests {
             serde_json::to_value(projected_legacy_profiles).unwrap(),
             serde_json::to_value(&legacy.document().source_profiles).unwrap()
         );
-        // Keep frozen port facts except the reviewed runtime/persistence
+        // Keep frozen port facts except the reviewed metadata/runtime/persistence
         // declarations below. Every source contract remains exact.
         let mut expected_ports = legacy.document().ports.clone();
         let ghostship = expected_ports
@@ -2530,6 +2530,14 @@ mod tests {
             .unwrap();
         two_ship.project_url = "https://github.com/2ship2harkinian/2ship2harkinian".into();
         two_ship.release.repository = "2ship2harkinian/2ship2harkinian".into();
+        // Same repository and retained release; see the 2026-10-21 ReCut relocation record.
+        let paper_mario = expected_ports
+            .iter_mut()
+            .find(|port| port.id == "paper-mario-recut")
+            .unwrap();
+        paper_mario.project_url = "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated".into();
+        paper_mario.release.repository = "SMCGames/Paper-Mario-ReCut-Deprecated".into();
+        paper_mario.upstream_status = crate::UpstreamStatus::Retired;
         for (id, hint) in [
             ("zelda64-recomp", "Linux-X64.zip"),
             ("banjo-recomp", "Linux-X64."),

@@ -2275,7 +2275,9 @@ async function verifyCompactSettingsJumps() {
   );
 
   const diagnosticCopy = await executeBrowserScript(browser, () => {
-    const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+    const paragraph = document.querySelector(
+      ".diagnostics-card .support-bundle-export > p:first-of-type",
+    );
     if (!(paragraph instanceof HTMLElement)) throw new Error("Diagnostics explanation is missing");
     const original = paragraph.textContent;
     paragraph.textContent = `${original} `.repeat(8);
@@ -2338,7 +2340,9 @@ async function verifyCompactSettingsJumps() {
     await executeBrowserScript(
       browser,
       (copy) => {
-        const paragraph = document.querySelector(".diagnostics-card > p:not(.eyebrow):not([role])");
+        const paragraph = document.querySelector(
+          ".diagnostics-card .support-bundle-export > p:first-of-type",
+        );
         if (paragraph) paragraph.textContent = copy;
       },
       diagnosticCopy,
@@ -3470,8 +3474,17 @@ try {
           const label = button.querySelector("span:not(.icon)");
           if (!(button instanceof HTMLElement) || !(label instanceof HTMLElement))
             throw new Error("Primary navigation label is missing");
+          const labelStyle = getComputedStyle(label);
+          const icon = button.querySelector(".icon");
+          const iconRect = icon?.getBoundingClientRect();
           return {
             text: label.textContent,
+            compactLabel:
+              labelStyle.position === "absolute" &&
+              labelStyle.clipPath === "inset(50%)" &&
+              label.clientWidth === 1 &&
+              label.clientHeight === 1,
+            iconVisible: Boolean(iconRect && iconRect.width > 0 && iconRect.height > 0),
             widthFits: label.scrollWidth <= label.clientWidth + 1,
             heightFits: label.scrollHeight <= label.clientHeight + 1,
             buttonFits: button.scrollHeight <= button.clientHeight + 1,
@@ -3482,7 +3495,14 @@ try {
         labels.map((label) => label.text),
         ["Library", "Find games", "Activity", "Settings"],
       );
-      assert.ok(labels.every((label) => label.widthFits && label.heightFits && label.buttonFits));
+      assert.ok(
+        labels.every(
+          (label) =>
+            label.buttonFits &&
+            (label.compactLabel ? label.iconVisible : label.widthFits && label.heightFits),
+        ),
+        JSON.stringify(labels),
+      );
     };
     await browser.manage().window().setRect({ width: 1280, height: 800 });
     await verifySidebarLabels();
@@ -3782,8 +3802,16 @@ try {
             title: choice.querySelector("summary")?.textContent?.trim(),
             open: choice.hasAttribute("open"),
           })),
-          actionGap: actionBounds.top - heroBounds.bottom,
+          actionInHero: hero.contains(action),
+          actionGap:
+            actionBounds.top -
+            Math.max(
+              title.getBoundingClientRect().bottom,
+              reasonBounds.bottom,
+              requirementBounds.bottom,
+            ),
           actionFits: actionBounds.left >= 0 && actionBounds.right <= window.innerWidth,
+          actionVisible: actionBounds.top >= 0 && actionBounds.bottom <= window.innerHeight,
         };
       });
       assert.equal(hierarchy.duplicateReadiness, 0);
@@ -3816,8 +3844,17 @@ try {
       assert.deepEqual(hierarchy.futureChoices, [
         { title: "Folder for a future install", open: false },
       ]);
-      assert.ok(hierarchy.actionGap >= 0 && hierarchy.actionGap < 160);
+      assert.equal(hierarchy.actionInHero, true, `Action grouping: ${JSON.stringify(hierarchy)}`);
+      assert.ok(
+        hierarchy.actionGap >= 0 && hierarchy.actionGap < 160,
+        `Action gap: ${JSON.stringify(hierarchy)}`,
+      );
       assert.equal(hierarchy.actionFits, true);
+      assert.equal(
+        hierarchy.actionVisible,
+        true,
+        `Action visibility: ${JSON.stringify(hierarchy)}`,
+      );
     };
     await verifyDetailActionHierarchy();
     await captureScenarioScreenshot("game-details-workspace");
