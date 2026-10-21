@@ -389,10 +389,16 @@ function parseArguments(argv: readonly string[]) {
   return { ...options, input: options.input, output: options.output };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
-  const options = parseArguments(process.argv.slice(2));
-  const result = await reconcileReleaseAssets(options.input, options.output, options);
-  console.log(
-    `Reconciled ${result.assets.length} public release assets from all four platform jobs.`,
-  );
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === scriptPath) {
+    const options = parseArguments(process.argv.slice(2));
+    const result = await reconcileReleaseAssets(options.input, options.output, options);
+    console.log(
+      `Reconciled ${result.assets.length} public release assets from all four platform jobs.`,
+    );
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

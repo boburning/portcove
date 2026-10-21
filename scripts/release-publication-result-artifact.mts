@@ -18,7 +18,10 @@ import {
   requireOwnedPublicationResult,
   inspectPublicationRecordAssociation,
 } from "./release-publication-result.mts";
-import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
+import {
+  requireReceivedSigningContext,
+  requireRetainedSigningContext,
+} from "./release-signing-context-artifact.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
@@ -321,8 +324,11 @@ async function contextAssociation(
   record: ReturnType<typeof reportInput>,
   contextReceipt: object,
   deadline: number,
+  provenance: "fresh" | "retained" = "fresh",
 ) {
-  const context = await requireReceivedSigningContext(contextReceipt, deadline);
+  const context = await (
+    provenance === "fresh" ? requireReceivedSigningContext : requireRetainedSigningContext
+  )(contextReceipt, deadline);
   const bytes = await readControllerToolFile(
     path.join(context.directory, "signing-context-manifest.json"),
     1024 ** 2,
@@ -550,7 +556,14 @@ export async function requireReceivedPublicationResult(receipt: object, phaseDea
     if (!bytes.equals(item.bytes)) throw new Error("retained publication result evidence changed");
     remaining(actual.deadline);
   }
-  const context = await contextAssociation(actual.record, actual.context, actual.deadline);
+  // Context signatures/source are historical immutable provenance. Rehash the
+  // original proof, then independently refresh this publisher and live Release.
+  const context = await contextAssociation(
+    actual.record,
+    actual.context,
+    actual.deadline,
+    "retained",
+  );
   actual.refresh();
   // An authenticated historical report is not current provider enforcement.
   // Reuse the existing complete draft-inclusive Release/tag/asset readback.

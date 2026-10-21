@@ -365,20 +365,26 @@ export function proposeApplicationVersion(value: unknown, publishedVersions: unk
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [operation, inputPath] = process.argv.slice(2);
-  if (process.argv.length !== 4 || !inputPath)
-    throw new Error("usage: release-version-policy.mts classify|select|propose INPUT.json");
-  const raw: unknown = JSON.parse(await readFile(inputPath, "utf8"));
-  if (!isRecord(raw)) throw new Error("release policy input must be an object");
-  const input = raw;
-  let output;
-  if (operation === "classify")
-    output = classifyApplicationVersion(input.version, input.production_eligible);
-  else if (operation === "select")
-    output = selectApplicationRelease(input.releases, input.channel, input.options);
-  else if (operation === "propose")
-    output = proposeApplicationVersion(input.classification, input.published_versions);
-  else throw new Error("unknown release policy operation");
-  console.log(JSON.stringify(output));
+async function settleDirectCli() {
+  if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    const [operation, inputPath] = process.argv.slice(2);
+    if (process.argv.length !== 4 || !inputPath)
+      throw new Error("usage: release-version-policy.mts classify|select|propose INPUT.json");
+    const raw: unknown = JSON.parse(await readFile(inputPath, "utf8"));
+    if (!isRecord(raw)) throw new Error("release policy input must be an object");
+    const input = raw;
+    let output;
+    if (operation === "classify")
+      output = classifyApplicationVersion(input.version, input.production_eligible);
+    else if (operation === "select")
+      output = selectApplicationRelease(input.releases, input.channel, input.options);
+    else if (operation === "propose")
+      output = proposeApplicationVersion(input.classification, input.published_versions);
+    else throw new Error("unknown release policy operation");
+    console.log(JSON.stringify(output));
+  }
 }
+void settleDirectCli().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
