@@ -29,7 +29,10 @@ import {
   importCoordinatorCheckpoint,
   readRetainedCapacityOperation,
 } from "./release-coordinator-state.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import {
+  recoverRemoteCoordinator,
+  hydrateRetainedCoordinatorOperation,
+} from "./release-coordinator-recovery.mts";
 import {
   publishCoordinatorCheckpoint,
   CoordinatorRemoteError,
@@ -2861,6 +2864,106 @@ void test(
       operation_sha256: String(proof.operation_sha256),
     });
     assert.equal(raw.id, first.operation.id);
+    // A newly recovered sparse journal does not contain arbitrary older
+    // compact checkpoints. Hydrate exactly the original three inert objects
+    // through the supplied owned read-only transport, without fetching parents.
+    const sparse = await mkdtemp(path.join(os.tmpdir(), "retained-operation-sparse-"));
+    t.after(() => rm(sparse, { recursive: true, force: true }));
+    execFileSync("git", ["init", "--bare", "-q", sparse], { windowsHide: true });
+    const retainedProof = {
+      checkpoint: String(proof.checkpoint),
+      id: String(proof.id),
+      operation_sha256: String(proof.operation_sha256),
+    };
+    assert.throws(() => readRetainedCapacityOperation(sparse, retainedProof));
+    const commitBytes = execFileSync("git", [
+      "-C",
+      f.bare,
+      "cat-file",
+      "commit",
+      retainedProof.checkpoint,
+    ]);
+    const commitText = commitBytes.toString("utf8"),
+      boundary = commitText.indexOf("\n\n"),
+      header = commitText.slice(0, boundary),
+      treeId = /^tree ([a-f0-9]{40})$/mu.exec(header)![1]!;
+    const treeBytes = execFileSync("git", ["-C", f.bare, "cat-file", "tree", treeId]),
+      blobId = treeBytes.subarray(-20).toString("hex");
+    const blobBytes = execFileSync("git", ["-C", f.bare, "cat-file", "blob", blobId]);
+    const actor = {
+      name: "Portcove release coordinator",
+      email: "coordinator@portcove.invalid",
+      date: "2000-01-01T00:00:00Z",
+    };
+    const bodies = new Map<string, unknown>([
+      [
+        `repos/boburning/portcove/git/commits/${retainedProof.checkpoint}`,
+        {
+          sha: retainedProof.checkpoint,
+          tree: { sha: treeId },
+          parents: [...header.matchAll(/^parent ([a-f0-9]{40})$/gmu)].map((match) => ({
+            sha: match[1],
+          })),
+          author: actor,
+          committer: actor,
+          message: commitText.slice(boundary + 2),
+        },
+      ],
+      [
+        `repos/boburning/portcove/git/trees/${treeId}`,
+        {
+          sha: treeId,
+          truncated: false,
+          tree: [{ path: "state.json", mode: "100644", type: "blob", sha: blobId }],
+        },
+      ],
+      [
+        `repos/boburning/portcove/git/blobs/${blobId}`,
+        {
+          sha: blobId,
+          encoding: "base64",
+          size: blobBytes.length,
+          content: blobBytes.toString("base64"),
+        },
+      ],
+    ]);
+    const reads: string[] = [];
+    const api = {
+      request(method: string, endpoint: string, body?: unknown) {
+        assert.equal(method, "GET");
+        assert.equal(body, undefined);
+        assert.ok(bodies.has(endpoint));
+        reads.push(endpoint);
+        return {
+          status: 200,
+          body: structuredClone(bodies.get(endpoint)),
+          headers: new Map<string, string>(),
+        };
+      },
+    };
+    const hydrated = await hydrateRetainedCoordinatorOperation(sparse, retainedProof, { api });
+    assert.deepEqual(hydrated, raw);
+    assert.equal(reads.length, 3);
+    const parentId = /^parent ([a-f0-9]{40})$/mu.exec(header)![1]!;
+    assert.throws(() =>
+      execFileSync("git", ["-C", sparse, "cat-file", "-e", parentId], {
+        stdio: "pipe",
+        windowsHide: true,
+      }),
+    );
+    assert.equal(
+      execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+      "",
+    );
+    await assert.rejects(
+      hydrateRetainedCoordinatorOperation(
+        sparse,
+        { ...retainedProof, operation_sha256: "0".repeat(64) },
+        { api },
+      ),
+      /exact raw capacity operation/,
+    );
+    assert.equal(reads.length, 6);
     assert.throws(() =>
       readRetainedCapacityOperation(f.bare, {
         checkpoint: String(proof.checkpoint),

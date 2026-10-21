@@ -12,7 +12,10 @@ import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.
 import { requireActualNativeParent } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
-import { recoverRemoteCoordinator } from "./release-coordinator-recovery.mts";
+import {
+  recoverRemoteCoordinator,
+  hydrateRetainedCoordinatorOperation,
+} from "./release-coordinator-recovery.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { artifactName } from "./release-package-policy.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
@@ -31,12 +34,7 @@ import {
   inspectNativePrepublicationAuthorities,
   inspectPublicationAuthorities,
 } from "./release-authority-configuration.mts";
-import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
-import {
-  inspectCapacityOperation,
-  inspectCompactCapacityOperations,
-  verifyRetainedCapacityOperation,
-} from "./release-capacity.mts";
+import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
   prepareNativeQualificationCheck,
   collectNativeReleaseQualification,
@@ -496,16 +494,9 @@ export async function readActualNativePostSignController(parentReceipt: object) 
   );
   for (const group of groups) {
     for (const proof of group.attempts) {
-      const historical = await recoverReleaseOpportunity(before.repository, proof.checkpoint);
-      if (
-        !isRecord(historical.input.controller) ||
-        !isRecord(historical.input.controller.capacity_attempt)
-      )
-        throw new Error("retained timestamp checkpoint lacks original operation");
-      const operation = verifyRetainedCapacityOperation(
-        historical.input.controller.capacity_attempt.operation,
-        proof,
-      );
+      const operation = await hydrateRetainedCoordinatorOperation(before.repository, proof, {
+        api: source.api,
+      });
       raws.push({ checkpoint: proof.checkpoint, operation });
     }
   }
