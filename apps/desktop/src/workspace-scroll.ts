@@ -15,19 +15,37 @@ export function scrollWorkspaceTo(workspace: HTMLElement | null | undefined, top
   scrollOwner(workspace)?.scrollTo({ top });
 }
 import { useEffect, type RefObject } from "react";
+import { fieldOwnsArrows, navigationScope } from "./focus";
 
-/** Keep a visible reading anchor when resizing transfers the scroll owner. */
+/** Preserve visible reading position for window reflow and leading feedback. */
 export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const element = workspace.current;
     if (!element) return;
+    const feedback = element.querySelector<HTMLElement>("[data-workspace-feedback]");
+    const scope = () => element.getAttribute("data-workspace-continuity-scope");
     let owner = scrollOwner(element);
-    let anchor: { element: HTMLElement; top: number } | undefined;
+    let anchor: { element: HTMLElement; top: number; scope: string | null } | undefined;
     let frame = 0;
-    const remember = () => {
-      // A CSS breakpoint may change the owner before the resize notification.
-      // Do not replace the previous reading anchor with the new, unscrolled view.
+    let revealRequested = false;
+    let feedbackHeight = feedback?.getBoundingClientRect().height;
+    let feedbackChangePending = false;
+    const overlayOpen = () => navigationScope() !== document;
+    const remember = (event?: Event) => {
+      // The resize route owns scroll-owner transfer, not a content observer.
       if (scrollOwner(element) !== owner) return;
+      // A content shrink can clamp scroll before ResizeObserver runs. That is
+      // not a new reading choice; retain the anchor until this reflow settles.
+      if (
+        event?.type === "scroll" &&
+        feedback &&
+        (feedbackChangePending || feedback.getBoundingClientRect().height !== feedbackHeight)
+      )
+        return;
+      if (overlayOpen()) {
+        anchor = undefined;
+        return;
+      }
       const visible = (item: HTMLElement) => {
         const rect = item.getBoundingClientRect();
         return (
@@ -47,37 +65,102 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
           visible,
         );
       anchor = reading
-        ? {
-            element: reading,
-            top: reading.getBoundingClientRect().top,
-          }
+        ? { element: reading, top: reading.getBoundingClientRect().top, scope: scope() }
         : undefined;
     };
-    const resize = () => {
+    const reconcile = (reveal: boolean) => {
+      revealRequested ||= reveal;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        owner = scrollOwner(element);
-        // Overlay focus and scrolling belong to the overlay, never this view.
-        if (anchor?.element.isConnected && !document.querySelector('[aria-modal="true"]')) {
-          owner?.scrollTo({
-            top: owner.scrollTop + anchor.element.getBoundingClientRect().top - anchor.top,
-          });
-          const active = document.activeElement;
-          if (active instanceof HTMLElement && active !== element && element.contains(active))
-            active.scrollIntoView({ block: "nearest", inline: "nearest" });
+        const revealFocus = revealRequested;
+        revealRequested = false;
+        const nextOwner = scrollOwner(element);
+        try {
+          if (!revealFocus && nextOwner !== owner) return;
+          owner = nextOwner;
+          if (
+            anchor?.element.isConnected &&
+            element.contains(anchor.element) &&
+            anchor.scope === scope() &&
+            !overlayOpen()
+          ) {
+            const delta = anchor.element.getBoundingClientRect().top - anchor.top;
+            // Browser anchoring already accounted for any compensated movement.
+            // Correct only remaining displacement; never restore a launch baseline.
+            if (owner && Math.abs(delta) > 0.5) owner.scrollTo({ top: owner.scrollTop + delta });
+            // Preserve the original window-resize reveal behavior. Feedback
+            // changes never focus or scrollIntoView the current control.
+            if (revealFocus) {
+              const active = document.activeElement;
+              if (active instanceof HTMLElement && active !== element && element.contains(active))
+                active.scrollIntoView({ block: "nearest", inline: "nearest" });
+            }
+          }
+        } finally {
+          feedbackChangePending = false;
+          remember();
         }
-        remember();
       });
     };
+    const resize = () => reconcile(true);
+    const observer = feedback
+      ? new ResizeObserver(() => {
+          const height = feedback.getBoundingClientRect().height;
+          if (height === feedbackHeight) return;
+          feedbackHeight = height;
+          feedbackChangePending = true;
+          reconcile(false);
+        })
+      : undefined;
+    // New input outranks the retained geometry, even during a pending frame.
+    // Invalidation never scrolls or focuses; subsequent observation records the
+    // player's new position rather than restoring a pre-input baseline.
+    const userInput = (event?: Event) => {
+      anchor = undefined;
+      // Clicking an already focused control has no new focusin event. Retain
+      // its current baseline only while geometry is stable. Scroll gestures
+      // stay invalidated until their new position is observed.
+      const control =
+        event?.type === "pointerdown" && event.target instanceof Element
+          ? event.target.closest("button, a[href], input, select, textarea, [tabindex]")
+          : null;
+      if (
+        control === document.activeElement &&
+        !feedbackChangePending &&
+        (!feedback || feedback.getBoundingClientRect().height === feedbackHeight)
+      )
+        remember();
+    };
+    const scrollKey = (event: KeyboardEvent) => {
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (event.isComposing || fieldOwnsArrows(target)) return;
+      if (
+        event.key === " " &&
+        target?.closest(
+          "button, summary, [role=button], [role=checkbox], [role=radio], [role=switch], [role=menuitem], [role=tab], [role=option]",
+        )
+      )
+        return;
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(event.key))
+        userInput();
+    };
     remember();
+    if (feedback) observer?.observe(feedback);
     document.addEventListener("scroll", remember, true);
     document.addEventListener("focusin", remember, true);
     window.addEventListener("resize", resize);
+    for (const name of ["wheel", "touchstart", "touchmove", "pointerdown"])
+      document.addEventListener(name, userInput, { capture: true, passive: true });
+    document.addEventListener("keydown", scrollKey, true);
     return () => {
       cancelAnimationFrame(frame);
+      observer?.disconnect();
       document.removeEventListener("scroll", remember, true);
       document.removeEventListener("focusin", remember, true);
       window.removeEventListener("resize", resize);
+      for (const name of ["wheel", "touchstart", "touchmove", "pointerdown"])
+        document.removeEventListener(name, userInput, true);
+      document.removeEventListener("keydown", scrollKey, true);
     };
   }, [workspace]);
 }

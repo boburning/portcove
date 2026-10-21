@@ -789,6 +789,12 @@ function Workspace({
             className="min-h-0 w-full min-w-0 overflow-auto px-10 pt-8 pb-12 max-[75rem]:px-6 max-[75rem]:pt-7 max-[75rem]:pb-10 max-[65rem]:px-5"
             ref={workspace}
             data-focus-region="workspace"
+            data-workspace-continuity-scope={JSON.stringify([
+              bootstrap.generation,
+              ui.view,
+              model.port?.id ?? null,
+              addGamesOpen,
+            ])}
             tabIndex={-1}
           >
             <div
@@ -799,60 +805,62 @@ function Workspace({
               }
             >
               {renderPageHeader()}
-              <StatusLayer
-                invocations={operations.invocations}
-                operationEvents={operations.operationEvents}
-                dismissInvocation={operations.dismissInvocation}
-                openActivity={(id) => {
-                  ui.setReviewedActivityId(id);
-                  setPrimaryView("updates");
-                }}
-                error={operations.error}
-                clearError={() => operations.setError(undefined)}
-                reviewCurrentState={data.retryRefresh}
-                preparationRecovery={(record) => {
-                  const id = preparationRecoveryPort(
-                    record.failure,
-                    data.catalog?.ports ?? [],
-                    data.statuses,
-                  );
-                  return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
-                }}
-                operation={operations.operation}
-                busy={operations.busy}
-                featureNotices={
-                  <ApplicationUpdateNotices
-                    updateNotice={applicationUpdate.notice}
-                    updateChoiceRequired={applicationUpdateChoice.choiceRequired}
-                    productionTransitionRequired={
-                      applicationUpdateProductionTransition.offerRequired
-                    }
-                    productionTransitionBusy={applicationUpdateProductionTransition.busy}
-                    reviewUpdate={reviewApplicationUpdate}
-                    dismissUpdate={applicationUpdate.dismiss}
-                    dismissUpdateChoice={dismissApplicationUpdateChoice}
-                    useStable={() =>
-                      void completeApplicationUpdateProductionTransition("use-stable")
-                    }
-                    keepPreview={() =>
-                      void completeApplicationUpdateProductionTransition("keep-preview")
-                    }
-                    dismissProductionTransition={dismissApplicationUpdateProductionTransition}
-                  />
-                }
-              />
-              <WorkspaceRefreshNotice
-                failure={data.refreshFailure}
-                recoveryFailure={data.recoveryFailure}
-                hasSnapshot={Boolean(data.catalog)}
-                refreshing={data.refreshing}
-                retry={data.retryRefresh}
-                retryRecovery={data.retryRecovery}
-                subscriptionFailure={
-                  data.subscriptionFailure?.error ?? operations.subscriptionFailure
-                }
-              />
-              {renderPreferenceFailure()}
+              <div className="flow-root min-w-0" data-workspace-feedback>
+                <StatusLayer
+                  invocations={operations.invocations}
+                  operationEvents={operations.operationEvents}
+                  dismissInvocation={operations.dismissInvocation}
+                  openActivity={(id) => {
+                    ui.setReviewedActivityId(id);
+                    setPrimaryView("updates");
+                  }}
+                  error={operations.error}
+                  clearError={() => operations.setError(undefined)}
+                  reviewCurrentState={data.retryRefresh}
+                  preparationRecovery={(record) => {
+                    const id = preparationRecoveryPort(
+                      record.failure,
+                      data.catalog?.ports ?? [],
+                      data.statuses,
+                    );
+                    return id ? () => openPortDetails(id, "error:preparation-review") : undefined;
+                  }}
+                  operation={operations.operation}
+                  busy={operations.busy}
+                  featureNotices={
+                    <ApplicationUpdateNotices
+                      updateNotice={applicationUpdate.notice}
+                      updateChoiceRequired={applicationUpdateChoice.choiceRequired}
+                      productionTransitionRequired={
+                        applicationUpdateProductionTransition.offerRequired
+                      }
+                      productionTransitionBusy={applicationUpdateProductionTransition.busy}
+                      reviewUpdate={reviewApplicationUpdate}
+                      dismissUpdate={applicationUpdate.dismiss}
+                      dismissUpdateChoice={dismissApplicationUpdateChoice}
+                      useStable={() =>
+                        void completeApplicationUpdateProductionTransition("use-stable")
+                      }
+                      keepPreview={() =>
+                        void completeApplicationUpdateProductionTransition("keep-preview")
+                      }
+                      dismissProductionTransition={dismissApplicationUpdateProductionTransition}
+                    />
+                  }
+                />
+                <WorkspaceRefreshNotice
+                  failure={data.refreshFailure}
+                  recoveryFailure={data.recoveryFailure}
+                  hasSnapshot={Boolean(data.catalog)}
+                  refreshing={data.refreshing}
+                  retry={data.retryRefresh}
+                  retryRecovery={data.retryRecovery}
+                  subscriptionFailure={
+                    data.subscriptionFailure?.error ?? operations.subscriptionFailure
+                  }
+                />
+                {renderPreferenceFailure()}
+              </div>
               {renderWorkspaceView()}
               {addGamesStarted && (
                 <AddGames

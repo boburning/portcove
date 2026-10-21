@@ -51,6 +51,12 @@ origin during native foreground re-entry without moving focus back after a playe
 has navigated elsewhere. Unavailable launch requirements retain ordinary disabled
 behavior; focusability never supplies launch authority.
 
+Changing task or workspace feedback preserves the current visible reading anchor.
+The workspace reflow owner coordinates feedback-height and window changes using
+the remaining measured displacement, not a saved launch scroll offset. New user
+input, navigation, library/detail changes and modal interaction take precedence;
+feedback changes never take focus or reveal a control the player left behind.
+
 Primary destinations display Library, Find games, Activity and Settings; internal `catalog`/`updates` route identities stay compatible. Ordinary Activity entry selects Tasks & history. Explicit game-update links select its Updates section; application-update preferences remain in Settings. Section controls retain a non-color pressed cue and keep their content mounted, hidden from interaction when inactive.
 
 Cards, details and Activity use the same action-presentation selector. Core readiness remains distinct from a temporary local exclusion. Feedback names the action and game/port or library target. Independent failures remain individually dismissible; a successful mutation followed by failed refresh is presented as finished work with unavailable current state, not an instruction to repeat the mutation. Link a specific task only when its exact owned identity exists. Shared progress announces phase changes separately from numeric ticks. Cancellation requested stays pending until authoritative settlement.
