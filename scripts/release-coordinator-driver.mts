@@ -100,6 +100,8 @@ import {
   inspectPreparedMetadataBootstrap,
 } from "./release-bootstrap-preparation.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
+import { inspectMetadataSigningReservation } from "./release-metadata-signing-contract.mts";
 import {
   inspectPendingPagesReadback,
   recoverPendingPagesPublication,
@@ -1983,6 +1985,317 @@ async function recoverTrustedCoordinatorPages(
   });
 }
 
+/** Routing only. This never grants a retry or treats missing artifacts as
+ * non-application; the fixed recovery path independently validates the bytes. */
+export function selectCoordinatorPendingContextRecovery(input: Record<string, unknown>) {
+  const controller = input.controller;
+  const operation = inspectCapacityOperation(
+    isRecord(controller) && isRecord(controller.capacity_attempt)
+      ? controller.capacity_attempt.operation
+      : null,
+  );
+  if (!operation || !["pending", "ambiguous"].includes(operation.outcome)) return null;
+  const mode =
+    operation.destination === "github-actions:boburning/portcove:metadata-bootstrap-context"
+      ? "bootstrap"
+      : operation.destination === "github-actions:boburning/portcove:metadata-renewal-context"
+        ? "renewal"
+        : null;
+  if (!mode) return null;
+  const descriptor =
+    mode === "bootstrap"
+      ? inspectMetadataBootstrapDescriptor(input.metadata_bootstrap)
+      : inspectMetadataRenewalDescriptor(input.metadata_renewal);
+  if (
+    operation.kind !== "upload" ||
+    operation.executor_identity?.role !== "coordinator" ||
+    (mode === "bootstrap"
+      ? operation.metadata_bootstrap?.descriptor_sha256
+      : operation.metadata_renewal?.descriptor_sha256) !== capacityDigest(descriptor)
+  )
+    throw new Error("pending metadata upload does not match its current descriptor");
+  return { mode, descriptor, operation };
+}
+
+async function recoverTrustedCoordinatorContext(
+  directory: string,
+  configuration: unknown,
+  recovered: Awaited<ReturnType<typeof recoverRemoteCoordinator>>,
+  budget: ReturnType<typeof coordinatorDeadline>,
+  locators?: Parameters<typeof prepareTrustedCoordinatorRenewal>[1]["tools"],
+) {
+  const contextFileDigest = (files: ReadonlyMap<string, Buffer>) =>
+    capacityDigest(
+      [...files]
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([name, bytes]) => ({
+          path: name,
+          bytes: bytes.length,
+          sha256: createHash("sha256").update(bytes).digest("hex"),
+        })),
+    );
+  const selected = selectCoordinatorPendingContextRecovery(recovered.input);
+  if (!selected) throw new Error("exact unresolved metadata upload required");
+  if (!locators)
+    return {
+      decision: "held-context-readback-tools",
+      checkpoint: recovered.checkpoint,
+      authority: "none",
+    };
+  const authorities = await requireControllerPublicationAuthorities("coordinator"),
+    namespace = inspectCoordinatorRemoteNamespace(configuration);
+  if (authorities.namespace !== namespace) throw new Error("context recovery namespace differs");
+  const toolsReceipt = await receiveControllerTools(directory, locators.artifact, locators.bundle, {
+    deadline: budget.monotonicDeadline,
+  });
+  const tools = await verifiedControllerToolPaths(toolsReceipt),
+    workflow = await readProductionControllerWorkflowBytes(),
+    reader = await authenticateControlReaderJob(process.env, workflow, {
+      phase: "coordinator",
+      deadline: budget.monotonicDeadline,
+    });
+  if (
+    tools.identity.controller_revision !== reader.admitted.revision ||
+    tools.identity.controller_ref !== reader.admitted.execution_ref ||
+    tools.identity.run_id !== String(reader.admitted.run_id) ||
+    tools.identity.run_attempt !== reader.admitted.run_attempt
+  )
+    throw new Error("actual current coordinator tools differ from recovery reader");
+  const factsSha = capacityDigest({
+      checkpoint: recovered.checkpoint,
+      operation_id: selected.operation.id,
+    }),
+    api = coordinatorApi(directory, budget, 2 * 1024 ** 2);
+  let controls = await authenticateCoordinatorInitialControls(
+      directory,
+      factsSha,
+      reader,
+      workflow,
+      budget,
+    ),
+    ordinal = 0,
+    observed = performance.now();
+  let contextBinding: { facts: unknown; binding: unknown; pins: unknown } | undefined;
+  const initial = coordinatorMaintenanceIdentity(controls.readMaintenance(api));
+  const guard = async () => {
+    budget.check();
+    if (performance.now() - observed >= 40000) {
+      if (++ordinal > 4) throw new Error("context recovery control rounds exhausted");
+      controls = await authenticateReleaseControlRound(
+        path.join(directory, `context-readback-control-${ordinal}`),
+        factsSha,
+        "coordinator",
+        ordinal,
+        { deadline: budget.monotonicDeadline },
+      );
+      observed = performance.now();
+    }
+    const current = controls.readMaintenance(api);
+    if (
+      controls.evidence_scope !== "github.com" ||
+      current.pause.publication_paused ||
+      !current.resource_policy_matches_controller ||
+      current.reader.job_id !== reader.identity.job_id ||
+      current.reader.check_run_id !== reader.identity.check_run_id ||
+      coordinatorMaintenanceIdentity(current) !== initial
+    )
+      throw new Error("actual context recovery maintenance changed");
+    const state = await readRemoteCoordinatorSnapshot(directory, configuration, {
+      transport: { cwd: directory, deadline: budget.monotonicDeadline },
+    });
+    if (
+      state.checkpoint !== recovered.checkpoint ||
+      capacityDigest(selectCoordinatorPendingContextRecovery(state.input)) !==
+        capacityDigest(selected)
+    )
+      throw new Error("pending context changed around readback");
+    if (contextBinding)
+      inspectMetadataSigningReservation(
+        contextBinding.facts,
+        contextBinding.binding,
+        contextBinding.pins,
+        state,
+      );
+    if (
+      capacityDigest(await requireControllerPublicationAuthorities("coordinator")) !==
+      capacityDigest(authorities)
+    )
+      throw new Error("ratified context recovery authority configuration changed");
+    budget.check();
+  };
+  await guard();
+  const verifier_sha256 = createHash("sha256")
+    .update(await readControllerToolFile(tools.rust))
+    .digest("hex");
+  const published = inspectPublishedMetadata(recovered.input.published_metadata);
+  let preparedRoot: string,
+    preparedDescriptor: unknown,
+    priorPins: unknown = null;
+  let currentSite: Awaited<ReturnType<typeof materializeCoordinatorPublishedSite>> | undefined;
+  if (selected.mode === "bootstrap") {
+    if (selected.descriptor.kind !== "application-tuf-initial-bootstrap")
+      throw new Error("explicit initial context descriptor required");
+    assertMetadataBootstrapBinding(selected.descriptor, published, new Date().toISOString());
+    const source = readBootstrapPublicSource(
+      api,
+      authorities.publication,
+      selected.descriptor.generated_at,
+      budget.monotonicDeadline,
+    );
+    const preparation = await prepareAuthenticatedMetadataBootstrap({
+      verifier: tools.rust,
+      verifier_sha256,
+      publication: authorities.publication,
+      public_files: source.files,
+      descriptor: selected.descriptor,
+      output_parent: directory,
+      deadline: budget.monotonicDeadline,
+    });
+    const actual = await inspectPreparedMetadataBootstrap(preparation, budget.monotonicDeadline);
+    preparedRoot = actual.prepared_root;
+    preparedDescriptor = actual.descriptor;
+    await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+  } else {
+    if (
+      !published ||
+      selected.descriptor.kind !== "application-tuf-metadata-renewal" ||
+      typeof published.root_sha256 !== "string" ||
+      typeof published.repository_sha256 !== "string"
+    )
+      throw new Error("actual published renewal prior required for context recovery");
+    currentSite = await materializeCoordinatorPublishedSite(
+      {
+        site_generation_sha256: published.publication.site_generation_sha256,
+        root_sha256: published.root_sha256,
+        repository_sha256: published.repository_sha256,
+      },
+      directory,
+      budget.monotonicDeadline,
+    );
+    const preparation = await prepareAuthenticatedMetadataRenewal({
+      verifier: tools.rust,
+      verifier_sha256,
+      trusted_root: currentSite.verified.root_path,
+      trusted_root_sha256: published.root_sha256,
+      previous_repository: currentSite.verified.application,
+      prior_repository_sha256: published.repository_sha256,
+      generated_at: selected.descriptor.generated_at,
+      output_parent: directory,
+      deadline: budget.monotonicDeadline,
+    });
+    const actual = await inspectPreparedMetadataRenewal(preparation);
+    preparedRoot = actual.prepared_root;
+    preparedDescriptor = actual.descriptor;
+    priorPins = currentSite.verified.pins;
+  }
+  if (capacityDigest(preparedDescriptor) !== capacityDigest(selected.descriptor))
+    throw new Error("actual Rust context recovery descriptor differs");
+  const files = await readBoundedReleaseContextFiles(preparedRoot),
+    pins = authorities.publication.public_source;
+  for (const [name, pin] of [
+    ["trusted-root.json", pins.root],
+    ["offline-targets.json", pins.offline_targets],
+    ["payload.json", pins.payload_key_registry],
+  ] as const) {
+    const bytes = files.get(name);
+    if (
+      !bytes ||
+      bytes.length !== pin.bytes ||
+      createHash("sha256").update(bytes).digest("hex") !== pin.sha256
+    )
+      throw new Error("context recovery public anchor differs from protected setup");
+  }
+  const current = {
+    controller: tools.identity,
+    files,
+    facts: {
+      mode: selected.mode,
+      descriptor: selected.descriptor,
+      namespace,
+      checkpoint: recovered.checkpoint,
+      previous_site_pins: priorPins,
+      setup_plan_sha256: authorities.publication.setup_plan_sha256,
+      public_source_commit: pins.commit,
+    },
+    binding: {
+      kind: `metadata-${selected.mode}`,
+      descriptor_sha256: capacityDigest(selected.descriptor),
+      records_sha256:
+        selected.descriptor.kind === "application-tuf-metadata-renewal"
+          ? selected.descriptor.unchanged_records_sha256
+          : selected.descriptor.initial_records_sha256,
+    },
+  };
+  contextBinding = { facts: current.facts, binding: current.binding, pins: priorPins };
+  await guard();
+  const executor = await authenticateCapacityExecutor(
+    "coordinator",
+    {
+      audience: "portcove-capacity-executor",
+      subject: controllerOidcSubject(
+        reader.admitted.execution_ref,
+        "production-release-coordinator",
+      ),
+      controller_revision: reader.admitted.revision,
+      controller_ref: reader.admitted.execution_ref,
+      actor_id: reader.admitted.actor_id,
+      run_id: reader.admitted.run_id,
+      run_attempt: reader.admitted.run_attempt,
+    },
+    directory,
+    budget.monotonicDeadline,
+  );
+  const settled = await recoverOwnedCapacityEffect(
+    executor,
+    {
+      repository: recovered.repository,
+      checkpoint: recovered.checkpoint,
+      remote_configuration: configuration,
+    },
+    async (operation) => {
+      await guard();
+      if (capacityDigest(operation) !== capacityDigest(selected.operation))
+        throw new Error("original pending context differs");
+      const readback = await (
+        await import("./release-metadata-context-recovery.mts")
+      ).readPendingMetadataContextUpload(
+        operation,
+        selected.descriptor,
+        current,
+        directory,
+        budget.monotonicDeadline,
+      );
+      await verifiedControllerToolPaths(toolsReceipt);
+      if (
+        contextFileDigest(await readBoundedReleaseContextFiles(preparedRoot)) !==
+        contextFileDigest(files)
+      )
+        throw new Error("reconstructed context changed during pending readback");
+      if (currentSite) {
+        const site = await requirePublishedCompleteSite(currentSite.receipt);
+        await readPublicApplicationSiteMarker(site.generation, budget.monotonicDeadline);
+      } else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+      await guard();
+      return readback;
+    },
+  );
+  budget.check();
+  return {
+    decision: "metadata-context-upload-recovered",
+    mode: selected.mode,
+    checkpoint: settled.checkpoint,
+    operation_id: selected.operation.id,
+    pending_obligations: [
+      "actual-context-attestation",
+      "five-separate-online-role-envelopes",
+      "metadata-publication",
+      "public-readback",
+    ],
+    automatic_retry: false,
+    authority: "none",
+  };
+}
+
 /** Freeze one neutral work request in the existing journal. While a candidate
  * or request is outstanding the current provider main head merely coalesces;
  * no second queue, semantic assertion or speculative version is created. */
@@ -2025,6 +2338,16 @@ async function requestTrustedSemanticReviewAt(
       transport: { cwd: directory, deadline: budget.monotonicDeadline },
     });
     checkpoint = recovered.checkpoint;
+    if (selectCoordinatorPendingContextRecovery(recovered.input)) {
+      phase = "actual-terminal-context-readback-recovery";
+      return recoverTrustedCoordinatorContext(
+        directory,
+        selected.remote_configuration,
+        recovered,
+        budget,
+        selected.tools,
+      );
+    }
     if (
       selectCoordinatorPendingPagesRecovery(recovered.input) ||
       inspectSettledPagesMetadataHandoff(recovered.input)

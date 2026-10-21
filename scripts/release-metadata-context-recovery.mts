@@ -101,6 +101,27 @@ export function inspectMetadataContextRetryOperation(raw: unknown, descriptor: u
   return operation;
 }
 
+/** Integrity only. An unresolved upload can be read back, never retried, by
+ * the separately authenticated coordinator recovery boundary. */
+export function inspectPendingMetadataContextUpload(raw: unknown, descriptor: unknown) {
+  const operation = inspectCapacityOperation(raw);
+  const bootstrap = isRecord(descriptor) && descriptor.kind === "application-tuf-initial-bootstrap";
+  if (
+    !operation ||
+    operation.kind !== "upload" ||
+    operation.destination !== metadataDestination(descriptor) ||
+    (bootstrap
+      ? operation.metadata_bootstrap?.descriptor_sha256
+      : operation.metadata_renewal?.descriptor_sha256) !== digest(descriptor) ||
+    !operation.executor_identity ||
+    operation.executor_identity.role !== "coordinator" ||
+    !["pending", "ambiguous"].includes(operation.outcome) ||
+    operation.completed_effects.length > 1
+  )
+    throw new Error("one exact unresolved metadata context upload required");
+  return operation;
+}
+
 async function priorOperation(context: Context, raw: unknown) {
   if (!isRecord(raw) || !isRecord(raw.controller) || !isRecord(raw.controller.capacity_attempt))
     throw new Error("metadata context journal capacity unavailable");
@@ -152,6 +173,51 @@ export async function readMetadataContextRetryReceipt(repository: string, proof:
 /** Complete terminal provider inventory only. A 404, partial list, active run
  * or unavailable transport is never evidence that an attestation is absent. */
 export function inspectMetadataContextRetryProvider(
+  rawRun: unknown,
+  rawAttempt: unknown,
+  rawJob: unknown,
+  rawArtifacts: unknown,
+  operation: Operation,
+  controller: Context["tools"]["identity"],
+) {
+  if (operation.completed_effects.length !== 1)
+    throw new Error("metadata retry provider requires its settled upload receipt");
+  return inspectMetadataContextProvider(
+    rawRun,
+    rawAttempt,
+    rawJob,
+    rawArtifacts,
+    operation,
+    controller,
+  );
+}
+
+/** Pending readback still requires the original numeric terminal producer and
+ * complete immutable inventory. Absence/expiry never proves non-application. */
+export function inspectPendingMetadataContextProvider(
+  rawRun: unknown,
+  rawAttempt: unknown,
+  rawJob: unknown,
+  rawArtifacts: unknown,
+  rawOperation: unknown,
+  descriptor: unknown,
+  controller: Context["tools"]["identity"],
+) {
+  const operation = inspectPendingMetadataContextUpload(rawOperation, descriptor);
+  const selected = inspectMetadataContextProvider(
+    rawRun,
+    rawAttempt,
+    rawJob,
+    rawArtifacts,
+    operation,
+    controller,
+  );
+  if (!selected.artifact || selected.artifact.expired)
+    throw new Error("unresolved metadata upload lacks positive immutable artifact readback");
+  return selected;
+}
+
+function inspectMetadataContextProvider(
   rawRun: unknown,
   rawAttempt: unknown,
   rawJob: unknown,
@@ -246,6 +312,7 @@ export function inspectMetadataContextRetryProvider(
   const [artifact, bundle] = selected;
   if (
     artifact &&
+    operation.completed_effects.length > 0 &&
     operation.completed_effects[0]!.remote_identity !==
       `github-actions:boburning/portcove:artifact:${artifact.id}`
   )
@@ -257,6 +324,195 @@ export function inspectMetadataContextRetryProvider(
     bundle: bundle ?? null,
     authority: "none" as const,
   };
+}
+
+/** Public custody readback only. The fixed coordinator must independently
+ * derive `current` from its actual tools, ratified anchors and Tough prior;
+ * only its existing authenticated recovery executor may settle the result. */
+export async function readPendingMetadataContextUpload(
+  rawOperation: unknown,
+  descriptor: unknown,
+  current: {
+    controller: Context["tools"]["identity"];
+    facts: unknown;
+    binding: unknown;
+    files: ReadonlyMap<string, Buffer>;
+  },
+  parent: string,
+  deadline: number,
+) {
+  signingContextRemaining(deadline, 15000);
+  const operation = inspectPendingMetadataContextUpload(rawOperation, descriptor),
+    producer = originalProducer(operation),
+    directory = await mkdtemp(path.join(parent, "pending-context-readback-")),
+    home = path.join(directory, "reader-home");
+  await mkdir(home, { mode: 0o700 });
+  const environment = {
+    PATH: process.env.PATH,
+    SystemRoot: process.env.SystemRoot,
+    HOME: home,
+    USERPROFILE: home,
+    TEMP: home,
+    TMP: home,
+    GH_CONFIG_DIR: home,
+    GH_TOKEN: process.env.GH_TOKEN,
+    GH_HOST: "github.com",
+    GH_PROMPT_DISABLED: "1",
+  };
+  let reads = 0;
+  const api = new GitHubApiClient((args, input) => {
+    if (++reads > 14) throw new Error("pending metadata readback limit exhausted");
+    const result = createGitHubRunner({
+      cwd: directory,
+      timeoutMs: signingContextRemaining(deadline, 15000),
+      maxBuffer: 2 * 1024 ** 2,
+      spawn: (command, argv, settings) =>
+        spawnSync(command, argv, { ...settings, env: environment }),
+    })([...args, "--hostname", "github.com"], input);
+    signingContextRemaining(deadline, 15000);
+    return result;
+  });
+  const get = (suffix: string) => {
+    const result = api.request("GET", `repos/boburning/portcove/${suffix}`);
+    if (result.status !== 200) throw new Error("pending metadata provider read unavailable");
+    return result.body;
+  };
+  const snapshot = () => {
+    const raw = {
+      run: get(`actions/runs/${producer.run_id}`),
+      attempt: get(`actions/runs/${producer.run_id}/attempts/1`),
+      job: get(`actions/jobs/${producer.job_id}`),
+      artifacts: readCompleteRunArtifactInventory((page) =>
+        get(`actions/runs/${producer.run_id}/artifacts?per_page=100&page=${page}`),
+      ),
+    };
+    return {
+      raw,
+      selected: inspectPendingMetadataContextProvider(
+        raw.run,
+        raw.attempt,
+        raw.job,
+        raw.artifacts,
+        operation,
+        descriptor,
+        current.controller,
+      ),
+    };
+  };
+  let phase = "terminal-original-provider";
+  try {
+    const before = snapshot(),
+      artifact = before.selected.artifact!;
+    await writeFile(path.join(directory, "provider-before.json"), JSON.stringify(before.raw), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    phase = "opaque-public-context";
+    const archive = readGitHubArtifactArchive(
+      `repos/boburning/portcove/actions/artifacts/${artifact.id}/zip`,
+      {
+        cwd: directory,
+        maxBytes: artifact.bytes,
+        timeoutMs: signingContextRemaining(deadline, 30000),
+        spawn: (command, argv, settings) =>
+          spawnSync(command, argv, { ...settings, env: environment }),
+      },
+    );
+    signingContextRemaining(deadline, 15000);
+    if (archive.length !== artifact.bytes || hash(archive) !== artifact.sha256)
+      throw new Error("pending metadata archive bytes changed");
+    await writeFile(path.join(directory, "original-context.zip"), archive, {
+      flag: "wx",
+      mode: 0o600,
+    });
+    const inspected = inspectSigningContextArchive(archive);
+    if (
+      inspected.manifest.kind !== "metadata-signing-context" ||
+      digest(inspected.manifest.controller) !==
+        digest({
+          controller_revision: producer.controller_revision,
+          source_tree: current.controller.source_tree,
+          controller_ref: producer.execution_ref,
+          run_id: producer.run_id,
+          run_attempt: producer.run_attempt,
+        })
+    )
+      throw new Error("pending metadata manifest producer differs");
+    inspectRecoveredMetadataContextBinding(
+      {
+        facts: inspected.manifest.facts,
+        binding: inspected.manifest.binding,
+        files: inspected.files,
+      },
+      current,
+      operation.before_checkpoint,
+    );
+    // This is the original upload's deterministic public receipt identity, not
+    // an attestation or signing admission. A failed producer may lack a bundle.
+    const predicate = {
+      schema_version: 1,
+      role: "metadata-signing-context",
+      controller: inspected.manifest.controller,
+      producer: {
+        run_id: producer.run_id,
+        run_attempt: producer.run_attempt,
+        job_id: producer.job_id,
+        check_run_id: producer.check_run_id,
+      },
+      artifact: { id: artifact.id, bytes: artifact.bytes, sha256: artifact.sha256 },
+      manifest_sha256: inspected.manifest_sha256,
+      binding: inspected.manifest.binding,
+      facts_sha256: inspected.manifest.facts_sha256,
+      stage: "coordinator",
+      publication_admission: "not-established",
+      authority: "none",
+    };
+    const completed_effect = {
+      remote_identity: `github-actions:boburning/portcove:artifact:${artifact.id}`,
+      evidence_sha256: digest(predicate),
+    };
+    if (
+      operation.completed_effects.length &&
+      digest(operation.completed_effects[0]) !== digest(completed_effect)
+    )
+      throw new Error("pending metadata partial receipt differs from exact readback");
+    phase = "terminal-provider-after";
+    const after = snapshot();
+    if (digest(before.raw) !== digest(after.raw))
+      throw new Error("pending metadata provider changed");
+    await writeFile(path.join(directory, "provider-after.json"), JSON.stringify(after.raw), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    const evidence = {
+      operation_id: operation.id,
+      original_executor: producer,
+      artifact,
+      manifest_sha256: inspected.manifest_sha256,
+      completed_effect,
+      attestation: "not-established",
+      authority: "none",
+    };
+    await writeFile(path.join(directory, "readback.json"), JSON.stringify(evidence), {
+      flag: "wx",
+      mode: 0o600,
+    });
+    signingContextRemaining(deadline, 15000);
+    return {
+      resolution: "effect-completed" as const,
+      completed_effect,
+      evidence_sha256: digest(evidence),
+      directory,
+      authority: "none" as const,
+    };
+  } catch {
+    await writeFile(
+      path.join(directory, "refusal.json"),
+      JSON.stringify({ phase, authority: "none", automatic_retry: false }),
+      { flag: "wx", mode: 0o600 },
+    ).catch(() => {});
+    throw new Error("pending context readback refused; retain original artifact and intent");
+  }
 }
 
 export async function reconcileCoordinatorSigningContext(actualContext: object, parent: string) {

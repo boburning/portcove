@@ -1,5 +1,5 @@
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
-import { capacityDigest } from "./release-capacity.mts";
+import { capacityDigest, assessBoundedCapacity } from "./release-capacity.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import {
   runBoundedCapacityOperation,
@@ -586,7 +586,12 @@ void test("allocation snapshot must match the whole preceding opportunity and ne
   assert.equal(f.git("rev-parse", coordinatorStateRef).trim(), larger.checkpoint);
 });
 
-async function recoveryFixture(t: test.TestContext, signed = false, publishedSeed = false) {
+async function recoveryFixture(
+  t: test.TestContext,
+  signed = false,
+  publishedSeed = false,
+  pendingContext = false,
+) {
   const local = await fixture(t, signed);
   let saved = await checkpointReleaseOpportunity(
     local.repository,
@@ -611,6 +616,63 @@ async function recoveryFixture(t: test.TestContext, signed = false, publishedSee
       bounded.checkpoint,
       metadataFixture(Date.now() + 2 * 86_400_000).published,
     );
+  }
+  if (pendingContext) {
+    const { descriptor } = metadataBootstrapFixture();
+    const capacity = capacityFixture();
+    const ready = assessBoundedCapacity(capacity);
+    assert.equal(ready.eligibility, "eligible");
+    const identity = {
+      before_checkpoint: saved.checkpoint,
+      metadata_bootstrap: {
+        descriptor_sha256: capacityDigest(descriptor),
+        setup_plan_sha256: descriptor.setup_plan_sha256,
+        initial_site_preimage_sha256: descriptor.initial_site_preimage_sha256,
+        observed_at: descriptor.generated_at,
+        transient_retries: 0,
+        substantive_repairs: 0,
+      },
+      destination: "github-actions:boburning/portcove:metadata-bootstrap-context",
+      executor_nonce: "2".repeat(64),
+      executor_identity: {
+        actor_id: "43177418",
+        check_run_id: "777",
+        controller_revision: "3".repeat(40),
+        execution_ref: "refs/tags/portcove-production-controller-fixture",
+        job_id: 501,
+        role: "coordinator",
+        run_attempt: 1,
+        run_id: "54321",
+        workflow: productionControllerWorkflow,
+      },
+      receipt_limit: 1,
+      kind: "upload",
+      policy_sha256: ready.resource_policy_sha256,
+      ratification_sha256: ready.ratification_sha256,
+      sequence: 1,
+    };
+    saved = await checkpointReleaseOpportunity(local.repository, saved.checkpoint, {
+      ...local.input,
+      schema_version: 2,
+      metadata_bootstrap: descriptor,
+      controller: {
+        workflow: local.input.controller.workflow,
+        revision: local.input.controller.revision,
+        publication_paused: false,
+        capacity_attempt: {
+          ...capacity,
+          schema_version: 2,
+          operation: {
+            ...identity,
+            id: capacityDigest(identity),
+            outcome: "pending",
+            completed_effects: [],
+            failure_evidence: null,
+            recovery: null,
+          },
+        },
+      },
+    });
   }
   const parent = await mkdtemp(path.join(os.tmpdir(), "portcove-recovery-parent-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
@@ -754,15 +816,20 @@ async function recoveryFixture(t: test.TestContext, signed = false, publishedSee
   return { ...local, saved, parent, refs, faults, transport, reads: () => reads };
 }
 
-for (const scenario of ["seeded", "changed", "unseeded"] as const)
+for (const scenario of ["seeded", "changed", "unseeded", "pending-context"] as const)
   void test(
-    `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
+    `trusted coordinator ${scenario === "changed" ? "refuses changed remote recovery before reading main" : scenario === "seeded" ? "recovers active candidate then requires actual resumption authority before reading main" : scenario === "pending-context" ? "routes unresolved context to GET-only recovery before bootstrap preparation" : "holds an unseeded active candidate at bootstrap before resumption or main"}`,
     { timeout: 60000 },
     async (t) => {
       // Real Git recovery through the production default transport, with the gh
       // subprocess provider simulated. No OIDC, credential or protected POST.
       const changed = scenario === "changed";
-      const f = await recoveryFixture(t, false, scenario !== "unseeded");
+      const f = await recoveryFixture(
+        t,
+        false,
+        ["seeded", "changed"].includes(scenario),
+        scenario === "pending-context",
+      );
       if (changed) f.faults.value = "changed";
       const projectRoot = fileURLToPath(new URL("..", import.meta.url));
       const parent = await mkdtemp(path.join(projectRoot, "work", "coordinator-fixture-"));
@@ -852,7 +919,10 @@ for (const scenario of ["seeded", "changed", "unseeded"] as const)
         assert.equal(mainReads, 0);
       } else {
         const held = await run;
-        assert.equal(held.decision, "held-bootstrap-tools");
+        assert.equal(
+          held.decision,
+          scenario === "pending-context" ? "held-context-readback-tools" : "held-bootstrap-tools",
+        );
         assert.equal(held.checkpoint, f.saved.checkpoint);
         assert.equal(held.authority, "none");
         assert.equal(mainReads, 0);
