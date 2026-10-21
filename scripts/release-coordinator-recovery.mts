@@ -4,6 +4,7 @@ import { mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient, sanitizeOperationError } from "./github-api.mts";
+import type { GitHubRestReader } from "./github-api.mts";
 import { CoordinatorRemoteError } from "./release-coordinator-errors.mts";
 import type { CoordinatorGitObject } from "./release-coordinator-state.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -182,7 +183,7 @@ export function inspectRemoteCommitObject(value: unknown, expected: string, exac
 export async function hydrateRetainedCoordinatorOperation(
   repository: string,
   proof: unknown,
-  options: { api?: Pick<GitHubApiClient, "request"> } = {},
+  options: { api?: GitHubRestReader } = {},
 ) {
   if (!isRecord(proof) || Object.keys(proof).sort().join(",") !== "checkpoint,id,operation_sha256")
     throw new Error("retained operation proof schema differs");
