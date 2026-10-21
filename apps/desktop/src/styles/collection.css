@@ -126,9 +126,6 @@
   .collection-row .collection-state {
     padding-inline-start: 0;
   }
-  .collection-row .artwork-fallback-label {
-    display: none;
-  }
   .collection-identity:focus-visible .collection-title {
     display: block;
     overflow: visible;

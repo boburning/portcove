@@ -315,13 +315,13 @@ export function PageHeader({
             data-detail-origin={`command-trigger:${view}`}
             variant="ghost"
             size="sm"
-            className="command-trigger whitespace-nowrap text-pc-muted-foreground"
+            className="command-trigger whitespace-nowrap text-pc-muted-foreground max-[48rem]:size-9 max-[48rem]:shrink-0 max-[48rem]:p-0"
             onClick={onOpenCommands}
             aria-label={`Commands ${commandShortcut("K")}: open command palette`}
           >
             <Icon glyph={Command} />
             <span className="max-[65rem]:hidden">Commands </span>
-            <span className="ms-1 text-xs">{commandShortcut("K")}</span>
+            <span className="ms-1 text-xs max-[48rem]:hidden">{commandShortcut("K")}</span>
           </Button>
         </Tooltip>
       </div>

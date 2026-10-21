@@ -35,6 +35,13 @@ for (const width of [320, 576]) {
       await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
       const firstArt = document.querySelector<HTMLElement>(".collection-art")!;
       expect(firstArt.getBoundingClientRect().top).toBeLessThan(650);
+      const heading = page.getByRole("heading", { name: "Your library", level: 1 }).element();
+      const commands = page
+        .getByRole("button", { name: /^Commands .*open command palette$/ })
+        .element();
+      expect(commands.getBoundingClientRect().top).toBeLessThan(
+        heading.getBoundingClientRect().bottom,
+      );
       expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width + 1);
       const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
       await navigation.click();
