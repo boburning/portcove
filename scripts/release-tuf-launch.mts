@@ -28,7 +28,13 @@ export async function launchFixedTufController(
   const input: unknown = structuredClone(raw);
   if (
     !isRecord(input) ||
-    Object.keys(input).sort().join(",") !== "context,dependencies,identity,role,tools" ||
+    ![
+      "context,dependencies,identity,role,tools",
+      "context,context_kind,dependencies,identity,role,tools",
+    ].includes(Object.keys(input).sort().join(",")) ||
+    (input.context_kind !== undefined &&
+      input.context_kind !== "release-signing-context" &&
+      input.context_kind !== "metadata-signing-context") ||
     !["releases", "preview", "stable", "snapshot", "timestamp"].includes(String(input.role)) ||
     !isRecord(input.tools) ||
     Object.keys(input.tools).sort().join(",") !== "artifact,bundle" ||

@@ -9,7 +9,11 @@ import { promisify } from "node:util";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
-import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
+import {
+  inspectTufPublicationFacts,
+  assertMetadataRenewalPublication,
+} from "./release-metadata-contract.mts";
+import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
@@ -321,6 +325,14 @@ export async function prepareActualTufPublication(
   );
   if (result.publication.records_sha256 !== manifest.binding.records_sha256)
     throw new Error("actual assembled record set differs from private context");
+  if (manifest.kind === "metadata-signing-context") {
+    const metadata = inspectMetadataSigningBinding(
+      manifest.facts,
+      manifest.binding,
+      manifest.previous_site_pins,
+    );
+    assertMetadataRenewalPublication(metadata.facts.descriptor, result.publication);
+  }
   const receipt = Object.freeze({ kind: "actual-keyless-TUF-publication", authority: "none" });
   publications.set(receipt, {
     context: contextReceipt,

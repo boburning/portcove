@@ -5,7 +5,10 @@ import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectMetadataSigningBinding } from "./release-metadata-signing-contract.mts";
+import {
+  inspectMetadataSigningBinding,
+  inspectMetadataSigningReservation,
+} from "./release-metadata-signing-contract.mts";
 import {
   prepareCoordinatorSigningContext,
   requireCoordinatorSigningContext,
@@ -62,6 +65,52 @@ function fixture() {
   };
   return { facts, binding, pins };
 }
+void test("renewal role journal binding needs the exact live published seed and descriptor, with no invented candidate", () => {
+  const f = fixture(),
+    d = f.facts.descriptor;
+  const published = {
+    schema_version: 1,
+    root_sha256: d.root_sha256,
+    offline_targets_sha256: d.offline_targets_sha256,
+    repository_sha256: d.prior_repository_sha256,
+    timestamp_sha256: d.prior_timestamp_sha256,
+    snapshot_sha256: d.prior_snapshot_sha256,
+    records_sha256: d.unchanged_records_sha256,
+    versions: d.current_versions,
+    expires: d.current_expires,
+    operation_id: null,
+    publication: {
+      remote_identity: "public fixture",
+      evidence_sha256: "9".repeat(64),
+      site_generation_sha256: f.pins.site_generation_sha256,
+    },
+  };
+  const state = {
+    input: { active_candidate: null, metadata_renewal: d, published_metadata: published },
+  };
+  const now = "2026-10-20T01:00:00Z";
+  assert.deepEqual(inspectMetadataSigningReservation(f.facts, f.binding, f.pins, state, now), d);
+  for (const input of [
+    { ...state.input, metadata_renewal: null },
+    { ...state.input, published_metadata: null },
+    { ...state.input, published_metadata: { ...published, records_sha256: "0".repeat(64) } },
+    {
+      ...state.input,
+      published_metadata: {
+        ...published,
+        publication: { ...published.publication, site_generation_sha256: "0".repeat(64) },
+      },
+    },
+  ])
+    assert.throws(() =>
+      inspectMetadataSigningReservation(f.facts, f.binding, f.pins, { input }, now),
+    );
+  assert.throws(
+    () =>
+      inspectMetadataSigningReservation(f.facts, f.binding, f.pins, state, "2026-10-22T00:00:00Z"),
+    /expired/,
+  );
+});
 void test("renewal context public contract preserves exact u64 and distinguishes unchanged feed from release/bootstrap claims", () => {
   const f = fixture(),
     result = inspectMetadataSigningBinding(f.facts, f.binding, f.pins);

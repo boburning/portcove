@@ -16,6 +16,7 @@ import {
 import {
   requireReceivedSigningContext,
   receiveSigningContextArtifact,
+  receiveMetadataSigningContextArtifact,
   signingContextRemaining,
 } from "./release-signing-context-artifact.mts";
 import type { SigningContextArtifactExpected } from "./release-signing-context-artifact.mts";
@@ -51,6 +52,10 @@ import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { isRecord } from "./runtime-values.mts";
 import { currentTufJobDeadline } from "./release-tuf-job-budget.mts";
+import {
+  inspectMetadataSigningBinding,
+  inspectMetadataSigningReservation,
+} from "./release-metadata-signing-contract.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function tufRoleControllerDeadline(raw?: number) {
@@ -102,10 +107,7 @@ export async function runTufRoleController(
     !isRecord(manifest.controller) ||
     !isRecord(manifest.binding) ||
     !isRecord(manifest.facts) ||
-    !isRecord(manifest.facts.configuration) ||
     !isRecord(manifest.control_facts) ||
-    typeof manifest.binding.version !== "string" ||
-    manifest.facts.configuration.namespace !== authorities.namespace ||
     identity.controller_revision !== tools.identity.controller_revision ||
     identity.controller_ref !== tools.identity.controller_ref ||
     identity.run_id !== tools.identity.run_id ||
@@ -117,7 +119,24 @@ export async function runTufRoleController(
     manifest.controller.source_tree !== tools.identity.source_tree
   )
     throw new Error("actual TUF role controller/tool/context/authority identities differ");
-  const version = manifest.binding.version;
+  const metadata =
+    manifest.kind === "metadata-signing-context"
+      ? inspectMetadataSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins)
+      : undefined;
+  if (
+    metadata
+      ? metadata.facts.namespace !== authorities.namespace ||
+        metadata.facts.setup_plan_sha256 !== authorities.publication.setup_plan_sha256 ||
+        metadata.facts.public_source_commit !== authorities.publication.public_source.commit ||
+        metadata.previous_site_pins.root_sha256 !==
+          authorities.publication.public_source.root.sha256
+      : manifest.kind !== "release-signing-context" ||
+        !isRecord(manifest.facts.configuration) ||
+        typeof manifest.binding.version !== "string" ||
+        manifest.facts.configuration.namespace !== authorities.namespace
+  )
+    throw new Error("TUF context purpose or ratified metadata source differs");
+  const version = metadata ? "metadata-renewal" : String(manifest.binding.version);
   const binding = manifest.binding,
     facts = manifest.facts,
     admitted = manifest.control_facts,
@@ -163,12 +182,22 @@ export async function runTufRoleController(
         archives: facts.archives,
         evidence: {},
       });
-    await requireReservedAggregate(descriptor(), recovered);
-    if (
-      !isRecord(recovered.input.active_candidate) ||
-      digest(recovered.input.active_candidate.frozen_opportunity) !== digest(facts.opportunity)
-    )
-      throw new Error("TUF role frozen opportunity differs from actual current candidate");
+    const reservation = async (
+      state: typeof recovered | Awaited<ReturnType<typeof readRemoteCoordinatorSnapshot>>,
+    ) => {
+      if (state.checkpoint !== checkpoint) throw new Error("TUF role current checkpoint changed");
+      if (metadata) {
+        inspectMetadataSigningReservation(facts, binding, manifest.previous_site_pins, state);
+        return;
+      }
+      await requireReservedAggregate(descriptor(), state);
+      if (
+        !isRecord(state.input.active_candidate) ||
+        digest(state.input.active_candidate.frozen_opportunity) !== digest(facts.opportunity)
+      )
+        throw new Error("TUF role frozen opportunity differs from actual current candidate");
+    };
+    await reservation(recovered);
     const executor = await authenticateCapacityExecutor(phase, identity, directory, deadline),
       producer = capacityExecutorIdentity(executor);
     let round = 0,
@@ -200,28 +229,28 @@ export async function runTufRoleController(
         active();
         return response;
       });
-      const current = source.read(
-        {
-          request(method, endpoint, body) {
-            if (
-              method !== "GET" ||
-              body !== undefined ||
-              !endpoint.startsWith("repos/boburning/portcove/")
-            )
-              throw new Error("TUF role controls require fixed GET reads");
-            return client.request(method, endpoint);
-          },
-          graphql(query, variables) {
-            if (query !== releaseControlRefQuery) throw new Error("TUF role control query differs");
-            return client.graphql(query, variables);
-          },
+      const api = {
+        request(method: string, endpoint: string, body?: unknown) {
+          if (
+            method !== "GET" ||
+            body !== undefined ||
+            !endpoint.startsWith("repos/boburning/portcove/")
+          )
+            throw new Error("TUF role controls require fixed GET reads");
+          return client.request(method, endpoint);
         },
-        facts.opportunity,
-      );
+        graphql(query: string, variables: Record<string, unknown>) {
+          if (query !== releaseControlRefQuery) throw new Error("TUF role control query differs");
+          return client.graphql(query, variables);
+        },
+      };
+      const current = metadata ? source.readMaintenance(api) : source.read(api, facts.opportunity);
       if (
         current.pause.publication_paused ||
         !current.resource_policy_matches_controller ||
-        !isDeepStrictEqual(current.classification, admitted.classification) ||
+        (!metadata &&
+          (!("classification" in current) ||
+            !isDeepStrictEqual(current.classification, admitted.classification))) ||
         !isDeepStrictEqual(current.pause, admitted.pause) ||
         !isDeepStrictEqual(current.capacity, admitted.capacity)
       )
@@ -238,12 +267,7 @@ export async function runTufRoleController(
       const snapshot = await readRemoteCoordinatorSnapshot(directory, coordinator, {
         transport: { cwd: directory, deadline },
       });
-      await requireReservedAggregate(descriptor(), snapshot);
-      if (
-        !isRecord(snapshot.input.active_candidate) ||
-        digest(snapshot.input.active_candidate.frozen_opportunity) !== digest(facts.opportunity)
-      )
-        throw new Error("TUF role frozen opportunity changed");
+      await reservation(snapshot);
       active();
     };
     await guard();
@@ -256,6 +280,7 @@ export async function runTufRoleController(
         repository: recovered.repository,
         checkpoint,
         remote_configuration: coordinator,
+        ...(metadata ? { metadata_renewal: metadata.facts.descriptor } : {}),
         request: {
           kind: "upload",
           destination: `github-actions:boburning/portcove:${version}:${phase}-envelope`,
@@ -428,6 +453,7 @@ export async function requirePreparedTufRoleOutput(receipt: object) {
     retained.predicate_sha256
   )
     throw new Error("actual role predicate changed");
+  signingContextRemaining(retained.deadline, 15000);
   return Object.freeze({
     predicate: structuredClone(retained.predicate),
     directory: retained.directory,
@@ -447,7 +473,10 @@ export async function runFixedTufRoleConfiguration(
     processDeadline = tufRoleControllerDeadline(rawDeadline);
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join(",") !== "context,dependencies,identity,role,tools" ||
+    ![
+      "context,dependencies,identity,role,tools",
+      "context,context_kind,dependencies,identity,role,tools",
+    ].includes(Object.keys(value).sort().join(",")) ||
     !isRecord(value.tools) ||
     Object.keys(value.tools).sort().join(",") !== "artifact,bundle" ||
     !isRecord(value.tools.artifact) ||
@@ -456,6 +485,12 @@ export async function runFixedTufRoleConfiguration(
     !Array.isArray(value.dependencies)
   )
     throw new Error("fixed TUF role caller fields differ");
+  if (
+    value.context_kind !== undefined &&
+    value.context_kind !== "release-signing-context" &&
+    value.context_kind !== "metadata-signing-context"
+  )
+    throw new Error("fixed context locator purpose differs");
   const role = inspectTufSigningRole(value.role),
     dependencies = tufRoleDependencies(role);
   if (value.dependencies.length !== dependencies.length)
@@ -472,11 +507,11 @@ export async function runFixedTufRoleConfiguration(
     value.tools.bundle as unknown as { artifact_id: number; sha256: string },
     { deadline },
   );
-  const contextReceipt = await receiveSigningContextArtifact(
-    parent,
-    value.context as unknown as SigningContextArtifactExpected,
-    deadline,
-  );
+  const contextReceipt = await (
+    value.context_kind === "metadata-signing-context"
+      ? receiveMetadataSigningContextArtifact
+      : receiveSigningContextArtifact
+  )(parent, value.context as unknown as SigningContextArtifactExpected, deadline);
   const receipts = [];
   for (let index = 0; index < dependencies.length; index++) {
     const locator: unknown = value.dependencies[index];

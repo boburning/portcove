@@ -1,7 +1,11 @@
 /** Public binding shape only. This parser authenticates neither the prior feed
  * nor a coordinator, and it never grants a metadata signing capability. */
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
-import { inspectMetadataRenewalDescriptor } from "./release-metadata-contract.mts";
+import {
+  inspectMetadataRenewalDescriptor,
+  inspectPublishedMetadata,
+  assertMetadataRenewalBinding,
+} from "./release-metadata-contract.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import { isRecord } from "./runtime-values.mts";
 function exact(value: unknown, keys: string): asserts value is Record<string, unknown> {
@@ -30,6 +34,7 @@ export function inspectMetadataSigningBinding(
   for (const value of Object.values(pins)) sha(value);
   for (const value of [facts.setup_plan_sha256, binding.descriptor_sha256, binding.records_sha256])
     sha(value);
+  sha(facts.setup_plan_sha256);
   const namespace = inspectCoordinatorRemoteNamespace({
     schema_version: 1,
     namespace: facts.namespace,
@@ -49,9 +54,43 @@ export function inspectMetadataSigningBinding(
   )
     throw new Error("metadata renewal context differs from its exact prior/descriptor binding");
   return {
-    facts: { ...facts, namespace, descriptor },
+    facts: {
+      mode: "renewal" as const,
+      namespace,
+      descriptor,
+      checkpoint: facts.checkpoint,
+      previous_site_pins: pins,
+      setup_plan_sha256: facts.setup_plan_sha256,
+      public_source_commit: facts.public_source_commit,
+    },
     binding,
     previous_site_pins: pins,
     authority: "none" as const,
   };
+}
+/** Current journal integrity only. A caller still needs actual context custody,
+ * its own authenticated role, current maintenance controls and owned pending. */
+export function inspectMetadataSigningReservation(
+  rawFacts: unknown,
+  rawBinding: unknown,
+  rawPins: unknown,
+  rawState: unknown,
+  now = new Date().toISOString(),
+) {
+  const context = inspectMetadataSigningBinding(rawFacts, rawBinding, rawPins);
+  if (
+    !isRecord(rawState) ||
+    !isRecord(rawState.input) ||
+    digest(rawState.input.metadata_renewal) !== digest(context.facts.descriptor)
+  )
+    throw new Error("current metadata renewal opportunity changed");
+  const published = inspectPublishedMetadata(rawState.input.published_metadata);
+  assertMetadataRenewalBinding(context.facts.descriptor, published, now);
+  if (
+    !published ||
+    published.publication.site_generation_sha256 !==
+      context.previous_site_pins.site_generation_sha256
+  )
+    throw new Error("current metadata renewal site generation changed");
+  return context.facts.descriptor;
 }
