@@ -436,7 +436,14 @@ function DetailHero({
             </strong>
           </p>
         )}
-        <div className="detail-current-action mt-4 max-w-xl">{children}</div>
+        <div
+          className={cn(
+            "detail-current-action mt-4",
+            state.tone === "ready" ? "max-w-80" : "max-w-xl",
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
