@@ -300,9 +300,13 @@ void test("actual ordinary state callback binds packaged origin, known folder an
   };
   let origin = "http://tauri.localhost";
   const browser = {
-    executeAsyncScript: async (callback: (done: (result: string) => void) => unknown) =>
+    executeAsyncScript: async (
+      callback: (platform: string, done: (result: string) => void) => unknown,
+      platform: string,
+    ) =>
       new Promise<string>((resolve) => {
-        runInNewContext(`(${callback.toString()})(done)`, {
+        runInNewContext(`(${callback.toString()})(platform, done)`, {
+          platform,
           done: resolve,
           location: { origin },
           window: {

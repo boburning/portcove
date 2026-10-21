@@ -5,6 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { WebDriver } from "selenium-webdriver";
 import {
+  readPublicUserState,
+  assertPublicUserStateChoicesPreserved,
+  seedPublicFavorite,
+  selectPublicLightTheme,
+  type PublicUserState,
+} from "./desktop-public-update-state.mts";
+import {
   DesktopNativeAccountSession,
   type AccountDriverView,
 } from "./desktop-native-account-session.mts";
@@ -90,151 +97,26 @@ export async function readWindowsPublicExecutable(file: string, maximumBytes = 5
   }
 }
 
-interface PublicUserState {
-  application_origin: "http://tauri.localhost";
-  app_local_data: string;
-  application_version: string;
-  library_root: string;
-  favorites: string[];
-  theme_preference: string | null;
-  rendered_theme: string;
-  update_preferences: Record<string, unknown>;
-}
-
-/** Uses shipping Core commands and ordinary localStorage observation; no IPC replacement. */
 export async function readWindowsPublicUserState(browser: WebDriver): Promise<PublicUserState> {
-  const raw = await browser.executeAsyncScript<string>((done: (result: string) => void) => {
-    const bridge = (
-      window as Window & {
-        __TAURI_INTERNALS__?: {
-          invoke(command: string, args?: object): Promise<unknown>;
-        };
-      }
-    ).__TAURI_INTERNALS__;
-    if (!bridge || location.origin !== "http://tauri.localhost") return done('{"ok":false}');
-    void (async () => {
-      const boot = (await bridge.invoke("get_bootstrap_status")) as {
-        ready: boolean;
-        library_root: string;
-        generation: number;
-      };
-      if (!boot.ready) throw new Error("ordinary library unavailable");
-      const value = {
-        application_origin: location.origin,
-        app_local_data: await bridge.invoke("plugin:path|resolve_directory", { directory: 15 }),
-        application_version: await bridge.invoke("plugin:app|version"),
-        library_root: boot.library_root,
-        favorites: await bridge.invoke("get_favorite_ports", { generation: boot.generation }),
-        theme_preference: localStorage.getItem("portcove.appearance.theme"),
-        rendered_theme: document.documentElement.dataset.theme,
-        update_preferences: await bridge.invoke("get_application_update_preferences"),
-      };
-      const text = JSON.stringify({ ok: true, value });
-      done(text.length <= 16384 ? text : '{"ok":false}');
-    })().catch(() => done('{"ok":false}'));
-  });
-  assert.ok(typeof raw === "string" && Buffer.byteLength(raw) <= 65536);
-  const reply: unknown = JSON.parse(raw);
-  assert.ok(isRecord(reply) && reply.ok === true && isRecord(reply.value));
-  const value = reply.value;
-  assert.equal(value.application_origin, "http://tauri.localhost");
-  assert.ok(
-    typeof value.app_local_data === "string" && path.win32.isAbsolute(value.app_local_data),
-  );
-  assert.ok(
-    typeof value.application_version === "string" && value.application_version.length <= 128,
-  );
-  assert.ok(typeof value.library_root === "string" && path.win32.isAbsolute(value.library_root));
-  assert.ok(Array.isArray(value.favorites) && value.favorites.length <= 1000);
-  const favorites = value.favorites.map((id) => {
-    assert.ok(typeof id === "string" && id.length <= 256);
-    return id;
-  });
-  assert.ok(
-    value.theme_preference === null ||
-      value.theme_preference === "system" ||
-      value.theme_preference === "light" ||
-      value.theme_preference === "dark",
-  );
-  assert.ok(value.rendered_theme === "light" || value.rendered_theme === "dark");
-  assert.ok(isRecord(value.update_preferences));
-  return {
-    application_origin: "http://tauri.localhost",
-    app_local_data: value.app_local_data,
-    application_version: value.application_version,
-    library_root: value.library_root,
-    favorites: favorites.sort(),
-    theme_preference: value.theme_preference as string | null,
-    rendered_theme: value.rendered_theme,
-    update_preferences: value.update_preferences,
-  };
+  const value = await readPublicUserState(browser, "win32");
+  assert.ok(path.win32.isAbsolute(value.app_local_data));
+  assert.ok(path.win32.isAbsolute(value.library_root));
+  return value;
 }
 
 export function assertWindowsPublicUserStatePreserved(
   before: PublicUserState,
   after: PublicUserState,
 ) {
-  assert.equal(after.application_origin, before.application_origin);
   assert.equal(
     path.win32.resolve(after.app_local_data).toLowerCase(),
     path.win32.resolve(before.app_local_data).toLowerCase(),
-  );
-  assert.ok(
-    before.favorites.length > 0,
-    "An empty library choice cannot prove user-state preservation",
   );
   assert.equal(
     path.win32.resolve(after.library_root).toLowerCase(),
     path.win32.resolve(before.library_root).toLowerCase(),
   );
-  assert.deepEqual(after.favorites, before.favorites);
-  assert.equal(before.theme_preference, "light", "Ordinary appearance seed was not observed");
-  assert.equal(after.theme_preference, before.theme_preference);
-  assert.equal(after.rendered_theme, before.rendered_theme);
-  assert.equal(before.update_preferences.schema_version, 1);
-  assert.equal(after.update_preferences.schema_version, before.update_preferences.schema_version);
-  assert.ok(isRecord(before.update_preferences.choice));
-  assert.equal(before.update_preferences.choice.channel, "preview");
-  assert.equal(before.update_preferences.choice.mode, "manual");
-  assert.deepEqual(after.update_preferences.choice, before.update_preferences.choice);
-}
-
-async function seedFavorite(browser: WebDriver) {
-  const raw = await browser.executeAsyncScript<string>((done: (result: string) => void) => {
-    const bridge = (
-      window as Window & {
-        __TAURI_INTERNALS__?: { invoke(command: string, args?: object): Promise<unknown> };
-      }
-    ).__TAURI_INTERNALS__;
-    if (!bridge || location.origin !== "http://tauri.localhost") return done('{"ok":false}');
-    void (async () => {
-      const boot = (await bridge.invoke("get_bootstrap_status")) as {
-        ready: boolean;
-        generation: number;
-      };
-      const catalog = (await bridge.invoke("get_catalog")) as {
-        schema_version: number;
-        ports: { id: string }[];
-      };
-      if (!boot.ready || catalog.schema_version !== 2 || !Array.isArray(catalog.ports))
-        throw new Error("current Gen2 catalog required");
-      const ids = catalog.ports
-        .map((port) => port.id)
-        .filter((id) => typeof id === "string")
-        .sort();
-      if (!ids.length || ids[0]!.length > 256) throw new Error("current catalog entry required");
-      await bridge.invoke("set_port_favorite", {
-        generation: boot.generation,
-        portId: ids[0],
-        favorite: true,
-      });
-      done(JSON.stringify({ ok: true, port_id: ids[0] }));
-    })().catch(() => done('{"ok":false}'));
-  });
-  assert.ok(typeof raw === "string" && Buffer.byteLength(raw) <= 1024);
-  const result: unknown = JSON.parse(raw);
-  assert.ok(isRecord(result) && result.ok === true && typeof result.port_id === "string");
-  return result.port_id;
+  assertPublicUserStateChoicesPreserved(before, after);
 }
 
 /** Actual Windows operation, to be called only by the fixed parent under its native grant.
@@ -415,18 +297,8 @@ export async function runWindowsPublicUpdateJourney(
   try {
     assert.equal((await readWindowsPublicExecutable(input.application)).sha256, input.prior_sha256);
     let initial = await connect(input.prior_version);
-    report.favorite_port = await seedFavorite(initial);
-    await initial
-      .findElement(By.xpath('//nav//button[.//span[normalize-space(.)="Settings"]]'))
-      .click();
-    await initial
-      .findElement(
-        By.xpath('//*[@aria-label="Settings sections"]//button[normalize-space(.)="Appearance"]'),
-      )
-      .click();
-    await initial
-      .findElement(By.xpath('//*[@aria-label="Color theme"]//button[normalize-space(.)="Light"]'))
-      .click();
+    report.favorite_port = await seedPublicFavorite(initial, "win32");
+    await selectPublicLightTheme(initial);
     report.staging = await driveInstalledUpdateToRestart(initial, actions, input.candidate_version);
     active();
     let beforeState = await readWindowsPublicUserState(initial);
