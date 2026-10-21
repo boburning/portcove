@@ -13,8 +13,14 @@ import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 import { payloadSigningEnvironment } from "./release-payload-signing.mts";
 import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-safety.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
-import { requireReceivedSigningContext } from "./release-signing-context-artifact.mts";
-import { requireReceivedTufRoleArtifact } from "./release-tuf-role-artifact.mts";
+import {
+  requireReceivedSigningContext,
+  requireRetainedSigningContext,
+} from "./release-signing-context-artifact.mts";
+import {
+  requireReceivedTufRoleArtifact,
+  requireRetainedTufRoleArtifact,
+} from "./release-tuf-role-artifact.mts";
 import { inspectTufContextPaths } from "./release-tuf-signing.mts";
 import { isRecord } from "./runtime-values.mts";
 
@@ -320,7 +326,11 @@ export async function prepareActualTufPublication(
   await requireActualTufPublication(receipt);
   return receipt;
 }
-export async function requireActualTufPublication(receipt: object, phaseDeadline?: number) {
+async function readActualTufPublication(
+  receipt: object,
+  phaseDeadline: number | undefined,
+  provider: "fresh" | "retained",
+) {
   const actual = publications.get(receipt);
   if (!actual) throw new Error("actual keyless TUF publication required");
   if (phaseDeadline !== undefined) {
@@ -328,9 +338,15 @@ export async function requireActualTufPublication(receipt: object, phaseDeadline
     actual.deadline = Math.min(actual.deadline, phaseDeadline);
   }
   remaining(actual.deadline);
-  const context = await requireReceivedSigningContext(actual.context, actual.deadline),
+  const context = await (
+      provider === "fresh" ? requireReceivedSigningContext : requireRetainedSigningContext
+    )(actual.context, actual.deadline),
     tools = await verifiedControllerToolPaths(actual.tools);
-  for (const role of actual.roles) await requireReceivedTufRoleArtifact(role, actual.deadline);
+  for (const role of actual.roles)
+    await (provider === "fresh" ? requireReceivedTufRoleArtifact : requireRetainedTufRoleArtifact)(
+      role,
+      actual.deadline,
+    );
   if (
     digest(inventory(await readBoundedReleaseContextFiles(actual.result.repository))) !==
       digest(actual.result.files) ||
@@ -351,6 +367,19 @@ export async function requireActualTufPublication(receipt: object, phaseDeadline
     repository: actual.result.repository,
     publication: structuredClone(actual.result.publication),
     records: actual.result.records,
+    provenance:
+      provider === "fresh"
+        ? ("fresh-provider-readback" as const)
+        : ("original-verified-snapshot" as const),
     authority: "none" as const,
   });
+}
+export function requireActualTufPublication(receipt: object, phaseDeadline?: number) {
+  return readActualTufPublication(receipt, phaseDeadline, "fresh");
+}
+/** Static cryptographic provenance only; current controls/native/publication
+ * readbacks stay with their owning live consumers. The actual mint still uses
+ * the full default-provider receivers and fixed keyless verifier. */
+export function requireRetainedActualTufPublication(receipt: object, phaseDeadline?: number) {
+  return readActualTufPublication(receipt, phaseDeadline, "retained");
 }

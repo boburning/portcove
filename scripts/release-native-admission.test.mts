@@ -26,6 +26,7 @@ import { mkdtemp, rm, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { requireRetainedActualTufPublication } from "./release-tuf-publication.mts";
 
 void test("publication configuration pins only distinct immutable public data and setup identities", () => {
   const file = (path: string) => ({ path, bytes: 123, sha256: "a".repeat(64) });
@@ -168,6 +169,10 @@ void test("configured post-sign native entry refuses imported TUF/context before
     /actual keyless/u,
   );
   assert.deepEqual(await readdir(root), []);
+  await assert.rejects(
+    requireRetainedActualTufPublication({}, performance.now() + 1000),
+    /actual keyless/u,
+  );
 });
 
 void test("actual native collection rejects incomplete or imported expectations before provider collection", async () => {
