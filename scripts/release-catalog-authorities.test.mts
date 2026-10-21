@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import {
   inspectCatalogAuthorityConfiguration,
@@ -211,6 +212,15 @@ void test("catalog actual getter refuses missing protected configuration before 
     if (saved === undefined) delete process.env.PORTCOVE_CATALOG_AUTHORITIES;
     else process.env.PORTCOVE_CATALOG_AUTHORITIES = saved;
   }
+});
+
+void test("catalog actual getter respects the inherited expired phase before source or provider reads", async () => {
+  await assert.rejects(
+    withCoordinatorDeadline(performance.now() - 1, () =>
+      requireControllerCatalogPublicationAuthorities("coordinator"),
+    ),
+    /phase deadline/,
+  );
 });
 void test("appointed catalog scope limits exact Core-bound titles/templates/schema and managed capabilities without granting acceptance", () => {
   const config = configuration();

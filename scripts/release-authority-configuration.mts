@@ -2,6 +2,8 @@ import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
+import { performance } from "node:perf_hooks";
+import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-namespace.mts";
 import { inspectInitialProofRisk706 } from "./linux-beta-risk-706-profile.mts";
 import {
@@ -576,6 +578,7 @@ export function inspectBoundCatalogControllerAuthorities(
   return { ...configuration, configuration_sha256 };
 }
 export async function requireControllerCatalogPublicationAuthorities(phase: unknown) {
+  const deadline = performance.now() + coordinatorCommandTimeout(15000);
   const env = { ...process.env },
     raw = env.PORTCOVE_CATALOG_AUTHORITIES;
   if (!raw || Buffer.byteLength(raw) > 32 * 1024)
@@ -585,11 +588,14 @@ export async function requireControllerCatalogPublicationAuthorities(phase: unkn
   const actual = await authenticateCatalogControlReaderJob(
     env,
     await readProductionControllerWorkflowBytes(),
-    { phase: inspectReleaseControlPhase(phase) },
+    { phase: inspectReleaseControlPhase(phase), deadline },
   );
   if (actual.identity.evidence_scope !== "github.com")
     throw new Error("actual catalog OIDC identity required");
-  return inspectBoundCatalogControllerAuthorities(JSON.parse(raw), actual.admitted);
+  const result = inspectBoundCatalogControllerAuthorities(JSON.parse(raw), actual.admitted);
+  if (performance.now() >= deadline)
+    throw new Error("catalog authority original phase deadline exhausted");
+  return result;
 }
 /** Limits an already Core-inspected bundle to the appointed publisher. This
  * assertion does not authenticate the supplied report or create acceptance. */
