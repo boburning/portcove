@@ -1126,6 +1126,12 @@ just desktop-verify --scenario keyboard-layout --scenario accessibility
 just desktop-verify --profile presentation
 ```
 
+`native-interface-size` selects presets through the actual Appearance control.
+Before sending its selection keys, it waits for the popup to own focus and
+checks the highlighted option before committing. A mounted listbox alone does
+not establish keyboard readiness. Failures retain viewport/preference observations
+and a screenshot before reset/resize cleanup; the original assertion still fails.
+
 `native-library-layout` uses two owned inert installations to check both Library
 views and themes through ordinary window sizes and native interface sizing. At
 startup it imports the existing red/blue diagnostic JPEGs into the disposable
