@@ -4,6 +4,7 @@ import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.
 import {
   nativePrepublicationProfile,
   inspectNativeQualificationHarnessPath,
+  inspectNativeQualificationAccount,
 } from "./release-native-qualification-contract.mts";
 import {
   admitProductionInputReader,
@@ -185,17 +186,24 @@ export function inspectReleaseAuthorityConfiguration(raw: unknown) {
         (platform === "windows-x86_64" ? "windows-11-26h2-x64" : "ubuntu-24.04-x64")
       )
         throw new Error("release authority minimum platform differs from initial beta");
-      exact(host.account, "broker,kind,qualification");
-      const accountKind = platform === "windows-x86_64" ? "windows-sid" : "linux-uid";
-      const accountPattern =
-        accountKind === "windows-sid" ? /^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u : /^[1-9][0-9]{0,9}$/u;
-      if (
-        host.account.kind !== accountKind ||
-        host.account.broker === host.account.qualification ||
-        !accountPattern.test(text(host.account.broker)) ||
-        !accountPattern.test(text(host.account.qualification))
-      )
-        throw new Error("release authority native accounts are unconfigured or conflated");
+      const crossHost = isRecord(host.account) && host.account.kind === "windows-wsl-uid";
+      if (crossHost) {
+        if (platform !== "linux-x86_64")
+          throw new Error("WSL account belongs only to Linux package qualification");
+        inspectNativeQualificationAccount(host.account);
+      } else {
+        exact(host.account, "broker,kind,qualification");
+        const accountKind = platform === "windows-x86_64" ? "windows-sid" : "linux-uid";
+        const accountPattern =
+          accountKind === "windows-sid" ? /^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u : /^[1-9][0-9]{0,9}$/u;
+        if (
+          host.account.kind !== accountKind ||
+          host.account.broker === host.account.qualification ||
+          !accountPattern.test(text(host.account.broker)) ||
+          !accountPattern.test(text(host.account.qualification))
+        )
+          throw new Error("release authority native accounts are unconfigured or conflated");
+      }
       exact(host.engine, "minimum_version,name");
       if (host.engine.name !== (platform === "windows-x86_64" ? "WebView2" : "WebKitGTK"))
         throw new Error("release authority native engine family differs");
