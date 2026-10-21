@@ -12,6 +12,10 @@ param(
     [string]$NativeAccountBindingPath,
     [string]$NativeAccountBindingSha256,
     [switch]$NativeParentOwnsFinish,
+    [string]$OrdinaryPublicUpdateInputsPath,
+    [string]$OrdinaryPublicUpdateInputsSha256,
+    [ValidateRange(0, 1750000)]
+    [int]$OrdinaryPublicUpdateRemainingMilliseconds = 0,
     [ValidateSet("Silent", "Passive")]
     [string]$InstallMode = "Silent",
     [string]$ExpectedVersion,
@@ -40,6 +44,51 @@ $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
 $ProcessIdentityClockToleranceMilliseconds = 1000
 $nativeAccount = $null
+$ordinaryPublicClock = [Diagnostics.Stopwatch]::StartNew()
+$ordinaryPublicInputs = $null
+$ordinaryPublicMode = [bool]($OrdinaryPublicUpdateInputsPath -or $OrdinaryPublicUpdateInputsSha256 -or $OrdinaryPublicUpdateRemainingMilliseconds)
+if ($ordinaryPublicMode) {
+    if (-not $NativeParentOwnsFinish -or -not $NativeAccountBindingPath -or -not $OrdinaryPublicUpdateInputsPath -or
+        $OrdinaryPublicUpdateInputsSha256 -cnotmatch '^[a-f0-9]{64}$' -or $OrdinaryPublicUpdateRemainingMilliseconds -lt 1 -or
+        $UpgradeFromInstallerPath -or $RendererUpdate -or $InstalledUpdateTrustedRootPath -or $InstalledUpdateMetadataPath -or
+        $InstalledUpdateTargetsPath -or $InstalledUpdateCandidatePath -or $PayloadPrivateKeyPath -or $TufPrivateRootPath -or
+        $NormalPackageManifestPath -or $NormalPackageAdmissionPath -or $QualifyPackageRollback -or $TestFault) {
+        throw 'Ordinary public update requires its fixed isolated parent session and forbids qualification feed/key/marker modes'
+    }
+    if (-not [IO.Path]::IsPathFullyQualified($OrdinaryPublicUpdateInputsPath) -or $OrdinaryPublicUpdateInputsPath.StartsWith('\\') -or
+        -not [IO.Path]::IsPathFullyQualified($InstallerPath) -or $InstallerPath.StartsWith('\\')) { throw 'Ordinary public inputs require local absolute paths' }
+    $inputItem=Get-Item -LiteralPath $OrdinaryPublicUpdateInputsPath -Force
+    if ($inputItem.PSIsContainer -or $inputItem.Length -lt 1 -or $inputItem.Length -gt 16384 -or
+        ($inputItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Ordinary public update fixed input bytes differ'
+    }
+    $publicStream=[IO.File]::Open($OrdinaryPublicUpdateInputsPath,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
+    try {
+        $bounded=[byte[]]::new(16385);$read=0
+        while($read -lt $bounded.Length) { $count=$publicStream.Read($bounded,$read,$bounded.Length-$read);if($count -eq 0){break};$read+=$count }
+        if($read -lt 1 -or $read -gt 16384){throw 'Ordinary public update input exceeds its byte bound'}
+        $publicInputBytes=$bounded[0..($read-1)]
+        if ([Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([byte[]]$publicInputBytes)).ToLowerInvariant() -cne $OrdinaryPublicUpdateInputsSha256) { throw 'Ordinary public update retained input hash differs' }
+        $ordinaryPublicInputs=[Text.UTF8Encoding]::new($false,$true).GetString([byte[]]$publicInputBytes) | ConvertFrom-Json
+    } finally {$publicStream.Dispose()}
+    $publicInputNames=@('schema_version','kind','prior_installer_sha256','prior_executable_sha256','prior_version','candidate_executable_sha256','candidate_installer_sha256','candidate_version')
+    if ((@($ordinaryPublicInputs.PSObject.Properties.Name | Sort-Object) -join '|') -cne (($publicInputNames | Sort-Object) -join '|') -or
+        $ordinaryPublicInputs.schema_version -ne 1 -or $ordinaryPublicInputs.kind -cne 'ordinary-public-windows-update-inputs') {
+        throw 'Ordinary public update fixed input schema differs'
+    }
+    foreach ($field in @('prior_installer_sha256','prior_executable_sha256','candidate_executable_sha256','candidate_installer_sha256')) {
+        if ($ordinaryPublicInputs.$field -isnot [string] -or $ordinaryPublicInputs.$field -cnotmatch '^[a-f0-9]{64}$') { throw 'Ordinary public update digest absent' }
+    }
+    foreach ($field in @('prior_version','candidate_version')) {
+        if ($ordinaryPublicInputs.$field -isnot [string] -or $ordinaryPublicInputs.$field -cnotmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Ordinary public update version absent' }
+    }
+    if ($ExpectedVersion -cne $ordinaryPublicInputs.prior_version -or
+        $ordinaryPublicInputs.prior_version -ceq $ordinaryPublicInputs.candidate_version -or
+        $ordinaryPublicInputs.prior_executable_sha256 -ceq $ordinaryPublicInputs.candidate_executable_sha256 -or
+        (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_installer_sha256) {
+        throw 'Ordinary public update must begin with the distinct exact appointed V0 installer/version'
+    }
+}
 if ($NativeParentOwnsFinish -and (-not $NativeAccountBindingPath -or -not $NativeAccountBindingSha256)) {
     throw 'Parent-owned settlement requires the exact isolated account binding'
 }
@@ -1386,10 +1435,35 @@ try {
             $env:PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256=$NativeAccountBindingSha256
             $accountNode=$nativeAccount.binding.desktop_tools.node
             if ((Get-FileHash -LiteralPath $accountNode.path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $accountNode.sha256) { throw 'Qualified desktop assertion runtime changed' }
-            & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-test.mts') `
-                --app $application --output $accountDesktopOutput --scenario empty-library --port 45874
-            if ($LASTEXITCODE -ne 0) { throw 'Isolated installed ordinary-client observation failed' }
-            $isolatedAccountBoundary=[ordered]@{ output=$accountDesktopOutput; installed_executable_path=$application;
+            if ($ordinaryPublicMode) {
+                if ((Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.prior_executable_sha256) { throw 'Ordinary public update V0 executable differs' }
+                $publicOutput=Join-Path $evidenceParent 'ordinary-public-update'
+                $publicConfiguration=[ordered]@{schema_version=1;kind='ordinary-windows-public-update';journey=[ordered]@{
+                    binding=[IO.Path]::GetFullPath($NativeAccountBindingPath);binding_sha256=$NativeAccountBindingSha256;application=$application;output=$publicOutput;
+                    prior_sha256=$ordinaryPublicInputs.prior_executable_sha256;prior_version=$ordinaryPublicInputs.prior_version;
+                    candidate_sha256=$ordinaryPublicInputs.candidate_executable_sha256;candidate_installer_sha256=$ordinaryPublicInputs.candidate_installer_sha256;candidate_version=$ordinaryPublicInputs.candidate_version}}
+                $publicConfigurationPath=Join-Path $evidenceParent 'ordinary-public-update.json'
+                $stream=[IO.File]::Open($publicConfigurationPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+                try { $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($publicConfiguration|ConvertTo-Json -Depth 6 -Compress)+"`n");$stream.Write($bytes);$stream.Flush($true) } finally {$stream.Dispose()}
+                $publicConfigurationSha=(Get-FileHash -LiteralPath $publicConfigurationPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                $remaining=$OrdinaryPublicUpdateRemainingMilliseconds-$ordinaryPublicClock.ElapsedMilliseconds
+                if ($remaining -lt 1) { throw 'Original public native invocation lifetime expired before UI launch' }
+                & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-windows-update-test.mts') --ordinary-public $publicConfigurationPath $publicConfigurationSha $remaining
+                if ($LASTEXITCODE -ne 0) { throw 'Isolated ordinary public updater journey failed; retain raw preimages and process evidence' }
+                $currentPublicRegistration=@(Get-UninstallEntries $installRoot)
+                if ($currentPublicRegistration.Count -ne 1 -or $currentPublicRegistration[0].DisplayVersion -cne $ordinaryPublicInputs.candidate_version -or
+                    (Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant() -cne $ordinaryPublicInputs.candidate_executable_sha256) { throw 'Ordinary public V1 installation readback differs' }
+                Assert-InstallerUserRegistration ([string]$currentPublicRegistration[0].PSPath) ([string]$nativeAccount.binding.account_sid)
+                $evidence.ordinary_public_update=[ordered]@{configuration_sha256=$publicConfigurationSha;output=$publicOutput;prior_version=$ordinaryPublicInputs.prior_version;
+                    candidate_version=$ordinaryPublicInputs.candidate_version;registration=$currentPublicRegistration[0].PSPath;authority='none';native_acceptance='not-established'}
+                $evidence.uninstaller_sha256=(Get-FileHash -LiteralPath $uninstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+            } else {
+                & $accountNode.path (Join-Path $PSScriptRoot '../apps/desktop/scripts/desktop-test.mts') `
+                    --app $application --output $accountDesktopOutput --scenario empty-library --port 45874
+                if ($LASTEXITCODE -ne 0) { throw 'Isolated installed ordinary-client observation failed' }
+            }
+            $actualDesktopOutput=if ($ordinaryPublicMode) {$publicOutput} else {$accountDesktopOutput}
+            $isolatedAccountBoundary=[ordered]@{ output=$actualDesktopOutput; installed_executable_path=$application;
                 installed_executable_sha256=(Get-FileHash -LiteralPath $application -Algorithm SHA256).Hash.ToLowerInvariant();
                 native_invocation_id=$nativeAccount.binding.invocation_id; acceptance='not-established; parent stage capture is separate' }
             Write-InstallerEvidence 'isolated_account_desktop_complete' $isolatedAccountBoundary

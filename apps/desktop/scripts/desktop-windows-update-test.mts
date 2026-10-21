@@ -31,6 +31,17 @@ import {
 } from "./desktop-installed-update-harness.mts";
 
 assert.equal(process.platform, "win32", "Installed NSIS renderer qualification requires Windows");
+if (process.argv[2] === "--ordinary-public") {
+  const [, , , configuration, sha256, remaining, ...extra] = process.argv;
+  assert.ok(
+    configuration && sha256 && remaining && !extra.length && /^[1-9][0-9]*$/u.test(remaining),
+  );
+  const { runFixedWindowsPublicUpdateConfiguration } =
+    await import("./desktop-windows-public-update.mts");
+  await runFixedWindowsPublicUpdateConfiguration(configuration, sha256, Number(remaining));
+  // The public route has completed its own positive owned-tree cleanup. Never enter the marker route.
+  process.exit(0);
+}
 const { values } = parseArgs({
   options: Object.fromEntries(
     [

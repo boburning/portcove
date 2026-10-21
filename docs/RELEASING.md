@@ -1733,8 +1733,13 @@ recovery refuse. A restart control alone cannot qualify a candidate: staged
 version, Preview channel, positive byte count and install eligibility must match.
 All maintained NSIS/AppImage/macOS adapters retain both status observations in
 their existing report. The macOS adapter remains outside the initial-beta gate.
-This read-only command requires no qualification feature, IPC hook or loopback
-feed. Controlled driver tests establish harness behavior only; actual public
+The shipping status query requires no qualification feature, IPC hook or loopback
+feed. It performs the product's normal staging reconciliation; retain raw fault
+preimages before application startup or querying status. The shared driver also
+exercises one explicitly selected existing schedule, staging or apply recovery
+button, then checks that its hold cleared while unrelated holds and unrelated
+staged/apply state remain. It performs no implicit recovery or generic IPC
+mutation. Controlled driver tests establish harness behavior only; actual public
 origins, payload hashes, restart/process ownership, retained user state, signature
 refusal, withdrawal/forward repair and recovery remain independently observed
 obligations. Existing qualification-marker restart harnesses retain their scope.
@@ -1800,3 +1805,12 @@ content and retained history. The fixed controller binds this actual tool output
 to the private assembly session, independently reads back the published bytes,
 then attaches the actual operation and provider/whole-site receipt for
 `recordPublishedMetadata`. An imported report alone is not publication evidence.
+
+The Windows installer harness has an explicit ordinary-public updater mode,
+connected to the existing separate-account driver and normal shipped updater UI.
+Its [prepared journey and proof scopes](qualification/slice4-windows-public-update-preparation-2026-10-21.md)
+cover exact V0/V1 bytes, automatic relaunch identity, real favorite and preference
+preservation, raw local fault preimages, and named recovery. Controlled tests do
+not establish the actual Windows public journey or native acceptance. The proposed
+signature-subtype component/native proof split requires the single consolidated
+conditional grant; no negative public feed or verifier bypass is prepared.

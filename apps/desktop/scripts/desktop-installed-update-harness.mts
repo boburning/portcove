@@ -14,7 +14,9 @@ import type {
 } from "node:child_process";
 
 /** Read the shipping, sanitized status command without installing an IPC hook,
- * changing updater configuration or supplying a replacement transport. */
+ * changing updater configuration or supplying a replacement transport.
+ * The product query performs its normal state reconciliation. Retain raw fault
+ * preimages before application startup or this query, not afterwards. */
 export async function readInstalledUpdateStatus(
   browser: WebDriver,
 ): Promise<Record<string, unknown> & { recovery_required: unknown[] }> {
