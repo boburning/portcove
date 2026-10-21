@@ -35,6 +35,14 @@ function Assert-DriverOwnerPath([string]$Path) {
     }
 }
 function Assert-DriverStageSelection($Value) {
+    if($Value.schema_version -eq 2) {
+        if($Value.stage -cne 'ordinary-public-initial' -or $null -ne $Value.journey -or $null -ne $Value.predecessor -or
+            (@($Value.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'boundary,invocation_id,journey,package,predecessor,public_inputs,request_sha256,schema_version,stage,tools,version' -or
+            (@($Value.public_inputs.PSObject.Properties.Name|Sort-Object)-join ',') -cne 'path,sha256' -or
+            $Value.public_inputs.sha256 -cnotmatch '^[a-f0-9]{64}$') {throw 'Public driver plan differs from its separate fixed initial journey'}
+        return
+    }
+    if($Value.schema_version -ne 1) {throw 'Native driver schema differs'}
     if($Value.stage -cnotin @('payload-signing','release-publication')) {throw 'Native stage differs'}
 if($Value.stage -ceq 'payload-signing' -and ($null -ne $Value.journey -or $null -ne $Value.predecessor)) {throw 'Pre-sign driver cannot accept a publication journey'}
 if($Value.stage -ceq 'release-publication') {
@@ -118,14 +126,20 @@ function Read-DriverHostObservation {
 }
 
 $planValue=Read-DriverJson $Plan $ExpectedPlanSha256
-if($planValue.schema_version -ne 1 -or $planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
-    $planValue.request_sha256 -cnotmatch '^[a-f0-9]{64}$' -or $planValue.stage -cnotin @('payload-signing','release-publication')) {throw 'Native driver plan differs'}
+if($planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
+    $planValue.request_sha256 -cnotmatch '^[a-f0-9]{64}$') {throw 'Native driver plan differs'}
 Assert-DriverStageSelection $planValue
+$publicMode=$planValue.schema_version -eq 2
 $boundary=Read-DriverJson $planValue.boundary.path $planValue.boundary.sha256
 $capture=Join-Path $boundary.capture_root ('native-attempt-'+$planValue.invocation_id)
 if([IO.Path]::GetFullPath($Plan) -cne (Join-Path $capture 'windows-plan.json') -or
     [IO.Path]::GetFullPath($PSScriptRoot) -cne (Join-Path $boundary.controller_root 'scripts')) {throw 'Native driver is outside the fixed parent/capture'}
 Assert-DriverOwnerPath $capture
+if($publicMode) {
+    if([IO.Path]::GetFullPath($planValue.public_inputs.path) -cne (Join-Path $capture 'public-inputs.json')) {throw 'Public driver input is outside its exact claim leaf'}
+    $publicInputs=Read-DriverJson $planValue.public_inputs.path $planValue.public_inputs.sha256
+    if($publicInputs.prior_installer_sha256 -cne $planValue.package.sha256 -or $publicInputs.prior_version -cne $planValue.version) {throw 'Public driver initial package differs'}
+}
 $acl=Get-Acl -LiteralPath $capture
 # Owner-only inheritance is made explicit on this new owned leaf. Existing
 # roots and all existing access entries remain unchanged; no new rights granted.
@@ -202,6 +216,11 @@ try {
     $bindingSha=(Get-FileHash -LiteralPath $bindingPath -Algorithm SHA256).Hash.ToLowerInvariant()
     $session=Open-PortcoveNativeAccountSession $bindingPath $bindingSha
     $harnessArguments=@('-NoLogo','-NoProfile','-NonInteractive','-File',(Join-Path $PSScriptRoot 'test-windows-installer.ps1'),'-InstallerPath',$installer,'-TestBase',$work,'-EvidencePath',(Join-Path $capture 'installer.json'),'-ExpectedVersion',$planValue.version,'-NativeAccountBindingPath',$bindingPath,'-NativeAccountBindingSha256',$bindingSha,'-NativeParentOwnsFinish')
+    if($publicMode) {
+        $publicRemaining=[Math]::Floor(1750000-$clock.ElapsedMilliseconds)
+        if($publicRemaining -lt 1) {throw 'Original public driver lifetime exhausted before installer'}
+        $harnessArguments+=@('-OrdinaryPublicUpdateInputsPath',$planValue.public_inputs.path,'-OrdinaryPublicUpdateInputsSha256',$planValue.public_inputs.sha256,'-OrdinaryPublicUpdateRemainingMilliseconds',[string]$publicRemaining)
+    }
     if($predecessorInstaller) {$harnessArguments+=@('-UpgradeFromInstallerPath',$predecessorInstaller,'-QualifyPackageRollback','-ExpectedPredecessorVersion',$planValue.predecessor.version)}
     $harness=Start-DriverChild 'harness' $harnessArguments
     $children.Add($harness)
@@ -211,7 +230,7 @@ try {
         Start-Sleep -Milliseconds 100
     }
     if($harness.process.ExitCode -ne 0){throw 'Native installer harness refused; retain its raw result'}
-    $hostObservation=Read-DriverHostObservation
+    if(-not $publicMode){$hostObservation=Read-DriverHostObservation}
 }catch{$failure=$_.Exception.Message}
 finally {
     # The fixed parent owns the sole finish request in this mode. It is latched

@@ -4,19 +4,135 @@ import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { requireActualNativeInvocation } from "./release-native-attempt.mts";
+import {
+  requireActualNativeInvocation,
+  requireActualPublicJourneyInvocation,
+} from "./release-native-attempt.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { runRustTests } from "./run-rust-tests.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
 import { remainingNativeParentBudget } from "./release-native-parent.mts";
+import { requireActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
+import {
+  runActualPublicSignatureControl,
+  requireActualPublicSignatureControl,
+} from "./release-native-public-signature.mts";
 
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const captures = new WeakMap<
   object,
   { claim: object; directory: string; result: string; status: number }
 >();
+const publicCaptures = new WeakMap<
+  object,
+  { claim: object; directory: string; result: string; status: number; component: object }
+>();
+
+/** Separate public path; no report2, Check, imported plan or candidate-stage
+ * capability can be minted from this capture. */
+export async function captureActualWindowsPublicJourney(claim: object) {
+  const selected = await requireActualPublicJourneyInvocation(claim);
+  if (
+    process.platform !== "win32" ||
+    selected.parent.descriptor.platform_label !== "windows-x86_64" ||
+    selected.phase !== "initial-v0-v1"
+  )
+    throw new Error(
+      "actual Windows initial public journey claim required; parked continuation remains held",
+    );
+  const compiler = selected.compiler_receipts;
+  if (!compiler) throw new Error("actual public Windows compiler proof missing");
+  const prior = await requireActualPublicWindowsCompilerIdentity(compiler.prior),
+    candidate = await requireActualPublicWindowsCompilerIdentity(compiler.candidate);
+  const tools = selected.parent.transport_configuration.windows_tools;
+  if (!tools) throw new Error("actual fixed Windows tools missing");
+  const input = {
+    schema_version: 1,
+    kind: "ordinary-public-windows-update-inputs",
+    prior_installer_sha256: selected.prior_package.identity.package.sha256,
+    prior_executable_sha256: prior.identity.executable.nsis_sha256,
+    prior_version: selected.prior_package.identity.version,
+    candidate_installer_sha256: selected.candidate_package.identity.package.sha256,
+    candidate_executable_sha256: candidate.identity.executable.nsis_sha256,
+    candidate_version: selected.candidate_package.identity.version,
+  };
+  const inputBytes = Buffer.from(JSON.stringify(input)),
+    inputPath = path.join(selected.capture_directory, "public-inputs.json");
+  await writeFile(inputPath, inputBytes, { flag: "wx", mode: 0o600 });
+  const component = await runActualPublicSignatureControl(
+    selected.pair_receipt,
+    selected.prior_package_receipt,
+    selected.candidate_package_receipt,
+    selected.pair.directory,
+    selected.original_deadline,
+  );
+  await requireActualPublicSignatureControl(component);
+  const plan = {
+    schema_version: 2,
+    stage: "ordinary-public-initial",
+    journey: null,
+    predecessor: null,
+    invocation_id: selected.invocation_id,
+    request_sha256: selected.request_sha256,
+    boundary: selected.parent.descriptor.native_boundary_configuration,
+    package: {
+      path: selected.prior_package.path,
+      bytes: selected.prior_package.identity.package.bytes,
+      sha256: input.prior_installer_sha256,
+    },
+    version: input.prior_version,
+    tools,
+    public_inputs: { path: inputPath, sha256: sha(inputBytes) },
+  };
+  const captured = await runFixedWindowsCapture(
+    selected.parent,
+    selected.capture_directory,
+    plan,
+    async () => {
+      await requireActualPublicJourneyInvocation(claim);
+      await requireActualPublicSignatureControl(component);
+    },
+  );
+  const receipt = Object.freeze({
+    kind: "actual-fixed-windows-public-capture",
+    authority: "none" as const,
+  });
+  publicCaptures.set(receipt, {
+    claim,
+    directory: selected.capture_directory,
+    ...captured,
+    component,
+  });
+  return receipt;
+}
+
+export async function requireActualWindowsPublicCapture(receipt: object) {
+  const retained = publicCaptures.get(receipt);
+  if (!retained) throw new Error("actual fixed parent Windows public capture required");
+  const selected = await requireActualPublicJourneyInvocation(retained.claim);
+  const raw: unknown = JSON.parse(
+    (
+      await readBoundedPublicBuildInputFile(retained.directory, "driver-result.json", 32768)
+    ).toString("utf8"),
+  );
+  if (digest(raw) !== retained.result) throw new Error("actual public driver capture changed");
+  const driver = inspectWindowsNativeDriverResult(
+    raw,
+    selected.invocation_id,
+    selected.request_sha256,
+  );
+  const component = await requireActualPublicSignatureControl(retained.component);
+  return {
+    ...selected,
+    claim: retained.claim,
+    driver,
+    component,
+    status: retained.status,
+    authority: "none" as const,
+  };
+}
 
 export function inspectWindowsNativeDriverResult(
   raw: unknown,
@@ -146,6 +262,41 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
     version: selected.version,
     tools,
   };
+  const captured = await runFixedWindowsCapture(parent, directory, plan, async () => {
+    await requireActualNativeInvocation(claim);
+  });
+  const receipt = Object.freeze({
+    kind: "actual-fixed-windows-native-capture",
+    directory,
+    status: captured.status,
+    authority: "none",
+    scope:
+      "actual driver capture; native scenarios and Check issuance still require separate validation",
+  });
+  captures.set(receipt, { claim, directory, ...captured });
+  return receipt;
+}
+
+/** Module-private launcher: both public and stage callers must first establish
+ * their own actual private claim. No exported raw plan/launch callback exists. */
+async function runFixedWindowsCapture(
+  parent: Awaited<ReturnType<typeof requireActualNativeInvocation>>["parent"],
+  directory: string,
+  plan: {
+    invocation_id: string;
+    request_sha256: string;
+    tools: NonNullable<
+      Awaited<
+        ReturnType<typeof requireActualNativeInvocation>
+      >["parent"]["transport_configuration"]["windows_tools"]
+    >;
+  } & Record<string, unknown>,
+  recheck: () => Promise<void>,
+) {
+  const tools = plan.tools;
+  const account = parent.authority_configuration.native["windows-x86_64"].host.account;
+  if (!isRecord(account) || typeof account.qualification !== "string")
+    throw new Error("appointed native account identity absent");
   const bytes = Buffer.from(JSON.stringify(plan));
   if (bytes.byteLength > 32768) throw new Error("fixed Windows driver plan exceeds its bound");
   const planPath = path.join(directory, "windows-plan.json");
@@ -191,7 +342,7 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
                 throw new Error("actual native source-bound resource admission required");
               const lease = await options.acquireLock(metadata, admission);
               try {
-                await requireActualNativeInvocation(claim);
+                await recheck();
                 timer = setTimeout(
                   () => signal.emit("SIGTERM"),
                   remainingNativeParentBudget(1800000),
@@ -213,17 +364,8 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
   inspectWindowsNativeDriverResult(result, plan.invocation_id, plan.request_sha256);
   // Source credentials remain unavailable in the child. Rechecking source and
   // reservation occurs only after the supervisor has settled its owned tree.
-  await requireActualNativeInvocation(claim);
-  const receipt = Object.freeze({
-    kind: "actual-fixed-windows-native-capture",
-    directory,
-    status,
-    authority: "none",
-    scope:
-      "actual driver capture; native scenarios and Check issuance still require separate validation",
-  });
-  captures.set(receipt, { claim, directory, result: digest(result), status });
-  return receipt;
+  await recheck();
+  return { result: digest(result), status };
 }
 
 export async function requireActualWindowsNativeCapture(receipt: object) {

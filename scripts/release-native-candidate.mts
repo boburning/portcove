@@ -513,6 +513,17 @@ export async function openActualNativePublicSource(parentReceipt: object) {
   return { parent, parent_receipt: parentReceipt, directory, source };
 }
 
+/** Routing data only. Both branches still require their existing actual source,
+ * claim and capture factories; no caller chooses a public/native stage. */
+export async function readActualNativeWorkerDispatch(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (!parent.descriptor.public_journey) return "candidate" as const;
+  const session = await openActualNativePublicSource(parentReceipt);
+  const current = await session.source.recover();
+  await parent.recheck();
+  return current.input.active_candidate === null ? ("public" as const) : ("candidate" as const);
+}
+
 const selections = new WeakMap<
   object,
   {

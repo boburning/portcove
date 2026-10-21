@@ -6,9 +6,25 @@ import {
   establishActualNativeParent,
   requireActualNativeParent,
 } from "./release-native-parent.mts";
-import { acquireActualNativeStageCandidate } from "./release-native-candidate.mts";
-import { claimActualNativeInvocation } from "./release-native-attempt.mts";
-import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
+import {
+  acquireActualNativeStageCandidate,
+  readActualNativeWorkerDispatch,
+} from "./release-native-candidate.mts";
+import {
+  claimActualNativeInvocation,
+  readActualPublicJourneyProgress,
+  claimActualPublicJourneyInvocation,
+} from "./release-native-attempt.mts";
+import {
+  captureActualWindowsNativeInvocation,
+  captureActualWindowsPublicJourney,
+  requireActualWindowsPublicCapture,
+} from "./release-native-windows-capture.mts";
+import {
+  acquireActualPublicJourneyPair,
+  materializeActualPublicJourneyPackage,
+} from "./release-native-public-pair.mts";
+import { collectActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
 import {
   prepareActualNativeStageReport,
   retainActualFailedNativeStage,
@@ -28,6 +44,39 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     );
   const linux =
     (await requireActualNativeParent(parent)).descriptor.platform_label === "linux-x86_64";
+  if ((await readActualNativeWorkerDispatch(parent)) === "public") {
+    // Linux supplies its separate actual WSL/public capture join; never cast
+    // the public claim into a native-stage claim or reuse a report2 constructor.
+    if (linux) throw new Error("actual Linux public capture continuation is not connected yet");
+    const pair = await acquireActualPublicJourneyPair(parent);
+    const progress = await readActualPublicJourneyProgress(pair);
+    if (progress.phase !== "initial-v0-v1")
+      return {
+        decision: "hold",
+        reason: "public parked or V2 continuation not connected; no repeated launch",
+        progress,
+        authority: "none",
+      };
+    const prior_package = await materializeActualPublicJourneyPackage(pair, "prior");
+    const candidate_package = await materializeActualPublicJourneyPackage(pair, "candidate");
+    const prior = await collectActualPublicWindowsCompilerIdentity(pair, "prior"),
+      candidate = await collectActualPublicWindowsCompilerIdentity(pair, "candidate");
+    const claim = await claimActualPublicJourneyInvocation(progress, {
+      pair,
+      prior_package,
+      candidate_package,
+      compiler: { prior, candidate },
+    });
+    const capture = await captureActualWindowsPublicJourney(claim);
+    await requireActualWindowsPublicCapture(capture);
+    return {
+      decision: "hold",
+      reason:
+        "public Windows capture retained; technical settlement/result and full A/B V2 proof remain pending",
+      capture,
+      authority: "none",
+    };
+  }
   const candidate = await acquireActualNativeStageCandidate(parent);
   const claim = await claimActualNativeInvocation(candidate);
   if (claim.decision === "readback-only")
