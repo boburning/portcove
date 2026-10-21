@@ -3,6 +3,8 @@ import test from "node:test";
 import { capacityDigest } from "./release-capacity.mts";
 import { metadataFixture } from "./fixtures/release-metadata-fixture.mts";
 import { pagesRecoveryOperationFixture } from "./fixtures/release-pages-recovery-fixture.mts";
+import { createPagesProviderTransport } from "./release-pages-provider.mts";
+import { readPendingPagesPublication } from "./release-pages-recovery.mts";
 import {
   inspectSettledPagesMetadataHandoff,
   publishedPagesMetadataFromCurrentFacts,
@@ -53,6 +55,66 @@ function fixture() {
   };
   return { input, operation, descriptor: metadata.descriptor };
 }
+
+void test("provider acknowledgement identity survives actual pending readback and metadata handoff", async () => {
+  const { input, operation, descriptor } = fixture();
+  const expected = {
+    artifact_id: operation.site_expectation.artifact_id,
+    controller_revision: operation.executor_identity.controller_revision,
+    generation: operation.site_expectation.site_generation_sha256,
+  };
+  const calls: string[] = [];
+  const provider = createPagesProviderTransport(".", {
+    token: async () => "inert-controlled-token",
+    api: {
+      request(method, endpoint, body) {
+        calls.push(`${method} ${endpoint}`);
+        if (method === "POST") {
+          assert.deepEqual(body, {
+            artifact_id: expected.artifact_id,
+            pages_build_version: expected.generation,
+            oidc_token: "inert-controlled-token",
+          });
+          return {
+            status: 200,
+            headers: new Map<string, string>(),
+            body: {
+              id: expected.generation,
+              status_url: `https://api.github.com/repos/boburning/portcove/pages/deployments/${expected.generation}`,
+              page_url: "https://boburning.github.io/portcove/",
+            },
+          };
+        }
+        assert.equal(endpoint, `repos/boburning/portcove/pages/deployments/${expected.generation}`);
+        return { status: 200, headers: new Map<string, string>(), body: { status: "succeed" } };
+      },
+    },
+  });
+  const accepted = await provider.create(expected);
+  const pending = { ...operation, outcome: "pending", completed_effects: [], recovery: null };
+  const readback = await readPendingPagesPublication(".", pending, performance.now() + 5000, {
+    provider,
+    readPublic: async (pins) => {
+      assert.deepEqual(pins, operation.site_expectation);
+      return { scope: "controlled-public-byte-readback", authority: "none" };
+    },
+  });
+  const completed = readback.resolution.completed_effect;
+  assert.ok(completed);
+  assert.equal(completed.remote_identity, `github-pages:boburning/portcove:${accepted.id}`);
+  const handoff = inspectSettledPagesMetadataHandoff({
+    ...input,
+    controller: {
+      capacity_attempt: { operation: { ...operation, completed_effects: [completed] } },
+    },
+  })!;
+  const published = publishedPagesMetadataFromCurrentFacts(descriptor, handoff);
+  assert.equal(published.publication.remote_identity, completed.remote_identity);
+  assert.equal(published.publication.site_generation_sha256, accepted.generation);
+  assert.equal(calls.filter((call) => call.startsWith("POST ")).length, 1);
+  assert.equal(calls.filter((call) => call.startsWith("GET ")).length, 2);
+  assert.equal(readback.evidence.evidence_scope, "injected-provider");
+});
 
 void test("settled Pages handoff uses authenticated CURRENT facts, never unused next renewal facts", () => {
   const { input, descriptor } = fixture();
