@@ -60,6 +60,8 @@ function catalogAdvance() {
   };
   const catalog = inspectPublishedCatalogMetadata({
     ...facts(),
+    source_commit: descriptor.source_commit,
+    source_tree: descriptor.source_tree,
     operation_id: "3".repeat(64),
     publication,
   })!;
@@ -146,6 +148,23 @@ void test("catalog publication advances global cursor while preserving applicati
   assert.doesNotThrow(() => validatePublishedSiteTransition(f.before, f.after, f.operation));
   assert.equal(currentPublishedSite(f.after)!.generation_sha256, "2".repeat(64));
   assert.equal(f.after.published_metadata.publication.site_generation_sha256, "8".repeat(64));
+  assert.equal(
+    inspectPublishedCatalogMetadata(f.after.published_catalog_metadata)!.source_commit,
+    f.descriptor.source_commit,
+  );
+  for (const source of [{ source_commit: "a".repeat(40) }, { source_tree: "b".repeat(40) }])
+    assert.throws(
+      () =>
+        validatePublishedSiteTransition(
+          f.before,
+          {
+            ...f.after,
+            published_catalog_metadata: { ...f.catalog, ...source },
+          },
+          f.operation,
+        ),
+      /frozen Pages expectation/,
+    );
   const nextDescriptor = {
     ...f.descriptor,
     prior: {

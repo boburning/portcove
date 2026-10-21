@@ -133,9 +133,16 @@ export function inspectPublishedCatalogMetadata(raw: unknown) {
   if (raw == null) return null;
   exact(
     raw,
-    "expires,immutable_targets_sha256,index_sha256,offline_targets_sha256,operation_id,publication,repository_sha256,root_sha256,schema_version,snapshot_sha256,timestamp_sha256,verifier_repository_sha256,versions",
+    "expires,immutable_targets_sha256,index_sha256,offline_targets_sha256,operation_id,publication,repository_sha256,root_sha256,schema_version,snapshot_sha256,source_commit,source_tree,timestamp_sha256,verifier_repository_sha256,versions",
   );
-  const { operation_id, publication, ...facts } = raw;
+  const { operation_id, publication, source_commit, source_tree, ...facts } = raw;
+  if (
+    typeof source_commit !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source_commit) ||
+    typeof source_tree !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(source_tree)
+  )
+    throw new Error("catalog publication requires retained accepted source identity");
   sha(operation_id);
   exact(publication, "evidence_sha256,remote_identity,site_generation_sha256");
   sha(publication.evidence_sha256);
@@ -143,6 +150,8 @@ export function inspectPublishedCatalogMetadata(raw: unknown) {
   text(publication.remote_identity);
   return {
     ...inspectCatalogTufPublicationFacts(facts),
+    source_commit,
+    source_tree,
     operation_id,
     publication: {
       evidence_sha256: publication.evidence_sha256,
@@ -363,6 +372,8 @@ export function validatePublishedSiteTransition(
     const expectation = operation.catalog_site_expectation;
     if (
       descriptor.prior.catalog_root_sha256 !== catalog.root_sha256 ||
+      descriptor.source_commit !== catalog.source_commit ||
+      descriptor.source_tree !== catalog.source_tree ||
       expectation.catalog_root_sha256 !== catalog.root_sha256 ||
       expectation.catalog_repository_sha256 !== catalog.repository_sha256 ||
       expectation.site_generation_sha256 !== after.generation_sha256 ||

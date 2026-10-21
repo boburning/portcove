@@ -281,6 +281,8 @@ void test(
     };
     const catalog = {
       schema_version: 1,
+      source_commit: descriptor.source_commit,
+      source_tree: descriptor.source_tree,
       root_sha256: expectation.catalog_root_sha256,
       repository_sha256: expectation.catalog_repository_sha256,
       verifier_repository_sha256: "e".repeat(64),

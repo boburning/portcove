@@ -96,6 +96,43 @@ function review(opportunity: unknown) {
   };
 }
 
+void test("catalog availability policy identity needs no managed launch and stays purpose bound", () => {
+  const f = fixture();
+  const opportunity = {
+    ...f.opportunity,
+    classification: {
+      ...f.opportunity.classification,
+      definitions: [
+        {
+          namespace: "official",
+          stable_id: "post-client-catalog",
+          revision: 1,
+          definition_target: `sha256/${"a".repeat(64)}.json`,
+          policy_target: "policy/official/post-client-catalog.json",
+          policy_schema: 1,
+          policy_revision: 1,
+          grant_id: "post-client-test-grant",
+          launch_target: null,
+          launch_revision: null,
+        },
+      ],
+    },
+  };
+  const parsed = inspectCatalogSemanticOpportunity(opportunity);
+  assert.equal(parsed.classification.definitions[0]?.policy_schema, 1);
+  const report = prepareSemanticReviewHandoff(opportunity, review(opportunity));
+  assert.equal(
+    JSON.parse(report.proposed_request.body.output.summary).purpose,
+    "catalog-publication",
+  );
+  const wrongLaunch = structuredClone(opportunity);
+  Object.assign(wrongLaunch.classification.definitions[0]!, {
+    launch_target: "policy/official/post-client-catalog.launch.json",
+    launch_revision: 1,
+  });
+  assert.throws(() => inspectCatalogSemanticOpportunity(wrongLaunch), /launch identity/);
+});
+
 void test("catalog serializer binds complete purpose without app semver and refuses changed/incomplete inputs", () => {
   const f = fixture(),
     result = prepareSemanticReviewHandoff(f.opportunity, review(f.opportunity));
