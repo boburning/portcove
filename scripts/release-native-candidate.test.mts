@@ -1,7 +1,9 @@
+import { readGitHubReleaseAsset } from "./github-binary.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { trustedAssemblyFixture } from "./fixtures/trusted-assembly-fixture.mts";
 import {
+  inspectNativePredecessorReleaseAsset,
   inspectNativePostSignPackageMetadata,
   acquireActualNativePostSignCandidate,
   inspectSelectedNativeCandidate,
@@ -440,4 +442,87 @@ void test("signed native package source binds the complete platform archive tupl
     ),
   );
   await assert.rejects(acquireActualNativePostSignCandidate({}), /actual installed native parent/);
+});
+
+void test("predecessor materialization requires exact immutable Release and recorded package while binary transport stays bounded and fixed-host", () => {
+  const native = nativeQualificationFixture(),
+    candidate = native.candidate;
+  const url = `https://github.com/boburning/portcove/releases/download/v0.1.0-beta.1/${candidate.package.filename}`;
+  const record = {
+    version: "0.1.0-beta.1",
+    source_commit: candidate.source_commit,
+    source_tree: candidate.source_tree,
+    artifact: { ...candidate.package, url },
+  };
+  const release = {
+    id: 1,
+    tag_name: "v0.1.0-beta.1",
+    draft: false,
+    immutable: true,
+    published_at: "2026-10-20T12:00:00Z",
+  };
+  const asset = {
+    id: 2,
+    name: candidate.package.filename,
+    state: "uploaded",
+    size: candidate.package.bytes,
+    digest: `sha256:${candidate.package.sha256}`,
+    browser_download_url: url,
+    url: "https://api.github.com/repos/boburning/portcove/releases/assets/2",
+    download_count: 1,
+  };
+  const first = inspectNativePredecessorReleaseAsset(record, candidate, release, [asset]);
+  assert.equal(first.id, 2);
+  assert.deepEqual(
+    first,
+    inspectNativePredecessorReleaseAsset(record, candidate, release, [
+      { ...asset, download_count: 2 },
+    ]),
+  );
+  for (const [r, assets] of [
+    [{ ...release, immutable: false }, [asset]],
+    [{ ...release, draft: true }, [asset]],
+    [{ ...release, tag_name: "v0.2.0" }, [asset]],
+    [release, [{ ...asset, size: asset.size + 1 }]],
+    [release, [{ ...asset, digest: "sha256:" + "f".repeat(64) }]],
+    [release, [asset, asset]],
+    [release, [{ ...asset, browser_download_url: url + "?other" }]],
+  ] as const)
+    assert.throws(() => inspectNativePredecessorReleaseAsset(record, candidate, r, assets));
+  let calls = 0;
+  const options: Parameters<typeof readGitHubReleaseAsset>[1] = {
+    cwd: process.cwd(),
+    maxBytes: 128,
+    timeoutMs: 1000,
+    spawn: (command, args, settings) => {
+      calls++;
+      assert.equal(command, "gh");
+      inspectNativeSourceCommand(args);
+      assert.equal(settings.maxBuffer, 128);
+      assert.equal(settings.shell, false);
+      return { status: 0, stdout: Buffer.from("opaque") };
+    },
+  };
+  assert.equal(
+    readGitHubReleaseAsset("repos/boburning/portcove/releases/assets/2", options).toString(),
+    "opaque",
+  );
+  assert.equal(calls, 1);
+  for (const endpoint of [
+    "repos/foreign/portcove/releases/assets/2",
+    "https://github.com/example",
+    "repos/boburning/portcove/releases/assets/0",
+  ])
+    assert.throws(() => readGitHubReleaseAsset(endpoint, options));
+  assert.equal(calls, 1);
+  assert.throws(() =>
+    inspectNativeSourceCommand([
+      "api",
+      "--hostname",
+      "github.com",
+      "-H",
+      "Accept: application/octet-stream",
+      "repos/boburning/portcove/issues",
+    ]),
+  );
 });

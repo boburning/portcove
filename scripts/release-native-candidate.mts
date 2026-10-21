@@ -15,7 +15,7 @@ import {
   remainingNativeParentBudget,
 } from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
-import { readGitHubArtifactArchive } from "./github-binary.mts";
+import { readGitHubArtifactArchive, readGitHubReleaseAsset } from "./github-binary.mts";
 import {
   recoverRemoteCoordinator,
   hydrateRetainedCoordinatorOperation,
@@ -50,6 +50,7 @@ import {
   collectNativeReleaseQualification,
 } from "./release-native-acceptance.mts";
 import { deriveNativePublicationJourneys } from "./release-native-publication-admission.mts";
+import { inspectNativeQualificationCandidate } from "./release-native-qualification-contract.mts";
 import { nativeQualificationCheckName } from "./release-native-qualification-contract.mts";
 import {
   nativeCompatibilitySourcePaths,
@@ -176,11 +177,16 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
   let endpoint: string | null = null,
     method: string | null = null,
     host: string | null = null,
-    stdin = false;
+    stdin = false,
+    octetStream = false;
   for (let index = 1; index < args.length; index++) {
     const item = args[index];
     if (item === "--include") continue;
-    if (item === "--hostname" && host === null) host = args[++index] ?? null;
+    if (item === "-H" && !octetStream) {
+      if (args[++index] !== "Accept: application/octet-stream")
+        throw new Error("native source header differs");
+      octetStream = true;
+    } else if (item === "--hostname" && host === null) host = args[++index] ?? null;
     else if (item === "--method" && method === null) method = args[++index] ?? null;
     else if (item === "--input" && !stdin) {
       if (args[++index] !== "-") throw new Error("native source forbids body files");
@@ -190,6 +196,11 @@ export function inspectNativeSourceCommand(args: readonly string[], input?: unkn
     else throw new Error("native source command shape differs");
   }
   if (host !== "github.com" || !endpoint) throw new Error("native source host/route differs");
+  if (
+    octetStream &&
+    !/^repos\/boburning\/portcove\/releases\/assets\/[1-9][0-9]{0,15}$/u.test(endpoint)
+  )
+    throw new Error("native binary transport requires an exact Release asset");
   if (endpoint === "graphql") {
     if (!stdin || input === undefined || (method !== null && method !== "POST"))
       throw new Error("native source GraphQL body required");
@@ -351,18 +362,22 @@ async function sourceTransport(parent: Parent, directory: string) {
       input,
     ),
   );
-  const download: typeof readGitHubArtifactArchive = (endpoint, options) =>
-    readGitHubArtifactArchive(endpoint, {
-      ...options,
-      spawn: (command, args, spawnOptions) => {
-        if (command !== "gh") throw new Error("native source executable selection refused");
-        inspectNativeSourceCommand(args);
-        checkToolIdentity();
-        const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
-        checkToolIdentity();
-        return result;
-      },
-    });
+  const opaque =
+    (reader: typeof readGitHubArtifactArchive): typeof readGitHubArtifactArchive =>
+    (endpoint, options) =>
+      reader(endpoint, {
+        ...options,
+        spawn: (command, args, spawnOptions) => {
+          if (command !== "gh") throw new Error("native source executable selection refused");
+          inspectNativeSourceCommand(args);
+          checkToolIdentity();
+          const result = spawnSync(fixed.github_cli.path, args, { ...spawnOptions, env });
+          checkToolIdentity();
+          return result;
+        },
+      });
+  const download = opaque(readGitHubArtifactArchive);
+  const downloadAsset = opaque(readGitHubReleaseAsset);
   const recover = () =>
     recoverRemoteCoordinator(
       directory,
@@ -390,7 +405,7 @@ async function sourceTransport(parent: Parent, directory: string) {
     };
     return spawn;
   };
-  return { api, download, recover, recheck, verifier };
+  return { api, download, downloadAsset, recover, recheck, verifier };
 }
 
 const selections = new WeakMap<
@@ -401,6 +416,7 @@ const selections = new WeakMap<
     packagePath: string;
     packageSha256: string;
     packageBytes: number;
+    predecessor?: { path: string; bytes: number; sha256: string; version: string };
     version: string;
     facts: Readonly<Pick<PreparedReleaseAdmissionFacts, "assembly" | "archives" | "checkpoint">>;
     request: ReturnType<typeof prepareNativeStageRequest>;
@@ -979,6 +995,26 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     public_pins: inspectPublicationAuthorities(authorities.publication),
     api: original.source.api,
   });
+  const journey = journeys[0];
+  let predecessorRecord: Record<string, unknown> | null = null;
+  if (isRecord(journey) && isRecord(journey.predecessor)) {
+    const predecessor = inspectNativeQualificationCandidate(journey.predecessor);
+    const records = [...files]
+      .filter(([name]) => name.startsWith("prior/targets/"))
+      .map(([, bytes]) => JSON.parse(bytes.toString("utf8")) as unknown)
+      .filter(
+        (record) =>
+          isRecord(record) &&
+          record.target === selected.parent.descriptor.platform_label &&
+          record.source_commit === predecessor.source_commit &&
+          isRecord(record.artifact) &&
+          record.artifact.sha256 === predecessor.package.sha256 &&
+          record.artifact.bytes === predecessor.package.bytes,
+      );
+    if (records.length !== 1 || !isRecord(records[0]))
+      throw new Error("native exact predecessor record ambiguous");
+    predecessorRecord = records[0];
+  }
   await requireActualNativePostSignController(controllerReceipt);
   await writeFile(
     path.join(verified.directory, "native-journey-source.json"),
@@ -994,6 +1030,7 @@ export async function readActualNativePostSignJourney(controllerReceipt: object)
     ...verified,
     manifest: structuredClone(manifest),
     journey: structuredClone(journeys[0]),
+    predecessor_record: structuredClone(predecessorRecord),
     authority: "none" as const,
     scope:
       "actual local parent/Tough journey association; native execution still required" as const,
@@ -1060,6 +1097,87 @@ export async function inspectNativePostSignPackageMetadata(
   )
     throw new Error("native package archive differs from exact signed candidate/compiler source");
   return { accepted, archives, archive, authority: "none" as const };
+}
+
+/** Association only: the exact Tough record and historical native tuple must
+ * both identify the same currently immutable public Release asset. */
+export function inspectNativePredecessorReleaseAsset(
+  rawRecord: unknown,
+  rawCandidate: unknown,
+  rawRelease: unknown,
+  rawAssets: unknown,
+) {
+  const candidate = inspectNativeQualificationCandidate(rawCandidate);
+  if (
+    !isRecord(rawRecord) ||
+    !isRecord(rawRecord.artifact) ||
+    !isRecord(rawRelease) ||
+    !Array.isArray(rawAssets) ||
+    rawAssets.length > 64 ||
+    typeof rawRecord.version !== "string" ||
+    !/^[0-9]+[.][0-9]+[.][0-9]+(?:-[A-Za-z0-9.-]+)?$/u.test(rawRecord.version) ||
+    rawRecord.source_commit !== candidate.source_commit ||
+    rawRecord.source_tree !== candidate.source_tree ||
+    rawRecord.artifact.bytes !== candidate.package.bytes ||
+    rawRecord.artifact.sha256 !== candidate.package.sha256 ||
+    typeof rawRecord.artifact.url !== "string" ||
+    rawRelease.tag_name !== `v${rawRecord.version}` ||
+    rawRelease.draft !== false ||
+    rawRelease.immutable !== true ||
+    typeof rawRelease.id !== "number" ||
+    !Number.isSafeInteger(rawRelease.id) ||
+    rawRelease.id < 1 ||
+    typeof rawRelease.published_at !== "string" ||
+    !Number.isFinite(Date.parse(rawRelease.published_at))
+  )
+    throw new Error("native predecessor immutable Release binding differs");
+  const url = new URL(rawRecord.artifact.url);
+  if (
+    url.origin !== "https://github.com" ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash ||
+    decodeURIComponent(url.pathname) !==
+      `/boburning/portcove/releases/download/v${rawRecord.version}/${candidate.package.filename}`
+  )
+    throw new Error("native predecessor URL is outside exact Release");
+  const ids = new Set<number>();
+  for (const item of rawAssets) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "number" ||
+      !Number.isSafeInteger(item.id) ||
+      item.id < 1 ||
+      ids.has(item.id)
+    )
+      throw new Error("native predecessor asset inventory ambiguous");
+    ids.add(item.id);
+  }
+  const rows = rawAssets.filter(
+      (item) => isRecord(item) && item.name === candidate.package.filename,
+    ),
+    asset: unknown = rows[0];
+  if (
+    rows.length !== 1 ||
+    !isRecord(asset) ||
+    asset.state !== "uploaded" ||
+    asset.size !== candidate.package.bytes ||
+    asset.digest !== `sha256:${candidate.package.sha256}` ||
+    asset.browser_download_url !== rawRecord.artifact.url ||
+    asset.url !==
+      `https://api.github.com/repos/boburning/portcove/releases/assets/${String(asset.id)}`
+  )
+    throw new Error("native predecessor exact immutable asset absent");
+  return Object.freeze({
+    release_id: rawRelease.id,
+    id: Number(asset.id),
+    version: rawRecord.version,
+    bytes: candidate.package.bytes,
+    sha256: candidate.package.sha256,
+    filename: candidate.package.filename,
+    authority: "none" as const,
+  });
 }
 
 /** The same installed parent owns signed-input/Tough verification, exact opaque
@@ -1146,6 +1264,68 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     { ...rawRequest, invocation_id: invocation.invocation_id },
     parent.authority_configuration,
   );
+  let predecessor: { path: string; bytes: number; sha256: string; version: string } | undefined;
+  if (isRecord(verified.journey) && "predecessor" in verified.journey) {
+    const record = verified.predecessor_record;
+    if (!record || typeof record.version !== "string")
+      throw new Error("native actual predecessor record absent");
+    const releaseEndpoint = `repos/boburning/portcove/releases/tags/${encodeURIComponent(`v${record.version}`)}`;
+    const readRelease = () => {
+      const response = original.source.api.request("GET", releaseEndpoint);
+      if (
+        response.status !== 200 ||
+        !isRecord(response.body) ||
+        typeof response.body.id !== "number"
+      )
+        throw new Error("native predecessor Release unavailable");
+      const assets = original.source.api.paginateRest(
+        `repos/boburning/portcove/releases/${response.body.id}/assets`,
+        {
+          identity: (item: unknown) => {
+            if (!isRecord(item) || typeof item.id !== "number")
+              throw new Error("native asset identity absent");
+            return String(item.id);
+          },
+          label: "native predecessor immutable assets",
+        },
+      );
+      return { release: response.body, assets };
+    };
+    const before = readRelease();
+    const asset = inspectNativePredecessorReleaseAsset(
+      record,
+      verified.journey.predecessor,
+      before.release,
+      before.assets,
+    );
+    const bytes = original.source.downloadAsset(
+      `repos/boburning/portcove/releases/assets/${asset.id}`,
+      {
+        cwd: verified.directory,
+        maxBytes: asset.bytes,
+        timeoutMs: remainingNativeParentBudget(120000),
+      },
+    );
+    if (bytes.length !== asset.bytes || hash(bytes) !== asset.sha256)
+      throw new Error("native predecessor bytes differ from exact Tough identity");
+    const after = readRelease();
+    const repeated = inspectNativePredecessorReleaseAsset(
+      record,
+      verified.journey.predecessor,
+      after.release,
+      after.assets,
+    );
+    if (digest(asset) !== digest(repeated))
+      throw new Error("native predecessor provider state changed");
+    const filename = `predecessor-${asset.filename}`;
+    await writeFile(path.join(verified.directory, filename), bytes, { flag: "wx", mode: 0o600 });
+    predecessor = {
+      path: path.join(verified.directory, filename),
+      bytes: asset.bytes,
+      sha256: asset.sha256,
+      version: asset.version,
+    };
+  }
   const packagePath = path.join(verified.directory, packageIdentity.candidate.package.filename);
   await writeFile(packagePath, retained.bytes, { flag: "wx", mode: 0o600 });
   await writeFile(path.join(verified.directory, "request.json"), JSON.stringify(request), {
@@ -1162,6 +1342,7 @@ export async function acquireActualNativePostSignCandidate(parentReceipt: object
     parent: parentReceipt,
     directory: verified.directory,
     packagePath,
+    ...(predecessor ? { predecessor } : {}),
     packageSha256: packageIdentity.candidate.package.sha256,
     packageBytes: packageIdentity.candidate.package.bytes,
     version: packageIdentity.version,
@@ -1478,12 +1659,25 @@ export async function requireActualNativeCandidate(receipt: object) {
   );
   if (bytes.length !== value.packageBytes || hash(bytes) !== value.packageSha256)
     throw new Error("native selected package changed after acquisition");
+  if (value.predecessor) {
+    const predecessor = await readBoundedPublicBuildInputFile(
+      value.directory,
+      path.basename(value.predecessor.path),
+      512 * 1024 * 1024,
+    );
+    if (
+      predecessor.length !== value.predecessor.bytes ||
+      hash(predecessor) !== value.predecessor.sha256
+    )
+      throw new Error("native original predecessor package changed");
+  }
   await parent.recheck();
   await value.recheckSource();
   return {
     parent,
     request: value.request,
     package_path: value.packagePath,
+    predecessor: value.predecessor ? Object.freeze({ ...value.predecessor }) : null,
     version: value.version,
     directory: value.directory,
     checkpoint: value.facts.checkpoint,
