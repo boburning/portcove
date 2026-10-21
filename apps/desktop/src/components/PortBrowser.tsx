@@ -793,6 +793,8 @@ function ContinueCard({
           size="lg"
           data-detail-origin={launchable ? undefined : `library:continue-review:${port.id}`}
           disabled={launchable && Boolean(action.busy)}
+          focusableWhenDisabled={launchable && Boolean(action.busy)}
+          aria-busy={launchable && Boolean(action.busy)}
           title={action.assessment.reason}
           onClick={() =>
             launchable ? launch(port.id) : details(port.id, `library:continue-review:${port.id}`)
@@ -1350,6 +1352,8 @@ function PortCardStatus({
               size="sm"
               className="flex-1"
               disabled={Boolean(action.busy)}
+              focusableWhenDisabled={Boolean(action.busy)}
+              aria-busy={Boolean(action.busy)}
               title={action.assessment.reason}
               onClick={() => onLaunch?.(port.id)}
             >

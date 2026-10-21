@@ -853,7 +853,10 @@ export function desktopHarnessDeadlineMs(
   // manual-content restore and its preparation/adoption prerequisites.
   const executed = selection.selected_scenarios.length + selection.setup_scenarios.length;
   const ordinary = Math.max(
-    executed > 8 ? 10 * 60_000 : 3 * 60_000,
+    executed > 8 ||
+      selection.selected_scenarios.includes("native-reviewed-backup-restore-and-delete")
+      ? 10 * 60_000
+      : 3 * 60_000,
     selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 300_000
       : 0,

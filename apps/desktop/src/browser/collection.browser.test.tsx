@@ -1,6 +1,6 @@
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { PortBrowser } from "../components/PortBrowser";
@@ -37,6 +37,62 @@ async function mount(theme: string) {
   await expect.element(page.getByRole("button", { name: "Covers", exact: true })).toBeVisible();
   await expect.poll(() => document.querySelectorAll(".collection-entry").length).toBe(12);
 }
+
+it.each(["Covers", "Compact rows"])(
+  "keeps the %s launch origin focused while the same-target operation settles",
+  async (layout) => {
+    await page.viewport(960, 640);
+    await mount("dark");
+    await page.getByRole("button", { name: layout, exact: true }).click();
+    let finish!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
+    const launch = vi.spyOn(desktopApi, "launch").mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const play = [
+      ...document.querySelectorAll<HTMLButtonElement>(".collection-actions button"),
+    ].find((button) => button.textContent?.trim() === "Play")!;
+    expect(play).toBeDefined();
+    play.scrollIntoView({ block: "center" });
+    play.focus({ preventScroll: true });
+    play.click();
+    await expect.poll(() => launch.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
+      .toBe(true);
+    expect(document.activeElement).toBe(play);
+    // Native foreground re-entry can occur before workspace readback settles.
+    // The origin must remain a focus destination while still refusing activation.
+    play.blur();
+    play.focus({ preventScroll: true });
+    expect(document.activeElement).toBe(play);
+    // Retained focus must never permit another same-target dispatch.
+    play.click();
+    await userEvent.keyboard("{Enter}");
+    expect(launch).toHaveBeenCalledOnce();
+    finish({ processId: null, sessionId: "fixture-return-focus" });
+    await expect
+      .poll(() => play.disabled || play.getAttribute("aria-disabled") === "true")
+      .toBe(false);
+    expect(play.isConnected).toBe(true);
+    expect(document.activeElement).toBe(play);
+    let finishAgain!: (value: Awaited<ReturnType<typeof desktopApi.launch>>) => void;
+    launch.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishAgain = resolve;
+      }),
+    );
+    play.click();
+    await expect.poll(() => launch.mock.calls.length).toBe(2);
+    await expect.poll(() => play.getAttribute("aria-disabled")).toBe("true");
+    const search = document.querySelector<HTMLInputElement>("#port-search")!;
+    search.focus({ preventScroll: true });
+    finishAgain({ processId: null, sessionId: "fixture-return-after-navigation" });
+    await expect.poll(() => play.getAttribute("aria-disabled")).not.toBe("true");
+    expect(document.activeElement).toBe(search);
+  },
+);
 
 it.each([
   ["dark", 960],

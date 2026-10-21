@@ -1925,6 +1925,8 @@ function InstalledPlayActions({
             : "Review the current launch requirements"
         }
         disabled={!launchReady || Boolean(busy)}
+        focusableWhenDisabled={launchReady && Boolean(busy)}
+        aria-busy={launchReady && Boolean(busy)}
         onClick={() => {
           void actions.launch();
         }}

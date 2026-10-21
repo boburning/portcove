@@ -1290,6 +1290,15 @@ ordinary profiles remain unchanged. Do not activate/delete staged evidence or
 overwrite fixture modes to combine them. Layout measurement reloads after its
 fixture commits and waits for both exact rendered entries before measuring.
 
+Selections containing reviewed backup restore/delete use the finite ten-minute
+lifecycle watchdog even in a small focused chain. The three-minute allowance
+proved insufficient for preparation, game return and the native backup reviews;
+per-action waits and cleanup remain unchanged. Watchdog expiry records an explicit
+failed check before stopping the owned driver. Game-return evidence includes
+timestamped pre-click, post-click and settled focus/busy/scroll observations; it
+waits for readback exclusion to settle without focusing the origin or relaxing
+the original focus, connected-control, query/filter and scroll assertions.
+
 `--scenario native-host-publication-recovery` is a standalone instrumented Windows
 journey at existing Core install, restore, whole-library move and import checkpoints. It
 uses the existing `qualification-fixtures` build feature; ordinary builds keep

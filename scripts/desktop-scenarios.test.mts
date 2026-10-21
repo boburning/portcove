@@ -2449,6 +2449,21 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 600_000);
 });
 
+void test("isolated reviewed backup chains retain the finite lifecycle allowance", () => {
+  for (const scenarios of [
+    ["native-reviewed-backup-restore-and-delete"],
+    ["native-game-return-continuity", "native-reviewed-backup-restore-and-delete"],
+  ]) {
+    assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ scenarios })), 600_000);
+  }
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: ["native-game-return-continuity"] }),
+    ),
+    180_000,
+  );
+});
+
 void test("backup success-focus acceptance is isolated and exact-selection-only", () => {
   const id = "native-backup-delete-focus";
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));

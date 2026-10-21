@@ -50,6 +50,29 @@ export interface PreparationContext {
   chooseOwnedLibrary: ReturnType<typeof nativeConfirmation>;
 }
 // Preserve original error identity, including deliberate non-Error boundary failures.
+function launchContinuityPoint(element: Element) {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Launch origin must be a button");
+  const workspace = document.querySelector<HTMLElement>('main[data-focus-region="workspace"]');
+  const owner =
+    workspace && getComputedStyle(workspace).overflowY !== "visible"
+      ? workspace
+      : document.scrollingElement;
+  const active = document.activeElement;
+  return {
+    observedAt: new Date().toISOString(),
+    documentFocused: document.hasFocus(),
+    visibility: document.visibilityState,
+    activeTag: active?.tagName,
+    activeText: active?.textContent?.trim().slice(0, 160),
+    originFocused: active === element,
+    originConnected: element.isConnected,
+    disabled: element.disabled,
+    ariaDisabled: element.getAttribute("aria-disabled"),
+    ariaBusy: element.getAttribute("aria-busy"),
+    scrollTop: owner?.scrollTop,
+  };
+}
+
 function rethrowFailure(error: unknown): never {
   throw error;
 }
@@ -1832,7 +1855,15 @@ export async function preparationScenarios({
         return owner.scrollTop;
       });
       assert.ok(scrollBefore > 0, "The compact Library fixture must exercise a real scroll");
+      const beforeClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const beforeClickPath = path.join(output, "game-return-before-click.json");
+      await writeFile(beforeClickPath, JSON.stringify(beforeClick, null, 2), { flag: "wx" });
+      artifacts.push(beforeClickPath);
       await play.click();
+      const afterClick = await executeBrowserScript(browser, launchContinuityPoint, play);
+      const afterClickPath = path.join(output, "game-return-after-click.json");
+      await writeFile(afterClickPath, JSON.stringify(afterClick, null, 2), { flag: "wx" });
+      artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
         15_000,
@@ -1854,6 +1885,13 @@ export async function preparationScenarios({
         15_000,
         "Library did not render the completed launch after the game exited",
       );
+      await browser.wait(
+        async () =>
+          (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
+        15_000,
+        "Launch origin remained excluded after game return and workspace readback",
+      );
+      const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
       const returned = await executeBrowserScript(
         browser,
         (element) => {
@@ -1885,9 +1923,13 @@ export async function preparationScenarios({
         play,
       );
       const observation = path.join(output, "game-return-continuity-observation.json");
-      await writeFile(observation, JSON.stringify({ scrollBefore, returned }, null, 2), {
-        flag: "wx",
-      });
+      await writeFile(
+        observation,
+        JSON.stringify({ scrollBefore, beforeClick, afterClick, settled, returned }, null, 2),
+        {
+          flag: "wx",
+        },
+      );
       artifacts.push(observation);
       assert.equal(returned.query, port.name);
       assert.equal(returned.filter, readyLabel);

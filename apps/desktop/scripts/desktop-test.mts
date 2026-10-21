@@ -1014,6 +1014,12 @@ async function selectSettingsCategory(id: string) {
 const harnessDeadlineMs = desktopHarnessDeadlineMs(selection);
 const deadline = setTimeout(
   () => {
+    checks.push({
+      scenario: "native-harness-deadline",
+      outcome: "failed",
+      message: `Native harness exceeded its ${harnessDeadlineMs}ms allowance; stopping the owned driver.`,
+    });
+    process.exitCode = 1;
     void (async () => {
       try {
         await stopDriver();
