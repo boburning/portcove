@@ -707,6 +707,22 @@ unknown evidence in existing review treatments. Detail/setup completion uses the
 shared primary/recovery and focus contracts. Save drafts during normal navigation;
 opening another destination must not imply cancellation or task completion.
 
+### Game-data preparation review
+
+The preparation review names the selected game/port and presents the installed
+version, exact installed folder and selected original-file path as labeled facts
+from the returned plan. Keep space, activation, preserved-data, interruption and
+external setup-window consequences in the same scrolling review before its
+explicit confirmation. Initial focus belongs to the review heading so compact
+and enlarged windows begin with identity and inputs; keyboard navigation reaches
+the confirmation and cancellation controls in document order. Cancellation and
+completion keep the existing context-bound return-focus owner.
+
+Preparation completion reports that game data is prepared. It does not grant
+launch availability: the refreshed Core readiness and existing current-action
+projection determine Play or the next required step. Package installation,
+preparation and external-folder registration remain separate operations.
+
 ### Library identity and artwork feedback
 
 The details control contains the game title and Port: project label with an explicit text boundary. Its accessible name includes both visible labels. Missing Library artwork uses a non-text game symbol; artwork availability/staleness messages sit outside the button in entry feedback. Decorative monograms and changing artwork notices must not become omitted or unstable words in a control's visible label. Other artwork consumers retain their existing presentation. ArtworkFrame owns fitting/fallback rendering; the collection retains the same visibility-gated artwork request and one cache subscription.
