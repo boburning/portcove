@@ -18,12 +18,12 @@ if($function.Count -ne 1){throw 'fixed public account root observer missing'}
 Invoke-Expression $function[0].Extent.Text
 $script:broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $script:account='S-1-5-21-1-2-3-1003';$script:foreign='S-1-5-21-1-2-3-1002'
-$script:root='C:\PublicProof\work';$script:owner=$script:broker;$script:protected=$true;$script:reparse=$false;$script:rules=@()
+$script:root='C:\PublicProof\work';$script:owner=$script:broker;$script:ancestorOwner=$script:broker;$script:ancestorRules=@();$script:protected=$true;$script:reparse=$false;$script:rules=@()
 function Get-Item {param($LiteralPath,[switch]$Force) [pscustomobject]@{PSIsContainer=$true;Attributes=$(if($script:reparse -and $LiteralPath -eq $script:root){[IO.FileAttributes]::ReparsePoint}else{[IO.FileAttributes]::Directory})}}
 function Get-Acl {param($LiteralPath)
  $object=[pscustomobject]@{AreAccessRulesProtected=$script:protected;root=($LiteralPath -eq $script:root)}
- $object|Add-Member ScriptMethod GetOwner {param($kind) [Security.Principal.SecurityIdentifier]::new($script:owner)}
- $object|Add-Member ScriptMethod GetAccessRules {param($a,$b,$kind) if($this.root){return $script:rules}else{return @()}}
+ $object|Add-Member ScriptMethod GetOwner {param($kind) [Security.Principal.SecurityIdentifier]::new($(if($this.root){$script:owner}else{$script:ancestorOwner}))}
+ $object|Add-Member ScriptMethod GetAccessRules {param($a,$b,$kind) if($this.root){return $script:rules}else{return $script:ancestorRules}}
  return $object
 }
 $value=Read-PublicAccountRoot $script:root $script:account
@@ -36,7 +36,29 @@ foreach($access in @('Read','Write')){
 $script:rules=@();$script:owner=$script:foreign;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
 $script:owner=$script:broker;$script:protected=$false;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
 $script:protected=$true;$script:reparse=$true;try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
-if($refused -ne 5){throw 'public account root isolation widened'}
+$script:reparse=$false
+foreach($owner in @($script:foreign,$script:account)){
+ $script:ancestorOwner=$owner
+ try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+}
+$script:ancestorOwner=$script:broker
+foreach($identity in @($script:foreign,$script:account)){
+ $script:ancestorRules=@([pscustomobject]@{AccessControlType='Allow';IdentityReference=[Security.Principal.SecurityIdentifier]::new($identity);FileSystemRights=[Security.AccessControl.FileSystemRights]'Delete';PropagationFlags=0})
+ try{Read-PublicAccountRoot $script:root $script:account|Out-Null}catch{$refused++}
+}
+if($refused -ne 9){throw 'public account root isolation widened'}
+$shared=@($ast.FindAll({param($item)$item -is [Management.Automation.Language.FunctionDefinitionAst]},$true)|Where-Object Name -CEQ 'Assert-OwnerPath')
+if($shared.Count -ne 1){throw 'fixed shared custody observer missing'}
+Invoke-Expression $shared[0].Extent.Text
+$script:ancestorRules=@();$script:owner=$script:broker
+Assert-OwnerPath $script:root $true $true|Out-Null
+$sharedRefused=0
+$script:ancestorOwner=$script:foreign
+try{Assert-OwnerPath $script:root $true $true|Out-Null}catch{$sharedRefused++}
+$script:ancestorOwner=$script:broker
+$script:ancestorRules=@([pscustomobject]@{AccessControlType='Allow';IdentityReference=[Security.Principal.SecurityIdentifier]::new($script:foreign);FileSystemRights=[Security.AccessControl.FileSystemRights]'Delete';PropagationFlags=0})
+try{Assert-OwnerPath $script:root $true $true|Out-Null}catch{$sharedRefused++}
+if($sharedRefused -ne 2){throw 'shared custody ancestor replacement widened'}
 Write-Output 'controlled-public-acl-pass'
 `;
     const result = spawnSync(

@@ -466,3 +466,16 @@ Final focused validation passed 27 setup/parent/scheduler/driver checks plus the
 separate compiled closed-credential-selector check, all with zero skips; eight
 affected TypeScript modules passed typed lint. The compilation/controlled ACL
 objects did not read credentials, log on another account or query its real ACLs.
+
+Independent review found an ancestor replacement gap in the first boundary
+preparation: a foreign ancestor owner could rewrite its DACL without an explicit
+allow ACE, and object DELETE had been omitted. Both public-root and shared
+owner-path readers now require trusted ancestor ownership and refuse foreign
+DELETE rights. The public account itself is trusted only at its appointed root,
+not at ancestors. Controlled actual-function fixtures cover foreign owner with
+no ACE, public-account ancestor ownership and foreign/public DELETE, plus both
+shared-reader cases. The first expanded fixture failed because its script-level
+loop variable replaced the root-owner stub; restoring that stub before the
+shared baseline fixed the fixture. All six scheduler checks then passed with no
+skips, and its TypeScript test passed typed lint. No actual account ACL query or
+mutation was performed.

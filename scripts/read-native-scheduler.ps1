@@ -22,16 +22,19 @@ function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected, [bo
             $rule.IdentityReference.Value -notin @($owner,'S-1-5-18','S-1-5-32-544')) { throw 'Native custody path writable by another identity' }
     }
     $ancestor = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Path))
-    $ancestorWrite = [Security.AccessControl.FileSystemRights]'DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
+    $ancestorAuthorities=@($owner,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+    $ancestorWrite = [Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
     $depth = 0
     while ($ancestor) {
         if (++$depth -gt 64) { throw 'Native custody ancestry exceeds bound' }
         $entry = Get-Item -LiteralPath $ancestor -Force
         if ($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Native custody ancestor is a reparse point' }
-        foreach ($rule in (Get-Acl -LiteralPath $ancestor).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
+        $ancestorAcl=Get-Acl -LiteralPath $ancestor
+        if($ancestorAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin $ancestorAuthorities){throw 'Native custody ancestor owner differs'}
+        foreach ($rule in $ancestorAcl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
             if (($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
                 $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $ancestorWrite) -and
-                $rule.IdentityReference.Value -notin @($owner,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')) { throw 'Native custody ancestor permits foreign replacement' }
+                $rule.IdentityReference.Value -notin $ancestorAuthorities) { throw 'Native custody ancestor permits foreign replacement' }
         }
         $parent = [IO.Path]::GetDirectoryName($ancestor)
         if (-not $parent -or $parent -eq $ancestor) { break }
@@ -66,13 +69,18 @@ function Read-PublicAccountRoot([string]$Path,[string]$AccountSid) {
         if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin $allowed){throw 'Public account directory accessible by another identity'}
     }
     $cursor=[IO.Path]::GetDirectoryName($full);$depth=0
-    $replace=[Security.AccessControl.FileSystemRights]'DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
+    # A parent owner can rewrite its DACL even without an explicit allow ACE.
+    # The candidate owns only its appointed leaf, never an ancestor of it.
+    $ancestorAuthorities=@($broker,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+    $replace=[Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
     while($cursor){
         if(++$depth -gt 64){throw 'Public root ancestry exceeds bound'}
         $ancestor=Get-Item -LiteralPath $cursor -Force
         if($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Public account root ancestry aliased'}
-        foreach($rule in (Get-Acl -LiteralPath $cursor).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
-            if(($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $replace) -and $rule.IdentityReference.Value -notin ($allowed+@('S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'))){throw 'Public account root ancestor permits foreign replacement'}
+        $ancestorAcl=Get-Acl -LiteralPath $cursor
+        if($ancestorAcl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin $ancestorAuthorities){throw 'Public account root ancestor owner differs'}
+        foreach($rule in $ancestorAcl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+            if(($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $replace) -and $rule.IdentityReference.Value -notin $ancestorAuthorities){throw 'Public account root ancestor permits foreign replacement'}
         }
         $next=[IO.Path]::GetDirectoryName($cursor);if(-not $next -or $next -eq $cursor){break};$cursor=$next
     }
