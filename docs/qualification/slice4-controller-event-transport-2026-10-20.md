@@ -15,6 +15,13 @@ and remain untrusted locators until the existing producer verifies provider byte
 The composite pins the existing upload and attest Actions. Uploads keep seven-day
 retention, compression zero and no overwrite. Only the key-client step receives
 the job's sole key/password and maps them into the existing challenge socket.
+The key slot starts one fixed client concurrently, with only the required runtime
+environment and that sole key. This lets a payload-signing callback request a
+fresh control round before it acknowledges key consumption. The client records
+only public PID/start identity and exit disposition. Final completion requires
+the actual socket acknowledgement, a successful client result and kernel proof
+that the original process has exited (including zombie or reused-PID identity).
+Missing or failed client evidence stops the job; no client is retried or signalled.
 
 The first slot observes the actual fixed provider job and retains a bounded,
 hash-bound source/run/ref/job/start clock. Later subprocesses intersect the

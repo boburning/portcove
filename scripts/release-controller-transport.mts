@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { createHash, randomBytes } from "node:crypto";
 import { appendFile, open, lstat } from "node:fs/promises";
 import { createReadStream } from "node:fs";
+import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { isRecord } from "./runtime-values.mts";
@@ -297,7 +298,7 @@ export async function retainControllerUpload(
       : kind === "context"
         ? phase === "payload"
           ? "trusted-payload-signing-context"
-        : "trusted-coordinator-signing-context"
+          : "trusted-coordinator-signing-context"
         : kind === "result"
           ? "trusted-immutable-release-result"
           : "application-update-site";
@@ -581,6 +582,170 @@ async function originalDeadline(root: string, phase: Phase) {
   await retain(file, { clock, sha256: hash(Buffer.from(JSON.stringify(clock))) });
   return Math.min(deadline, controllerTransportClock(await json(file), phase));
 }
+export function inspectControllerKeyProcess(raw: string) {
+  const close = raw.lastIndexOf(") "),
+    fields = raw
+      .slice(close + 2)
+      .trim()
+      .split(/\s+/u);
+  if (close < 1 || fields.length < 20 || !/^[1-9][0-9]*$/u.test(fields[19]!))
+    throw new Error("owned key client process identity unavailable");
+  if (!/^[A-Za-z]$/u.test(fields[0]!)) throw new Error("owned key process state unavailable");
+  return { start_ticks: fields[19]!, state: fields[0]! };
+}
+async function linuxProcessStart(pid: number) {
+  if (process.platform !== "linux" || !Number.isSafeInteger(pid) || pid < 1)
+    throw new Error("owned Linux key client required");
+  try {
+    let bytes = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of createReadStream(`/proc/${pid}/stat`, { highWaterMark: 8193 })) {
+      bytes += chunk.length;
+      if (bytes > 8192) throw new Error("owned proc identity exceeds bound");
+      chunks.push(Buffer.from(chunk));
+    }
+    return inspectControllerKeyProcess(Buffer.concat(chunks).toString("utf8"));
+  } catch (error) {
+    if (isRecord(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+}
+/** One fixed concurrent socket client lets the trusted payload callback request
+ * another control round while signing. Its secret never enters a local file. */
+export async function startControllerKeyClient(
+  root: string,
+  phase: Phase,
+  slot: number,
+  deadline: number,
+) {
+  if (process.platform !== "linux" || !role(phase))
+    throw new Error("fixed Linux signing client required");
+  active(deadline);
+  const event = inspectControllerTransportEvent(
+    await json(filename(root, phase, `slot-${slot}`)),
+    root,
+    phase,
+  );
+  if (event.kind !== "role-key") throw new Error("fixed key route unavailable");
+  await retain(filename(root, phase, "key-client-intent"), { slot, role: event.name });
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of [
+    "PATH",
+    "SystemRoot",
+    "SYSTEMROOT",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "RUNNER_TEMP",
+    "GITHUB_RUN_ID",
+    "GITHUB_RUN_ATTEMPT",
+    "GITHUB_SHA",
+    "GITHUB_REF",
+    "PORTCOVE_ROLE_KEY",
+    "PORTCOVE_ROLE_PASSWORD",
+  ])
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  const child = spawn(
+    process.execPath,
+    [fileURLToPath(import.meta.url), "key-worker", phase, String(slot)],
+    { cwd: root, env, stdio: "ignore", windowsHide: true },
+  );
+  await new Promise<void>((resolve, reject) => {
+    child.once("spawn", resolve);
+    child.once("error", () => reject(new Error("fixed key client launch refused")));
+  });
+  if (!child.pid) throw new Error("owned key client PID unavailable");
+  await retain(filename(root, phase, "key-client-started"), {
+    pid: child.pid,
+    slot,
+    role: event.name,
+  });
+  child.unref();
+}
+async function keyClientWorker(root: string, phase: Phase, slot: number, deadline: number) {
+  let exitCode = 1;
+  try {
+    const event = inspectControllerTransportEvent(
+      await json(filename(root, phase, `slot-${slot}`)),
+      root,
+      phase,
+    );
+    if (
+      event.kind !== "role-key" ||
+      JSON.stringify(await json(filename(root, phase, "key-client-intent"))) !==
+        JSON.stringify({ slot, role: event.name })
+    )
+      throw new Error("fixed key client intent differs");
+    const start = await linuxProcessStart(process.pid);
+    if (!start) throw new Error("owned key client disappeared");
+    await retain(filename(root, phase, "key-client-identity"), {
+      pid: process.pid,
+      start_ticks: start.start_ticks,
+      slot,
+      role: event.name,
+    });
+    const { supplyIsolatedRoleKey } = await import("./release-role-key-channel.mts");
+    await supplyIsolatedRoleKey(
+      event.directory,
+      event.name as import("./release-role-key-channel.mts").IsolatedSigningRole,
+      event.name === "payload"
+        ? {
+            TAURI_SIGNING_PRIVATE_KEY: process.env.PORTCOVE_ROLE_KEY,
+            TAURI_SIGNING_PRIVATE_KEY_PASSWORD: process.env.PORTCOVE_ROLE_PASSWORD,
+          }
+        : { [`PORTCOVE_TUF_${event.name.toUpperCase()}_KEY`]: process.env.PORTCOVE_ROLE_KEY },
+      deadline,
+    );
+    active(deadline);
+    exitCode = 0;
+  } finally {
+    await retain(filename(root, phase, "key-client-settled"), { exit_code: exitCode, slot });
+  }
+}
+export async function finishControllerKeyClient(root: string, phase: Phase, deadline: number) {
+  const started = await optional(filename(root, phase, "key-client-started"));
+  if (started === undefined) {
+    if (await optional(filename(root, phase, "role-key")))
+      throw new Error("required key client was not launched");
+    return;
+  }
+  if (
+    !exact(started, "pid,role,slot") ||
+    !role(phase) ||
+    typeof started.pid !== "number" ||
+    !Number.isSafeInteger(started.slot) ||
+    Number(started.slot) < 1 ||
+    Number(started.slot) > 40 ||
+    started.role !== role(phase)
+  )
+    throw new Error("key client start changed");
+  for (;;) {
+    active(deadline);
+    const settled = await optional(filename(root, phase, "key-client-settled"));
+    if (settled !== undefined) {
+      if (
+        !exact(settled, "exit_code,slot") ||
+        settled.exit_code !== 0 ||
+        settled.slot !== started.slot
+      )
+        throw new Error("owned key client refused");
+      const identity = await json(filename(root, phase, "key-client-identity"));
+      if (
+        !exact(identity, "pid,role,slot,start_ticks") ||
+        identity.pid !== started.pid ||
+        identity.role !== started.role ||
+        identity.slot !== started.slot ||
+        typeof identity.start_ticks !== "string" ||
+        !/^[1-9][0-9]*$/u.test(identity.start_ticks)
+      )
+        throw new Error("owned key client identity changed");
+      const current = await linuxProcessStart(started.pid);
+      if (current === null || current.start_ticks !== identity.start_ticks || current.state === "Z")
+        return;
+    }
+    await delay(Math.min(25, Math.max(1, deadline - performance.now())));
+  }
+}
 export async function acknowledgeControllerTransport(
   root: string,
   rawPhase: unknown,
@@ -650,28 +815,19 @@ async function cli() {
         !(await optional(filename(root, phase, `control-${index}-ack`)))
       )
         throw new Error("readiness event remains incomplete");
+    await finishControllerKeyClient(root, phase, deadline);
     return;
   }
   if (process.argv[2] === "key") {
-    const event = inspectControllerTransportEvent(
-      await json(filename(root, phase, `slot-${slot}`)),
-      root,
-      phase,
-    );
-    if (event.kind !== "role-key") throw new Error("fixed role key event unavailable");
-    const { supplyIsolatedRoleKey } = await import("./release-role-key-channel.mts");
-    await supplyIsolatedRoleKey(
-      event.directory,
-      event.name as import("./release-role-key-channel.mts").IsolatedSigningRole,
-      event.name === "payload"
-        ? {
-            TAURI_SIGNING_PRIVATE_KEY: process.env.PORTCOVE_ROLE_KEY,
-            TAURI_SIGNING_PRIVATE_KEY_PASSWORD: process.env.PORTCOVE_ROLE_PASSWORD,
-          }
-        : { [`PORTCOVE_TUF_${event.name.toUpperCase()}_KEY`]: process.env.PORTCOVE_ROLE_KEY },
-      deadline,
-    );
-    active(deadline);
+    await startControllerKeyClient(root, phase, slot, deadline);
+    return;
+  }
+  if (process.argv[2] === "key-worker") {
+    try {
+      await keyClientWorker(root, phase, slot, deadline);
+    } catch {
+      process.exitCode = 2;
+    }
     return;
   }
   if (process.argv[2] === "ack") {

@@ -14,7 +14,12 @@ import {
   nextControllerTransport,
   acknowledgeControllerTransport,
   inspectControllerTransportEvent,
+  inspectControllerKeyProcess,
+  startControllerKeyClient,
+  finishControllerKeyClient,
 } from "./release-controller-transport.mts";
+import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
+import { setTimeout as delay } from "node:timers/promises";
 import { productionControllerWorkflow } from "./production-controller-admission.mts";
 const sha = (raw: Buffer) => createHash("sha256").update(raw).digest("hex");
 const identity = {
@@ -59,6 +64,131 @@ void test("transport clock preserves provider-start budget across subprocesses a
       /changed|identity/,
     );
 });
+void test("owned key client kernel identity handles spaces/parentheses and distinguishes exited state", () => {
+  const fields = ["Z", ...Array.from({ length: 18 }, () => "0"), "12345", "0"];
+  assert.deepEqual(inspectControllerKeyProcess(`42 (fixed (key) client) ${fields.join(" ")}`), {
+    state: "Z",
+    start_ticks: "12345",
+  });
+  assert.throws(() => inspectControllerKeyProcess("42 (bad) S 0"), /identity/);
+});
+void test(
+  "concurrent fixed key client permits a control round during the actual socket consume callback",
+  { skip: process.platform !== "linux" },
+  async (t) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "pump-key-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const previous = { ...process.env };
+    Object.assign(process.env, identity, {
+      RUNNER_TEMP: root,
+      PORTCOVE_ROLE_KEY: "inert-key",
+      PORTCOVE_ROLE_PASSWORD: "inert-password",
+    });
+    t.after(() => {
+      for (const key of [
+        ...Object.keys(identity),
+        "RUNNER_TEMP",
+        "PORTCOVE_ROLE_KEY",
+        "PORTCOVE_ROLE_PASSWORD",
+      ]) {
+        if (previous[key] === undefined) delete process.env[key];
+        else process.env[key] = previous[key];
+      }
+    });
+    const now = Date.now(),
+      deadline = performance.now() + 10000;
+    const clock = {
+      controller_revision: identity.GITHUB_SHA,
+      execution_ref: identity.GITHUB_REF,
+      job_id: 4,
+      job_name: "Sign admitted updater payloads",
+      phase: "payload",
+      profile_ms: 570000,
+      run_attempt: 1,
+      run_id: "123",
+      started_at: new Date(now).toISOString(),
+      monotonic_deadline_ns: (process.hrtime.bigint() + 10_000_000_000n).toString(),
+    };
+    await writeFile(
+      path.join(root, "controller-transport-payload-clock.json"),
+      JSON.stringify({ clock, sha256: sha(Buffer.from(JSON.stringify(clock))) }),
+    );
+    let entered = false;
+    const server = receiveIsolatedRoleKey(
+      path.join(root, "key"),
+      "payload",
+      now + 10000,
+      async (key, password) => {
+        assert.equal(key, "inert-key");
+        assert.equal(password, "inert-password");
+        entered = true;
+        for (;;) {
+          try {
+            await readFile(path.join(root, "controller-transport-payload-control-0-ack.json"));
+            break;
+          } catch {
+            if (performance.now() >= deadline) throw new Error("fixture control wait exhausted");
+            await delay(10);
+          }
+        }
+        return "consumed-after-control";
+      },
+    );
+    for (;;) {
+      try {
+        await readFile(path.join(root, "controller-transport-payload-role-key.json"));
+        break;
+      } catch {
+        if (performance.now() >= deadline) throw new Error("fixture key route wait exhausted");
+        await delay(10);
+      }
+    }
+    assert.equal((await nextControllerTransport(root, "payload", 1, deadline)).kind, "role-key");
+    await startControllerKeyClient(root, "payload", 1, deadline);
+    await acknowledgeControllerTransport(root, "payload", 1);
+    while (!entered) {
+      if (performance.now() >= deadline) throw new Error("fixture client did not enter");
+      await delay(10);
+    }
+    const folder = path.join(root, "round0");
+    await mkdir(folder);
+    const file = path.join(folder, "ready-payload.json");
+    const bytes = Buffer.from(
+      JSON.stringify({
+        schema_version: 1,
+        phase: "payload",
+        facts_sha256: "b".repeat(64),
+        producer: {
+          workflow: productionControllerWorkflow,
+          controller_revision: identity.GITHUB_SHA,
+          controller_ref: identity.GITHUB_REF,
+          run_id: "123",
+          run_attempt: 1,
+          job_id: 4,
+          check_run_id: 5,
+        },
+      }),
+    );
+    await writeFile(file, bytes);
+    await writeFile(
+      path.join(root, "control-step-ready-payload-r0.json"),
+      JSON.stringify({ path: file, sha256: sha(bytes) }),
+    );
+    assert.equal((await nextControllerTransport(root, "payload", 2, deadline)).kind, "control");
+    await acknowledgeControllerTransport(root, "payload", 2);
+    assert.equal(await server, "consumed-after-control");
+    await finishControllerKeyClient(root, "payload", deadline);
+    assert.deepEqual(
+      JSON.parse(
+        await readFile(
+          path.join(root, "controller-transport-payload-key-client-settled.json"),
+          "utf8",
+        ),
+      ),
+      { exit_code: 0, slot: 1 },
+    );
+  },
+);
 void test("actual local routing interleaves control and pending upload before the next control round", async (t) => {
   const root = await mkdtemp(path.join(os.tmpdir(), "fixed-pump-"));
   t.after(() => rm(root, { recursive: true, force: true }));
