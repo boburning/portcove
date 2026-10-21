@@ -21,7 +21,6 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 import { readRemoteCoordinatorSnapshot } from "./release-coordinator-recovery.mts";
 import { inspectCapacityOperation } from "./release-capacity.mts";
 import { capacityExecutorIdentity, refreshCapacityExecutor } from "./release-capacity-executor.mts";
-import { authenticateReleaseControlRound } from "./release-live-control-admission.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlRefQuery } from "./release-control-inputs.mts";
 import { isRecord } from "./runtime-values.mts";
@@ -33,7 +32,7 @@ const inventory = (files: ReadonlyMap<string, Buffer>) =>
     .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
 type Session = Awaited<ReturnType<typeof requireActualCoordinatorMetadataPreparation>>;
 type Executor = Parameters<typeof capacityExecutorIdentity>[0];
-type Controls = Awaited<ReturnType<typeof authenticateReleaseControlRound>>;
+type Controls = Awaited<ReturnType<Session["next_controls"]>>;
 type Owned = {
   session: Session;
   directory: string;
@@ -44,7 +43,6 @@ type Owned = {
   control_facts: { pause: unknown; capacity: unknown };
   facts: Record<string, unknown>;
   binding: Record<string, unknown>;
-  round: number;
   observed: number;
   source?: Controls;
   pending?: { executor: Executor; checkpoint: string; operation_id: string };
@@ -84,14 +82,7 @@ function apiFor(owned: Pick<Owned, "directory" | "work" | "deadline">) {
 async function controls(owned: Owned) {
   remaining(owned);
   if (!owned.source || performance.now() - owned.observed >= 45000) {
-    if (++owned.round > 2) throw new Error("coordinator context fixed fresh rounds exhausted");
-    owned.source = await authenticateReleaseControlRound(
-      path.join(owned.work, `controls-r${owned.round}`),
-      digest(owned.facts),
-      "coordinator",
-      owned.round,
-      { deadline: owned.deadline },
-    );
+    owned.source = await owned.session.next_controls();
     owned.observed = performance.now();
   }
   if (owned.source.evidence_scope !== "github.com")
@@ -170,8 +161,9 @@ async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapsh
 export async function prepareCoordinatorSigningContext(
   actualPreparation: object,
   parent: string,
-  phaseDeadline: number,
+  phaseDeadline = Infinity,
 ) {
+  if (phaseDeadline !== Infinity) remaining({ deadline: phaseDeadline });
   const session = await requireActualCoordinatorMetadataPreparation(actualPreparation),
     deadline = Math.min(session.deadline, phaseDeadline);
   remaining({ deadline });
@@ -234,7 +226,6 @@ export async function prepareCoordinatorSigningContext(
     },
     facts,
     binding,
-    round: 0,
     observed: -Infinity,
   };
   try {
@@ -331,6 +322,8 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
       capacity: structuredClone(current.capacity),
     },
     tools,
+    capacity_source: current.capacity_source,
+    deadline: owned.deadline,
     tools_receipt: owned.session.tools,
     previous_site: site,
     namespace: owned.session.namespace,

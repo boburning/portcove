@@ -15,6 +15,7 @@ import {
   readCoordinatorSigningContextFiles,
   bindCoordinatorSigningContextPending,
 } from "./release-metadata-signing-context.mts";
+import { completeCoordinatorSigningContext } from "./release-metadata-signing-controller.mts";
 
 function fixture() {
   const roles = ["targets", "releases", "preview", "stable", "snapshot", "timestamp"],
@@ -164,6 +165,7 @@ void test("serialized coordinator results or caller pending cannot mint context 
     prepareCoordinatorSigningContext(imported, parent, performance.now() + 1000),
     /same-process/,
   );
+  await assert.rejects(completeCoordinatorSigningContext(imported, parent), /same-process/);
   await assert.rejects(requireCoordinatorSigningContext(imported), /actual coordinator/);
   await assert.rejects(readCoordinatorSigningContextFiles(imported), /actual coordinator/);
   await assert.rejects(
