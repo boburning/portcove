@@ -107,11 +107,11 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
         controller_ref: process.env.GITHUB_REF ?? "",
       },
       root,
-      Math.min(performance.now() + 405000, phaseDeadline ?? Infinity),
+      Math.min(performance.now() + 525000, phaseDeadline ?? Infinity),
     );
     result = await (
-      await import("./acquire-release-admission.mts")
-    ).runFixedBuildingConfiguration(configuration, privateRoot, deadline);
+      await import("./release-admitted-aggregate-controller.mts")
+    ).runFixedAdmittedAggregateConfiguration(configuration, privateRoot, deadline);
   } else if (role === "payload")
     result = await (
       await import("./release-signing-controller.mts")
@@ -156,7 +156,10 @@ export async function runFixedControllerJob(rawRole: unknown, phaseDeadline?: nu
   const positive =
     role === "coordinator" ||
     (role === "building"
-      ? result.decision === "candidate-building-admitted"
+      ? [
+          "candidate-building-and-aggregate-prepared",
+          "candidate-aggregate-readback-prepared",
+        ].includes(result.decision)
       : role === "payload"
         ? result.decision === "payload-and-context-prepared"
         : role === "release-publication"

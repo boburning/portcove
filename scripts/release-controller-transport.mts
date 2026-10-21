@@ -33,7 +33,7 @@ const kinds = [
 type Kind = (typeof kinds)[number];
 type Phase = ReturnType<typeof inspectReleaseControlPhase>;
 const phaseBudgets: Record<Phase, number> = {
-  admission: 415000,
+  admission: 535000,
   payload: 570000,
   coordinator: 170000,
   "release-publication": 350000,

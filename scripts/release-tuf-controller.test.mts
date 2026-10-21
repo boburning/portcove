@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { test } from "node:test";
+import { isRecord } from "./runtime-values.mts";
 import {
   tufRoleControllerDeadline,
   runTufRoleController,
@@ -191,7 +192,7 @@ void test("classification original job clocks keep their own names, first attemp
   }
 });
 
-void test("building admission original clock includes tools/acquisition and reserves cleanup inside seven minutes", () => {
+void test("building admission original clock includes tools/acquisition and reserves cleanup inside the proposed nine minutes", () => {
   const started = Date.parse("2026-10-20T00:00:00Z");
   const job = {
     id: 501,
@@ -204,7 +205,7 @@ void test("building admission original clock includes tools/acquisition and rese
   };
   assert.equal(
     buildingOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, started + 100000, 1000),
-    306000,
+    426000,
   );
   for (const bad of [
     { ...job, name: "Sign admitted updater payloads" },
@@ -220,7 +221,7 @@ void test("building admission original clock includes tools/acquisition and rese
       ),
     );
   assert.throws(() =>
-    buildingOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, started + 405000, 1000),
+    buildingOriginalJobDeadline({ total_count: 1, jobs: [job] }, identity, started + 525000, 1000),
   );
   assert.throws(() =>
     tufOriginalJobDeadline("candidate-building", { total_count: 1, jobs: [job] }, identity),
@@ -338,6 +339,105 @@ void test("fixed job adapter and source bootstrap refuse unknown operations with
   for (const value of ["root", {}, { entry: "candidate.mjs" }])
     await assert.rejects(launchFixedControllerJob(value), /fixed complete controller operation/);
   assert.deepEqual(await readdir(root), []);
+});
+
+void test("same-job aggregate outputs carry exact original custody to the maintained payload locator", async () => {
+  const { projectFixedControllerJobOutputs } = await import("./release-controller-job-output.mts");
+  const { prepareFixedControllerConfiguration } =
+    await import("./release-controller-configuration.mts");
+  const fixed = {
+    controller_revision: identity.controller_revision,
+    controller_ref: ref,
+    source_tree: "b".repeat(40),
+    run_id: identity.run_id,
+    run_attempt: 1,
+    actor_id: identity.actor_id,
+  };
+  const out = (outputs: Record<string, string>) => ({ result: "success", outputs });
+  const artifact = { id: 77, sha256: "c".repeat(64) };
+  const original = {
+    actor_id: identity.actor_id,
+    before_checkpoint: "d".repeat(40),
+    check_run_id: "78",
+    controller_revision: identity.controller_revision,
+    execution_ref: ref,
+    expectation_sha256: "e".repeat(64),
+    job_id: 79,
+    operation_id: "f".repeat(64),
+    run_attempt: 1,
+    run_id: "12344",
+    workflow: ".github/workflows/application-update-production.yml",
+  };
+  for (const resumed of [false, true]) {
+    const name = `trusted-release-final-${resumed ? original.run_id : fixed.run_id}-1`;
+    const predicate = {
+      role: "package-aggregate-assembler",
+      evidence_scope: "github.com",
+      artifact: { ...artifact, name },
+      producer_profile: resumed ? "admitted-aggregate-recovery-v1" : "admitted-aggregate-v1",
+      ...(resumed ? { original_upload: original } : {}),
+    };
+    const result = {
+      decision: resumed
+        ? "candidate-aggregate-readback-prepared"
+        : "candidate-building-and-aggregate-prepared",
+      stage: resumed ? "publishing" : "building",
+      descriptor: { checkpoint: "d".repeat(40) },
+      artifact,
+      subject_name: name,
+      subject_digest: `sha256:${artifact.sha256}`,
+      predicate_type: "https://portcove.dev/attestations/package-aggregate/v1",
+      ...(resumed ? { original_upload: original } : {}),
+    };
+    const outputs = projectFixedControllerJobOutputs(
+      "building",
+      result,
+      undefined,
+      Buffer.from(JSON.stringify(predicate)),
+    );
+    const selected = prepareFixedControllerConfiguration({
+      operation: "payload",
+      fixed,
+      admission_configuration: { namespace: "portcove-production" },
+      native_locators: null,
+      payload_public_key_sha256: "1".repeat(64),
+      needs: {
+        tool_bootstrap: out({
+          artifact_id: "1",
+          artifact_sha256: "2".repeat(64),
+          source_tree: fixed.source_tree,
+        }),
+        tool_attest: out({ bundle_artifact_id: "2", bundle_artifact_sha256: "3".repeat(64) }),
+        independent_admission: out(outputs),
+        attest: out({ bundle_artifact_id: "88", bundle_artifact_sha256: "4".repeat(64) }),
+      },
+    });
+    assert.ok(
+      "configuration" in selected &&
+        isRecord(selected.configuration) &&
+        isRecord(selected.configuration.aggregate),
+    );
+    assert.equal(selected.configuration.aggregate.artifact_id, artifact.id);
+    assert.deepEqual(
+      selected.configuration.aggregate.original_upload,
+      resumed ? original : undefined,
+    );
+    assert.equal(outputs.stage, result.stage);
+    for (const changed of [
+      { ...predicate, evidence_scope: "injected-provider" },
+      { ...predicate, artifact: { ...artifact, id: 99, name } },
+      { ...predicate, producer_profile: "legacy" },
+    ])
+      assert.throws(() =>
+        projectFixedControllerJobOutputs(
+          "building",
+          result,
+          undefined,
+          Buffer.from(JSON.stringify(changed)),
+        ),
+      );
+    assert.throws(() => projectFixedControllerJobOutputs("building", result));
+  }
 });
 
 void test("complete job bootstrap refuses inherited cross-role credentials before tool acquisition", async () => {

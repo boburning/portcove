@@ -53,3 +53,22 @@ injected provider/verifier responses. They establish contract and byte-flow
 behavior only. They do not establish real provider identity, observer timing,
 signing, native acceptance, publication or initial setup authority. No protected
 operation was executed to prepare this change.
+
+## Fixed caller integration
+
+The maintained fixed building job now calls this combined factory. Its original
+provider clock reserves 15 seconds inside the proposed nine-minute reader;
+control transport reserves its final five seconds. The independent observer
+remains a distinct credential boundary. The actual result finalizer reads the
+owned bounded predicate and checks artifact, subject, profile and original-upload
+identity before projecting inert locators to the separate attester and payload
+configuration. Downstream consumers still authenticate actual provider bytes and
+attestation; projected JSON grants no admission.
+
+Thirteen focused controller tests passed, including fresh and resumed output
+routing into the maintained payload locator, changed issuer-scope/artifact/profile
+refusals, and original-clock expiry. Seven affected script files passed typed
+lint after a resource-admitted queue; that queue did not reset product clocks.
+Separate non-writing review cleared the caller delta and existing atomic-marker
+and recovery interaction. Hosted qualification and actual protected execution are
+separate; no production credential, signing or publication occurred.
