@@ -46,6 +46,7 @@ import {
   capacityExecutorIdentity,
   authenticateCapacityExecutor,
   executeOwnedCapacityEffect,
+  requireOwnedCapacityPendingBoundary,
 } from "./release-capacity-executor.mts";
 import {
   prepareCatalogSigningContextArtifact,
@@ -422,12 +423,21 @@ export async function bindActualCatalogSigningContextPending(
   remaining(owned);
   pending = structuredClone(pending);
   if (
-    owned.pending ||
     Object.keys(pending).sort().join(",") !== "checkpoint,operation_id" ||
     !/^[a-f0-9]{40}$/u.test(pending.checkpoint) ||
     !/^[a-f0-9]{64}$/u.test(pending.operation_id)
   )
     throw new Error("one exact catalog pending required");
+  if (owned.pending) {
+    if (
+      owned.pending.executor !== executor ||
+      owned.pending.checkpoint !== pending.checkpoint ||
+      owned.pending.operation_id !== pending.operation_id
+    )
+      throw new Error("catalog pending binding cannot change its original intent");
+    await requireActualCatalogSigningContext(receipt);
+    return;
+  }
   const actual = await refreshCapacityExecutor(executor),
     tools = await verifiedControllerToolPaths(owned.session.tools);
   if (
@@ -438,10 +448,53 @@ export async function bindActualCatalogSigningContextPending(
     actual.run_attempt !== tools.identity.run_attempt
   )
     throw new Error("catalog upload executor differs from actual producer");
-  if ((await snapshot(owned)).checkpoint !== pending.checkpoint)
+  const current = await snapshot(owned),
+    controller = current.input.controller,
+    operation = inspectCapacityOperation(
+      isRecord(controller) && isRecord(controller.capacity_attempt)
+        ? controller.capacity_attempt.operation
+        : null,
+    );
+  if (
+    current.checkpoint !== pending.checkpoint ||
+    !operation ||
+    operation.id !== pending.operation_id ||
+    operation.before_checkpoint !== owned.session.checkpoint ||
+    operation.outcome !== "pending" ||
+    operation.completed_effects.length !== 0 ||
+    operation.kind !== "upload" ||
+    operation.destination !== "github-actions:boburning/portcove:catalog-publication-context" ||
+    operation.catalog_publication?.descriptor_sha256 !== digest(owned.facts.descriptor) ||
+    digest(operation.executor_identity) !== digest(actual)
+  )
     throw new Error("catalog upload pending checkpoint changed");
   owned.pending = { executor, ...pending };
   await requireActualCatalogSigningContext(receipt);
+}
+/** The executor emits this capability only while its exact post-intent
+ * boundary callback is active. Imported checkpoints cannot select a new phase. */
+export async function bindActualCatalogSigningContextBoundary(
+  receipt: object,
+  executor: Executor,
+  boundary: object,
+) {
+  const owned = contexts.get(receipt);
+  if (!owned) throw new Error("actual catalog context required");
+  const pending = requireOwnedCapacityPendingBoundary(executor, boundary);
+  const operation = pending.operation;
+  if (
+    operation.before_checkpoint !== owned.session.checkpoint ||
+    operation.outcome !== "pending" ||
+    operation.completed_effects.length !== 0 ||
+    operation.kind !== "upload" ||
+    operation.destination !== "github-actions:boburning/portcove:catalog-publication-context" ||
+    operation.catalog_publication?.descriptor_sha256 !== digest(owned.facts.descriptor)
+  )
+    throw new Error("catalog boundary differs from exact original context upload");
+  await bindActualCatalogSigningContextPending(receipt, executor, {
+    checkpoint: pending.checkpoint,
+    operation_id: operation.id,
+  });
 }
 export async function requireActualCatalogSigningContext(receipt: object, phaseDeadline?: number) {
   const owned = contexts.get(receipt);
@@ -474,13 +527,6 @@ async function readContext(receipt: object) {
     inspection.bundle_sha256 !== owned.facts.descriptor.bundle_sha256
   )
     throw new Error("catalog actual inspection/semantic proof changed");
-  if (performance.now() - owned.observed >= 45000) {
-    owned.source = await owned.session.next_controls(owned.deadline);
-    owned.observed = performance.now();
-  }
-  const current = owned.source.readMaintenance(api);
-  if (catalogCoordinatorMaintenanceIdentity(current) !== owned.control_identity)
-    throw new Error("catalog actual controls changed");
   await verifyState(owned);
   if (owned.site)
     await (owned.site_component === "catalog"
@@ -491,6 +537,13 @@ async function readContext(receipt: object) {
     digest(inventory(await readBoundedReleaseContextFiles(owned.directory))) !== digest(owned.files)
   )
     throw new Error("catalog retained public context changed");
+  if (performance.now() - owned.observed >= 45000) {
+    owned.source = await owned.session.next_controls(owned.deadline);
+    owned.observed = performance.now();
+  }
+  const current = owned.source.readMaintenance(api);
+  if (catalogCoordinatorMaintenanceIdentity(current) !== owned.control_identity)
+    throw new Error("catalog actual controls changed");
   remaining(owned);
   return {
     directory: owned.directory,
@@ -569,9 +622,12 @@ export async function completeCoordinatorCatalogSigningContext(
               destination: "github-actions:boburning/portcove:catalog-publication-context",
             },
           },
-          async () =>
-            (await requireActualCatalogSigningContext(receipt, deadline)).capacity_source.capacity
-              .boundary,
+          async (pendingBoundary) => {
+            if (pendingBoundary)
+              await bindActualCatalogSigningContextBoundary(receipt, executor, pendingBoundary);
+            return (await requireActualCatalogSigningContext(receipt, deadline)).capacity_source
+              .capacity.boundary;
+          },
           async (pending) => {
             await bindActualCatalogSigningContextPending(receipt, executor, pending);
             handoff = await handoffSigningContextArtifact(artifact, identity, pending, deadline);

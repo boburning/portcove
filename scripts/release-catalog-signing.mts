@@ -329,6 +329,8 @@ async function runRole(
       source: Awaited<ReturnType<typeof authenticateCatalogReleaseControlRound>> | undefined;
     const fresh = async () => {
       active(deadline);
+      const api = fixedApi(directory, deadline);
+      recheckCatalogSemanticProof(api, authorities, facts, binding, manifest.previous_site_pins);
       if (!source || performance.now() - observed >= 45000) {
         if (++round > 3) throw new Error("catalog role control rounds exhausted");
         source = await authenticateCatalogReleaseControlRound(
@@ -342,8 +344,7 @@ async function runRole(
       }
       if (source.evidence_scope !== "github.com")
         throw new Error("actual catalog control source required");
-      const api = fixedApi(directory, deadline),
-        current = source.readMaintenance(api);
+      const current = source.readMaintenance(api);
       if (
         current.purpose !== "catalog-signing-controls" ||
         current.pause.publication_paused ||
@@ -352,7 +353,6 @@ async function runRole(
         !isDeepStrictEqual(current.capacity, admitted.control_facts.capacity)
       )
         throw new Error("catalog role controls changed");
-      recheckCatalogSemanticProof(api, authorities, facts, binding, manifest.previous_site_pins);
       return current;
     };
     const guard = async () => {
@@ -364,12 +364,12 @@ async function runRole(
       const currentAuthorities = await requireControllerCatalogPublicationAuthorities(phase);
       if (currentAuthorities.configuration_sha256 !== authorities.configuration_sha256)
         throw new Error("catalog role authority changed");
-      await fresh();
       reservation(
         await readRemoteCoordinatorSnapshot(directory, coordinator, {
           transport: { cwd: directory, deadline },
         }),
       );
+      await fresh();
       active(deadline);
     };
     await guard();
