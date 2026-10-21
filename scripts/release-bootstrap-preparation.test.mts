@@ -4,6 +4,15 @@ import { inspectPublicationAuthorities } from "./release-authority-configuration
 import { createHash } from "node:crypto";
 import { sourceFixtureCommit } from "./fixtures/release-source-fixture.mts";
 import {
+  deriveMetadataBootstrapDescriptor,
+  metadataBootstrapContextBytes,
+  prepareAuthenticatedMetadataBootstrap,
+  inspectPreparedMetadataBootstrap,
+} from "./release-bootstrap-preparation.mts";
+import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import {
   inspectHistoricalBootstrapPreimage,
   readBootstrapPublicSource,
   readConfiguredBootstrapSite,
@@ -45,6 +54,99 @@ void test("only schema2 can locate the exact historical owner-ratified setup pre
   assert.deepEqual(inspectPublicationAuthorities(legacy), legacy);
   assert.deepEqual(inspectPublicationAuthorities(legacy, 2), legacy);
 });
+
+void test("declared bootstrap context preserves exact u64 version and has no manufactured prior", async () => {
+  const files = new Map([
+    [
+      "root",
+      Buffer.from(JSON.stringify({ signed: { version: 1, expires: "2026-12-01T00:00:00Z" } })),
+    ],
+    [
+      "offline_targets",
+      Buffer.from('{"signed":{"version":18446744073709551615,"expires":"2026-11-01T00:00:00Z"}}'),
+    ],
+    ["payload_key_registry", Buffer.from("public registry")],
+  ]);
+  const value = publication();
+  for (const name of ["root", "offline_targets", "payload_key_registry"] as const) {
+    const bytes = files.get(name)!;
+    value.public_source[name] = {
+      ...value.public_source[name],
+      bytes: bytes.length,
+      sha256: sha(bytes),
+    };
+  }
+  const descriptor = deriveMetadataBootstrapDescriptor(value, files, "2026-10-20T00:00:00Z");
+  assert.equal(descriptor.versions.targets, "18446744073709551615");
+  const serialized = metadataBootstrapContextBytes(descriptor).toString("utf8");
+  assert.match(serialized, /"targets":18446744073709551615/u);
+  assert(!serialized.includes("previous_repository"));
+  assert.match(serialized, /"initial_bootstrap":"initial-bootstrap.json"/u);
+  assert.equal(descriptor.expires.timestamp, "2026-10-22T00:00:00Z");
+  files.set("root", Buffer.from("changed"));
+  assert.throws(
+    () => deriveMetadataBootstrapDescriptor(value, files, "2026-10-20T00:00:00Z"),
+    /changed/,
+  );
+  await assert.rejects(
+    inspectPreparedMetadataBootstrap({ kind: "authenticated-initial-metadata-preparation" }),
+    /same-process/,
+  );
+});
+
+const actualTool = process.env.PORTCOVE_TUF_BOOTSTRAP_VERIFIER;
+const actualFixture = process.env.PORTCOVE_TUF_INITIAL_PUBLIC_FIXTURE;
+void test(
+  "actual maintained keyless verifier authenticates disposable bootstrap and retained bytes",
+  { skip: !actualTool || !actualFixture },
+  async (t) => {
+    const parent = await mkdtemp(path.join(os.tmpdir(), "bootstrap-tool-"));
+    t.after(() => rm(parent, { recursive: true, force: true }));
+    const files = new Map<string, Buffer>();
+    for (const [name, file] of [
+      ["root", "trusted-root.json"],
+      ["offline_targets", "offline-targets.json"],
+      ["payload_key_registry", "payload.json"],
+    ] as const)
+      files.set(name, await readFile(path.join(actualFixture!, file)));
+    const descriptor: unknown = JSON.parse(
+      await readFile(path.join(actualFixture!, "initial-bootstrap.json"), "utf8"),
+    );
+    assert(
+      typeof descriptor === "object" &&
+        descriptor !== null &&
+        "setup_plan_sha256" in descriptor &&
+        "initial_site_preimage_sha256" in descriptor,
+    );
+    const value = publication();
+    value.setup_plan_sha256 = String(descriptor.setup_plan_sha256);
+    value.initial_site_preimage_sha256 = String(descriptor.initial_site_preimage_sha256);
+    value.public_source.initial_site_preimage.sha256 = value.initial_site_preimage_sha256;
+    for (const name of ["root", "offline_targets", "payload_key_registry"] as const) {
+      const bytes = files.get(name)!;
+      value.public_source[name] = {
+        ...value.public_source[name],
+        bytes: bytes.length,
+        sha256: sha(bytes),
+      };
+    }
+    const tool = await readFile(actualTool!);
+    const receipt = await prepareAuthenticatedMetadataBootstrap({
+      verifier: actualTool!,
+      verifier_sha256: sha(tool),
+      publication: value,
+      public_files: files,
+      descriptor,
+      output_parent: parent,
+      deadline: performance.now() + 60000,
+    });
+    const verified = await inspectPreparedMetadataBootstrap(receipt);
+    assert.equal(verified.files.length, 6);
+    assert.equal(verified.descriptor.versions.timestamp, "1");
+    await writeFile(verified.context, "changed retained context");
+    await assert.rejects(inspectPreparedMetadataBootstrap(receipt), /changed/);
+  },
+);
 
 function preimage() {
   const origin = "https://boburning.github.io/portcove/";
