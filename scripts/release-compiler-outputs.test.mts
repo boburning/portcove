@@ -110,3 +110,30 @@ void test("actual GNU tar producer emits the supported exact single-member route
   const archive = await readFile(path.join(root, "package.tar.gz"));
   inspectCompiledCliPackage(archive, "linux-x86_64", identity(archive), identity(binary));
 });
+import {
+  projectWindowsNsisExecutable,
+  inspectWindowsDesktopCompilerIdentity,
+} from "./release-compiler-desktop.mts";
+
+void test("Windows compiler NSIS projection hashes the single slot without changing captured bytes", () => {
+  const bytes = Buffer.concat([
+    Buffer.from([0, 1, 255]),
+    Buffer.from("__TAURI_BUNDLE_TYPE_VAR_UNK"),
+    Buffer.from([255, 0]),
+  ]);
+  const original = Buffer.from(bytes);
+  const projected = projectWindowsNsisExecutable(bytes);
+  assert.deepEqual(bytes, original);
+  const installed = Buffer.from(bytes);
+  installed.write("NSS", projected.bundle_slot_offset + "__TAURI_BUNDLE_TYPE_VAR_".length, "ascii");
+  assert.equal(projected.nsis_sha256, createHash("sha256").update(installed).digest("hex"));
+  assert.deepEqual(inspectWindowsDesktopCompilerIdentity(projected), projected);
+  assert.throws(() => projectWindowsNsisExecutable(Buffer.from("missing slot")));
+  assert.throws(() => projectWindowsNsisExecutable(Buffer.concat([bytes, bytes])));
+  assert.throws(() =>
+    inspectWindowsDesktopCompilerIdentity({ ...projected, bundle_slot_offset: bytes.length }),
+  );
+  assert.throws(() =>
+    inspectWindowsDesktopCompilerIdentity({ ...projected, nsis_sha256: projected.sha256 }),
+  );
+});

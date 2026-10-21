@@ -120,3 +120,49 @@ is cleared by this compiler component. The pre-sign native stage must establish
 actual package/install/launch/minimum/protocol facts; update/rollback/journal
 qualification gates publication after signing. Full public V0-to-V1 acceptance
 is a later observation and cannot gate its own initial publication.
+
+## Prepared Windows installed-byte input (October 21)
+
+The ordinary public-parent join requires the actual installed executable to
+match an independently observed compiler identity. Existing reports bind NSIS
+package bytes but do not expose the inner Windows executable hash. The fixed
+same-job desktop capture now emits schema 3 after the Tauri process and final
+NSIS discovery, reading only its fresh target's `release/portcove-desktop.exe`.
+It brackets a bounded regular unlinked file read and computes the exact single
+Tauri bundle-slot `UNK` to `NSS` hash projection in memory. No executable,
+installer or signature is modified. The package output inventory stays separate
+and must still equal the independently acquired aggregate bytes.
+
+The existing complete report/producer/attestation/source-closure consumer checks
+the schema-3 platform/interface, retains the exact source/run/numeric producer
+and report digest, and binds the one NSIS package slot. Its new private getter
+rehashes the original proof before exposing a detached executable/package tuple.
+Legacy schema 2 remains usable for its original scope but supplies no such
+identity. Imported and injected receipts cannot call this getter successfully.
+
+This is an input to the next actual public-parent join, not proof that the
+installer contains or installed those bytes. The genuine isolated installation
+and automatic public updater must compare their actual bytes with the observed
+identity. The actual build, local-parent collection, public journey and native
+acceptance remain unobserved; controlled slot/file/report tests and unchanged
+compiler fixture paths confer no additional authority.
+The projection is pinned to the repository's CLI 2.12.2 and runtime 2.12.4:
+[runtime bundle marker](https://github.com/tauri-apps/tauri/blob/59b63ab500da9859f12d8888c3298bc29bba0b92/crates/tauri-utils/src/platform.rs#L355-L369)
+retains the unknown marker and recognizes the NSIS value;
+[bundler patch and restoration](https://github.com/tauri-apps/tauri/blob/5b23c82ea5ba6b9aec420dd71f60493edc486aa9/crates/tauri-bundler/src/bundle.rs#L35-L89)
+selects the NSIS suffix before packaging, then
+[restores the original executable](https://github.com/tauri-apps/tauri/blob/5b23c82ea5ba6b9aec420dd71f60493edc486aa9/crates/tauri-bundler/src/bundle.rs#L195-L201).
+The maintained capture uses `--no-sign`; the pinned
+[signer returns without signing](https://github.com/tauri-apps/tauri/blob/5b23c82ea5ba6b9aec420dd71f60493edc486aa9/crates/tauri-bundler/src/bundle/windows/sign.rs#L228-L235).
+The selected default current-user NSIS template
+[copies that main executable into the installation directory](https://github.com/tauri-apps/tauri/blob/5b23c82ea5ba6b9aec420dd71f60493edc486aa9/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi#L604-L614).
+This reasoning covers that unsigned default-template route with the maintained
+public overlay, without custom hooks or executable transforms. It does not
+substitute for installer containment or the actual installed-file comparison.
+
+The final controlled compiler selection passed 17 cases with one existing GNU
+tar producer skip on Windows; all 105 validation-plan/local-selection cases
+passed. Resource-admitted type-aware lint passed all eight changed TypeScript
+files. These checks use inert temporary executable/report bytes, retained fake
+provider artifacts and existing private-brand refusal paths. They run no actual
+compiler, installer, native account or public updater.
