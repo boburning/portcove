@@ -8,8 +8,10 @@ import { materializePublicationSourceRepository } from "./release-publication-so
 import { materializeReleaseQualificationSource } from "./release-candidate-qualification.mts";
 import type { GitHubApiClient } from "./github-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, prepare = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "publication-source-fixture-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   const source = path.join(root, "source"),
@@ -39,6 +41,22 @@ async function fixture(t: test.TestContext) {
   await writeFile(path.join(source, ".cargo/config.toml"), "[build]\njobs=1\n");
   await writeFile(path.join(source, "rust-toolchain.toml"), "[toolchain]\nchannel='stable'\n");
   await writeFile(path.join(source, "Cargo.toml"), "[package]\nname='inert'\nversion='0.1.0'\n");
+  if (prepare) {
+    const files = {
+      "Cargo.toml":
+        '[workspace]\nmembers = ["apps/desktop/src-tauri"]\n[workspace.package]\nversion = "0.1.0"\n',
+      "apps/desktop/src-tauri/Cargo.toml":
+        '[package]\nname = "portcove-desktop"\nversion.workspace = true\n',
+      "Cargo.lock": 'version = 4\n\n[[package]]\nname = "portcove-desktop"\nversion = "0.1.0"\n',
+      "apps/desktop/package.json": '{\n  "name": "fixture",\n  "version": "0.1.0"\n}\n',
+      "apps/desktop/src-tauri/tauri.conf.json":
+        '{\n  "version": "0.1.0",\n  "identifier": "fixture.example"\n}\n',
+    };
+    for (const [name, contents] of Object.entries(files)) {
+      await mkdir(path.dirname(path.join(source, name)), { recursive: true });
+      await writeFile(path.join(source, name), contents);
+    }
+  }
   await writeFile(path.join(source, "binary.dat"), Buffer.from([0, 255, 1, 2]));
   const canary = path.join(root, "executed");
   await writeFile(
@@ -56,8 +74,22 @@ async function fixture(t: test.TestContext) {
   );
   git("add", ".");
   git("commit", "-m", "candidate");
-  const candidate = git("rev-parse", "HEAD").toString().trim(),
-    tree = git("rev-parse", "HEAD^{tree}").toString().trim();
+  const originalSource = git("rev-parse", "HEAD").toString().trim();
+  const prepared = prepare
+    ? await prepareReleaseVersion(
+        source,
+        {
+          source_commit: originalSource,
+          reviewed_commit: originalSource,
+          base_version: "0.1.0",
+          change: "patch",
+          compatibility: "compatible",
+        },
+        ["0.1.0"],
+      )
+    : null;
+  const candidate = prepared?.prepared_commit ?? originalSource,
+    tree = git("rev-parse", `${candidate}^{tree}`).toString().trim();
   let mutate = false,
     truncated = false;
   const api = {
@@ -145,6 +177,7 @@ async function fixture(t: test.TestContext) {
     scratch,
     baseline,
     originalParent,
+    originalSource,
     candidate,
     tree,
     canary,
@@ -187,6 +220,49 @@ void test("bounded provider objects recreate actual Git qualification input incl
     assert.equal(
       await readFile(path.join(result.root, "build.rs"), "utf8"),
       await readFile(path.join(f.source, "build.rs"), "utf8"),
+    );
+    await assert.rejects(access(f.canary));
+  });
+});
+void test("actual prepared source survives bounded provider import and depth-one qualification with its exact original parent", async (t) => {
+  const f = await fixture(t, true);
+  await withCoordinatorDeadline(performance.now() + 60000, async () => {
+    const imported = await materializePublicationSourceRepository(
+      f.scratch,
+      {
+        controller_commit: f.baseline,
+        candidate_commit: f.candidate,
+        candidate_tree: f.tree,
+      },
+      { api: f.api },
+    );
+    const result = await materializeReleaseQualificationSource(
+      imported.repository,
+      f.scratch,
+      f.candidate,
+      f.tree,
+    );
+    const read = (args: readonly string[]) => {
+      const output = spawnSync("git", [...args], {
+        cwd: result.root,
+        encoding: "utf8",
+        timeout: 10000,
+        windowsHide: true,
+      });
+      assert.equal(output.status, 0, output.stderr);
+      return output.stdout;
+    };
+    const proof = inspectRiskVersionPreparation706(f.candidate, read);
+    assert.equal(proof?.source_commit, f.originalSource);
+    assert.equal(proof?.prepared_tree, f.tree);
+    assert.equal(read(["rev-parse", "HEAD"]).trim(), f.candidate);
+    assert.notEqual(
+      spawnSync("git", ["cat-file", "-e", f.originalParent], {
+        cwd: imported.repository,
+        timeout: 10000,
+        windowsHide: true,
+      }).status,
+      0,
     );
     await assert.rejects(access(f.canary));
   });

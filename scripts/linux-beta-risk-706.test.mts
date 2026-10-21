@@ -3,6 +3,9 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { prepareReleaseVersion } from "../apps/desktop/scripts/prepare-release-version.mts";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 import {
   approval706,
   expiry706,
@@ -16,6 +19,153 @@ import { createHash } from "node:crypto";
 import { parseDependencyScan } from "./dependency-security.mts";
 
 const scannerPolicy = readFileSync(new URL("../deny.toml", import.meta.url), "utf8");
+
+void test("only the complete deterministic version transform projects native review to its actual source", async (t) => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "portcove-706-prepared-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (args: readonly string[], input?: string) =>
+    execFileSync("git", ["-C", dir, ...args], {
+      encoding: "utf8",
+      input,
+      windowsHide: true,
+      timeout: 15000,
+    });
+  git(["init", "-q"]);
+  git(["config", "user.name", "Risk projection fixture"]);
+  git(["config", "user.email", "fixture@portcove.invalid"]);
+  git(["config", "core.autocrlf", "false"]);
+  const files = {
+    "Cargo.toml":
+      '[workspace]\nmembers = ["apps/desktop/src-tauri"]\n[workspace.package]\nversion = "0.1.0"\n',
+    "apps/desktop/src-tauri/Cargo.toml":
+      '[package]\nname = "portcove-desktop"\nversion.workspace = true\n',
+    "Cargo.lock":
+      'version = 4\n\n[[package]]\nname = "portcove-desktop"\nversion = "0.1.0"\n\n[[package]]\nname = "third-party"\nversion = "0.1.0"\nsource = "registry+https://example.invalid"\n',
+    "apps/desktop/package.json": '{\n  "name": "fixture",\n  "version": "0.1.0"\n}\n',
+    "apps/desktop/src-tauri/tauri.conf.json":
+      '{\n  "version": "0.1.0",\n  "identifier": "fixture.example"\n}\n',
+  };
+  for (const [name, bytes] of Object.entries(files)) {
+    mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+    writeFileSync(path.join(dir, name), bytes);
+  }
+  git(["add", "."]);
+  git(["commit", "-qm", "reviewed native baseline"]);
+  const baseline = git(["rev-parse", "HEAD"]).trim();
+  mkdirSync(path.join(dir, ".github"));
+  writeFileSync(
+    path.join(dir, ".github/linux-beta-risk-706.json"),
+    JSON.stringify({ ...approval, reconfirmedHead: baseline }),
+  );
+  git(["add", "."]);
+  git(["commit", "-qm", "source opportunity"]);
+  const source = git(["rev-parse", "HEAD"]).trim();
+  const prepared = await prepareReleaseVersion(
+    dir,
+    {
+      source_commit: source,
+      reviewed_commit: source,
+      base_version: "0.1.0",
+      change: "patch",
+      compatibility: "compatible",
+    },
+    ["0.1.0"],
+  );
+  const projected = inspectRiskVersionPreparation706(prepared.prepared_commit, git);
+  assert.equal(projected?.source_commit, source);
+  assert.equal(projected?.prepared_commit, prepared.prepared_commit);
+  assert.equal(inspectRiskVersionPreparation706(source, git), null);
+  assert.match(git(["diff", "--name-only", baseline, prepared.prepared_commit]), /Cargo.lock/u);
+  assert.equal(
+    git([
+      "diff",
+      "--name-only",
+      baseline,
+      projected.source_commit,
+      "--",
+      "Cargo.toml",
+      "Cargo.lock",
+      "apps/desktop/src-tauri",
+    ]),
+    "",
+  );
+  git(["checkout", "--detach", "-q", prepared.prepared_commit]);
+  const inheritedSha = process.env.GITHUB_SHA;
+  process.env.GITHUB_SHA = prepared.prepared_commit;
+  try {
+    const actual = candidate706(dir, (name, args) => {
+      if (name === "git") {
+        const result = git(args);
+        return ["show", "cat-file"].includes(args[0]!) ? result : result.trim();
+      }
+      assert.equal(name, "cargo");
+      return JSON.stringify({
+        packages: [
+          { id: "desktop", name: "portcove-desktop", version: prepared.version, source: null },
+        ],
+        resolve: { nodes: [{ id: "desktop", features: [], deps: [] }] },
+      });
+    });
+    assert.equal(actual.head, prepared.prepared_commit);
+    assert.equal(actual.productionChanges, "");
+    assert.equal(
+      actual.lockSha256,
+      createHash("sha256")
+        .update(git(["show", `${prepared.prepared_commit}:Cargo.lock`]))
+        .digest("hex"),
+    );
+    assert.notEqual(
+      actual.lockSha256,
+      createHash("sha256").update(files["Cargo.lock"]).digest("hex"),
+    );
+    assert.equal(actual.versionPreparation?.source_commit, source);
+  } finally {
+    if (inheritedSha === undefined) delete process.env.GITHUB_SHA;
+    else process.env.GITHUB_SHA = inheritedSha;
+  }
+  git(["checkout", "--detach", "-q", source]);
+
+  // Preserve the original actor, date, intent and message while changing an
+  // actual dependency. A preparation-shaped commit cannot hide that change.
+  git(["read-tree", prepared.prepared_commit]);
+  const forgedLock = git(["show", `${prepared.prepared_commit}:Cargo.lock`]).replace(
+    'name = "third-party"\nversion = "0.1.0"',
+    'name = "third-party"\nversion = "9.9.9"',
+  );
+  const blob = git(["hash-object", "-w", "--stdin"], forgedLock).trim();
+  git(["update-index", "--cacheinfo", `100644,${blob},Cargo.lock`]);
+  const forgedTree = git(["write-tree"]).trim();
+  const raw = git(["cat-file", "commit", prepared.prepared_commit]).replace(
+    /^tree [a-f0-9]{40}/u,
+    `tree ${forgedTree}`,
+  );
+  const forged = git(["hash-object", "-w", "-t", "commit", "--stdin"], raw).trim();
+  assert.throws(() => inspectRiskVersionPreparation706(forged, git), /prepared|version|differ/u);
+
+  // A genuinely changed original source remains visible, even with a valid
+  // deterministic preparation. There is no approval-baseline advancement.
+  git(["read-tree", source]);
+  writeFileSync(path.join(dir, "apps/desktop/src-tauri/native.rs"), "changed native behavior\n");
+  git(["add", "apps/desktop/src-tauri/native.rs"]);
+  git(["commit", "-qm", "unreviewed native change"]);
+  const changed = git(["rev-parse", "HEAD"]).trim();
+  const second = await prepareReleaseVersion(
+    dir,
+    {
+      source_commit: changed,
+      reviewed_commit: changed,
+      base_version: "0.1.0",
+      change: "minor",
+      compatibility: "compatible",
+    },
+    ["0.1.0"],
+  );
+  const changedProjection = inspectRiskVersionPreparation706(second.prepared_commit, git);
+  assert.match(
+    git(["diff", "--name-only", baseline, changedProjection!.source_commit]),
+    /native.rs/u,
+  );
+});
 const policyHash = createHash("sha256")
   .update(scannerPolicy.replaceAll("\r\n", "\n"))
   .digest("hex");
@@ -371,6 +521,7 @@ void test("release source review compares the exact candidate against a named re
     if (args[0] === "rev-parse") return candidate.head;
     if (args[0] === "status") return "";
     if (args[0] === "show") return "version = 4\n";
+    if (args[0] === "cat-file") return "ordinary source commit\n";
     assert.equal(args[2], approval.reconfirmedHead);
     return changes;
   };

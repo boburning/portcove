@@ -1,4 +1,5 @@
 import { errorMessage, isRecord } from "./runtime-values.mts";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 // One owner-approved disposition, not a general advisory exception mechanism.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -43,9 +44,13 @@ function command(commandName: string, args: string[], cwd: string) {
     timeout: coordinatorCommandTimeout(120_000),
     maxBuffer: 32 * 1024 * 1024,
     windowsHide: true,
-  }).trim();
+  });
   checkCoordinatorDeadline();
-  return result;
+  // Preparation verification hashes raw commit/blob bytes, including their
+  // final newline. Control responses keep the existing trimmed convention.
+  return commandName === "git" && ["cat-file", "show"].includes(args[0] ?? "")
+    ? result
+    : result.trim();
 }
 
 interface CargoPackage706 {
@@ -137,9 +142,19 @@ export function candidate706(cwd = root, execute: Execute706 = command) {
     !sha.test(approval.reconfirmedHead)
   )
     throw new Error("#706 source review baseline missing");
+  const versionPreparation = inspectRiskVersionPreparation706(head, (args) =>
+    execute("git", [...args], cwd),
+  );
   const productionChanges = execute(
     "git",
-    ["diff", "--name-only", approval.reconfirmedHead, "HEAD", "--", ...nativePaths],
+    [
+      "diff",
+      "--name-only",
+      approval.reconfirmedHead,
+      versionPreparation?.source_commit ?? "HEAD",
+      "--",
+      ...nativePaths,
+    ],
     cwd,
   );
   const rawMetadata: unknown = JSON.parse(
@@ -196,6 +211,7 @@ export function candidate706(cwd = root, execute: Execute706 = command) {
     features: ["default", "tauri/custom-protocol"],
     productionChanges,
     reviewedHead: approval.reconfirmedHead,
+    ...(versionPreparation ? { versionPreparation } : {}),
     native,
   };
 }

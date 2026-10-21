@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { inspectRiskVersionPreparation706 } from "./linux-beta-risk-706-preparation.mts";
 import {
   coordinatorCommandTimeout,
   checkCoordinatorDeadline,
@@ -153,10 +154,17 @@ export async function materializeReleaseQualificationSource(
     !/^[a-f0-9]{40}$/u.test(approval.reconfirmedHead)
   )
     throw new Error("candidate source qualification approval baseline unavailable");
-  // Existing #706 checks compare this exact source baseline. A depth-one fetch
-  // avoids copying unrelated history and never changes the source repository.
-  if (approval.reconfirmedHead !== commit) {
-    const baseline = git(sourceRepository, ["ls-tree", "-r", "-l", "-z", approval.reconfirmedHead])
+  // Verify the deterministic transform before importing its one exact parent.
+  // These depth-one roots do not copy unrelated history or mutate the source.
+  const preparation = inspectRiskVersionPreparation706(commit, (args) =>
+    git(sourceRepository, [...args], 16 * 1024 ** 2).toString("utf8"),
+  );
+  const baselines = new Set([approval.reconfirmedHead, preparation?.source_commit]);
+  baselines.delete(undefined);
+  baselines.delete(commit);
+  for (const baselineCommit of baselines) {
+    if (!baselineCommit) continue;
+    const baseline = git(sourceRepository, ["ls-tree", "-r", "-l", "-z", baselineCommit])
       .toString("utf8")
       .split("\0")
       .filter(Boolean);
@@ -178,7 +186,7 @@ export async function materializeReleaseQualificationSource(
       "--no-tags",
       "--depth=1",
       sourceRepository,
-      approval.reconfirmedHead,
+      baselineCommit,
     ]);
   }
   if (
