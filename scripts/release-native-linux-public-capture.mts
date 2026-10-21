@@ -100,7 +100,59 @@ export async function captureActualLinuxPublicJourney(claim: object) {
     parent = selected.parent;
   assert.equal(process.platform, "win32");
   assert.equal(parent.descriptor.platform_label, "linux-x86_64");
-  assert.ok(selected.phase === "initial-v0-v1" || selected.phase === "park-v0-with-v1");
+  assert.ok(
+    selected.phase === "initial-v0-v1" ||
+      selected.phase === "park-v0-with-v1" ||
+      selected.phase === "continue-with-v2",
+  );
+  const continuation = selected.phase === "continue-with-v2";
+  let parked: {
+    invocation_id: string;
+    wire_sha256: string;
+    manifest_sha256: string;
+    version: string;
+    package: { bytes: number; sha256: string };
+  } | null = null;
+  let parkedCapture: { path: string; bytes: number; sha256: string } | null = null;
+  if (continuation) {
+    const previous = selected.previous_settled_capture,
+      old = selected.parked_package;
+    assert.ok(
+      previous &&
+        old &&
+        previous.marker.phase === "park-v0-with-v1" &&
+        previous.settled.proof_outcome === "completed",
+    );
+    const wire = previous.settled.wire;
+    assert.ok(wire);
+    const manifest = previous.settled.files.find(
+      (file) => file.path === "guest-capture/public-journey/profile-snapshot/profile.json",
+    );
+    assert.ok(manifest && manifest.bytes > 0 && manifest.bytes <= 1024 * 1024);
+    parked = {
+      invocation_id: previous.marker.invocation_id,
+      wire_sha256: wire.sha256,
+      manifest_sha256: manifest.sha256,
+      version: old.identity.version,
+      package: { bytes: old.identity.package.bytes, sha256: old.identity.package.sha256 },
+    };
+    parkedCapture = {
+      path: path.join(previous.directory, wire.path),
+      bytes: wire.bytes,
+      sha256: wire.sha256,
+    };
+    // Immutable inputs plus original wire reconstruction and the new export are
+    // bounded separately from the candidate's unchanged 512MiB tmpfs.
+    assert.ok(
+      selected.prior_package.identity.package.bytes +
+        selected.candidate_package.identity.package.bytes +
+        wire.bytes +
+        2 * 256 * 1024 * 1024 +
+        8 * 1024 * 1024 <=
+        2 * 1024 * 1024 * 1024,
+      "trusted continuation staging cannot fit its existing 2GiB envelope",
+    );
+  }
   assert.equal(
     fileURLToPath(import.meta.url),
     path.join(parent.controller_root, "scripts/release-native-linux-public-capture.mts"),
@@ -190,6 +242,7 @@ export async function captureActualLinuxPublicJourney(claim: object) {
   }
   await requireActualPublicJourneyInvocation(claim);
   const journey = {
+    ...(parked ? { parked } : {}),
     candidate: {
       path: `${guest}/packages/Candidate.AppImage`,
       bytes: selected.candidate_package.identity.package.bytes,
@@ -210,13 +263,13 @@ export async function captureActualLinuxPublicJourney(claim: object) {
     },
   };
   inspectPublicNativeLinuxBinding({
-    schema_version: 1,
+    schema_version: continuation ? 2 : 1,
     session: binding,
     ...Object.fromEntries(Object.entries(journey).filter(([key]) => key !== "versions")),
   });
   const planBytes = Buffer.from(
     JSON.stringify({
-      schema_version: 3,
+      schema_version: continuation ? 4 : 3,
       invocation_id: invocation,
       stage: "ordinary-public-update",
       stage_request_sha256: selected.request_sha256,
@@ -256,7 +309,8 @@ export async function captureActualLinuxPublicJourney(claim: object) {
   ] as const)
     await writeFile(path.join(directory, name), bytes, { flag: "wx", mode: 0o600 });
   const driverPlan = {
-    schema_version: 3,
+    schema_version: continuation ? 4 : 3,
+    ...(parkedCapture ? { parked_capture: parkedCapture } : {}),
     invocation_id: invocation,
     request_sha256: sha(requestBytes),
     plan_sha256: sha(planBytes),

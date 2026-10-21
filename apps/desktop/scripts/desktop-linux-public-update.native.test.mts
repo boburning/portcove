@@ -9,7 +9,34 @@ import path from "node:path";
 import {
   inspectLinuxPublicRuntime,
   assertLinuxPublicUserStatePreserved,
+  inspectLinuxPublicPreNativeRequest,
+  inspectRetainedLinuxPublicState,
 } from "./desktop-linux-public-update.mts";
+void test("old restart preimage cannot conceal started, ambiguous or unrelated native effects", () => {
+  const raw = {
+    schema_version: 1,
+    revision: 1,
+    intent: { request: "restart-to-apply" },
+    termination: "restart-to-apply",
+    native_launch: null,
+    native_replacement: null,
+    native_exit_code: null,
+  };
+  const parsed = inspectLinuxPublicPreNativeRequest(raw);
+  assert.equal(parsed.authority, "none");
+  assert.equal(parsed.revision, 1);
+  for (const changed of [
+    { native_launch: "starting" },
+    { native_launch: "failed" },
+    { native_replacement: {} },
+    { native_exit_code: 0 },
+    { termination: "crash" },
+    { intent: null },
+    { revision: 0 },
+    { intent: { request: "safe-exit" } },
+  ])
+    assert.throws(() => inspectLinuxPublicPreNativeRequest({ ...raw, ...changed }));
+});
 import {
   createNativePublicJourneyBudget,
   nativePublicRelayLimiter,
@@ -487,6 +514,14 @@ void test("Linux semantic choices cannot conceal a moved WebKit or library profi
     rendered_theme: "light",
     update_preferences: { schema_version: 1, choice: { channel: "preview", mode: "manual" } },
   };
+  assert.deepEqual(inspectRetainedLinuxPublicState(before), before);
+  for (const changed of [
+    { application_url: "https://foreign.invalid/" },
+    { application_origin: "http://tauri.localhost" },
+    { favorites: [] },
+    { update_preferences: null },
+  ])
+    assert.throws(() => inspectRetainedLinuxPublicState({ ...before, ...changed }));
   assert.doesNotThrow(() =>
     assertLinuxPublicUserStatePreserved(before, { ...before, application_version: "1.0.0-beta.2" }),
   );
