@@ -1041,25 +1041,7 @@ impl Executor<'_, '_> {
                 actions.require_observed(&observed)?;
                 return Ok(());
             }
-            let smaller = if let Some(objects) = actions.split_objects() {
-                objects.to_vec()
-            } else {
-                vec![
-                    actions
-                        .helpers
-                        .first()
-                        .ok_or_else(|| {
-                            PortcoveError::verification("CVLoD helper closure made no progress")
-                        })?
-                        .target
-                        .clone(),
-                ]
-            };
-            if smaller == targets {
-                return Err(PortcoveError::verification(
-                    "CVLoD helper closure cannot fit its process scope",
-                ));
-            }
+            let smaller = actions.smaller_targets(targets)?;
             self.bounded_build(plan, build, &smaller, depth + 1, quiesced)?;
         }
         Err(PortcoveError::verification(

@@ -122,6 +122,86 @@ mod tests {
     }
 
     #[test]
+    fn cvlod_helper_requests_repreflight_expanded_dependencies_within_existing_limits() {
+        let fixed: BTreeMap<String, Vec<String>> =
+            serde_json::from_str(include_str!("objects.json")).unwrap();
+        let aliases: BTreeMap<String, String> =
+            serde_json::from_str(include_str!("object-aliases.json")).unwrap();
+        let helpers: BTreeMap<String, Vec<Helper>> =
+            serde_json::from_str(include_str!("helpers.json")).unwrap();
+        let plan = Plan {
+            objects: fixed["game"]
+                .iter()
+                .map(|object| aliases.get(object).unwrap_or(object).clone())
+                .collect(),
+            helpers: helpers["game"].clone(),
+            manifest_sha256: String::new(),
+            rules_sha256: String::new(),
+        };
+        let actual = plan
+            .actions(include_str!("fixtures/a14-shader-prerequisites.txt"), true)
+            .unwrap();
+        // Overflowing compiler dependencies split before selecting helpers.
+        assert_eq!(
+            actual.smaller_targets(&actual.objects).unwrap(),
+            actual.objects[..2]
+        );
+        let expanded = Actions {
+            objects: actual.objects[..2].to_vec(),
+            helpers: actual.helpers.clone(),
+        };
+        let prefix = expanded.smaller_targets(&expanded.objects).unwrap();
+        // Independent retained generator order, not helpers.json order.
+        assert_eq!(
+            prefix,
+            [
+                "file_to_c.exe",
+                "rt64/src/contrib/re-spirv/re-spirv.lib",
+                "rt64/src/contrib/nativefiledialog-extended/src/nfd.lib",
+                "rt64/src/contrib/zstd/build/cmake/lib/zstd_static.lib",
+                "rt64/src/contrib/plume/plume.lib",
+                "src/shaders/RenderParams.hlsli.rw",
+                "src/shaders/RasterPSLibrary.hlsl.dxil",
+                "src/shaders/RasterPSLibraryMS.hlsl.dxil",
+            ]
+        );
+        assert_eq!(
+            Plan::ninja_arguments(Path::new("C:/private"), &prefix, true).unwrap()[2],
+            "-j2"
+        );
+        let mut closure = Actions {
+            objects: actual.objects[..3].to_vec(),
+            helpers: actual.helpers[..8].to_vec(),
+        };
+        assert!(!closure.bounded());
+        assert_eq!(
+            closure.smaller_targets(&prefix).unwrap(),
+            actual.objects[..2]
+        );
+        closure.objects.truncate(2);
+        assert!(closure.bounded());
+        assert!(closure.require_observed(&closure).is_ok());
+        closure.helpers.push(actual.helpers[8].clone());
+        assert!(!closure.bounded());
+        // A ninth expanded helper cannot execute or recurse on the same prefix.
+        assert!(closure.require_observed(&closure).is_err());
+        assert!(closure.smaller_targets(&prefix).is_err());
+        closure.objects.clear();
+        assert!(closure.smaller_targets(&prefix).is_err());
+        closure.helpers.clear();
+        assert!(closure.smaller_targets(&prefix).is_err());
+        let pure = Actions {
+            objects: plan.objects[..9].to_vec(),
+            helpers: vec![],
+        };
+        assert!(!pure.bounded());
+        assert_eq!(
+            pure.smaller_targets(&pure.objects).unwrap(),
+            plan.objects[..8]
+        );
+    }
+
+    #[test]
     fn cvlod_object_batch_arguments_keep_two_compilers_and_a_finite_target_limit() {
         let targets = plan().objects;
         let build = Path::new("C:/private-build");
@@ -408,6 +488,29 @@ impl Actions {
     pub(super) fn split_objects(&self) -> Option<&[String]> {
         let limit = self.object_limit();
         (self.objects.len() > limit).then(|| &self.objects[..limit])
+    }
+    /// Select requests for another complete preflight, not an executable closure.
+    pub(super) fn smaller_targets(&self, current: &[String]) -> Result<Vec<String>> {
+        let smaller = if let Some(objects) = self.split_objects() {
+            objects.to_vec()
+        } else {
+            self.helpers
+                .iter()
+                .take(8)
+                .map(|helper| helper.target.clone())
+                .collect()
+        };
+        if smaller.is_empty() {
+            return Err(PortcoveError::verification(
+                "CVLoD helper closure made no progress",
+            ));
+        }
+        if smaller == current {
+            return Err(PortcoveError::verification(
+                "CVLoD helper closure cannot fit its process scope",
+            ));
+        }
+        Ok(smaller)
     }
     pub(super) fn require_observed(&self, observed: &Self) -> Result<()> {
         if !observed.bounded() || observed.identities() != self.identities() {
