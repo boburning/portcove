@@ -15,6 +15,9 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field, Fieldset } from "./ui/field";
+import { Checkbox } from "./ui/checkbox";
+import { ActionRow } from "./ui/patterns";
 
 function steamChangeLabel(kind: SteamEntryReview["changes"][number]["kind"]) {
   const labels: Record<SteamEntryReview["changes"][number]["kind"], string> = {
@@ -311,19 +314,18 @@ export function SteamBatchEntryDialog({
         </DialogDescription>
         {!result && (
           <>
-            <fieldset disabled={Boolean(pending)} className="mb-4">
-              <legend className="mb-2 font-bold">Installed games</legend>
+            <Fieldset legend="Installed games" disabled={Boolean(pending)} className="mb-4">
               {ports.map((port) => (
-                <label key={port.id} className="flex items-center gap-2 py-1">
-                  <input
+                <label
+                  key={port.id}
+                  className="flex min-h-10 cursor-pointer items-center gap-3 py-2"
+                >
+                  <Checkbox
                     data-focusable
-                    type="checkbox"
                     checked={selectedIds.includes(port.id)}
-                    onChange={(event) => {
+                    onCheckedChange={(checked) => {
                       setSelectedIds((current) =>
-                        event.target.checked
-                          ? [...current, port.id]
-                          : current.filter((id) => id !== port.id),
+                        checked ? [...current, port.id] : current.filter((id) => id !== port.id),
                       );
                       resetReview();
                     }}
@@ -331,7 +333,7 @@ export function SteamBatchEntryDialog({
                   {port.name}
                 </label>
               ))}
-            </fieldset>
+            </Fieldset>
             <SteamProfileFields
               key={generation}
               idPrefix="steam-batch"
@@ -465,33 +467,29 @@ function SteamProfileFields({
   };
   return (
     <>
-      <label
-        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-        htmlFor={`${idPrefix}-installation`}
-      >
-        Steam installation folder
-      </label>
-      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
-        <Input
-          data-focusable
-          id={`${idPrefix}-installation`}
-          value={steamRoot}
-          disabled={pending}
-          onChange={(event) => {
-            changeRoot(event.target.value);
-          }}
-          placeholder="C:\\Program Files (x86)\\Steam"
-        />
-        <Button
-          data-focusable
-          variant="outline"
-          disabled={pending}
-          onClick={() => void chooseSteam()}
-        >
-          <Icon glyph={FolderOpen} />
-          Choose folder
-        </Button>
-      </div>
+      <Field label="Steam installation folder" className="mb-3">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+          <Input
+            data-focusable
+            id={`${idPrefix}-installation`}
+            value={steamRoot}
+            disabled={pending}
+            onChange={(event) => {
+              changeRoot(event.target.value);
+            }}
+            placeholder="C:\\Program Files (x86)\\Steam"
+          />
+          <Button
+            data-focusable
+            variant="outline"
+            disabled={pending}
+            onClick={() => void chooseSteam()}
+          >
+            <Icon glyph={FolderOpen} />
+            Choose folder
+          </Button>
+        </div>
+      </Field>
       <Button
         data-focusable
         variant="outline"
@@ -508,44 +506,46 @@ function SteamProfileFields({
           ) : (
             <>
               <p className="mb-2">Select the exact local profile:</p>
-              {profiles.map((id) => (
-                <Button
-                  key={id}
-                  data-focusable
-                  variant={id === steamUserId ? "primary" : "outline"}
-                  disabled={pending}
-                  aria-pressed={id === steamUserId}
-                  onClick={() => {
-                    setSteamUserId(id);
-                    resetReview();
-                  }}
-                >
-                  {id}
-                </Button>
-              ))}
+              <ActionRow>
+                {profiles.map((id) => (
+                  <Button
+                    key={id}
+                    data-focusable
+                    variant={id === steamUserId ? "selected" : "outline"}
+                    disabled={pending}
+                    aria-pressed={id === steamUserId}
+                    onClick={() => {
+                      setSteamUserId(id);
+                      resetReview();
+                    }}
+                  >
+                    {id}
+                  </Button>
+                ))}
+              </ActionRow>
             </>
           )}
         </div>
       )}
-      <label
-        className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-        htmlFor={`${idPrefix}-profile`}
+      <Field
+        label="Steam profile ID"
+        description="Use the numeric folder name under Steam userdata."
+        className="max-w-sm"
       >
-        Steam profile ID
-      </label>
-      <Input
-        data-focusable
-        id={`${idPrefix}-profile`}
-        inputMode="numeric"
-        pattern="[0-9]+"
-        value={steamUserId}
-        disabled={pending}
-        onChange={(event) => {
-          setSteamUserId(event.target.value);
-          resetReview();
-        }}
-        placeholder="Numeric folder under Steam userdata"
-      />
+        <Input
+          data-focusable
+          id={`${idPrefix}-profile`}
+          inputMode="numeric"
+          pattern="[0-9]+"
+          value={steamUserId}
+          disabled={pending}
+          onChange={(event) => {
+            setSteamUserId(event.target.value);
+            resetReview();
+          }}
+          placeholder="Numeric folder under Steam userdata"
+        />
+      </Field>
       <p>
         Choose the Steam installation containing <code>userdata</code>, then find and select the
         exact local profile or enter its numeric folder ID. Portcove does not guess another profile

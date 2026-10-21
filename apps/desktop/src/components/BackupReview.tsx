@@ -1,4 +1,5 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
+import { useRef } from "react";
 import { useActionReview, type ReviewOutcome } from "../use-action-review";
 import { desktopApi } from "../api";
 import type { BackupAction, BackupRecord, BackupReview } from "../types";
@@ -26,6 +27,7 @@ export function BackupReviewDialog({
   close: () => void;
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const {
     preview: review,
     pending,
@@ -50,6 +52,7 @@ export function BackupReviewDialog({
       }}
     >
       <DialogContent
+        initialFocus={cancelButton}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="backup-review-description"
@@ -68,7 +71,7 @@ export function BackupReviewDialog({
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
           <Button
-            data-autofocus
+            ref={cancelButton}
             data-focusable
             variant="outline"
             disabled={pending === "apply"}

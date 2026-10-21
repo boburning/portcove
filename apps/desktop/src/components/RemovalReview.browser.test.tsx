@@ -2,6 +2,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { portDefinition, portStatus } from "../test-fixtures";
 import type { PortRemovalPreview } from "../types";
@@ -41,6 +42,37 @@ function dialog() {
   expect(result).not.toBeNull();
   return result!;
 }
+
+it("focuses the safe action through asynchronous review and returns to the opener on Escape", async () => {
+  let settle!: (value: PortRemovalPreview) => void;
+  vi.spyOn(desktopApi, "previewRemoval").mockReturnValue(
+    new Promise((resolve) => {
+      settle = resolve;
+    }),
+  );
+  await root.rerender(
+    <RemovalControl
+      port={port}
+      status={{
+        ...portStatus(),
+        port_actions: [{ action: "remove_managed", availability: "allowed", reason: "available" }],
+      }}
+      generation={7}
+      busy={false}
+      apply={vi.fn()}
+    />,
+  );
+  const opener = page.getByRole("button", { name: `Uninstall ${port.name}`, exact: true });
+  await opener.click();
+  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
+  expect(dialog().textContent).toContain("Checking installed versions");
+  await act(async () => settle(review));
+  expect(dialog().textContent).toContain(review.persistent_data_path);
+  expect(document.activeElement?.textContent).toBe("Cancel");
+  await userEvent.keyboard("{Escape}");
+  await expect.poll(() => document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+  await expect.element(opener).toHaveFocus();
+});
 
 it.each(
   [
@@ -93,7 +125,7 @@ it("lists every affected path, removed settings and preserved data before explic
     expect(dialog().textContent).toContain(text);
   expect(dialog().textContent).toContain("original folders used for copied installations");
   expect(dialog().textContent?.toLowerCase()).not.toContain("adoption");
-  expect(dialog().querySelector("[data-autofocus]")?.textContent).toBe("Cancel");
+  await expect.poll(() => document.activeElement?.textContent).toBe("Cancel");
   await click("Uninstall all versions");
   expect(apply).toHaveBeenCalledExactlyOnceWith("reviewed-installations");
   expect(close).toHaveBeenCalledOnce();

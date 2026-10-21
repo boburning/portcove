@@ -22,6 +22,43 @@
   #root {
     isolation: isolate;
   }
+  .bootstrap-recovery {
+    block-size: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: clamp(var(--space-4), 5vw, var(--space-12));
+    scroll-padding-block: var(--space-4);
+  }
+  .bootstrap-recovery-content {
+    display: grid;
+    gap: var(--space-4);
+    max-inline-size: 42rem;
+    margin-inline: auto;
+    overflow-wrap: anywhere;
+  }
+  .bootstrap-recovery-content > button {
+    justify-self: start;
+    max-inline-size: 100%;
+    white-space: normal;
+  }
+  .bootstrap-recovery-details {
+    min-inline-size: 0;
+    border-block-start: 1px solid var(--color-border);
+    padding-block-start: var(--space-4);
+  }
+  .bootstrap-recovery-details summary {
+    color: var(--color-text-secondary);
+  }
+  .bootstrap-recovery-details textarea {
+    max-block-size: 35dvh;
+    overflow: auto;
+    margin-block-start: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-elevated);
+    font-size: var(--text-sm);
+  }
   h1,
   h2,
   h3,

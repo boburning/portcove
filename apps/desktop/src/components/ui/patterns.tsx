@@ -8,7 +8,7 @@ export function SettingsRow({ className, ...props }: ComponentProps<"article">) 
     <article
       data-slot="settings-row"
       className={cn(
-        "settings-row @container/row grid min-w-0 gap-3 border-t border-pc-border p-6 first:border-t-0",
+        "settings-row @container/row grid min-w-0 content-start gap-3 border-t border-pc-border p-4 first:border-t-0 sm:p-6 [&>h2]:text-base [&>p]:max-w-prose [&>p]:text-sm [&>p]:leading-relaxed",
         className,
       )}
       {...props}
@@ -45,5 +45,17 @@ export function Notice({
 
 /** Two-column facts; feature-specific breakpoints and item surfaces remain with their owner. */
 export function MetadataGrid({ className, ...props }: ComponentProps<"dl">) {
-  return <dl className={cn("m-0 grid grid-cols-2 gap-2", className)} {...props} />;
+  return (
+    <dl
+      className={cn(
+        "m-0 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 [&_dd]:min-w-0 [&_dd]:break-words [&_dt]:text-sm [&_dt]:text-pc-muted-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export function ActionRow({ className, ...props }: ComponentProps<"div">) {
+  return <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)} {...props} />;
 }

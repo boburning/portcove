@@ -1,5 +1,5 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { desktopApi } from "../api";
 import type { DoctorReport, PortDefinition, PreparationCleanupPreview } from "../types";
 import { useActionReview } from "../use-action-review";
@@ -264,6 +264,7 @@ function PreparationCleanupDialog({
   changed: () => Promise<unknown>;
   close: () => void;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
     identity: `${operationId}:${generation}`,
     load: () => desktopApi.previewPreparationCleanup(operationId, generation),
@@ -289,6 +290,7 @@ function PreparationCleanupDialog({
       }}
     >
       <DialogContent
+        initialFocus={cancelButton}
         showCloseButton={false}
         reviewSize="wide"
         aria-describedby="preparation-cleanup-description"
@@ -308,7 +310,7 @@ function PreparationCleanupDialog({
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
           <Button
-            data-autofocus
+            ref={cancelButton}
             data-focusable
             variant="outline"
             disabled={pending === "apply"}

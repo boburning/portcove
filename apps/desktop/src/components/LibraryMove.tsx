@@ -9,6 +9,7 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field } from "./ui/field";
 
 export function LibraryMoveButton({ disabled }: { disabled: boolean }) {
   const [open, setOpen] = useState(false);
@@ -88,31 +89,35 @@ function LibraryMoveDialog({ close }: { close: () => void }) {
           locations available.
         </DialogDescription>
         <NavigationHints />
-        <label htmlFor="library-destination">New library folder</label>
-        <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
-          <Input
-            data-autofocus
-            data-focusable
-            id="library-destination"
-            value={destination}
-            disabled={Boolean(busy) || Boolean(recoveryRoot)}
-            onChange={(event) => {
-              setDestination(event.target.value);
-              setPlan(undefined);
-            }}
-            placeholder="Full path to a new folder"
-          />
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy) || Boolean(recoveryRoot)}
-            onClick={() => {
-              void browse();
-            }}
-          >
-            Choose parent folder
-          </Button>
-        </div>
+        <Field
+          label="New library folder"
+          description="Choose a new folder with enough space for the verified copy."
+        >
+          <div className="grid min-w-0 gap-2 min-[48rem]:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+            <Input
+              data-autofocus
+              data-focusable
+              id="library-destination"
+              value={destination}
+              disabled={Boolean(busy) || Boolean(recoveryRoot)}
+              onChange={(event) => {
+                setDestination(event.target.value);
+                setPlan(undefined);
+              }}
+              placeholder="Full path to a new folder"
+            />
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy) || Boolean(recoveryRoot)}
+              onClick={() => {
+                void browse();
+              }}
+            >
+              Choose parent folder
+            </Button>
+          </div>
+        </Field>
         {plan && (
           <LibraryCopySummary plan={plan} source={plan.source_root} label="Library move plan" />
         )}

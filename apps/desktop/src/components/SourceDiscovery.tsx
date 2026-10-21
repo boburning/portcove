@@ -20,6 +20,7 @@ import { NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field } from "./ui/field";
 
 const scanLimits: SourceDiscoveryLimits = {
   max_entries: 10_000,
@@ -609,32 +610,28 @@ function SourceDiscoveryDialog({
             Search game-file folder
           </Button>
         </div>
-        <label
-          className="mb-2 block text-xs font-bold text-pc-muted-foreground"
-          htmlFor="source-search-root"
-        >
-          Search folder
-        </label>
-        <div className="flex items-stretch gap-2 [&_input]:min-w-0">
-          <Input
-            data-focusable
-            id="source-search-root"
-            value={root}
-            disabled={Boolean(busy)}
-            onChange={(event) => workflow.updateRoot(event.target.value)}
-            placeholder="Folder containing the required files"
-          />
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={Boolean(busy)}
-            onClick={() => {
-              void workflow.chooseRoot();
-            }}
-          >
-            Choose folder
-          </Button>
-        </div>
+        <Field label="Search folder">
+          <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+            <Input
+              data-focusable
+              id="source-search-root"
+              value={root}
+              disabled={Boolean(busy)}
+              onChange={(event) => workflow.updateRoot(event.target.value)}
+              placeholder="Folder containing the required files"
+            />
+            <Button
+              data-focusable
+              variant="outline"
+              disabled={Boolean(busy)}
+              onClick={() => {
+                void workflow.chooseRoot();
+              }}
+            >
+              Choose folder
+            </Button>
+          </div>
+        </Field>
         {busy && <p role="status">{busy}</p>}
         {notice && <p role="status">{notice}</p>}
         {operationId && (

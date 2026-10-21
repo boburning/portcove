@@ -1,4 +1,4 @@
-import { MetadataGrid } from "./ui/patterns";
+import { ActionRow, MetadataGrid } from "./ui/patterns";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, FolderOpen, HardDrive, RotateCcw, ShieldCheck } from "lucide-react";
 import { desktopApi } from "../api";
@@ -15,6 +15,7 @@ import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
+import { Field } from "./ui/field";
 
 const outputReviewClass =
   "output-location-review grid gap-3 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-4";
@@ -323,38 +324,33 @@ export function OutputLocationControl({
         Future installs use this folder by default. Existing versions will not move. Relocation is a
         separate reviewed action.
       </p>
-      <label
-        htmlFor={`output-location-path-${portId}`}
-        className="text-xs font-bold text-[var(--color-text-secondary)]"
+      <Field
+        label="Folder for future installs"
+        description="Portcove will check whether this folder can be used. Checking does not create or move files."
       >
-        Folder for future installs
-      </label>
-      <div className="flex items-stretch gap-2 [&_input]:min-w-0">
-        <Input
-          id={`output-location-path-${portId}`}
-          data-focusable
-          value={draft}
-          disabled={!location || controlsDisabled}
-          onChange={(event) => invalidate(event.target.value)}
-          aria-describedby={`output-location-note-${portId}`}
-        />
-        <Button
-          data-focusable
-          variant="outline"
-          type="button"
-          disabled={!location || controlsDisabled || pending === "review"}
-          onClick={() => {
-            void pick();
-          }}
-        >
-          <Icon glyph={FolderOpen} />
-          Browse
-        </Button>
-      </div>
-      <small className="leading-[var(--leading-normal)]" id={`output-location-note-${portId}`}>
-        Portcove will check whether this folder can be used. Checking does not create or move files.
-      </small>
-      <div className="button-row">
+        <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] [&_input]:min-w-0">
+          <Input
+            id={`output-location-path-${portId}`}
+            data-focusable
+            value={draft}
+            disabled={!location || controlsDisabled}
+            onChange={(event) => invalidate(event.target.value)}
+          />
+          <Button
+            data-focusable
+            variant="outline"
+            type="button"
+            disabled={!location || controlsDisabled || pending === "review"}
+            onClick={() => {
+              void pick();
+            }}
+          >
+            <Icon glyph={FolderOpen} />
+            Browse
+          </Button>
+        </div>
+      </Field>
+      <ActionRow>
         <Button
           ref={reviewButton}
           data-focusable
@@ -380,7 +376,7 @@ export function OutputLocationControl({
             Review library default
           </Button>
         )}
-      </div>
+      </ActionRow>
       {preview && (
         <OutputLocationReview
           preview={preview}

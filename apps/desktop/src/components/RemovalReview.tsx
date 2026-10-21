@@ -1,5 +1,5 @@
 import { ActionReviewFailure } from "./ActionReviewFailure";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { desktopApi } from "../api";
 import type { PortDefinition, PortStatus } from "../types";
@@ -62,6 +62,7 @@ export function RemovalReviewDialog({
   apply: ApplyRemoval;
   close: () => void;
 }) {
+  const cancelButton = useRef<HTMLButtonElement>(null);
   const {
     preview,
     pending,
@@ -85,6 +86,7 @@ export function RemovalReviewDialog({
       }}
     >
       <DialogContent
+        initialFocus={cancelButton}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="removal-review-description"
@@ -138,6 +140,7 @@ export function RemovalReviewDialog({
         )}
         <ActionReviewFailure error={error} />
         <ReviewedRemovalFooter
+          cancelRef={cancelButton}
           hasPreview={Boolean(preview)}
           pending={pending}
           dismiss={dismiss}
