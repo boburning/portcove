@@ -43,14 +43,54 @@ function Assert-OwnerPath([string]$Path, [bool]$Directory, [bool]$Protected, [bo
 $pathsBytes = [Convert]::FromBase64String($ProtectedPathsBase64)
 if ($pathsBytes.Length -gt 8192) { throw 'Native custody path inventory exceeds bound' }
 $paths = [Text.UTF8Encoding]::new($false,$true).GetString($pathsBytes) | ConvertFrom-Json
-if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne 'authorities,boundary,capture,controller,descriptor,installation,native_issuer,source_reader,source_tool') { throw 'Native custody path inventory differs' }
+$expectedPathNames=@('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader','source_tool')
+if($paths.PSObject.Properties.Name -ccontains 'public_boundary'){$expectedPathNames+=@('public_boundary')}
+if ((@($paths.PSObject.Properties.Name | Sort-Object) -join ',') -cne (($expectedPathNames|Sort-Object)-join ',')) { throw 'Native custody path inventory differs' }
 $custody = [ordered]@{}
-foreach ($name in @('authorities','boundary','capture','controller','descriptor','installation','native_issuer','source_reader','source_tool')) {
+foreach ($name in $expectedPathNames) {
     $isDirectory = $name -in @('capture','controller')
     $custody[$name] = Assert-OwnerPath ([string]$paths.$name) $isDirectory $isDirectory ($name -in @('native_issuer','source_reader'))
 }
 Assert-OwnerPath $PSCommandPath $false $false | Out-Null
 if (-not [string]::Equals([IO.Path]::GetFullPath((Join-Path $paths.controller 'scripts')),[IO.Path]::GetFullPath($PSScriptRoot),[StringComparison]::OrdinalIgnoreCase)) { throw 'Native reader is outside protected controller staging' }
+
+function Read-PublicAccountRoot([string]$Path,[string]$AccountSid) {
+    $full=[IO.Path]::GetFullPath($Path)
+    $item=Get-Item -LiteralPath $full -Force
+    $acl=Get-Acl -LiteralPath $full
+    $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $allowed=@($broker,$AccountSid,'S-1-5-18','S-1-5-32-544')
+    $owner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+    if(-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or -not $acl.AreAccessRulesProtected -or $owner -notin @($broker,$AccountSid)){throw 'Public account directory kind/owner/protection differs'}
+    foreach($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
+        if($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin $allowed){throw 'Public account directory accessible by another identity'}
+    }
+    $cursor=[IO.Path]::GetDirectoryName($full);$depth=0
+    $replace=[Security.AccessControl.FileSystemRights]'DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership'
+    while($cursor){
+        if(++$depth -gt 64){throw 'Public root ancestry exceeds bound'}
+        $ancestor=Get-Item -LiteralPath $cursor -Force
+        if($ancestor.Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Public account root ancestry aliased'}
+        foreach($rule in (Get-Acl -LiteralPath $cursor).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){
+            if(($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and $rule.AccessControlType -eq 'Allow' -and ($rule.FileSystemRights -band $replace) -and $rule.IdentityReference.Value -notin ($allowed+@('S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'))){throw 'Public account root ancestor permits foreign replacement'}
+        }
+        $next=[IO.Path]::GetDirectoryName($cursor);if(-not $next -or $next -eq $cursor){break};$cursor=$next
+    }
+    [ordered]@{path=$Path;owner_sid=$owner;protected=$acl.AreAccessRulesProtected;isolated=$true}
+}
+$publicAccountObservation=$null
+if($paths.PSObject.Properties.Name -ccontains 'public_boundary'){
+    $public=Get-Content -LiteralPath $paths.public_boundary -Raw|ConvertFrom-Json
+    if($public.schema_version -ne 2 -or $public.purpose -cne 'ordinary-public-proof' -or $public.broker_sid -cne [Security.Principal.WindowsIdentity]::GetCurrent().User.Value){throw 'Public boundary purpose/broker differs'}
+    $user=Get-LocalUser -Name ([string]$public.account_name) -ErrorAction Stop
+    if($user.SID.Value -cne $public.account_sid -or -not $user.Enabled){throw 'Appointed local public account differs'}
+    $profileKey='Registry::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\'+$public.account_sid
+    $registered=[Environment]::ExpandEnvironmentVariables([string](Get-ItemProperty -LiteralPath $profileKey -Name ProfileImagePath -ErrorAction Stop).ProfileImagePath)
+    if(-not [string]::Equals([IO.Path]::GetFullPath($registered),[IO.Path]::GetFullPath($public.profile_root),[StringComparison]::OrdinalIgnoreCase)){throw 'Public profile registration differs'}
+    $publicAccountObservation=[ordered]@{account_name=[string]$user.Name;account_sid=[string]$user.SID.Value;enabled=[bool]$user.Enabled;profile_registered=$true;
+        hku_loaded=[bool](Test-Path -LiteralPath ('Registry::HKEY_USERS\'+$public.account_sid));
+        profile=(Read-PublicAccountRoot ([string]$public.profile_root) ([string]$public.account_sid));work=(Read-PublicAccountRoot ([string]$public.work_root) ([string]$public.account_sid))}
+}
 
 function Read-ProcessIdentity([int]$ProcessIdentity) {
     $rows = @(Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$ProcessIdentity")
@@ -140,7 +180,9 @@ $finalParent = Read-ProcessIdentity $ParentProcessId
 if (($parent | ConvertTo-Json -Compress) -cne ($finalParent | ConvertTo-Json -Compress)) {
     throw 'Native parent changed during scheduler readback'
 }
-[ordered]@{schema_version=1; task=$before; reader=$self; chain=@($chain.ToArray()); custody=$custody;
+$result=[ordered]@{schema_version=1; task=$before; reader=$self; chain=@($chain.ToArray()); custody=$custody;
     current_sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;
     elevated=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator);
-    observed_at=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json -Depth 10 -Compress
+    observed_at=[DateTime]::UtcNow.ToString('o')}
+if($null -ne $publicAccountObservation){$result['public_account']=$publicAccountObservation}
+$result | ConvertTo-Json -Depth 10 -Compress

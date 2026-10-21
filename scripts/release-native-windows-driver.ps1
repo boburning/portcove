@@ -131,6 +131,9 @@ if($planValue.invocation_id -cnotmatch '^[a-f0-9]{64}$' -or
 Assert-DriverStageSelection $planValue
 $publicMode=$planValue.schema_version -eq 2
 $boundary=Read-DriverJson $planValue.boundary.path $planValue.boundary.sha256
+if($publicMode) {
+    if($boundary.schema_version -ne 2 -or $boundary.purpose -cne 'ordinary-public-proof'){throw 'Separate public account boundary required'}
+} elseif($boundary.schema_version -ne 1) {throw 'Primary native account boundary required'}
 $capture=Join-Path $boundary.capture_root ('native-attempt-'+$planValue.invocation_id)
 if([IO.Path]::GetFullPath($Plan) -cne (Join-Path $capture 'windows-plan.json') -or
     [IO.Path]::GetFullPath($PSScriptRoot) -cne (Join-Path $boundary.controller_root 'scripts')) {throw 'Native driver is outside the fixed parent/capture'}

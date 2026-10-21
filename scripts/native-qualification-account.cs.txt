@@ -61,6 +61,7 @@ namespace Portcove.NativeQualification {
             } finally { Native.CloseHandle(process); }
         }
     }
+    public enum AccountCredentialPurpose { NativeQualification = 0, OrdinaryPublicProof = 1 }
     public sealed class AccountConfiguration {
         public string UserName;
         public string AccountSid;
@@ -68,6 +69,7 @@ namespace Portcove.NativeQualification {
         public string ProfileRoot;
         public string WorkRoot;
         public string PrivateDesktop;
+        public AccountCredentialPurpose CredentialPurpose;
     }
 
     public sealed class TeardownObservation {
@@ -327,6 +329,15 @@ namespace Portcove.NativeQualification {
 
     public static class AccountLauncher {
         public const string CredentialTarget = "Portcove/native-qualification/local-account/v1";
+        public const string PublicProofCredentialTarget = "Portcove/public-update-proof/local-account/v1";
+        public static string CredentialTargetFor(AccountConfiguration config) {
+            if (config == null) throw new ArgumentNullException("config");
+            switch(config.CredentialPurpose) {
+                case AccountCredentialPurpose.NativeQualification: return CredentialTarget;
+                case AccountCredentialPurpose.OrdinaryPublicProof: return PublicProofCredentialTarget;
+                default: throw new ArgumentException("Unknown fixed account credential purpose");
+            }
+        }
         public static AccountGroup CreateGroup(AccountConfiguration config) {
             if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User) || config.BrokerSid == config.AccountSid)
                 throw new ArgumentException("Distinct configured account and actual broker required");
@@ -337,7 +348,7 @@ namespace Portcove.NativeQualification {
         public static SecureString ReadAccountCredential(AccountConfiguration config) {
             if (config == null || !new SecurityIdentifier(config.BrokerSid).Equals(WindowsIdentity.GetCurrent().User)) throw new ArgumentException("Wrong credential owner");
             IntPtr record;
-            if (!Native.CredReadW(CredentialTarget, 1, 0, out record)) throw Native.Error("fixed local account credential unavailable");
+            if (!Native.CredReadW(CredentialTargetFor(config), 1, 0, out record)) throw Native.Error("fixed local account credential unavailable");
             Native.Credential credential = new Native.Credential();
             try {
                 credential = Marshal.PtrToStructure<Native.Credential>(record);

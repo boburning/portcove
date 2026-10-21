@@ -423,3 +423,46 @@ completed idempotency, contradictory-history refusal and Windows continuation
 HOLD all passed. This is dispatch coverage only and cannot mint a real factory
 brand or native observation. Thirteen focused tests and three typed modules
 passed; actual host/setup/public acceptance remains pending.
+
+## Proposed dedicated Windows public boundary
+
+The retained B registration collision has a concrete proposed isolation boundary:
+one additional non-admin public-proof account, provisioned once under the final
+consolidated initial setup grant. Source now requires its separately hash-pinned
+boundary in the Windows public profile, inside protected controller staging.
+SID/name/profile/work must differ from the primary native account; both root
+ancestry directions and Windows canonical/case identity are checked. The broker,
+controller, helper and owner-only capture remain shared and exact. Primary
+native stages and their global qualification/Check identity stay unchanged.
+Public capture/registration expects the selected public SID and profile.
+
+The existing scheduler reader observes the extra owner-held boundary file and
+actual local-account/profile registration, protected isolated profile/work ACLs
+and HKU-loaded state. Candidate-writable roots cannot overlap either protected
+custody or the other account's roots. The actual helper still checks the loaded
+profile, SID/non-admin token, private desktop, process group and live public HKU
+inside each capture. Its closed credential-purpose selector preserves the
+primary target by default and gives the public account a second fixed broker
+Credential Manager target; no arbitrary target or password enters a request.
+
+Actual initial setup still requires an authorized operator to create the local
+non-admin account, establish its profile, configure isolated work/profile ACLs,
+store the separate credential under the ordinary broker and pin all resulting
+SID/path/hash/task/source records. Both account directions must actually refuse
+cross-writes, and actual logon/profile/HKU/private GUI/group teardown must be
+qualified. This work performed none of those OS actions. It adds no App, Check,
+coordinator journal, publication barrier, active-candidate relaxation or recurring
+admin/user step. The Windows V2 execution path remains the next source join.
+
+Initial focused checks retained two old-public-fixture failures because their
+new boundary pin was absent; those fixtures now model the explicit proposal.
+A new enum-negative fixture first failed while PowerShell rejected the invalid
+cast before the C# selector; Enum.ToObject now reaches and proves the selector's
+own refusal. The controlled ACL fixture first omitted the Force switch type;
+that fixture-only declaration is repaired. Those failures are retained, with
+no positive actual account or ACL observation inferred from the controlled tests.
+
+Final focused validation passed 27 setup/parent/scheduler/driver checks plus the
+separate compiled closed-credential-selector check, all with zero skips; eight
+affected TypeScript modules passed typed lint. The compilation/controlled ACL
+objects did not read credentials, log on another account or query its real ACLs.

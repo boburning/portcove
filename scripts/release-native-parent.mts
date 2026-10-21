@@ -53,7 +53,12 @@ function samePath(left: unknown, right: string) {
 export function inspectWindowsNativeParentSetup(raw: unknown) {
   exact(
     raw,
-    "authority_configuration,boundary_configuration,configuration_path,controller_root,controller_tree,descriptor,descriptor_sha256,installation_path,installation_record,transport_configuration",
+    isRecord(raw) &&
+      isRecord(raw.descriptor) &&
+      raw.descriptor.platform_label === "windows-x86_64" &&
+      isRecord(raw.descriptor.public_journey)
+      ? "authority_configuration,boundary_configuration,configuration_path,controller_root,controller_tree,descriptor,descriptor_sha256,installation_path,installation_record,public_boundary_configuration,transport_configuration"
+      : "authority_configuration,boundary_configuration,configuration_path,controller_root,controller_tree,descriptor,descriptor_sha256,installation_path,installation_record,transport_configuration",
   );
   const descriptor = inspectLocalNativeSetup(raw.descriptor);
   if (
@@ -115,6 +120,83 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
       String(descriptor.capture_root),
     );
   }
+  let publicBoundary;
+  if (descriptor.public_journey && descriptor.platform_label === "windows-x86_64") {
+    const nativeBoundary = raw.boundary_configuration;
+    exact(
+      nativeBoundary,
+      "account_name,account_sid,broker_sid,capture_root,controller_root,helper_sha256,profile_root,schema_version,work_root",
+    );
+    const reference = descriptor.public_journey.public_account_boundary;
+    if (!reference) throw new Error("separate protected Windows public account boundary required");
+    const relative = path.win32.relative(String(raw.controller_root), reference.path);
+    if (!relative || relative.startsWith("..") || path.win32.isAbsolute(relative))
+      throw new Error("public account boundary must be inside protected controller staging");
+    exact(
+      raw.public_boundary_configuration,
+      "account_name,account_sid,broker_sid,capture_root,controller_root,helper_sha256,profile_root,purpose,schema_version,work_root",
+    );
+    const value = raw.public_boundary_configuration;
+    if (
+      value.schema_version !== 2 ||
+      value.purpose !== "ordinary-public-proof" ||
+      value.broker_sid !== nativeBoundary.broker_sid ||
+      value.account_sid === nativeBoundary.account_sid ||
+      value.account_sid === nativeBoundary.broker_sid ||
+      typeof value.account_sid !== "string" ||
+      !/^S-1-5-21-(?:[0-9]+-){3}[0-9]+$/u.test(value.account_sid) ||
+      typeof value.account_name !== "string" ||
+      !/^[A-Za-z][A-Za-z0-9_-]{1,31}$/u.test(value.account_name) ||
+      value.account_sid.slice(0, value.account_sid.lastIndexOf("-")) !==
+        String(nativeBoundary.account_sid).slice(
+          0,
+          String(nativeBoundary.account_sid).lastIndexOf("-"),
+        ) ||
+      value.account_name.toLowerCase() === String(nativeBoundary.account_name).toLowerCase() ||
+      value.helper_sha256 !== nativeBoundary.helper_sha256 ||
+      !samePath(value.controller_root, String(raw.controller_root)) ||
+      !samePath(value.capture_root, descriptor.capture_root)
+    )
+      throw new Error(
+        "public account must be distinct with the same fixed broker/helper/controller/capture",
+      );
+    for (const pathname of [value.work_root, value.profile_root])
+      if (
+        typeof pathname !== "string" ||
+        !/^[A-Za-z]:\\/u.test(pathname) ||
+        path.win32.normalize(pathname) !== pathname ||
+        /[\r\n\0]/u.test(pathname)
+      )
+        throw new Error("public account roots must be canonical local Windows paths");
+    const roots = [
+      nativeBoundary.work_root,
+      nativeBoundary.profile_root,
+      value.work_root,
+      value.profile_root,
+      raw.controller_root,
+      descriptor.capture_root,
+    ];
+    for (let i = 0; i < roots.length; i++)
+      for (let j = i + 1; j < roots.length; j++) {
+        const a = roots[i],
+          b = roots[j];
+        if (
+          typeof a !== "string" ||
+          typeof b !== "string" ||
+          !/^[A-Za-z]:\\/u.test(a) ||
+          !/^[A-Za-z]:\\/u.test(b) ||
+          [path.win32.relative(a, b), path.win32.relative(b, a)].some(
+            (difference) =>
+              difference === "" ||
+              (!difference.startsWith("..") && !path.win32.isAbsolute(difference)),
+          )
+        )
+          throw new Error(
+            "public account work/profile must not overlap native or protected custody",
+          );
+      }
+    publicBoundary = structuredClone(value);
+  }
   if (
     fixed.producer.source_commit !== descriptor.controller_revision ||
     fixed.producer.source_tree !== raw.controller_tree
@@ -141,7 +223,21 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     native_issuer: transport.native_issuer.private_key,
     source_reader: transport.source_read_token,
     source_tool: transport.github_cli.path,
+    ...(publicBoundary
+      ? { public_boundary: descriptor.public_journey!.public_account_boundary!.path }
+      : {}),
   };
+  if (
+    publicBoundary &&
+    digest(scheduler.public_account) !==
+      digest({
+        account_name: publicBoundary.account_name,
+        account_sid: publicBoundary.account_sid,
+        profile_root: publicBoundary.profile_root,
+        work_root: publicBoundary.work_root,
+      })
+  )
+    throw new Error("installed scheduler must bind the separately appointed public account roots");
   // The hash-pinned installed action supplies this immutable descriptor. Its
   // argument strings cannot select a candidate report or alternate worker.
   const script = path.win32.join(String(raw.controller_root), "scripts/release-native-worker.mts");
@@ -157,6 +253,7 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
   return {
     scheduler: structuredClone(scheduler),
     boundary: structuredClone(boundary),
+    ...(publicBoundary ? { public_boundary: publicBoundary } : {}),
     scope: "integrity-only" as const,
     authority: "none" as const,
   };
@@ -174,6 +271,9 @@ function projectWindowsSetup(setup: Setup) {
     installation_path: setup.installation_path,
     installation_record: setup.installation_record,
     transport_configuration: setup.transport_configuration,
+    ...("public_boundary_configuration" in setup
+      ? { public_boundary_configuration: setup.public_boundary_configuration }
+      : {}),
   };
 }
 
@@ -293,5 +393,27 @@ export async function requireActualNativeParent(receipt: object) {
       : await requireActualLinuxNativeScheduler(value.scheduler),
     authority: "none" as const,
     scope: "actual fixed parent boundary; native result still required" as const,
+  };
+}
+
+/** A public run never casts the primary qualification account into this role.
+ * The actual scheduler's separately pinned file/ACL custody is checked by the
+ * ordinary parent before this closed public boundary is exposed. */
+export async function requireActualWindowsPublicParent(receipt: object) {
+  const parent = await requireActualNativeParent(receipt);
+  const projection = inspectWindowsNativeParentSetup(projectWindowsSetup(parent));
+  const reference = parent.descriptor.public_journey?.public_account_boundary;
+  if (
+    parent.descriptor.platform_label !== "windows-x86_64" ||
+    !projection.public_boundary ||
+    !reference
+  )
+    throw new Error("actual separate Windows public account boundary required");
+  return {
+    ...parent,
+    boundary_configuration: projection.public_boundary,
+    public_boundary_reference: reference,
+    scope:
+      "actual separately appointed public account boundary; no native Check authority" as const,
   };
 }

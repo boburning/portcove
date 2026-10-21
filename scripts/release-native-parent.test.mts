@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import path from "node:path";
 import {
   inspectWindowsNativeParentSetup,
   requireActualNativeParent,
   remainingNativeParentBudget,
+  requireActualWindowsPublicParent,
 } from "./release-native-parent.mts";
 import { inspectLocalNativeTransport } from "./release-local-native-setup.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
@@ -80,11 +82,24 @@ void test("public source tool pins must also reside in the scheduler-observed pr
   };
   const raw = {
     ...f,
+    public_boundary_configuration: {
+      ...f.boundary_configuration,
+      schema_version: 2,
+      purpose: "ordinary-public-proof",
+      account_name: "PortcovePublicProof",
+      account_sid: "S-1-5-21-1-2-3-1003",
+      work_root: "C:\\PublicProof\\work",
+      profile_root: "C:\\Users\\PortcovePublicProof",
+    },
     descriptor: {
       ...f.descriptor,
       schema_version: 2,
       public_journey: {
         profile: "ordinary-public-initial-cohort-v1",
+        public_account_boundary: {
+          path: path.win32.join(f.controller_root, "public-account.json"),
+          sha256: "a".repeat(64),
+        },
         public_build_inputs: {
           configuration_revision: "a".repeat(40),
           manifest_sha256: "b".repeat(64),
@@ -97,8 +112,63 @@ void test("public source tool pins must also reside in the scheduler-observed pr
       post_sign_verifier: tool("release-tools"),
       public_signature_control: tool("verify_packaged_application_update"),
     },
+    installation_record: {
+      scheduler: {
+        ...f.installation_record.scheduler,
+        public_account: {
+          account_name: "PortcovePublicProof",
+          account_sid: "S-1-5-21-1-2-3-1003",
+          work_root: "C:\\PublicProof\\work",
+          profile_root: "C:\\Users\\PortcovePublicProof",
+        },
+        protected_paths: {
+          ...f.installation_record.scheduler.protected_paths,
+          public_boundary: path.win32.join(f.controller_root, "public-account.json"),
+        },
+      },
+    },
   };
   assert.equal(inspectWindowsNativeParentSetup(raw).authority, "none");
+  assert.equal(
+    inspectWindowsNativeParentSetup(raw).public_boundary?.account_sid,
+    raw.public_boundary_configuration.account_sid,
+  );
+  for (const change of [
+    { account_sid: f.boundary_configuration.account_sid },
+    { account_sid: f.boundary_configuration.broker_sid },
+    { work_root: f.boundary_configuration.work_root },
+    { work_root: "c:\\portcove\\WORK" },
+    { work_root: "C:\\Portcove" },
+    { profile_root: "C:\\Users" },
+    { profile_root: "C:\\PublicProof\\work\\child" },
+    { work_root: "C:\\PublicProof\\alias\\..\\work" },
+    { profile_root: `${f.boundary_configuration.profile_root}\\nested` },
+    { work_root: `${f.controller_root}\\candidate` },
+    { purpose: "native-qualification" },
+    { broker_sid: "S-1-5-21-9-9-9-1001" },
+    { helper_sha256: "9".repeat(64) },
+  ])
+    assert.throws(() =>
+      inspectWindowsNativeParentSetup({
+        ...raw,
+        public_boundary_configuration: { ...raw.public_boundary_configuration, ...change },
+      }),
+    );
+  assert.throws(() =>
+    inspectWindowsNativeParentSetup({ ...raw, installation_record: f.installation_record }),
+  );
+  assert.throws(() =>
+    inspectWindowsNativeParentSetup({
+      ...raw,
+      descriptor: {
+        ...raw.descriptor,
+        public_journey: {
+          ...raw.descriptor.public_journey,
+          public_account_boundary: { path: "C:\\Mutable\\public.json", sha256: "a".repeat(64) },
+        },
+      },
+    }),
+  );
   for (const transport_configuration of [
     {
       ...raw.transport_configuration,
@@ -131,6 +201,13 @@ void test("public source tool pins must also reside in the scheduler-observed pr
         },
       }),
     /overlaps/,
+  );
+});
+
+void test("a copied primary/public boundary cannot mint an actual selected public parent", async () => {
+  await assert.rejects(
+    requireActualWindowsPublicParent({ boundary_configuration: { account_sid: "public" } }),
+    /actual installed native parent/,
   );
 });
 

@@ -14,7 +14,10 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
-import { remainingNativeParentBudget } from "./release-native-parent.mts";
+import {
+  remainingNativeParentBudget,
+  requireActualWindowsPublicParent,
+} from "./release-native-parent.mts";
 import { requireActualPublicWindowsCompilerIdentity } from "./release-native-public-compiler.mts";
 import {
   runActualPublicSignatureControl,
@@ -56,6 +59,7 @@ const publicCaptures = new WeakMap<
  * capability can be minted from this capture. */
 export async function captureActualWindowsPublicJourney(claim: object) {
   const selected = await requireActualPublicJourneyInvocation(claim);
+  const publicParent = await requireActualWindowsPublicParent(selected.parent_receipt);
   if (
     process.platform !== "win32" ||
     selected.parent.descriptor.platform_label !== "windows-x86_64" ||
@@ -106,7 +110,7 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     predecessor: null,
     invocation_id: selected.invocation_id,
     request_sha256: selected.request_sha256,
-    boundary: selected.parent.descriptor.native_boundary_configuration,
+    boundary: publicParent.public_boundary_reference,
     package: {
       path: selected.prior_package.path,
       bytes: selected.prior_package.identity.package.bytes,
@@ -122,6 +126,7 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     plan,
     async () => {
       await requireActualPublicJourneyInvocation(claim);
+      await requireActualWindowsPublicParent(selected.parent_receipt);
       await requireActualPublicSignatureControl(component);
     },
   );
@@ -143,6 +148,7 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
   const retained = publicCaptures.get(receipt);
   if (!retained) throw new Error("actual fixed parent Windows public capture required");
   const selected = await requireActualPublicJourneyInvocation(retained.claim);
+  const publicParent = await requireActualWindowsPublicParent(selected.parent_receipt);
   const raw: unknown = JSON.parse(
     (
       await readBoundedPublicBuildInputFile(retained.directory, "driver-result.json", 32768)
@@ -185,9 +191,9 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
   assert.equal(bridge.invocation_id, selected.invocation_id);
   assert.equal(binding.invocation_id, selected.invocation_id);
   assert.equal(bridge.configuration_sha256, binding.configuration_sha256);
-  const account = selected.parent.authority_configuration.native["windows-x86_64"].host.account;
-  assert.ok(isRecord(account));
-  assert.equal(binding.account_sid, account.qualification);
+  assert.equal(binding.account_sid, publicParent.boundary_configuration.account_sid);
+  assert.equal(binding.broker_pid, bridge.broker_pid);
+  assert.equal(binding.profile_root, publicParent.boundary_configuration.profile_root);
   const broker = driver.children.find((child) => child.role === "bridge");
   assert.ok(broker);
   assert.equal(bridge.broker_pid, broker.pid);

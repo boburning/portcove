@@ -90,7 +90,12 @@ export function inspectLocalNativeSetup(raw: unknown) {
   };
   let publicJourney;
   if (value.schema_version === 2) {
-    exact(value.public_journey, "profile,public_build_inputs");
+    exact(
+      value.public_journey,
+      value.platform_label === "windows-x86_64"
+        ? "profile,public_account_boundary,public_build_inputs"
+        : "profile,public_build_inputs",
+    );
     if (value.public_journey.profile !== "ordinary-public-initial-cohort-v1")
       throw new Error("fixed public journey profile differs");
     const publicInputs = value.public_journey.public_build_inputs;
@@ -105,6 +110,9 @@ export function inspectLocalNativeSetup(raw: unknown) {
         configuration_revision: identity.revision,
         manifest_sha256: identity.digest,
       },
+      ...(value.platform_label === "windows-x86_64"
+        ? { public_account_boundary: reference(value.public_journey.public_account_boundary) }
+        : {}),
     };
   }
   return {
@@ -369,12 +377,22 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
       )
     ).toString("utf8"),
   );
+  const publicBoundaryReference =
+    descriptor.public_journey && "public_account_boundary" in descriptor.public_journey
+      ? descriptor.public_journey.public_account_boundary
+      : undefined;
+  const publicBoundary: unknown = publicBoundaryReference
+    ? JSON.parse(
+        (await read(publicBoundaryReference.path, publicBoundaryReference.sha256)).toString("utf8"),
+      )
+    : undefined;
   const credentials = [transport.source_read_token, transport.native_issuer.private_key];
   const publicFiles = [
     configurationPath,
     installationPath,
     descriptor.authority_configuration.path,
     descriptor.native_boundary_configuration.path,
+    ...(publicBoundaryReference ? [publicBoundaryReference.path] : []),
   ];
   const parser = process.platform === "win32" ? path.win32 : path.posix;
   const normalize = (value: string) =>
@@ -384,6 +402,11 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     descriptor.capture_root,
     ...(isRecord(boundary)
       ? [boundary.work_root, boundary.profile_root].filter(
+          (value): value is string => typeof value === "string",
+        )
+      : []),
+    ...(isRecord(publicBoundary)
+      ? [publicBoundary.work_root, publicBoundary.profile_root].filter(
           (value): value is string => typeof value === "string",
         )
       : []),
@@ -476,6 +499,7 @@ async function readPinnedLocalNativeSetupBytes(configurationPath: string, expect
     authority_configuration: authority,
     authority_configuration_sha256: capacityDigest(authority),
     boundary_configuration: boundary,
+    ...(publicBoundaryReference ? { public_boundary_configuration: publicBoundary } : {}),
     configuration_path: configurationPath,
     installation_path: installationPath,
     installation_sha256: sha(installationBytes),
