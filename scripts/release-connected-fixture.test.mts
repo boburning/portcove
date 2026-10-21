@@ -810,9 +810,12 @@ void test(
       };
       const source = assemblyFixture.request.source_commit,
         tree = assemblyFixture.request.source_tree;
+      // One observation instant: publication cannot be newer than the planner
+      // snapshot merely because constructing this fixture crosses a clock tick.
+      const observedAt = new Date().toISOString();
       const input = {
         schema_version: 2,
-        now: new Date().toISOString(),
+        now: observedAt,
         active_candidate: null,
         published_metadata: published,
         controller: {
@@ -844,7 +847,7 @@ void test(
         },
         publication: {
           complete: true,
-          observed_at: new Date().toISOString(),
+          observed_at: observedAt,
           published_versions: [version],
           published_sources: [source],
           reserved_versions: [],
