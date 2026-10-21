@@ -2671,6 +2671,7 @@ import "../apps/desktop/scripts/desktop-webview-boundary.native.test.mts";
 import "../apps/desktop/scripts/desktop-windows-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-macos-installed-update.native.test.mts";
 import "../apps/desktop/scripts/desktop-appimage-update.native.test.mts";
+import "../apps/desktop/scripts/desktop-application-update-journey.native.test.mts";
 import "../apps/desktop/scripts/desktop-readiness.native.test.mts";
 
 import "../apps/desktop/scripts/desktop-default-cover.native.test.mts";
