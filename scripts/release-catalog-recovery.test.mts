@@ -186,7 +186,6 @@ void test("injected recovery join verifies existing public bytes and original ro
         handoffStart,
       );
     let publicReads = 0;
-    const actual = assemblies.get(receipt)!;
     const handoff = runInNewContext(
       stripTypeScriptTypes(
         deployment
