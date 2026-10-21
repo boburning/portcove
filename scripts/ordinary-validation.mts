@@ -596,6 +596,10 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ],
   ],
   ...[
+    "apps/desktop/scripts/native-linux-public-network.py",
+    "apps/desktop/scripts/native-linux-public-network.test.py",
+  ].map((name): [string, string[]] => [name, ["scripts/native-linux-public-network.test.mts"]]),
+  ...[
     "scripts/semantic-review-linux-supervisor.py",
     "scripts/semantic-review-linux-supervisor.test.py",
     "scripts/qualify-semantic-linux.mts",
