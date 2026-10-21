@@ -187,7 +187,7 @@ it.for([
         expect(variant.scrollHeight).toBeLessThanOrEqual(variant.clientHeight + 1);
       }
       const alignmentErrors: number[] = [];
-      if (width >= 1280) {
+      if (view === "library" && width >= 1280) {
         const alignedRows = new Map<number, number>();
         for (const row of projectRows) {
           const artworkTop = Math.round(
@@ -208,6 +208,18 @@ it.for([
         }
       }
       expect(Math.max(0, ...alignmentErrors)).toBeLessThan(1);
+      const identitySpacing =
+        view === "catalog"
+          ? projectRows.map((project) => ({
+              gap:
+                project.getBoundingClientRect().top -
+                project.parentElement!.querySelector("h2")!.getBoundingClientRect().bottom,
+              maximumGap: parseFloat(getComputedStyle(project).fontSize) * 1.5,
+            }))
+          : [];
+      expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual(
+        [],
+      );
       const fallback = document.querySelectorAll<HTMLElement>(".card-art")[4]!;
       expect(fallback.querySelector("img")).toBeNull();
       const palette = getComputedStyle(fallback).getPropertyValue("--art-color");
