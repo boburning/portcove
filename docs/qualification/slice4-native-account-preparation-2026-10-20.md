@@ -402,7 +402,6 @@ native Check, minimum-host qualification or public update journey. The temporal
 report-2 profile remains an explicit proposed consolidated setup selection;
 report-1 interpretation is preserved and no production workflow is activated.
 
-
 ## Prepared local post-sign connection and actual keyless CLI qualification
 
 The installed worker now selects its stage from the current reserved candidate
