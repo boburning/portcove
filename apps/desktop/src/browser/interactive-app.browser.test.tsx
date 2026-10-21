@@ -19,10 +19,39 @@ function mount(journey: string) {
 }
 afterEach(() => {
   stopInteractiveScenarios();
+  document.documentElement.style.fontSize = "";
   sessionStorage.removeItem(recoveryKey);
   localStorage.clear();
   document.body.replaceChildren();
   window.history.replaceState(null, "", "/");
+});
+
+it("uses a named compact readiness choice at narrow and enlarged widths without losing its filter", async () => {
+  await page.viewport(320, 900);
+  mount("library");
+  const readiness = page.getByRole("combobox", { name: /^Readiness/ });
+  await expect.element(readiness).toBeVisible();
+  await readiness.click();
+  await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
+  await expect.element(readiness).toHaveTextContent("Ready (1)");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
+  expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
+  await page.viewport(1280, 800);
+  await expect.element(page.getByRole("button", { name: "Ready (1)", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Ready (1)", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.element(readiness).not.toBeVisible();
+  await page.viewport(1366, 768);
+  document.documentElement.style.fontSize = "200%";
+  await expect.element(readiness).toBeVisible();
+  await readiness.click();
+  await page.getByRole("option", { name: "All (2)", exact: true }).click();
+  await expect.element(readiness).toHaveTextContent("All (2)");
+  expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
+  expect(document.querySelector<HTMLElement>(".collection-readiness-wide")?.checkVisibility()).toBe(
+    false,
+  );
 });
 
 it("uses real App search, readiness filters, chips, artwork fallback, and details/back navigation", async () => {

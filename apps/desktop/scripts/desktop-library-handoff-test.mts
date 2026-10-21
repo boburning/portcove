@@ -207,7 +207,9 @@ export async function libraryHandoffScenario({
       await browser.findElement(button("Copy and switch")),
       await browser.findElement(button("Close")),
     );
-    const plan = await browser.findElement(By.css('[aria-label="Library move plan"]')).getText();
+    const plan = await browser
+      .findElement(By.css('[aria-label="Library location change"]'))
+      .getText();
     assert.ok(plan.includes(destination) && plan.includes(source));
     assert.ok(plan.includes(portId) && plan.includes(active.version));
     assert.ok(plan.includes("Saved game-file locations"));
@@ -220,7 +222,7 @@ export async function libraryHandoffScenario({
     assert.ok(plan.includes("this dialog cannot cancel it"));
     await click(
       By.xpath(
-        '//section[@aria-label="Library move plan"]//summary[starts-with(normalize-space(.), "Saved data")]',
+        '//section[@aria-label="Library location change"]//summary[starts-with(normalize-space(.), "Saved data")]',
       ),
     );
     const files = await browser.wait(

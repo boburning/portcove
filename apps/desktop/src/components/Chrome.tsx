@@ -782,7 +782,7 @@ function SourceRequirements({
       >
         <strong>
           {installedCount > 0
-            ? "Required file locations are saved. Check each game for current file and launch status."
+            ? "No missing game-file requirements are recorded. Check each game for current file and launch status."
             : "No ports in your library yet. File requirements will appear here after you add a port."}
         </strong>
       </div>

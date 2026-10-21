@@ -888,3 +888,94 @@ it("ignores retained task events during shared refresh and after terminal failur
   expect(container.textContent).not.toContain("Late task progress");
   expect(container.textContent).not.toContain("Cancel game update");
 });
+
+it.each([false, true])(
+  "settles update A after leaving it for review B (cancelled=%s)",
+  async (cancelled) => {
+    const ports = [
+      { ...portDefinition(), name: "First Game" },
+      { ...portDefinition(), id: "other", name: "Second Game" },
+    ];
+    const statuses = new Map(
+      ports.map((port) => [
+        port.id,
+        {
+          ...portStatus(),
+          port_id: port.id,
+          active: { ...stagedUpdate, id: `active-${port.id}`, port_id: port.id, staged: false },
+          staged: { ...stagedUpdate, port_id: port.id },
+        },
+      ]),
+    );
+    const review = vi.spyOn(desktopApi, "planGameUpdate").mockImplementation(async (id) => ({
+      ...plan,
+      activate: true,
+      plan: { ...plan.plan, port_id: id },
+    }));
+    let reject!: (error: unknown) => void;
+    const apply = vi
+      .spyOn(desktopApi, "applyGameUpdate")
+      .mockImplementation((_id, _activate, _plan, _generation, onEvent) => {
+        onEvent?.({
+          schema_version: 2,
+          operation_id: "update-A",
+          parent_operation_id: null,
+          target: null,
+          sequence: 0,
+          timestamp_ms: 1,
+          operation: "update",
+          type: "started",
+        });
+        return new Promise((_resolve, rejectTask) => {
+          reject = rejectTask;
+        });
+      });
+    await root.rerender(
+      <UpdateCenter
+        section="updates"
+        generation={9}
+        ports={ports}
+        statuses={statuses}
+        activities={[]}
+        outcomes={[]}
+        checkAll={vi.fn()}
+        onSelect={vi.fn()}
+        onOpenSettings={vi.fn()}
+        diagnosticsRefreshing={false}
+        diagnosticsStale={false}
+        refreshDiagnostics={vi.fn()}
+        perform={perform}
+      />,
+    );
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(
+      (button) => button.textContent === "Review game update",
+    );
+    await act(async () => buttons[0]!.click());
+    await click("Download and install update");
+    await click("Continue browsing");
+    await act(async () => buttons[1]!.click());
+    expect(dialog()?.textContent).toContain("Second Game update");
+    const currentDialog = dialog();
+    await act(async () => reject(updateFailure("no_changes", cancelled)));
+    expect(dialog()).toBe(currentDialog);
+    expect(dialog()?.textContent).toContain("Second Game update");
+    await click("Cancel review");
+    await act(async () => buttons[0]!.click());
+    expect(review.mock.calls.map((call) => call[0])).toEqual(["sample", "other", "sample"]);
+    expect(dialog()?.textContent).toContain("First Game update");
+    expect(dialog()?.textContent).not.toContain("Continue browsing");
+    expect(dialog()?.textContent).not.toContain("Cancel game update");
+    expect(
+      [...dialog()!.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent === "Download and install update",
+      )?.disabled,
+    ).toBe(false);
+    expect(apply).toHaveBeenCalledExactlyOnceWith(
+      "sample",
+      true,
+      plan.plan_sha256,
+      9,
+      expect.any(Function),
+    );
+  },
+);

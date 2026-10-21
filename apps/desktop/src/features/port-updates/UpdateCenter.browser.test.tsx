@@ -418,7 +418,7 @@ describe("update center presentation", () => {
       "Install a port or copy in an existing installation first. Portcove will then show its update channel, update setting, latest available release, and previous installed version here.",
     );
     expect(html).toContain("Activity from the CLI and desktop appears here.");
-    expect(html).toContain("No activity yet");
+    expect(html).toContain("No task records yet");
     expect(html).toContain(
       "Installs, updates, verification, restored versions, copied installations, and failures will appear here.",
     );
@@ -713,3 +713,73 @@ describe("individual update failure interaction", () => {
 });
 
 vi.mock("../../clipboard", { spy: true });
+
+it("keeps the focused task and expanded diagnostics mounted through Activity regrouping", async () => {
+  const record: ActivityRecord = {
+    id: "settling-task",
+    operation: "install",
+    target_kind: "port",
+    target_id: port.id,
+    status: "running",
+    started_at: 1,
+    finished_at: null,
+    message: null,
+    failure: null,
+    cancellation: null,
+  };
+  const renderHistory = (activity: ActivityRecord, attention: boolean) => (
+    <UpdateCenter
+      generation={1}
+      ports={[port]}
+      statuses={new Map()}
+      activities={[activity]}
+      activityFeed={{
+        records: [activity],
+        current_activity_ids: activity.status === "running" ? [activity.id] : [],
+        attention_required_activity_ids: attention ? [activity.id] : [],
+        recovery_required_activity_ids: [],
+        active_and_actionable_complete: true,
+        terminal_history_complete: true,
+        terminal_history_count: activity.status === "running" ? 0 : 1,
+        terminal_history_limit: 20,
+      }}
+      outcomes={[]}
+      diagnosticsRefreshing={false}
+      diagnosticsStale={false}
+      refreshDiagnostics={vi.fn()}
+      checkAll={vi.fn()}
+      onSelect={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />
+  );
+  const host = document.body.appendChild(document.createElement("div"));
+  const result = await renderComponent(renderHistory(record, false), { container: host });
+  try {
+    const link = host.querySelector<HTMLButtonElement>(
+      '[data-activity-id="settling-task"] button',
+    )!;
+    link.focus();
+    const failed = {
+      ...record,
+      status: "failed" as const,
+      finished_at: 2,
+      failure: failureReport(),
+    };
+    await result.rerender(renderHistory(failed, true));
+    expect(document.activeElement).toBe(link);
+    expect(host.querySelector('[data-activity-id="settling-task"] button')).toBe(link);
+    const summary = host.querySelector<HTMLElement>(
+      '[data-activity-id="settling-task"] details summary',
+    )!;
+    await act(async () => summary.click());
+    summary.focus();
+    await result.rerender(renderHistory(failed, false));
+    expect(document.activeElement).toBe(summary);
+    expect(summary.closest("details")?.open).toBe(true);
+    expect(host.textContent).toContain("Recent");
+    expect(host.textContent).not.toContain("Needs attention");
+  } finally {
+    await result.unmount();
+    host.remove();
+  }
+});

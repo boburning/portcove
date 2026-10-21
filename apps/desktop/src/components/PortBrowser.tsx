@@ -334,9 +334,7 @@ export function PortBrowser({
         )}
         <div
           className={
-            composedLibrary
-              ? "collection-readiness-wide flex flex-wrap gap-1"
-              : "flex flex-wrap gap-1"
+            composedLibrary ? "collection-readiness-wide flex-wrap gap-1" : "flex flex-wrap gap-1"
           }
         >
           {filterOptions(view).map((item) => (
@@ -421,7 +419,7 @@ export function PortBrowser({
       />
     );
   return (
-    <div ref={browserRoot} className="contents">
+    <div ref={browserRoot} className="@container/library-query min-w-0">
       <p className="sr-only" role="status" aria-label="Search results">
         {firstUseEmpty
           ? "Your library is empty."

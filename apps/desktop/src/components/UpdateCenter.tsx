@@ -707,7 +707,7 @@ function ActivityHistory({
             <Icon glyph={History} />
           </span>
           <div>
-            <strong className="block text-pc-secondary-foreground">No activity yet</strong>
+            <strong className="block text-pc-secondary-foreground">No task records yet</strong>
             <span className="mt-1 block">
               Installs, updates, verification, restored versions, copied installations, and failures
               will appear here.
@@ -718,24 +718,29 @@ function ActivityHistory({
         <div className="activity-list grid gap-1.5">
           {groups
             .filter((group) => group.records.length > 0)
-            .map((group) => (
-              <section key={group.label} aria-label={group.label} className="mb-4 grid gap-2">
-                <h3 className="mb-1 text-sm text-pc-muted-foreground">{group.label}</h3>
-                {group.records.map((activity) => (
-                  <ActivityRow
-                    operation={operationEvents?.get(activity.id)}
-                    activity={activity}
-                    names={names}
-                    sourceNames={sourceNames}
-                    onSelect={onSelect}
-                    onOpenSettings={onOpenSettings}
-                    key={activity.id}
-                    generation={generation}
-                    nowSeconds={nowSeconds}
-                  />
-                ))}
-              </section>
-            ))}
+            // Keep rows under one parent: settlement changes their group, not
+            // their DOM identity, focus or open diagnostic disclosures.
+            .flatMap((group) => [
+              <h3
+                key={`group:${group.label}`}
+                className="mt-3 mb-1 text-sm text-pc-muted-foreground"
+              >
+                {group.label}
+              </h3>,
+              ...group.records.map((activity) => (
+                <ActivityRow
+                  operation={operationEvents?.get(activity.id)}
+                  activity={activity}
+                  names={names}
+                  sourceNames={sourceNames}
+                  onSelect={onSelect}
+                  onOpenSettings={onOpenSettings}
+                  key={`activity:${activity.id}`}
+                  generation={generation}
+                  nowSeconds={nowSeconds}
+                />
+              )),
+            ])}
         </div>
       )}
     </section>

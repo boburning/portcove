@@ -5,6 +5,17 @@
   .collection-readiness-compact {
     display: none;
   }
+  .collection-readiness-wide {
+    display: flex;
+  }
+  @container library-query (max-width: 46em) {
+    .collection-readiness-wide {
+      display: none;
+    }
+    .collection-readiness-compact {
+      display: block;
+    }
+  }
   .library-query-tools .search {
     flex: 1 1 17rem;
     max-width: 22rem;
@@ -136,12 +147,6 @@
     }
   }
   @container collection (max-width: 46em) {
-    .collection-readiness-wide {
-      display: none;
-    }
-    .collection-readiness-compact {
-      display: block;
-    }
     .collection-row {
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px 16px;
@@ -162,7 +167,7 @@
   }
   @container collection (max-width: 28em) {
     .collection-cover .collection-art {
-      max-width: 200px;
+      max-width: 160px;
     }
     .collection-row {
       grid-template-columns: minmax(0, 1fr);

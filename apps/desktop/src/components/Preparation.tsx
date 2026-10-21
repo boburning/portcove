@@ -69,6 +69,9 @@ export function PreparationControl({
     if (!plan || !run) return;
     const current = ++request.current;
     setPending("prepare");
+    window.requestAnimationFrame(() => {
+      if (request.current === current) reviewTitle.current?.focus();
+    });
     setError(undefined);
     setMessage("Starting preparation…");
     try {
@@ -167,65 +170,34 @@ export function PreparationControl({
               Prepare game data
             </DialogTitle>
             <DialogDescription id="preparation-review-description" className="mb-4 leading-relaxed">
-              Check the original files, installed version, space needed, and preserved data before
-              starting setup.
+              {pending === "prepare"
+                ? "Preparing the reviewed installation and game files."
+                : "Check the original files, installed version, space needed, and preserved data before starting setup."}
             </DialogDescription>
             {taskLabel && <p className="font-semibold [overflow-wrap:anywhere]">{taskLabel}</p>}
-            <div
-              className="preparation-plan mt-4 grid gap-4 [overflow-wrap:anywhere]"
-              aria-label="Preparation plan"
-            >
-              <h3 className="m-0 text-base">Files used</h3>
-              <dl className="m-0 grid gap-3 rounded-pc-md border border-pc-border bg-pc-surface p-4 @min-[30rem]/preparation:grid-cols-2">
-                <div className="col-span-full">
-                  <dt className="text-pc-secondary-foreground">Installed version</dt>
-                  <dd className="m-0 font-semibold">{plan.inputs.install.version}</dd>
-                </div>
-                <div>
-                  <dt className="text-pc-secondary-foreground">Installed folder</dt>
-                  <dd className="m-0">{plan.inputs.install.path}</dd>
-                </div>
-                <div>
-                  <dt className="text-pc-secondary-foreground">Selected game files</dt>
-                  <dd className="m-0">{plan.inputs.source.path}</dd>
-                </div>
-              </dl>
-              <h3 className="m-0 text-base">What changes</h3>
-              <p className="m-0">
-                Portcove needs at least{" "}
-                {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space
-                before the game generates output. The final amount depends on the game.
-              </p>
-              <p className="m-0">
-                Your original files and current installation remain unchanged. The verified result
-                becomes active, and your previous version remains available for rollback.
-              </p>
-              <h3 className="m-0 text-base">During setup</h3>
-              <p className="m-0">
-                You can continue browsing and revisit this task in Activity. Keep Portcove open
-                until it finishes.
-              </p>
-              <p className="m-0">
-                Cancelled or interrupted setup can leave working files for review in Activity.
-                Starting again keeps earlier unfinished work.
-              </p>
-              <p className="m-0">
-                If setup opens another window, finish setup and close it without launching the game.
-                Portcove then verifies and activates the prepared result.
-              </p>
-              {pending === "prepare" && message && (
-                <p className="m-0" role="status">
-                  {message}
+            {pending === "prepare" ? (
+              <>
+                <p role="status">{message ?? "Starting preparation…"}</p>
+                <p>
+                  Keep Portcove open. You can continue browsing and revisit this task in Activity.
                 </p>
-              )}
-              {operationId && (
-                <OperationCancellation
-                  key={operationId}
-                  operationId={operationId}
-                  label="Cancel preparation"
-                />
-              )}
-            </div>
+                {operationId && (
+                  <OperationCancellation
+                    key={operationId}
+                    operationId={operationId}
+                    label="Cancel preparation"
+                  />
+                )}
+                <details className="mt-4">
+                  <summary data-focusable className="cursor-pointer py-2">
+                    Files and setup details
+                  </summary>
+                  <PreparationFacts plan={plan} />
+                </details>
+              </>
+            ) : (
+              <PreparationFacts plan={plan} />
+            )}
             <DialogFooter className="mt-4">
               {pending === "prepare" && (
                 <Button
@@ -239,24 +211,28 @@ export function PreparationControl({
                   Continue browsing
                 </Button>
               )}
-              <Button
-                data-focusable
-                variant="primary"
-                disabled={disabled || Boolean(pending)}
-                onClick={() => {
-                  void prepare();
-                }}
-              >
-                {pending === "prepare" ? "Preparing game data…" : "Prepare game data"}
-              </Button>
-              <Button
-                data-focusable
-                variant="outline"
-                disabled={disabled || pending === "prepare"}
-                onClick={dismissReview}
-              >
-                Cancel review
-              </Button>
+              {pending !== "prepare" && (
+                <Button
+                  data-focusable
+                  variant="primary"
+                  disabled={disabled || Boolean(pending)}
+                  onClick={() => {
+                    void prepare();
+                  }}
+                >
+                  Prepare game data
+                </Button>
+              )}
+              {pending !== "prepare" && (
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={dismissReview}
+                >
+                  Cancel review
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -271,5 +247,58 @@ export function PreparationControl({
       )}
       {error && <p role="alert">{error}</p>}
     </section>
+  );
+}
+
+function PreparationFacts({ plan }: { plan: PreparationPlan }) {
+  return (
+    <div
+      className="preparation-plan mt-4 grid gap-4 [overflow-wrap:anywhere]"
+      aria-label="Preparation plan"
+    >
+      <h3 className="m-0 text-base">Files used</h3>
+      <dl className="m-0 grid gap-3 rounded-pc-md border border-pc-border bg-pc-surface p-4 @min-[30rem]/preparation:grid-cols-2">
+        <div className="col-span-full">
+          <dt className="text-pc-secondary-foreground">Installed version</dt>
+          <dd className="m-0 font-semibold">{plan.inputs.install.version}</dd>
+        </div>
+        <div>
+          <dt className="text-pc-secondary-foreground">Installed folder</dt>
+          <dd className="m-0">{plan.inputs.install.path}</dd>
+        </div>
+        <div>
+          <dt className="text-pc-secondary-foreground">Selected game files</dt>
+          <dd className="m-0">{plan.inputs.source.path}</dd>
+        </div>
+      </dl>
+      <h3 className="m-0 text-base">What changes</h3>
+      <p className="m-0">
+        Portcove needs at least{" "}
+        {formatBytes(plan.copy.total_bytes + plan.inputs.source.storage_size)} of free space before
+        the game generates output. The final amount depends on the game.
+      </p>
+      <p className="m-0">
+        Your original files and current installation remain unchanged. The verified result becomes
+        active, and your previous version remains available for rollback.
+      </p>
+      <h3 className="m-0 text-base">During setup</h3>
+      <p className="m-0">
+        You can continue browsing and revisit this task in Activity. Keep Portcove open until it
+        finishes.
+      </p>
+      <p className="m-0">
+        Cancelled or interrupted setup can leave working files for review in Activity. Starting
+        again keeps earlier unfinished work.
+      </p>
+      <details>
+        <summary data-focusable className="cursor-pointer py-2">
+          If setup opens another window
+        </summary>
+        <p className="mt-2 mb-0">
+          Finish setup and close it without launching the game. Portcove then verifies and activates
+          the prepared result.
+        </p>
+      </details>
+    </div>
   );
 }

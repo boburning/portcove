@@ -114,6 +114,9 @@ function useGameUpdateControl({
   const [operation, setOperation] = useState<string>();
   const requests = useRef(new LatestRequestGeneration());
   const pendingRequest = useRef(false);
+  // A row's execution outlives its review scope. Another row taking the review
+  // must retire old review responses without preventing this execution settling.
+  const executionRequest = useRef<symbol | undefined>(undefined);
   const reviewButton = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -125,12 +128,13 @@ function useGameUpdateControl({
   useEffect(
     () => () => {
       requests.current.begin();
+      executionRequest.current = undefined;
     },
     [],
   );
   const dismissReview = () => setPlan(undefined);
   const review = async (useNow = activate) => {
-    if (pendingRequest.current || busy) return;
+    if (pendingRequest.current || executionRequest.current || busy) return;
     if (reviewScope && !reviewScope.current()) setPlan(undefined);
     reviewScope?.claim();
     pendingRequest.current = true;
@@ -158,6 +162,7 @@ function useGameUpdateControl({
   const apply = async () => {
     if (
       pendingRequest.current ||
+      executionRequest.current ||
       !(reviewScope?.current() ?? true) ||
       !plan ||
       !perform ||
@@ -166,6 +171,8 @@ function useGameUpdateControl({
       return;
     pendingRequest.current = true;
     const current = requests.current.begin();
+    const execution = Symbol();
+    executionRequest.current = execution;
     setPending(true);
     setApplying(true);
     setError(undefined);
@@ -229,7 +236,8 @@ function useGameUpdateControl({
         setMessage(undefined);
       }
     } finally {
-      if (requests.current.isCurrent(current)) {
+      if (executionRequest.current === execution) {
+        executionRequest.current = undefined;
         pendingRequest.current = false;
         setPending(false);
         setApplying(false);

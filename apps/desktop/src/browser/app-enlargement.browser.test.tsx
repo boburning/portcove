@@ -109,5 +109,19 @@ it.for(["dark", "light"] as const)(
     await page.screenshot({
       path: `../../../../outputs/uiux-game-titles/enlarged-preparation-${theme}-960.png`,
     });
+    await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
+    const leave = page.getByRole("button", { name: "Continue browsing", exact: true });
+    await expect.element(leave).toBeVisible();
+    await expect.poll(() => document.activeElement?.id).toBe("preparation-review-title");
+    await userEvent.keyboard("{Tab}{Tab}{Tab}");
+    await expect.element(leave).toHaveFocus();
+    const leaveBox = leave.element().getBoundingClientRect();
+    expect(leaveBox.top).toBeGreaterThanOrEqual(0);
+    expect(leaveBox.bottom).toBeLessThanOrEqual(innerHeight);
+    await page.screenshot({
+      path: `../../../../outputs/uiux-game-titles/enlarged-preparation-running-${theme}-960.png`,
+    });
+    await userEvent.keyboard("{Enter}");
+    await expect.element(page.getByRole("dialog")).not.toBeInTheDocument();
   },
 );

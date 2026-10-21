@@ -2288,7 +2288,8 @@ describe("desktop components", () => {
       "No ports in your library yet. File requirements will appear here after you add a port.",
     );
     expect(noInstalledPorts).not.toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
-    expect(complete).toContain("Required file locations are saved");
+    expect(complete).toContain("No missing game-file requirements are recorded");
+    expect(complete).not.toContain("Required file locations are saved");
     expect(complete).toMatch(/class="[^"]*source-requirements[^"]*\bcomplete\b/u);
     expect(complete).toContain("No game files or BIOS files have been added yet");
     expect(singular).toContain("1 game-file requirement needs attention");
