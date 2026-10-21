@@ -314,6 +314,36 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ".github/actions/release-controller-job/action.yml",
     ["scripts/release-controller-tools.test.mts"],
   ],
+  ["scripts/read-native-wsl-host.ps1", ["scripts/release-native-wsl-boundary.test.mts"]],
+  [
+    "scripts/native-qualification-linux-transfer.py",
+    ["scripts/native-qualification-linux-transfer.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-transfer.test.py",
+    ["scripts/native-qualification-linux-transfer.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-plan.mts",
+    ["scripts/native-linux-isolated-plan.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-session.mts",
+    ["scripts/native-linux-isolated-plan.test.mts", "scripts/desktop-linux-stop.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-supervisor.py",
+    ["scripts/native-qualification-linux-supervisor.test.mts"],
+  ],
+  [
+    "scripts/native-qualification-linux-supervisor.test.py",
+    ["scripts/native-qualification-linux-supervisor.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/native-linux-isolated-init.py",
+    ["scripts/native-linux-isolated-init.test.mts"],
+  ],
+  ["scripts/native-linux-isolated-init.test.py", ["scripts/native-linux-isolated-init.test.mts"]],
   ...["release-tuf-controller", "release-tuf-launch", "release-signing-job-budget"].map(
     (name): [string, string[]] => [
       `scripts/${name}.mts`,
@@ -492,6 +522,11 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
   ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
+  ["scripts/release-native-wsl-boundary.mts", ["scripts/release-native-wsl-boundary.test.mts"]],
+  [
+    "apps/desktop/scripts/native-linux-driver-http.mts",
+    ["scripts/native-linux-driver-http.test.mts"],
+  ],
   [
     "scripts/release-native-candidate.mts",
     ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
@@ -890,6 +925,14 @@ const releaseContractTests = Object.freeze([
   "scripts/release-native-stage-capture.test.mts",
   "scripts/release-native-scheduler.test.mts",
   "scripts/release-native-parent.test.mts",
+  "scripts/release-native-wsl-boundary.test.mts",
+  "scripts/native-linux-driver-http.test.mts",
+  "scripts/native-linux-isolated-init.test.mts",
+  "scripts/native-linux-isolated-plan.test.mts",
+  "scripts/release-native-linux-driver.test.mts",
+  "scripts/native-qualification-linux-supervisor.test.mts",
+  "scripts/native-qualification-linux-transfer.test.mts",
+  "scripts/release-native-wsl-capture.test.mts",
   "scripts/release-native-candidate.test.mts",
   "scripts/release-native-attempt.test.mts",
   "scripts/release-native-windows-driver.test.mts",

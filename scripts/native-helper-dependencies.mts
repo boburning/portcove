@@ -27,6 +27,18 @@ export const nativeHelperDependencies: NativeHelperRegistry = Object.freeze(
         ["desktop-owned-native-session.mts", ["native-session.ps1"]],
         ["desktop-native-account-session.mts", ["desktop-owned-native-session.mts"]],
         ["desktop-linux-native-session.mts", ["native-linux-init.mts"]],
+        [
+          "native-linux-isolated-session.mts",
+          [
+            "native-linux-isolated-init.py",
+            "native-linux-isolated-plan.mts",
+            "native-linux-driver-http.mts",
+            "desktop-linux-native-session.mts",
+          ],
+        ],
+        ["native-linux-isolated-plan.mts", []],
+        ["native-linux-driver-http.mts", []],
+        ["native-linux-isolated-init.py", []],
         ["desktop-linux-webkit-inspector.mts", []],
         ["native-linux-init.mts", []],
         ["desktop-startup-observation.mts", ["native-startup-observation.ps1"]],
@@ -43,6 +55,13 @@ export const nativeHelperRegistryPath = "scripts/native-helper-dependencies.mts"
 // Shared repository launcher boundary, captured but not recursively classified as
 // a native helper graph. All other non-builtin imports must be declared helpers.
 export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
+  ...Object.fromEntries(
+    [
+      "native-linux-isolated-session.mts",
+      "native-linux-isolated-plan.mts",
+      "native-linux-driver-http.mts",
+    ].map((name) => [helper(name), Object.freeze(["../../../scripts/runtime-values.mts"])]),
+  ),
   [helper("desktop-native-account-session.mts")]: Object.freeze([
     "../../../scripts/native-qualification-account-client.mts",
   ]),
@@ -95,6 +114,7 @@ export const nativeHelperRoots = Object.freeze(
     "desktop-owned-native-session.mts",
     "desktop-native-account-session.mts",
     "desktop-linux-native-session.mts",
+    "native-linux-isolated-session.mts",
     "desktop-linux-webkit-inspector.mts",
     "desktop-startup-observation.mts",
   ].map(helper),
@@ -156,20 +176,45 @@ export function nativeHelperSourceDependencies(
       result.add(relativeHelper(match[1]));
     }
   } else if (file.endsWith(".py")) {
-    if (file !== helper("native-linux-folder-picker.py"))
+    if (
+      ![helper("native-linux-folder-picker.py"), helper("native-linux-isolated-init.py")].includes(
+        file,
+      )
+    )
       throw new Error(`Unsupported Python native helper: ${file}`);
-    const runtimeImports = new Set([
-      "argparse",
-      "hashlib",
-      "json",
-      "os",
-      "select",
-      "time",
-      "sys",
-      "pathlib",
-      "gi",
-      "gi.repository",
-    ]);
+    const runtimeImports = new Set(
+      file === helper("native-linux-isolated-init.py")
+        ? [
+            "base64",
+            "ctypes",
+            "hashlib",
+            "http.client",
+            "json",
+            "os",
+            "re",
+            "selectors",
+            "signal",
+            "socket",
+            "stat",
+            "struct",
+            "subprocess",
+            "sys",
+            "time",
+            "pathlib",
+          ]
+        : [
+            "argparse",
+            "hashlib",
+            "json",
+            "os",
+            "select",
+            "time",
+            "sys",
+            "pathlib",
+            "gi",
+            "gi.repository",
+          ],
+    );
     for (const expression of source.matchAll(
       /^\s*(?:import\s+([^\r\n]+)|from\s+([^\s]+)\s+import\s+[^\r\n]+)$/gmu,
     )) {

@@ -2,8 +2,14 @@
  * imported accepted result can appoint a candidate or a native invocation. */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { establishActualNativeParent } from "./release-native-parent.mts";
-import { acquireActualNativeStageCandidate } from "./release-native-candidate.mts";
+import {
+  establishActualNativeParent,
+  requireActualNativeParent,
+} from "./release-native-parent.mts";
+import {
+  acquireActualNativeStageCandidate,
+  requireActualNativeCandidate,
+} from "./release-native-candidate.mts";
 import { claimActualNativeInvocation } from "./release-native-attempt.mts";
 import { captureActualWindowsNativeInvocation } from "./release-native-windows-capture.mts";
 import {
@@ -11,6 +17,11 @@ import {
   retainActualFailedNativeStage,
 } from "./release-native-pre-sign-report.mts";
 import { publishActualNativeStageReport } from "./release-native-check-broker.mts";
+import { captureActualWslNativeInvocation } from "./release-native-wsl-capture.mts";
+import {
+  prepareActualLinuxNativeStageReport,
+  retainActualFailedLinuxNativeStage,
+} from "./release-native-linux-report.mts";
 
 export async function runInstalledNativeWorker(configuration: string, configurationSha256: string) {
   const parent = await establishActualNativeParent(configuration, configurationSha256);
@@ -18,7 +29,14 @@ export async function runInstalledNativeWorker(configuration: string, configurat
     throw new Error(
       "separate-account Linux backend is not connected; no native invocation claimed",
     );
+  const linux =
+    (await requireActualNativeParent(parent)).descriptor.platform_label === "linux-x86_64";
   const candidate = await acquireActualNativeStageCandidate(parent);
+  if (
+    linux &&
+    (await requireActualNativeCandidate(candidate)).request.request.stage !== "payload-signing"
+  )
+    throw new Error("post-sign WSL package lifecycle remains held; no native invocation claimed");
   const claim = await claimActualNativeInvocation(candidate);
   if (claim.decision === "readback-only")
     return {
@@ -27,15 +45,21 @@ export async function runInstalledNativeWorker(configuration: string, configurat
       claim,
       authority: "none",
     };
-  const capture = await captureActualWindowsNativeInvocation(claim);
+  const capture = linux
+    ? await captureActualWslNativeInvocation(claim)
+    : await captureActualWindowsNativeInvocation(claim);
   let report;
   try {
-    report = await prepareActualNativeStageReport(capture);
+    report = linux
+      ? await prepareActualLinuxNativeStageReport(capture)
+      : await prepareActualNativeStageReport(capture);
   } catch (error) {
     const failure = error instanceof Error ? error.message : "native stage report refused";
     // If serialization itself cannot establish original identity/settlement,
     // preserve that refusal and every raw file; never supply older evidence.
-    const retained = await retainActualFailedNativeStage(capture, failure);
+    const retained = linux
+      ? await retainActualFailedLinuxNativeStage(capture, failure)
+      : await retainActualFailedNativeStage(capture, failure);
     return { decision: "hold", reason: failure, capture, retained, authority: "none" };
   }
   const handoff = await publishActualNativeStageReport(report);

@@ -19,6 +19,7 @@ import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
+import { inspectNativeWslBoundary } from "./release-native-wsl-boundary.mts";
 
 type Setup = Awaited<ReturnType<typeof requirePinnedLocalNativeSetup>>;
 /** Reserve thirty seconds inside the existing 35-minute installed task limit.
@@ -55,11 +56,18 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     "authority_configuration,boundary_configuration,configuration_path,controller_root,controller_tree,descriptor,descriptor_sha256,installation_path,installation_record,transport_configuration",
   );
   const descriptor = inspectLocalNativeSetup(raw.descriptor);
-  if (descriptor.platform_label !== "windows-x86_64" || !isRecord(raw.authority_configuration))
+  if (
+    descriptor.scheduler_identity.kind !== "windows-task" ||
+    !isRecord(raw.authority_configuration)
+  )
     throw new Error("native Windows parent platform/global authority differs");
   const authorities = inspectReleaseAuthorityConfiguration(raw.authority_configuration);
-  const fixed = authorities.native["windows-x86_64"];
-  const transport = inspectLocalNativeTransport(raw.transport_configuration, "windows-x86_64");
+  const fixed = authorities.native[descriptor.platform_label];
+  const transport = inspectLocalNativeTransport(
+    raw.transport_configuration,
+    descriptor.platform_label,
+    "windows-task",
+  );
   if (
     !isRecord(fixed) ||
     !isRecord(fixed.producer) ||
@@ -67,20 +75,30 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     !isRecord(fixed.host.account)
   )
     throw new Error("native Windows producer/account configuration absent");
-  exact(
-    raw.boundary_configuration,
-    "account_name,account_sid,broker_sid,capture_root,controller_root,helper_sha256,profile_root,schema_version,work_root",
-  );
-  const boundary = raw.boundary_configuration;
-  if (
-    boundary.schema_version !== 1 ||
-    boundary.broker_sid !== fixed.host.account.broker ||
-    boundary.account_sid !== fixed.host.account.qualification ||
-    fixed.host.account.kind !== "windows-sid" ||
-    !samePath(boundary.controller_root, String(raw.controller_root)) ||
-    !samePath(boundary.capture_root, String(descriptor.capture_root))
-  )
-    throw new Error("native Windows boundary differs from appointed producer/account");
+  let boundary;
+  if (descriptor.platform_label === "windows-x86_64") {
+    exact(
+      raw.boundary_configuration,
+      "account_name,account_sid,broker_sid,capture_root,controller_root,helper_sha256,profile_root,schema_version,work_root",
+    );
+    boundary = raw.boundary_configuration;
+    if (
+      boundary.schema_version !== 1 ||
+      boundary.broker_sid !== fixed.host.account.broker ||
+      boundary.account_sid !== fixed.host.account.qualification ||
+      fixed.host.account.kind !== "windows-sid" ||
+      !samePath(boundary.controller_root, String(raw.controller_root)) ||
+      !samePath(boundary.capture_root, String(descriptor.capture_root))
+    )
+      throw new Error("native Windows boundary differs from appointed producer/account");
+  } else {
+    boundary = inspectNativeWslBoundary(
+      raw.boundary_configuration,
+      fixed.host.account,
+      String(raw.controller_root),
+      String(descriptor.capture_root),
+    );
+  }
   if (
     fixed.producer.source_commit !== descriptor.controller_revision ||
     fixed.producer.source_tree !== raw.controller_tree
@@ -197,7 +215,7 @@ async function readParent(
   )
     throw new Error("native parent must be the fixed credential-free installed loader");
   await requireHarness(setup);
-  const windows = setup.descriptor.platform_label === "windows-x86_64";
+  const windows = setup.descriptor.scheduler_identity.kind === "windows-task";
   let scheduler: object,
     windowsIdentity: string | null = null;
   if (windows) {

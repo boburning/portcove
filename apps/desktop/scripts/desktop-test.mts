@@ -58,6 +58,10 @@ import {
   readNativeSessionObservation,
 } from "./desktop-owned-native-session.mts";
 import { launchLinuxNativeSession } from "./desktop-linux-native-session.mts";
+import { launchIsolatedLinuxNativeSession } from "./native-linux-isolated-session.mts";
+import { inspectIsolatedNativeLinuxBinding } from "./native-linux-isolated-plan.mts";
+import { createHash } from "node:crypto";
+import { get as httpGet } from "node:http";
 import {
   connectLinuxInspector,
   LinuxInspectorProtocol,
@@ -135,7 +139,9 @@ import type {
   NativeProcessSnapshot,
   CapturedNativeProcess,
 } from "./desktop-owned-native-session.mts";
-type LinuxLaunch = Awaited<ReturnType<typeof launchLinuxNativeSession>>;
+type LinuxLaunch =
+  | Awaited<ReturnType<typeof launchLinuxNativeSession>>
+  | Awaited<ReturnType<typeof launchIsolatedLinuxNativeSession>>;
 type LinuxCleanup = Awaited<ReturnType<LinuxLaunch["stop"]>>;
 type HarnessInput = FileIdentity &
   Partial<Pick<ConsumedInput, "binding" | "retained">> & { role?: string; kind?: string };
@@ -185,6 +191,20 @@ function success<Value>(reply: IpcReply<Value>): Value {
 
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const { values } = parseDesktopHarnessOptions();
+const linuxBinding = await (async () => {
+  const filename = process.env.PORTCOVE_NATIVE_LINUX_BINDING,
+    expected = process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256;
+  if (!filename && !expected) return undefined;
+  assert.equal(process.platform, "linux");
+  assert.ok(filename && expected && /^[a-f0-9]{64}$/u.test(expected));
+  const info = await lstat(filename);
+  assert.ok(info.isFile() && !info.isSymbolicLink() && info.nlink === 1 && info.size <= 128 * 1024);
+  const bytes = await readFile(filename);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), expected);
+  const selected = inspectIsolatedNativeLinuxBinding(JSON.parse(bytes.toString("utf8")));
+  assert.equal(path.posix.dirname(filename), selected.capture_root);
+  return selected;
+})();
 const nativeAccount =
   process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING || process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256
     ? DesktopNativeAccountSession.open(
@@ -192,7 +212,15 @@ const nativeAccount =
         required(process.env.PORTCOVE_NATIVE_ACCOUNT_BINDING_SHA256),
       )
     : undefined;
-const accountDrivers = nativeAccount?.drivers();
+assert.ok(!(linuxBinding && nativeAccount), "Native host boundaries cannot be combined");
+const accountDrivers =
+  nativeAccount?.drivers() ??
+  (linuxBinding
+    ? {
+        tauri_driver: required(linuxBinding.tools.driver).path,
+        webview_driver: required(linuxBinding.tools.webkit_driver).path,
+      }
+    : undefined);
 const cachedDrivers = accountDrivers
   ? { driver: accountDrivers.tauri_driver, nativeDriver: accountDrivers.webview_driver }
   : cachedDesktopDrivers();
@@ -209,6 +237,7 @@ for (const name of ["driver", "native-driver"] as const) {
     );
 }
 const application = required(values.app);
+if (linuxBinding) assert.equal(application, linuxBinding.application.path);
 const driverPath = required(values.driver);
 const nativeDriverPath = required(values["native-driver"]);
 const port = Number(values.port);
@@ -267,7 +296,9 @@ const revision = spawnCommand("git", ["rev-parse", "HEAD"], {
 }).stdout.trim();
 const output = path.resolve(required(values.output));
 await mkdir(output); // Existing output is never reused, including after failed runs.
-const runtimeRoot = nativeAccount ? nativeAccount.runtimeRoot(output) : output;
+const runtimeRoot = nativeAccount
+  ? nativeAccount.runtimeRoot(output)
+  : (linuxBinding?.home ?? output);
 if (nativeAccount) await mkdir(runtimeRoot); // A previous candidate's state is never reused.
 const custody = process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST
   ? await readPrelaunchCustody(process.env.PORTCOVE_NATIVE_PRELAUNCH_MANIFEST, {
@@ -344,17 +375,18 @@ const linuxPackagedInspector =
 let historyInventory: Awaited<ReturnType<typeof captureHistoryDriver>> | undefined;
 const linuxSelectedSession =
   process.platform === "linux" &&
-  selection.selected_scenarios.some(
-    (name) =>
-      [
-        "native-selected-setup-completion",
-        "native-saved-folder-selected-setup",
-        "native-linux-packaged-webview-boundary",
-        "native-linux-webview-origin-boundary",
-        "native-linux-interrupted-preparation",
-      ].includes(name) ||
-      (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
-  );
+  (Boolean(linuxBinding) ||
+    selection.selected_scenarios.some(
+      (name) =>
+        [
+          "native-selected-setup-completion",
+          "native-saved-folder-selected-setup",
+          "native-linux-packaged-webview-boundary",
+          "native-linux-webview-origin-boundary",
+          "native-linux-interrupted-preparation",
+        ].includes(name) ||
+        (name === "native-preparation-cancellation" && selection.selected_scenarios.length === 1),
+    ));
 let linuxLaunch: LinuxLaunch | undefined;
 let linuxCleanup: LinuxCleanup | undefined;
 let linuxLaunchCount = 0;
@@ -1515,7 +1547,7 @@ async function connectObservedDriver() {
       : null;
   try {
     admission.assertReady();
-    browser = await new Builder()
+    const builder = new Builder()
       .disableEnvironmentOverrides()
       .usingServer(`http://127.0.0.1:${port}`)
       .withCapabilities({
@@ -1524,8 +1556,10 @@ async function connectObservedDriver() {
           application: application,
           ...(process.platform === "win32" ? { webviewOptions: { userDataFolder: profile } } : {}),
         },
-      })
-      .build();
+      });
+    if (linuxLaunch && "privateAgent" in linuxLaunch)
+      builder.usingHttpAgent(linuxLaunch.privateAgent);
+    browser = await builder.build();
   } finally {
     if (finishObservation) {
       const observation = await finishObservation();
@@ -1981,6 +2015,22 @@ function captureBackupFocusDriverLaunch(launchStarted: number) {
 
 async function driverReady() {
   try {
+    if (linuxBinding) {
+      const launch = required(linuxLaunch);
+      assert.ok("privateAgent" in launch);
+      return await new Promise<boolean>((resolve, reject) => {
+        const request = httpGet(
+          `http://127.0.0.1:${port}/status`,
+          { agent: launch.privateAgent },
+          (response) => {
+            response.resume();
+            resolve(response.statusCode === 200);
+          },
+        );
+        request.on("error", reject);
+        request.setTimeout(500, () => request.destroy(new Error("private driver status timeout")));
+      });
+    }
     const response = await fetch(`http://127.0.0.1:${port}/status`, {
       signal: AbortSignal.timeout(500),
     });
@@ -1994,7 +2044,7 @@ async function driverReady() {
 let publicationRestartRoot: string | undefined;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
-    ...(nativeAccount ? {} : process.env),
+    ...(nativeAccount || linuxBinding ? {} : process.env),
     ...childEnvironment,
     ...(originFixture
       ? {
@@ -2055,23 +2105,37 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
     linuxCleanup = undefined;
     linuxStop = undefined;
     linuxLaunchCount++;
-    linuxLaunch = await launchLinuxNativeSession(
-      linuxPackagedInspector ? process.execPath : driverPath,
-      linuxPackagedInspector
-        ? [
-            path.join(root, "scripts/desktop-linux-media.mts"),
-            "--launch-probed-app",
-            required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
-            application,
-            required(inputs[0]).sha256,
-            applicationMediaEvidence,
-          ]
-        : arguments_,
-      linuxPackagedInspector
-        ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
-        : driverEnvironment(childEnvironment),
-      { beforeLaunch: admission.assertReady },
-    );
+    if (linuxBinding) {
+      assert.equal(
+        linuxPackagedInspector,
+        false,
+        "Inspector media route is separate from isolated WebDriver package qualification",
+      );
+      linuxLaunch = await launchIsolatedLinuxNativeSession(
+        linuxBinding,
+        driverPath,
+        arguments_,
+        driverEnvironment(childEnvironment),
+        admission.assertReady,
+      );
+    } else
+      linuxLaunch = await launchLinuxNativeSession(
+        linuxPackagedInspector ? process.execPath : driverPath,
+        linuxPackagedInspector
+          ? [
+              path.join(root, "scripts/desktop-linux-media.mts"),
+              "--launch-probed-app",
+              required(process.env.PORTCOVE_QUALIFICATION_MEDIA_CONFIG),
+              application,
+              required(inputs[0]).sha256,
+              applicationMediaEvidence,
+            ]
+          : arguments_,
+        linuxPackagedInspector
+          ? linuxInspectorEnvironment(driverEnvironment(childEnvironment), port)
+          : driverEnvironment(childEnvironment),
+        { beforeLaunch: admission.assertReady },
+      );
     driver = linuxLaunch.child;
   } else if (nativeAccount) {
     admission.assertReady();
@@ -2725,6 +2789,51 @@ try {
   });
   await scenario("empty-library", async () => {
     const browser = driverBrowser();
+    if (linuxBinding) {
+      const capabilities = await invoke("get_engine_capabilities");
+      assert.ok(capabilities.ok, "Installed Linux Core capability observation failed");
+      const observed = object(capabilities.value);
+      assert.equal(observed.product, "Portcove");
+      assert.ok(Number.isSafeInteger(observed.schema_version));
+      assert.equal(typeof observed.product_version, "string");
+      const filename = path.join(output, "linux-native-core-capabilities.json");
+      await writeFile(
+        filename,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          binding_sha256: process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256,
+          core: observed,
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(filename);
+      const launch = required(linuxLaunch);
+      assert.ok("observeRuntime" in launch);
+      const runtime = await launch.observeRuntime();
+      const browserCapabilities = await browser.getCapabilities();
+      const browserName: unknown = browserCapabilities.get("browserName"),
+        browserVersion: unknown = browserCapabilities.get("browserVersion");
+      const runtimePath = path.join(output, "linux-native-runtime.json");
+      await writeFile(
+        runtimePath,
+        JSON.stringify({
+          schema_version: 1,
+          observed_at: new Date().toISOString(),
+          binding_sha256: process.env.PORTCOVE_NATIVE_LINUX_BINDING_SHA256,
+          runtime,
+          core: observed,
+          browser: {
+            name: browserName ?? null,
+            version: browserVersion ?? null,
+          },
+          authority: "none",
+        }) + "\n",
+        { flag: "wx" },
+      );
+      artifacts.push(runtimePath);
+    }
     if (nativeAccount) {
       // Observe the existing Core capability endpoint through this actual
       // installed renderer. This data is not a new client capability or a
