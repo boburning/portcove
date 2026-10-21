@@ -11,6 +11,7 @@ import {
   readAttestedTufRoleArtifact,
   receiveTufRoleArtifact,
   requireReceivedTufRoleArtifact,
+  requireRetainedTufRoleArtifact,
   tufRolePredicateType,
   recheckTufRoleArtifactCustody,
 } from "./release-tuf-role-artifact.mts";
@@ -225,6 +226,11 @@ void test("injected existing attestation + completed numeric role custody is dat
     "inert-fixture-role-signature-not-authenticated",
   );
   await assert.rejects(requireReceivedTufRoleArtifact(result), /actual current/u);
+  await assert.rejects(
+    requireRetainedTufRoleArtifact(result, performance.now() + 1000),
+    /actual current/u,
+  );
+  assert.equal(f.calls.length, 11);
   await assert.rejects(
     receiveTufRoleArtifact({}, root, f.expected, performance.now() + 10000),
     /actual authenticated/u,

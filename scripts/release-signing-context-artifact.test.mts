@@ -15,6 +15,7 @@ import {
   prepareSigningContextPredicate,
   receiveSigningContextArtifact,
   requireReceivedSigningContext,
+  requireRetainedSigningContext,
   signingContextPredicateType,
   handoffSigningContextArtifact,
 } from "./release-signing-context-artifact.mts";
@@ -277,6 +278,11 @@ void test("injected complete provider/attestation path proves data association b
   assert.equal(result.publication_admission, "not-established");
   assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   await assert.rejects(requireReceivedSigningContext(result), /actual authenticated/);
+  await assert.rejects(
+    requireRetainedSigningContext(result, performance.now() + 1000),
+    /actual authenticated/,
+  );
+  assert.deepEqual(f.counts(), { requests: 12, downloads: 2 });
   for (const fault of ["job", "certificate", "drift"]) {
     const changed = fixture();
     changed.faults.value = fault;
