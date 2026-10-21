@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, chmod, link } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { inspectLinuxPublicRuntime } from "./desktop-linux-public-update.mts";
@@ -10,6 +11,8 @@ import {
 } from "./native-linux-isolated-session.mts";
 import {
   createPublicUpdatePreimageStore,
+  retainPublicUpdateProfile,
+  restorePublicUpdateProfile,
   retainDeduplicatedPublicUpdatePreimages,
 } from "./desktop-public-update-files.mts";
 
@@ -224,3 +227,82 @@ void test("actual relay stream refuses an over-budget write before any downstrea
   assert.match((await refused).message, /budget exhausted/u);
   assert.equal(uploadForwarded, 0);
 });
+
+void test(
+  "actual Linux profile snapshot restores full library/WebView bytes and refuses changed or imported paths",
+  { skip: process.platform !== "linux" },
+  async (context) => {
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-public-profile-"));
+    context.after(() => rm(root, { recursive: true, force: true }));
+    const runtime = path.join(root, "runtime");
+    await mkdir(path.join(runtime, ".local", "share", "app"), { recursive: true, mode: 0o700 });
+    await mkdir(path.join(runtime, "library"), { mode: 0o700 });
+    await mkdir(path.join(runtime, "staging"), { mode: 0o700 });
+    await chmod(runtime, 0o700);
+    const originals = new Map([
+      ["library/catalog-state.sqlite3", Buffer.from("actual retained component bytes")],
+      [".local/share/app/webview-state", Buffer.from([0, 1, 2, 255])],
+      ["update-schedule.json", Buffer.from('{"original_time":"2026-10-21T00:00:00Z"}')],
+      ["empty", Buffer.alloc(0)],
+      ["staging/candidate-installer.exe", Buffer.from([77, 90, 1, 2])],
+    ]);
+    for (const [name, bytes] of originals)
+      await writeFile(path.join(runtime, name), bytes, { mode: 0o600 });
+    const payload = originals.get("staging/candidate-installer.exe")!;
+    const identity = {
+      bytes: payload.length,
+      sha256: createHash("sha256").update(payload).digest("hex"),
+    };
+    const store = await createPublicUpdatePreimageStore(path.join(root, "preimage-store"));
+    const directory = path.join(root, "snapshot"),
+      deadline = performance.now() + 10000;
+    const snapshot = await retainPublicUpdateProfile(runtime, directory, store, deadline, identity);
+    const target = path.join(root, "restored");
+    const copied = await restorePublicUpdateProfile(directory, snapshot.sha256, target, deadline);
+    assert.equal(copied.authority, "none");
+    for (const [name, bytes] of originals)
+      assert.deepEqual(await readFile(path.join(target, name)), bytes);
+    await writeFile(path.join(target, "retained-marker"), "partial effects remain");
+    await assert.rejects(
+      restorePublicUpdateProfile(directory, snapshot.sha256, target, deadline),
+      /EEXIST/u,
+    );
+    assert.equal(
+      await readFile(path.join(target, "retained-marker"), "utf8"),
+      "partial effects remain",
+    );
+    const manifestPath = path.join(directory, "profile.json"),
+      originalManifest = await readFile(manifestPath);
+    const malformed = JSON.parse(originalManifest.toString()) as { files: { path: string }[] };
+    malformed.files[0]!.path = "../escape";
+    const altered = Buffer.from(JSON.stringify(malformed));
+    await writeFile(manifestPath, altered);
+    await assert.rejects(
+      restorePublicUpdateProfile(
+        directory,
+        createHash("sha256").update(altered).digest("hex"),
+        path.join(root, "escape-refused"),
+        deadline,
+      ),
+    );
+    await writeFile(manifestPath, originalManifest);
+    await assert.rejects(
+      restorePublicUpdateProfile(
+        directory,
+        "0".repeat(64),
+        path.join(root, "wrong-digest"),
+        deadline,
+      ),
+    );
+    await link(path.join(runtime, "empty"), path.join(runtime, "alias"));
+    await assert.rejects(
+      retainPublicUpdateProfile(
+        runtime,
+        path.join(root, "linked-refused"),
+        store,
+        deadline,
+        identity,
+      ),
+    );
+  },
+);

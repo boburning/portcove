@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, rename, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, rename, writeFile, readdir, readFile, chmod } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
-import { errorCode } from "../../../scripts/runtime-values.mts";
+import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
 
 const fixedStateFiles = [
   ["update-schedule.json", 1024 * 1024],
@@ -282,15 +282,24 @@ export async function retainDeduplicatedPublicUpdatePreimages(
   storeReceipt: object,
   deadline: number,
 ) {
+  return retainRawSelections(runtime, output, storeReceipt, deadline, fixedStateFiles);
+}
+async function retainRawSelections(
+  runtime: string,
+  output: string,
+  storeReceipt: object,
+  deadline: number,
+  selectedFiles: readonly (readonly [string, number])[],
+) {
   const store = preimageStores.get(storeReceipt);
   assert.ok(store, "Original private preimage store required");
   assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
-  assert.ok(store.observations < 10, "Public preimage observation count exhausted");
+  assert.ok(store.observations < 11, "Public preimage observation count exhausted");
   store.observations++;
   await directoryAncestry(runtime);
   await mkdir(output, { mode: 0o700 });
   const files = [];
-  for (const [name, limit] of fixedStateFiles) {
+  for (const [name, limit] of selectedFiles) {
     const source = path.join(runtime, name);
     const before = await regular(source, Math.min(limit, 192 * 1024 * 1024)).catch(
       (error: unknown) => {
@@ -375,4 +384,285 @@ export async function retainDeduplicatedPublicUpdatePreimages(
     mode: 0o600,
   });
   return result;
+}
+
+/** Snapshot of an already settled isolated profile, never an admitted restore.
+ * The exact previous actual claim/capture must authenticate any later use. */
+export async function retainPublicUpdateProfile(
+  runtime: string,
+  output: string,
+  storeReceipt: object,
+  deadline: number,
+  stagedPayload: { bytes: number; sha256: string },
+) {
+  assert.equal(process.platform, "linux");
+  assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
+  assert.ok(
+    Number.isSafeInteger(stagedPayload.bytes) &&
+      stagedPayload.bytes > 0 &&
+      stagedPayload.bytes <= 192 * 1024 * 1024,
+  );
+  assert.match(stagedPayload.sha256, /^[a-f0-9]{64}$/u);
+  await directoryAncestry(runtime);
+  const directories: { path: string; mode: number; identity: Awaited<ReturnType<typeof lstat>> }[] =
+    [];
+  const selected: [string, number][] = [];
+  const fileModes = new Map<string, number>();
+  let ordinaryBytes = 0;
+  const walk = async (relative: string, depth: number) => {
+    assert.ok(performance.now() < deadline && depth <= 16 && directories.length < 512);
+    const directory = path.join(runtime, relative),
+      identity = await lstat(directory);
+    assert.ok(
+      identity.isDirectory() && !identity.isSymbolicLink() && (identity.mode & 0o022) === 0,
+    );
+    if (process.getuid) assert.equal(identity.uid, process.getuid());
+    directories.push({ path: relative, mode: identity.mode & 0o777, identity });
+    const entries = await readdir(directory);
+    assert.ok(entries.length <= 512);
+    for (const name of entries.sort()) {
+      assert.ok(
+        /^[A-Za-z0-9._ -]{1,128}$/u.test(name) &&
+          name !== "." &&
+          name !== ".." &&
+          !name.endsWith(".") &&
+          !name.endsWith(" "),
+      );
+      const next = relative ? relative + "/" + name : name;
+      assert.ok(next.length <= 2048 && selected.length < 512);
+      const info = await lstat(path.join(runtime, next));
+      assert.ok(!info.isSymbolicLink() && (info.mode & 0o022) === 0);
+      if (process.getuid) assert.equal(info.uid, process.getuid());
+      if (info.isDirectory()) {
+        await walk(next, depth + 1);
+        continue;
+      }
+      assert.ok(info.isFile() && info.nlink === 1 && info.size >= 0);
+      assert.notEqual(
+        next,
+        "staging/.candidate.payload.incoming",
+        "Incomplete payload cannot establish a parked profile",
+      );
+      if (next === "staging/candidate-installer.exe") assert.equal(info.size, stagedPayload.bytes);
+      else {
+        ordinaryBytes += info.size;
+        assert.ok(
+          ordinaryBytes <= 64 * 1024 * 1024,
+          "Original retained user-profile bound exhausted",
+        );
+      }
+      fileModes.set(next, info.mode & 0o777);
+      selected.push([
+        next,
+        next === "staging/candidate-installer.exe" ? stagedPayload.bytes : 64 * 1024 * 1024,
+      ]);
+    }
+  };
+  await walk("", 0);
+  const retained = await retainRawSelections(runtime, output, storeReceipt, deadline, selected);
+  for (const directory of directories) {
+    const after = await lstat(path.join(runtime, directory.path));
+    for (const field of ["dev", "ino", "mtimeMs", "ctimeMs"] as const)
+      assert.equal(after[field], directory.identity[field], "Settled profile directory changed");
+  }
+  const payload = retained.files.find((file) => file.path === "staging/candidate-installer.exe");
+  if (payload) assert.equal(payload.sha256, stagedPayload.sha256);
+  const manifest = {
+    schema_version: 1,
+    kind: "settled-public-profile-snapshot",
+    ordinary_bytes: ordinaryBytes,
+    directories: directories.map(({ path, mode }) => ({ path, mode })),
+    files: retained.files.map((file) => {
+      assert.ok(!file.absent && fileModes.has(file.path));
+      return { ...file, mode: fileModes.get(file.path)! };
+    }),
+    authority: "none",
+  };
+  const bytes = Buffer.from(JSON.stringify(manifest) + "\n");
+  assert.ok(bytes.length <= 1024 * 1024);
+  await writeFile(path.join(output, "profile.json"), bytes, { flag: "wx", mode: 0o600 });
+  return {
+    manifest,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    bytes: bytes.length,
+    scope: "exact settled profile snapshot, not restore authority",
+  };
+}
+
+function profileRelative(value: unknown, root = false): asserts value is string {
+  assert.ok(typeof value === "string" && value.length <= 2048);
+  if (root && value === "") return;
+  assert.ok(value.length > 0 && !value.includes("\\"));
+  for (const part of value.split("/"))
+    assert.ok(
+      /^[A-Za-z0-9._ -]{1,128}$/u.test(part) &&
+        part !== "." &&
+        part !== ".." &&
+        !part.endsWith(".") &&
+        !part.endsWith(" "),
+    );
+  assert.ok(value.split("/").length <= 17);
+}
+/** Bounded byte restoration only. The caller must authenticate the exact old
+ * settled claim/capture and select the same fixed profile before calling. */
+export async function restorePublicUpdateProfile(
+  snapshotDirectory: string,
+  manifestSha256: string,
+  target: string,
+  deadline: number,
+) {
+  assert.equal(process.platform, "linux");
+  assert.match(manifestSha256, /^[a-f0-9]{64}$/u);
+  assert.ok(Number.isFinite(deadline) && performance.now() < deadline);
+  const filename = path.join(snapshotDirectory, "profile.json");
+  const identity = await readPublicUpdateFile(filename, 1024 * 1024);
+  assert.equal(identity.sha256, manifestSha256);
+  const bytes = await readFile(filename);
+  assert.equal(bytes.length, identity.bytes);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), manifestSha256);
+  const raw: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  assert.ok(
+    isRecord(raw) &&
+      Object.keys(raw).sort().join(",") ===
+        "authority,directories,files,kind,ordinary_bytes,schema_version",
+  );
+  assert.equal(raw.schema_version, 1);
+  assert.equal(raw.kind, "settled-public-profile-snapshot");
+  assert.equal(raw.authority, "none");
+  assert.ok(
+    Array.isArray(raw.directories) &&
+      raw.directories.length > 0 &&
+      raw.directories.length <= 512 &&
+      Array.isArray(raw.files) &&
+      raw.files.length <= 512,
+  );
+  const directories = new Map<string, number>();
+  for (const value of raw.directories) {
+    assert.ok(isRecord(value) && Object.keys(value).sort().join(",") === "mode,path");
+    profileRelative(value.path, true);
+    assert.ok(!directories.has(value.path));
+    assert.ok(
+      Number.isSafeInteger(value.mode) &&
+        Number(value.mode) >= 0 &&
+        Number(value.mode) <= 0o777 &&
+        (Number(value.mode) & 0o022) === 0,
+    );
+    if (directories.size === 0) assert.equal(value.path, "");
+    else
+      assert.ok(
+        directories.has(
+          path.posix.dirname(value.path) === "." ? "" : path.posix.dirname(value.path),
+        ),
+      );
+    directories.set(value.path, Number(value.mode));
+  }
+  const files: {
+    path: string;
+    mode: number;
+    bytes: number;
+    sha256: string;
+    chunks: { bytes: number; sha256: string; retained: string }[];
+  }[] = [];
+  const names = new Set<string>();
+  let ordinary = 0;
+  for (const value of raw.files) {
+    assert.ok(
+      isRecord(value) && Object.keys(value).sort().join(",") === "bytes,chunks,mode,path,sha256",
+    );
+    profileRelative(value.path);
+    assert.ok(!names.has(value.path) && !directories.has(value.path));
+    names.add(value.path);
+    assert.ok(
+      directories.has(path.posix.dirname(value.path) === "." ? "" : path.posix.dirname(value.path)),
+    );
+    assert.notEqual(value.path, "staging/.candidate.payload.incoming");
+    assert.ok(
+      Number.isSafeInteger(value.mode) &&
+        Number(value.mode) >= 0 &&
+        Number(value.mode) <= 0o777 &&
+        (Number(value.mode) & 0o022) === 0,
+    );
+    assert.ok(
+      Number.isSafeInteger(value.bytes) &&
+        Number(value.bytes) >= 0 &&
+        Number(value.bytes) <= 192 * 1024 * 1024 &&
+        typeof value.sha256 === "string" &&
+        /^[a-f0-9]{64}$/u.test(value.sha256),
+    );
+    if (value.path !== "staging/candidate-installer.exe") ordinary += Number(value.bytes);
+    assert.ok(ordinary <= 64 * 1024 * 1024);
+    assert.ok(Array.isArray(value.chunks) && value.chunks.length <= 192);
+    let total = 0;
+    const hash = createHash("sha256"),
+      chunks: { bytes: number; sha256: string; retained: string }[] = [];
+    for (const chunk of value.chunks) {
+      assert.ok(isRecord(chunk) && Object.keys(chunk).sort().join(",") === "bytes,retained,sha256");
+      assert.ok(
+        Number.isSafeInteger(chunk.bytes) &&
+          Number(chunk.bytes) > 0 &&
+          Number(chunk.bytes) <= 1024 * 1024 &&
+          typeof chunk.sha256 === "string" &&
+          /^[a-f0-9]{64}$/u.test(chunk.sha256),
+      );
+      assert.equal(chunk.retained, `../preimage-store/${chunk.sha256}.bin`);
+      const retained = await rawStoreBytes(
+        path.resolve(snapshotDirectory, String(chunk.retained)),
+        Number(chunk.bytes),
+        deadline,
+      );
+      assert.equal(retained.length, chunk.bytes);
+      assert.equal(createHash("sha256").update(retained).digest("hex"), chunk.sha256);
+      total += retained.length;
+      hash.update(retained);
+      chunks.push({
+        bytes: Number(chunk.bytes),
+        sha256: chunk.sha256,
+        retained: String(chunk.retained),
+      });
+    }
+    assert.equal(total, value.bytes);
+    assert.equal(hash.digest("hex"), value.sha256);
+    files.push({
+      path: value.path,
+      mode: Number(value.mode),
+      bytes: Number(value.bytes),
+      sha256: value.sha256,
+      chunks,
+    });
+  }
+  assert.equal(raw.ordinary_bytes, ordinary);
+  assert.deepEqual(await readPublicUpdateFile(filename, 1024 * 1024), identity);
+  await directoryAncestry(path.dirname(target));
+  await mkdir(target, { mode: 0o700 }); // A retained/partial target can never be reused.
+  for (const [relative] of directories)
+    if (relative) await mkdir(path.join(target, relative), { mode: 0o700 });
+  for (const file of files) {
+    assert.ok(performance.now() < deadline);
+    const output = await open(path.join(target, file.path), "wx", 0o600);
+    try {
+      for (const chunk of file.chunks) {
+        const retained = await rawStoreBytes(
+          path.resolve(snapshotDirectory, chunk.retained),
+          chunk.bytes,
+          deadline,
+        );
+        assert.equal(createHash("sha256").update(retained).digest("hex"), chunk.sha256);
+        await output.writeFile(retained);
+      }
+      await output.sync();
+      await output.chmod(file.mode);
+    } finally {
+      await output.close();
+    }
+  }
+  for (const [relative, mode] of [...directories].reverse())
+    await chmod(path.join(target, relative), mode);
+  assert.deepEqual(await readPublicUpdateFile(filename, 1024 * 1024), identity);
+  return {
+    manifest_sha256: manifestSha256,
+    ordinary_bytes: ordinary,
+    files: files.length,
+    authority: "none" as const,
+    scope: "exact copied profile bytes; previous actual claim authority required separately",
+  };
 }

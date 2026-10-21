@@ -20,6 +20,7 @@ import {
 import {
   readPublicUpdateFile,
   createPublicUpdatePreimageStore,
+  retainPublicUpdateProfile,
   retainDeduplicatedPublicUpdatePreimages,
   preparePublicJournalFault,
   preparePublicPayloadFault,
@@ -346,6 +347,19 @@ export async function runLinuxPublicUpdateJourney(
       const cleanup = await stop();
       recovery.push({ area, original, fault, result, retained, cleanup });
     }
+    report.retained_profile = await retainPublicUpdateProfile(
+      binding.state,
+      `${output}/profile-snapshot`,
+      preimageStore,
+      deadline,
+      binding.candidate,
+    );
+    report.retained_profile_id = binding.profile_id;
+    report.retained_installed_image = await readPublicUpdateFile(binding.active_application);
+    assert.equal(
+      (report.retained_installed_image as Awaited<ReturnType<typeof readPublicUpdateFile>>).sha256,
+      binding.candidate.sha256,
+    );
     report.outcome = "observed";
   } catch (error) {
     failure =
