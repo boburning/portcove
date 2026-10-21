@@ -8,6 +8,89 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
+import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
+void test("catalog effects require explicit catalog subject and independently appointed matching role", async () => {
+  const catalog_publication = catalogPublicationFixture();
+  for (const name of ["definitions", "policy", "snapshot", "timestamp"] as const) {
+    const role = `catalog-${name}` as const;
+    const request = {
+      kind: "upload" as const,
+      destination: `github-actions:boburning/portcove:catalog-tuf-role-${name}`,
+    };
+    assert.equal(
+      inspectCapacityExecutorSubject(role, { request, catalog_publication }).kind,
+      "catalog-publication",
+    );
+    assert.throws(() => inspectCapacityExecutorSubject(role, { request }), /explicit catalog/);
+    assert.throws(() =>
+      inspectCapacityExecutorSubject(role, {
+        request,
+        catalog_publication,
+        metadata_bootstrap: {},
+      }),
+    );
+    assert.throws(() =>
+      assertCapacityExecutorEffectScope(role, {
+        ...request,
+        destination: request.destination + "-other",
+      }),
+    );
+    assert.throws(() =>
+      inspectCapacityExecutorSubject("payload-signing", { request, catalog_publication }),
+    );
+  }
+  const context = {
+    kind: "upload" as const,
+    destination: "github-actions:boburning/portcove:catalog-publication-context",
+  };
+  assert.equal(
+    inspectCapacityExecutorSubject("coordinator", { request: context, catalog_publication }).kind,
+    "catalog-publication",
+  );
+  assert.throws(() => inspectCapacityExecutorSubject("coordinator", { request: context }));
+  const request = {
+    kind: "upload" as const,
+    destination: "github-pages:boburning/portcove:complete-site",
+    catalog_site_expectation: {
+      artifact_id: 1,
+      archive_sha256: "1".repeat(64),
+      catalog_root_sha256: "7".repeat(64),
+      catalog_repository_sha256: "2".repeat(64),
+      application_root_sha256: null,
+      prior_site_generation_sha256: null,
+      site_generation_sha256: "3".repeat(64),
+    },
+  };
+  assert.equal(
+    inspectCapacityExecutorSubject("site-publication", { request, catalog_publication }).kind,
+    "catalog-publication",
+  );
+  assert.throws(
+    () => inspectCapacityExecutorSubject("site-publication", { request }),
+    /explicit catalog/,
+  );
+  assert.throws(() => assertCapacityExecutorEffectScope("catalog-snapshot", request));
+  let ran = false;
+  await assert.rejects(
+    executeOwnedCapacityEffect(
+      { kind: "authenticated-capacity-executor" },
+      {
+        repository: "unused",
+        checkpoint: "a".repeat(40),
+        remote_configuration: {},
+        request,
+        catalog_publication,
+      },
+      async () => ({}),
+      async () => {
+        ran = true;
+        return { remote_identity: "unused", evidence_sha256: "b".repeat(64) };
+      },
+    ),
+    /actual authenticated/,
+  );
+  assert.equal(ran, false);
+});
 void test("only the site executor may retain its archive and bind an exact Pages expectation", () => {
   const destination = "github-actions:boburning/portcove:complete-site-artifact";
   assert.doesNotThrow(() =>

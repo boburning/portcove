@@ -27,6 +27,253 @@ import {
 } from "./release-metadata-contract.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
+import { catalogPublicationFixture } from "./fixtures/release-catalog-publication-fixture.mts";
+import {
+  inspectCatalogPublicationDescriptor,
+  catalogPublicationLifecycle,
+  inspectCatalogCapacitySubject,
+  inspectCatalogSitePublicationExpectation,
+} from "./release-catalog-publication-contract.mts";
+
+function catalogOperation(
+  outcome = "pending",
+  descriptor = catalogPublicationFixture(),
+  counters = { transient_retries: 0, substantive_repairs: 0 },
+) {
+  const c = capacityFixture();
+  const identity = {
+    before_checkpoint: "a".repeat(40),
+    catalog_publication: {
+      descriptor,
+      descriptor_sha256: capacityDigest(descriptor),
+      observed_at: "2026-10-21T12:00:00Z",
+      ...counters,
+    },
+    kind: "upload",
+    destination: "github-actions:boburning/portcove:catalog-publication-context",
+    executor_identity: {
+      actor_id: "1",
+      check_run_id: "2",
+      controller_revision: "3".repeat(40),
+      execution_ref: "refs/tags/fixture",
+      job_id: 4,
+      role: "coordinator",
+      run_attempt: 1,
+      run_id: "5",
+      workflow: ".github/workflows/fixture.yml",
+    },
+    receipt_limit: 1,
+    sequence: 1,
+    policy_sha256: c.ratification.resource_policy_sha256,
+    ratification_sha256: capacityDigest(c.ratification),
+  };
+  return {
+    ...identity,
+    id: capacityDigest(identity),
+    outcome,
+    completed_effects: [],
+    failure_evidence: null,
+    recovery: null,
+  };
+}
+void test("catalog subject is explicit, bounded, digest-bound and cannot impersonate app metadata", () => {
+  const descriptor = catalogPublicationFixture();
+  assert.deepEqual(inspectCatalogPublicationDescriptor(descriptor), descriptor);
+  assert.equal(
+    inspectCapacityOperation(catalogOperation())!.catalog_publication!.descriptor_sha256,
+    capacityDigest(descriptor),
+  );
+  for (const mutation of [
+    { schema_version: 2 },
+    { kind: "application-tuf-metadata-renewal" },
+    { source_commit: "3".repeat(64) },
+    { bundle_sha256: "x" },
+    { private_key: "forbidden" },
+    { prior: { ...descriptor.prior, application_root_sha256: "a".repeat(64) } },
+  ])
+    assert.throws(() => inspectCatalogPublicationDescriptor({ ...descriptor, ...mutation }));
+  const subject = catalogOperation().catalog_publication;
+  for (const mutation of [
+    { transient_retries: 3 },
+    { substantive_repairs: 4 },
+    { observed_at: "not-time" },
+    { descriptor_sha256: "0".repeat(64) },
+  ])
+    assert.throws(() => inspectCatalogCapacitySubject({ ...subject, ...mutation }));
+  assert.throws(() =>
+    inspectCapacityOperation({ ...catalogOperation(), candidate: operationFixture().candidate }),
+  );
+  const withApp = {
+    ...descriptor,
+    bundle_sha256: "0".repeat(64),
+    prior: {
+      ...descriptor.prior,
+      site_generation_sha256: "9".repeat(64),
+      application_root_sha256: "a".repeat(64),
+      application_repository_sha256: "b".repeat(64),
+    },
+  };
+  assert.equal(catalogPublicationLifecycle(descriptor), catalogPublicationLifecycle(withApp));
+});
+void test("catalog uses distinct exact role destinations and sole Pages expectation", () => {
+  const base = catalogOperation();
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...identity
+  } = base;
+  const parse = (delta: Record<string, unknown>) => {
+    const i = { ...identity, ...delta };
+    return inspectCapacityOperation({ ...base, ...i, id: capacityDigest(i) });
+  };
+  for (const role of ["definitions", "policy", "snapshot", "timestamp"]) {
+    const executor_identity = { ...identity.executor_identity, role: `catalog-${role}` };
+    const destination = `github-actions:boburning/portcove:catalog-tuf-role-${role}`;
+    assert.doesNotThrow(() => parse({ executor_identity, destination }));
+    assert.throws(() =>
+      parse({
+        executor_identity,
+        destination: "github-actions:boburning/portcove:catalog-tuf-role-other",
+      }),
+    );
+    assert.throws(() =>
+      parse({ executor_identity: { ...executor_identity, role: `tuf-${role}` }, destination }),
+    );
+  }
+  const catalog_site_expectation = {
+    artifact_id: 9,
+    archive_sha256: "1".repeat(64),
+    catalog_root_sha256: identity.catalog_publication.descriptor.prior.catalog_root_sha256,
+    catalog_repository_sha256: "2".repeat(64),
+    application_root_sha256: null,
+    prior_site_generation_sha256: null,
+    site_generation_sha256: "3".repeat(64),
+  };
+  assert.doesNotThrow(() => inspectCatalogSitePublicationExpectation(catalog_site_expectation));
+  const pages = {
+    executor_identity: { ...identity.executor_identity, role: "site-publication" },
+    destination: "github-pages:boburning/portcove:complete-site",
+    catalog_site_expectation,
+  };
+  assert.doesNotThrow(() => parse(pages));
+  assert.throws(() =>
+    parse({
+      ...pages,
+      catalog_site_expectation: {
+        ...catalog_site_expectation,
+        catalog_root_sha256: "8".repeat(64),
+      },
+    }),
+  );
+  assert.throws(() => parse({ ...pages, site_expectation: {} }));
+});
+void test("shared capacity slot excludes application/catalog crossover and preserves retry accounting across changed bundles", () => {
+  const beforeOperation = {
+    ...catalogOperation(),
+    outcome: "recovered",
+    recovery: {
+      checkpoint: "b".repeat(40),
+      evidence_sha256: "c".repeat(64),
+      resolution: "effect-not-applied",
+    },
+  };
+  const capacity = {
+    ...capacityFixture(),
+    schema_version: 2,
+    operation: beforeOperation,
+    prior_operations: [] as unknown[],
+  };
+  const before = {
+    schema_version: 2,
+    active_candidate: null,
+    controller: { capacity_attempt: capacity },
+  };
+  const changed = { ...catalogPublicationFixture(), bundle_sha256: "e".repeat(64) };
+  const nextOp = catalogOperation("pending", changed, {
+    transient_retries: 1,
+    substantive_repairs: 0,
+  });
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...initial
+  } = nextOp;
+  const identity = { ...initial, before_checkpoint: "f".repeat(40), sequence: 2 };
+  const after = {
+    ...before,
+    controller: {
+      capacity_attempt: {
+        ...capacity,
+        operation: { ...nextOp, ...identity, id: capacityDigest(identity) },
+      },
+    },
+  };
+  after.controller.capacity_attempt.prior_operations = expectedCompactCapacityOperations(
+    before,
+    after,
+    "f".repeat(40),
+  );
+  assert.doesNotThrow(() => validateCapacityTransition(before, after, "f".repeat(40)));
+  assert.equal(
+    inspectCompactCapacityOperations(after.controller.capacity_attempt.prior_operations)[0]!.subject
+      .kind,
+    "catalog-publication",
+  );
+  const reset = structuredClone(after);
+  const op = reset.controller.capacity_attempt.operation;
+  const {
+    id: _resetId,
+    outcome: _resetOutcome,
+    completed_effects: _resetEffects,
+    failure_evidence: _resetFailure,
+    recovery: _resetRecovery,
+    ...resetIdentity
+  } = op;
+  resetIdentity.catalog_publication.transient_retries = 0;
+  reset.controller.capacity_attempt.operation = {
+    ...op,
+    ...resetIdentity,
+    id: capacityDigest(resetIdentity),
+  };
+  assert.throws(
+    () => validateCapacityTransition(before, reset, "f".repeat(40)),
+    /recovery increment/,
+  );
+  const pending = {
+    ...before,
+    controller: { capacity_attempt: { ...capacity, operation: catalogOperation() } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(pending, after, "f".repeat(40)),
+    /resolved|unresolved/,
+  );
+  assert.throws(
+    () =>
+      validateCapacityTransition(
+        { ...before, active_candidate: operationFixture().candidate },
+        after,
+        "f".repeat(40),
+      ),
+    /application reservation/,
+  );
+  const app = {
+    ...before,
+    controller: { capacity_attempt: { ...capacity, operation: operationFixture("pending") } },
+  };
+  assert.throws(
+    () => validateCapacityTransition(app, after, "f".repeat(40)),
+    /resolved|unresolved/,
+  );
+  const unchanged = structuredClone(before);
+  assert.doesNotThrow(() => validateCapacityTransition(before, unchanged, "f".repeat(40)));
+  assert.equal(assessBoundedCapacity(capacity).availability, "unknown");
+});
 void test("replacement publication result uses only the consumed bounded candidate counters", () => {
   const candidate = { version: "0.1.0-beta.1", transient_retries: 1, substantive_repairs: 0 };
   const root = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";

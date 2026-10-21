@@ -1,5 +1,10 @@
 import { assertReportRepairDispatch } from "./release-report-repair-contract.mts";
 import {
+  inspectCatalogCapacitySubject,
+  catalogPublicationLifecycle,
+  assertCatalogSitePublicationBinding,
+} from "./release-catalog-publication-contract.mts";
+import {
   inspectReleaseEffectExpectation,
   assertReleaseEffectBinding,
 } from "./release-effect-contract.mts";
@@ -115,6 +120,10 @@ export function inspectCapacityExecutorIdentity(raw: unknown) {
       "tuf-stable",
       "tuf-snapshot",
       "tuf-timestamp",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
     ].includes(String(raw.role))
   )
     throw new Error("executor fixed profile fields invalid");
@@ -170,12 +179,14 @@ export interface ParsedCapacityOperation {
   candidate?: CapacityCandidate;
   metadata_renewal?: MetadataOperationSubject;
   metadata_bootstrap?: MetadataBootstrapOperationSubject;
+  catalog_publication?: ReturnType<typeof inspectCatalogCapacitySubject>;
   executor_nonce?: string;
   executor_identity?: ReturnType<typeof inspectCapacityExecutorIdentity>;
   receipt_limit?: number;
   release_expectation?: ReturnType<typeof inspectReleaseEffectExpectation>;
   aggregate_expectation?: ReturnType<typeof inspectAggregateUploadExpectation>;
   site_expectation?: ReturnType<typeof inspectSitePublicationExpectation>;
+  catalog_site_expectation?: ReturnType<typeof assertCatalogSitePublicationBinding>;
   destination: string;
   kind: string;
   policy_sha256: string;
@@ -238,15 +249,23 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
   const hasIdentity = isRecord(raw) && Object.hasOwn(raw, "executor_identity");
   const metadata = isRecord(raw) && Object.hasOwn(raw, "metadata_renewal");
   const bootstrap = isRecord(raw) && Object.hasOwn(raw, "metadata_bootstrap");
+  const catalog = isRecord(raw) && Object.hasOwn(raw, "catalog_publication");
   const receiptLimit = isRecord(raw) && Object.hasOwn(raw, "receipt_limit");
   const hasAggregate = isRecord(raw) && Object.hasOwn(raw, "aggregate_expectation");
   const hasRelease = isRecord(raw) && Object.hasOwn(raw, "release_expectation");
   const hasSite = isRecord(raw) && Object.hasOwn(raw, "site_expectation");
+  const hasCatalogSite = isRecord(raw) && Object.hasOwn(raw, "catalog_site_expectation");
   exact(
     raw,
     [
       "before_checkpoint",
-      bootstrap ? "metadata_bootstrap" : metadata ? "metadata_renewal" : "candidate",
+      catalog
+        ? "catalog_publication"
+        : bootstrap
+          ? "metadata_bootstrap"
+          : metadata
+            ? "metadata_renewal"
+            : "candidate",
       "completed_effects",
       "destination",
       ...(hasExecutor ? ["executor_nonce"] : []),
@@ -254,6 +273,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       ...(receiptLimit ? ["receipt_limit"] : []),
       ...(hasRelease ? ["release_expectation"] : []),
       ...(hasSite ? ["site_expectation"] : []),
+      ...(hasCatalogSite ? ["catalog_site_expectation"] : []),
       ...(hasAggregate ? ["aggregate_expectation"] : []),
       "failure_evidence",
       "id",
@@ -302,6 +322,7 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     (hasSite ||
       metadata ||
       bootstrap ||
+      catalog ||
       raw.kind !== "upload" ||
       raw.destination !== "github-actions:boburning/portcove:admitted-aggregate" ||
       executorIdentity?.role !== "aggregate-assembly")
@@ -321,12 +342,57 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       hasAggregate ||
       metadata ||
       bootstrap ||
+      catalog ||
       raw.kind !== "upload" ||
       executorIdentity?.role !== "release-publication" ||
       raw.receipt_limit !== 1)
   )
     throw new Error("Release expectation is outside fixed publisher scope");
   const site = hasSite ? inspectSitePublicationExpectation(raw.site_expectation) : null;
+  const catalogSubject = catalog ? inspectCatalogCapacitySubject(raw.catalog_publication) : null;
+  const catalogSite =
+    hasCatalogSite && catalogSubject
+      ? assertCatalogSitePublicationBinding(catalogSubject.descriptor, raw.catalog_site_expectation)
+      : null;
+  if (
+    (hasCatalogSite && !catalogSubject) ||
+    (catalogSubject &&
+      (hasSite ||
+        hasAggregate ||
+        hasRelease ||
+        metadata ||
+        bootstrap ||
+        raw.kind !== "upload" ||
+        !executorIdentity ||
+        raw.receipt_limit !== 1 ||
+        (executorIdentity.role === "site-publication"
+          ? ![
+              "github-actions:boburning/portcove:complete-site-artifact",
+              "github-pages:boburning/portcove:complete-site",
+            ].includes(String(raw.destination)) ||
+            (raw.destination === "github-pages:boburning/portcove:complete-site") !== hasCatalogSite
+          : executorIdentity.role === "coordinator"
+            ? raw.destination !== "github-actions:boburning/portcove:catalog-publication-context" ||
+              hasCatalogSite
+            : ![
+                "catalog-definitions",
+                "catalog-policy",
+                "catalog-snapshot",
+                "catalog-timestamp",
+              ].includes(String(executorIdentity.role)) ||
+              raw.destination !==
+                `github-actions:boburning/portcove:catalog-tuf-role-${String(executorIdentity.role).slice("catalog-".length)}` ||
+              hasCatalogSite)))
+  )
+    throw new Error("catalog effect is outside its explicit fixed subject/executor scope");
+  if (executorIdentity && String(executorIdentity.role).startsWith("catalog-") && !catalogSubject)
+    throw new Error("catalog executor requires its explicit catalog subject");
+  if (
+    !catalogSubject &&
+    (raw.destination === "github-actions:boburning/portcove:catalog-publication-context" ||
+      String(raw.destination).startsWith("github-actions:boburning/portcove:catalog-tuf-role-"))
+  )
+    throw new Error("catalog destination requires its explicit catalog subject");
   if (
     site &&
     (raw.kind !== "upload" ||
@@ -336,7 +402,9 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
       (site.prior_site_generation_sha256 === null && !bootstrap))
   )
     throw new Error("site expectation belongs only to the actual fixed Pages intent");
-  if (bootstrap) {
+  if (catalogSubject) {
+    // Already parsed above; never reinterpret it as an application candidate.
+  } else if (bootstrap) {
     exact(
       raw.metadata_bootstrap,
       "descriptor_sha256,initial_site_preimage_sha256,observed_at,setup_plan_sha256,substantive_repairs,transient_retries",
@@ -422,62 +490,68 @@ export function inspectCapacityOperation(raw: unknown): ParsedCapacityOperation 
     candidate?: CapacityCandidate;
     metadata_renewal?: MetadataOperationSubject;
     metadata_bootstrap?: MetadataBootstrapOperationSubject;
-  } = bootstrap
-    ? {
-        metadata_bootstrap: {
-          descriptor_sha256: String(
-            (raw.metadata_bootstrap as Record<string, unknown>).descriptor_sha256,
-          ),
-          setup_plan_sha256: String(
-            (raw.metadata_bootstrap as Record<string, unknown>).setup_plan_sha256,
-          ),
-          initial_site_preimage_sha256: String(
-            (raw.metadata_bootstrap as Record<string, unknown>).initial_site_preimage_sha256,
-          ),
-          observed_at: String((raw.metadata_bootstrap as Record<string, unknown>).observed_at),
-          transient_retries: Number(
-            (raw.metadata_bootstrap as Record<string, unknown>).transient_retries,
-          ),
-          substantive_repairs: Number(
-            (raw.metadata_bootstrap as Record<string, unknown>).substantive_repairs,
-          ),
-        },
-      }
-    : metadata
+    catalog_publication?: ReturnType<typeof inspectCatalogCapacitySubject>;
+  } = catalogSubject
+    ? { catalog_publication: catalogSubject }
+    : bootstrap
       ? {
-          metadata_renewal: {
+          metadata_bootstrap: {
             descriptor_sha256: String(
-              (raw.metadata_renewal as Record<string, unknown>).descriptor_sha256,
+              (raw.metadata_bootstrap as Record<string, unknown>).descriptor_sha256,
             ),
-            observed_at: String((raw.metadata_renewal as Record<string, unknown>).observed_at),
-            prior_repository_sha256: String(
-              (raw.metadata_renewal as Record<string, unknown>).prior_repository_sha256,
+            setup_plan_sha256: String(
+              (raw.metadata_bootstrap as Record<string, unknown>).setup_plan_sha256,
             ),
+            initial_site_preimage_sha256: String(
+              (raw.metadata_bootstrap as Record<string, unknown>).initial_site_preimage_sha256,
+            ),
+            observed_at: String((raw.metadata_bootstrap as Record<string, unknown>).observed_at),
             transient_retries: Number(
-              (raw.metadata_renewal as Record<string, unknown>).transient_retries,
+              (raw.metadata_bootstrap as Record<string, unknown>).transient_retries,
             ),
             substantive_repairs: Number(
-              (raw.metadata_renewal as Record<string, unknown>).substantive_repairs,
+              (raw.metadata_bootstrap as Record<string, unknown>).substantive_repairs,
             ),
           },
         }
-      : {
-          candidate: {
-            source_commit: String((raw.candidate as Record<string, unknown>).source_commit),
-            prepared_commit: String((raw.candidate as Record<string, unknown>).prepared_commit),
-            version: String((raw.candidate as Record<string, unknown>).version),
-            transient_retries: Number((raw.candidate as Record<string, unknown>).transient_retries),
-            substantive_repairs: Number(
-              (raw.candidate as Record<string, unknown>).substantive_repairs,
-            ),
-          },
-        };
+      : metadata
+        ? {
+            metadata_renewal: {
+              descriptor_sha256: String(
+                (raw.metadata_renewal as Record<string, unknown>).descriptor_sha256,
+              ),
+              observed_at: String((raw.metadata_renewal as Record<string, unknown>).observed_at),
+              prior_repository_sha256: String(
+                (raw.metadata_renewal as Record<string, unknown>).prior_repository_sha256,
+              ),
+              transient_retries: Number(
+                (raw.metadata_renewal as Record<string, unknown>).transient_retries,
+              ),
+              substantive_repairs: Number(
+                (raw.metadata_renewal as Record<string, unknown>).substantive_repairs,
+              ),
+            },
+          }
+        : {
+            candidate: {
+              source_commit: String((raw.candidate as Record<string, unknown>).source_commit),
+              prepared_commit: String((raw.candidate as Record<string, unknown>).prepared_commit),
+              version: String((raw.candidate as Record<string, unknown>).version),
+              transient_retries: Number(
+                (raw.candidate as Record<string, unknown>).transient_retries,
+              ),
+              substantive_repairs: Number(
+                (raw.candidate as Record<string, unknown>).substantive_repairs,
+              ),
+            },
+          };
   const identity = {
     before_checkpoint: raw.before_checkpoint,
     ...subject,
     destination: raw.destination,
     ...(releaseExpectation ? { release_expectation: releaseExpectation } : {}),
     ...(site ? { site_expectation: site } : {}),
+    ...(catalogSite ? { catalog_site_expectation: catalogSite } : {}),
     ...(aggregate ? { aggregate_expectation: aggregate } : {}),
     ...(hasExecutor ? { executor_nonce: String(raw.executor_nonce) } : {}),
     ...(executorIdentity ? { executor_identity: executorIdentity } : {}),
@@ -513,7 +587,8 @@ export function assessBoundedCapacity(raw: unknown) {
     raw.schema_version === 1 &&
     isRecord(raw.operation) &&
     (Object.hasOwn(raw.operation, "metadata_renewal") ||
-      Object.hasOwn(raw.operation, "metadata_bootstrap"))
+      Object.hasOwn(raw.operation, "metadata_bootstrap") ||
+      Object.hasOwn(raw.operation, "catalog_publication"))
   )
     throw new Error("metadata operations require bounded capacity schema2");
   if (
@@ -608,7 +683,10 @@ export function inspectPriorCapacityOperations(raw: unknown) {
 type Operation = NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 export interface CapacityOperationGroup {
   summary_schema_version: 1;
-  subject: { kind: "candidate" | "metadata-renewal" | "metadata-bootstrap"; identity: string };
+  subject: {
+    kind: "candidate" | "metadata-renewal" | "metadata-bootstrap" | "catalog-publication";
+    identity: string;
+  };
   kind: string;
   destination_sha256: string;
   transient_retries: number;
@@ -617,6 +695,11 @@ export interface CapacityOperationGroup {
   attempts: { checkpoint: string; id: string; operation_sha256: string }[];
 }
 export function capacityOperationSubject(operation: Operation) {
+  if (operation.catalog_publication)
+    return {
+      kind: "catalog-publication" as const,
+      identity: catalogPublicationLifecycle(operation.catalog_publication.descriptor),
+    };
   if (isRecord(operation.metadata_bootstrap))
     return {
       kind: "metadata-bootstrap" as const,
@@ -631,11 +714,13 @@ export function capacityOperationSubject(operation: Operation) {
   return { kind: "candidate" as const, identity: String(operation.candidate.prepared_commit) };
 }
 export function capacityOperationCounters(operation: Operation) {
-  const source = isRecord(operation.metadata_bootstrap)
-    ? operation.metadata_bootstrap
-    : isRecord(operation.metadata_renewal)
-      ? operation.metadata_renewal
-      : operation.candidate;
+  const source =
+    operation.catalog_publication ??
+    (isRecord(operation.metadata_bootstrap)
+      ? operation.metadata_bootstrap
+      : isRecord(operation.metadata_renewal)
+        ? operation.metadata_renewal
+        : operation.candidate);
   if (!isRecord(source)) throw new Error("capacity operation counters absent");
   return {
     transient_retries: Number(source.transient_retries),
@@ -661,7 +746,8 @@ export function inspectCompactCapacityOperations(raw: unknown): CapacityOperatio
     if (
       entry.subject.kind !== "candidate" &&
       entry.subject.kind !== "metadata-renewal" &&
-      entry.subject.kind !== "metadata-bootstrap"
+      entry.subject.kind !== "metadata-bootstrap" &&
+      entry.subject.kind !== "catalog-publication"
     )
       throw new Error("compact capacity subject invalid");
     sha(entry.subject.identity, entry.subject.kind === "candidate" ? 40 : 64);
@@ -773,14 +859,16 @@ export function expectedCompactCapacityOperations(
   const active = isRecord(next.active_candidate) ? next.active_candidate.prepared_commit : null;
   const published = inspectPublishedMetadata(next.published_metadata);
   return groups.filter((group) =>
-    group.subject.kind === "candidate"
-      ? group.subject.identity === active
-      : group.subject.kind === "metadata-bootstrap"
-        ? !published &&
-          next.metadata_bootstrap != null &&
-          group.subject.identity ===
-            capacityDigest(inspectMetadataBootstrapDescriptor(next.metadata_bootstrap))
-        : group.subject.identity === published?.repository_sha256,
+    group.subject.kind === "catalog-publication"
+      ? true
+      : group.subject.kind === "candidate"
+        ? group.subject.identity === active
+        : group.subject.kind === "metadata-bootstrap"
+          ? !published &&
+            next.metadata_bootstrap != null &&
+            group.subject.identity ===
+              capacityDigest(inspectMetadataBootstrapDescriptor(next.metadata_bootstrap))
+          : group.subject.identity === published?.repository_sha256,
   );
 }
 export function verifyRetainedCapacityOperation(
@@ -809,6 +897,23 @@ function validateCapacityV2(
   const before = priorCapacity ? inspectCapacityOperation(priorCapacity.operation) : null,
     after = inspectCapacityOperation(capacity.operation);
   const newIntent = after && (!before || before.id !== after.id);
+  // Catalog uses the same sole pending slot and cannot borrow an application
+  // reservation. Its own admission remains an independently authenticated
+  // caller obligation; parsing this descriptor is never that admission.
+  if (after?.catalog_publication && newIntent) {
+    if (previous.active_candidate !== null || next.active_candidate !== null)
+      throw new Error("catalog effect cannot bypass an application reservation");
+    const prior = after.catalog_publication.descriptor.prior;
+    const application = inspectPublishedMetadata(next.published_metadata);
+    if (
+      application
+        ? prior.application_root_sha256 !== application.root_sha256 ||
+          prior.application_repository_sha256 !== application.repository_sha256 ||
+          prior.site_generation_sha256 !== application.publication.site_generation_sha256
+        : prior.application_root_sha256 !== null || prior.application_repository_sha256 !== null
+    )
+      throw new Error("catalog effect changed current application/site baseline");
+  }
   if (newIntent) assertPublicationResultDestination(after.destination, after.candidate);
   if (
     newIntent &&
@@ -879,7 +984,14 @@ function validateCapacityV2(
       throw new Error("unresolved metadata intent cannot change its frozen descriptor");
     return;
   }
-  if (isRecord(after.metadata_bootstrap)) {
+  if (after.catalog_publication) {
+    if (
+      capacityDigest(previous.active_candidate) !== capacityDigest(next.active_candidate) ||
+      capacityDigest(previous.published_metadata ?? null) !==
+        capacityDigest(next.published_metadata ?? null)
+    )
+      throw new Error("catalog effect cannot rewrite application reservation/publication");
+  } else if (isRecord(after.metadata_bootstrap)) {
     const descriptor = inspectMetadataBootstrapDescriptor(next.metadata_bootstrap);
     if (
       after.metadata_bootstrap.descriptor_sha256 !== capacityDigest(descriptor) ||
@@ -965,7 +1077,11 @@ function validateCapacityV2(
       counters.substantive_repairs <= substantive
     )
       throw new Error("same-effect retry requires fresh bounded recovery increment");
-    if (subject.kind === "metadata-renewal" || subject.kind === "metadata-bootstrap") {
+    if (
+      subject.kind === "metadata-renewal" ||
+      subject.kind === "metadata-bootstrap" ||
+      subject.kind === "catalog-publication"
+    ) {
       const increase =
         counters.transient_retries - transient + counters.substantive_repairs - substantive;
       if (increase !== (repeated ? 1 : 0))
