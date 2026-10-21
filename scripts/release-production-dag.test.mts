@@ -85,6 +85,32 @@ void test("complete held DAG keeps bounded resource and credential ownership acr
         job.needs!.includes(`tuf_${["releases", "preview", "stable", "snapshot"][index - 1]}`),
       );
   }
+  // Match the actual reader ABIs: TUF/site begin at ordinal one; aggregate,
+  // coordinator and payload have an initial ordinal-zero admission handshake.
+  const observerCalls = (name: string) =>
+    requiredJob(name).steps.filter(
+      (step) => step.uses === "./.github/actions/release-control-observer",
+    );
+  for (const name of [
+    "coordinator_protection_observation",
+    "protection_observation",
+    "payload_protection_observation",
+    "release_protection_observation",
+  ]) {
+    const calls = observerCalls(name);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.with?.initial, "true");
+    assert.equal(calls[0]?.with?.rounds, "14");
+  }
+  assert.deepEqual(
+    observerCalls("metadata_protection_observation").map((step) => [
+      step.with?.initial,
+      step.with?.rounds,
+    ]),
+    Array.from({ length: 5 }, () => ["false", "3"]),
+  );
+  assert.equal(observerCalls("site_protection_observation")[0]?.with?.initial, "false");
+  assert.equal(observerCalls("site_protection_observation")[0]?.with?.rounds, "5");
   assert.ok(requiredJob("release_publication").needs!.includes("tuf_timestamp"));
   assert.ok(requiredJob("site_publication").needs!.includes("release_publication"));
 });

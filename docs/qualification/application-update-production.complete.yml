@@ -1,4 +1,4 @@
-# INCOMPLETE AUTHORING DRAFT, OUTSIDE WORKFLOWS. Classification and resumed custody joins still required.
+# HELD AUTHORING CANDIDATE OUTSIDE WORKFLOWS. Resume-custody routing remains under integration.
 name: Fixed application-update controller
 env:
   GH_TOKEN: ${{ github.token }}
@@ -411,7 +411,7 @@ jobs:
       - uses: ./.github/actions/release-control-observer
         with:
           phase: coordinator
-          rounds: "4"
+          rounds: "14"
           initial: "true"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
@@ -502,7 +502,7 @@ jobs:
       - uses: ./.github/actions/release-control-observer
         with:
           phase: admission
-          rounds: "13"
+          rounds: "14"
           initial: "true"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
@@ -1073,36 +1073,36 @@ jobs:
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-releases
-          rounds: "2"
-          initial: "true"
+          rounds: "3"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-preview
-          rounds: "2"
-          initial: "true"
+          rounds: "3"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-stable
-          rounds: "2"
-          initial: "true"
+          rounds: "3"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-snapshot
-          rounds: "2"
-          initial: "true"
+          rounds: "3"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
       - uses: ./.github/actions/release-control-observer
         with:
           phase: tuf-timestamp
-          rounds: "2"
-          initial: "true"
+          rounds: "3"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
   release_publication:
@@ -1197,7 +1197,7 @@ jobs:
       - uses: ./.github/actions/release-control-observer
         with:
           phase: release-publication
-          rounds: "8"
+          rounds: "14"
           initial: "true"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
@@ -1298,7 +1298,7 @@ jobs:
       - uses: ./.github/actions/release-control-observer
         with:
           phase: site-publication
-          rounds: "7"
-          initial: "true"
+          rounds: "5"
+          initial: "false"
           app_id: ${{ vars.PORTCOVE_PROTECTION_APP_ID }}
           private_key: ${{ secrets.PORTCOVE_PROTECTION_APP_PRIVATE_KEY }}
