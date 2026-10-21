@@ -14,6 +14,7 @@ import {
 import {
   createPublicUpdatePreimageStore,
   readBoundedPublicUpdateBytes,
+  publicUpdateRawMetadataBytes,
   retainPublicUpdateProfile,
   restorePublicUpdateProfile,
   retainDeduplicatedPublicUpdatePreimages,
@@ -333,4 +334,22 @@ void test("actual bounded reader refuses growth between metadata and open withou
     fsPromises.open = originalOpen;
     syncBuiltinESMExports();
   }
+});
+
+void test("Linux raw metadata accounting enforces the actual five shipping parser ceilings", async (context) => {
+  assert.equal(publicUpdateRawMetadataBytes, 3 * 65536 + 2 * 524288);
+  const root = await mkdtemp(path.join(tmpdir(), "portcove-public-metadata-cap-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const runtime = path.join(root, "runtime");
+  await mkdir(runtime);
+  await writeFile(path.join(runtime, "update-schedule.json"), Buffer.alloc(65537));
+  const store = await createPublicUpdatePreimageStore(path.join(root, "preimage-store"));
+  await assert.rejects(
+    retainDeduplicatedPublicUpdatePreimages(
+      runtime,
+      path.join(root, "refused"),
+      store,
+      performance.now() + 10000,
+    ),
+  );
 });

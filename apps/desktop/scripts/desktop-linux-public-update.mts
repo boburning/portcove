@@ -19,6 +19,7 @@ import {
 } from "./desktop-public-update-state.mts";
 import {
   readPublicUpdateFile,
+  publicUpdateRawMetadataBytes,
   readBoundedPublicUpdateBytes,
   createPublicUpdatePreimageStore,
   retainPublicUpdateProfile,
@@ -146,7 +147,11 @@ export async function runLinuxPublicUpdateJourney(
   // finite phase's raw JSON sets, inside the unchanged 192+64MiB envelope.
   const rawSets = binding.phase === "park-v0-with-v1" ? 1 : 10;
   assert.ok(
-    binding.candidate.bytes + (2 + 5 * rawSets) * 1024 * 1024 <= 192 * 1024 * 1024,
+    binding.candidate.bytes +
+      64 * 1024 * 1024 +
+      2 * 1024 * 1024 +
+      rawSets * publicUpdateRawMetadataBytes <=
+      192 * 1024 * 1024,
     "Public raw evidence cannot fit the unchanged 256MiB export bound",
   );
   const output = `${binding.session.capture_root}/public-journey`;

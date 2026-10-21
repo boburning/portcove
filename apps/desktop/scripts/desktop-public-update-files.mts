@@ -229,6 +229,19 @@ export async function readPublicUpdateFile(file: string, maximumBytes = 512 * 10
   }
 }
 
+// Exact maintained shipping parser ceilings: host_preferences.rs,
+// application_update_preferences/schedule.rs (64KiB each), staging/apply.rs
+// (512KiB each). Oversized raw data refuses rather than enlarging the proof.
+export const publicUpdateRawMetadataBytes = 3 * 64 * 1024 + 2 * 512 * 1024;
+const publicRawStateFiles = fixedStateFiles.map(([name, limit]): readonly [string, number] => [
+  name,
+  name === "staging/staging.json" || name === "staging/apply.json"
+    ? 512 * 1024
+    : name.endsWith(".json")
+      ? 64 * 1024
+      : limit,
+]);
+
 const preimageStores = new WeakMap<
   object,
   {
@@ -293,7 +306,7 @@ export async function retainDeduplicatedPublicUpdatePreimages(
   storeReceipt: object,
   deadline: number,
 ) {
-  return retainRawSelections(runtime, output, storeReceipt, deadline, fixedStateFiles);
+  return retainRawSelections(runtime, output, storeReceipt, deadline, publicRawStateFiles);
 }
 async function retainRawSelections(
   runtime: string,
