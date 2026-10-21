@@ -825,6 +825,7 @@ export async function recoverPublishedCatalogSiteHandoff(
     )
       throw new Error("catalog handoff differs from original exact Pages settlement");
     const readback = await readBackSiteDeployment(session);
+    await recheckCatalogDeployment(prepared);
     const directory = await mkdtemp(path.join(prepared.directory, "catalog-handoff-readback-"));
     await writeFile(
       path.join(directory, "readback.json"),
