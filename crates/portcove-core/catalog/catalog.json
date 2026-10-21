@@ -16890,8 +16890,9 @@
       "id": "paper-mario-recut",
       "name": "Paper Mario ReCut",
       "summary": "Native Paper Mario recompilation.",
-      "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut",
+      "project_url": "https://github.com/SMCGames/Paper-Mario-ReCut-Deprecated",
       "support_tier": "beta",
+      "upstream_status": "retired",
       "channels": [
         "beta"
       ],
@@ -16906,7 +16907,7 @@
       ],
       "adapter": "n64-recomp-portable",
       "release": {
-        "repository": "SMCGames/Paper-Mario-ReCut",
+        "repository": "SMCGames/Paper-Mario-ReCut-Deprecated",
         "asset_hints": {
           "windows-x86-64": [
             "license-compliance.zip"
