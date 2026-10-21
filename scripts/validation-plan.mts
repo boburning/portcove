@@ -299,6 +299,8 @@ const releaseSecurityFiles = withNodeTestCompanions([
   "scripts/release-canonical.mts",
   "scripts/release-metadata-contract.mts",
   "scripts/release-metadata-renewal.mts",
+  "scripts/release-bootstrap-preparation.mts",
+  "scripts/release-bootstrap-public-inputs.mts",
   "scripts/fixtures/release-metadata-canonical.json",
   "scripts/fixtures/release-metadata-fixture.mts",
   "scripts/release-semantic-review.mts",

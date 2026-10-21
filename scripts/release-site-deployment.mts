@@ -32,12 +32,24 @@ import { createPagesProviderTransport, isTerminalPagesFailure } from "./release-
 import { requireAuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import type { AuthenticatedReleaseControlSource } from "./release-live-control-admission.mts";
 import { performance } from "node:perf_hooks";
-import { assertMetadataRenewalPublication } from "./release-metadata-contract.mts";
+import {
+  assertMetadataRenewalPublication,
+  assertMetadataBootstrapPublication,
+} from "./release-metadata-contract.mts";
+import {
+  inspectMetadataSigningBinding,
+  inspectMetadataSigningReservation,
+} from "./release-metadata-signing-contract.mts";
+import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { readConfiguredBootstrapSite } from "./release-bootstrap-public-inputs.mts";
 import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { candidateProgressIdentity } from "./release-candidate-progress-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
-import { requireActualTufPublication } from "./release-tuf-publication.mts";
+import {
+  requireActualTufPublication,
+  requireRetainedActualTufPublication,
+} from "./release-tuf-publication.mts";
 
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 function remaining(deadline: number | undefined, maximum: number) {
@@ -118,6 +130,7 @@ interface DeploymentSession {
 }
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
+  bootstrap?: { tuf: object; descriptor_sha256: string; readback_sha256?: string };
   verifier: { path: string; sha256: string };
   release_binding?: { result: object; tools: object; report_sha256: string };
   deadline?: number;
@@ -325,6 +338,82 @@ export async function prepareSiteDeployment(
 /** The fixed controller already verified all five attested envelopes and ran
  * the keyless Rust assembler. Reuse that actual private result, preserving the
  * independently acquired entire previous site, including its catalog. */
+async function requireInitialSiteContext(receipt: object, deadline: number) {
+  remaining(deadline, 15000);
+  const actual = await requireRetainedActualTufPublication(receipt, deadline),
+    manifest = actual.context.manifest;
+  if (manifest.kind !== "metadata-signing-context")
+    throw new Error("initial site requires actual metadata context");
+  const metadata = inspectMetadataSigningBinding(
+    manifest.facts,
+    manifest.binding,
+    manifest.previous_site_pins,
+  );
+  if (metadata.facts.mode !== "bootstrap")
+    throw new Error("initial site cannot reinterpret a routine context");
+  const authorities = await requireControllerPublicationAuthorities("site-publication"),
+    descriptor = metadata.facts.descriptor;
+  if (
+    authorities.schema_version !== 2 ||
+    !authorities.publication.public_source.initial_site_preimage ||
+    metadata.facts.namespace !== authorities.namespace ||
+    metadata.facts.setup_plan_sha256 !== authorities.publication.setup_plan_sha256 ||
+    metadata.facts.public_source_commit !== authorities.publication.public_source.commit ||
+    descriptor.initial_site_preimage_sha256 !==
+      authorities.publication.initial_site_preimage_sha256 ||
+    descriptor.root_sha256 !== authorities.publication.public_source.root.sha256 ||
+    descriptor.offline_targets_sha256 !==
+      authorities.publication.public_source.offline_targets.sha256 ||
+    descriptor.payload_key_registry_sha256 !==
+      authorities.publication.public_source.payload_key_registry.sha256
+  )
+    throw new Error("initial site differs from protected setup/public anchors");
+  assertMetadataBootstrapPublication(descriptor, actual.publication);
+  remaining(deadline, 15000);
+  return { actual, metadata, root_sha256: authorities.publication.public_source.root.sha256 };
+}
+
+/** Explicit initial setup only; actual coordinator/Tough proof supplies the
+ * empty feed. No nonexistent prior repository or published marker is invented. */
+export async function prepareInitialSiteDeploymentFromActualTufPublication(
+  publicationReceipt: object,
+  outputParent: string,
+  deadline: number,
+) {
+  await requireActualTufPublication(publicationReceipt, deadline);
+  const { actual, metadata, root_sha256 } = await requireInitialSiteContext(
+    publicationReceipt,
+    deadline,
+  );
+  const composed = await composeSiteFiles({
+    previous: null,
+    expected_previous_generation: null,
+    application: actual.repository,
+    application_root_sha256: root_sha256,
+    output_parent: outputParent,
+    deadline,
+  });
+  const prepared = await retainPreparedSiteDeployment(
+    { ...composed, publication: actual.publication },
+    {
+      output_parent: outputParent,
+      trusted_root_sha256: root_sha256,
+      verifier: actual.tools.rust,
+      verifier_sha256: hash(await readControllerToolFile(actual.tools.rust)),
+      previous_site: null,
+      expected_previous_generation: null,
+      deadline,
+    },
+  );
+  if (!prepared.changed) throw new Error("initial site cannot be an unchanged prior");
+  sessions.get(prepared.session)!.bootstrap = {
+    tuf: publicationReceipt,
+    descriptor_sha256: capacityDigest(metadata.facts.descriptor),
+  };
+  remaining(deadline, 15000);
+  return prepared;
+}
+
 export async function prepareSiteDeploymentFromActualTufPublication(
   publicationReceipt: object,
   priorSiteReceipt: object,
@@ -493,6 +582,31 @@ export async function readBackSiteDeployment(session: DeploymentSession) {
  * private continuation state; a later marker bracket cannot create it. */
 export async function verifyPriorPublicSite(session: DeploymentSession) {
   const prepared = sessions.get(session);
+  if (prepared?.bootstrap) {
+    const deadline = prepared.deadline ?? -1;
+    const { metadata } = await requireInitialSiteContext(prepared.bootstrap.tuf, deadline);
+    if (capacityDigest(metadata.facts.descriptor) !== prepared.bootstrap.descriptor_sha256)
+      throw new Error("initial site setup descriptor changed");
+    const api = new GitHubApiClient((args, body) => {
+      remaining(deadline, 15000);
+      const result = createGitHubRunner({
+        cwd: prepared.directory,
+        timeoutMs: remaining(deadline, 15000),
+        maxBuffer: 512 * 1024,
+      })([...args, "--hostname", "github.com"], body);
+      remaining(deadline, 15000);
+      return result;
+    });
+    const readback = await readConfiguredBootstrapSite(api, deadline);
+    prepared.bootstrap.readback_sha256 = capacityDigest(readback);
+    await writeFile(
+      path.join(prepared.directory, `initial-public-readback-${performance.now()}.json`),
+      JSON.stringify(readback),
+      { flag: "wx", mode: 0o600 },
+    );
+    remaining(deadline, 15000);
+    return readback;
+  }
   if (!prepared?.previous_generation)
     throw new Error("actual prepared prior site session required");
   const readback = await readPublicApplicationSite(prepared.previous_generation, prepared.deadline);
@@ -521,6 +635,7 @@ export async function publishPreparedSiteDeployment(
     checkpoint: string;
     remote_configuration: unknown;
     metadata_renewal?: unknown;
+    metadata_bootstrap?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
   refreshControls?: () => Promise<AuthenticatedReleaseControlSource>,
@@ -542,7 +657,21 @@ export async function publishPreparedSiteDeployment(
   if (controls.evidence_scope !== "github.com" || !prepared.publication)
     throw new Error("actual provider controls and authenticated TUF publication facts required");
   const input = structuredClone(raw);
-  if (input.metadata_renewal !== undefined) {
+  const bootstrap = input.metadata_bootstrap !== undefined,
+    maintenance = bootstrap || input.metadata_renewal !== undefined;
+  if (bootstrap && input.metadata_renewal !== undefined)
+    throw new Error("site requires exactly one metadata subject");
+  if (bootstrap) {
+    if (!prepared.bootstrap || prepared.release_binding || prepared.previous_generation !== null)
+      throw new Error("initial site requires actual initial preparation only");
+    const proof = await requireInitialSiteContext(prepared.bootstrap.tuf, prepared.deadline ?? -1);
+    if (capacityDigest(input.metadata_bootstrap) !== prepared.bootstrap.descriptor_sha256)
+      throw new Error("initial site descriptor differs from actual signed context");
+    input.metadata_bootstrap = assertMetadataBootstrapPublication(
+      proof.metadata.facts.descriptor,
+      prepared.publication,
+    );
+  } else if (input.metadata_renewal !== undefined) {
     if (prepared.release_binding)
       throw new Error("site requires one exact maintenance or release subject");
     input.metadata_renewal = assertMetadataRenewalPublication(
@@ -565,7 +694,17 @@ export async function publishPreparedSiteDeployment(
   const published = checkpoint.input.published_metadata;
   const publication =
     isRecord(published) && isRecord(published.publication) ? published.publication : null;
-  if (
+  if (bootstrap) {
+    const proof = await requireInitialSiteContext(prepared.bootstrap!.tuf, prepared.deadline ?? -1);
+    inspectMetadataSigningReservation(
+      proof.actual.context.manifest.facts,
+      proof.actual.context.manifest.binding,
+      null,
+      checkpoint,
+    );
+    if (prepared.generation.previous_generation !== null || !prepared.bootstrap!.readback_sha256)
+      throw new Error("initial site requires independent configured/public preflight");
+  } else if (
     !publication ||
     !prepared.previous_generation ||
     publication.site_generation_sha256 !== prepared.previous_generation.generation ||
@@ -575,10 +714,10 @@ export async function publishPreparedSiteDeployment(
     throw new Error("actual independent prior site generation/initial seed is required");
   const candidate = checkpoint.input.active_candidate;
   const frozen = isRecord(candidate) ? candidate.frozen_opportunity : null;
-  if (input.metadata_renewal === undefined && !isRecord(frozen))
+  if (!maintenance && !isRecord(frozen))
     throw new Error("release site requires the existing complete frozen opportunity");
   const readRelease = async () => {
-    if (input.metadata_renewal !== undefined) return null;
+    if (maintenance) return null;
     const binding = prepared.release_binding;
     if (
       !binding ||
@@ -635,10 +774,9 @@ export async function publishPreparedSiteDeployment(
   const readBoundary = async () => {
     remaining(prepared.deadline, 15000);
     requireAuthenticatedReleaseControlSource(currentControls, "site-publication");
-    const facts =
-      input.metadata_renewal === undefined
-        ? currentControls.read(api, frozen)
-        : currentControls.readMaintenance(api);
+    const facts = !maintenance
+      ? currentControls.read(api, frozen)
+      : currentControls.readMaintenance(api);
     remaining(prepared.deadline, 15000);
     if (
       facts.pause.publication_paused !== false ||
@@ -662,7 +800,7 @@ export async function publishPreparedSiteDeployment(
           artifact_id: prepared.upload.artifact_id,
           archive_sha256: prepared.archive_sha256,
           site_generation_sha256: prepared.generation.generation,
-          prior_site_generation_sha256: prepared.previous_generation.generation,
+          prior_site_generation_sha256: prepared.previous_generation?.generation ?? null,
           root_sha256: prepared.publication.root_sha256,
           repository_sha256: prepared.publication.repository_sha256,
         },
@@ -672,7 +810,8 @@ export async function publishPreparedSiteDeployment(
     async (pending) => {
       // A complete independent prior readback and freshly guarded controls occur
       // before the sole POST. No provider CAS guarantee is inferred from them.
-      await readPublicApplicationSiteMarker(prepared.previous_generation!, prepared.deadline);
+      if (bootstrap) await verifyPriorPublicSite(session);
+      else await readPublicApplicationSiteMarker(prepared.previous_generation!, prepared.deadline);
       await readBoundary();
       const immutableRelease = await readRelease();
       const attempt = await mkdtemp(path.join(prepared.directory, "pages-attempt-"));
@@ -681,7 +820,7 @@ export async function publishPreparedSiteDeployment(
       await write("pending.json", {
         ...pending,
         generation: prepared.generation.generation,
-        previous_generation: prepared.previous_generation!.generation,
+        previous_generation: prepared.previous_generation?.generation ?? null,
         artifact_id: prepared.upload!.artifact_id,
         immutable_release: immutableRelease,
       });
@@ -695,6 +834,7 @@ export async function publishPreparedSiteDeployment(
           async () => {
             await refreshCapacityExecutor(executor);
             await readBoundary();
+            if (bootstrap) await verifyPriorPublicSite(session);
           },
         );
         await write("acknowledgement.json", accepted);

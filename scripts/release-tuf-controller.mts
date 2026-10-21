@@ -130,15 +130,14 @@ export async function runTufRoleController(
       ? metadata.facts.namespace !== authorities.namespace ||
         metadata.facts.setup_plan_sha256 !== authorities.publication.setup_plan_sha256 ||
         metadata.facts.public_source_commit !== authorities.publication.public_source.commit ||
-        metadata.previous_site_pins.root_sha256 !==
-          authorities.publication.public_source.root.sha256
+        metadata.facts.descriptor.root_sha256 !== authorities.publication.public_source.root.sha256
       : manifest.kind !== "release-signing-context" ||
         !isRecord(manifest.facts.configuration) ||
         typeof manifest.binding.version !== "string" ||
         manifest.facts.configuration.namespace !== authorities.namespace
   )
     throw new Error("TUF context purpose or ratified metadata source differs");
-  const version = metadata ? "metadata-renewal" : String(manifest.binding.version);
+  const version = metadata ? `metadata-${metadata.facts.mode}` : String(manifest.binding.version);
   const binding = manifest.binding,
     facts = manifest.facts,
     admitted = manifest.control_facts,
@@ -282,7 +281,11 @@ export async function runTufRoleController(
         repository: recovered.repository,
         checkpoint,
         remote_configuration: coordinator,
-        ...(metadata ? { metadata_renewal: metadata.facts.descriptor } : {}),
+        ...(metadata
+          ? metadata.facts.mode === "renewal"
+            ? { metadata_renewal: metadata.facts.descriptor }
+            : { metadata_bootstrap: metadata.facts.descriptor }
+          : {}),
         request: {
           kind: "upload",
           destination: `github-actions:boburning/portcove:${version}:${phase}-envelope`,

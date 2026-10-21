@@ -629,3 +629,89 @@ void test("existing pinned attestation verifier respects the remaining role budg
   );
   assert.equal(calls, 1);
 });
+
+void test("initial context archive is exactly six public inputs with explicit empty records and no prior", async () => {
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const { descriptor } = metadataBootstrapFixture();
+  const files = new Map<string, Buffer>([
+    [
+      "context.json",
+      Buffer.from(
+        JSON.stringify({ schema_version: 1, initial_bootstrap: "initial-bootstrap.json" }),
+      ),
+    ],
+    ["initial-bootstrap.json", Buffer.from(JSON.stringify(descriptor))],
+    ["trusted-root.json", Buffer.from("public root fixture")],
+    ["offline-targets.json", Buffer.from("public offline fixture")],
+    ["payload.json", Buffer.from("public registry fixture")],
+    [
+      "records/reconstruction-manifest.json",
+      Buffer.from(JSON.stringify({ schema_version: 1, records: [] })),
+    ],
+  ]);
+  const facts = {
+    mode: "bootstrap",
+    descriptor,
+    namespace: "portcove-fixture",
+    checkpoint: "2".repeat(40),
+    previous_site_pins: null,
+    setup_plan_sha256: descriptor.setup_plan_sha256,
+    public_source_commit: "c".repeat(40),
+  };
+  const binding = {
+    kind: "metadata-bootstrap",
+    descriptor_sha256: digest(descriptor),
+    records_sha256: digest([]),
+  };
+  const archive = (source = files, prior: unknown = null) => {
+    const ordered = [...source].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+    const manifest = {
+      schema_version: 1,
+      kind: "metadata-signing-context",
+      authority: "none",
+      controller: {
+        controller_revision: "a".repeat(40),
+        source_tree: "b".repeat(40),
+        controller_ref: "refs/tags/portcove-production-controller-fixture",
+        run_id: "123",
+        run_attempt: 1,
+      },
+      facts,
+      binding,
+      control_facts: { fixture: true },
+      previous_site_pins: prior,
+      facts_sha256: digest(facts),
+      files: ordered.map(([path, bytes]) => ({ path, bytes: bytes.length, sha256: hash(bytes) })),
+    };
+    return createAuditZip([
+      ["signing-context-manifest.json", Buffer.from(JSON.stringify(manifest))],
+      ["signing-context-bytes.bin", Buffer.concat(ordered.map(([, bytes]) => bytes))],
+    ]);
+  };
+  const inspected = inspectSigningContextArchive(archive());
+  assert.equal(inspected.files.size, 6);
+  assert.equal(inspected.manifest.authority, "none");
+  assert.throws(
+    () =>
+      inspectSigningContextArchive(
+        archive(files, {
+          root_sha256: "3".repeat(64),
+          repository_sha256: "4".repeat(64),
+          site_generation_sha256: "5".repeat(64),
+        }),
+      ),
+    /prior/,
+  );
+  for (const [name, bytes] of [
+    ["prior/repository-manifest.json", Buffer.from("{}")],
+    ["context.json", Buffer.from(JSON.stringify({ previous_repository: "prior" }))],
+    [
+      "records/reconstruction-manifest.json",
+      Buffer.from(JSON.stringify({ schema_version: 1, records: [{ path: "releases/fake.json" }] })),
+    ],
+  ] as const) {
+    const changed = new Map(files);
+    changed.set(name, bytes);
+    assert.throws(() => inspectSigningContextArchive(archive(changed)), /initial context/);
+  }
+});
