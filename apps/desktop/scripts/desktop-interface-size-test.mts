@@ -75,15 +75,40 @@ export async function interfaceSizeScenario(context: Context) {
       );
       await picker.click();
       await context.browser().wait(until.elementLocated(By.css('[role="listbox"]')), 5000);
+      await context.browser().wait(
+        () =>
+          executeBrowserScript(context.browser(), () => {
+            const list = document.querySelector('[role="listbox"]');
+            return !!list?.contains(document.activeElement);
+          }),
+        5000,
+        "Interface-size popup must own focus before keyboard selection",
+      );
+      await context.browser().actions().sendKeys(Key.HOME).perform();
+      const highlighted = (expected: number) =>
+        context
+          .browser()
+          .wait(
+            () =>
+              executeBrowserScript(
+                context.browser(),
+                (label) =>
+                  document
+                    .querySelector('[role="option"][data-highlighted]')
+                    ?.textContent?.trim() === label,
+                `${expected}%`,
+              ),
+            5000,
+            `Interface-size keyboard highlight must reach ${expected}% before selection`,
+          );
+      await highlighted(100);
       await context
         .browser()
         .actions()
-        .sendKeys(
-          Key.HOME,
-          ...Array.from({ length: sizes.indexOf(size) }, () => Key.ARROW_DOWN),
-          Key.ENTER,
-        )
+        .sendKeys(...Array.from({ length: sizes.indexOf(size) }, () => Key.ARROW_DOWN))
         .perform();
+      await highlighted(size);
+      await context.browser().actions().sendKeys(Key.ENTER).perform();
       return settled(size);
     };
     const capturePicker = async (name: string) => {
