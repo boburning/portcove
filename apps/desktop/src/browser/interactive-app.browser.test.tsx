@@ -32,7 +32,9 @@ it("uses a named compact readiness choice at narrow and enlarged widths without 
   const readiness = page.getByRole("combobox", { name: /^Readiness/ });
   await expect.element(readiness).toBeVisible();
   await readiness.click();
-  await page.getByRole("option", { name: "Ready (1)", exact: true }).click();
+  await page.getByRole("option", { name: "Ready (2)", exact: true }).click();
+  await expect.element(readiness).toHaveTextContent("Ready (2)");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "Harbor");
   await expect.element(readiness).toHaveTextContent("Ready (1)");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(1);
   expect(document.querySelector(".collection-entry")?.textContent).toContain("Harbor Adventure");
@@ -46,7 +48,9 @@ it("uses a named compact readiness choice at narrow and enlarged widths without 
   document.documentElement.style.fontSize = "200%";
   await expect.element(readiness).toBeVisible();
   await readiness.click();
-  await page.getByRole("option", { name: "All (2)", exact: true }).click();
+  await page.getByRole("option", { name: "All (1)", exact: true }).click();
+  await expect.element(readiness).toHaveTextContent("All (1)");
+  await userEvent.fill(page.getByPlaceholder("Game or port name"), "");
   await expect.element(readiness).toHaveTextContent("All (2)");
   expect(document.querySelectorAll(".collection-entry")).toHaveLength(2);
   expect(document.querySelector<HTMLElement>(".collection-readiness-wide")?.checkVisibility()).toBe(

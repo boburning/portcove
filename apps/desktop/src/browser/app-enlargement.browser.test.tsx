@@ -112,7 +112,9 @@ it.for(["dark", "light"] as const)(
     await page.getByRole("button", { name: "Prepare game data", exact: true }).click();
     const leave = page.getByRole("button", { name: "Continue browsing", exact: true });
     await expect.element(leave).toBeVisible();
-    await expect.poll(() => document.activeElement?.id).toBe("preparation-review-title");
+    await expect
+      .element(page.getByRole("heading", { name: "Prepare game data", exact: true }))
+      .toHaveFocus();
     await userEvent.keyboard("{Tab}{Tab}{Tab}");
     await expect.element(leave).toHaveFocus();
     const leaveBox = leave.element().getBoundingClientRect();
