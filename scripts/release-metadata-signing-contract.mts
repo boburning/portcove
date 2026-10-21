@@ -70,12 +70,17 @@ export function inspectMetadataSigningBinding(
 }
 /** Current journal integrity only. A caller still needs actual context custody,
  * its own authenticated role, current maintenance controls and owned pending. */
+function metadataSigningNow() {
+  const [base, fraction = ""] = new Date().toISOString().slice(0, -1).split(".");
+  const trimmed = fraction.replace(/0+$/u, "");
+  return `${base}${trimmed ? `.${trimmed}` : ""}Z`;
+}
 export function inspectMetadataSigningReservation(
   rawFacts: unknown,
   rawBinding: unknown,
   rawPins: unknown,
   rawState: unknown,
-  now = new Date().toISOString(),
+  now = metadataSigningNow(),
 ) {
   const context = inspectMetadataSigningBinding(rawFacts, rawBinding, rawPins);
   if (

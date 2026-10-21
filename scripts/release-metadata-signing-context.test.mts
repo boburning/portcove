@@ -66,7 +66,7 @@ function fixture() {
   };
   return { facts, binding, pins };
 }
-void test("renewal role journal binding needs the exact live published seed and descriptor, with no invented candidate", () => {
+void test("renewal role journal binding needs the exact live published seed and descriptor, with no invented candidate", (t) => {
   const f = fixture(),
     d = f.facts.descriptor;
   const published = {
@@ -91,6 +91,11 @@ void test("renewal role journal binding needs the exact live published seed and 
   };
   const now = "2026-10-20T01:00:00Z";
   assert.deepEqual(inspectMetadataSigningReservation(f.facts, f.binding, f.pins, state, now), d);
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-20T01:00:00.120Z") });
+  assert.deepEqual(inspectMetadataSigningReservation(f.facts, f.binding, f.pins, state), d);
+  t.mock.timers.tick(880);
+  assert.equal(new Date().toISOString(), "2026-10-20T01:00:01.000Z");
+  assert.deepEqual(inspectMetadataSigningReservation(f.facts, f.binding, f.pins, state), d);
   for (const input of [
     { ...state.input, metadata_renewal: null },
     { ...state.input, published_metadata: null },
