@@ -54,7 +54,11 @@ function fixture() {
       home: `${attempt}/work/home`,
       deadline_utc: "2026-11-01T00:00:00.000Z",
     },
-    candidate: { path: `${attempt}/bank/Candidate.AppImage`, bytes: 200, sha256: "1".repeat(64) },
+    candidate: {
+      path: `${attempt}/packages/Candidate.AppImage`,
+      bytes: 200,
+      sha256: "1".repeat(64),
+    },
     retained_state_bytes: 1024,
     source: {
       fuse_sha256: "2".repeat(64),

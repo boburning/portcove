@@ -229,3 +229,33 @@ void test("guest operation budget intersects the original clock before any effec
   ])
     assert.throws(() => boundedNativeWslOperationTimeout(pair[0]!, pair[1]!));
 });
+
+void test("ordinary public Windows-to-guest transport stages distinct V0 and V1 without native predecessor reinterpretation", () => {
+  const old = fixture();
+  const publicPlan = {
+    ...old,
+    schema_version: 3,
+    candidate: {
+      ...old.package,
+      path: old.package.path.replace("Portcove.AppImage", "Candidate.AppImage"),
+      sha256: "9".repeat(64),
+    },
+  };
+  const parsed = inspectWslNativeDriverPlan(publicPlan);
+  assert.equal(parsed.schema_version, 3);
+  assert.equal(parsed.package.sha256, old.package.sha256);
+  assert.equal(parsed.public_candidate?.sha256, publicPlan.candidate.sha256);
+  assert.equal(parsed.predecessor, null);
+  assert.equal(parsed.authority, "none");
+  for (const wrong of [
+    { ...publicPlan, schema_version: 1 },
+    { ...publicPlan, candidate: null },
+    { ...publicPlan, predecessor: publicPlan.candidate },
+    { ...publicPlan, candidate: { ...publicPlan.candidate, sha256: old.package.sha256 } },
+    {
+      ...publicPlan,
+      candidate: { ...publicPlan.candidate, path: String.raw`E:\other\Candidate.AppImage` },
+    },
+  ])
+    assert.throws(() => inspectWslNativeDriverPlan(wrong));
+});

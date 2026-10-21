@@ -38,7 +38,7 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
   const session = inspectIsolatedNativeLinuxBinding(value.session);
   const attempt = `${session.linux_root}/invocations/${session.invocation_id}`;
   exact(value.candidate, "bytes,path,sha256");
-  assert.equal(value.candidate.path, `${attempt}/bank/Candidate.AppImage`);
+  assert.equal(value.candidate.path, `${attempt}/packages/Candidate.AppImage`);
   assert.ok(Number.isSafeInteger(value.candidate.bytes));
   const candidate = {
     path: String(value.candidate.path),

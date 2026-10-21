@@ -179,12 +179,16 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   const raw: unknown = structuredClone(value);
   assert.ok(
     isRecord(raw) &&
-      Object.keys(raw).sort().join(",") ===
-        (raw.schema_version === 2
-          ? "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,predecessor,request_sha256,schema_version,stage_request_sha256"
-          : "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,request_sha256,schema_version,stage_request_sha256") &&
-      (raw.schema_version === 1 || raw.schema_version === 2),
+      [1, 2, 3].includes(Number(raw.schema_version)) &&
+      typeof raw.schema_version === "number",
   );
+  const baseFields =
+    "account,boundary_configuration,capture_directory,capture_root,controller_root,entry_pins,host_expected,invocation_id,node,package,parent_deadline_utc,plan_sha256,request_sha256,schema_version,stage_request_sha256".split(
+      ",",
+    );
+  if (raw.schema_version === 2) baseFields.push("predecessor");
+  if (raw.schema_version === 3) baseFields.push("candidate");
+  assert.equal(Object.keys(raw).sort().join(","), baseFields.sort().join(","));
   for (const key of ["invocation_id", "request_sha256", "plan_sha256", "stage_request_sha256"])
     assert.ok(typeof raw[key] === "string" && /^[a-f0-9]{64}$/u.test(raw[key]));
   assert.ok(
@@ -211,8 +215,9 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   const relative = path.win32.relative(raw.capture_root, raw.package.path);
   assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
   let predecessor: { path: string; bytes: number; sha256: string } | null = null;
-  if (raw.schema_version === 2 && raw.predecessor !== null) {
-    const value = raw.predecessor;
+  let publicCandidate: { path: string; bytes: number; sha256: string } | null = null;
+  if ((raw.schema_version === 2 && raw.predecessor !== null) || raw.schema_version === 3) {
+    const value = raw.schema_version === 3 ? raw.candidate : raw.predecessor;
     assert.ok(
       isRecord(value) &&
         Object.keys(value).sort().join(",") === "bytes,path,sha256" &&
@@ -227,7 +232,9 @@ export function inspectWslNativeDriverPlan(value: unknown) {
     const relative = path.win32.relative(raw.capture_root, value.path);
     assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
     assert.notEqual(value.sha256, raw.package.sha256);
-    predecessor = { path: value.path, bytes: Number(value.bytes), sha256: value.sha256 };
+    const second = { path: value.path, bytes: Number(value.bytes), sha256: value.sha256 };
+    if (raw.schema_version === 3) publicCandidate = second;
+    else predecessor = second;
   }
   assert.ok(
     isRecord(raw.node) &&
@@ -264,7 +271,12 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       machine_id_sha256: raw.host_expected.machine_id_sha256,
       minimum_os_version: raw.host_expected.minimum_os_version,
     },
-    schema_version: raw.schema_version === 2 ? (2 as const) : (1 as const),
+    schema_version:
+      raw.schema_version === 3
+        ? (3 as const)
+        : raw.schema_version === 2
+          ? (2 as const)
+          : (1 as const),
     invocation_id: String(raw.invocation_id),
     request_sha256: String(raw.request_sha256),
     plan_sha256: String(raw.plan_sha256),
@@ -278,6 +290,7 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       sha256: raw.package.sha256,
     },
     predecessor,
+    public_candidate: publicCandidate,
     node: { path: raw.node.path, sha256: raw.node.sha256 },
     parent_deadline_utc: raw.parent_deadline_utc,
     boundary,
@@ -359,6 +372,7 @@ async function runPreparedWslDriver(raw: unknown) {
   for (const [entry, identity] of [
     [prepared.schema_version === 2 ? "candidate" : "application", prepared.package],
     ...(prepared.predecessor ? [["predecessor", prepared.predecessor] as const] : []),
+    ...(prepared.public_candidate ? [["candidate", prepared.public_candidate] as const] : []),
   ] as const) {
     const packageInfo = await lstat(identity.path);
     assert.ok(
