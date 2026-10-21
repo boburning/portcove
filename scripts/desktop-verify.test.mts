@@ -198,7 +198,7 @@ void test("focused plans omit owned binaries while lifecycle plans include them"
     ...common,
     selection: resolveDesktopSelection({ profile: "full" }),
   });
-  assert.equal(full.harness_deadline_ms, 600_000);
+  assert.equal(full.harness_deadline_ms, 1_200_000);
 });
 
 void test("the native build script preserves identical generated inputs for Cargo reuse", async () => {

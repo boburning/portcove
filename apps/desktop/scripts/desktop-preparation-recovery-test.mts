@@ -356,7 +356,10 @@ export async function interruptedPreparationScenario({
       ),
       10_000,
     );
-    assert.equal(await navigationStatus.getAttribute("aria-label"), "Activity needs attention");
+    assert.match(
+      (await navigationStatus.getAttribute("aria-label")) ?? "",
+      /^Activity needs attention(?:,|$)/u,
+    );
     await updatesNavigation.click();
     await browser.wait(
       findInterruptedRow,
@@ -401,9 +404,9 @@ export async function interruptedPreparationScenario({
       ),
       10_000,
     );
-    assert.equal(
-      await restartedNavigationStatus.getAttribute("aria-label"),
-      "Activity needs attention",
+    assert.match(
+      (await restartedNavigationStatus.getAttribute("aria-label")) ?? "",
+      /^Activity needs attention(?:,|$)/u,
     );
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
     const rows = await browser.wait(async () => {

@@ -792,6 +792,11 @@ async function assertReviewedUpdateOutcomes({
               ? "couldn't confirm whether anything changed"
               : "No files were changed";
         assert.ok((await outcome.getText()).includes(consequence));
+        await browser.wait(
+          async () => (await browser.findElements(dialog)).length === 0,
+          5_000,
+          "Settled update outcome did not close its observation review",
+        );
         assert.equal((await browser.findElements(dialog)).length, 0);
         assert.ok(
           !(
@@ -2032,11 +2037,11 @@ export async function preparationScenarios({
           assert.equal(hierarchy.actionInHero, true);
           assert.match(required(hierarchy.state), /Compatibility unconfirmed/);
           assert.deepEqual(hierarchy.groups, [
-            "About this port",
             "Installation and version",
             "Requirements",
             "Updates",
             "Saves and storage",
+            "About this port",
             "Compatibility and testing",
             "Project and release",
             "Artwork",
@@ -2116,18 +2121,29 @@ export async function preparationScenarios({
         Key.BACK_SPACE,
         port.name,
       );
-      const ready = await browser.findElement(
-        By.xpath(
-          '//div[@aria-label="Library filters"]//button[starts-with(normalize-space(.),"Ready (")]',
+      const readiness = await browser.findElement(
+        By.css('.collection-readiness-compact [role="combobox"]'),
+      );
+      await clickVisible(browser, readiness);
+      const ready = await browser.wait(
+        until.elementLocated(
+          By.xpath('//*[@role="option"][starts-with(normalize-space(.),"Ready (")]'),
         ),
+        5_000,
       );
       await browser.wait(
         async () => /^Ready \([1-9][0-9]*\)$/u.test(await ready.getText()),
         15_000,
         "Library readiness counts did not settle",
       );
-      const readyLabel = await ready.getText();
       await clickVisible(browser, ready);
+      const selectedReadiness = await readiness.findElement(By.css('[data-slot="select-value"]'));
+      await browser.wait(
+        async () => /^Ready \([1-9][0-9]*\)$/u.test(await selectedReadiness.getText()),
+        5_000,
+        "Library Ready choice did not commit",
+      );
+      const readyLabel = await selectedReadiness.getText();
       const card = await browser.wait(
         until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
         15_000,
@@ -2197,7 +2213,7 @@ export async function preparationScenarios({
           const workspace = document.querySelector('main[data-focus-region="workspace"]');
           const search = document.querySelector<HTMLInputElement>("#port-search");
           const ready = document.querySelector(
-            '[aria-label="Library filters"] button[aria-pressed="true"]',
+            '.collection-readiness-compact [role="combobox"] [data-slot="select-value"]',
           );
           const card = element.closest("article.port-card");
           const bounds = card?.getBoundingClientRect();

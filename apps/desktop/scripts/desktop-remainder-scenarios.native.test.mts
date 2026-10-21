@@ -294,9 +294,18 @@ void test("native remainder palette walks explicit commands and restores rendere
       findElement: async (selector: string) =>
         selector.includes("command-trigger")
           ? trigger
-          : selector === "#command-check"
-            ? { getAttribute: () => "", getText: () => "Install a port before checking" }
-            : search,
+          : selector === ".palette-footer .controller-hint"
+            ? {
+                getAttribute: () => null,
+                findElement: () => ({
+                  click: async () => {
+                    events.push("help-open");
+                  },
+                }),
+              }
+            : selector === "#command-check"
+              ? { getAttribute: () => "", getText: () => "Install a port before checking" }
+              : search,
       findElements: async () => (open ? [{}] : []),
       actions() {
         let escape = false;
@@ -379,6 +388,7 @@ void test("native remainder palette walks explicit commands and restores rendere
       "The unavailable check must be skipped after every explicitly named preceding command",
     );
     assert.ok(events.indexOf("expanded") < events.indexOf("capture"));
+    assert.ok(events.indexOf("help-open") < events.indexOf("expanded"));
     assert.ok(events.indexOf("capture") < events.indexOf("escape"));
     assert.ok(events.includes(`style:${JSON.stringify(["font-size", "110%", "important"])}`));
     assert.ok(events.includes("window"));

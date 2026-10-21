@@ -129,7 +129,10 @@ export async function controllerScenario({
       "Activation measures only the top modal and focused control",
     );
     assert.equal(activate.getBoundingClientRect, 0);
-    assert.ok(direction.getClientRects <= 1001);
+    assert.equal(direction.fixture_controls.getClientRects, result.control_count);
+    // Scope discovery and the resulting focus event may each inspect the modal.
+    assert.ok(direction.fixture_container.getClientRects <= 2);
+    assert.equal(direction.outside_fixture.getClientRects, 0);
     assert.equal(direction.fixture_controls.getBoundingClientRect, result.control_count);
     assert.equal(result.control_count, 1000);
     assert.equal(direction.fixture_container.getBoundingClientRect, 0);

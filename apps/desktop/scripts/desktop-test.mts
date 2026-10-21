@@ -3003,19 +3003,11 @@ try {
       `Add games must be visible without scrolling: ${JSON.stringify(firstUseAction)}`,
     );
     await browser.manage().window().setRect({ width: 1280, height: 800 });
-    const search = await browser.findElement(By.id("port-search"));
-    await search.sendKeys("unmatched title");
-    const clearSearch = await browser.wait(
-      until.elementLocated(By.xpath('//button[normalize-space(.)="Clear search and filters"]')),
-      5000,
-    );
+    assert.equal((await browser.findElements(By.id("port-search"))).length, 0);
     assert.match(
       await browser.findElement(By.css(".empty-state")).getText(),
       /This library has no ports yet/,
     );
-    await captureScenarioScreenshot("filtered-empty-new-library");
-    await clearSearch.click();
-    assert.equal(await search.getAttribute("value"), "");
     await browser.wait(
       until.elementLocated(
         By.xpath('//*[contains(@class,"empty-state")]//button[normalize-space(.)="Add games"]'),

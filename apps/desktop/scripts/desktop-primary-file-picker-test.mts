@@ -50,7 +50,15 @@ export async function primaryFilePickerScenario({
     artifacts.push(gameFile, biosFile);
     await click(primary());
     await confirmNative("Choose game files", "Open", "File name:", "primary-game-open", gameFile);
-    const bios = await browser.wait(until.elementLocated(primary()), 10_000);
+    const bios = await browser.wait(
+      async () => {
+        const action = await browser.findElement(primary());
+        return (await action.getText()) === "Choose BIOS file" ? action : false;
+      },
+      10_000,
+      "Selected game file did not advance the primary action to BIOS",
+    );
+    assert.ok(bios);
     assert.equal(await bios.getText(), "Choose BIOS file");
     await browser.wait(
       async () =>
