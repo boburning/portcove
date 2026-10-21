@@ -56,22 +56,21 @@ void test("storage wrapper resolves canonical pnpm commands from the package aut
   const { packageManager } = fixtureRecord(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   );
-  assert.deepEqual(canonicalCheckoutCommand("corepack", ["pnpm", "--version"], null), [
+  assert.deepEqual(canonicalCheckoutCommand("corepack", ["pnpm", "--version"]), [
     "corepack",
     [packageManager, "--version"],
   ]);
-  assert.deepEqual(canonicalCheckoutCommand("cargo", ["check"], null), ["cargo", ["check"]]);
+  assert.deepEqual(canonicalCheckoutCommand("cargo", ["check"]), ["cargo", ["check"]]);
 });
 
-void test("storage wrapper selects the bootstrapped pinned Node runtime", (t) => {
-  const root = fixture(t);
-  const executable = path.join(root, process.platform === "win32" ? "node.exe" : "node");
-  writeFileSync(executable, "pinned runtime fixture");
-  assert.deepEqual(canonicalCheckoutCommand("node", ["--version"], { node: executable }), [
-    executable,
-    ["--version"],
-  ]);
-  assert.deepEqual(canonicalCheckoutCommand("node", ["--version"], null), ["node", ["--version"]]);
+void test("storage wrapper keeps the active Node runtime and explicit executable paths", () => {
+  for (const command of ["node", "node.exe", "NODE.EXE"])
+    assert.deepEqual(canonicalCheckoutCommand(command, ["--version"]), [
+      process.execPath,
+      ["--version"],
+    ]);
+  for (const command of [process.execPath, `.${path.sep}node`])
+    assert.deepEqual(canonicalCheckoutCommand(command, ["--version"]), [command, ["--version"]]);
 });
 
 function fixture(t: TestContext) {

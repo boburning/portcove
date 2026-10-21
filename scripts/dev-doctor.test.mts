@@ -223,14 +223,109 @@ void test("cache observations never install a missing package manager or Aqua pa
   assert.equal(existsSync(environment.COREPACK_HOME), false);
 });
 
-void test("pinned pnpm readiness uses its declared command and rejects observed version mismatch", () => {
+void test("external pnpm readiness uses its declared command with child-only acquisition guards", () => {
   const definition = pnpmDefinition("12.7.0");
-  const result = probeTool(definition, (command, args) => {
-    assert.equal(command, "pnpm");
-    assert.deepEqual(args, ["--version"]);
-    return { status: 0, stdout: "12.8.0", stderr: "" };
-  });
+  const environment = Object.freeze({ COREPACK_ENABLE_NETWORK: "1", VP_DUMP_DIRS: "inherited" });
+  let childEnvironment: NodeJS.ProcessEnv | undefined;
+  const result = probeTool(
+    definition,
+    (command, args, options) => {
+      assert.equal(command, "pnpm");
+      assert.deepEqual(args, ["--version"]);
+      childEnvironment = options.env;
+      return { status: 0, stdout: "12.8.0", stderr: "" };
+    },
+    { environment },
+  );
   assert.equal(result.status, "mismatch");
+  assert.equal(result.observed, "12.8.0");
+  assert.equal(childEnvironment?.COREPACK_ENABLE_NETWORK, "0");
+  assert.equal(childEnvironment?.VP_DUMP_DIRS, "1");
+  assert.deepEqual(environment, { COREPACK_ENABLE_NETWORK: "1", VP_DUMP_DIRS: "inherited" });
+});
+
+void test("managed pnpm observation never acquires and checks the resolved payload's actual version", () => {
+  const version = "12.14.0";
+  const bin = path.join(os.tmpdir(), "viteplus doctor fixture", "bin");
+  const vp = path.join(bin, process.platform === "win32" ? "vp.exe" : "vp");
+  const payload = path.join(os.tmpdir(), "resolved pnpm payload", "pnpm");
+  const manager = { name: "pnpm", version, installed: true, bin_paths: { pnpm: payload } };
+  const json = (value: unknown) => JSON.stringify({ package_manager: value });
+  const environment = Object.freeze({
+    PATH: path.join(os.tmpdir(), "external tools"),
+    COREPACK_ENABLE_NETWORK: "1",
+    RUSTUP_AUTO_INSTALL: "0",
+    VP_DUMP_DIRS: "inherited",
+  });
+  for (const [scenario, metadata, payloadVersion, expected] of [
+    ["cold", json({ ...manager, installed: false }), null, "unavailable"],
+    ["malformed", "{", null, "unavailable"],
+    [
+      "relative payload",
+      json({ ...manager, bin_paths: { pnpm: "relative/pnpm" } }),
+      null,
+      "unavailable",
+    ],
+    ["warm", json(manager), version, "ok"],
+    ["wrong payload version", json(manager), "12.13.0", "mismatch"],
+    ["missing payload", json(manager), "missing", "unavailable"],
+  ] as const) {
+    let acquisitions = 0;
+    const calls: { command: string; args: string[]; env?: NodeJS.ProcessEnv; timeout?: number }[] =
+      [];
+    const result = probeTool(
+      pnpmDefinition(version),
+      (command, args, options) => {
+        calls.push({
+          command,
+          args,
+          ...(options.env ? { env: options.env } : {}),
+          ...(options.timeout ? { timeout: options.timeout } : {}),
+        });
+        if (command === "pnpm") {
+          if (options.env?.VP_DUMP_DIRS !== "1") {
+            acquisitions += 1;
+            return { status: 0, stdout: version };
+          }
+          return { status: 0, stdout: `layout\tsingle-root\nbin\t${bin}\n` };
+        }
+        if (command === vp) return { status: 0, stdout: metadata };
+        if (command === payload)
+          return payloadVersion === "missing"
+            ? { status: null, error: { code: "ENOENT" } }
+            : { status: 0, stdout: payloadVersion ?? version };
+        return { status: 1 };
+      },
+      { environment },
+    );
+    assert.equal(result.status, expected, scenario);
+    assert.equal(acquisitions, 0, scenario);
+    assert.deepEqual(
+      calls.map((call) => call.command),
+      ["pnpm", vp, ...(payloadVersion === null ? [] : [payload])],
+      scenario,
+    );
+    assert.deepEqual(calls[1]?.args, ["env", "current", "pnpm", "--json"]);
+    assert.equal(calls[1]?.env?.VP_DUMP_DIRS, undefined);
+    assert.ok(
+      calls.every(
+        (call) => call.env?.COREPACK_ENABLE_NETWORK === "0" && call.env.RUSTUP_AUTO_INSTALL === "0",
+      ),
+    );
+    assert.ok(
+      calls.every(
+        (call, index) =>
+          (call.timeout ?? 0) > 0 && (call.timeout ?? 0) <= (calls[index - 1]?.timeout ?? 15_000),
+      ),
+    );
+    if (payloadVersion !== null) {
+      assert.deepEqual(calls[2]?.args, ["--version"]);
+      assert.equal(calls[2]?.env?.PATH?.split(path.delimiter)[0], path.dirname(process.execPath));
+    }
+    if (expected === "mismatch") assert.equal(result.observed, payloadVersion);
+  }
+  assert.equal(environment.COREPACK_ENABLE_NETWORK, "1");
+  assert.equal(environment.VP_DUMP_DIRS, "inherited");
 });
 
 void test("selected and profile observations refuse missing pnpm runtime acquisition and reuse warm runtime", async (t) => {

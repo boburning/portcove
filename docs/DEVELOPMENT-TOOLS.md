@@ -228,11 +228,37 @@ owns application plugins, dev-server and production-build behavior. The exact
 release is in the pnpm catalog. Inspect the resolved bundle with `pnpm exec vp
 toolchain`; upgrade the release as a unit using the documented migrator.
 
-With a supported Node runtime and the repository-pinned pnpm, a global `vp` is
-optional. From the repository root:
+Use the [global Vite+ CLI](https://viteplus.dev/guide/global-cli) with environment
+management enabled for development and agent setup. Its `node` and `pnpm` shims
+select the exact versions declared by `.node-version` and `package.json` in each
+checkout. Vite+ owns downloading and selecting these tools; Portcove does not
+maintain a second Node or package-manager installation. An existing manager
+providing the same exact versions remains supported.
+
+From the repository root, explicitly provision the environment when needed:
 
 ```sh
-pnpm install --frozen-lockfile
+vp env install
+vp env current
+vp env doctor
+```
+
+Run the existing frontend setup after cloning or pulling toolchain changes:
+
+```powershell
+./scripts/bootstrap-quality-tools.ps1 -Profile frontend
+```
+
+On Linux/macOS use `./scripts/bootstrap-quality-tools.sh --profile frontend`.
+Setup installs frozen dependencies and refreshes the existing hook launcher even
+when pnpm's repeat-install optimization skips lifecycle scripts. It preserves
+disabled hooks and other hook managers. Use the `daily` profile instead when its
+additional quality tools are needed; the selected profile's compiler and platform
+prerequisites still apply.
+
+Then use the ordinary project commands:
+
+```sh
 pnpm dev
 pnpm check
 pnpm test
@@ -243,20 +269,21 @@ pnpm build
 
 Package scripts resolve the installed local CLI. `pnpm exec vp <command>`
 is the explicit route; `node scripts/run-viteplus.mts <command>` also runs the
-installed package without a package-manager hop. Node and pnpm are pinned in
-`.node-version` and `package.json`. A contributor may choose Corepack during
-provisioning. Bootstrap prefers an already provided exact pnpm and uses Corepack
-only as an optional provisioning provider. Rust, drivers and other language
-tools retain their existing profiles.
+installed package without a package-manager hop. These installed operations do
+not require global `vp`. Bootstrap consumes the active exact Node and pnpm;
+contributors using Corepack must enable/provision pnpm before setup. The pnpm
+workspace disables pnpm's separate runtime and package-manager switching, so the
+active environment remains the provider. Rust, drivers and other language tools
+retain their existing profiles.
 
 In controlled environments, use the official Vite+ installer with `VP_VERSION`
 pinned to the catalog release, or the SHA-pinned `setup-vp` action. Keep Node
 signature and archive-integrity verification enabled. Global `vp` delegates
-project commands to the local release; its Node/package-manager environment
-management is optional on contributor machines. Use `vp env current` and
+project commands to the local release. Use `vp env current` and
 `vp toolchain --global` to distinguish the managed runtime from the project
-bundle. Installation must not silently replace a contributor's existing manager
-or shell configuration.
+bundle. Install or switch a contributor's manager explicitly; repository setup
+never changes persistent shell configuration. Frontend CI already uses
+`setup-vp` with `.node-version`; Node-only jobs can continue using `setup-node`.
 
 VS Code's recommended Vite+ extension pack includes Oxc and Vitest Explorer.
 The workspace selects `vitest.rootConfig: "vite.config.ts"`, so discovery uses
@@ -659,12 +686,15 @@ the checked-in architecture-specific SHA-256, and provisions checksum-locked Ruf
 actionlint, and ShellCheck versions. Rust quality tools and PSScriptAnalyzer are
 also resolved from repository pins. Verified payloads are reused below
 `%LOCALAPPDATA%\Portcove\tool-cache`; each checkout receives only small ignored
-shims in `work/tool-bin`. The bootstrap requires the `.node-version` runtime to be
-active, resolves version-manager junctions to their stable installation, and writes
-checkout-local `node`, `corepack`, and exact-pnpm shims together. Repository commands
-prepend those shims and set Aqua and PowerShell module paths only for their child
-processes. The bootstrap never changes the persistent user or machine `PATH` or
-environment.
+shims in `work/tool-bin`. The bootstrap requires the `.node-version` runtime and
+pinned pnpm to be active. It writes quality-tool shims only; Node and pnpm stay
+with the active environment provider. Explicit setup retires recognized legacy
+checkout Node/pnpm/Corepack shims and preserves unrelated files. Direct repository
+Node children use the running Node executable, including when an old tool-state
+file contains another path. Child processes retain the active environment's
+provider ordering after the quality-tool shims, plus the Aqua and PowerShell
+module paths. The bootstrap never changes the persistent user or machine `PATH`
+or environment.
 
 On Windows, Aqua-backed commands use the pinned cache executable directly after
 checking the existing checkout state, archive receipt and reported version. A

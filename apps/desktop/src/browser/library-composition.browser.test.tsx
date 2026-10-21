@@ -232,8 +232,21 @@ for (const theme of ["dark", "light"]) {
     const enlarged = artwork.getBoundingClientRect();
     expect(enlarged.height / enlarged.width).toBeCloseTo(1.5);
     const card = artwork.closest<HTMLButtonElement>(".port-card")!;
+    const workspace = card.closest<HTMLElement>("main")!;
+    // Header and filter controls may wrap; reveal the card in its scrolling workspace.
+    card.scrollIntoView({ block: "start", inline: "nearest" });
+    const viewport = workspace.getBoundingClientRect();
+    const visibleTop = Math.max(0, viewport.top);
+    const visibleBottom = Math.min(innerHeight, viewport.bottom);
     const title = card.querySelector("h2")!;
-    expect(title.getBoundingClientRect().top).toBeLessThan(innerHeight);
+    const project = card.querySelector<HTMLElement>(".card-content > p")!;
+    for (const identity of [title, project]) {
+      const bounds = identity.getBoundingClientRect();
+      expect(bounds.top).toBeGreaterThanOrEqual(visibleTop);
+      expect(bounds.bottom).toBeLessThanOrEqual(visibleBottom);
+    }
+    expect(project.textContent).toContain("sm64-port");
+    expect(workspace.scrollWidth).toBeLessThanOrEqual(workspace.clientWidth + 1);
     expect(card.textContent).toContain("Super Mario 64");
     expect(card.textContent).toContain("sm64-port");
     expect(card.querySelectorAll("button")).toHaveLength(0);
