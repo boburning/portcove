@@ -89,7 +89,7 @@ export function inspectSiteGeneration(raw: unknown, expected: string): SiteGener
     ? {
         schema_version: 2 as const,
         previous_generation: raw.previous_generation,
-        application_root_sha256: raw.application_root_sha256 as string | null,
+        application_root_sha256: raw.application_root_sha256,
         catalog_root_sha256: raw.catalog_root_sha256 as string | null,
         files,
       }

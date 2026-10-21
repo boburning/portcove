@@ -3,11 +3,7 @@ import { createHash } from "node:crypto";
 import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { performance } from "node:perf_hooks";
-import {
-  isSafeSitePath,
-  readComposedSite,
-  readComposedCatalogSite,
-} from "./release-site-composer.mts";
+import { readComposedSite, readComposedCatalogSite } from "./release-site-composer.mts";
 import { lstat, mkdir, mkdtemp, realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { GitHubApiClient, GitHubApiError, createGitHubRunner } from "./github-api.mts";
@@ -16,7 +12,6 @@ import type { GitHubRestReader } from "./github-api.mts";
 const origin = "https://boburning.github.io/portcove/";
 const maximumFiles = 6000;
 const maximumBytes = 256 * 1024 * 1024;
-const maximumFileBytes = 64 * 1024 * 1024;
 const hash = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const digest = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
