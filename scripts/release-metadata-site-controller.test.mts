@@ -54,7 +54,7 @@ function fixture() {
       public_source_commit: "3".repeat(40),
     },
     binding: {
-      kind: "metadata",
+      kind: "metadata-renewal",
       descriptor_sha256: digest(descriptor),
       records_sha256: descriptor.unchanged_records_sha256,
     },
