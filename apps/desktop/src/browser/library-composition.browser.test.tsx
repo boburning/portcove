@@ -75,6 +75,31 @@ it("groups retrieval, preserves independent duplicate-port launch targets and st
   await expect.element(more).toHaveFocus();
 });
 
+it("plays the distinct duplicate port from details and returns to its filtered row", async () => {
+  await page.viewport(1366, 768);
+  await mount();
+  const launch = vi.spyOn(desktopApi, "launch");
+  const search = page.getByRole("textbox", { name: "Search your library" });
+  await search.fill("Super Mario 64");
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
+  const origin = document.querySelectorAll<HTMLElement>(".collection-identity")[1]!;
+  const originId = origin.getAttribute("data-detail-origin");
+  await page
+    .getByRole("button", { name: /View details for Super Mario 64 Port: Mario modern port/ })
+    .click();
+  const detail = page.getByRole("region", { name: "Super Mario 64", exact: true });
+  await expect.element(detail).toHaveTextContent("Mario modern port · Modern renderer");
+  await detail.getByRole("button", { name: "Play", exact: true }).click();
+  await expect.poll(() => launch.mock.calls[0]).toEqual(["collection-1", "", 1]);
+  await page.getByRole("button", { name: "Back to previous workspace", exact: true }).click();
+  await expect.element(search).toHaveValue("Super Mario 64");
+  await expect.poll(() => document.querySelectorAll(".collection-row").length).toBe(2);
+  await expect
+    .poll(() => document.activeElement?.getAttribute("data-detail-origin"))
+    .toBe(originId);
+});
+
 it("reopens Last played and restores its exact details trigger after Back", async () => {
   await page.viewport(1366, 768);
   const snapshot = workspace("collection");
