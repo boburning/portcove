@@ -55,7 +55,7 @@ export function boundedNativeWslOperationTimeout(requested: number, available: n
   return Math.floor(Math.min(requested, available));
 }
 
-async function sourcePin(root: string, filename: string) {
+export async function readNativeWslControllerSourcePin(root: string, filename: string) {
   const bytes = await readBoundedPublicBuildInputFile(root, filename, 1024 * 1024);
   const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   assert.ok(!text.includes("\0") && !text.startsWith("\ufeff"));
@@ -475,7 +475,7 @@ async function runPreparedWslDriver(raw: unknown) {
         commands.capture,
         null,
         directory,
-        "guest-capture",
+        prepared.schema_version === 3 ? "public-capture" : "guest-capture",
         272 * 1024 * 1024,
         Math.min(60000, budget()),
       )
@@ -544,7 +544,7 @@ export async function captureActualWslNativeInvocation(claim: object) {
       "scripts/release-native-linux-driver.mts",
       "apps/desktop/scripts/native-linux-isolated-init.py",
       "scripts/native-qualification-linux-transfer.py",
-    ].map((filename) => sourcePin(parent.controller_root, filename)),
+    ].map((filename) => readNativeWslControllerSourcePin(parent.controller_root, filename)),
   );
   assert.equal(supervisor, boundary.supervisor_sha256, "appointed guest supervisor source differs");
   const available = remainingNativeParentBudget() - 60000;
