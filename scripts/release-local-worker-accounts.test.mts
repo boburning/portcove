@@ -27,6 +27,48 @@ const ast = `$ErrorActionPreference='Stop'; $tokens=$null;$errors=$null;$tree=[M
 const functions = `${ast}foreach($name in @('Assert-JsonNames','Read-BoundedJson','Assert-Keys','Assert-SetupPlan','Write-NewJson')){$node=$tree.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true);if(-not $node){throw 'Missing actual source function'};Invoke-Expression $node.Extent.Text};`;
 
 void test(
+  "documented initial bootstrap executes its ACL guard for generic and named rights without mutating the host",
+  { skip: process.platform !== "win32" },
+  () => {
+    const document = fileURLToPath(
+      new URL(
+        "../docs/qualification/slice4-consolidated-initial-setup-2026-10-21.md",
+        import.meta.url,
+      ),
+    );
+    const output = powershell(`$ErrorActionPreference='Stop';
+      $text=[IO.File]::ReadAllText(${quote(document)});
+      $blocks=[regex]::Matches($text,'(?ms)^\x60\x60\x60powershell\\r?\\n(.*?)^\x60\x60\x60');
+      if($blocks.Count -ne 5){throw 'Bootstrap command inventory differs'};
+      $tokens=$null;$errors=$null;
+      $tree=[Management.Automation.Language.Parser]::ParseInput($blocks[0].Groups[1].Value,[ref]$tokens,[ref]$errors);
+      if($errors.Count){throw ($errors|Out-String)};
+      $guards=@($tree.FindAll({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text.Contains('$taskRule.FileSystemRights')},$true));
+      if($guards.Count -ne 1){throw 'Actual bootstrap ACL guard is missing or duplicated'};
+      $guard=[scriptblock]::Create($guards[0].Clauses[0].Item1.Extent.Text);
+      $broker=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;
+      $taskTrusted=@($broker,'S-1-5-18','S-1-5-32-544','S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464');
+      $foreign='S-1-5-21-1-2-3-1009';
+      foreach($rights in @([int64]0x10000000,[int64][Security.AccessControl.FileSystemRights]::FullControl,[int64][Security.AccessControl.FileSystemRights]::Delete,[int64][Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles,[int64][Security.AccessControl.FileSystemRights]::ChangePermissions,[int64][Security.AccessControl.FileSystemRights]::TakeOwnership)){
+        $taskRule=[pscustomobject]@{PropagationFlags=[Security.AccessControl.PropagationFlags]::None;AccessControlType='Allow';FileSystemRights=$rights;IdentityReference=@{Value=$foreign}};
+        if(-not (& $guard)){throw 'Foreign replacement right was admitted'};
+        $taskRule.IdentityReference.Value=$broker;if(& $guard){throw 'Trusted broker rejected'};
+        $taskRule.IdentityReference.Value=$foreign;$taskRule.AccessControlType='Deny';if(& $guard){throw 'Deny ACE treated as an allow'};
+        $taskRule.AccessControlType='Allow';$taskRule.PropagationFlags=[Security.AccessControl.PropagationFlags]::InheritOnly;if(& $guard){throw 'Inherit-only ACE treated as applying to parent'};
+      };
+      foreach($rights in @([Security.AccessControl.FileSystemRights]::ReadAndExecute,[Security.AccessControl.FileSystemRights]::CreateFiles,[Security.AccessControl.FileSystemRights]::CreateDirectories)){
+        $taskRule=[pscustomobject]@{PropagationFlags=[Security.AccessControl.PropagationFlags]::None;AccessControlType='Allow';FileSystemRights=$rights;IdentityReference=@{Value=$foreign}};
+        if(& $guard){throw 'Non-replacement parent access rejected'};
+      };
+      foreach($parent in @('C:\\ProgramData','C:\\')){
+        foreach($taskRule in (Get-Acl -LiteralPath $parent).GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])){[void](& $guard)};
+      };
+      'actual-bootstrap-acl-cases-pass';`);
+    assert.equal(output, "actual-bootstrap-acl-cases-pass");
+  },
+);
+
+void test(
   "fixed account setup parses and compiles actual native interop without invoking it",
   { skip: process.platform !== "win32" },
   () => {

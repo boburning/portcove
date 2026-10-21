@@ -84,7 +84,7 @@ while ($taskCursor) {
         if (($taskRule.PropagationFlags -band
                 [Security.AccessControl.PropagationFlags]::InheritOnly) -eq 0 -and
             $taskRule.AccessControlType -eq 'Allow' -and
-            ($taskRule.FileSystemRights -band [Security.AccessControl.FileSystemRights] ([int64]0x10000000 -bor [int64][Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership')) -and
+            ([int64]$taskRule.FileSystemRights -band ([int64]0x10000000 -bor [int64][Security.AccessControl.FileSystemRights]'Delete,DeleteSubdirectoriesAndFiles,ChangePermissions,TakeOwnership')) -and
             $taskRule.IdentityReference.Value -notin $taskTrusted) {
             throw 'Bootstrap ancestor permits foreign replacement'
         }
