@@ -47,7 +47,10 @@
             "url": "https://github.com/boburning/portcove/blob/5be1e93a6bbe2a4b8d318fb239eb0b0807f92b1a/docs/qualification/chameleon-twist-jp-independent-review-2026-10-18.md",
             "sha256": "04e8bebe587383f43b9e346f2c85b361abe74452dee0a1731066050404f4da9d"
           },
-          "protected_acceptance": null
+          "protected_acceptance": {
+            "url": "https://github.com/boburning/portcove/blob/f4d6d8ec279d0248e52ccc3175259cd8226b4f70/docs/qualification/chameleon-twist-jp-exact-byte-acceptance-2026-10-21.md",
+            "sha256": "80f1d36fb10ac47db199038c25c8a32337fd930f98661854c6ab6630d14940a0"
+          }
         }
       }
     },
@@ -170,7 +173,7 @@
   "maintenance_target": "managed-compatible-release",
   "maintenance_scope": "Known v0.1 immutable curated candidate only. Future accepted releases require fresh exact metadata, independent/protected byte acceptance and deterministic package/source/executable/persistence compatibility. Only one historical release; no N+1, automatic compatibility or native proof claimed.",
   "artwork_scope": "Specific text/placeholder fallback for Chameleon Twist JP; no borrowed unrelated-game mapping, provider network call or invented imagery evidence.",
-  "admission_status": "Unaccepted preparation only. Acquisition and independent-review references are bound; protected_acceptance remains null and prevents admission. No publisher/root authority or native acceptance.",
+  "admission_status": "Exact-byte acceptance receipt reference bound after protected-main delivery in #2369. Catalog admission remains pending independently installed Root, authenticated schema-4 publisher policy and launch assessment, whole-opportunity review, protected signing/publication, consent and actual acquisition/lifecycle observations. No standalone runtime authority or native acceptance.",
   "authority": "none",
   "proposed_source_evidence": {
     "id": "chameleon-twist-jp-v0-1-source-contract",

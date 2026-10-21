@@ -47,6 +47,7 @@ Already-correct capabilities are retained for their task/domain value, not merel
 - Application and catalog updates retain their separate trust, pending/restart and provenance owners. Application preferences now name the saved future default separately from the one-time check. Game-update choices and execution feedback are corrected independently.
 - Existing account/device/token, Steam, tool-path, language, diagnostics/manual-copy and help functions remain in their task categories. Mounted panels preserve validation and unsaved drafts; common hierarchy, selection, focus and disclosure changes apply to them without a new settings store.
 - Startup recovery remains independent of the normal Library because that Library may be unreadable. Its copied-file recovery choices remain capability-bound, and its own viewport scroll region keeps final actions reachable when enlarged.
+- A caught display failure also has its own viewport scroll region. Reload precedes an optional diagnostic disclosure; full selectable diagnostic text stays in a bounded read-only field. This recovery surface does not claim that a task stopped or that reloading undoes its effects.
 
 These are retained production workflows, not placeholders or future redesign slices. Their available acceptance evidence is recorded separately from implementation decisions.
 

@@ -190,7 +190,9 @@ function cacheRootFor(root: string, environment: NodeJS.ProcessEnv) {
   const target = configured
     ? path.resolve(root, configured)
     : path.join(path.resolve(root), "target");
-  return path.join(target, "portcove-rust-support", `v${formatVersion}`);
+  // Cargo must create its own target directory to establish its cleanup ownership.
+  // Keep support artifacts scoped to the selected target without creating it.
+  return path.join(`${target}.portcove-rust-support`, `v${formatVersion}`);
 }
 
 function safeProductName(value: string) {
@@ -200,6 +202,22 @@ function safeProductName(value: string) {
 }
 
 function ensureOwnedCacheDirectory(directory: string) {
+  const ancestors: string[] = [];
+  for (let current = directory; ; current = path.dirname(current)) {
+    ancestors.push(current);
+    if (path.dirname(current) === current) break;
+  }
+  // Check from the filesystem root before recursive mkdir can follow an existing
+  // link or create anything below a cache path that we do not own.
+  for (const ancestor of ancestors.reverse()) {
+    try {
+      const state = lstatSync(ancestor);
+      if (!state.isDirectory() || state.isSymbolicLink())
+        throw new Error(`Rust support cache path is not an owned directory: ${ancestor}`);
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT") throw error;
+    }
+  }
   mkdirSync(directory, { recursive: true });
   const state = lstatSync(directory);
   if (!state.isDirectory() || state.isSymbolicLink())
@@ -367,8 +385,6 @@ export function prepareRustSupportArtifact({
   const cacheRoot = cacheRootFor(root, environment);
   const productRoot = path.join(cacheRoot, checkedProduct);
   const finalDirectory = path.join(productRoot, fingerprint);
-  ensureOwnedCacheDirectory(path.dirname(cacheRoot));
-  ensureOwnedCacheDirectory(cacheRoot);
   ensureOwnedCacheDirectory(productRoot);
 
   let entry = readValidatedEntry(finalDirectory, fingerprint);

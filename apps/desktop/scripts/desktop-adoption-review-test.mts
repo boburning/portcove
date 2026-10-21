@@ -196,7 +196,7 @@ export async function adoptionReviewScenario({
     await open();
     let text = await browser.findElement(dialog).getText();
     for (const expected of [
-      "Add an existing installation to Portcove",
+      "Copy an existing installation",
       port.name,
       `Catalog ID: ${port.id}`,
       original,

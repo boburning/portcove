@@ -1750,12 +1750,16 @@ duplicate this orchestration in a skill or a competing recipe. Record cold
 compilation separately from warm test execution when comparing performance.
 
 The wrapper reuses only its unchanged compiled host-tool probe and containment
-supervisor. It keeps those products below the current worktree's Cargo target,
+supervisor. It keeps those products beside the selected Cargo target, under
+`<target>.portcove-rust-support/v1` (`target.portcove-rust-support/v1` by default),
 keyed by exact source, compiler/sysroot/resolved-tool bytes, target, arguments,
 and relevant compiler environment. Cache entries and fresh copies are verified
 by bytes and mode; candidates publish atomically, corrupt or interrupted entries
-are rejected, and only eight identities per product are retained. Every run
-still allocates a new temporary fixture root and executes fresh nextest,
+are rejected, and only eight identities per product are retained. Preparation
+leaves a new Cargo target absent so Cargo can initialize its own cleanup marker.
+The previous nested cache remains untouched; support executables rebuild in the
+new location. See [storage layout and cleanup](DEVELOPMENT-STORAGE.md#clean-up-verified-disposable-content).
+Every run still allocates a new temporary fixture root and executes fresh nextest,
 containment, mutation, process, and cleanup evidence. `[rust-support]` lines name
 the product, `built` or `hit` outcome, short fingerprint, and preparation time.
 They are preparation provenance, never a test pass or authorization record.

@@ -3,11 +3,14 @@ import { isRecord } from "./runtime-values.mts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  appendFileSync,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -15,6 +18,11 @@ import {
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  type CompilerRunner,
+  prepareRustSupportArtifact,
+  rustSupportCompilerIdentity,
+} from "./rust-support-cache.mts";
 
 import {
   childEnvironment,
@@ -73,12 +81,18 @@ void test("storage wrapper keeps the active Node runtime and explicit executable
     assert.deepEqual(canonicalCheckoutCommand(command, ["--version"]), [command, ["--version"]]);
 });
 
-function fixture(t: TestContext) {
+function fixture(t: TestContext, retain?: () => boolean) {
   const scratch = path.join(projectRoot, "work/temp");
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(path.join(scratch, "storage-test-"));
   t.after(() => {
     assert.equal(path.dirname(root), scratch);
+    if (retain?.()) {
+      t.diagnostic(
+        `Failed real Cargo smoke fixture retained at ${root}; command evidence: ${path.join(root, "cargo-smoke-evidence.log")}`,
+      );
+      return;
+    }
     rmSync(root, { recursive: true, force: true });
   });
   return root;
@@ -204,8 +218,8 @@ if ($observedFailure -cne 'original-command-failure') { throw "Restoration warni
   },
 );
 
-function workspace(t: TestContext) {
-  const root = fixture(t);
+function workspace(t: TestContext, retain?: () => boolean) {
+  const root = fixture(t, retain);
   mkdirSync(path.join(root, "scripts"));
   copyFileSync(
     new URL("./runtime-values.mts", import.meta.url),
@@ -399,17 +413,20 @@ void test("light storage never resolves Cargo; Rust resolves actual metadata and
   for (const scope of ["frontend", "tooling"]) {
     const paths = getPaths(scope, { metadataProvider });
     assert.equal(paths.target_directory, undefined);
+    assert.equal(paths.rust_support_cache, undefined);
     assert.equal(paths.tauri_generated, undefined);
   }
   assert.equal(calls, 0);
   const rust = getPaths("rust", { metadataProvider });
   assert.equal(calls, 1);
   assert.equal(rust.target_directory, path.join(projectRoot, "redirected-target"));
+  assert.equal(rust.rust_support_cache, `${rust.target_directory}.portcove-rust-support`);
   assert.equal(rust.frontend_dependencies, undefined);
   assert.equal(rust.pnpm_store, undefined);
   assert.equal(rust.tauri_generated, path.join(projectRoot, "apps/desktop/src-tauri/gen"));
   const complete = getPaths("all", { metadataProvider });
   assert.equal(calls, 2);
+  assert.equal(complete.rust_support_cache, `${complete.target_directory}.portcove-rust-support`);
   assert.ok(complete.tauri_generated);
   assert.ok(complete.frontend_dependencies);
   assert.throws(() => getPaths("unknown", { metadataProvider }), /Unknown storage task/);
@@ -423,6 +440,124 @@ void test("light storage never resolves Cargo; Rust resolves actual metadata and
       }),
     /does not match/,
   );
+});
+
+void test("Rust support cache admission follows the physical Cargo target exported to preparation", (t) => {
+  const root = fixture(t);
+  const target = path.join(root, "physical", "target");
+  mkdirSync(target, { recursive: true });
+  const alias = path.join(root, "redirected-target");
+  symlinkSync(target, alias, "junction");
+  writeFileSync(`${alias}.portcove-rust-support`, "preserve unrelated alias sibling");
+  const configured = getPaths("rust", {
+    metadataProvider: () => ({ workspace_root: projectRoot, target_directory: alias }),
+  });
+  const { paths } = preflight(configured, 1, { blockSystemDrive: false });
+  const physicalTarget = resolvePhysicalPath(target);
+  assert.equal(paths.target_directory, physicalTarget);
+  assert.equal(paths.rust_support_cache, `${physicalTarget}.portcove-rust-support`);
+  const env = childEnvironment(paths);
+  assert.equal(env.CARGO_TARGET_DIR, physicalTarget);
+  const source = path.join(root, "fixture.rs");
+  writeFileSync(source, "fixture source");
+  const prepared = prepareRustSupportArtifact({
+    root,
+    product: "storage-path-fixture",
+    source,
+    output: path.join(root, "fixture-output"),
+    rustcArgs: [],
+    compiler: { verbose_version: "fixture", sysroot: "fixture", commands: [], environment: [] },
+    environment: env,
+    runSync: (command, args) => {
+      assert.equal(command, "rustc");
+      const output = args.at(-1);
+      assert.ok(output);
+      writeFileSync(output, "fake compiler output for path admission only");
+      return { status: 0 };
+    },
+  });
+  assert.equal(prepared.outcome, "built");
+  assert.ok(paths.rust_support_cache);
+  assert.equal(
+    readFileSync(
+      path.join(
+        paths.rust_support_cache,
+        "v1",
+        "storage-path-fixture",
+        prepared.fingerprint,
+        "artifact",
+      ),
+      "utf8",
+    ),
+    "fake compiler output for path admission only",
+  );
+  assert.equal(
+    readFileSync(`${alias}.portcove-rust-support`, "utf8"),
+    "preserve unrelated alias sibling",
+  );
+
+  const blockedTarget = path.join(root, "another-target");
+  const blockedCache = `${blockedTarget}.portcove-rust-support`;
+  writeFileSync(blockedCache, "preserve non-directory cache path");
+  assert.throws(
+    () =>
+      preflight({ target_directory: blockedTarget, rust_support_cache: blockedCache }, 20, {
+        blockSystemDrive: false,
+      }),
+    /Storage path is not a directory.*preserve the existing file/u,
+  );
+  assert.equal(readFileSync(blockedCache, "utf8"), "preserve non-directory cache path");
+  assert.equal(existsSync(blockedTarget), false);
+});
+
+void test("Rust support cache on a separate parent volume retains the 20 GiB admission floor", (t) => {
+  const root = fixture(t);
+  const selected = path.join(root, "target-mount");
+  mkdirSync(selected);
+  const target = resolvePhysicalPath(selected);
+  const probe = `
+    import assert from 'node:assert/strict';
+    import fs from 'node:fs';
+    import path from 'node:path';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { preflight } from ${JSON.stringify(new URL("./dev-storage.mts", import.meta.url).href)};
+    const target = ${JSON.stringify(target)};
+    const originalStat = fs.statSync;
+    const originalStatfs = fs.statfsSync;
+    const probes = [];
+    try {
+      fs.statSync = (candidate, ...args) => {
+        const stats = originalStat(candidate, ...args);
+        stats.dev = path.resolve(String(candidate)) === target ? 101 : 202;
+        return stats;
+      };
+      fs.statfsSync = (candidate, ...args) => {
+        const absolute = path.resolve(String(candidate));
+        probes.push(absolute);
+        return { ...originalStatfs(candidate, ...args), bsize: 1024 ** 3, bavail: absolute === target ? 30 : 19 };
+      };
+      syncBuiltinESMExports();
+      assert.throws(
+        () => preflight({ target_directory: target, rust_support_cache: target + '.portcove-rust-support' }, 20, { blockSystemDrive: false }),
+        /needs at least 20\\.0 GiB free;.*19\\.00 GiB/,
+      );
+      assert.deepEqual(probes, [target, path.dirname(target)]);
+      console.log('separate support-cache volume refused at unchanged 20 GiB');
+    } finally {
+      fs.statSync = originalStat;
+      fs.statfsSync = originalStatfs;
+      syncBuiltinESMExports();
+    }
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", probe], {
+    cwd: projectRoot,
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 10_000,
+  });
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /separate support-cache volume refused at unchanged 20 GiB/u);
 });
 
 void test(
@@ -659,6 +794,7 @@ void test("preflight is read-only and machine-readable, and low space prevents c
   assert.equal(report.minimum_free_gib, 20);
   assert.equal(report.workspace, root);
   assert.equal(report.target_directory, path.join(root, "target"));
+  assert.equal(report.rust_support_cache, path.join(root, "target.portcove-rust-support"));
   assert.equal(report.frontend_dependencies, path.join(root, "node_modules"));
   assert.equal(report.desktop_dependencies, path.join(root, "apps/desktop/node_modules"));
   assert.equal(existsSync(path.join(root, "work")), false);
@@ -824,6 +960,8 @@ void test("child environment covers POSIX and Windows temp consumers", () => {
 
 void test("clean remains available below the free-space margin and preserves source files", (t) => {
   const root = workspace(t);
+  const sibling = path.join(root, "target.portcove-rust-support");
+  writeFileSync(sibling, "preserve unrelated sibling cache path");
   mkdirSync(path.join(root, "target"));
   writeFileSync(
     path.join(root, "target/CACHEDIR.TAG"),
@@ -836,6 +974,11 @@ void test("clean remains available below the free-space margin and preserves sou
   assert.equal(result.status, 0, result.stderr);
   assert.equal(existsSync(path.join(root, "target")), false);
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
+  assert.equal(readFileSync(sibling, "utf8"), "preserve unrelated sibling cache path");
+  assert.equal(
+    cli(root, ["clean"], { PORTCOVE_MIN_FREE_GIB: "invalid-but-irrelevant-to-clean" }).status,
+    0,
+  );
   const rejected = cli(root, ["clean"], {
     CARGO_TARGET_DIR: path.join(root, "src"),
   });
@@ -847,8 +990,211 @@ void test("clean remains available below the free-space margin and preserves sou
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
 });
 
+for (const markerKind of ["missing", "invalid", "short", "directory", "link"] as const) {
+  void test(`clean preserves an unknown target with a ${markerKind} Cargo marker`, (t) => {
+    const root = workspace(t);
+    const target = path.join(root, "target");
+    const marker = path.join(target, "CACHEDIR.TAG");
+    const retained = path.join(root, "retained-evidence");
+    mkdirSync(target);
+    mkdirSync(retained);
+    writeFileSync(path.join(target, "unknown-content"), "preserve target contents");
+    writeFileSync(path.join(retained, "sentinel"), "preserve unrelated evidence");
+    const invalidMarker =
+      markerKind === "short" ? "unknown" : "This is not a Cargo ownership marker.\n".repeat(2);
+    if (markerKind === "invalid" || markerKind === "short") writeFileSync(marker, invalidMarker);
+    if (markerKind === "directory") {
+      mkdirSync(marker);
+      writeFileSync(path.join(marker, "sentinel"), "preserve non-marker directory");
+    }
+    if (markerKind === "link") symlinkSync(retained, marker, "junction");
+    const entries = readdirSync(target).sort();
+
+    const result = cli(root, ["clean"], {
+      PORTCOVE_MIN_FREE_GIB: "invalid-but-irrelevant-to-clean",
+    });
+    assert.equal(result.status, 101, result.stderr);
+    assert.match(result.stderr, /cannot clean/u);
+    assert.match(result.stderr, /aborted to prevent accidental deletion of unrelated files/u);
+    assert.match(result.stderr, /No fallback deletion was attempted/u);
+    assert.match(result.stderr, /Preserve and review the remaining contents/u);
+    assert.match(result.stderr, /do not create or replace CACHEDIR\.TAG/u);
+    assert.match(result.stderr, /fresh owned checkout on a volume that passes storage preflight/u);
+    assert.match(result.stderr, /keeping the old target for separate ownership review/u);
+    assert.deepEqual(readdirSync(target).sort(), entries);
+    assert.equal(
+      readFileSync(path.join(target, "unknown-content"), "utf8"),
+      "preserve target contents",
+    );
+    assert.equal(
+      readFileSync(path.join(retained, "sentinel"), "utf8"),
+      "preserve unrelated evidence",
+    );
+    assert.equal(readFileSync(path.join(root, "src/lib.rs"), "utf8"), "");
+    if (markerKind === "missing") assert.equal(existsSync(marker), false);
+    if (markerKind === "invalid" || markerKind === "short")
+      assert.equal(readFileSync(marker, "utf8"), invalidMarker);
+    if (markerKind === "directory")
+      assert.equal(
+        readFileSync(path.join(marker, "sentinel"), "utf8"),
+        "preserve non-marker directory",
+      );
+    if (markerKind === "link") assert.equal(lstatSync(marker).isSymbolicLink(), true);
+  });
+}
+
+void test("checked cleanup refuses an ordinary file in place of the target directory", (t) => {
+  const root = workspace(t);
+  const target = path.join(root, "target");
+  writeFileSync(target, "preserve unknown file");
+  const result = cli(root, ["clean"]);
+  assert.equal(result.status, 1, result.stderr);
+  assert.match(result.stderr, /Refusing to clean through a symlink, junction, or non-directory/u);
+  assert.equal(readFileSync(target, "utf8"), "preserve unknown file");
+  assert.equal(readFileSync(path.join(root, "src/lib.rs"), "utf8"), "");
+});
+
+for (const order of ["support-first", "Cargo-first"] as const) {
+  void test(`real Cargo owns target initialization and checked cleanup after ${order} preparation`, (t) => {
+    let completed = false;
+    const root = workspace(t, () => !completed);
+    const observe = (message: string) => {
+      appendFileSync(path.join(root, "cargo-smoke-evidence.log"), `${message}\n`);
+      t.diagnostic(message);
+    };
+    const target = path.join(root, "target");
+    const storage = path.join(root, "scripts/dev-storage.mts");
+    const env = environment({
+      CARGO_HOME: path.join(root, "cargo-home"),
+      CARGO_TARGET_DIR: target,
+      CARGO_BUILD_BUILD_DIR: undefined,
+      CARGO_BUILD_TARGET_DIR: undefined,
+      RUSTC: undefined,
+      RUSTC_WRAPPER: undefined,
+      RUSTC_WORKSPACE_WRAPPER: undefined,
+      RUSTUP_AUTO_INSTALL: "0",
+      PORTCOVE_BLOCK_SYSTEM_DRIVE: process.env.PORTCOVE_BLOCK_SYSTEM_DRIVE,
+    });
+    const runSync: CompilerRunner = (command, args, options) => {
+      const result = spawnSync(command, args, {
+        ...options,
+        cwd: root,
+        env,
+        stdio: "pipe",
+        encoding: "utf8",
+        timeout: 10_000,
+        windowsHide: true,
+      });
+      observe(
+        JSON.stringify({
+          cwd: root,
+          command: [command, ...args],
+          status: result.status,
+          signal: result.signal,
+          stdout: result.stdout?.trim(),
+          stderr: result.stderr?.trim(),
+        }),
+      );
+      assert.ifError(result.error);
+      return result;
+    };
+    const admission = runSync(
+      process.execPath,
+      [storage, "preflight", "--scope", "rust", "--json"],
+      {},
+    );
+    if (
+      admission.status !== 0 &&
+      !process.env.CI &&
+      !process.env.GITHUB_ACTIONS &&
+      /Portcove needs at least 20\.0 GiB free;/u.test(String(admission.stderr))
+    ) {
+      completed = true;
+      t.skip(
+        `Real Cargo acceptance was not observed: unchanged 20 GiB reserve blocks local compilation. ${String(admission.stderr).trim()}`,
+      );
+      return;
+    }
+    assert.equal(admission.status, 0, String(admission.stderr));
+    assert.equal(fixtureRecord(String(admission.stdout)).minimum_free_gib, 20);
+    assert.equal(existsSync(target), false);
+
+    const pinnedToolchain = /channel\s*=\s*"([^"]+)"/u.exec(
+      readFileSync(new URL("../rust-toolchain.toml", import.meta.url), "utf8"),
+    )?.[1];
+    assert.ok(pinnedToolchain);
+    const cargo = runSync("cargo", ["--version", "--verbose"], {});
+    assert.equal(cargo.status, 0, String(cargo.stderr));
+    assert.ok(String(cargo.stdout).startsWith(`cargo ${pinnedToolchain} `), String(cargo.stdout));
+    const compiler = rustSupportCompilerIdentity({ runSync, environment: env });
+    assert.ok(compiler.verbose_version.split(/\r?\n/u).includes(`release: ${pinnedToolchain}`));
+
+    const source = path.join(root, "support.rs");
+    const output = path.join(root, process.platform === "win32" ? "support.exe" : "support");
+    const sentinel = path.join(root, "retained-evidence");
+    writeFileSync(source, "fn main() {}\n");
+    writeFileSync(sentinel, "preserve unrelated evidence");
+    const build = () => {
+      const result = runSync(
+        process.execPath,
+        [storage, "run", "--scope", "rust", "--", "cargo", "build", "--offline"],
+        {},
+      );
+      assert.equal(result.status, 0, String(result.stderr));
+      const marker = readFileSync(path.join(target, "CACHEDIR.TAG"), "utf8");
+      assert.match(marker, /^Signature: 8a477f597d28d172789f06886806bc55/u);
+      observe(`Cargo created ${path.join(target, "CACHEDIR.TAG")}: ${JSON.stringify(marker)}`);
+      return marker;
+    };
+    const priorMarker = order === "Cargo-first" ? build() : undefined;
+    const prepared = prepareRustSupportArtifact({
+      root,
+      product: "storage-smoke",
+      source,
+      output,
+      rustcArgs: ["--edition=2021"],
+      compiler,
+      environment: env,
+      runSync,
+    });
+    assert.equal(prepared.outcome, "built");
+    if (order === "support-first") {
+      assert.equal(
+        existsSync(target),
+        false,
+        "support preparation must leave Cargo's target absent",
+      );
+      build();
+    } else {
+      assert.equal(readFileSync(path.join(target, "CACHEDIR.TAG"), "utf8"), priorMarker);
+    }
+    const cache = path.join(
+      `${target}.portcove-rust-support`,
+      "v1",
+      "storage-smoke",
+      prepared.fingerprint,
+    );
+    const cachedArtifact = readFileSync(path.join(cache, "artifact"));
+    const cachedManifest = readFileSync(path.join(cache, "manifest.json"), "utf8");
+    assert.deepEqual(readFileSync(output), cachedArtifact);
+
+    const cleaned = runSync(process.execPath, [storage, "clean"], {});
+    assert.equal(cleaned.status, 0, String(cleaned.stderr));
+    assert.equal(existsSync(target), false);
+    assert.deepEqual(readFileSync(path.join(cache, "artifact")), cachedArtifact);
+    assert.equal(readFileSync(path.join(cache, "manifest.json"), "utf8"), cachedManifest);
+    assert.deepEqual(readFileSync(output), cachedArtifact);
+    assert.equal(readFileSync(sentinel, "utf8"), "preserve unrelated evidence");
+    assert.equal(readFileSync(source, "utf8"), "fn main() {}\n");
+    assert.equal(readFileSync(path.join(root, "src/lib.rs"), "utf8"), "");
+    completed = true;
+  });
+}
+
 void test("incremental prune preserves reusable Cargo artifacts and works below the margin", (t) => {
   const root = workspace(t);
+  const sibling = path.join(root, "target.portcove-rust-support");
+  writeFileSync(sibling, "preserve unrelated sibling cache path");
   mkdirSync(path.join(root, "target/debug/incremental/unit"), { recursive: true });
   mkdirSync(path.join(root, "target/debug/deps"), { recursive: true });
   writeFileSync(path.join(root, "target/debug/incremental/unit/cache"), "discard");
@@ -861,6 +1207,7 @@ void test("incremental prune preserves reusable Cargo artifacts and works below 
   assert.equal(existsSync(path.join(root, "target/debug/incremental")), false);
   assert.equal(existsSync(path.join(root, "target/debug/deps/reusable")), true);
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
+  assert.equal(readFileSync(sibling, "utf8"), "preserve unrelated sibling cache path");
   assert.equal(cli(root, ["prune-incremental"]).status, 0);
 
   const custom = path.join(root, "custom-target", "debug", "incremental");
