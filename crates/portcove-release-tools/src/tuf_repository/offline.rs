@@ -89,7 +89,7 @@ pub(super) fn invalid<T>(message: &str) -> Result<T, TufRepositoryError> {
     Err(TufRepositoryError::Invalid(message.into()))
 }
 
-pub(super) fn read_input(
+pub(crate) fn read_input(
     path: &Path,
     maximum: u64,
     _label: &str,
