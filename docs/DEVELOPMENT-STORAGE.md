@@ -111,9 +111,10 @@ Its default `all` scope resolves the actual Cargo workspace/target through
 `cargo metadata` and checks native/package outputs. `--scope frontend` checks
 frontend dependencies, output, browser and package caches without Cargo or Tauri
 generated paths. `--scope tooling` checks workspace, temporary and output paths;
-`--scope rust` resolves actual Cargo outputs and Tauri generated paths (Desktop's
-Rust build script writes schemas) without frontend dependency/output paths. Unknown
-commands retain `all`; cleanup always uses complete Cargo discovery/containment.
+`--scope rust` resolves actual Cargo outputs, the adjacent Rust support cache,
+and Tauri generated paths (Desktop's Rust build script writes schemas) without
+frontend dependency/output paths. Unknown commands retain `all`; cleanup always
+uses complete Cargo discovery/containment.
 
 The existing local planner selects these scopes from its complete command plan.
 Its outer launcher uses tooling scope; selected Rust/mixed work still resolves
@@ -173,6 +174,7 @@ The default layout is entirely relative to the checkout:
 | Purpose                                                       | Path                                                             |
 | ------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Cargo, rust-analyzer, Tauri, tests, and mutation builds       | `target`                                                         |
+| Validated Rust support executables                            | `target.portcove-rust-support/v1`                                |
 | Process temporary data and test scratch space                 | `work/temp`                                                      |
 | pnpm content-addressed store                                  | `work/pnpm-store`                                                |
 | Local installers, executables, source archives, and checksums | `outputs`                                                        |
@@ -180,6 +182,17 @@ The default layout is entirely relative to the checkout:
 | Tauri generated schemas                                       | `apps/desktop/src-tauri/gen`                                     |
 
 The launcher creates the temporary, packaging, and pnpm directories after a successful check. It exports `CARGO_TARGET_DIR`, `TEMP`, `TMP`, `TMPDIR`, `pnpm_config_store_dir`, and the Portcove path variables to its child process. Every `just` quality recipe runs through this launcher, so `just check` and `just audit` also work directly in a fresh checkout.
+
+Rust support preparation stores its validated executables beside the selected
+Cargo target, at `<target>.portcove-rust-support/v1`. It leaves an absent target
+absent so the first ordinary Cargo build can create the directory and its
+`CACHEDIR.TAG` ownership marker. Each selected target has its own support cache;
+source, compiler, environment and artifact validation still govern reuse. Rust
+storage admission checks the cache's own physical path and volume too, including
+when a custom target is a mount point whose sibling is on a different volume. The
+previous nested `target/portcove-rust-support` layout is left untouched and is
+not read or migrated. The first preparation after this change rebuilds the small
+support executables in the new location.
 
 On a host where the workspace volume is rotational, sustained fixture-heavy
 validation can saturate that volume even after cross-worktree Rust admission is
@@ -191,7 +204,11 @@ controlled local scratch relocation as packaged, production-feed, or
 physical-platform evidence. Keep Cargo targets per worktree unless the entire
 isolated validation checkout is deliberately located on that SSD.
 
-Required CI runs the storage regression suite in both the Windows `rust` job and Linux `rust-quality` job. CI, release, and deep-quality workflows export the workspace store before pnpm cache discovery, so the cached directory and the install directory agree even when a setup action runs from the repository root.
+Relevant storage changes select the regression suite in ordinary CI's Linux
+contract lane with pinned Rust. Full qualification also exercises storage on
+Windows and Linux. CI, release, and deep-quality workflows export the workspace
+store before pnpm cache discovery, so the cached directory and the install
+directory agree even when a setup action runs from the repository root.
 
 Run rust-analyzer from the selected workspace so its Cargo metadata resolves the same `target` directory. That workspace must satisfy the effective machine-local policy as well as portable repository checks. Do not create validation-mode-specific target directories unless a tool proves that isolation is required. These controls cover repository build and scratch data; they do not relocate installed tools, Cargo's global registry, or other user-level caches. Native executables receive their arguments directly. Windows batch shims support spaced arguments but reject shell expansion/control characters rather than interpreting them.
 
@@ -204,6 +221,20 @@ node scripts/dev-storage.mts clean
 ```
 
 The command prints the exact deletion target, accepts only this workspace's ordinary `target` directory (or an absent target), and refuses symlinks/junctions anywhere in its ancestor chain. It rejects custom targets, including other directories inside the checkout, and delegates deletion to `cargo clean --target-dir <checked-target>`. Cleanup remains available when free space is low or the old checkout is on the system drive. Stop build/editor processes using that target before invoking it; the command does not stop them for you.
+
+Cargo also checks its target ownership marker. An old target created before
+Cargo, including one initialized by the previous support-cache layout, may have
+no valid marker and remain ineligible for checked cleanup even after a build.
+On refusal, the wrapper preserves Cargo's failure status and performs no
+fallback deletion. Preserve the remaining contents for a separate ownership
+review; do not add a marker manually or switch cleanup commands to bypass the
+refusal. To resume development, use a fresh owned checkout on a volume that
+satisfies the unchanged storage policy, and let Cargo initialize its new target.
+
+Checked Cargo cleanup does not remove the adjacent Rust support cache. Its
+existing bounded retention keeps at most eight validated identities per product;
+the same byte and mode checks apply when a later invocation reuses one. Cleanup
+does not adopt or migrate an older nested cache.
 
 Ordinary and exhaustive validation preserve `target/debug/incremental` so a
 later Cargo stage or repair can reuse the compiler's prior work. Storage

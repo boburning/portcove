@@ -753,8 +753,12 @@ for an explicitly coordinated run. Cancellation stops only the queued command.
 Do not delete the lock record or terminate another worker's process.
 
 After admission, the runner prepares its small Rust support executables through
-the per-worktree Cargo target under `target/portcove-rust-support`. Reuse binds
-the complete source bytes, rustc verbose identity and sysroot, resolved compiler
+an adjacent cache at `<target>.portcove-rust-support/v1`, defaulting to
+`target.portcove-rust-support/v1`. Preparation leaves an absent Cargo target for
+Cargo to initialize, including its cleanup ownership marker. The previous nested
+cache is preserved without reuse or migration; see
+[development storage](../DEVELOPMENT-STORAGE.md#clean-up-verified-disposable-content).
+Reuse binds the complete source bytes, rustc verbose identity and sysroot, resolved compiler
 and linker bytes, exact target/architecture and arguments, and hashed relevant
 compiler environment. Each immutable entry records and revalidates its output
 bytes and mode. Missing, corrupt, interrupted, or identity-mismatched entries are
