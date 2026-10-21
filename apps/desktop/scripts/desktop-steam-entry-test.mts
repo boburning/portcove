@@ -429,7 +429,7 @@ export async function steamEntryScenario(context: SteamEntryContext) {
     );
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Library")]'));
-    await click(By.xpath('//summary[normalize-space(.)="Integrations"]'));
+    await click(By.xpath('//summary[normalize-space(.)="Collection commands"]'));
     await click(button("Choose games for Steam…"));
     const dialog = By.css('[aria-labelledby="steam-batch-title"]');
     await browser.wait(until.elementLocated(dialog), 15_000);

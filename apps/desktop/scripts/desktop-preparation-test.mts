@@ -888,7 +888,7 @@ export function assertPreparedLibrarySummary(
   }
   assert.equal(
     text.replace(/\s+/gu, " ").trim(),
-    `${installed.length} library ${installed.length === 1 ? "entry" : "entries"} All can launch`,
+    `${installed.length} ${installed.length === 1 ? "entry" : "entries"} · On this computer`,
   );
 }
 
@@ -1341,19 +1341,32 @@ export async function preparationScenarios({
     await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
-    const readinessSummary = await browser.wait(
-      until.elementLocated(By.css('[aria-label="Library readiness"]')),
+    const libraryHeader = await browser.wait(
+      until.elementLocated(By.css("[data-library-header] p")),
       15_000,
     );
-    const readinessText = await readinessSummary.getText();
+    const headerText = await libraryHeader.getText();
     const libraryStatuses = await invoke("get_statuses");
     assert.equal(libraryStatuses.ok, true);
     assertPreparedLibrarySummary(
-      readinessText,
+      headerText,
       transportValues("status", libraryStatuses.value),
       port.id,
     );
-    assert.doesNotMatch(readinessText, /0 (?:needs? attention|updates? downloaded)/iu);
+    const installedCount = transportValues("status", libraryStatuses.value).filter(
+      (item) => item.active || item.external_runtime,
+    ).length;
+    const libraryFilters = await browser.findElement(By.css('[aria-label="Library filters"]'));
+    for (const label of [
+      `All (${installedCount})`,
+      `Ready (${installedCount})`,
+      "Needs attention (0)",
+    ]) {
+      const filter = await libraryFilters.findElement(
+        By.xpath(`.//button[normalize-space(.)="${label}"]`),
+      );
+      assert.equal(await filter.isDisplayed(), true, label);
+    }
     const card = await browser.wait(
       until.elementLocated(By.xpath(`//article[.//button[@data-detail-game-id="${port.id}"]]`)),
       15_000,

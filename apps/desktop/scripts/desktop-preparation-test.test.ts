@@ -159,7 +159,7 @@ const prepared = {
 };
 
 test("preparation summary accounts for installations from earlier full-profile journeys", () => {
-  assertPreparedLibrarySummary("1 library entry\nAll can launch", [prepared], "prepared");
+  assertPreparedLibrarySummary("1 entry · On this computer", [prepared], "prepared");
   const statuses = [
     { ...prepared, port_id: "earlier-install" },
     {
@@ -171,16 +171,14 @@ test("preparation summary accounts for installations from earlier full-profile j
     prepared,
     { port_id: "available", active: null, external_runtime: null },
   ];
-  assertPreparedLibrarySummary("3 library entries\nAll can launch", statuses, "prepared");
+  assertPreparedLibrarySummary("3 entries · On this computer", statuses, "prepared");
   assert.throws(() =>
-    assertPreparedLibrarySummary("1 library entry All can launch", statuses, "prepared"),
+    assertPreparedLibrarySummary("1 entry · On this computer", statuses, "prepared"),
   );
 });
 
 test("all-ready summary still requires the prepared fixture and native readiness of every entry", () => {
-  assert.throws(() =>
-    assertPreparedLibrarySummary("0 library entries All can launch", [], "prepared"),
-  );
+  assert.throws(() => assertPreparedLibrarySummary("0 entries · On this computer", [], "prepared"));
   for (const changes of [
     { readiness: { ...prepared.readiness, launchable: false } },
     { readiness: { ...prepared.readiness, pending_setup: true } },
@@ -189,7 +187,7 @@ test("all-ready summary still requires the prepared fixture and native readiness
   ]) {
     const statuses = [prepared, { ...prepared, port_id: "earlier-install", ...changes }];
     assert.throws(() =>
-      assertPreparedLibrarySummary("2 library entries All can launch", statuses, "prepared"),
+      assertPreparedLibrarySummary("2 entries · On this computer", statuses, "prepared"),
     );
   }
   assert.throws(() =>

@@ -537,9 +537,11 @@ export async function interruptedPreparationScenario({
     assert.ok(refusedCleanupText.includes(unprovenQuiescenceSummary));
     assert.deepEqual(
       await Promise.all(
-        (await browser.findElement(cleanupDialog).findElements(By.css("button"))).map((button) =>
-          button.getText(),
-        ),
+        (
+          await browser
+            .findElement(cleanupDialog)
+            .findElements(By.css('[data-slot="dialog-footer"] button'))
+        ).map((button) => button.getText()),
       ),
       ["Keep files", "Review again"],
     );
