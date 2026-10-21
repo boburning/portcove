@@ -1059,7 +1059,7 @@ function LibraryEntry({
         <span
           className={cn(
             `readiness ${state.tone} inline-flex items-start gap-1.5 font-medium`,
-            "[&.ready]:text-pc-muted-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
+            "[&.ready]:text-pc-success-foreground [&.setup]:text-pc-warning-foreground [&.staged]:text-pc-interactive-foreground",
           )}
         >
           <Icon glyph={state.tone === "ready" ? CheckCircle2 : Wrench} size="sm" />
@@ -1150,7 +1150,7 @@ function PortCardContents({
 }) {
   const renderTitle = () => (
     <div className="flex items-start justify-between gap-2">
-      <h2 className="m-0 min-h-[3.6em] text-base leading-[1.2]" title={gameTitle(port)}>
+      <h2 className="m-0 text-base leading-[1.2]" title={gameTitle(port)}>
         <span className="line-clamp-3 @max-[60rem]/collection:line-clamp-none">
           {gameTitle(port)}
         </span>
@@ -1198,7 +1198,8 @@ function PortCardContents({
       )}
       <ArtworkImage
         port={port}
-        className="card-art relative aspect-2/3 w-full shrink-0 overflow-hidden"
+        quietFallback
+        className="card-art relative mx-auto aspect-2/3 w-full max-w-[160px] shrink-0 overflow-hidden @max-[60rem]/collection:max-w-[120px]"
       />
       <div className="card-content flex min-w-0 flex-1 flex-col gap-2 p-4 wrap-anywhere">
         {renderTitle()}

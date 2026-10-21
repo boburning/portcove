@@ -366,8 +366,14 @@ function PreparationCleanupDetails({ preview }: { preview: PreparationCleanupPre
       aria-label="Cleanup changes and preserved data"
     >
       <p className="[overflow-wrap:anywhere]">
-        <strong>{preview.port_id}</strong> · {preview.retained.files.length} files ·{" "}
-        {formatBytes(preview.retained.total_bytes)}
+        <strong>{preview.port_id}</strong> ·{" "}
+        {formatCountMessage(preview.retained.files.length, {
+          zero: "0 files",
+          one: "1 file",
+          other: "{count} files",
+          unknown: "File count unavailable",
+        })}{" "}
+        · {formatBytes(preview.retained.total_bytes)}
       </p>
       <dl>
         <div>

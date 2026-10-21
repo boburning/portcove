@@ -90,7 +90,7 @@ including the 39,751,968-byte CLI. The archive fits, but that build exceeds the
 four-minute production tool job. Functional PASS is not timing acceptance.
 
 The tool-only `controller-tools` Cargo profile inherits release behavior with
-optimization level 1; the shipping release profile, features, dependencies and
+optimization level 0 with stripped helper symbols; the shipping release profile, features, dependencies and
 lockfile are unchanged. The fixed single locked build uses that profile for both
 helper binaries. The ordinary fixture now refuses a measured cold build over
 210,000 ms, reserving thirty seconds inside the existing four-minute proposal for
@@ -104,6 +104,19 @@ Three focused recipe/inventory/environment cases passed. The fourth initially
 rejected the formatter's trailing comma in a source-owned argument array; its
 strict JSON literal guard was repaired and the affected case passed, with no
 recipe or runtime assertion removed. Both outcomes remain retained.
+
+The intermediate level-1 fixture `39632629152/1`, job `119334653641`,
+failed during the connected disposable release at the existing future-observation
+refusal: the fixture constructed its publication after its planner snapshot.
+Its retained log also records a 3m48s Rust build, already above the 210-second
+allowance; the timing assertion had not been reached. Artifact `12359933737`
+retains that failed attempt, digest
+`29031c28c89a2b07b813d6c882cfe5f718898c554754c67db52040cec848e308`.
+The repair captures one fixture observation instant and records completed build
+timing even when a later assertion fails. The fixed helper-only profile removes
+optimization work and strips symbols; production future-observation checks and
+all existing functional/size/timing assertions remain. A new hosted run must
+establish this repair's behavior and timing; no passing result is inferred.
 
 ## Work still required
 

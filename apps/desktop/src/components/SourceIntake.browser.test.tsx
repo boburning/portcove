@@ -15,6 +15,8 @@ import type {
   SourceRecord,
 } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
+import { PreparationControl, type RunPreparation } from "./Preparation";
+import { preparation } from "../dev-scenarios/interactive/scenarios";
 
 const profile: SourceProfile = {
   id: "game",
@@ -152,6 +154,79 @@ describe("source intake dialog", () => {
     expect(renderedReview?.textContent).toContain(profile.label);
     expect(renderedReview?.textContent).toContain("Source check: Exact identity");
   };
+
+  it("does not carry a cancelled Move review into another game's preparation or a later Move approval", async () => {
+    const imported = prepareImport();
+    let reviewNumber = 0;
+    const preview = vi
+      .spyOn(desktopApi, "planSourceImport")
+      .mockImplementation(async (_profile, path, mode) => ({
+        schema_version: 1,
+        profile_id: profile.id,
+        mode,
+        source: record(path),
+        admission_mode: "exact_identity",
+        destination: "D:/Inbox/Game.z64",
+        destination_exists: false,
+        existing_registration: null,
+        reuse_existing: false,
+        required_bytes: 64,
+        source_guard_sha256: "b".repeat(64),
+        plan_sha256: `move-review-${++reviewNumber}`,
+      }));
+    const added = vi.fn(async () => undefined);
+    const openMove = async () => {
+      await root.rerender(
+        <SourceIntakeDialog request={request(["D:/Game.z64"])} close={vi.fn()} onAdded={added} />,
+      );
+      await page.getByRole("button", { name: "Review move", exact: true }).click();
+      await expect
+        .element(page.getByRole("region", { name: "Source import review", exact: true }))
+        .toBeVisible();
+      expect(preview.mock.lastCall).toEqual([profile.id, "D:/Game.z64", "move"]);
+    };
+    await openMove();
+    await page.getByRole("button", { name: "Cancel review", exact: true }).click();
+    expect(imported).not.toHaveBeenCalled();
+
+    vi.spyOn(desktopApi, "planPreparation").mockResolvedValue({
+      ...preparation,
+      port_id: "other-port",
+    });
+    const run = vi.fn<RunPreparation>(async () => preparation.inputs.install);
+    await root.rerender(
+      <PreparationControl
+        portId="other-port"
+        taskLabel="Other game"
+        generation={7}
+        disabled={false}
+        run={run}
+      />,
+    );
+    await page.getByRole("button", { name: "Review game preparation", exact: true }).click();
+    const prepare = page.getByRole("button", { name: "Prepare game data", exact: true });
+    await expect.element(prepare).toBeEnabled();
+    await prepare.click();
+    await expect.poll(() => run.mock.calls.length).toBe(1);
+    expect(run.mock.calls[0]?.[0]).toBe(preparation.plan_sha256);
+    expect(imported).not.toHaveBeenCalled();
+
+    // A later Move needs a new reviewed fingerprint and its own native approval.
+    await openMove();
+    expect(reviewNumber).toBe(2);
+    expect(imported).not.toHaveBeenCalled();
+    imported.mockResolvedValueOnce(null);
+    await page.getByRole("button", { name: "Move into Portcove", exact: true }).click();
+    await expect.poll(() => imported.mock.calls.length).toBe(1);
+    expect(imported.mock.calls[0]?.slice(0, 4)).toEqual([
+      profile.id,
+      "D:/Game.z64",
+      "move",
+      "move-review-2",
+    ]);
+    expect(added).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("Move cancelled");
+  });
 
   it("preserves a committed import when its workspace refresh fails", async () => {
     const imported = prepareImport();
