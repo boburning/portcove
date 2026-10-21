@@ -479,6 +479,9 @@ pub async fn assemble_definition_repository(path: &Path) -> Result<DefinitionRep
                 TufRepositoryError::Invalid("catalog output parent absent".into())
             })?,
         )?;
+        #[cfg(unix)]
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(not(unix))]
         let builder = fs::DirBuilder::new();
         #[cfg(unix)]
         {
