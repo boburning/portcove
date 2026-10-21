@@ -41,12 +41,7 @@ function hex(raw: unknown, length: number): string {
   return raw;
 }
 
-/** Association only. Inputs must independently come from complete allocated
- * raw-commit receipts and the actual Tough-verified retained records below.
- * Selects the first two allocations represented by eligible public records,
- * never a caller-appointed version/tag. Failed allocations remain durable but
- * cannot permanently consume a publication slot without public records. */
-export function inspectInitialPublicJourneyCohort(
+function publicRecordGraph(
   allocations: readonly Allocation[],
   files: ReadonlyMap<string, Buffer>,
   platform: "windows-x86_64" | "linux-x86_64",
@@ -89,6 +84,87 @@ export function inspectInitialPublicJourneyCohort(
         value.withdrawn === false,
     )
     .sort((a, b) => compareApplicationVersionPrecedence(a.value.version, b.value.version));
+  return { ordered, records, eligible, format };
+}
+
+function publicReleaseSlot(
+  allocation: Allocation,
+  records: ReturnType<typeof publicRecordGraph>["records"],
+  platform: "windows-x86_64" | "linux-x86_64",
+  format: string,
+) {
+  const found = records.filter(
+    ({ entry }) =>
+      entry.kind === "release" &&
+      entry.target === platform &&
+      entry.package === format &&
+      entry.version === allocation.version,
+  );
+  assert.equal(found.length, 1, "initial public cohort release absent or ambiguous");
+  const { entry, value } = found[0]!;
+  assert.equal(value.schema_version, 1);
+  assert.equal(value.version, allocation.version);
+  assert.equal(value.target, platform);
+  assert.equal(value.source_commit, allocation.prepared_commit);
+  assert.equal(value.source_tree, allocation.prepared_tree);
+  const run = record(value.qualified_run),
+    artifact = record(value.artifact);
+  assert.equal(run.workflow, ".github/workflows/release.yml");
+  assert.equal(run.workflow_commit, allocation.prepared_commit);
+  assert.ok(typeof run.run_id === "number" && Number.isSafeInteger(run.run_id) && run.run_id > 0);
+  assert.ok(
+    typeof run.attempt === "number" && Number.isSafeInteger(run.attempt) && run.attempt > 0,
+  );
+  assert.ok(
+    typeof artifact.bytes === "number" &&
+      Number.isSafeInteger(artifact.bytes) &&
+      artifact.bytes > 0 &&
+      artifact.bytes <= 1024 ** 3,
+  );
+  const url = new URL(String(artifact.url));
+  const filename = decodeURIComponent(url.pathname.split("/").at(-1)!);
+  assert.ok(/^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(filename));
+  assert.equal(
+    url.href,
+    `https://github.com/boburning/portcove/releases/download/v${allocation.version}/${filename}`,
+  );
+  assert.ok(
+    typeof artifact.tauri_signature === "string" &&
+      artifact.tauri_signature.length > 0 &&
+      artifact.tauri_signature.length <= 16384,
+  );
+  return {
+    version: allocation.version,
+    source_commit: hex(value.source_commit, 40),
+    source_tree: hex(value.source_tree, 40),
+    run_id: String(run.run_id),
+    run_attempt: run.attempt,
+    allocation: structuredClone(allocation),
+    record_path: String(entry.path),
+    record_sha256: hex(entry.sha256, 64),
+    package: {
+      filename,
+      bytes: artifact.bytes,
+      sha256: hex(artifact.sha256, 64),
+      url: url.href,
+      tauri_signature: artifact.tauri_signature,
+      payload_key_id: hex(artifact.payload_key_id, 64),
+    },
+    qualified_inventory_sha256: hex(run.inventory_sha256, 64),
+  };
+}
+
+/** Association only. Inputs must independently come from complete allocated
+ * raw-commit receipts and the actual Tough-verified retained records below.
+ * Selects the first two allocations represented by eligible public records,
+ * never a caller-appointed version/tag. Failed allocations remain durable but
+ * cannot permanently consume a publication slot without public records. */
+export function inspectInitialPublicJourneyCohort(
+  allocations: readonly Allocation[],
+  files: ReadonlyMap<string, Buffer>,
+  platform: "windows-x86_64" | "linux-x86_64",
+) {
+  const { ordered, records, eligible, format } = publicRecordGraph(allocations, files, platform);
   const publicAllocations = ordered.filter(
     (allocation) =>
       records.some(
@@ -101,74 +177,17 @@ export function inspectInitialPublicJourneyCohort(
   );
   assert.ok(publicAllocations.length >= 2, "initial public cohort publications absent");
   const selected = publicAllocations.slice(0, 2).map((allocation) => {
-    const found = records.filter(
-      ({ entry }) =>
-        entry.kind === "release" &&
-        entry.target === platform &&
-        entry.package === format &&
-        entry.version === allocation.version,
-    );
-    assert.equal(found.length, 1, "initial public cohort release absent or ambiguous");
-    const { entry, value } = found[0]!;
-    assert.equal(value.schema_version, 1);
-    assert.equal(value.version, allocation.version);
-    assert.equal(value.target, platform);
-    assert.equal(value.source_commit, allocation.prepared_commit);
-    assert.equal(value.source_tree, allocation.prepared_tree);
-    const run = record(value.qualified_run),
-      artifact = record(value.artifact);
-    assert.equal(run.workflow, ".github/workflows/release.yml");
-    assert.equal(run.workflow_commit, allocation.prepared_commit);
-    assert.ok(typeof run.run_id === "number" && Number.isSafeInteger(run.run_id) && run.run_id > 0);
-    assert.ok(
-      typeof run.attempt === "number" && Number.isSafeInteger(run.attempt) && run.attempt > 0,
-    );
-    assert.ok(
-      typeof artifact.bytes === "number" &&
-        Number.isSafeInteger(artifact.bytes) &&
-        artifact.bytes > 0 &&
-        artifact.bytes <= 1024 ** 3,
-    );
-    const url = new URL(String(artifact.url));
-    const filename = decodeURIComponent(url.pathname.split("/").at(-1)!);
-    assert.ok(/^[A-Za-z0-9][A-Za-z0-9._+-]*$/u.test(filename));
-    assert.equal(
-      url.href,
-      `https://github.com/boburning/portcove/releases/download/v${allocation.version}/${filename}`,
-    );
-    assert.ok(
-      typeof artifact.tauri_signature === "string" &&
-        artifact.tauri_signature.length > 0 &&
-        artifact.tauri_signature.length <= 16384,
-    );
+    const slot = publicReleaseSlot(allocation, records, platform, format);
     const promotions = eligible.filter((item) => item.entry.version === allocation.version);
     assert.equal(promotions.length, 1, "initial public cohort Preview eligibility absent");
-    assert.equal(promotions[0]!.value.release_path, entry.path);
-    assert.equal(promotions[0]!.value.release_sha256, entry.sha256);
+    assert.equal(promotions[0]!.value.release_path, slot.record_path);
+    assert.equal(promotions[0]!.value.release_sha256, slot.record_sha256);
     assert.equal(
       promotions[0]!.value.required_bridge,
       null,
       "initial ordinary cohort cannot bypass a required bridge",
     );
-    return {
-      version: allocation.version,
-      source_commit: hex(value.source_commit, 40),
-      source_tree: hex(value.source_tree, 40),
-      run_id: String(run.run_id),
-      run_attempt: run.attempt,
-      allocation: structuredClone(allocation),
-      record_path: String(entry.path),
-      record_sha256: hex(entry.sha256, 64),
-      package: {
-        filename,
-        bytes: artifact.bytes,
-        sha256: hex(artifact.sha256, 64),
-        url: url.href,
-        tauri_signature: artifact.tauri_signature,
-        payload_key_id: hex(artifact.payload_key_id, 64),
-      },
-      qualified_inventory_sha256: hex(run.inventory_sha256, 64),
-    };
+    return slot;
   });
   assert.equal(
     eligible.at(-1)?.entry.version,
@@ -182,6 +201,94 @@ export function inspectInitialPublicJourneyCohort(
     prior: Object.freeze(selected[0]!),
     candidate: Object.freeze(selected[1]!),
     authority: "none" as const,
+  });
+}
+
+/** Current-policy association only. The expected digest must independently
+ * come from an actual protected settled B claim, never caller-selected versions.
+ * Immutable release records recover the original graph after its promotion is
+ * withdrawn; current promotion data still controls the new ordinary candidate. */
+export function inspectPublicJourneyContinuation(
+  allocations: readonly Allocation[],
+  files: ReadonlyMap<string, Buffer>,
+  platform: "windows-x86_64" | "linux-x86_64",
+  originalCohortSha256: string,
+) {
+  hex(originalCohortSha256, 64);
+  const { ordered, records, eligible, format } = publicRecordGraph(allocations, files, platform);
+  const published = ordered.filter((allocation) =>
+    records.some(
+      ({ entry }) =>
+        entry.kind === "release" &&
+        entry.target === platform &&
+        entry.package === format &&
+        entry.version === allocation.version,
+    ),
+  );
+  const slots = published.map((allocation) =>
+    publicReleaseSlot(allocation, records, platform, format),
+  );
+  const matches: ReturnType<typeof inspectInitialPublicJourneyCohort>[] = [];
+  for (let i = 0; i < slots.length; i++)
+    for (let j = i + 1; j < slots.length; j++) {
+      const original = {
+        profile: "ordinary-public-initial-cohort-v1" as const,
+        prior: Object.freeze(slots[i]!),
+        candidate: Object.freeze(slots[j]!),
+        authority: "none" as const,
+      };
+      if (digest(original) === originalCohortSha256) matches.push(original);
+    }
+  assert.equal(
+    matches.length,
+    1,
+    "current immutable history does not reconstruct the retained original cohort",
+  );
+  const initial = matches[0]!;
+  const withdrawal = records.filter(
+    ({ entry }) =>
+      entry.kind === "promotion" &&
+      entry.channel === "preview" &&
+      entry.target === platform &&
+      entry.package === format &&
+      entry.version === initial.candidate.version,
+  );
+  assert.equal(withdrawal.length, 1, "actual original V1 withdrawal absent or ambiguous");
+  const withdrawn = withdrawal[0]!;
+  assert.equal(withdrawn.value.version, initial.candidate.version);
+  assert.equal(withdrawn.value.withdrawn, true);
+  assert.equal(withdrawn.value.eligible, false);
+  assert.equal(withdrawn.value.release_path, initial.candidate.record_path);
+  assert.equal(withdrawn.value.release_sha256, initial.candidate.record_sha256);
+  const next = slots.filter(
+    (slot) =>
+      compareApplicationVersionPrecedence(slot.version, initial.candidate.version) > 0 &&
+      eligible.some(({ entry }) => entry.version === slot.version),
+  );
+  assert.ok(next.length > 0, "actual newer public forward repair absent");
+  const candidate = next[0]!;
+  assert.equal(
+    eligible.at(-1)?.entry.version,
+    candidate.version,
+    "current Preview drifted beyond the first genuine forward repair",
+  );
+  const promotion = eligible.filter(({ entry }) => entry.version === candidate.version);
+  assert.equal(promotion.length, 1);
+  assert.equal(promotion[0]!.value.release_path, candidate.record_path);
+  assert.equal(promotion[0]!.value.release_sha256, candidate.record_sha256);
+  assert.equal(promotion[0]!.value.required_bridge, null);
+  assert.notEqual(candidate.package.sha256, initial.candidate.package.sha256);
+  assert.notEqual(candidate.source_commit, initial.candidate.source_commit);
+  return Object.freeze({
+    profile: initial.profile,
+    initial,
+    prior: initial.prior,
+    parked: initial.candidate,
+    candidate,
+    withdrawal: { path: String(withdrawn.entry.path), sha256: hex(withdrawn.entry.sha256, 64) },
+    authority: "none" as const,
+    scope:
+      "current record association only; protected historical admission and actual parent required" as const,
   });
 }
 

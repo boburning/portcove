@@ -211,3 +211,15 @@ and failed before parsing; its log is retained alongside the corrected run under
 GitHub, compiler, installer or public updater execution. The actual attempt,
 parent dispatch, supervised driver and cross-invocation public proof remain
 unfinished and must be connected before this branch is delivered.
+
+The current-record association helper now shares the original immutable-release
+parser with the initial selector. It can reconstruct the precise original pair
+under a retained cohort digest after V1's promotion is withdrawn, require the
+actual V1 withdrawal, and identify only the first genuinely published eligible
+newer V2 while refusing later Preview drift or a required bridge. This helper is
+data-only and does not supply the still-required actual protected historical
+claim, compiler/package retention or parent/capture continuation. Six focused
+pair cases and typed checks passed. The first new test wrongly expected the
+initial selector to refuse V0/V2 reselection; its corrected assertion explicitly
+proves that reselection changes the retained pair digest, which is why the
+continuation requires the original protected marker.
