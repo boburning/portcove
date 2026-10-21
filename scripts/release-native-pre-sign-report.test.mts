@@ -658,7 +658,11 @@ void test("pre-sign reconstruction joins exact installed/host/runtime facts and 
   assert.equal(result.authority, "none");
   assert.equal(result.report.stage, "payload-signing");
   assert.equal(result.report.host.loaded_engine.version, "155.0.4283.62");
-  assert.equal(result.report.compatibility.cli_protocol.min, 77);
+  assert.deepEqual(result.report.compatibility.cli_protocol, f.source.cli_protocol);
+  assert.equal(
+    result.report.compatibility.cli_protocol.min,
+    f.evidence.runtime.core.schema_version,
+  );
   assert.deepEqual(
     result.report.scenarios.map((value) => value.name),
     f.prepared.request.required_scenarios,
@@ -710,7 +714,20 @@ void test("pre-sign report refuses metadata-only success, wrong host/source/pack
         host_observation: { ...e.driver.host_observation, os_version: "10.0.26100.1" },
       },
     },
-    { ...e, runtime: { ...e.runtime, core: { ...e.runtime.core, schema_version: 76 } } },
+    {
+      ...e,
+      runtime: {
+        ...e.runtime,
+        core: { ...e.runtime.core, schema_version: f.source.cli_protocol.min - 1 },
+      },
+    },
+    {
+      ...e,
+      runtime: {
+        ...e.runtime,
+        core: { ...e.runtime.core, schema_version: f.source.cli_protocol.max + 1 },
+      },
+    },
     { ...e, runtime: { ...e.runtime, core: { ...e.runtime.core, product_version: "wrong" } } },
     { ...e, runtime: { ...e.runtime, browser: { ...e.runtime.browser, version: "154.0.0.0" } } },
     { ...e, native: { ...e.native, checks: [] } },

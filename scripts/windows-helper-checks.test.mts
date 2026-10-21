@@ -67,7 +67,10 @@ $ErrorActionPreference = 'Stop'
 $tokens = $null; $errors = $null
 $ast = [Management.Automation.Language.Parser]::ParseFile('${installer.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
 if ($errors.Count) { throw 'Installer parameters did not parse' }
-$probe = [scriptblock]::Create($ast.ParamBlock.Extent.Text + [Environment]::NewLine + '@{installer=$InstallerPath; predecessor=$UpgradeFromInstallerPath} | ConvertTo-Json -Compress')
+# ParamBlock.Extent starts at param, excluding its CmdletBinding attributes.
+# Keep the real header so DefaultParameterSetName and every prior binding survive.
+$header = [IO.File]::ReadAllText('${installer.replaceAll("'", "''")}').Substring(0, $ast.ParamBlock.Extent.EndOffset)
+$probe = [scriptblock]::Create($header + [Environment]::NewLine + '@{installer=$InstallerPath; predecessor=$UpgradeFromInstallerPath; parameter_set=$PSCmdlet.ParameterSetName} | ConvertTo-Json -Compress')
 & $probe 'candidate.exe' 'predecessor.exe'
 `;
     const binding = spawnSync(
@@ -89,6 +92,7 @@ $probe = [scriptblock]::Create($ast.ParamBlock.Extent.Text + [Environment]::NewL
     assert.deepEqual(JSON.parse(binding.stdout), {
       installer: "candidate.exe",
       predecessor: "predecessor.exe",
+      parameter_set: "Run",
     });
     assert.deepEqual(await readdir(root), ["scripts"]);
   },
@@ -124,14 +128,19 @@ $archive
     );
     const script = `
 $ErrorActionPreference = 'Stop'
-$script:output = $PSScriptRoot
-$target = Join-Path $PSScriptRoot 'target'
-$temporary = Join-Path $PSScriptRoot 'temporary'
-$store = Join-Path $PSScriptRoot 'store'
+# Called scripts establish a different script scope. Keep mock state explicitly
+# owned by this isolated fixture process instead of reading their $script: scope.
+$global:PortcovePackagingUxFixture = @{
+  output = $PSScriptRoot
+  target = Join-Path $PSScriptRoot 'target'
+  temporary = Join-Path $PSScriptRoot 'temporary'
+  store = Join-Path $PSScriptRoot 'store'
+}
 function node {
   $global:LASTEXITCODE = 0
   if ($args[0] -like '*dev-storage.mts') {
-    @{output_root=$script:output; target_directory=$target; temporary_directory=$temporary; pnpm_store=$store} | ConvertTo-Json -Compress
+    $state = $global:PortcovePackagingUxFixture
+    @{output_root=$state.output; target_directory=$state.target; temporary_directory=$state.temporary; pnpm_store=$state.store} | ConvertTo-Json -Compress
   }
 }
 function cargo { $global:LASTEXITCODE = 0 }
@@ -149,17 +158,18 @@ function Refusal([string]$expected) {
   $message
 }
 Refusal 'inside, but not equal to'
-$script:output = Join-Path $PSScriptRoot '../outside-packaging'
+$global:PortcovePackagingUxFixture.output = Join-Path $PSScriptRoot '../outside-packaging'
 Refusal 'PORTCOVE_OUTPUT_DIR'
-$script:output = Join-Path $PSScriptRoot 'packages'
-$null = [IO.Directory]::CreateDirectory($script:output)
-$null = [IO.Directory]::CreateDirectory((Join-Path $target 'release/bundle/nsis'))
-[IO.File]::WriteAllText((Join-Path $target 'release/bundle/nsis/Portcove_0.1.0_x64-setup.exe'), 'inert installer')
-$source = Join-Path $script:output 'portcove-0.1.0-source.zip'
+$global:PortcovePackagingUxFixture.output = Join-Path $PSScriptRoot 'packages'
+$state = $global:PortcovePackagingUxFixture
+$null = [IO.Directory]::CreateDirectory($state.output)
+$null = [IO.Directory]::CreateDirectory((Join-Path $state.target 'release/bundle/nsis'))
+[IO.File]::WriteAllText((Join-Path $state.target 'release/bundle/nsis/Portcove_0.1.0_x64-setup.exe'), 'inert installer')
+$source = Join-Path $state.output 'portcove-0.1.0-source.zip'
 [IO.File]::WriteAllText($source, 'prior usable source archive')
 Refusal './.git/private-state'
 if ([IO.File]::ReadAllText($source) -cne 'prior usable source archive') { throw 'Prior source archive changed' }
-if ([IO.File]::Exists((Join-Path $script:output 'portcove-0.1.0-source.next.zip'))) { throw 'Rejected temporary archive remains' }
+if ([IO.File]::Exists((Join-Path $state.output 'portcove-0.1.0-source.next.zip'))) { throw 'Rejected temporary archive remains' }
 `;
     const fixture = path.join(root, "fixture.ps1");
     await writeFile(fixture, script);
@@ -199,30 +209,33 @@ void test(
 $ErrorActionPreference = 'Stop'
 $previousTemp = $env:TEMP
 $previousStore = $env:pnpm_config_store_dir
-$script:phase = 'metadata'
+# Functions are invoked from release-preflight.ps1's script scope. This state is
+# deliberately global only inside the disposable fixture process.
+$global:PortcovePreflightUxFixture = @{root=$PSScriptRoot; phase='metadata'}
 function pnpm {
   $global:LASTEXITCODE = 0
   if ($args[0] -eq '--version') { '1.0.0' }
 }
 function node {
   $global:LASTEXITCODE = 0
+  $state = $global:PortcovePreflightUxFixture
   if ($args[0] -like '*dev-storage.mts') {
-    @{output_root=(Join-Path $PSScriptRoot 'packages'); target_directory=(Join-Path $PSScriptRoot 'target'); temporary_directory=(Join-Path $PSScriptRoot 'temporary'); pnpm_store=(Join-Path $PSScriptRoot 'store')} | ConvertTo-Json -Compress
+    @{output_root=(Join-Path $state.root 'packages'); target_directory=(Join-Path $state.root 'target'); temporary_directory=(Join-Path $state.root 'temporary'); pnpm_store=(Join-Path $state.root 'store')} | ConvertTo-Json -Compress
   }
   elseif ($args[0] -eq '--test') {
-    if ($script:phase -eq 'tests') { $global:LASTEXITCODE = 17 }
+    if ($state.phase -eq 'tests') { $global:LASTEXITCODE = 17 }
   }
   elseif ($args[0] -like '*check-release-metadata.mts') {
-    if ($script:phase -eq 'metadata') { $global:LASTEXITCODE = 23 }
+    if ($state.phase -eq 'metadata') { $global:LASTEXITCODE = 23 }
   }
   else { throw 'A later command ran after the failed gate' }
 }
 function just {
-  if ($script:phase -ne 'audit') { throw 'Audit ran after a failed gate' }
+  if ($global:PortcovePreflightUxFixture.phase -ne 'audit') { throw 'Audit ran after a failed gate' }
   $global:LASTEXITCODE = 29
 }
 foreach ($phase in @('tests', 'metadata', 'audit')) {
-  $script:phase = $phase
+  $global:PortcovePreflightUxFixture.phase = $phase
   $message = $null
   try { & (Join-Path $PSScriptRoot 'scripts/release-preflight.ps1') -Tag v0.1.0 }
   catch { $message = $_.Exception.Message }

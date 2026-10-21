@@ -3105,16 +3105,62 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
     -50,
   );
   const outputOverrides = overrides.filter((value) => value["success-output"] !== undefined);
-  // Four Windows lifecycle diagnostics were added after the original two
-  // publication cases. Keep an exact allowlist rather than rejecting their
-  // existing retained output or admitting arbitrary new exceptions.
-  assert.equal(outputOverrides.length, 6);
-  for (const filter of [
+  const windowsLifecycleFilters = [
     "package(portcove-core) & (test(/^service::shipwright_persistence_tests::shipwright_activation_and_rollback_collect_before_replacing_working_save$/) | test(/^service::shipwright_persistence_tests::shipwright_backup_restore_keeps_the_displaced_runtime_save_in_safety_backup$/))",
     "package(portcove-core) & (test(/^import_execution::tests::late_credentials_hold_import_before_the_open_gate$/) | test(/^library_move::tests::late_credentials_hold_move_before_authority_or_destination_activation$/))",
     "package(portcove-core) & (test(/^service::tests::tfe_recovery_hold_protects_inactive_versions_and_invalidates_earlier_removal_consent$/) | test(/^service::tests::tfe_recovery_hold_survives_quarantine_reopen_and_committed_metadata_removal$/))",
     "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_rollback_withdrawal_permits_exact_retained_target$/)",
-  ]) {
+  ];
+  const publicationFilters = [
+    {
+      filter:
+        "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)",
+      platform: undefined,
+    },
+    {
+      filter:
+        "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
+      platform: "x86_64-apple-darwin",
+    },
+  ];
+  const hostSdkFilter =
+    "package(portcove-core) & test(/^cartridge_build::cvlod::local_profile::timing_tests::cvlod_host_sdk_stage_timings$/)";
+  // Admit only these exact platform/filter identities. Comparing the complete
+  // inventory also rejects duplicates without a separately maintained count.
+  const outputIdentity = (value: Readonly<Record<string, unknown>>) =>
+    JSON.stringify([value.platform ?? null, value.filter]);
+  assert.deepEqual(
+    outputOverrides.map(outputIdentity).sort(),
+    [
+      ...windowsLifecycleFilters.map((filter) => ({ platform: "x86_64-pc-windows-msvc", filter })),
+      ...publicationFilters,
+      { platform: "cfg(windows)", filter: hostSdkFilter },
+    ]
+      .map(outputIdentity)
+      .sort(),
+  );
+  const hostSdk = overrideFor(hostSdkFilter, "cfg(windows)");
+  assert.equal(hostSdk["success-output"], "immediate");
+  assert.deepEqual(hostSdk["slow-timeout"], {
+    period: "30s",
+    "terminate-after": 32,
+    "grace-period": "0s",
+  });
+  for (const field of ["retries", "threads-required", "priority"])
+    assert.equal(hostSdk[field], undefined);
+  const hostSdkSource = await readFile(
+    new URL(
+      "../crates/portcove-core/src/cvlod_build/local_profile_timing_tests.rs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(
+    hostSdkSource,
+    /^#\[test\]\s*#\[ignore(?:\s*=\s*"[^"]*")?\]\s*fn cvlod_host_sdk_stage_timings\(\)/mu,
+    "The extended host SDK diagnostic must remain excluded from ordinary test execution.",
+  );
+  for (const filter of windowsLifecycleFilters) {
     const override = overrideFor(filter, "x86_64-pc-windows-msvc");
     assert.equal(override.platform, "x86_64-pc-windows-msvc");
     assert.equal(override["success-output"], "immediate");
@@ -3139,21 +3185,13 @@ void test("Rust reports slow tests, terminates hangs and retains documentation c
   });
   for (const field of ["success-output", "retries", "threads-required", "priority"])
     assert.equal(cacheRetention[field], undefined);
-  for (const filter of [
-    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::managed_ordinary_artifacts_and_compatible_correction_retain_exact_contract$/)",
-    "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
-  ]) {
+  for (const { filter, platform } of publicationFilters) {
     const override = overrideFor(filter);
+    assert.equal(override.platform, platform);
     assert.equal(override["success-output"], "immediate");
     for (const field of ["retries", "threads-required", "priority"])
       assert.equal(override[field], undefined);
   }
-  assert.equal(
-    overrideFor(
-      "package(portcove-core) & test(/^definition_repository::tests::publisher_policy_tests::curated_publication_recovery_permitted_artifact_commits_once$/)",
-    ).platform,
-    "x86_64-apple-darwin",
-  );
   for (const value of [profile, ...overrides]) {
     assert.ok(value.retries === undefined || value.retries === 0);
     assert.equal(value["on-timeout"], undefined);
