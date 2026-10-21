@@ -2038,3 +2038,51 @@ index bc69b46..b04cbd3 100644
      TigInitInfo init_info;
      TigVideoScreenshotSettings screenshotter;
      GameInitInfo game_init_info;
+
+diff --git a/first_party/bink_compat/src/bink_compat.c b/first_party/bink_compat/src/bink_compat.c
+--- a/first_party/bink_compat/src/bink_compat.c
++++ b/first_party/bink_compat/src/bink_compat.c
+@@ -2,7 +2,7 @@
+
+ #include <stddef.h>
+
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(_WIN64)
+ #define WIN32_LEAN_AND_MEAN 1
+ #include <windows.h>
+ #endif
+@@ -18,7 +18,7 @@ typedef int(BINKCALL* BINKSETSOUNDSYSTEM)(BINKSNDSYSOPEN, void*);
+ typedef void(BINKCALL* BINKSETSOUNDTRACK)(unsigned);
+ typedef int(BINKCALL* BINKWAIT)(HBINK);
+
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(_WIN64)
+ static HMODULE binkw32;
+ #endif
+
+@@ -119,6 +119,11 @@ int BINKCALL BinkWait(HBINK bnk)
+
+ bool bink_compat_init(void)
+ {
++#if defined(_WIN64)
++    // This selected x64 build has no authenticated compatible legacy codec.
++    // Never resolve executable code through the ambient DLL search path.
++    return false;
++#else
+ #ifdef _WIN32
+     binkw32 = LoadLibraryA("binkw32.dll");
+     if (binkw32 == NULL) {
+@@ -152,11 +157,12 @@ bool bink_compat_init(void)
+ #endif
+
+     return true;
++#endif
+ }
+
+ void bink_compat_exit(void)
+ {
+-#ifdef _WIN32
++#if defined(_WIN32) && !defined(_WIN64)
+     if (binkw32 != NULL) {
+         FreeLibrary(binkw32);
+         binkw32 = NULL;
