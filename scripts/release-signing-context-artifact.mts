@@ -170,8 +170,7 @@ export function inspectSigningContextArchive(raw: Buffer) {
   if (manifest.kind === "catalog-signing-context") {
     inspectCatalogSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
   } else if (bootstrap) {
-    if (manifest.previous_site_pins !== null)
-      throw new Error("initial context cannot invent a prior site");
+    inspectMetadataSigningBinding(manifest.facts, manifest.binding, manifest.previous_site_pins);
   } else {
     exact(manifest.previous_site_pins, "repository_sha256,root_sha256,site_generation_sha256");
     for (const value of Object.values(manifest.previous_site_pins)) sha(value);
@@ -427,7 +426,9 @@ async function prepareContextArtifact(kind: ContextKind, contextReceipt: object,
     previous_site_pins:
       kind === "catalog-signing-context"
         ? inspectCatalogSigningFacts(context.facts).descriptor.prior
-        : (context.previous_site?.pins ?? null),
+        : bootstrap
+          ? context.facts.previous_site_pins
+          : (context.previous_site?.pins ?? null),
     facts_sha256: digest(context.facts),
     files: identities(files),
     authority: "none",

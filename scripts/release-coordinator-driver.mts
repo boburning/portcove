@@ -1,3 +1,7 @@
+import {
+  materializePublishedCatalogCompleteSite,
+  requirePublishedCatalogCompleteSite,
+} from "./release-site-readback.mts";
 import { inspectCatalogReviewRequest } from "./release-catalog-review-request.mts";
 import { currentApplicationSitePins } from "./release-catalog-metadata-contract.mts";
 import { assertCatalogPublicationBaseline } from "./release-catalog-metadata-contract.mts";
@@ -115,6 +119,8 @@ import {
 import {
   readBootstrapPublicSource,
   readConfiguredBootstrapSite,
+  bootstrapPreimageCatalogPins,
+  readConfiguredCatalogOnlyBootstrapSite,
 } from "./release-bootstrap-public-inputs.mts";
 import {
   deriveMetadataBootstrapDescriptor,
@@ -123,7 +129,10 @@ import {
 } from "./release-bootstrap-preparation.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
-import { inspectMetadataSigningReservation } from "./release-metadata-signing-contract.mts";
+import {
+  assertBootstrapSiteBaseline,
+  inspectMetadataSigningReservation,
+} from "./release-metadata-signing-contract.mts";
 import {
   inspectPendingPagesReadback,
   recoverPendingPagesPublication,
@@ -2145,7 +2154,11 @@ type BootstrapPreparation = {
   historical_path: string;
   historical_sha256: string;
   historical_preimage: Record<string, unknown>;
-  fresh_configured_site: Awaited<ReturnType<typeof readConfiguredBootstrapSite>>;
+  catalog_site?: object;
+  catalog_pins: ReturnType<typeof bootstrapPreimageCatalogPins>;
+  fresh_configured_site:
+    | Awaited<ReturnType<typeof readConfiguredBootstrapSite>>
+    | Awaited<ReturnType<typeof readConfiguredCatalogOnlyBootstrapSite>>;
   site_observed_at: number;
   next_controls: (
     phaseDeadline?: number,
@@ -2245,7 +2258,30 @@ async function prepareTrustedCoordinatorBootstrapAt(
     deadline: budget.monotonicDeadline,
   });
   const prepared = await inspectPreparedMetadataBootstrap(preparation);
-  const configured = await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+  const catalogPins = bootstrapPreimageCatalogPins(
+    source.files.get("initial_site_preimage")!,
+    generatedAt,
+  );
+  assertBootstrapSiteBaseline(catalogPins, recovered.input);
+  const catalogSite = catalogPins
+    ? await materializePublishedCatalogCompleteSite(
+        {
+          root_sha256: catalogPins.root_sha256,
+          repository_sha256: catalogPins.repository_sha256,
+          site_generation_sha256: catalogPins.site_generation_sha256,
+        },
+        directory,
+        budget.monotonicDeadline,
+      )
+    : null;
+  const configured = catalogSite
+    ? await readConfiguredCatalogOnlyBootstrapSite(
+        api,
+        catalogPins,
+        catalogSite.receipt,
+        budget.monotonicDeadline,
+      )
+    : await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
   await writeFile(
     path.join(directory, "bootstrap-configured-site-initial.json"),
     JSON.stringify(configured),
@@ -2345,7 +2381,15 @@ async function prepareTrustedCoordinatorBootstrapAt(
   );
   if (capacityDigest(repeated.publication) !== capacityDigest(source.publication))
     throw new Error("bootstrap ratified public source changed");
-  const lateSite = await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+  assertBootstrapSiteBaseline(catalogPins, current.input);
+  const lateSite = catalogSite
+    ? await readConfiguredCatalogOnlyBootstrapSite(
+        api,
+        catalogPins,
+        catalogSite.receipt,
+        budget.monotonicDeadline,
+      )
+    : await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
   const siteObservedAt = performance.now();
   await writeFile(
     path.join(directory, "bootstrap-configured-site-before-cas.json"),
@@ -2408,6 +2452,8 @@ async function prepareTrustedCoordinatorBootstrapAt(
       scope:
         "historical owner-ratified setup evidence; not a fresh owner or user-site absence observation",
     },
+    catalog_pins: catalogPins,
+    ...(catalogSite ? { catalog_site: catalogSite.receipt } : {}),
     fresh_configured_site: lateSite,
     site_observed_at: siteObservedAt,
     next_controls: controls,
@@ -2459,8 +2505,17 @@ export async function requireActualCoordinatorBootstrapPreparation(
     );
     if (current.checkpoint !== owned.checkpoint)
       throw new Error("bootstrap remote checkpoint changed");
+    assertBootstrapSiteBaseline(owned.catalog_pins, current.input);
+    if (owned.catalog_site) await requirePublishedCatalogCompleteSite(owned.catalog_site);
     if (performance.now() - owned.site_observed_at >= 45000) {
-      owned.fresh_configured_site = await readConfiguredBootstrapSite(api, owned.deadline);
+      owned.fresh_configured_site = owned.catalog_site
+        ? await readConfiguredCatalogOnlyBootstrapSite(
+            api,
+            owned.catalog_pins,
+            owned.catalog_site,
+            owned.deadline,
+          )
+        : await readConfiguredBootstrapSite(api, owned.deadline);
       owned.site_observed_at = performance.now();
     }
     const late = controls.readMaintenance(api);
@@ -2481,6 +2536,11 @@ export async function requireActualCoordinatorBootstrapPreparation(
       checkpoint: owned.checkpoint,
       deadline: owned.deadline,
       next_controls: owned.next_controls,
+      initial_site_preimage: (
+        await readControllerToolFile(owned.historical_path, 128 * 1024)
+      ).toString("utf8"),
+      catalog_pins: structuredClone(owned.catalog_pins),
+      catalog_site: owned.catalog_site ?? null,
       historical_preimage: structuredClone(owned.historical_preimage),
       fresh_configured_site: structuredClone(owned.fresh_configured_site),
     };
@@ -2921,6 +2981,11 @@ async function recoverTrustedCoordinatorContext(
     preparedDescriptor: unknown,
     priorPins: unknown = null;
   let currentSite: Awaited<ReturnType<typeof materializeCoordinatorPublishedSite>> | undefined;
+  let bootstrapPreimage: string | undefined;
+  let bootstrapReadbackSha: string | undefined;
+  let bootstrapCatalog:
+    | Awaited<ReturnType<typeof materializePublishedCatalogCompleteSite>>
+    | undefined;
   if (selected.mode === "bootstrap") {
     if (selected.descriptor.kind !== "application-tuf-initial-bootstrap")
       throw new Error("explicit initial context descriptor required");
@@ -2943,7 +3008,35 @@ async function recoverTrustedCoordinatorContext(
     const actual = await inspectPreparedMetadataBootstrap(preparation, budget.monotonicDeadline);
     preparedRoot = actual.prepared_root;
     preparedDescriptor = actual.descriptor;
-    await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+    bootstrapPreimage = source.files.get("initial_site_preimage")!.toString("utf8");
+    priorPins = bootstrapPreimageCatalogPins(
+      source.files.get("initial_site_preimage")!,
+      selected.descriptor.generated_at,
+    );
+    assertBootstrapSiteBaseline(priorPins, recovered.input);
+    if (priorPins) {
+      const pins = bootstrapPreimageCatalogPins(
+        source.files.get("initial_site_preimage")!,
+        selected.descriptor.generated_at,
+      )!;
+      bootstrapCatalog = await materializePublishedCatalogCompleteSite(
+        {
+          root_sha256: pins.root_sha256,
+          repository_sha256: pins.repository_sha256,
+          site_generation_sha256: pins.site_generation_sha256,
+        },
+        directory,
+        budget.monotonicDeadline,
+      );
+      bootstrapReadbackSha = capacityDigest(
+        await readConfiguredCatalogOnlyBootstrapSite(
+          api,
+          pins,
+          bootstrapCatalog.receipt,
+          budget.monotonicDeadline,
+        ),
+      );
+    } else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
   } else {
     if (
       !published ||
@@ -2999,6 +3092,12 @@ async function recoverTrustedCoordinatorContext(
       namespace,
       checkpoint: recovered.checkpoint,
       previous_site_pins: priorPins,
+      ...(bootstrapCatalog
+        ? {
+            initial_site_preimage: bootstrapPreimage!,
+            catalog_readback_sha256: bootstrapReadbackSha!,
+          }
+        : {}),
       setup_plan_sha256: authorities.publication.setup_plan_sha256,
       public_source_commit: pins.commit,
     },
@@ -3059,7 +3158,14 @@ async function recoverTrustedCoordinatorContext(
       if (currentSite) {
         const site = await requirePublishedCompleteSite(currentSite.receipt);
         await readPublicApplicationSiteMarker(site.generation, budget.monotonicDeadline);
-      } else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
+      } else if (bootstrapCatalog)
+        await readConfiguredCatalogOnlyBootstrapSite(
+          api,
+          priorPins,
+          bootstrapCatalog.receipt,
+          budget.monotonicDeadline,
+        );
+      else await readConfiguredBootstrapSite(api, budget.monotonicDeadline);
       await guard();
       return readback;
     },

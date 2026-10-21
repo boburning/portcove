@@ -11,7 +11,10 @@ import {
   requireActualCoordinatorBootstrapPreparation,
 } from "./release-coordinator-driver.mts";
 import { inspectPreparedMetadataBootstrap } from "./release-bootstrap-preparation.mts";
-import { readConfiguredBootstrapSite } from "./release-bootstrap-public-inputs.mts";
+import {
+  readConfiguredBootstrapSite,
+  readConfiguredCatalogOnlyBootstrapSite,
+} from "./release-bootstrap-public-inputs.mts";
 import { inspectPreparedMetadataRenewal } from "./release-metadata-renewal.mts";
 import { verifiedControllerToolPaths } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
@@ -134,11 +137,14 @@ async function snapshot(owned: Owned) {
   );
 }
 async function verifyState(owned: Owned, state: Awaited<ReturnType<typeof snapshot>>) {
-  const site =
-    owned.session.mode === "renewal"
-      ? await requirePublishedCompleteSite(owned.session.complete_site)
-      : null;
-  inspectMetadataSigningReservation(owned.facts, owned.binding, site?.pins ?? null, state);
+  if (owned.session.mode === "renewal")
+    await requirePublishedCompleteSite(owned.session.complete_site);
+  inspectMetadataSigningReservation(
+    owned.facts,
+    owned.binding,
+    owned.facts.previous_site_pins,
+    state,
+  );
   if (!owned.pending) {
     if (state.checkpoint !== owned.session.checkpoint)
       throw new Error("metadata context initial checkpoint changed");
@@ -225,7 +231,13 @@ export async function prepareCoordinatorSigningContext(
     descriptor: prepared.descriptor,
     namespace: session.namespace,
     checkpoint: session.checkpoint,
-    previous_site_pins: site?.pins ?? null,
+    previous_site_pins: site?.pins ?? (session.mode === "bootstrap" ? session.catalog_pins : null),
+    ...(session.mode === "bootstrap" && session.catalog_pins
+      ? {
+          initial_site_preimage: session.initial_site_preimage,
+          catalog_readback_sha256: digest(session.fresh_configured_site),
+        }
+      : {}),
     setup_plan_sha256: authorities.publication.setup_plan_sha256,
     public_source_commit: pins.commit,
   };
@@ -237,7 +249,7 @@ export async function prepareCoordinatorSigningContext(
         ? prepared.descriptor.unchanged_records_sha256
         : prepared.descriptor.initial_records_sha256,
   };
-  inspectMetadataSigningBinding(facts, binding, site?.pins ?? null);
+  inspectMetadataSigningBinding(facts, binding, facts.previous_site_pins);
   const owned: Owned = {
     session,
     directory,
@@ -343,7 +355,16 @@ export async function requireCoordinatorSigningContext(receipt: object, phaseDea
   await verifyState(owned, await snapshot(owned));
   if (site) await readPublicApplicationSiteMarker(site.generation, owned.deadline);
   else if (performance.now() - owned.bootstrap_observed >= 45000) {
-    await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
+    if (owned.session.mode === "bootstrap" && owned.session.catalog_site) {
+      const readback = await readConfiguredCatalogOnlyBootstrapSite(
+        apiFor(owned),
+        owned.session.catalog_pins,
+        owned.session.catalog_site,
+        owned.deadline,
+      );
+      if (digest(readback) !== owned.facts.catalog_readback_sha256)
+        throw new Error("metadata catalog baseline readback changed");
+    } else await readConfiguredBootstrapSite(apiFor(owned), owned.deadline);
     owned.bootstrap_observed = performance.now();
   }
   remaining(owned);

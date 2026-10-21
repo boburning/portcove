@@ -227,3 +227,111 @@ void test("initial metadata binding requires explicit empty setup, null prior an
     /same-process/,
   );
 });
+
+void test("catalog-only initial metadata binds same-journal global prior, preserves catalog and closes old whole404 appointment", async () => {
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const { assertBootstrapSiteBaseline } = await import("./release-metadata-signing-contract.mts");
+  const f = metadataBootstrapFixture();
+  const pins = {
+    kind: "catalog-only",
+    root_sha256: "7".repeat(64),
+    repository_sha256: "8".repeat(64),
+    site_generation_sha256: "9".repeat(64),
+  };
+  const initialSitePreimage = JSON.stringify({
+    kind: "catalog-only-application-site-preimage",
+    pins,
+  });
+  const { createHash } = await import("node:crypto");
+  f.descriptor.initial_site_preimage_sha256 = createHash("sha256")
+    .update(initialSitePreimage)
+    .digest("hex");
+  const catalog = {
+    schema_version: 1,
+    root_sha256: pins.root_sha256,
+    offline_targets_sha256: "a".repeat(64),
+    index_sha256: "b".repeat(64),
+    repository_sha256: pins.repository_sha256,
+    verifier_repository_sha256: "c".repeat(64),
+    snapshot_sha256: "d".repeat(64),
+    timestamp_sha256: "e".repeat(64),
+    immutable_targets_sha256: "f".repeat(64),
+    versions: { targets: "1", definitions: "1", policy: "1", snapshot: "1", timestamp: "1" },
+    expires: Object.fromEntries(
+      ["targets", "definitions", "policy", "snapshot", "timestamp"].map((k) => [
+        k,
+        "2027-01-01T00:00:00Z",
+      ]),
+    ),
+    source_commit: "1".repeat(40),
+    source_tree: "2".repeat(40),
+    operation_id: "3".repeat(64),
+    publication: {
+      site_generation_sha256: pins.site_generation_sha256,
+      evidence_sha256: "4".repeat(64),
+      remote_identity: "fixture:catalog",
+    },
+  };
+  const input = {
+    metadata_bootstrap: f.descriptor,
+    published_metadata: null,
+    published_catalog_metadata: catalog,
+    published_site: {
+      schema_version: 1,
+      generation_sha256: pins.site_generation_sha256,
+      components: {
+        application: null,
+        catalog: { root_sha256: pins.root_sha256, repository_sha256: pins.repository_sha256 },
+      },
+      operation_id: catalog.operation_id,
+      publication: {
+        evidence_sha256: catalog.publication.evidence_sha256,
+        remote_identity: catalog.publication.remote_identity,
+      },
+    },
+  };
+  const facts = {
+    mode: "bootstrap",
+    descriptor: f.descriptor,
+    namespace: "portcove-test",
+    checkpoint: "1".repeat(40),
+    previous_site_pins: pins,
+    initial_site_preimage: initialSitePreimage,
+    catalog_readback_sha256: "a".repeat(64),
+    setup_plan_sha256: f.descriptor.setup_plan_sha256,
+    public_source_commit: "2".repeat(40),
+  };
+  const binding = {
+    kind: "metadata-bootstrap",
+    descriptor_sha256: digest(f.descriptor),
+    records_sha256: digest([]),
+  };
+  assert.deepEqual(
+    inspectMetadataSigningReservation(facts, binding, pins, { input }),
+    f.descriptor,
+  );
+  assert.deepEqual(input.published_catalog_metadata, catalog);
+  assert.throws(() => assertBootstrapSiteBaseline(null, input), /whole-404/);
+  for (const changed of [
+    { ...input, published_site: null },
+    { ...input, published_metadata: f.published },
+    { ...input, published_catalog_metadata: { ...catalog, repository_sha256: "0".repeat(64) } },
+    { ...input, published_site: { ...input.published_site, generation_sha256: "0".repeat(64) } },
+  ])
+    assert.throws(() =>
+      inspectMetadataSigningReservation(facts, binding, pins, { input: changed }),
+    );
+  for (const altered of [
+    { ...pins, kind: "application" },
+    { ...pins, root_sha256: f.descriptor.root_sha256 },
+    { ...pins, site_generation_sha256: "0".repeat(64) },
+  ])
+    assert.throws(() =>
+      inspectMetadataSigningReservation(
+        { ...facts, previous_site_pins: altered },
+        binding,
+        altered,
+        { input },
+      ),
+    );
+});

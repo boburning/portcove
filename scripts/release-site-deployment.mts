@@ -13,6 +13,7 @@ import {
   readPublicApplicationSite,
   readPublicApplicationSiteMarker,
   requirePublishedCompleteSite,
+  requirePublishedCatalogCompleteSite,
   materializePublishedCompleteSite,
   materializePublishedCatalogCompleteSite,
 } from "./release-site-readback.mts";
@@ -70,6 +71,8 @@ import {
 } from "./release-authority-configuration.mts";
 import {
   readConfiguredBootstrapSite,
+  readConfiguredCatalogOnlyBootstrapSite,
+  inspectCatalogOnlyBootstrapPreimage,
   readConfiguredCatalogBootstrapSite,
 } from "./release-bootstrap-public-inputs.mts";
 import { requireReceivedPublicationResult } from "./release-publication-result-artifact.mts";
@@ -161,7 +164,12 @@ interface DeploymentSession {
 type Composed = Awaited<ReturnType<typeof assembleAuthenticatedApplicationSite>>;
 interface PrivateDeployment {
   new_release_tuf?: object;
-  bootstrap?: { tuf: object; descriptor_sha256: string; readback_sha256?: string };
+  bootstrap?: {
+    tuf: object;
+    descriptor_sha256: string;
+    readback_sha256?: string;
+    catalog_site?: object;
+  };
   verifier?: { path: string; sha256: string };
   release_binding?: { result: object; tools: object; report_sha256: string };
   deadline?: number;
@@ -410,6 +418,19 @@ async function requireInitialSiteContext(receipt: object, deadline: number) {
       authorities.publication.public_source.payload_key_registry.sha256
   )
     throw new Error("initial site differs from protected setup/public anchors");
+  if (metadata.previous_site_pins) {
+    if (
+      !("initial_site_preimage" in metadata.facts) ||
+      typeof metadata.facts.initial_site_preimage !== "string"
+    )
+      throw new Error("initial catalog prior requires retained setup preimage");
+    const preimage = inspectCatalogOnlyBootstrapPreimage(
+      Buffer.from(metadata.facts.initial_site_preimage),
+      descriptor.generated_at,
+    );
+    if (capacityDigest(preimage.pins) !== capacityDigest(metadata.previous_site_pins))
+      throw new Error("initial signed catalog prior differs from protected historical preimage");
+  }
   assertMetadataBootstrapPublication(descriptor, actual.publication);
   remaining(deadline, 15000);
   return { actual, metadata, root_sha256: authorities.publication.public_source.root.sha256 };
@@ -427,6 +448,8 @@ export async function prepareInitialSiteDeploymentFromActualTufPublication(
     publicationReceipt,
     deadline,
   );
+  if (metadata.previous_site_pins !== null)
+    throw new Error("whole-404 initial site cannot adopt catalog prior");
   const composed = await composeSiteFiles({
     previous: null,
     expected_previous_generation: null,
@@ -453,6 +476,60 @@ export async function prepareInitialSiteDeploymentFromActualTufPublication(
     descriptor_sha256: capacityDigest(metadata.facts.descriptor),
   };
   remaining(deadline, 15000);
+  return prepared;
+}
+
+/** App-first metadata over an independently retained, setup-appointed catalog-only generation. */
+export async function prepareInitialApplicationOverCatalogSiteDeployment(
+  publicationReceipt: object,
+  catalogReceipt: object,
+  outputParent: string,
+  deadline: number,
+) {
+  await requireActualTufPublication(publicationReceipt, deadline);
+  const { actual, metadata, root_sha256 } = await requireInitialSiteContext(
+    publicationReceipt,
+    deadline,
+  );
+  const prior = await requirePublishedCatalogCompleteSite(catalogReceipt);
+  if (
+    !metadata.previous_site_pins ||
+    metadata.previous_site_pins.kind !== "catalog-only" ||
+    capacityDigest(metadata.previous_site_pins) !==
+      capacityDigest({ ...prior.pins, kind: "catalog-only" }) ||
+    prior.generation.application_root_sha256 !== null ||
+    prior.generation.files.some((file) => file.path.startsWith("application/"))
+  )
+    throw new Error("actual initial catalog prior differs from signed/setup binding");
+  const composed = await composeSiteFiles({
+    previous: prior.directory,
+    expected_previous_generation: prior.pins.site_generation_sha256,
+    application: actual.repository,
+    application_root_sha256: root_sha256,
+    output_parent: outputParent,
+    deadline,
+  });
+  await requirePublishedCatalogCompleteSite(catalogReceipt);
+  const prepared = await retainPreparedSiteDeployment(
+    { ...composed, publication: actual.publication },
+    {
+      output_parent: outputParent,
+      trusted_root_sha256: root_sha256,
+      verifier: actual.tools.rust,
+      verifier_sha256: hash(await readControllerToolFile(actual.tools.rust)),
+      previous_site: prior.directory,
+      expected_previous_generation: prior.pins.site_generation_sha256,
+      deadline,
+      catalog_prior_receipt: catalogReceipt,
+    },
+  );
+  if (!prepared.changed)
+    throw new Error("initial application publication must change catalog-only site");
+  sessions.get(prepared.session)!.bootstrap = {
+    tuf: publicationReceipt,
+    descriptor_sha256: capacityDigest(metadata.facts.descriptor),
+    catalog_site: catalogReceipt,
+  };
   return prepared;
 }
 
@@ -511,7 +588,7 @@ async function retainPreparedSiteDeployment(
     | "previous_site"
     | "expected_previous_generation"
     | "deadline"
-  >,
+  > & { catalog_prior_receipt?: object },
 ) {
   if (!composed.changed) return { changed: false as const, generation: composed.generation };
   const { files } = await readComposedSite(
@@ -552,12 +629,14 @@ async function retainPreparedSiteDeployment(
   const prior =
     request.previous_site === null
       ? null
-      : await readComposedSite(
-          request.previous_site,
-          request.expected_previous_generation!,
-          request.trusted_root_sha256,
-          request.deadline,
-        );
+      : request.catalog_prior_receipt
+        ? await requirePublishedCatalogCompleteSite(request.catalog_prior_receipt)
+        : await readComposedSite(
+            request.previous_site,
+            request.expected_previous_generation!,
+            request.trusted_root_sha256,
+            request.deadline,
+          );
   remaining(request.deadline, 15000);
   sessions.set(session, {
     verifier: { path: request.verifier, sha256: request.verifier_sha256 },
@@ -1014,7 +1093,20 @@ export async function verifyPriorPublicSite(session: DeploymentSession) {
       remaining(deadline, 15000);
       return result;
     });
-    const readback = await readConfiguredBootstrapSite(api, deadline);
+    const readback = prepared.bootstrap.catalog_site
+      ? await readConfiguredCatalogOnlyBootstrapSite(
+          api,
+          metadata.previous_site_pins,
+          prepared.bootstrap.catalog_site,
+          deadline,
+        )
+      : await readConfiguredBootstrapSite(api, deadline);
+    if (
+      prepared.bootstrap.catalog_site &&
+      (!("catalog_readback_sha256" in metadata.facts) ||
+        metadata.facts.catalog_readback_sha256 !== capacityDigest(readback))
+    )
+      throw new Error("fresh catalog readback differs from attested initial baseline");
     prepared.bootstrap.readback_sha256 = capacityDigest(readback);
     await writeFile(
       path.join(prepared.directory, `initial-public-readback-${performance.now()}.json`),
@@ -1106,7 +1198,11 @@ export async function publishPreparedSiteDeployment(
     // Actual keyless assembly, protected catalog appointments and the current
     // journal subject were independently bound by the catalog session factory.
   } else if (bootstrap) {
-    if (!prepared.bootstrap || prepared.release_binding || prepared.previous_generation !== null)
+    if (
+      !prepared.bootstrap ||
+      prepared.release_binding ||
+      (prepared.previous_generation !== null && !prepared.bootstrap.catalog_site)
+    )
       throw new Error("initial site requires actual initial preparation only");
     const proof = await requireInitialSiteContext(prepared.bootstrap.tuf, prepared.deadline ?? -1);
     if (capacityDigest(input.metadata_bootstrap) !== prepared.bootstrap.descriptor_sha256)
@@ -1152,10 +1248,14 @@ export async function publishPreparedSiteDeployment(
     inspectMetadataSigningReservation(
       proof.actual.context.manifest.facts,
       proof.actual.context.manifest.binding,
-      null,
+      proof.metadata.previous_site_pins,
       checkpoint,
     );
-    if (prepared.generation.previous_generation !== null || !prepared.bootstrap!.readback_sha256)
+    if (
+      prepared.generation.previous_generation !==
+        (proof.metadata.previous_site_pins?.site_generation_sha256 ?? null) ||
+      !prepared.bootstrap!.readback_sha256
+    )
       throw new Error("initial site requires independent configured/public preflight");
   } else if (
     !prepared.previous_generation ||

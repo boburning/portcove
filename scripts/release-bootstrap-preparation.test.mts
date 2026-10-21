@@ -17,6 +17,9 @@ import {
   readBootstrapPublicSource,
   readConfiguredBootstrapSite,
   readCatalogBootstrapPublicSource,
+  inspectCatalogOnlyBootstrapPreimage,
+  bootstrapPreimageCatalogPins,
+  readConfiguredCatalogOnlyBootstrapSite,
 } from "./release-bootstrap-public-inputs.mts";
 
 function publication() {
@@ -221,16 +224,16 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
     ["payload.json", Buffer.from("public registry")],
     ["preimage.json", Buffer.from(JSON.stringify(preimage()))],
   ]);
-  const rows = [...data]
+  let rows = [...data]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([path, bytes]) => ({ path, mode: "100644", type: "blob", sha: oid("blob", bytes) }));
-  const tree = oid(
+  let tree = oid(
     "tree",
     Buffer.concat(
       rows.flatMap((row) => [Buffer.from(`100644 ${row.path}\0`), Buffer.from(row.sha, "hex")]),
     ),
   );
-  const commit = sourceFixtureCommit(tree, [], "public setup\n");
+  let commit = sourceFixtureCommit(tree, [], "public setup\n");
   const pin = (path: string) => ({
     path,
     bytes: data.get(path)!.length,
@@ -363,6 +366,72 @@ void test("bootstrap paths are bound to reconstructed Git trees, exact raw blobs
     () => inspectHistoricalBootstrapPreimage(data.get("preimage.json")!, "2026-10-17T00:00:00Z"),
     /historical/,
   );
+  fault = "";
+  const catalogPreimage = {
+    schema_version: 1,
+    kind: "catalog-only-application-site-preimage",
+    evidence_scope: "github.com",
+    authority: "none",
+    origin: "https://boburning.github.io/portcove/",
+    observed_at: "2026-10-18T00:00:00.000Z",
+    application_history: "owner-ratified-no-prior-application-publication",
+    scope: "initial application setup over exact retained catalog; no unlisted URL absence claim",
+    pins: {
+      kind: "catalog-only",
+      root_sha256: "1".repeat(64),
+      repository_sha256: "2".repeat(64),
+      site_generation_sha256: "3".repeat(64),
+    },
+    provider: {
+      repository_id: 1354613114,
+      owner_id: 43177418,
+      url: "https://api.github.com/repos/boburning/portcove/pages",
+      build_type: "workflow",
+      html_url: "https://boburning.github.io/portcove/",
+      cname: null,
+      https_enforced: true,
+      public: true,
+    },
+  };
+  data.set("preimage.json", Buffer.from(JSON.stringify(catalogPreimage)));
+  rows = [...data]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([path, bytes]) => ({ path, mode: "100644", type: "blob", sha: oid("blob", bytes) }));
+  tree = oid(
+    "tree",
+    Buffer.concat(
+      rows.flatMap((row) => [Buffer.from(`100644 ${row.path}\0`), Buffer.from(row.sha, "hex")]),
+    ),
+  );
+  commit = sourceFixtureCommit(tree, [], "explicit catalog-only app setup\n");
+  value.public_source.commit = commit.sha;
+  value.public_source.initial_site_preimage = pin("preimage.json");
+  value.initial_site_preimage_sha256 = pin("preimage.json").sha256;
+  const overCatalog = readBootstrapPublicSource(
+    api,
+    value,
+    "2026-10-20T00:00:00Z",
+    performance.now() + 10000,
+  );
+  assert.deepEqual(
+    bootstrapPreimageCatalogPins(
+      overCatalog.files.get("initial_site_preimage")!,
+      "2026-10-20T00:00:00Z",
+    ),
+    catalogPreimage.pins,
+  );
+  catalog.catalog.public_source.commit = commit.sha;
+  catalog.catalog.public_source.initial_site_preimage = pin("preimage.json");
+  assert.throws(
+    () =>
+      readCatalogBootstrapPublicSource(
+        api,
+        catalog,
+        "2026-10-20T00:00:00Z",
+        performance.now() + 10000,
+      ),
+    /historical/,
+  );
 });
 
 void test("fresh bootstrap bracket uses configured Pages plus public404s without owner-wide reads", async () => {
@@ -422,4 +491,190 @@ void test("fresh bootstrap bracket uses configured Pages plus public404s without
   calls.length = 0;
   await assert.rejects(readConfiguredBootstrapSite(api, NaN, { fetch: fakeFetch }), /deadline/);
   assert.equal(calls.length, 0);
+});
+
+void test("catalog-only setup pins retain real complete public custody and sole app composition without importing authority", async (t) => {
+  const { mkdir } = await import("node:fs/promises");
+  const { composeCatalogSiteFiles, composeSiteFiles, readComposedCatalogSite, readComposedSite } =
+    await import("./release-site-composer.mts");
+  const { materializePublishedCatalogCompleteSite, requirePublishedCatalogCompleteSite } =
+    await import("./release-site-readback.mts");
+  const { releaseCanonicalDigest: digest } = await import("./release-canonical.mts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "app-over-catalog-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const catalog = path.join(root, "catalog"),
+    app = path.join(root, "app"),
+    output = path.join(root, "output");
+  await mkdir(path.join(catalog, "metadata"), { recursive: true });
+  await mkdir(path.join(app, "metadata"), { recursive: true });
+  await mkdir(output);
+  const catalogRoot = Buffer.from("inert independently pinned catalog root; not Tough authority");
+  await writeFile(path.join(catalog, "metadata/1.root.json"), catalogRoot);
+  await writeFile(path.join(catalog, "metadata/timestamp.json"), "catalog timestamp bytes");
+  await writeFile(path.join(app, "metadata/1.root.json"), "separate app root bytes");
+  await writeFile(path.join(app, "metadata/timestamp.json"), "separate app timestamp bytes");
+  const initial = await composeCatalogSiteFiles({
+    previous: null,
+    expected_previous_generation: null,
+    catalog,
+    catalog_root_sha256: sha(catalogRoot),
+    output_parent: output,
+  });
+  const original = await readComposedCatalogSite(
+    initial.output,
+    initial.generation.generation,
+    sha(catalogRoot),
+  );
+  const pins = {
+    kind: "catalog-only",
+    root_sha256: sha(catalogRoot),
+    site_generation_sha256: initial.generation.generation,
+    repository_sha256: digest(
+      initial.generation.files
+        .filter((f) => f.path.startsWith("catalog/"))
+        .map((f) => ({ ...f, path: f.path.slice(8) })),
+    ),
+  };
+  const provider = {
+    repository_id: 1354613114,
+    owner_id: 43177418,
+    url: "https://api.github.com/repos/boburning/portcove/pages",
+    build_type: "workflow",
+    html_url: "https://boburning.github.io/portcove/",
+    cname: null,
+    https_enforced: true,
+    public: true,
+  };
+  const preimage = {
+    schema_version: 1,
+    kind: "catalog-only-application-site-preimage",
+    evidence_scope: "github.com",
+    authority: "none",
+    origin: provider.html_url,
+    observed_at: "2026-10-20T00:00:00.000Z",
+    application_history: "owner-ratified-no-prior-application-publication",
+    scope: "initial application setup over exact retained catalog; no unlisted URL absence claim",
+    pins,
+    provider,
+  };
+  const raw = Buffer.from(JSON.stringify(preimage));
+  assert.deepEqual(bootstrapPreimageCatalogPins(raw, "2026-10-21T00:00:00Z"), pins);
+  assert.throws(() => inspectHistoricalBootstrapPreimage(raw, "2026-10-21T00:00:00Z"));
+  for (const change of [
+    { authority: "accepted" },
+    { application_history: "unknown" },
+    { extra: true },
+    { pins: { ...pins, kind: "application" } },
+    { provider: { ...provider, owner_id: 1 } },
+    { observed_at: "2026-10-22T00:00:00.000Z" },
+  ])
+    assert.throws(() =>
+      inspectCatalogOnlyBootstrapPreimage(
+        Buffer.from(JSON.stringify({ ...preimage, ...change })),
+        "2026-10-21T00:00:00Z",
+      ),
+    );
+  const actualFetch = globalThis.fetch;
+  let changed = false;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+      name = url.slice(provider.html_url.length);
+    assert.equal(url, new URL(name, provider.html_url).href);
+    const bytes =
+      changed && name === "catalog/metadata/timestamp.json"
+        ? Buffer.from("changed")
+        : original.files.get(name);
+    assert(bytes);
+    const response = new Response(bytes, { status: 200 });
+    Object.defineProperty(response, "url", { value: url });
+    return response;
+  };
+  t.after(() => {
+    globalThis.fetch = actualFetch;
+  });
+  const api = {
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      return {
+        status: 200,
+        body: endpoint.endsWith("/pages")
+          ? {
+              url: provider.url,
+              build_type: provider.build_type,
+              html_url: provider.html_url,
+              cname: null,
+              https_enforced: true,
+              public: true,
+            }
+          : {
+              id: 1354613114,
+              full_name: "boburning/portcove",
+              private: false,
+              owner: { id: 43177418, login: "boburning" },
+            },
+        headers: new Map<string, string>(),
+      };
+    },
+  };
+  const acquired = await materializePublishedCatalogCompleteSite(
+    {
+      root_sha256: pins.root_sha256,
+      repository_sha256: pins.repository_sha256,
+      site_generation_sha256: pins.site_generation_sha256,
+    },
+    root,
+    performance.now() + 10000,
+  );
+  const proof = await readConfiguredCatalogOnlyBootstrapSite(
+    api,
+    pins,
+    acquired.receipt,
+    performance.now() + 10000,
+  );
+  assert.equal(proof.public_readback.generation, pins.site_generation_sha256);
+  await assert.rejects(
+    readConfiguredCatalogOnlyBootstrapSite(
+      api,
+      pins,
+      structuredClone(acquired.receipt),
+      performance.now() + 10000,
+    ),
+    /actual complete/,
+  );
+  await assert.rejects(
+    readConfiguredCatalogOnlyBootstrapSite(
+      api,
+      { ...pins, repository_sha256: "0".repeat(64) },
+      acquired.receipt,
+      performance.now() + 10000,
+    ),
+    /ratified prior/,
+  );
+  changed = true;
+  await assert.rejects(
+    readConfiguredCatalogOnlyBootstrapSite(api, pins, acquired.receipt, performance.now() + 10000),
+    /public site bytes differ/,
+  );
+  changed = false;
+  const prior = await requirePublishedCatalogCompleteSite(acquired.receipt);
+  const composed = await composeSiteFiles({
+    previous: prior.directory,
+    expected_previous_generation: pins.site_generation_sha256,
+    application: app,
+    application_root_sha256: sha(Buffer.from("separate app root bytes")),
+    output_parent: output,
+  });
+  const final = await readComposedSite(
+    composed.output,
+    composed.generation.generation,
+    sha(Buffer.from("separate app root bytes")),
+  );
+  for (const [name, bytes] of original.files)
+    if (name.startsWith("catalog/")) assert.deepEqual(final.files.get(name), bytes);
+  assert.equal(final.generation.previous_generation, pins.site_generation_sha256);
+  await writeFile(path.join(prior.directory, "catalog/metadata/timestamp.json"), "retained tamper");
+  await assert.rejects(
+    readConfiguredCatalogOnlyBootstrapSite(api, pins, acquired.receipt, performance.now() + 10000),
+    /prior site bytes/,
+  );
 });

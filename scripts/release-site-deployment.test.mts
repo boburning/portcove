@@ -11,6 +11,7 @@ import {
   readBackSiteDeployment,
   inspectSiteArtifactArchive,
   bindSiteDeploymentToPublicationResult,
+  prepareInitialApplicationOverCatalogSiteDeployment,
 } from "./release-site-deployment.mts";
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 
@@ -82,6 +83,15 @@ void test("Pages archive serialization admits no links, traversal, external path
 });
 
 void test("a serialized deployment receipt cannot be imported as an actual composed session", async () => {
+  await assert.rejects(
+    prepareInitialApplicationOverCatalogSiteDeployment(
+      {},
+      {},
+      "uncreated",
+      performance.now() + 10000,
+    ),
+    /actual.*TUF|actual.*publication/i,
+  );
   await assert.rejects(
     readBackSiteDeployment({ kind: "prepared-application-site-deployment" }),
     /imported deployment/u,

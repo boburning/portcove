@@ -3,6 +3,13 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { capacityDigest, inspectCapacityOperation } from "./release-capacity.mts";
+import { assertBootstrapSiteBaseline } from "./release-metadata-signing-contract.mts";
+import {
+  readBootstrapPublicSource,
+  bootstrapPreimageCatalogPins,
+} from "./release-bootstrap-public-inputs.mts";
+import { requireControllerPublicationAuthorities } from "./release-authority-configuration.mts";
+import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { currentPublishedSite } from "./release-catalog-metadata-contract.mts";
 import {
   inspectPublishedMetadata,
@@ -75,8 +82,8 @@ export function inspectSettledPagesMetadataHandoff(input: Record<string, unknown
   } else {
     const bootstrap = inspectMetadataBootstrapDescriptor(input.metadata_bootstrap);
     if (
-      site !== null ||
-      expected.prior_site_generation_sha256 !== null ||
+      site?.components.application != null ||
+      expected.prior_site_generation_sha256 !== (site?.generation_sha256 ?? null) ||
       !operation.metadata_bootstrap ||
       operation.metadata_bootstrap.descriptor_sha256 !== capacityDigest(bootstrap) ||
       bootstrap.root_sha256 !== expected.root_sha256
@@ -183,6 +190,50 @@ export async function recoverPublishedPagesMetadata(
             phaseDeadline,
           );
           const site = await requirePublishedCompleteSite(acquired.receipt);
+          if (!handoff.seed) {
+            const authority = await requireControllerPublicationAuthorities("coordinator");
+            const descriptor = inspectMetadataBootstrapDescriptor(current.input.metadata_bootstrap);
+            if (
+              descriptor.initial_site_preimage_sha256 !==
+                authority.publication.initial_site_preimage_sha256 ||
+              descriptor.setup_plan_sha256 !== authority.publication.setup_plan_sha256 ||
+              descriptor.root_sha256 !== authority.publication.public_source.root.sha256
+            )
+              throw new Error("bootstrap handoff differs from current protected setup");
+            const api = new GitHubApiClient((args, body) => {
+              check();
+              return createGitHubRunner({
+                cwd: directory,
+                timeoutMs: Math.max(
+                  1,
+                  Math.floor(Math.min(15000, phaseDeadline - performance.now())),
+                ),
+                maxBuffer: 16 * 1024 * 1024,
+              })([...args, "--hostname", "github.com"], body);
+            });
+            const source = readBootstrapPublicSource(
+              api,
+              authority.publication,
+              descriptor.generated_at,
+              phaseDeadline,
+            );
+            const pins = bootstrapPreimageCatalogPins(
+              source.files.get("initial_site_preimage")!,
+              descriptor.generated_at,
+            );
+            assertBootstrapSiteBaseline(pins, current.input);
+            const catalog = site.generation.files
+              .filter((file) => file.path.startsWith("catalog/"))
+              .map((file) => ({ ...file, path: file.path.slice("catalog/".length) }));
+            if (
+              site.generation.previous_generation !== (pins?.site_generation_sha256 ?? null) ||
+              (site.generation.schema_version === 2
+                ? site.generation.catalog_root_sha256
+                : null) !== (pins?.root_sha256 ?? null) ||
+              (pins ? capacityDigest(catalog) !== pins.repository_sha256 : catalog.length !== 0)
+            )
+              throw new Error("bootstrap handoff changed the setup-appointed catalog component");
+          }
           const verifierSha = createHash("sha256")
             .update(await readControllerToolFile(tools.rust, 128 * 1024 * 1024))
             .digest("hex");

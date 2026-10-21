@@ -203,7 +203,7 @@ void test("copied tool/executor JSON cannot enter actual Pages metadata handoff"
   );
 });
 
-void test("Pages recovery advances the current catalog generation without rewriting old application provenance", () => {
+void test("Pages recovery advances the current catalog generation without rewriting old application provenance", async () => {
   const { input } = fixture();
   const old = structuredClone(input.published_metadata);
   // The catalog checkpoint moved the complete site while preserving the old
@@ -255,6 +255,62 @@ void test("Pages recovery advances the current catalog generation without rewrit
       },
     },
   };
+  // The same settled effect can be the first application generation over an
+  // existing catalog. This parser remains inert; protected recovery rechecks
+  // the pinned setup bytes and exact preserved catalog before any journal write.
+  const { metadataBootstrapFixture } = await import("./fixtures/release-metadata-fixture.mts");
+  const { descriptor: bootstrap } = metadataBootstrapFixture();
+  const {
+    candidate: _candidate,
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...base
+  } = pagesRecoveryOperationFixture();
+  const identity = {
+    ...base,
+    site_expectation: { ...base.site_expectation, root_sha256: bootstrap.root_sha256 },
+    metadata_bootstrap: {
+      descriptor_sha256: capacityDigest(bootstrap),
+      setup_plan_sha256: bootstrap.setup_plan_sha256,
+      initial_site_preimage_sha256: bootstrap.initial_site_preimage_sha256,
+      observed_at: bootstrap.generated_at,
+      transient_retries: 0,
+      substantive_repairs: 0,
+    },
+  };
+  const settled = {
+    ...identity,
+    id: capacityDigest(identity),
+    outcome: "succeeded",
+    completed_effects: [
+      {
+        remote_identity: `github-pages:boburning/portcove:${identity.site_expectation.site_generation_sha256}`,
+        evidence_sha256: "f".repeat(64),
+      },
+    ],
+    failure_evidence: null,
+    recovery: null,
+  };
+  const initialState = {
+    ...state,
+    published_metadata: null,
+    metadata_bootstrap: bootstrap,
+    published_site: {
+      ...state.published_site,
+      components: { ...state.published_site.components, application: null },
+    },
+    controller: { capacity_attempt: { operation: settled } },
+  };
+  assert.ok(inspectSettledPagesMetadataHandoff(initialState));
+  assert.throws(() =>
+    inspectSettledPagesMetadataHandoff({
+      ...initialState,
+      published_site: { ...initialState.published_site, generation_sha256: "0".repeat(64) },
+    }),
+  );
   assert.ok(inspectSettledPagesMetadataHandoff(state));
   assert.deepEqual(state.published_metadata, old);
   assert.throws(
