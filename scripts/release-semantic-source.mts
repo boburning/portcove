@@ -25,6 +25,19 @@ type FetchRequest = Readonly<{
   expires_at: number;
 }>;
 
+/** Resource routing only. The fixed Python launcher independently clears its
+ * Git environment; this does not make a hosted semantic runtime permissible. */
+export function semanticSourceResourceEnvironment(
+  home: string,
+  source: NodeJS.ProcessEnv = process.env,
+) {
+  return {
+    ...semanticSupervisorEnvironment(source),
+    HOME: home,
+    ...(source.GITHUB_ACTIONS === "true" ? { GITHUB_ACTIONS: "true" } : {}),
+  };
+}
+
 /** Inert acquisition only. The optional transport is a disposable qualification
  * seam, never a runtime capture, semantic result, issuer or acceptance source. */
 export async function materializeSemanticSource(
@@ -224,7 +237,7 @@ export async function materializeSemanticSource(
         "analysis",
         "/usr/bin/python3",
         ["-I", "-S", "-B", helper, filename],
-        { environment: { ...semanticSupervisorEnvironment(), HOME: home } },
+        { environment: semanticSourceResourceEnvironment(home), queueDeadline: deadline },
       );
       if (status !== 0) throw new Error("bounded semantic source fetch refused; retain attempt");
     }

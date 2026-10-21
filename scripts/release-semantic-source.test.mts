@@ -5,9 +5,28 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import test from "node:test";
-import { materializeSemanticSource } from "./release-semantic-source.mts";
+import {
+  materializeSemanticSource,
+  semanticSourceResourceEnvironment,
+} from "./release-semantic-source.mts";
 
 const pins = { git_sha256: "a".repeat(64), python_sha256: "b".repeat(64) };
+void test("ordinary hosted source acquisition retains resource routing without credential/reviewer environment", () => {
+  const environment = semanticSourceResourceEnvironment("/private/source-home", {
+    GITHUB_ACTIONS: "true",
+    GH_TOKEN: "forbidden",
+    NODE_OPTIONS: "forbidden",
+    ACTIONS_ID_TOKEN_REQUEST_TOKEN: "forbidden",
+    HTTP_PROXY: "forbidden",
+  });
+  assert.equal(environment.GITHUB_ACTIONS, "true");
+  assert.equal(environment.HOME, "/private/source-home");
+  assert.deepEqual(Object.keys(environment).sort(), ["GITHUB_ACTIONS", "HOME", "LANG", "PATH"]);
+  assert.equal(
+    semanticSourceResourceEnvironment("/private/source-home", {}).GITHUB_ACTIONS,
+    undefined,
+  );
+});
 async function fixture(t: { after: (fn: () => Promise<void>) => void }, oversizedCommit = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "semantic-source-"));
   t.after(() => rm(root, { recursive: true, force: true }));

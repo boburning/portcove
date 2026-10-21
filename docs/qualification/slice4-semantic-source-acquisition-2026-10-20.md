@@ -56,3 +56,14 @@ no token or model invocation and retains only bounded public result JSON for
 seven days. Its result is source-transport qualification only; actual worker
 setup, runtime/authentication, semantic acceptance and protected execution remain
 separate and unobserved until their applicable evidence exists.
+
+The first hosted source-only run, `39540747159`, cancelled at its five-minute
+job limit before Git launched: the scrubbed resource environment omitted the
+hosted marker and selected the local resource-handover queue. Its full log is
+retained. The source parent now forwards that marker solely to the existing
+resource supervisor; Python still clears the Git child environment. An optional
+monotonic queue deadline caps both maintained admission paths and releases a
+late reservation before payload launch. Defaults remain unchanged. Local checks
+cover credential exclusion, exhausted admission, and an actually occupied
+isolated capacity domain. No source/runtime success follows from that failure;
+the repaired actual anonymous fixture remains required.
