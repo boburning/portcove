@@ -32,6 +32,8 @@ function fixture(stage = "complete-opportunity", mode = "valid") {
           review: { ...full.review, scope: "release-classification-proposal", coverage: null },
         };
   const serialized = prepareNegativeSemanticDispositionCheck(wire);
+  const request = serialized.wire.request;
+  assert.ok(request.kind === "application-release-semantic-review");
   const check = {
     ...serialized.proposed_request.body,
     id: 99,
@@ -41,7 +43,7 @@ function fixture(stage = "complete-opportunity", mode = "valid") {
   const calls: string[] = [];
   let checks = 0;
   return {
-    wire: serialized.wire,
+    wire: { ...serialized.wire, request },
     check,
     calls,
     api: {
