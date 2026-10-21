@@ -1,9 +1,5 @@
 import { validateCatalogReviewRecoveryTransition } from "./release-catalog-review-disposition.mts";
-import {
-  inspectCatalogReviewRequest,
-  refreezeCatalogReviewAfterApplicationMetadata,
-  validateCatalogReviewRequestTransition,
-} from "./release-catalog-review-request.mts";
+import { validateCatalogReviewRequestTransition } from "./release-catalog-review-request.mts";
 import { validatePublicationReportRepairTransition } from "./release-report-repair-contract.mts";
 import { readOnlyReleaseChildEnvironment } from "./release-readonly-child-environment.mts";
 import {
@@ -23,7 +19,6 @@ import { isRecord } from "./runtime-values.mts";
 import { validateCandidateStageTransition } from "./release-candidate-progress-contract.mts";
 import { validateReleaseReviewRequestTransition } from "./release-review-request.mts";
 import { parseVersionClassification } from "../apps/desktop/scripts/release-version-policy.mts";
-import type { GitHubRestReader } from "./github-api.mts";
 
 // One coordinating Git repository, shared by its linked worktrees. This is not
 // a remote allocator, an authority verifier, or permission to execute a plan.
@@ -239,116 +234,6 @@ export function readRetainedCoordinatorCheckpoint(repository: string, checkpoint
     ...readCheckpoint(gitRepository(repository), checkpoint),
     authority: "none" as const,
   };
-}
-
-/** Inert historical lineage for technical duplicate limits, never semantic
- * acceptance. Six 64KiB states cap extra local reads at 384KiB; the existing
- * command/deadline cap still applies and missing sparse custody is a refusal. */
-export function readCatalogReviewMaintenanceLineage(
-  repository: string,
-  rawRequest: unknown,
-  currentInput: Record<string, unknown>,
-  deadline: number,
-) {
-  const check = () => {
-    checkCoordinatorDeadline();
-    if (!Number.isFinite(deadline) || performance.now() >= deadline)
-      throw new Error("catalog maintenance lineage original read budget exhausted");
-  };
-  let request = inspectCatalogReviewRequest(rawRequest),
-    input = currentInput;
-  if (
-    !request ||
-    capacityDigest(request) !==
-      capacityDigest(inspectCatalogReviewRequest(input.catalog_review_request))
-  )
-    throw new Error("current catalog request custody differs");
-  const result: NonNullable<ReturnType<typeof inspectCatalogReviewRequest>>[] = [];
-  const seen = new Set<string>();
-  for (let count = 0; count < 6; count++) {
-    check();
-    if (seen.has(request.request_id))
-      throw new Error("catalog maintenance lineage repeats request");
-    seen.add(request.request_id);
-    result.push(request);
-    const previous = readRetainedCoordinatorCheckpoint(repository, request.before_checkpoint);
-    check();
-    const old = inspectCatalogReviewRequest(previous.input.catalog_review_request);
-    if (!old) return result;
-    const reconstructed = {
-      ...previous.input,
-      now: request.requested_at,
-      catalog_review_request: request,
-      published_metadata: input.published_metadata,
-      published_site: input.published_site,
-      published_catalog_metadata: input.published_catalog_metadata,
-      catalog_review_disposition: input.catalog_review_disposition,
-    };
-    const expected = refreezeCatalogReviewAfterApplicationMetadata(
-      previous.input,
-      reconstructed,
-      request.before_checkpoint,
-    );
-    if (capacityDigest(expected) !== capacityDigest(request))
-      throw new Error(
-        "catalog maintenance predecessor is not exact verified metadata-only refreeze",
-      );
-    request = old;
-    input = previous.input;
-  }
-  throw new Error("catalog maintenance lineage exceeds six retained states; no counter reset");
-}
-
-/** Hydrate only the exact immutable checkpoints named by the retained request
- * chain, using the existing raw Git verifier. At most 18 GETs/384KiB of state
- * fit the existing 20-request recovery scale; no refs/history scan or fallback.
- * This returns inert lineage, never semantic/provider acceptance. */
-export async function hydrateCatalogReviewMaintenanceLineage(
-  repository: string,
-  rawRequest: unknown,
-  currentInput: Record<string, unknown>,
-  api: GitHubRestReader,
-  deadline: number,
-) {
-  const { hydrateRetainedCoordinatorCheckpoint } =
-    await import("./release-coordinator-recovery.mts");
-  let request = inspectCatalogReviewRequest(rawRequest),
-    reads = 0;
-  if (
-    !request ||
-    capacityDigest(request) !==
-      capacityDigest(inspectCatalogReviewRequest(currentInput.catalog_review_request))
-  )
-    throw new Error("current catalog request custody differs");
-  const check = () => {
-    checkCoordinatorDeadline();
-    if (!Number.isFinite(deadline) || performance.now() >= deadline)
-      throw new Error("catalog maintenance lineage original read budget exhausted");
-  };
-  const reader: GitHubRestReader = {
-    request(method, endpoint) {
-      check();
-      if (method !== "GET" || ++reads > 18)
-        throw new Error("catalog maintenance lineage GET bound exceeded");
-      const response = api.request("GET", endpoint);
-      check();
-      return response;
-    },
-  };
-  for (let count = 0; count < 6; count++) {
-    check();
-    const previous = await hydrateRetainedCoordinatorCheckpoint(
-      repository,
-      request.before_checkpoint,
-      { api: reader },
-    );
-    check();
-    const old = inspectCatalogReviewRequest(previous.input.catalog_review_request);
-    if (!old)
-      return readCatalogReviewMaintenanceLineage(repository, rawRequest, currentInput, deadline);
-    request = old;
-  }
-  throw new Error("catalog maintenance lineage exceeds six retained states; no counter reset");
 }
 
 /** Resolve public raw receipts referenced by a compact summary in this same

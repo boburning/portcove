@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
@@ -17,8 +17,6 @@ import {
   checkpointReleaseOpportunity,
   recoverReleaseOpportunity,
   readRetainedCoordinatorCheckpoint,
-  readCatalogReviewMaintenanceLineage,
-  hydrateCatalogReviewMaintenanceLineage,
 } from "./release-coordinator-state.mts";
 import {
   runBoundedMetadataRenewalOperation,
@@ -38,8 +36,10 @@ import {
 import { prepareSemanticReviewHandoff } from "./release-semantic-review.mts";
 import { inspectCatalogSemanticRequestCheckMatches } from "./release-semantic-disposition-reader.mts";
 import {
-  claimSemanticTechnicalAttempt,
-  reconcileCatalogSemanticTechnicalPredecessors,
+  reconcileCatalogSemanticTechnicalClaims,
+  readCatalogSemanticTechnicalClaims,
+  claimCatalogSemanticTechnicalAttempt,
+  catalogSemanticTechnicalBudget,
 } from "./release-semantic-worker-recovery.mts";
 
 const sha = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -252,117 +252,24 @@ void test("real App renewal readback atomically refreezes catalog pending reques
       .catalog_review_request,
     current,
   );
-  const lineage = readCatalogReviewMaintenanceLineage(
-    repository,
-    request,
-    after.input,
-    performance.now() + 15000,
-  );
-  assert.deepEqual(
-    lineage.map((r) => r.request_id),
-    [request.request_id, current.request_id],
-  );
-  // The installed worker starts from a sparse current/parent recovery. Fetch
-  // only named immutable predecessor objects through the actual raw verifier.
-  const sparse = path.join(repository, "sparse");
-  await mkdir(sparse);
-  execFileSync("git", ["init", "--bare", "--quiet", sparse], { windowsHide: true });
-  const cat = (kind: string, id: string) =>
-    execFileSync("git", ["-C", repository, "cat-file", kind, id], {
-      windowsHide: true,
-      maxBuffer: 128 * 1024,
-    });
-  const reads: string[] = [];
-  const hydrated = await hydrateCatalogReviewMaintenanceLineage(
-    sparse,
-    request,
-    after.input,
-    {
-      request(method, endpoint) {
-        assert.equal(method, "GET");
-        reads.push(endpoint);
-        const match =
-          /^repos\/boburning\/portcove\/git\/(commits|trees|blobs)\/([a-f0-9]{40})$/u.exec(
-            endpoint,
-          );
-        assert.ok(match);
-        const kind = match[1]!,
-          id = match[2]!;
-        let body: unknown;
-        if (kind === "commits") {
-          assert.ok([request.before_checkpoint, current.before_checkpoint].includes(id));
-          const text = cat("commit", id).toString("utf8"),
-            boundary = text.indexOf("\n\n"),
-            header = text.slice(0, boundary),
-            tree = /^tree ([a-f0-9]{40})$/mu.exec(header)![1]!;
-          const actor = {
-            name: "Portcove release coordinator",
-            email: "coordinator@portcove.invalid",
-            date: "2000-01-01T00:00:00Z",
-          };
-          body = {
-            sha: id,
-            tree: { sha: tree },
-            parents: [...header.matchAll(/^parent ([a-f0-9]{40})$/gmu)].map((m) => ({ sha: m[1] })),
-            author: actor,
-            committer: actor,
-            message: text.slice(boundary + 2),
-          };
-        } else if (kind === "trees")
-          body = {
-            sha: id,
-            truncated: false,
-            tree: [
-              {
-                path: "state.json",
-                mode: "100644",
-                type: "blob",
-                sha: cat("tree", id).subarray(-20).toString("hex"),
-              },
-            ],
-          };
-        else {
-          const bytes = cat("blob", id);
-          body = {
-            sha: id,
-            encoding: "base64",
-            size: bytes.length,
-            content: bytes.toString("base64"),
-          };
-        }
-        return { status: 200, headers: new Map(), body };
-      },
-    },
-    performance.now() + 15000,
-  );
-  assert.deepEqual(hydrated, lineage);
-  assert.equal(reads.length, 6);
-  assert.equal(
-    execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
-    "",
-  );
-  await assert.rejects(
-    hydrateCatalogReviewMaintenanceLineage(
-      sparse,
-      request,
-      after.input,
-      {
-        request() {
-          throw new Error("missing predecessor retains HOLD");
+  assert.equal(catalogSemanticTechnicalBudget(current), catalogSemanticTechnicalBudget(request));
+  // Years of App-only cursor/time changes never create a fresh technical budget.
+  for (let day = 1; day <= 730; day++) {
+    const changed = createCatalogReviewRequest({
+      before_checkpoint: day.toString(16).padStart(40, "0"),
+      requested_at: new Date(Date.parse(current.requested_at) + day * 86400000).toISOString(),
+      core_inspection: current.core_inspection,
+      opportunity: {
+        ...current.opportunity,
+        baseline: {
+          ...current.opportunity.baseline,
+          application_repository_sha256: sha(String(day)),
+          site_generation_sha256: sha("site" + day),
         },
       },
-      performance.now() + 15000,
-    ),
-    /missing predecessor/,
-  );
-  assert.throws(() =>
-    readCatalogReviewMaintenanceLineage(
-      repository,
-      { ...request, before_checkpoint: "0".repeat(40) },
-      { ...after.input, catalog_review_request: { ...request, before_checkpoint: "0".repeat(40) } },
-      performance.now() + 15000,
-    ),
-  );
+    });
+    assert.equal(catalogSemanticTechnicalBudget(changed), catalogSemanticTechnicalBudget(current));
+  }
   const review = {
     scope: "complete-catalog-publication-opportunity",
     runtime: "codex-independent-local-review",
@@ -402,31 +309,252 @@ void test("real App renewal readback atomically refreezes catalog pending reques
     );
   assert.equal(currentPublishedSite(after.input)?.generation_sha256, nextGeneration);
 });
-void test("technical claims are charged across maintenance request IDs and contradictory predecessor custody refuses", async (t) => {
-  const parent = await mkdtemp(path.join(os.tmpdir(), "catalog-technical-lineage-"));
+
+void test("original claimed checkpoint is hash-verified; ambiguous old POST stays GET-only in original scope", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "catalog-original-claim-"));
   t.after(() => rm(parent, { recursive: true, force: true }));
-  const prior = path.join(parent, `request-${"1".repeat(64)}`),
-    current = path.join(parent, `request-${"2".repeat(64)}`);
-  await mkdir(prior);
-  await mkdir(current);
-  for (let i = 0; i < 2; i++) {
-    const attempt = await claimSemanticTechnicalAttempt(prior, "a".repeat(64));
+  const repository = path.join(parent, "journal"),
+    sparse = path.join(parent, "sparse");
+  await mkdir(repository);
+  await mkdir(sparse);
+  for (const root of [repository, sparse])
+    execFileSync("git", ["init", "--bare", "--quiet", root], { windowsHide: true });
+  const f = fixture(),
+    initial = await checkpointReleaseOpportunity(repository, null, f.input),
+    request = f.request(initial.checkpoint),
+    pending = await checkpointReleaseOpportunity(repository, initial.checkpoint, {
+      ...f.input,
+      catalog_review_request: request,
+    });
+  await mkdir(path.join(parent, `request-${request.request_id}`));
+  const root = await claimCatalogSemanticTechnicalAttempt(parent, request, pending.checkpoint, {
+    claims_sha256: digest([]),
+  });
+  await writeFile(
+    path.join(root, "technical-stop.json"),
+    JSON.stringify({ outcome: "technical-failure", invocations: [] }),
+  );
+  const cat = (kind: string, id: string) =>
+    execFileSync("git", ["-C", repository, "cat-file", kind, id], {
+      windowsHide: true,
+      maxBuffer: 128 * 1024,
+    });
+  const calls: string[] = [];
+  const api = {
+    graphql() {
+      throw new Error("original claim recovery forbids GraphQL");
+    },
+    request(method: string, endpoint: string) {
+      assert.equal(method, "GET");
+      calls.push(endpoint);
+      const match =
+        /^repos\/boburning\/portcove\/git\/(commits|trees|blobs)\/([a-f0-9]{40})$/u.exec(endpoint);
+      let body: unknown;
+      if (match) {
+        const kind = match[1]!,
+          id = match[2]!;
+        if (kind === "commits") {
+          assert.equal(id, pending.checkpoint);
+          const text = cat("commit", id).toString("utf8"),
+            boundary = text.indexOf("\n\n"),
+            header = text.slice(0, boundary),
+            tree = /^tree ([a-f0-9]{40})$/mu.exec(header)![1]!;
+          const actor = {
+            name: "Portcove release coordinator",
+            email: "coordinator@portcove.invalid",
+            date: "2000-01-01T00:00:00Z",
+          };
+          body = {
+            sha: id,
+            tree: { sha: tree },
+            parents: [...header.matchAll(/^parent ([a-f0-9]{40})$/gmu)].map((m) => ({ sha: m[1] })),
+            author: actor,
+            committer: actor,
+            message: text.slice(boundary + 2),
+          };
+        } else if (kind === "trees")
+          body = {
+            sha: id,
+            truncated: false,
+            tree: [
+              {
+                path: "state.json",
+                mode: "100644",
+                type: "blob",
+                sha: cat("tree", id).subarray(-20).toString("hex"),
+              },
+            ],
+          };
+        else {
+          const bytes = cat("blob", id);
+          body = {
+            sha: id,
+            encoding: "base64",
+            size: bytes.length,
+            content: bytes.toString("base64"),
+          };
+        }
+      } else if (endpoint === "repos/boburning/portcove")
+        body = { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" };
+      else {
+        assert.ok(
+          endpoint.includes(
+            `/commits/${request.opportunity.source_commit}/check-suites?app_id=123&`,
+          ),
+        );
+        body = { total_count: 0, check_suites: [] };
+      }
+      return { status: 200, headers: new Map<string, string>(), body };
+    },
+  };
+  const issuer = { app_id: 123, installation_id: 456, writer_app_id: 789 };
+  const settled = await reconcileCatalogSemanticTechnicalClaims(
+    parent,
+    request,
+    sparse,
+    "a".repeat(64),
+    api,
+    issuer,
+    performance.now() + 15000,
+  );
+  assert.equal(settled.claims, 1);
+  assert.equal(calls.length, 3);
+  assert.equal(
+    execFileSync("git", ["-C", sparse, "for-each-ref"], { encoding: "utf8", windowsHide: true }),
+    "",
+  );
+  const changed = createCatalogReviewRequest({
+    before_checkpoint: "a".repeat(40),
+    requested_at: new Date(Date.parse(request.requested_at) + 365 * 86400000).toISOString(),
+    core_inspection: request.core_inspection,
+    opportunity: {
+      ...request.opportunity,
+      baseline: {
+        ...request.opportunity.baseline,
+        application_repository_sha256: "d".repeat(64),
+        site_generation_sha256: "e".repeat(64),
+      },
+    },
+  });
+  assert.equal(catalogSemanticTechnicalBudget(changed), catalogSemanticTechnicalBudget(request));
+  await assert.rejects(
+    reconcileCatalogSemanticTechnicalClaims(
+      parent,
+      changed,
+      sparse,
+      "a".repeat(64),
+      {
+        ...api,
+        request() {
+          throw new Error("missing original checkpoint HOLD");
+        },
+      },
+      issuer,
+      performance.now() + 15000,
+    ),
+    /missing original checkpoint/,
+  );
+  const handoff = prepareSemanticReviewHandoff(request.opportunity, {
+    scope: "complete-catalog-publication-opportunity",
+    runtime: "codex-independent-local-review",
+    session_ref: "fixture/original",
+    completed_at: new Date().toISOString().slice(0, 19) + "Z",
+    coverage: { accumulated_changes: true, classification: true, compatibility: true },
+    accepted_opportunity: request.opportunity,
+    report: "Inert old Check fixture.",
+  });
+  await writeFile(
+    path.join(root, "expected-check.json"),
+    JSON.stringify({
+      root: path.join(root, "r-original"),
+      proposed_request: handoff.proposed_request,
+    }),
+  );
+  calls.length = 0;
+  await assert.rejects(
+    reconcileCatalogSemanticTechnicalClaims(
+      parent,
+      changed,
+      sparse,
+      "a".repeat(64),
+      api,
+      issuer,
+      performance.now() + 15000,
+    ),
+    /POST remains ambiguous/,
+  );
+  assert.equal(calls.length, 7);
+  assert.equal((await readCatalogSemanticTechnicalClaims(parent, changed)).length, 1);
+});
+void test("stable catalog budget charges initial+two across request IDs and refuses missing original custody", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "catalog-stable-budget-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const f = fixture(),
+    original = f.request("a".repeat(40));
+  let last = original;
+  for (let index = 0; index < 3; index++) {
+    const request = createCatalogReviewRequest({
+      before_checkpoint: (index + 1).toString().repeat(40),
+      requested_at: new Date(Date.parse(original.requested_at) + index * 86400000).toISOString(),
+      core_inspection: original.core_inspection,
+      opportunity: {
+        ...original.opportunity,
+        baseline: {
+          ...original.opportunity.baseline,
+          application_repository_sha256: sha(String(index)),
+          site_generation_sha256: sha("site" + index),
+        },
+      },
+    });
+    await mkdir(path.join(parent, `request-${request.request_id}`));
+    const claims = await readCatalogSemanticTechnicalClaims(parent, request);
+    const attempt = await claimCatalogSemanticTechnicalAttempt(parent, request, "b".repeat(40), {
+      claims_sha256: digest(claims),
+    });
+    assert.equal(path.basename(attempt), `technical-${index}`);
     await writeFile(
       path.join(attempt, "technical-stop.json"),
       JSON.stringify({ outcome: "technical-failure", invocations: [] }),
     );
+    last = request;
   }
-  const third = await claimSemanticTechnicalAttempt(current, "a".repeat(64), [prior]);
-  await writeFile(
-    path.join(third, "technical-stop.json"),
-    JSON.stringify({ outcome: "technical-failure", invocations: [] }),
-  );
+  const claims = await readCatalogSemanticTechnicalClaims(parent, last);
+  assert.equal(claims.length, 3);
   await assert.rejects(
-    claimSemanticTechnicalAttempt(current, "a".repeat(64), [prior]),
+    claimCatalogSemanticTechnicalAttempt(parent, last, "b".repeat(40), {
+      claims_sha256: digest(claims),
+    }),
     /budget exhausted/,
   );
-  await rm(path.join(prior, "technical-1"), { recursive: true });
-  await assert.rejects(claimSemanticTechnicalAttempt(current, "a".repeat(64), [prior]), /custody/);
+  const different = createCatalogReviewRequest({
+    before_checkpoint: last.before_checkpoint,
+    requested_at: last.requested_at,
+    core_inspection: last.core_inspection,
+    opportunity: { ...last.opportunity, source_commit: "e".repeat(40) },
+  });
+  assert.notEqual(catalogSemanticTechnicalBudget(different), catalogSemanticTechnicalBudget(last));
+  const anchor = path.join(
+      parent,
+      `catalog-budget-${catalogSemanticTechnicalBudget(last)}.attempts.jsonl`,
+    ),
+    anchorBytes = await readFile(anchor);
+  await rm(anchor);
+  const later = createCatalogReviewRequest({
+    before_checkpoint: "f".repeat(40),
+    requested_at: new Date(Date.parse(last.requested_at) + 365 * 86400000).toISOString(),
+    core_inspection: last.core_inspection,
+    opportunity: {
+      ...last.opportunity,
+      baseline: { ...last.opportunity.baseline, application_repository_sha256: "f".repeat(64) },
+    },
+  });
+  await assert.rejects(
+    readCatalogSemanticTechnicalClaims(parent, later),
+    /stable technical custody missing/,
+  );
+  await writeFile(anchor, anchorBytes, { flag: "wx" });
+  await rm(claims[0]!.root, { recursive: true });
+  await assert.rejects(readCatalogSemanticTechnicalClaims(parent, last));
 });
 
 void test("ratified App bootstrap over a retained catalog refreezes only after exact settled metadata readback", () => {
@@ -635,69 +763,5 @@ void test("wake prioritizes due and resumed App maintenance but never an accepte
       },
     }),
     "catalog-publication",
-  );
-});
-
-void test("ambiguous old POST stays fixed GET-only in its original opportunity and blocks a new technical claim", async (t) => {
-  const parent = await mkdtemp(path.join(os.tmpdir(), "catalog-old-post-"));
-  t.after(() => rm(parent, { recursive: true, force: true }));
-  const f = fixture(),
-    request = f.request("1".repeat(40)),
-    prior = path.join(parent, `request-${request.request_id}`),
-    current = path.join(parent, `request-${"2".repeat(64)}`);
-  await mkdir(prior);
-  await mkdir(current);
-  const attempt = await claimSemanticTechnicalAttempt(prior, "a".repeat(64));
-  const handoff = prepareSemanticReviewHandoff(request.opportunity, {
-    scope: "complete-catalog-publication-opportunity",
-    runtime: "codex-independent-local-review",
-    session_ref: "fixture/old",
-    completed_at: new Date().toISOString().slice(0, 19) + "Z",
-    coverage: { accumulated_changes: true, classification: true, compatibility: true },
-    accepted_opportunity: request.opportunity,
-    report: "Inert old Check fixture.",
-  });
-  await writeFile(
-    path.join(attempt, "expected-check.json"),
-    JSON.stringify({
-      root: path.join(attempt, "r-original"),
-      proposed_request: handoff.proposed_request,
-    }),
-  );
-  const calls: string[] = [];
-  await assert.rejects(
-    reconcileCatalogSemanticTechnicalPredecessors(
-      current,
-      [{ request, directory: prior }],
-      "a".repeat(64),
-      {
-        graphql() {
-          throw new Error("old POST recovery forbids GraphQL");
-        },
-        request(method, endpoint) {
-          assert.equal(method, "GET");
-          calls.push(endpoint);
-          if (endpoint === "repos/boburning/portcove")
-            return {
-              status: 200,
-              headers: new Map(),
-              body: { id: 1354613114, full_name: "boburning/portcove", node_id: "R_fixture" },
-            };
-          assert.ok(
-            endpoint.includes(
-              `/commits/${request.opportunity.source_commit}/check-suites?app_id=123&`,
-            ),
-          );
-          return { status: 200, headers: new Map(), body: { total_count: 0, check_suites: [] } };
-        },
-      },
-      { app_id: 123, installation_id: 456, writer_app_id: 789 },
-    ),
-    /POST remains ambiguous/,
-  );
-  assert.equal(calls.length, 4);
-  await assert.rejects(
-    claimSemanticTechnicalAttempt(prior, "a".repeat(64)),
-    /GET-only reconciliation/,
   );
 });
