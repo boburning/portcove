@@ -27,6 +27,10 @@ import {
   receiveSigningContextArtifact,
 } from "./release-signing-context-artifact.mts";
 import { readAttestedTufRoleArtifact } from "./release-tuf-role-artifact.mts";
+import {
+  inspectNativePrepublicationAuthorities,
+  inspectPublicationAuthorities,
+} from "./release-authority-configuration.mts";
 import { recoverReleaseOpportunity } from "./release-coordinator-state.mts";
 import {
   inspectCapacityOperation,
@@ -677,6 +681,10 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   const source = original.source,
     controller = selected.controller,
     directory = await mkdtemp(path.join(selected.directory, "public-inputs-"));
+  const authorities = inspectNativePrepublicationAuthorities(
+    selected.parent.authority_configuration,
+  );
+  const publicPins = inspectPublicationAuthorities(authorities.publication);
   const deadline = performance.now() + 300000;
   const active = () => {
     if (performance.now() >= deadline)
@@ -705,6 +713,15 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
   )
     throw new Error("native public context archive differs from provider identity");
   const inspected = inspectSigningContextArchive(contextArchive);
+  for (const [name, expectedHash] of [
+    ["trusted-root.json", publicPins.public_source.root.sha256],
+    ["offline-targets.json", publicPins.public_source.offline_targets.sha256],
+    ["payload.json", publicPins.public_source.payload_key_registry.sha256],
+  ] as const) {
+    const bytes = inspected.files.get(name);
+    if (!bytes || hash(bytes) !== expectedHash)
+      throw new Error("native public context anchors differ from independently pinned setup");
+  }
   const factsSha256 = inspected.manifest.facts_sha256;
   if (typeof factsSha256 !== "string" || !/^[a-f0-9]{64}$/u.test(factsSha256))
     throw new Error("native signed context lacks exact facts digest");
