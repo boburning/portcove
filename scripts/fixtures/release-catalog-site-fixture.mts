@@ -82,15 +82,20 @@ try {
     active_candidate: null,
     catalog_initialization: initialization,
   };
+  let controlsClock = 59,
+    expireAtBootstrap = Infinity;
   const receipt = {},
     executor = {},
     controls = {
       evidence_scope: "github.com",
-      readMaintenance: () => ({
-        pause: { publication_paused: false },
-        resource_policy_matches_controller: true,
-        capacity_source: { capacity: { boundary: { authority: "none" } } },
-      }),
+      readMaintenance: () => {
+        if (controlsClock >= 60) throw new Error("controlled original control window expired");
+        return {
+          pause: { publication_paused: false },
+          resource_policy_matches_controller: true,
+          capacity_source: { capacity: { boundary: { authority: "none" } } },
+        };
+      },
     };
   const identity = {
     role: "site-publication",
@@ -135,6 +140,7 @@ try {
     ...bootstrap,
     readConfiguredCatalogBootstrapSite: async () => {
       bootstrapReads++;
+      if (bootstrapReads >= expireAtBootstrap) controlsClock = 61;
       return {
         configuration_sha256: initialization.publisher_configuration_sha256,
         root_sha256: facts.root_sha256,
@@ -281,6 +287,29 @@ try {
     assert.equal(atomic, 1);
     assert.ok(bootstrapReads >= 3);
     assert.ok(custodyReads >= 5);
+    // Advance the injected original controls clock only during the final slow
+    // bootstrap bracket. Controls checked before that read would permit a late
+    // POST; the actual shared callback must check them LAST and refuse.
+    expireAtBootstrap = bootstrapReads + 2;
+    await assert.rejects(
+      deployment.publishPreparedSiteDeployment(
+        prepared.session,
+        executor as never,
+        controls as never,
+        {
+          repository: root,
+          checkpoint: "old",
+          remote_configuration: {},
+          catalog_publication: descriptor,
+        },
+      ),
+      /site publication stopped/,
+    );
+    assert.equal(controlsClock, 61);
+    assert.equal(posts, 1);
+    assert.equal(atomic, 1);
+    controlsClock = 59;
+    expireAtBootstrap = Infinity;
     failCustody = true;
     await assert.rejects(
       deployment.publishPreparedSiteDeployment(

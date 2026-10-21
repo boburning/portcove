@@ -87,6 +87,9 @@ type PendingEffect = {
   checkpoint: string;
   operation: NonNullable<ReturnType<typeof inspectCapacityOperation>>;
 };
+/** Integrity-only observation of the exact intent just durably published by
+ * this invocation. Actual executor custody is added only by its private wrapper. */
+export type CapacityBoundaryReader = (pending?: Readonly<PendingEffect>) => Promise<unknown>;
 type Effect = (
   recordCompleted: (remoteIdentity: string, evidenceSha256: string) => Promise<void>,
   pending: PendingEffect,
@@ -101,7 +104,7 @@ export async function runBoundedCapacityOperation(
   repository: string,
   expected: string,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions = {},
 ) {
@@ -112,7 +115,7 @@ export async function runBoundedMetadataRenewalOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -127,7 +130,7 @@ export async function runBoundedMetadataBootstrapOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -142,7 +145,7 @@ export async function runBoundedCatalogPublicationOperation(
   expected: string,
   descriptor: unknown,
   request: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: CapacityOperationOptions & { recovery?: "transient" | "substantive-repair" } = {},
 ) {
@@ -161,7 +164,7 @@ async function runOperation(
   repository: string,
   expected: string,
   rawRequest: Request,
-  readBoundary: () => Promise<unknown>,
+  readBoundary: CapacityBoundaryReader,
   effect: Effect,
   options: InternalOptions = {},
 ) {
@@ -496,7 +499,12 @@ async function runOperation(
     await publish();
     const fresh = assessBoundedCapacity({
       ...capacity,
-      boundary: structuredClone(await readBoundary()),
+      boundary: structuredClone(
+        await readBoundary({
+          checkpoint: current,
+          operation: structuredClone(inspectCapacityOperation(operation)!),
+        }),
+      ),
       operation: ready.operation,
     });
     if (fresh.eligibility !== "eligible")

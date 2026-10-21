@@ -1278,9 +1278,9 @@ export async function publishPreparedSiteDeployment(
             generation: prepared.generation.generation,
           },
           async () => {
+            if (bootstrap) await verifyPriorPublicSite(session);
             await refreshCapacityExecutor(executor);
             await readBoundary();
-            if (bootstrap) await verifyPriorPublicSite(session);
           },
         );
         await write("acknowledgement.json", accepted);

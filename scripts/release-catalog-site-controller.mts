@@ -38,6 +38,7 @@ import {
   capacityExecutorIdentity,
   refreshCapacityExecutor,
   executeOwnedCapacityEffect,
+  requireOwnedCapacityPendingBoundary,
 } from "./release-capacity-executor.mts";
 import {
   prepareCatalogSiteDeploymentFromActualRepository,
@@ -62,6 +63,44 @@ async function retain(filename: string, value: unknown) {
   } finally {
     await file.close();
   }
+}
+
+/** Inert association only. The caller obtains pending exclusively from its
+ * actual executor's callback-lifetime getter, never a remote JSON assertion. */
+export function inspectCatalogSiteReservation(
+  snapshot: { checkpoint: string; input: Record<string, unknown> },
+  checkpoint: string,
+  rawDescriptor: unknown,
+  pending?: { checkpoint: string; operation: Record<string, unknown> },
+) {
+  const descriptor = inspectCatalogPublicationDescriptor(rawDescriptor);
+  if (
+    snapshot.input.active_candidate != null ||
+    digest(inspectCatalogPublicationDescriptor(snapshot.input.catalog_publication)) !==
+      digest(descriptor) ||
+    digest(assertCatalogPublicationBaseline(descriptor, snapshot.input)) !== digest(descriptor)
+  )
+    throw new Error("catalog site current subject or components changed");
+  if (pending) {
+    const controller = snapshot.input.controller;
+    const capacity =
+      isRecord(controller) && isRecord(controller.capacity_attempt)
+        ? controller.capacity_attempt
+        : null;
+    if (
+      snapshot.checkpoint !== pending.checkpoint ||
+      pending.operation.before_checkpoint !== checkpoint ||
+      pending.operation.kind !== "upload" ||
+      pending.operation.outcome !== "pending" ||
+      pending.operation.destination !==
+        "github-actions:boburning/portcove:complete-site-artifact" ||
+      digest(pending.operation.completed_effects) !== digest([]) ||
+      digest(capacity?.operation) !== digest(pending.operation)
+    )
+      throw new Error("catalog site pending checkpoint differs from exact owned artifact intent");
+  } else if (snapshot.checkpoint !== checkpoint)
+    throw new Error("catalog site current checkpoint changed without owned pending custody");
+  return { checkpoint: snapshot.checkpoint, authority: "none" as const };
 }
 
 /** Coordinator continuation after an observed terminal site publisher. The
@@ -190,15 +229,7 @@ export async function runCatalogSitePublicationController(
       let checkpoint = state.checkpoint;
       const subject = inspectCatalogPublicationDescriptor(state.input.catalog_publication);
       const reservation = (snapshot: { checkpoint: string; input: Record<string, unknown> }) => {
-        if (
-          snapshot.checkpoint !== checkpoint ||
-          snapshot.input.active_candidate != null ||
-          digest(inspectCatalogPublicationDescriptor(snapshot.input.catalog_publication)) !==
-            digest(subject) ||
-          digest(assertCatalogPublicationBaseline(subject, snapshot.input)) !==
-            digest(actual.descriptor)
-        )
-          throw new Error("catalog site current subject, components or checkpoint changed");
+        inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor);
       };
       reservation(state);
       const prepared = await prepareCatalogSiteDeploymentFromActualRepository(assemblyReceipt, {
@@ -241,12 +272,15 @@ export async function runCatalogSitePublicationController(
         return controls;
       };
       let controls = await fresh();
-      const boundary = async () => {
+      const boundary: Parameters<typeof executeOwnedCapacityEffect>[2] = async (pendingReceipt) => {
         remaining(deadline);
         const snapshot = await readRemoteCoordinatorSnapshot(directory, remote, {
           transport: { cwd: directory, deadline },
         });
-        reservation(snapshot);
+        const pending = pendingReceipt
+          ? requireOwnedCapacityPendingBoundary(executor, pendingReceipt)
+          : undefined;
+        inspectCatalogSiteReservation(snapshot, checkpoint, actual.descriptor, pending);
         const facts = controls.readMaintenance(api);
         if (
           facts.purpose !== "catalog-site-publication-controls" ||

@@ -16,6 +16,7 @@ import {
   capacityDigest,
   inspectCapacityExecutorIdentity,
   inspectSitePublicationExpectation,
+  inspectCapacityOperation,
 } from "./release-capacity.mts";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { publishCoordinatorCheckpoint } from "./release-coordinator-remote.mts";
@@ -37,6 +38,7 @@ import {
 import { isRecord } from "./runtime-values.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
 import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
+import type { CapacityBoundaryReader } from "./release-capacity-operation.mts";
 import {
   inspectPublishedCatalogMetadata,
   inspectPublishedSite,
@@ -67,6 +69,28 @@ interface PrivateSession {
 const sessions = new WeakMap<ExecutorSession, PrivateSession>();
 const audience = "portcove-capacity-executor";
 const effectStates = new WeakMap<ExecutorSession, { busy: boolean; failed: boolean }>();
+interface OwnedPendingBoundary {
+  readonly kind: "owned-capacity-pending-boundary";
+}
+const pendingBoundaries = new WeakMap<
+  object,
+  {
+    session: ExecutorSession;
+    checkpoint: string;
+    operation: NonNullable<ReturnType<typeof inspectCapacityOperation>>;
+  }
+>();
+/** Usable only during this actual executor's awaited pre-effect boundary. An
+ * imported record or a receipt retained beyond that callback cannot enter. */
+export function requireOwnedCapacityPendingBoundary(session: ExecutorSession, receipt: object) {
+  const executor = sessions.get(session),
+    pending = pendingBoundaries.get(receipt);
+  if (!executor || !pending || pending.session !== session || !effectStates.get(session)?.busy)
+    throw new Error("actual current executor pending boundary custody required");
+  if (executor.deadline !== undefined && performance.now() >= executor.deadline)
+    throw new Error("executor pending boundary original deadline exhausted");
+  return structuredClone({ checkpoint: pending.checkpoint, operation: pending.operation });
+}
 
 async function observe(
   role: CapacityExecutorRole,
@@ -405,7 +429,7 @@ async function executeOwnedCapacityEffectWithinScope(
     catalog_publication?: unknown;
     recovery?: "transient" | "substantive-repair";
   },
-  readBoundary: () => Promise<unknown>,
+  readBoundary: (pending?: OwnedPendingBoundary) => Promise<unknown>,
   effect: (pending: {
     checkpoint: string;
     operation_id: string;
@@ -434,6 +458,29 @@ async function executeOwnedCapacityEffectWithinScope(
   const captured: { completed?: { remote_identity: string; evidence_sha256: string } } = {};
   try {
     const executorIdentity = await refreshCapacityExecutor(session);
+    const readOwnedBoundary: CapacityBoundaryReader = async (pending) => {
+      if (!pending) return readBoundary();
+      const operation = inspectCapacityOperation(pending.operation);
+      if (
+        !operation ||
+        !/^[a-f0-9]{40}$/u.test(pending.checkpoint) ||
+        capacityDigest(operation.executor_identity) !== capacityDigest(executorIdentity)
+      )
+        throw new Error("pending boundary differs from actual current executor");
+      const receipt: OwnedPendingBoundary = Object.freeze({
+        kind: "owned-capacity-pending-boundary",
+      });
+      pendingBoundaries.set(receipt, {
+        session,
+        checkpoint: pending.checkpoint,
+        operation: structuredClone(operation),
+      });
+      try {
+        return await readBoundary(receipt);
+      } finally {
+        pendingBoundaries.delete(receipt);
+      }
+    };
     // Existing transport checks every remote ref and returns only exact public
     // readback; no local checkpoint or public nonce can appoint this executor.
     await publishCoordinatorCheckpoint(input.repository, input.checkpoint, remote.configuration, {
@@ -475,7 +522,7 @@ async function executeOwnedCapacityEffectWithinScope(
             input.repository,
             input.checkpoint,
             input.request,
-            readBoundary,
+            readOwnedBoundary,
             perform,
             options,
           )
@@ -490,7 +537,7 @@ async function executeOwnedCapacityEffectWithinScope(
             input.checkpoint,
             subject.descriptor,
             input.request,
-            readBoundary,
+            readOwnedBoundary,
             perform,
             { ...options, ...(input.recovery === undefined ? {} : { recovery: input.recovery }) },
           );
