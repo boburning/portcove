@@ -13,6 +13,7 @@ import {
   advanceOwnedImmutableReleasePublication,
   observeOwnedImmutableReleaseCompletion,
   requireOwnedImmutableReleaseCompletion,
+  rebindPreparedImmutableReleaseAfterPhase,
 } from "./release-immutable-publication.mts";
 
 void test("bounded immutable writes retain late successful responses as unresolved and never start after expiry", async (t) => {
@@ -51,6 +52,17 @@ void test("copied completed releases cannot become owned settlement custody", as
   );
   await assert.rejects(
     observeOwnedImmutableReleaseCompletion({} as never, {} as never, {}, {} as never, 0),
+    /phase deadline/,
+  );
+  await assert.rejects(
+    rebindPreparedImmutableReleaseAfterPhase({} as never, {
+      checkpoint: "a".repeat(40),
+      phase: "publishing",
+    }),
+    /actual idle immutable/,
+  );
+  await assert.rejects(
+    rebindPreparedImmutableReleaseAfterPhase({} as never, {}, 0),
     /phase deadline/,
   );
 });

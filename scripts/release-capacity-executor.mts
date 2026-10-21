@@ -18,6 +18,7 @@ import {
 import { inspectPublishedMetadata } from "./release-metadata-contract.mts";
 import { isRecord } from "./runtime-values.mts";
 import { createCoordinatorJournalApi } from "./release-coordinator-journal-api.mts";
+import { withCoordinatorDeadline } from "./release-coordinator-deadline.mts";
 
 export interface CapacityExecutorIdentity {
   controller_revision: string;
@@ -161,9 +162,12 @@ export function assertCapacityExecutorEffectScope(
               ).test(request.destination)
             : role === "release-publication" &&
               request.kind === "upload" &&
-              /^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
+              (/^github-release:boburning\/portcove:[A-Za-z0-9._-]{1,128}:(?:create-draft|publish|upload:[A-Za-z0-9._+-]{1,200})$/u.test(
                 request.destination,
-              );
+              ) ||
+                /^github-actions:boburning\/portcove:[A-Za-z0-9._-]{1,128}:immutable-release-result$/u.test(
+                  request.destination,
+                ));
   if (!allowed) throw new Error("effect is outside the authenticated executor's fixed scope");
 }
 
@@ -173,6 +177,14 @@ export function assertCapacityExecutorEffectScope(
  * before invoking its one provider effect and independent result readback.
  * Failure stops this session. An unresolved intent cannot be retried here. */
 export async function executeOwnedCapacityEffect(
+  ...args: Parameters<typeof executeOwnedCapacityEffectWithinScope>
+) {
+  const value = sessions.get(args[0]);
+  if (!value) throw new Error("an actual authenticated executor session is required");
+  const work = () => executeOwnedCapacityEffectWithinScope(...args);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+async function executeOwnedCapacityEffectWithinScope(
   session: ExecutorSession,
   raw: {
     repository: string;
@@ -326,6 +338,14 @@ export async function executeOwnedCapacityEffect(
  * it never inherits permission to re-POST the effect. Readback callbacks in the
  * immutable controller must positively establish the requested resolution. */
 export async function recoverOwnedCapacityEffect(
+  ...args: Parameters<typeof recoverOwnedCapacityEffectWithinScope>
+) {
+  const value = sessions.get(args[0]);
+  if (!value) throw new Error("an actual authenticated executor session is required");
+  const work = () => recoverOwnedCapacityEffectWithinScope(...args);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+async function recoverOwnedCapacityEffectWithinScope(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<{
@@ -453,6 +473,14 @@ export async function recoverOwnedCapacityEffect(
  * mutation. The separately authenticated coordinator must re-read the exact
  * public result after the original publisher has become terminal. */
 export async function recoverOwnedPublishedMetadata(
+  ...args: Parameters<typeof recoverOwnedPublishedMetadataWithinScope>
+) {
+  const value = sessions.get(args[0]);
+  if (!value) throw new Error("an actual authenticated executor session is required");
+  const work = () => recoverOwnedPublishedMetadataWithinScope(...args);
+  return value.deadline === undefined ? work() : withCoordinatorDeadline(value.deadline, work);
+}
+async function recoverOwnedPublishedMetadataWithinScope(
   session: ExecutorSession,
   raw: { repository: string; checkpoint: string; remote_configuration: unknown },
   readback: (operation: Readonly<Record<string, unknown>>) => Promise<unknown>,

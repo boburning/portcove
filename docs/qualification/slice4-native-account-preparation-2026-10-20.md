@@ -343,10 +343,9 @@ snapshot and bounded loaded-image hashes. No product command or client trust
 path was added. Seventeen focused local tests pass, including actual inert
 PowerShell child streams with normal output, invalid UTF-8 and overflow, plus
 wrong-hive and imported-capture refusals. Those are component observations;
-the fixed Task/account route has not run. Whole-stage report construction,
-native Check handoff, the signed-context/post-sign selector and the Linux
-separate-account backend remain engineering work. The current worker reports
-HOLD after driver capture and cannot publish native acceptance or a Release.
+the fixed Task/account route has not run. The signed-context/post-sign selector
+and Linux separate-account backend remain engineering work. The worker never
+publishes a Release or substitutes its own acceptance for the hosted consumer.
 
 Compatibility preparation now distinguishes maintained source declarations
 from installed runtime observations. The parent-owned source reader can retain
@@ -360,3 +359,45 @@ changed declarations. This is data-only preparation: those declarations alone
 establish neither native execution nor compatibility acceptance. The installed
 Core IPC, actual state/host observations and private producer join remain
 independently required.
+
+## Connected pre-sign report and Check handoff
+
+Reviewed source `bd14eea1ab2c97ff0078ea414ae9d6cee206e0e4` connects the fixed
+worker's Windows capture to complete pre-sign report reconstruction and the
+distinct native issuer. The six assertions require exact package and installed
+executable bytes, actual qualification-SID registration, install/launch results,
+retained library manifests, observed minimum Windows/WebView versions and the
+installed Core capability response. Candidate source declarations are retained
+separately; the owned process snapshot binds loaded WebView paths and identities.
+Every root and the shared account group must have positive teardown before a
+completed report enters the private direct-capture map. Retained inputs, output
+streams, source declarations and the report are rechecked before use.
+
+Only that private report permits the broker to read its separately protected
+native App key. The fixed Node HTTP worker receives credentials through stdin,
+with no credential argv, environment or retained token. The broker checks the
+actual App, selected installation, exact repository and Checks-write/Metadata-read
+permissions. It persists the original wire and fsyncs a one-shot pre-POST marker
+before sending the exact native Check body. Original GET-only issuer/report
+readback follows. Authentication failure and a possible Check POST retain
+different phases; an ambiguous response never permits POST replay. The current
+source reader must have the read capabilities required for that reconciliation;
+credential availability alone establishes no authority.
+
+A refused stage retains its original diagnostic and, where exact original
+identities and streams permit serialization, a failed or ambiguous capture.
+Missing cleanup is never converted to an empty process group. Repeating the
+same invocation remains readback-only; only existing coordinator recovery can
+change bounded attempt counters after applicable settlement. These records add
+no second retry or acceptance authority.
+
+Separate non-writing review cleared the cumulative report, broker and failure
+retention source. Twelve focused report/source/capture/claim tests and eleven
+focused report/broker/claim tests passed; these selections overlap. Tests include
+wrong package/source/host/protocol, missing state, partial cleanup, wrong issuer,
+changed wire, truncated attempt and imported-provenance refusals. Type-aware
+lint and the maintained test inventory passed. They are fixture and inert
+component evidence, not an actual cross-account Task launch, App authentication,
+native Check, minimum-host qualification or public update journey. The temporal
+report-2 profile remains an explicit proposed consolidated setup selection;
+report-1 interpretation is preserved and no production workflow is activated.
