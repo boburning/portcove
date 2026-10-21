@@ -5,7 +5,10 @@ import { createHash } from "node:crypto";
 import { readFile, lstat, statfs, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspectIsolatedNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
+import {
+  inspectIsolatedNativeLinuxBinding,
+  inspectNativeLinuxHomeMount,
+} from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 import { isRecord, errorMessage, errorCode } from "./runtime-values.mts";
 import { runResourceCommand } from "./resource-command.mts";
 import { releaseCanonicalDigest } from "./release-canonical.mts";
@@ -16,6 +19,8 @@ import {
   inspectNativeQualificationJourney,
   nativePrepublicationProfile,
 } from "./release-native-qualification-contract.mts";
+import { inspectPublicNativeLinuxBinding } from "../apps/desktop/scripts/native-linux-public-plan.mts";
+export { inspectNativeLinuxHomeMount } from "../apps/desktop/scripts/native-linux-isolated-plan.mts";
 export const nativeLinuxPreSignHarnessScenarios = Object.freeze([
   "empty-library",
   "appearance-restart",
@@ -100,6 +105,69 @@ export function inspectNativeLinuxStagePlan(raw: unknown) {
     journey,
   };
 }
+/** Explicit ordinary-public plan; legacy native stage plans never select it. */
+export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
+  assert.ok(
+    isRecord(raw) &&
+      (raw.schema_version === 3 || raw.schema_version === 4) &&
+      raw.stage === "ordinary-public-update",
+  );
+  assert.equal(
+    Object.keys(raw).sort().join(","),
+    "binding,invocation_id,public_journey,schema_version,stage,stage_request_sha256",
+  );
+  assert.match(String(raw.stage_request_sha256), /^[a-f0-9]{64}$/u);
+  const journey = raw.public_journey;
+  assert.ok(
+    isRecord(journey) &&
+      Object.keys(journey).sort().join(",") ===
+        (raw.schema_version === 4
+          ? "candidate,network,parked,phase,profile_id,retained_state_bytes,source,versions"
+          : "candidate,network,phase,profile_id,retained_state_bytes,source,versions"),
+  );
+  const binding = inspectPublicNativeLinuxBinding({
+    schema_version: raw.schema_version === 4 ? 2 : 1,
+    session: raw.binding,
+    candidate: journey.candidate,
+    network: journey.network,
+    phase: journey.phase,
+    profile_id: journey.profile_id,
+    retained_state_bytes: journey.retained_state_bytes,
+    source: journey.source,
+    ...(raw.schema_version === 4 ? { parked: journey.parked } : {}),
+  });
+  assert.equal(raw.invocation_id, binding.session.invocation_id);
+  assert.ok(
+    isRecord(journey.versions) &&
+      Object.keys(journey.versions).sort().join(",") === "candidate,prior",
+  );
+  const prior = journey.versions.prior,
+    candidate = journey.versions.candidate;
+  assert.ok(
+    typeof prior === "string" &&
+      typeof candidate === "string" &&
+      prior.length <= 128 &&
+      candidate.length <= 128,
+  );
+  assert.match(prior, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u);
+  assert.match(candidate, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u);
+  assert.notEqual(prior, candidate);
+  return {
+    binding,
+    versions: { prior, candidate },
+    raw_binding: structuredClone({
+      schema_version: raw.schema_version === 4 ? 2 : 1,
+      session: raw.binding,
+      candidate: journey.candidate,
+      network: journey.network,
+      phase: journey.phase,
+      profile_id: journey.profile_id,
+      retained_state_bytes: journey.retained_state_bytes,
+      source: journey.source,
+      ...(raw.schema_version === 4 ? { parked: journey.parked } : {}),
+    }),
+  };
+}
 export async function requireFreshNativeLinuxOutput(filename: string) {
   try {
     await lstat(filename);
@@ -110,43 +178,6 @@ export async function requireFreshNativeLinuxOutput(filename: string) {
   throw new Error("native desktop output already exists; retain it without reuse");
 }
 
-export function inspectNativeLinuxHomeMount(
-  mountinfo: string,
-  home: string,
-  filesystem: { type: number; bsize: number; blocks: number },
-) {
-  assert.ok(Buffer.byteLength(mountinfo) <= 1024 * 1024);
-  assert.equal(filesystem.type, 0x01021994, "native state home must be hard-bounded tmpfs");
-  assert.ok(
-    Number.isSafeInteger(filesystem.bsize) &&
-      filesystem.bsize > 0 &&
-      Number.isSafeInteger(filesystem.blocks) &&
-      filesystem.blocks > 0,
-  );
-  const bytes = filesystem.bsize * filesystem.blocks;
-  assert.ok(Number.isSafeInteger(bytes) && bytes <= 512 * 1024 * 1024);
-  const matches = mountinfo.split("\n").filter((line) => line.split(" ")[4] === home);
-  assert.equal(matches.length, 1, "exact native home mount must be distinct");
-  const fields = matches[0]!.split(" "),
-    separator = fields.indexOf("-");
-  assert.ok(
-    separator >= 6 &&
-      fields[separator + 1] === "tmpfs" &&
-      fields[3] === "/" &&
-      fields[5]!.split(",").includes("rw"),
-  );
-  assert.ok(/^[1-9][0-9]*$/u.test(fields[0]!) && /^[0-9]+:[0-9]+$/u.test(fields[2]!));
-  return Object.freeze({
-    mount_id: fields[0]!,
-    parent_mount_id: fields[1]!,
-    device: fields[2]!,
-    root: "/",
-    mount_point: home,
-    filesystem: "tmpfs",
-    maximum_bytes: bytes,
-    authority: "none" as const,
-  });
-}
 async function boundedJson(filename: string, expected: string) {
   assert.match(expected, /^[a-f0-9]{64}$/u);
   const before = await lstat(filename);
@@ -174,7 +205,11 @@ export async function runNativeLinuxDriver(
   assert.equal(process.platform, "linux");
   const raw = await boundedJson(planPath, planSha256);
   assert.ok(isRecord(raw));
-  const stagePlan = inspectNativeLinuxStagePlan(raw);
+  const publicPlan =
+    raw.schema_version === 3 || raw.schema_version === 4
+      ? inspectNativeLinuxPublicStagePlan(raw)
+      : null;
+  const stagePlan = publicPlan ? null : inspectNativeLinuxStagePlan(raw);
   assert.ok(
     typeof raw.stage_request_sha256 === "string" &&
       /^[a-f0-9]{64}$/u.test(raw.stage_request_sha256),
@@ -235,6 +270,72 @@ export async function runNativeLinuxDriver(
     mode: 0o600,
   });
   const started_at = new Date().toISOString();
+  if (publicPlan) {
+    const configuration = {
+      schema_version: 1,
+      kind: "ordinary-linux-public-update",
+      binding: { ...publicPlan.raw_binding, session: binding },
+      versions: publicPlan.versions,
+    };
+    const filename = `${binding.capture_root}/public-linux-configuration.json`,
+      bytes = Buffer.from(JSON.stringify(configuration));
+    await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
+    let status: number | null = null,
+      failure: string | null = null;
+    try {
+      const remaining = Math.min(
+        1750000,
+        Math.floor(Date.parse(binding.deadline_utc) - Date.now()),
+      );
+      assert.ok(remaining > 0);
+      status = await runResourceCommand(
+        "analysis",
+        process.execPath,
+        [
+          `${binding.controller.root}/apps/desktop/scripts/desktop-linux-public-update.mts`,
+          "--configuration",
+          filename,
+          "--configuration-sha256",
+          createHash("sha256").update(bytes).digest("hex"),
+          "--remaining-ms",
+          String(remaining),
+        ],
+        {
+          cwd: binding.controller.root,
+          environment: {
+            PATH: `${binding.linux_root}/tools:/usr/bin:/bin`,
+            HOME: `/home/${binding.linux_root.split("/")[2]}`,
+            LANG: "C.UTF-8",
+          },
+          exclusive: [`native-linux:${binding.account.uid}`],
+        },
+      );
+      assert.equal(status, 0, "Actual ordinary public AppImage harness failed");
+    } catch (error) {
+      failure = errorMessage(error);
+      throw error;
+    } finally {
+      await writeFile(
+        `${binding.capture_root}/linux-driver-result.json`,
+        JSON.stringify({
+          schema_version: 1,
+          invocation_id: binding.invocation_id,
+          stage_request_sha256: raw.stage_request_sha256,
+          stage: "ordinary-public-update",
+          started_at,
+          completed_at: new Date().toISOString(),
+          status,
+          failure,
+          home_mount: mount,
+          authority: "none",
+          native_acceptance: "not-established",
+        }),
+        { flag: "wx", mode: 0o600 },
+      );
+    }
+    return;
+  }
+  assert.ok(stagePlan);
   const lifecycle: {
     id: string;
     binding_sha256: string;

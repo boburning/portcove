@@ -63,6 +63,77 @@ void test("initial Windows tool configuration is exact and cannot overlap creden
   assert.throws(() => inspectLocalNativeTransport(transport, "linux-x86_64"));
 });
 
+void test("public source tool pins must also reside in the scheduler-observed private controller tree", () => {
+  const f = fixture();
+  const tool = (name: string) => ({
+    path: `${f.controller_root}\\tools\\${name}.exe`,
+    sha256: "a".repeat(64),
+  });
+  const windows_tools = {
+    git: tool("git"),
+    powershell: tool("pwsh"),
+    desktop_tools: {
+      node: tool("node"),
+      tauri_driver: tool("tauri-driver"),
+      webview_driver: tool("msedgedriver"),
+    },
+  };
+  const raw = {
+    ...f,
+    descriptor: {
+      ...f.descriptor,
+      schema_version: 2,
+      public_journey: {
+        profile: "ordinary-public-initial-cohort-v1",
+        public_build_inputs: {
+          configuration_revision: "a".repeat(40),
+          manifest_sha256: "b".repeat(64),
+        },
+      },
+    },
+    transport_configuration: {
+      ...f.transport_configuration,
+      windows_tools,
+      post_sign_verifier: tool("release-tools"),
+      public_signature_control: tool("verify_packaged_application_update"),
+    },
+  };
+  assert.equal(inspectWindowsNativeParentSetup(raw).authority, "none");
+  for (const transport_configuration of [
+    {
+      ...raw.transport_configuration,
+      post_sign_verifier: { ...tool("release-tools"), path: "C:\\Mutable\\release-tools.exe" },
+    },
+    {
+      ...raw.transport_configuration,
+      windows_tools: { ...windows_tools, git: { ...tool("git"), path: "C:\\Mutable\\git.exe" } },
+    },
+    {
+      ...raw.transport_configuration,
+      public_signature_control: {
+        ...tool("verify_packaged_application_update"),
+        path: "C:\\Mutable\\verify_packaged_application_update.exe",
+      },
+    },
+  ])
+    assert.throws(
+      () => inspectWindowsNativeParentSetup({ ...raw, transport_configuration }),
+      /protected controller tree/,
+    );
+  assert.equal(inspectWindowsNativeParentSetup(f).authority, "none");
+  assert.throws(
+    () =>
+      inspectWindowsNativeParentSetup({
+        ...raw,
+        transport_configuration: {
+          ...raw.transport_configuration,
+          public_signature_control: raw.transport_configuration.post_sign_verifier,
+        },
+      }),
+    /overlaps/,
+  );
+});
+
 function fixture() {
   const configurationPath = "C:\\Portcove\\setup\\descriptor.json",
     controller = "C:\\Portcove\\controller";

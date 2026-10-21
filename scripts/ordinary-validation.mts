@@ -557,7 +557,30 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
   ],
   ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
-  ["scripts/release-native-attempt.mts", ["scripts/release-native-attempt.test.mts"]],
+  [
+    "scripts/release-native-linux-public-capture.mts",
+    ["scripts/release-native-linux-public-capture.test.mts"],
+  ],
+  [
+    "scripts/release-native-attempt.mts",
+    [
+      "scripts/release-native-attempt.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+    ],
+  ],
+  ...["pair", "compiler", "signature", "attempt-contract"].map(
+    (name): [string, readonly string[]] => [
+      `scripts/release-native-public-${name}.mts`,
+      [`scripts/release-native-public-${name}.test.mts`],
+    ],
+  ),
+  [
+    "scripts/release-compiler-report-archive.mts",
+    [
+      "scripts/release-compiler-evidence.test.mts",
+      "scripts/release-native-public-compiler.test.mts",
+    ],
+  ],
   [
     "scripts/release-native-source-contract.mts",
     ["scripts/release-native-source-contract.test.mts"],
@@ -567,10 +590,21 @@ const explicitNodeTests = new Map<string, readonly string[]>([
     ["scripts/release-native-pre-sign-report.test.mts"],
   ],
   ["scripts/release-native-check-broker.mts", ["scripts/release-native-check-broker.test.mts"]],
-  ["scripts/release-native-worker.mts", ["scripts/release-native-windows-driver.test.mts"]],
+  [
+    "scripts/release-native-worker.mts",
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-linux-public-capture.test.mts",
+    ],
+  ],
   [
     "scripts/release-native-windows-capture.mts",
-    ["scripts/release-native-windows-driver.test.mts"],
+    [
+      "scripts/release-native-windows-driver.test.mts",
+      "scripts/release-native-public-attempt-contract.test.mts",
+      "scripts/release-native-public-signature.test.mts",
+    ],
   ],
   ["scripts/release-native-windows-driver.ps1", ["scripts/release-native-windows-driver.test.mts"]],
   [
@@ -632,6 +666,38 @@ const explicitNodeTests = new Map<string, readonly string[]>([
       "scripts/production-controller-admission.test.mts",
       "scripts/release-bootstrap-preparation.test.mts",
     ],
+  ],
+  ...["fuse", "services"].flatMap((name): [string, string[]][] => [
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+    [
+      `apps/desktop/scripts/native-linux-public-${name}.test.py`,
+      [`scripts/native-linux-public-${name}.test.mts`],
+    ],
+  ]),
+  [
+    "apps/desktop/scripts/native-linux-public-plan.mts",
+    ["scripts/native-linux-public-plan.test.mts"],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-state.mts",
+    [
+      "apps/desktop/scripts/desktop-public-update-state.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-public-update-files.mts",
+    [
+      "apps/desktop/scripts/desktop-linux-public-update.native.test.mts",
+      "apps/desktop/scripts/desktop-windows-public-update.native.test.mts",
+    ],
+  ],
+  [
+    "apps/desktop/scripts/desktop-linux-public-update.mts",
+    ["apps/desktop/scripts/desktop-linux-public-update.native.test.mts"],
   ],
   ...[
     "apps/desktop/scripts/native-linux-public-network.py",
@@ -969,6 +1035,10 @@ const workflowTests = new Map([
 ]);
 
 const releaseContractTests = Object.freeze([
+  "scripts/release-native-public-pair.test.mts",
+  "scripts/release-native-public-compiler.test.mts",
+  "scripts/release-native-public-signature.test.mts",
+  "scripts/release-native-public-attempt-contract.test.mts",
   "scripts/production-controller-admission.test.mts",
   "scripts/controller-canary.test.mts",
   "scripts/check-release-metadata.test.mts",
@@ -986,11 +1056,19 @@ const releaseContractTests = Object.freeze([
   "scripts/native-linux-driver-http.test.mts",
   "scripts/native-linux-isolated-init.test.mts",
   "scripts/native-linux-isolated-plan.test.mts",
+  "scripts/native-linux-public-fuse.test.mts",
+  "scripts/native-linux-public-services.test.mts",
+  "scripts/native-linux-public-plan.test.mts",
+
   "scripts/release-native-linux-driver.test.mts",
   "scripts/native-qualification-linux-supervisor.test.mts",
   "scripts/native-qualification-linux-transfer.test.mts",
   "scripts/release-native-wsl-capture.test.mts",
   "scripts/release-native-candidate.test.mts",
+  "scripts/release-native-public-pair.test.mts",
+  "scripts/release-native-public-attempt-contract.test.mts",
+  "scripts/release-native-linux-public-capture.test.mts",
+  "scripts/release-native-public-compiler.test.mts",
   "scripts/release-native-attempt.test.mts",
   "scripts/release-native-windows-driver.test.mts",
   "scripts/release-native-source-contract.test.mts",

@@ -3,17 +3,22 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
-import { open, lstat, realpath, writeFile, readFile } from "node:fs/promises";
+import { open, lstat, realpath, writeFile, readFile, statfs } from "node:fs/promises";
 import path from "node:path";
-import { constants, openSync, writeSync, closeSync } from "node:fs";
-import { Writable, type Readable } from "node:stream";
+import { constants, openSync, writeSync, closeSync, fstatSync } from "node:fs";
+import { Duplex, Writable, Transform, type Readable } from "node:stream";
 import { get } from "node:http";
 import { TextDecoder } from "node:util";
 import { fileURLToPath } from "node:url";
 import {
   inspectIsolatedNativeLinuxBinding,
+  inspectNativeLinuxHomeMount,
   planIsolatedNativeLinuxCommand,
 } from "./native-linux-isolated-plan.mts";
+import {
+  inspectPublicNativeLinuxBinding,
+  planPublicNativeLinuxCommand,
+} from "./native-linux-public-plan.mts";
 import {
   privateNativeDriverAgent,
   inspectPrivateNativeDriverResponse,
@@ -22,6 +27,120 @@ import {
 import { parseNamespacePacket, type NamespaceEvent } from "./desktop-linux-native-session.mts";
 import { isRecord, errorMessage } from "../../../scripts/runtime-values.mts";
 const fixedInit = fileURLToPath(new URL("./native-linux-isolated-init.py", import.meta.url));
+
+/** Conservative invocation-wide opaque wire limits, including framing overhead.
+ * A pure resource counter cannot appoint an invocation or native authority. */
+export function createNativePublicJourneyBudget() {
+  let mounts = 0,
+    sessions = 0,
+    opens = 0,
+    uploaded = 0,
+    downloaded = 0,
+    refused = false;
+  const snapshot = () =>
+    Object.freeze({
+      sessions,
+      mounts,
+      opens,
+      uploaded_wire_bytes: uploaded,
+      downloaded_wire_bytes: downloaded,
+    });
+  return {
+    start() {
+      assert.ok(!refused && sessions < 6, "public invocation namespace budget exhausted");
+      sessions++;
+    },
+    remainingMounts() {
+      assert.ok(!refused && mounts < 8, "public invocation FUSE mount budget exhausted");
+      return 8 - mounts;
+    },
+    chargeMount() {
+      assert.ok(!refused && mounts < 8, "public invocation FUSE mount budget exhausted");
+      mounts++;
+    },
+    charge(direction: "upload" | "download", bytes: number, newOpens = 0) {
+      assert.ok(!refused);
+      assert.ok(
+        Number.isSafeInteger(bytes) &&
+          bytes >= 0 &&
+          Number.isSafeInteger(newOpens) &&
+          newOpens >= 0,
+      );
+      if (direction === "upload") uploaded += bytes;
+      else downloaded += bytes;
+      opens += newOpens;
+      if (uploaded > 16 * 1024 * 1024 || downloaded > 1024 * 1024 * 1024 || opens > 64) {
+        refused = true;
+        throw new Error("original public invocation relay budget exhausted");
+      }
+    },
+    snapshot,
+  };
+}
+/** Charge before forwarding any bytes; a refused frame never reaches the outer
+ * process/network or candidate. Each partial upload frame remains bounded. */
+export function nativePublicRelayLimiter(
+  direction: "upload" | "download",
+  budget: ReturnType<typeof createNativePublicJourneyBudget>,
+) {
+  let frames = Buffer.alloc(0);
+  return new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      try {
+        let opens = 0;
+        if (direction === "upload") {
+          frames = Buffer.concat([frames, chunk]);
+          for (let end = frames.indexOf(10); end >= 0; end = frames.indexOf(10)) {
+            assert.ok(end <= 100000);
+            const frame: unknown = JSON.parse(
+              new TextDecoder("utf-8", { fatal: true }).decode(frames.subarray(0, end)),
+            );
+            assert.ok(isRecord(frame));
+            if (frame.kind === "open") opens++;
+            frames = frames.subarray(end + 1);
+          }
+          assert.ok(frames.length <= 100000);
+        }
+        budget.charge(direction, chunk.length, opens);
+        callback(null, chunk);
+      } catch (error) {
+        callback(
+          error instanceof Error
+            ? error
+            : new Error("Public relay bound refused", { cause: error }),
+        );
+      }
+    },
+    flush(callback) {
+      callback(
+        frames.length
+          ? new Error("Public relay ended with an incomplete original frame")
+          : undefined,
+      );
+    },
+  });
+}
+const publicBudgets = new Map<
+  string,
+  { identity: string; budget: ReturnType<typeof createNativePublicJourneyBudget> }
+>();
+function claimPublicBudget(binding: ReturnType<typeof inspectPublicNativeLinuxBinding>) {
+  const key = binding.session.invocation_id,
+    identity = createHash("sha256").update(JSON.stringify(binding)).digest("hex");
+  let retained = publicBudgets.get(key);
+  if (!retained) {
+    assert.equal(publicBudgets.size, 0, "a fixed guest driver owns one public invocation only");
+    retained = { identity, budget: createNativePublicJourneyBudget() };
+    publicBudgets.set(key, retained);
+  }
+  assert.equal(
+    retained.identity,
+    identity,
+    "public invocation inputs changed across namespace reopen",
+  );
+  retained.budget.start();
+  return retained.budget;
+}
 
 /** Raw group streams, not per-descendant output attribution or acceptance. */
 export function createNativeNamespaceStreamCapture(directory: string, id: string) {
@@ -129,8 +248,41 @@ export async function launchIsolatedLinuxNativeSession(
   environment: NodeJS.ProcessEnv,
   beforeLaunch: () => void = () => {},
 ) {
+  return launchFixedLinuxNativeSession(raw, program, args, environment, beforeLaunch);
+}
+
+/** Ordinary shipped public updater harness only; this returns process/capture
+ * custody and never a native Check, scheduler grant or public acceptance. */
+export async function launchPublicLinuxNativeSession(
+  raw: unknown,
+  program: string,
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+  beforeLaunch: () => void = () => {},
+) {
+  const publicBinding = inspectPublicNativeLinuxBinding(raw);
+  return launchFixedLinuxNativeSession(
+    publicBinding.session,
+    program,
+    args,
+    environment,
+    beforeLaunch,
+    publicBinding,
+  );
+}
+
+async function launchFixedLinuxNativeSession(
+  raw: unknown,
+  program: string,
+  args: readonly string[],
+  environment: NodeJS.ProcessEnv,
+  beforeLaunch: () => void,
+  publicBinding?: ReturnType<typeof inspectPublicNativeLinuxBinding>,
+) {
   assert.equal(process.platform, "linux");
+  const publicBudget = publicBinding ? claimPublicBudget(publicBinding) : undefined;
   const binding = inspectIsolatedNativeLinuxBinding(raw);
+  const home = publicBinding?.profile_home ?? binding.home;
   assert.equal(process.getuid?.(), binding.account.uid);
   assert.equal(process.getgid?.(), binding.account.gid);
   assert.equal(program, binding.tools.driver?.path);
@@ -159,6 +311,10 @@ export async function launchIsolatedLinuxNativeSession(
   };
   await ownedDirectory(binding.capture_root, binding.account.uid);
   await ownedDirectory(binding.home, binding.account.uid);
+  if (publicBinding) {
+    await ownedDirectory(publicBinding.state, binding.account.uid);
+    await ownedDirectory(publicBinding.installation, binding.account.uid);
+  }
   const recheck = async () => {
     remaining();
     beforeLaunch();
@@ -204,11 +360,33 @@ export async function launchIsolatedLinuxNativeSession(
       `${binding.controller.root}/apps/desktop/scripts/native-linux-isolated-init.py`,
     );
     assert.equal(await hash(fixedInit, 1024 * 1024), binding.controller.init_sha256);
+    if (publicBinding) {
+      inspectNativeLinuxHomeMount(
+        await readFile("/proc/self/mountinfo", "utf8"),
+        binding.home,
+        await statfs(binding.home),
+      );
+      for (const [filename, expected] of [
+        ["native-linux-public-fuse.py", publicBinding.source.fuse_sha256],
+        ["native-linux-public-network.py", publicBinding.source.network_sha256],
+        ["native-linux-public-services.py", publicBinding.source.services_sha256],
+      ])
+        assert.equal(
+          await hash(`${binding.controller.root}/apps/desktop/scripts/${filename}`, 1024 * 1024),
+          expected,
+        );
+      assert.equal(
+        await hash(publicBinding.candidate.path, 512 * 1024 * 1024),
+        publicBinding.candidate.sha256,
+      );
+      assert.equal((await lstat(publicBinding.candidate.path)).size, publicBinding.candidate.bytes);
+    }
     remaining();
   };
   await recheck();
   const nonce = randomUUID(),
-    configurationPath = `${binding.capture_root}/namespace-${nonce}.json`;
+    configurationPath = `${binding.capture_root}/namespace-${nonce}.json`,
+    policyPrefix = configurationPath.slice(0, -5);
   const allowed = [
     "XDG_CONFIG_HOME",
     "XDG_CACHE_HOME",
@@ -224,21 +402,74 @@ export async function launchIsolatedLinuxNativeSession(
       .filter((key) => environment[key] !== undefined)
       .map((key) => {
         const value = environment[key]!;
-        assert.ok(value.startsWith(binding.home + "/") && path.posix.normalize(value) === value);
+        assert.ok(value.startsWith(home + "/") && path.posix.normalize(value) === value);
         return [key, value];
       }),
   );
+  let publicConfiguration: Record<string, unknown> | undefined;
+  let networkPolicyPath: string | undefined, networkPolicySha: string | undefined;
+  if (publicBinding) {
+    const policies = {
+      fuse: {
+        schema_version: 2,
+        mount_limit: publicBudget!.remainingMounts(),
+        nonce: binding.invocation_id,
+        uid: binding.account.uid,
+        gid: binding.account.gid,
+        packages: [binding.application, publicBinding.candidate].map(({ bytes, sha256 }) => ({
+          bytes,
+          sha256,
+        })),
+        deadline_utc: binding.deadline_utc,
+        python_sha256: binding.tools.python!.sha256,
+      },
+      network: { schema_version: 1, nonce, ...publicBinding.network },
+    };
+    const policyPins: Record<string, string> = {};
+    for (const [name, value] of Object.entries(policies)) {
+      const bytes = Buffer.from(JSON.stringify(value));
+      const filename = `${policyPrefix}.${name}.json`;
+      await writeFile(filename, bytes, { flag: "wx", mode: 0o600 });
+      policyPins[`${name}_policy_sha256`] = createHash("sha256").update(bytes).digest("hex");
+      if (name === "network") {
+        networkPolicyPath = filename;
+        networkPolicySha = policyPins[`${name}_policy_sha256`];
+      }
+    }
+    const hosts =
+      [
+        "127.0.0.1 localhost",
+        "::1 localhost",
+        ...Object.entries(publicBinding.network.addresses)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .flatMap(([host, addresses]) => addresses.map((address) => `${address} ${host}`)),
+      ].join("\n") + "\n";
+    await writeFile(`${policyPrefix}.hosts`, hosts, { flag: "wx", mode: 0o600 });
+    await writeFile(`${policyPrefix}.nsswitch`, "hosts: files\n", {
+      flag: "wx",
+      mode: 0o600,
+    });
+    publicConfiguration = {
+      invocation_id: binding.invocation_id,
+      profile_id: publicBinding.profile_id,
+      deadline_utc: binding.deadline_utc,
+      ...publicBinding.source,
+      ...policyPins,
+    };
+  }
   await writeFile(
     configurationPath,
     JSON.stringify({
-      schema_version: 1,
+      schema_version: publicBinding ? 2 : 1,
       nonce,
       qualification_uid: binding.account.uid,
       qualification_gid: binding.account.gid,
       port,
-      application_original: binding.application.path,
+      application_original: publicBinding
+        ? "/native/installation/Portcove.AppImage"
+        : binding.application.path,
       application_sha256: binding.application.sha256,
-      home: binding.home,
+      home,
       environment: selected,
       tools: Object.fromEntries(
         ["python", "driver", "webkit_driver", "xvfb"].map((name) => [
@@ -250,17 +481,57 @@ export async function launchIsolatedLinuxNativeSession(
         ]),
       ),
       timeout_seconds: Math.min(1750, Math.floor(remaining() / 1000)),
+      ...(publicConfiguration ? { public: publicConfiguration } : {}),
     }),
     { flag: "wx", mode: 0o600 },
   );
-  const plan = planIsolatedNativeLinuxCommand(raw, configurationPath);
+  const plan = publicBinding
+    ? planPublicNativeLinuxCommand(
+        {
+          schema_version: 1,
+          session: publicBinding.session,
+          candidate: publicBinding.candidate,
+          source: publicBinding.source,
+          network: publicBinding.network,
+          retained_state_bytes: publicBinding.retained_state_bytes,
+        },
+        configurationPath,
+      )
+    : planIsolatedNativeLinuxCommand(raw, configurationPath);
   await recheck();
   const streamId = `namespace-${nonce.replaceAll("-", "")}`;
   const streams = createNativeNamespaceStreamCapture(binding.capture_root, streamId);
-  const child = spawn(plan.executable, plan.arguments, {
-    env: { PATH: "/usr/bin:/bin", LANG: "C.UTF-8" },
-    stdio: ["pipe", "pipe", "pipe", "pipe", "pipe"],
-  });
+  const devices: number[] = [];
+  const child = (() => {
+    try {
+      if (publicBinding)
+        for (let index = 0; index < 8; index++) {
+          const descriptor = openSync("/dev/fuse", constants.O_RDWR | constants.O_NOFOLLOW);
+          devices.push(descriptor);
+          const info = fstatSync(descriptor);
+          assert.ok(
+            info.isCharacterDevice() && info.rdev === 10 * 256 + 229,
+            "fixed FUSE device identity differs",
+          );
+        }
+      return spawn(plan.executable, plan.arguments, {
+        env: { PATH: "/usr/bin:/bin", LANG: "C.UTF-8" },
+        stdio: publicBinding
+          ? ["pipe", "pipe", "pipe", "pipe", "pipe", "pipe", "pipe", ...devices]
+          : ["pipe", "pipe", "pipe", "pipe", "pipe"],
+      });
+    } catch (error) {
+      // Device admission can refuse before a child exists. Close the already
+      // created capture handles, retaining their actual empty/partial files.
+      streams.finish();
+      throw error;
+    } finally {
+      for (const descriptor of devices) closeSync(descriptor);
+    }
+  })();
+  assert.ok(child.stdin && child.stdout && child.stderr);
+  const stdin = child.stdin;
+  const childPipes: readonly (Readable | Writable | null | undefined)[] = child.stdio;
   const events: NamespaceEvent[] = [],
     receipt = {
       method: "private-bubblewrap-pid1-owned-unit",
@@ -269,6 +540,17 @@ export async function launchIsolatedLinuxNativeSession(
       unshare_version: "not-used",
       ready: undefined as Extract<NamespaceEvent, { kind: "namespace-ready" }> | undefined,
       events,
+      public_events: [] as Record<string, unknown>[],
+      public_relay: undefined as
+        | {
+            process_id: number | undefined;
+            exit: {
+              code: number | null;
+              signal: NodeJS.Signals | null;
+              observed_at: string;
+            } | null;
+          }
+        | undefined,
       exit: undefined as
         | { code: number | null; signal: NodeJS.Signals | null; observed_at: string }
         | undefined,
@@ -297,6 +579,7 @@ export async function launchIsolatedLinuxNativeSession(
     buffer = Buffer.alloc(0),
     total = 0,
     failed = false;
+  let stopPublicRelay = () => {};
   const refuse = (error: unknown) => {
     if (failed) return;
     failed = true;
@@ -304,9 +587,10 @@ export async function launchIsolatedLinuxNativeSession(
     rejectReady(error);
     pending?.reject(error);
     pending = undefined;
-    child.stdin.end();
+    stdin.end();
+    stopPublicRelay();
   };
-  streams.attach(child, refuse);
+  streams.attach({ stdout: child.stdout, stderr: child.stderr }, refuse);
   const protocol = child.stdio[3],
     requests = child.stdio[4];
   assert.ok(protocol && requests instanceof Writable);
@@ -330,6 +614,25 @@ export async function launchIsolatedLinuxNativeSession(
           selectedPending.resolve(inspectPrivateNativeDriverResponse(packet.response));
           continue;
         }
+        if (
+          publicBinding &&
+          ["native-private-fuse", "public-setup-ready", "public-services-stopped"].includes(
+            String(packet.kind),
+          )
+        ) {
+          assert.ok(
+            receipt.public_events.length < 64 && Buffer.byteLength(JSON.stringify(packet)) <= 8192,
+          );
+          if (
+            packet.kind === "native-private-fuse" &&
+            packet.action === "mount" &&
+            packet.stage === "intent"
+          )
+            publicBudget!.chargeMount();
+          receipt.public_events.push(structuredClone(packet));
+          if (packet.kind === "public-services-stopped") stopPublicRelay();
+          continue;
+        }
         const event = parseNamespacePacket(packet, nonce);
         assert.ok(events.length < 8);
         if (event.kind === "namespace-ready") {
@@ -347,6 +650,61 @@ export async function launchIsolatedLinuxNativeSession(
     }
   });
   child.on("error", refuse);
+  let publicStopping = false;
+  let relayJoined: Promise<void> = Promise.resolve();
+  if (publicBinding) {
+    assert.ok(networkPolicyPath && networkPolicySha);
+    const input = childPipes[5],
+      output = childPipes[6];
+    assert.ok(input instanceof Duplex && output instanceof Duplex);
+    // Constructor ABI is (reader,writer): FD5 receives outer responses and FD6
+    // emits guest requests. Keep the TLS bytes opaque and preserve backpressure.
+    const relay = spawn(
+      binding.tools.python!.path,
+      [
+        "-I",
+        "-S",
+        "-B",
+        `${binding.controller.root}/apps/desktop/scripts/native-linux-public-network.py`,
+        "--outer-controlled",
+        networkPolicyPath,
+        networkPolicySha,
+        String(Math.min(1750000, Math.floor(remaining()))),
+      ],
+      {
+        env: { PATH: "/usr/bin:/bin", LANG: "C.UTF-8" },
+        stdio: ["pipe", "pipe", "inherit", "pipe"],
+      },
+    );
+    receipt.public_relay = { process_id: relay.pid, exit: null };
+    assert.ok(relay.stdin && relay.stdout);
+    const control = relay.stdio[3];
+    assert.ok(control instanceof Writable);
+    let stopRequested = false;
+    stopPublicRelay = () => {
+      if (stopRequested) return;
+      stopRequested = true;
+      control.end(Buffer.from([0]));
+    };
+    control.on("error", refuse);
+    assert.ok(publicBudget);
+    const uploadLimiter = nativePublicRelayLimiter("upload", publicBudget);
+    const downloadLimiter = nativePublicRelayLimiter("download", publicBudget);
+    uploadLimiter.on("error", refuse);
+    downloadLimiter.on("error", refuse);
+    output.pipe(uploadLimiter).pipe(relay.stdin);
+    relay.stdout.pipe(downloadLimiter).pipe(input);
+    for (const stream of [output, input, relay.stdin, relay.stdout]) stream.on("error", refuse);
+    relay.on("error", refuse);
+    relayJoined = new Promise<void>((resolve) =>
+      relay.once("close", (code, signal) => {
+        receipt.public_relay!.exit = { code, signal, observed_at: new Date().toISOString() };
+        if (!publicStopping || code !== 0 || signal !== null)
+          refuse(new Error("public relay ended before complete owned settlement"));
+        resolve();
+      }),
+    );
+  }
   const joined = new Promise<typeof receipt>((resolve) =>
     child.once("close", (code, signal) => {
       receipt.streams = streams.finish();
@@ -378,6 +736,7 @@ export async function launchIsolatedLinuxNativeSession(
   }, performance.now() + remaining());
   const custody = async () => {
     await bounded(joined, "native namespace settlement remains unknown");
+    await bounded(relayJoined, "public relay settlement remains unknown");
     assert.ok(
       receipt.ready &&
         receipt.exit &&
@@ -385,7 +744,13 @@ export async function launchIsolatedLinuxNativeSession(
         Number.isInteger(receipt.exit.code),
     );
     await recheck();
-    return { ...receipt, ready: receipt.ready, exit: receipt.exit, quiesced: true as const };
+    return {
+      ...receipt,
+      ready: receipt.ready,
+      exit: receipt.exit,
+      quiesced: true as const,
+      public_budget: publicBudget?.snapshot(),
+    };
   };
   let stopping: ReturnType<typeof custody> | undefined;
   return {
@@ -395,31 +760,49 @@ export async function launchIsolatedLinuxNativeSession(
     observeRuntime: () =>
       bounded(
         new Promise<unknown>((resolve, reject) => {
-          const request = get(`http://127.0.0.1:${port}/native-runtime`, { agent }, (response) => {
-            const parts: Buffer[] = [];
-            let bytes = 0;
-            response.on("data", (chunk: Buffer) => {
-              bytes += chunk.length;
-              if (bytes > 1024 * 1024) {
-                request.destroy(new Error("native runtime observation exceeds bound"));
-                return;
-              }
-              parts.push(chunk);
-            });
-            response.on("error", reject);
-            response.on("end", () => {
-              try {
-                assert.equal(response.statusCode, 200);
-                const raw: unknown = JSON.parse(
-                  new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts)),
-                );
-                assert.ok(isRecord(raw) && raw.schema_version === 1 && raw.authority === "none");
-                resolve(raw);
-              } catch (error) {
-                reject(error);
-              }
-            });
-          });
+          const request = get(
+            `http://127.0.0.1:${port}/${publicBinding ? "native-public-runtime" : "native-runtime"}`,
+            { agent },
+            (response) => {
+              const parts: Buffer[] = [];
+              let bytes = 0;
+              response.on("data", (chunk: Buffer) => {
+                bytes += chunk.length;
+                if (bytes > 1024 * 1024) {
+                  request.destroy(new Error("native runtime observation exceeds bound"));
+                  return;
+                }
+                parts.push(chunk);
+              });
+              response.on("error", reject);
+              response.on("end", () => {
+                try {
+                  if (publicBinding && response.statusCode === 503) {
+                    const body: unknown = JSON.parse(
+                      new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts)),
+                    );
+                    assert.ok(
+                      isRecord(body) &&
+                        Object.keys(body).sort().join(",") === "authority,state" &&
+                        body.state === "runtime-not-ready" &&
+                        body.authority === "none",
+                    );
+                    throw Object.assign(new Error("ordinary public runtime is not yet stable"), {
+                      code: "ERR_NATIVE_PUBLIC_RUNTIME_NOT_READY",
+                    });
+                  }
+                  assert.equal(response.statusCode, 200);
+                  const raw: unknown = JSON.parse(
+                    new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(parts)),
+                  );
+                  assert.ok(isRecord(raw) && raw.schema_version === 1 && raw.authority === "none");
+                  resolve(raw);
+                } catch (error) {
+                  reject(error);
+                }
+              });
+            },
+          );
           request.on("error", reject);
         }),
         "native runtime observation exhausted original deadline",
@@ -428,7 +811,8 @@ export async function launchIsolatedLinuxNativeSession(
     ready: () => bounded(readiness, "native namespace startup deadline"),
     stop() {
       stopping ??= (async () => {
-        child.stdin.end();
+        publicStopping = true;
+        stdin.end();
         const result = await custody();
         agent.destroy();
         assert.ok(!failed && result.exit.code === 0, "native namespace failed; preserve capture");

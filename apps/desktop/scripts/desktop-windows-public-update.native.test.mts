@@ -34,6 +34,29 @@ const snapshot = (processes = [driver, prior], application_pid: number | null = 
   processes,
 });
 
+void test("parked B child configuration is an explicit closed phase and cannot select a V2 continuation or keep-installed boolean", () => {
+  const journey = {
+    binding: "C:\\fixed\\binding.json",
+    binding_sha256: "a".repeat(64),
+    application,
+    output: "C:\\capture\\public",
+    prior_sha256: "b".repeat(64),
+    prior_version: "0.1.0-beta.1",
+    candidate_sha256: "c".repeat(64),
+    candidate_installer_sha256: "d".repeat(64),
+    candidate_version: "0.1.0-beta.2",
+    phase: "park-v0-with-v1",
+  };
+  const raw = { schema_version: 2, kind: "ordinary-windows-public-update", journey };
+  assert.equal(inspectWindowsPublicUpdateConfiguration(raw).phase, "park-v0-with-v1");
+  for (const value of [
+    { ...raw, schema_version: 1 },
+    { ...raw, journey: { ...journey, phase: "continue-with-v2" } },
+    { ...raw, journey: { ...journey, keep_installed: true } },
+  ])
+    assert.throws(() => inspectWindowsPublicUpdateConfiguration(value));
+});
+
 void test("public relaunch requires original exit and a distinct exact installed identity", () => {
   assert.deepEqual(
     selectWindowsPublicRelaunch(snapshot(), snapshot([driver, next], 3), application),
@@ -118,6 +141,7 @@ void test("real installed-byte readback refuses empty and aliased regular files"
 void test("retained state requires a real favorite, appearance choice and exact update preferences", () => {
   const before = {
     application_origin: "http://tauri.localhost" as const,
+    application_url: "http://tauri.localhost/",
     app_local_data: "C:\\qualification\\AppData\\Local\\io.github.portcove.portcove",
     application_version: "1.0.0",
     library_root: "C:\\qualification\\library",
@@ -300,11 +324,15 @@ void test("actual ordinary state callback binds packaged origin, known folder an
   };
   let origin = "http://tauri.localhost";
   const browser = {
-    executeAsyncScript: async (callback: (done: (result: string) => void) => unknown) =>
+    executeAsyncScript: async (
+      callback: (platform: string, done: (result: string) => void) => unknown,
+      platform: string,
+    ) =>
       new Promise<string>((resolve) => {
-        runInNewContext(`(${callback.toString()})(done)`, {
+        runInNewContext(`(${callback.toString()})(platform, done)`, {
+          platform,
           done: resolve,
-          location: { origin },
+          location: { origin, href: origin + "/" },
           window: {
             __TAURI_INTERNALS__: {
               invoke: async (command: string, args?: object) => {
@@ -385,6 +413,7 @@ void test(
         candidate_version: "1.0.0-beta.2",
       };
       for (const change of [
+        { schema_version: 2, phase: "continue-with-v2" },
         { metadata_url: "https://untrusted.invalid/" },
         { prior_version: "different" },
         { candidate_version: input.prior_version },
@@ -419,7 +448,7 @@ void test(
         assert.equal(result.status, 1, result.stderr);
         assert.match(
           stripVTControlCharacters(result.stderr).replaceAll(/\s+/gu, " "),
-          /Ordinary public update (?:fixed input schema differs|version absent|must begin with the distinct exact appointed V0)/u,
+          /Ordinary public update (?:fixed input schema differs|version absent|park phase differs|must begin with the distinct exact appointed V0)/u,
         );
         await assert.rejects(stat(path.join(directory, "absent-binding.json")), { code: "ENOENT" });
       }

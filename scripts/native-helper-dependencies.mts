@@ -32,11 +32,13 @@ export const nativeHelperDependencies: NativeHelperRegistry = Object.freeze(
           [
             "native-linux-isolated-init.py",
             "native-linux-isolated-plan.mts",
+            "native-linux-public-plan.mts",
             "native-linux-driver-http.mts",
             "desktop-linux-native-session.mts",
           ],
         ],
         ["native-linux-isolated-plan.mts", []],
+        ["native-linux-public-plan.mts", ["native-linux-isolated-plan.mts"]],
         ["native-linux-driver-http.mts", []],
         ["native-linux-isolated-init.py", []],
         ["desktop-linux-webkit-inspector.mts", []],
@@ -59,6 +61,7 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
     [
       "native-linux-isolated-session.mts",
       "native-linux-isolated-plan.mts",
+      "native-linux-public-plan.mts",
       "native-linux-driver-http.mts",
     ].map((name) => [helper(name), Object.freeze(["../../../scripts/runtime-values.mts"])]),
   ),
@@ -78,6 +81,11 @@ export const nativeWrapperSharedImports: NativeHelperRegistry = Object.freeze({
 });
 export const nativeHelperSharedSources = Object.freeze([
   "apps/desktop/test/capture-target.ts",
+  // Fixed read-only Python modules loaded from hash-checked captured bytes by
+  // the public init/services branch. Capture is source custody, not execution.
+  helper("native-linux-public-services.py"),
+  helper("native-linux-public-network.py"),
+  helper("native-linux-public-fuse.py"),
   "scripts/native-qualification-account-client.ps1",
   "scripts/native-qualification-account.cs.txt",
   // Launcher and admission code is already loaded when prelaunch capture begins.
@@ -187,6 +195,7 @@ export function nativeHelperSourceDependencies(
         ? [
             "base64",
             "ctypes",
+            "datetime",
             "hashlib",
             "http.client",
             "json",
@@ -200,6 +209,7 @@ export function nativeHelperSourceDependencies(
             "subprocess",
             "sys",
             "time",
+            "types",
             "pathlib",
           ]
         : [
@@ -222,6 +232,14 @@ export function nativeHelperSourceDependencies(
       if (!runtimeImports.has(module))
         throw new Error(`Undeclared Python runtime import in ${file}: ${module}`);
     }
+    // The one maintained init loader executes exactly the bytes it boundedly
+    // read and hashed. Its fixed module and transitive modules are shared source
+    // inputs above; other dynamic execution remains unsupported.
+    if (file === helper("native-linux-isolated-init.py"))
+      source = source.replace(
+        'exec(compile(data, "/native/public-services.py", "exec"), module.__dict__)',
+        "",
+      );
     if (/\b(?:__import__|exec|eval)\s*\(/u.test(source))
       throw new Error(`Unsupported dynamic Python helper import in ${file}`);
   } else {

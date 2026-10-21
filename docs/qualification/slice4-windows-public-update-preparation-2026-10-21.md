@@ -164,3 +164,262 @@ passed resource-admitted type-aware lint. Earlier resource-wrapper path failure
 ran no lint; subsequent typing failures exposed floating test promises and an
 untyped observation array, both repaired before this successful check. These
 feedback results confer no account, native-host or public-artifact acceptance.
+
+## Public-parent source custody in preparation
+
+A separate source checkpoint prepares the protected installed parent connection.
+An explicit schema-2 descriptor proposes the fixed initial-cohort profile plus
+one public-build configuration identity; schema 1 keeps its original behavior.
+The descriptor carries no version, tag, executable hash or accepted-result flag.
+Its actual installed task, source, protected bytes and setup-grant checks remain
+mandatory. No descriptor or host setup has been changed.
+
+The new actual-default source callable reuses the parent's existing pinned
+read-only GitHub transport. It recovers the current journal's published seed,
+materializes the complete exact public site, and invokes the maintained pinned
+Rust/Tough verifier. It binds Root, offline Targets and payload registry to the
+protected publication configuration. The first two namespace allocations with
+eligible published records must match exact prepared source/tree; failed or
+retired allocations without such records do not consume either slot. Inconsistent
+records or immutable Release assets still refuse. Current eligible
+Preview must still equal V1, and both versions and package bytes must differ.
+Opaque package acquisition brackets a complete immutable Release/asset inventory
+and retains exact hashes. Imported JSON cannot enter these private custody maps.
+These are source/package facts, not native acceptance or compiler observations.
+
+This checkpoint is not a standalone delivery or the final parent connection.
+Local-parent compiler attestation collection, durable attempt custody, the hard
+outer supervisor, public capture/report handoff, installed setup renderer and
+worker routing are still being joined. The worker must preserve the existing
+native pre/post-sign path while a candidate is active, then select the public
+cohort automatically; replacing it at initial setup would prevent V0/V1 release.
+The V0-to-V1 route does not complete the later withdrawal/forward-repair proof.
+
+The focused source/association/refusal selection passed 20 cases, with the one
+existing optional keyless-tool fixture skipped on this invocation. Type-aware
+lint passed all five changed TypeScript files after four ordinary draft typing
+diagnostics were repaired; retained logs preserve the original result. These
+checks invoke no native account, installer, GUI, provider mutation or public feed.
+
+The next source increment reuses the existing compiler report parser and
+attestation inspector through the same parent-owned pinned GitHub transport.
+It generates the complete compiler-source closure from the protected local
+controller with its pinned Git executable, verifies the real four-file prepared
+transform and original source tree, then checks the actual producer run, complete
+four-report subject matrix, independently appointed public-build bundle and the
+single NSIS package against the Tough record. The protected local workflow bytes
+supply the expected workflow digest. The public bundle Root/payload key must
+match the actual published pair. Report ZIP parsing is mechanically shared with
+the hosted collector; injected/hosted scope and the hosted private getter remain
+unchanged. A separate local private map retains all raw reports, original ZIPs,
+public bundle archives, verification output, provider facts and source closure.
+It cannot be populated from imported hosted/local summaries.
+
+The deterministic cohort rule skips failed/retired allocations lacking eligible
+public records. A later unpublished allocation can proceed without changing the
+selected pair; every getter still reconstructs the exact same pair from complete
+current allocation facts and requires the same published seed. Current Preview
+or selected source/record drift continues to refuse.
+
+The final focused source/parser/import-refusal selection passed 11/11 with zero
+skips; type-aware lint passed eight changed source/test files before the final
+mechanical removal of a redundant whole-allocation-list comparison. The first
+new ZIP fixture accidentally supplied objects to the existing tuple-based helper
+and failed before parsing; its log is retained alongside the corrected run under
+`work/windows-public-update/`. This does not qualify an actual local-parent,
+GitHub, compiler, installer or public updater execution. The actual attempt,
+parent dispatch, supervised driver and cross-invocation public proof remain
+unfinished and must be connected before this branch is delivered.
+
+## Protected attempt and initial Windows caller preparation
+
+The source now joins the actual protected parent, published pair, materialized
+package and local compiler receipts to the existing setup-created native custody
+anchor. Public phases use the same `native-attempt-<digest>` leaves. Their
+identity includes the actual checkpoint/capacity digest without creating or
+resetting coordinator retry counters. Imported summaries cannot mint this claim.
+Historical native attempts require positive original local root/group teardown
+and retained streams; this passive resource check neither resolves nor repeats
+an ambiguous Check POST. A completed public A advances only to the parked B
+phase; completed B waits for genuine V2 continuation, and failed or incomplete
+local settlement refuses reuse.
+
+The fixed Windows worker now routes an actual inactive reservation plus the
+protected public profile through the existing original-lifetime supervisor into
+the ordinary installer/UI entry. The legacy active-candidate stage path remains
+separate. The actual public getter binds the sole bridge finish, original child
+handles, exact candidate root creation/teardown, automatic V1 executable bytes,
+meaningful user state and all three named recovery observations. Its technical
+settlement is created only from that private capture getter, with no raw accepted
+JSON constructor or Check/report2 authority.
+
+Ordinary retained files keep their 4 MiB bound and 512 MiB combined bound. The
+existing Windows preimage helper has ten fixed snapshots with two fixed payload
+slots each; only those exact paths retain the existing 512 MiB payload bound.
+This is a streamed recheck of already-retained raw bytes, not an additional copy
+or a storage reservation. Linux's original bounded wire remains separate from
+its enumerated small exported files. Available disk and actual native behavior
+remain unobserved. Original compiler/package/public-source evidence must be
+acquired within the provider's seven-day retention window; later phases must
+retain the genuine original bytes and must not rebuild expired evidence.
+
+The new source/phase/import-refusal selection passed 29 tests with zero skips;
+the Windows driver selection passed six actual inert PowerShell/process tests.
+The initial driver run had four passes and two fixture failures: a nested
+hashtable differed from real JSON objects, and the old stage fixture omitted its
+real schema field. Both fixtures now model the real input and retain their old
+negative assertions. Typed checks passed after explicit proof-outcome narrowing
+and removal of one unnecessary test assertion. A further real-filesystem check
+passes for empty streams, a streamed 5 MiB preimage, oversized input, hardlink
+alias refusal and expired original-clock refusal. No account, installer, GUI,
+namespace, public publication or native acceptance execution occurred.
+
+The initial public Windows route is connected in source. Parked B, original
+historical evidence under a changed V2 feed, and full withdrawal/forward-repair
+continuation are still held. These are required remaining engineering before a
+consolidated setup can be treated as ready; V0-to-V1 alone is not the full proof.
+
+The next source increment connects the derived `park-v0-with-v1` phase through a
+closed schema2 child input. It uses the ordinary UI to stage genuine public V1
+while V0 remains installed, retains meaningful state/raw staging preimages,
+positively closes the owned application tree, and preserves that installation.
+Only this fixed phase returns before uninstall; schema1 A keeps its original
+apply/relaunch/recovery/uninstall route. The actual parent getter additionally
+binds the retained V0 executable, V1 staged identity and current-user installer
+registration before recording technical phase settlement. Eighteen inert
+configuration, file, PowerShell and driver checks passed with zero skips, and
+six changed TypeScript files passed typed lint. No installer or account ran.
+
+The later V2 continuation is still held. In addition to original evidence
+retention and current Tough withdrawal/forward-repair readback, the setup needs
+a concrete rendezvous: V2's native qualification currently uses the same Windows
+account/product registration and could alter B's parked V0 before V2 publication.
+Positive process settlement does not isolate that durable registration. This
+source increment does not appoint another account, relax native gates or claim
+that scheduling conflict resolved.
+
+The current-record association helper now shares the original immutable-release
+parser with the initial selector. It can reconstruct the precise original pair
+under a retained cohort digest after V1's promotion is withdrawn, require the
+actual V1 withdrawal, and identify only the first genuinely published eligible
+newer V2 while refusing later Preview drift or a required bridge. This helper is
+data-only and does not supply the still-required actual protected historical
+claim, compiler/package retention or parent/capture continuation. Six focused
+pair cases and typed checks passed. The first new test wrongly expected the
+initial selector to refuse V0/V2 reselection; its corrected assertion explicitly
+proves that reselection changes the retained pair digest, which is why the
+continuation requires the original protected marker.
+
+The historical local getter separately recovers only an actual protected
+parent's completed A/parked-B prefix, rehashing original markers, capture roots,
+streams and retained files. It has no raw constructor or current-policy/native
+acceptance capability. Later appended attempts do not rewrite that historical
+fact; a new resource claim must still establish its own complete current
+settlement and policy before execution. Imported-parent/cohort refusals and the
+existing phase contracts pass, with typed checks. The actual current-Tough/V2
+factory and its new invocation join remain unfinished.
+
+The current-source continuation factory now accepts only that private retained
+cohort receipt, acquires a fresh complete published site and actual keyless
+Tough preparation, and independently rederives the exact withdrawal/V2 graph.
+Its package custody reuses the original protected B input bytes for V0 and V1;
+missing old bytes refuse instead of downloading or rebuilding a replacement.
+V2 still uses fresh immutable Release association, and all three slots bracket
+provider readback and hash the exact retained bytes. Eleven pair/phase cases
+and six affected typed modules passed. These are source/refusal checks, not an
+actual provider or native continuation. Historical compiler provenance, the
+new execution claim, the Windows registration rendezvous and V2 capture remain
+required before this path can execute.
+
+Original Windows compiler acquisition now writes a bounded fixed retained-input
+manifest containing the already verified executable/package/source/run identity
+and exact original proof-file inventory. Its raw SHA is part of the identity
+whose digest the protected attempt marker already binds. The historical path
+requires the actual private continuation pair and completed B receipt, checks
+that original admitted digest before rehashing every retained proof, and compares
+the source/run/package again to current Tough history. It never redownloads old
+compiler artifacts or admits a manifest on its own. Missing, changed or legacy
+unmanifested inputs hold. This source preparation precedes any public attempt;
+no existing actual public claim was migrated. Fifteen focused data/refusal cases
+passed with zero skips and five affected modules passed typed lint. The first
+typed draft exposed unknown-valued parser fields; explicit validated return
+values fixed that diagnostic without a cast. Actual positive historical-provider
+and native execution remain unobserved.
+
+The shared actual invocation claim now has an explicit continuation branch. Only
+an actual current continuation pair plus its historical receipt can turn the
+complete positive A/B history into continue-with-v2. It still requires no active
+coordinator candidate, complete current local resource settlement, original
+parent lifetime, and the same exclusive anchor/CreateNew append. V2 requests
+separately pin parked V1 package/compiler identities and the exact original B
+invocation. The private getter returns those opaque package/compiler references
+and rereads the original settled B files/wire; copied phase data cannot claim.
+A completed third phase is recognized without replaying it, while the historical
+getter continues to pin only the original A/B prefix. Sixteen data/refusal cases
+and five affected typed modules passed. Execution dispatch/capture continuation
+and the shared Windows registration rendezvous remain held; this claim is not
+an observation that a public updater ran.
+
+The fixed Windows capture also retains exact copies of the shipping signature
+component's config, registry, raw stdout and empty stderr under its own attempt
+root. The actual component getter remains mandatory; copied files are compared
+against its original retained bytes on every capture read and enter the existing
+complete settlement file inventory. This preserves explicit component evidence
+for a later wake rather than relying on a vanished private receipt. Nine scoped
+contract/refusal cases and two typed modules passed; they did not invoke a real
+parent or exercise a positive native signature subtype.
+
+Independent composition review found and repaired a registration omission: the
+shared compiler ZIP decoder now selects both hosted and public compiler tests
+and release-security ownership. An actual helper-only classify/plan regression
+passes, along with twenty-two existing routing/plan checks and typed lint.
+
+A further cross-contract source trace found that the fixed Windows driver passed
+its work root as installer TestBase, while the maintained account adapter guard
+requires a strict descendant. The actual argv now selects only the fixed
+installer child; the guard remains unchanged. The regression evaluates the
+actual driver argument assignment against the actual installer guard and proves
+root equality/sibling refusal. Its first extraction lacked PowerShell's lexical
+script-directory binding and failed before guard evaluation; the fixture now
+supplies only that source-directory binding. Eight driver checks passed with
+zero skips on Windows, with typed lint. No account, installer or application ran.
+The V2 continuation still needs its exact retained-work invocation and the
+separate publication/registration rendezvous.
+
+## Shared Linux settlement connection
+
+The shared attempt module now records Linux public settlement only through the
+actual private Linux capture getter. It preserves the original group/root
+closure, separate full wire identity, all ordinary exported paths (prefixed
+only with guest-capture/), every profile manifest/chunk, and the fixed local
+plan/request/registration/host-readback inputs. Recognized hidden atomic JSON
+aliases stay covered by the original complete wire rather than invented normal
+filenames. Existing 512-file, 4 MiB ordinary-file and separate 272 MiB wire bounds
+remain unchanged; an oversized combined inventory refuses. Only exact observed
+or parked reports with actual driver status zero and no failure can advance.
+Other positively settled observations retain refused scope. The original
+CreateNew/fsynced settlement path is shared with Windows and rehashes retained
+files/wire before return; actual claim/capture getters are checked again.
+
+Parent phase routing separately inspects the complete setup-owned anchor before
+selecting initial/parked/await-V2/completed. Missing or contradictory history
+throws; it does not become a catch-and-fallback initial run. Eighteen focused
+contract/refusal checks and four typed modules passed; these do not establish a
+positive Linux host, namespace, GUI, public-origin or native acceptance run.
+The source dependency composition preserves the exact reviewed Windows caller
+and incorporates the reviewed Linux capture/forward-repair source, including
+root's still-separate safe restart-supersession patch. No remote or host effects
+were performed by this connection work.
+
+The installed worker now consumes that explicit parent-phase route. Linux initial,
+parked and genuine V2 continuation each use their actual private pair, package,
+claim, capture and settlement consumers; parked V1 remains a distinct opaque
+input for V2. Completed history returns without a launch, and contradictory
+history propagates refusal. Windows initial/parked paths retain their compiler
+requirements; its unconnected V2 capture refuses before claiming an invocation.
+The actual worker module was imported in a fresh builtins-only child with all
+provider/native dependencies mocked: initial/parked/continuation ordering,
+completed idempotency, contradictory-history refusal and Windows continuation
+HOLD all passed. This is dispatch coverage only and cannot mint a real factory
+brand or native observation. Thirteen focused tests and three typed modules
+passed; actual host/setup/public acceptance remains pending.

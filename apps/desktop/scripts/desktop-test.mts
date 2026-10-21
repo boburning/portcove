@@ -2170,10 +2170,12 @@ async function startDriver(childEnvironment: NodeJS.ProcessEnv = {}) {
       spawnError = error;
     });
   }
-  for (const stream of [driver.stdout, driver.stderr])
+  for (const stream of [driver.stdout, driver.stderr]) {
+    if (!stream) throw new Error("Owned driver capture stream is missing");
     stream.on("data", (chunk: Buffer) => {
       driverLog = (driverLog + chunk.toString()).slice(-1024 * 1024);
     });
+  }
   if (linuxSelectedSession) await required(linuxLaunch).ready();
   if (linuxPackagedInspector) return;
   try {

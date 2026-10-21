@@ -139,6 +139,10 @@ void test("installed Selenium performs the required status/session/delete operat
 void test("private driver refuses arbitrary routes, methods, bodies and response smuggling", () => {
   const valid = { method: "GET", path: "/status", body_base64: "" };
   assert.deepEqual(inspectPrivateNativeDriverRequest(valid), valid);
+  assert.deepEqual(
+    inspectPrivateNativeDriverRequest({ ...valid, path: "/native-public-runtime" }),
+    { ...valid, path: "/native-public-runtime" },
+  );
   for (const changed of [
     { ...valid, method: "CONNECT" },
     { ...valid, path: "http://127.0.0.1:80/" },
@@ -148,6 +152,9 @@ void test("private driver refuses arbitrary routes, methods, bodies and response
     { ...valid, body_base64: "YQ==" },
     { ...valid, body_base64: "YWJj\n" },
     { ...valid, accepted: true },
+    { ...valid, path: "/native-public-runtime", method: "POST" },
+    { ...valid, path: "/native-public-runtime", method: "DELETE" },
+    { ...valid, path: "/native-public-runtime", body_base64: "YQ==" },
   ])
     assert.throws(() => inspectPrivateNativeDriverRequest(changed));
   for (const changed of [

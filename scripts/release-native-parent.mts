@@ -68,6 +68,22 @@ export function inspectWindowsNativeParentSetup(raw: unknown) {
     descriptor.platform_label,
     "windows-task",
   );
+  if (descriptor.public_journey) {
+    const contained = (file: string) => {
+      const relative = path.win32.relative(String(raw.controller_root), file);
+      return !!relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative);
+    };
+    if (
+      !transport.post_sign_verifier ||
+      !contained(transport.post_sign_verifier.path) ||
+      (transport.public_signature_control && !contained(transport.public_signature_control.path)) ||
+      (descriptor.platform_label === "windows-x86_64" &&
+        (!transport.windows_tools?.git || !contained(transport.windows_tools.git.path)))
+    )
+      throw new Error(
+        "public source tools must be staged inside the actual protected controller tree",
+      );
+  }
   if (
     !isRecord(fixed) ||
     !isRecord(fixed.producer) ||

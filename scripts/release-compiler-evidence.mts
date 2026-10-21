@@ -2,8 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { crc32, inflateRawSync } from "node:zlib";
-import { inspectBoundedZip } from "./bounded-zip.mts";
+import { readReleaseCompilerReportArchive } from "./release-compiler-report-archive.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import { inspectTrustedAssemblyInput } from "./trusted-release-assembly.mts";
 import { inspectCompiledCliPackage } from "./release-compiler-outputs.mts";
@@ -412,31 +411,8 @@ export async function collectReleaseCompilerEvidence(
         throw new Error("compiler report artifact bytes differ");
       await retain(`${artifact.id}.zip`, archive);
       const suffix = `${inter}-${platform}`;
-      const names = [`compiler-observation-${suffix}.json`, `compiler-result-${suffix}.json`];
-      const { entries } = inspectBoundedZip(archive, {
-        compressedBytes: 2 * 1024 * 1024,
-        expandedBytes: 512 * 1024,
-        files: 2,
-        nameBytes: 128,
-        allowedPaths: new Set(names),
-      });
-      if (entries.length !== 2)
-        throw new Error("compiler report complete started/result inventory differs");
-      let result: Buffer | undefined;
-      let initial: Buffer | undefined;
-      for (const entry of entries) {
-        const compressed = archive.subarray(entry.data, entry.dataEnd);
-        const bytes =
-          entry.method === 0
-            ? Buffer.from(compressed)
-            : inflateRawSync(compressed, { maxOutputLength: entry.bytes });
-        if (bytes.length !== entry.bytes || crc32(bytes) !== entry.crc)
-          throw new Error("compiler report member length/CRC differs");
-        await retain(entry.name, bytes);
-        if (entry.name.startsWith("compiler-result-")) result = bytes;
-        else initial = bytes;
-      }
-      if (!result) throw new Error("compiler result absent");
+      const { initial, result, files } = readReleaseCompilerReportArchive(archive, platform, inter);
+      for (const [name, bytes] of files) await retain(name, bytes);
       const raw: unknown = JSON.parse(result.toString("utf8"));
       const report = inspectReleaseCompilerReport(raw, {
         platform,
