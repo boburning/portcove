@@ -1,7 +1,4 @@
-import {
-  inspectAggregateOriginalUpload,
-  inspectControllerAggregateLocator,
-} from "./release-aggregate-locator.mts";
+import { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 export { inspectControllerAggregateLocator } from "./release-aggregate-locator.mts";
 /** Read-only controller integration. Acquires existing authority observations;
  * it cannot create admission, sign, allocate or publish. */
