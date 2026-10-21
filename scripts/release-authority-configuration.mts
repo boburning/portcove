@@ -1,6 +1,6 @@
 import { releaseCanonicalDigest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
-import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
+import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
 import { inspectReleaseControlPhase } from "./release-control-phases.mts";
 import { performance } from "node:perf_hooks";
 import { coordinatorCommandTimeout } from "./release-coordinator-deadline.mts";

@@ -1,3 +1,8 @@
+import {
+  inspectCatalogCoreReport,
+  catalogPublicationInventory as inventory,
+} from "./release-catalog-publication-contract.mts";
+export { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
 /** Actual fixed Core inspection, not publisher or semantic acceptance. Imported
  * reports and copied receipts cannot construct this process-local capability. */
 import { execFile } from "node:child_process";
@@ -15,10 +20,6 @@ import { isRecord } from "./runtime-values.mts";
 
 const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
-const inventory = (files: ReadonlyMap<string, Buffer>) =>
-  [...files]
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: hash(bytes) }));
 function remaining(deadline: number) {
   const left = Math.floor(deadline - performance.now());
   if (!Number.isFinite(deadline) || left < 1)
@@ -91,25 +92,6 @@ export async function readCatalogPublicationBundle(directory: string, deadline: 
   await walk(directory, "", 0);
   if (!files.has("definitions/index.json")) throw new Error("catalog content index missing");
   return files;
-}
-
-/** Validates byte binding only. Semantic projection comes from the actual Core
- * invocation below, never this parser or a caller-supplied success flag. */
-export function inspectCatalogCoreReport(raw: unknown, files: ReadonlyMap<string, Buffer>) {
-  if (
-    !isRecord(raw) ||
-    Object.keys(raw).sort().join(",") !==
-      "authority,definitions,files,index_sha256,publication_schema,scope" ||
-    raw.publication_schema !== 1 ||
-    raw.authority !== "none" ||
-    raw.scope !== "inert-managed-definition-publication-inspection" ||
-    !Array.isArray(raw.definitions) ||
-    !Array.isArray(raw.files) ||
-    JSON.stringify(raw.files) !== JSON.stringify(inventory(files)) ||
-    raw.index_sha256 !== hash(files.get("definitions/index.json") ?? Buffer.alloc(0))
-  )
-    throw new Error("Core inspection does not bind exact catalog bytes");
-  return structuredClone(raw);
 }
 
 interface InspectionReceipt {

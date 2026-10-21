@@ -1,6 +1,7 @@
 /** Integrity-only catalog subject contracts. JSON, digests and journal custody
  * never establish catalog admission, a trust root or permission to publish. */
 import { isRecord } from "./runtime-values.mts";
+import { createHash } from "node:crypto";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { metadataInstant } from "./release-metadata-contract.mts";
 function exact(raw: unknown, fields: string): asserts raw is Record<string, unknown> {
@@ -150,4 +151,28 @@ export function assertCatalogSitePublicationBinding(
   )
     throw new Error("catalog site expectation changed admitted prior/root");
   return expected;
+}
+
+const catalogFileHash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+export const catalogPublicationInventory = (files: ReadonlyMap<string, Buffer>) =>
+  [...files]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([target, bytes]) => ({ target, bytes: bytes.length, sha256: catalogFileHash(bytes) }));
+/** Validates byte binding only. Semantic projection comes from the actual Core
+ * invocation, never this parser or a caller-supplied success flag. */
+export function inspectCatalogCoreReport(raw: unknown, files: ReadonlyMap<string, Buffer>) {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      "authority,definitions,files,index_sha256,publication_schema,scope" ||
+    raw.publication_schema !== 1 ||
+    raw.authority !== "none" ||
+    raw.scope !== "inert-managed-definition-publication-inspection" ||
+    !Array.isArray(raw.definitions) ||
+    !Array.isArray(raw.files) ||
+    JSON.stringify(raw.files) !== JSON.stringify(catalogPublicationInventory(files)) ||
+    raw.index_sha256 !== catalogFileHash(files.get("definitions/index.json") ?? Buffer.alloc(0))
+  )
+    throw new Error("Core inspection does not bind exact catalog bytes");
+  return structuredClone(raw);
 }

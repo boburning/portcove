@@ -10,7 +10,7 @@ import { parseVersionClassification } from "../apps/desktop/scripts/release-vers
 import { inspectReleaseReviewRequest } from "./release-review-request.mts";
 import { inspectPublishedApplicationSource } from "./release-published-source.mts";
 import { inspectCatalogSemanticOpportunity } from "./release-catalog-semantic.mts";
-import { inspectCatalogCoreReport } from "./release-catalog-inspection.mts";
+import { inspectCatalogCoreReport } from "./release-catalog-publication-contract.mts";
 import {
   assertPreviewWithdrawalClassification,
   readPreviewWithdrawalSource,
