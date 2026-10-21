@@ -360,9 +360,15 @@ Long words wrap, filters can wrap, and the collection scrolls rather than shrink
 covers to fit a row count. The grid chooses columns from available width; a
 reference composition's fixed frame width or column count is not a window rule.
 
-The collection now caps at 66.5rem so the 1600x1000 reference retains five
-approximately 200x300 artwork frames, while the actual desktop shell reflows to
-four columns at 1280x800 and three at 960x640. Title space reserves three lines;
+The scrolling workspace fills the available window width. Library and Catalog
+grids use that width to add columns as the window grows; the 1600x1000 reference
+does not impose a maximum collection width or column count. Catalog tracks are
+bounded at 13.75rem and can shrink below their 12.5rem preferred minimum when
+the available width requires it. Library covers retain their existing bounded
+tracks and short-window sizing. Text-heavy workspaces retain a readable inner
+content width; that content limit must not constrain the scrolling viewport or
+leave an inactive scrolling area at the right of a wide window.
+Title space reserves three lines;
 the recognizable original-game title leads. A separate one-line project row
 follows it and precedes status. Relevant variants remain visible as wrapping
 labels in the state area, with the full identity in the accessible card name
