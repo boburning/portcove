@@ -12,6 +12,8 @@ import {
   inspectCompactCapacityOperations,
   verifyRetainedCapacityOperation,
   inspectCapacityExecutorIdentity,
+  inspectSitePublicationExpectation,
+  assertPublicationResultDestination,
 } from "./release-capacity.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
 import {
@@ -25,6 +27,94 @@ import {
 } from "./release-metadata-contract.mts";
 import { capacityFixture } from "./fixtures/release-capacity-fixture.mts";
 import { isRecord } from "./runtime-values.mts";
+void test("replacement publication result uses only the consumed bounded candidate counters", () => {
+  const candidate = { version: "0.1.0-beta.1", transient_retries: 1, substantive_repairs: 0 };
+  const root = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";
+  assert.doesNotThrow(() => assertPublicationResultDestination(root + ":recovery-1-0", candidate));
+  assert.doesNotThrow(() =>
+    assertPublicationResultDestination(root, { ...candidate, transient_retries: 0 }),
+  );
+  for (const destination of [
+    root,
+    root + ":recovery-0-0",
+    root + ":recovery-2-0",
+    root + ":retry",
+    root.replace("beta.1", "beta.2") + ":recovery-1-0",
+  ])
+    assert.throws(() => assertPublicationResultDestination(destination, candidate));
+});
+void test("durable Pages intent binds exact generation, prior, public repository and artifact before any result", () => {
+  const expected = {
+    archive_sha256: "1".repeat(64),
+    artifact_id: 123,
+    prior_site_generation_sha256: "2".repeat(64),
+    repository_sha256: "3".repeat(64),
+    root_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  const original = operationFixture("pending", "e".repeat(64));
+  const {
+    id: _id,
+    outcome: _outcome,
+    completed_effects: _effects,
+    failure_evidence: _failure,
+    recovery: _recovery,
+    ...base
+  } = original;
+  const identity = {
+    ...base,
+    destination: "github-pages:boburning/portcove:complete-site",
+    site_expectation: expected,
+    executor_identity: {
+      controller_revision: "a".repeat(40),
+      execution_ref: "refs/tags/controller-v1",
+      workflow: ".github/workflows/controller.yml",
+      run_id: "123",
+      run_attempt: 1,
+      job_id: 456,
+      check_run_id: "789",
+      actor_id: "43177418",
+      role: "site-publication",
+    },
+  };
+  const pending = { ...original, ...identity, id: capacityDigest(identity), completed_effects: [] };
+  const parsed = inspectCapacityOperation(pending)!;
+  assert.deepEqual(parsed.site_expectation, expected);
+  assert.equal(parsed.outcome, "pending");
+  assert.deepEqual(parsed.completed_effects, []);
+  for (const [key, value] of Object.entries(expected))
+    assert.throws(() =>
+      inspectCapacityOperation({
+        ...pending,
+        site_expectation: {
+          ...expected,
+          [key]: typeof value === "number" ? value + 1 : "f".repeat(64),
+        },
+      }),
+    );
+  for (const changed of [
+    { ...expected, prior_site_generation_sha256: expected.site_generation_sha256 },
+    { ...expected, artifact_id: 0 },
+    { ...expected, reservation: true },
+  ])
+    assert.throws(() => inspectSitePublicationExpectation(changed));
+  const other = {
+    ...identity,
+    executor_identity: { ...identity.executor_identity, role: "payload-signing" },
+  };
+  assert.throws(
+    () => inspectCapacityOperation({ ...pending, ...other, id: capacityDigest(other) }),
+    /fixed Pages/u,
+  );
+  assert.throws(
+    () =>
+      inspectCapacityOperation({
+        ...pending,
+        site_expectation: { ...expected, prior_site_generation_sha256: null },
+      }),
+    /fixed Pages/u,
+  );
+});
 void test("initial metadata descriptor is explicit empty first generation and cannot impersonate renewal or published state", () => {
   const f = metadataBootstrapFixture();
   assertMetadataBootstrapBinding(f.descriptor, null, f.descriptor.generated_at);

@@ -8,6 +8,48 @@ import {
   executeOwnedCapacityEffect,
 } from "./release-capacity-executor.mts";
 import { metadataFixture, metadataBootstrapFixture } from "./fixtures/release-metadata-fixture.mts";
+void test("only the site executor may retain its archive and bind an exact Pages expectation", () => {
+  const destination = "github-actions:boburning/portcove:complete-site-artifact";
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("site-publication", { kind: "upload", destination }),
+  );
+  for (const role of [
+    "coordinator",
+    "payload-signing",
+    "release-publication",
+    "tuf-releases",
+  ] as const)
+    assert.throws(() => assertCapacityExecutorEffectScope(role, { kind: "upload", destination }));
+  const site_expectation = {
+    archive_sha256: "1".repeat(64),
+    artifact_id: 123,
+    prior_site_generation_sha256: "2".repeat(64),
+    repository_sha256: "3".repeat(64),
+    root_sha256: "4".repeat(64),
+    site_generation_sha256: "5".repeat(64),
+  };
+  assert.doesNotThrow(() =>
+    assertCapacityExecutorEffectScope("site-publication", {
+      kind: "upload",
+      destination: "github-pages:boburning/portcove:complete-site",
+      site_expectation,
+    }),
+  );
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("site-publication", {
+      kind: "upload",
+      destination,
+      site_expectation,
+    }),
+  );
+  assert.throws(() =>
+    assertCapacityExecutorEffectScope("payload-signing", {
+      kind: "upload",
+      destination: "github-pages:boburning/portcove:complete-site",
+      site_expectation,
+    }),
+  );
+});
 
 void test("only the fixed publisher can persist its immutable result under the existing pending journal", () => {
   const destination = "github-actions:boburning/portcove:0.1.0-beta.1:immutable-release-result";
