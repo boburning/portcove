@@ -74,6 +74,32 @@ import type { ParsedCapacityOperation } from "./release-capacity.mts";
 
 const started = performance.now();
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
+/** Locator comparison only. The actual admission below must still authenticate
+ * the aggregate's current custodian, original upload and exact candidate bytes. */
+export function inspectPublicationAggregateContext(
+  rawAggregate: unknown,
+  producer: Record<string, unknown>,
+  binding: Record<string, unknown>,
+  current: Record<string, unknown>,
+) {
+  const aggregate = inspectControllerAggregateLocator(rawAggregate);
+  const originalContextRun =
+    aggregate.run_id === producer.run_id && aggregate.run_attempt === producer.run_attempt;
+  const currentCustodian =
+    aggregate.original_upload !== undefined &&
+    aggregate.controller_revision === current.controller_revision &&
+    aggregate.controller_ref === current.controller_ref &&
+    aggregate.run_id === current.run_id &&
+    aggregate.run_attempt === current.run_attempt;
+  if (
+    aggregate.controller_revision !== producer.controller_revision ||
+    aggregate.controller_ref !== producer.controller_ref ||
+    aggregate.sha256 !== binding.aggregate_sha256 ||
+    (!originalContextRun && !currentCustodian)
+  )
+    throw new Error("publication aggregate/context custody differs");
+  return { authority: "none" as const };
+}
 export function publicationResultDestination(candidate: Record<string, unknown>) {
   const transient = candidate.transient_retries,
     substantive = candidate.substantive_repairs;
@@ -336,14 +362,10 @@ export async function runReleasePublicationController(
       identity.controller_revision !== tools.identity.controller_revision ||
       identity.controller_ref !== tools.identity.controller_ref ||
       identity.run_id !== tools.identity.run_id ||
-      identity.run_attempt !== tools.identity.run_attempt ||
-      aggregate.controller_revision !== producer.controller_revision ||
-      aggregate.controller_ref !== producer.controller_ref ||
-      aggregate.run_id !== producer.run_id ||
-      aggregate.run_attempt !== producer.run_attempt ||
-      aggregate.sha256 !== binding.aggregate_sha256
+      identity.run_attempt !== tools.identity.run_attempt
     )
       throw new Error("publication tools, own executor or selected namespace differ");
+    inspectPublicationAggregateContext(aggregate, producer, binding, tools.identity);
     const closure = inspectReleaseCompilerSourceClosure(
       JSON.parse(
         (await readControllerToolFile(tools.compiler_source_closure, 65536)).toString("utf8"),

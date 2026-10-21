@@ -15,15 +15,21 @@ import {
   assertMetadataBootstrapBinding,
 } from "./release-metadata-contract.mts";
 
-// Reviewed ceilings, not remaining storage, a reservation, or a billing quote.
+// Complete held-controller proposal. Its changed digest requires initial owner
+// ratification; historical observations do not cover this workflow. These are
+// ceilings/estimates, never remaining storage, a reservation or a billing quote.
 export const slice4CapacityResources = Object.freeze({
   contract: "slice4-no-spend-v1",
-  aggregate_workflow_sha256: "bee2037f33ae9a317af0b93a49eede17ddb81298f83d77e12f69bae7c4fd0a35",
-  input_workflow_sha256: "086ed2c625bbd45b4849eee8598a65e9bdcb394d008f47f32a081965b1223b17",
-  aggregate_job_minutes: Object.freeze([5, 25, 30, 5, 20]),
-  input_job_minutes: Object.freeze([5, 5, 5]),
+  aggregate_workflow_sha256: "7cae13eec893e5ff5dfcd2ca8cbd864dc1fd09ab4510e4afea678c6f462209ee",
+  input_workflow_sha256: "7cae13eec893e5ff5dfcd2ca8cbd864dc1fd09ab4510e4afea678c6f462209ee",
+  aggregate_job_minutes: Object.freeze([1, 4, 2, 3, 9, 2, 10, 2, 2, 2, 2, 2, 6, 5]),
+  input_job_minutes: Object.freeze([2, 2, 3, 10, 10, 8, 6, 5]),
+  wake_workflow_sha256: "c7522d5384ac2091b0ce23f005c652f5a509faf91109c8f26aea3236e7576f1c",
+  wake_job_minutes: Object.freeze([1]),
+  declared_job_minutes: 99,
   aggregate_concurrency: "application-update-production-controller",
-  input_concurrency: "portcove-release-reviewed-inputs",
+  input_concurrency: "application-update-production-controller",
+  wake_concurrency: "portcove-application-controller-wake",
   cancel_in_progress: false,
   total_job_minutes: 100,
   retention_days: 7,
@@ -31,8 +37,16 @@ export const slice4CapacityResources = Object.freeze({
   total_archive_bytes: 2 * 1024 * 1024 * 1024,
   assembly_file_bytes: 512 * 1024 * 1024,
   total_assembly_bytes: 2 * 1024 * 1024 * 1024,
-  input_receipts: 3,
+  // Three control sources plus at most eighty ready/observation pairs:
+  // four initial+14 phases, five TUF phases of three, and five site rounds.
+  input_receipts: 163,
   input_receipt_bytes: 128 * 1024,
+  diagnostic_artifacts: 10,
+  diagnostic_files_per_artifact: 66,
+  diagnostic_file_bytes: 65536,
+  diagnostic_manifest_bytes: 65536,
+  wake_receipts: 2,
+  wake_receipt_bytes: 1024 * 1024,
   shared_cache: false,
   enlarged_cache: false,
   paid_fallback: false,

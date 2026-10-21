@@ -67,6 +67,26 @@ export function projectFixedControllerJobOutputs(
   const selected = role(rawRole),
     result = record(rawResult);
   if (typeof result.decision !== "string") throw new Error("fixed output decision unavailable");
+  if (selected === "coordinator" && result.decision === "candidate-signing-custody-reused") {
+    if (
+      !["publishing", "promoting"].includes(String(result.candidate_phase)) ||
+      !Array.isArray(result.role_locators) ||
+      result.role_locators.length !== 5 ||
+      result.role_locators.some(
+        (entry: unknown, index: number) =>
+          !isRecord(entry) ||
+          entry.role !== ["releases", "preview", "stable", "snapshot", "timestamp"][index],
+      )
+    )
+      throw new Error("original signing custody routing unavailable");
+    return {
+      mode: "release",
+      stage: String(result.candidate_phase),
+      signing_custody: "reused",
+      context_locator: JSON.stringify(record(result.context_locator)),
+      role_locators: JSON.stringify(result.role_locators),
+    };
+  }
   if (selected === "coordinator" && result.decision === "metadata-context-reused")
     return { mode: "metadata", context_locator: JSON.stringify(record(result.context_locator)) };
   if (selected === "coordinator" && result.decision !== "metadata-context-prepared") {
