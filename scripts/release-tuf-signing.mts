@@ -14,6 +14,16 @@ import { assertOwnedUnlinkedPath, releasePathContains } from "./release-path-saf
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
+import {
+  catalogRoleName,
+  catalogRoleDependencies,
+  inspectCatalogContextPaths,
+  inspectIsolatedCatalogRoleRequest,
+} from "./release-catalog-signing-contract.mts";
+import type {
+  CatalogSigningRole,
+  IsolatedCatalogRoleRequest,
+} from "./release-catalog-signing-contract.mts";
 
 const run = promisify(execFile);
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -154,8 +164,24 @@ export async function signIsolatedTufRole(
   raw: IsolatedTufRoleRequest,
   lifecycle: TufRoleLifecycle,
 ) {
-  const request = inspectIsolatedTufRoleRequest(raw),
-    role = request.role,
+  return signIsolatedMetadataRole(inspectIsolatedTufRoleRequest(raw), lifecycle, "application");
+}
+/** Same fixed worker and key cleanup, with a separate catalog command/path contract.
+ * This utility does not establish protected admission; its actual caller must. */
+export async function signIsolatedCatalogTufRole(
+  raw: IsolatedCatalogRoleRequest,
+  lifecycle: TufRoleLifecycle,
+) {
+  return signIsolatedMetadataRole(inspectIsolatedCatalogRoleRequest(raw), lifecycle, "catalog");
+}
+async function signIsolatedMetadataRole<Role extends TufSigningRole | CatalogSigningRole>(
+  request: Omit<IsolatedTufRoleRequest, "role"> & { role: Role },
+  lifecycle: TufRoleLifecycle,
+  purpose: "application" | "catalog",
+) {
+  const role = request.role,
+    filename = `${purpose === "catalog" ? catalogRoleName(role) : role}.json`,
+    rustRole = purpose === "catalog" ? catalogRoleName(role) : role,
     { deadline, beforeKey, keyMaterial } = lifecycle;
   remaining(deadline);
   if (
@@ -165,11 +191,13 @@ export async function signIsolatedTufRole(
   )
     throw new Error("TUF output overlaps trusted inputs");
   await assertOwnedUnlinkedPath(path.dirname(request.output), request.output, "TUF output");
-  const dependencies = tufRoleDependencies(role);
+  const dependencies =
+    purpose === "catalog" ? catalogRoleDependencies(role) : tufRoleDependencies(role);
   const contextFiles = await readBoundedReleaseContextFiles(request.context_directory);
   const contextBytes = contextFiles.get("context.json");
   if (!contextBytes) throw new Error("TUF context missing");
-  inspectTufContextPaths(contextBytes);
+  if (purpose === "catalog") inspectCatalogContextPaths(contextBytes);
+  else inspectTufContextPaths(contextBytes);
   const inputs = inventory(contextFiles),
     inputDigest = digest(inputs);
   const toolBytes = await readControllerToolFile(request.tool.path);
@@ -178,7 +206,7 @@ export async function signIsolatedTufRole(
   await mkdir(request.output, { mode: 0o700 });
   const scratch = path.join(request.output, "private-work"),
     publicRoot = path.join(request.output, "public-inputs"),
-    envelope = path.join(request.output, `${role}.json`);
+    envelope = path.join(request.output, filename);
   let phase = "stage-public-inputs";
   let secret: Buffer | undefined;
   try {
@@ -253,14 +281,18 @@ export async function signIsolatedTufRole(
     secret.fill(0);
     secret = undefined;
     phase = "fixed-rust-sign";
-    const result = await run(tool, ["sign-tuf-role", role, config], {
-      cwd: scratch,
-      env,
-      timeout: remaining(deadline),
-      maxBuffer: 65536,
-      encoding: "utf8",
-      windowsHide: true,
-    });
+    const result = await run(
+      tool,
+      [purpose === "catalog" ? "sign-definition-role" : "sign-tuf-role", rustRole, config],
+      {
+        cwd: scratch,
+        env,
+        timeout: remaining(deadline),
+        maxBuffer: 65536,
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    );
     remaining(deadline);
     const report: unknown = JSON.parse(result.stdout);
     const bytes = await readControllerToolFile(envelope, 512 * 1024);
@@ -270,7 +302,7 @@ export async function signIsolatedTufRole(
       Object.keys(report).sort().join(",") !==
         "authority,bytes,changed,output,role,schema_version,sha256" ||
       report.schema_version !== 1 ||
-      report.role !== role ||
+      report.role !== rustRole ||
       report.authority !== "none" ||
       report.changed !== true ||
       report.output !== envelope ||
@@ -287,7 +319,7 @@ export async function signIsolatedTufRole(
     const receipt = Object.freeze({
       schema_version: 1,
       role,
-      filename: `${role}.json`,
+      filename,
       path: envelope,
       bytes: bytes.length,
       sha256: hash(bytes),
@@ -304,7 +336,7 @@ export async function signIsolatedTufRole(
     let partial: Identity | null = null;
     try {
       const bytes = await readControllerToolFile(envelope, 512 * 1024);
-      partial = { filename: `${role}.json`, bytes: bytes.length, sha256: hash(bytes) };
+      partial = { filename, bytes: bytes.length, sha256: hash(bytes) };
     } catch {
       /* No arbitrary diagnostic or credential bytes are copied. */
     }

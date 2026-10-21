@@ -43,6 +43,10 @@ const phaseBudgets: Record<Phase, number> = {
   "tuf-stable": 115000,
   "tuf-snapshot": 115000,
   "tuf-timestamp": 115000,
+  "catalog-definitions": 115000,
+  "catalog-policy": 115000,
+  "catalog-snapshot": 115000,
+  "catalog-timestamp": 115000,
 };
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 const exact = (raw: unknown, keys: string): raw is Record<string, unknown> =>
@@ -172,7 +176,13 @@ function rootPath(root: string, file: unknown) {
   return path.resolve(file);
 }
 function role(phase: Phase) {
-  return phase === "payload" ? "payload" : phase.startsWith("tuf-") ? phase.slice(4) : null;
+  return phase === "payload"
+    ? "payload"
+    : phase.startsWith("tuf-")
+      ? phase.slice(4)
+      : phase.startsWith("catalog-")
+        ? phase
+        : null;
 }
 function allowed(phase: Phase, kind: Kind) {
   return kind === "aggregate"
@@ -188,10 +198,11 @@ function allowed(phase: Phase, kind: Kind) {
             : phase === "coordinator" ||
               phase === "payload" ||
               phase === "release-publication" ||
-              phase.startsWith("tuf-");
+              phase.startsWith("tuf-") ||
+              phase.startsWith("catalog-");
 }
 const predicateType = (phase: Phase) =>
-  `https://portcove.dev/attestations/${phase === "release-publication" ? "immutable-release-result" : phase.startsWith("tuf-") ? "tuf-role-output" : "release-signing-context"}/v1`;
+  `https://portcove.dev/attestations/${phase === "release-publication" ? "immutable-release-result" : phase.startsWith("tuf-") ? "tuf-role-output" : phase.startsWith("catalog-") ? "catalog-role-output" : "release-signing-context"}/v1`;
 type Event = {
   schema_version: 1;
   phase: Phase;

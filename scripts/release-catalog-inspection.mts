@@ -262,6 +262,8 @@ export async function requireActualCatalogInspection(receipt: InspectionReceipt,
     throw new Error("retained Core inspection changed");
   remaining(deadline);
   return Object.freeze({
+    tools_receipt: actual.tools,
+    tool_sha256: actual.tool_sha256,
     source: Object.freeze({ ...actual.source }),
     bundle: actual.bundle,
     bundle_sha256: actual.bundle_sha256,

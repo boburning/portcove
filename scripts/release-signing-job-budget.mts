@@ -4,11 +4,13 @@ import { performance } from "node:perf_hooks";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 import type { TufSigningRole } from "./release-control-phases.mts";
+import type { CatalogControlPhase } from "./release-control-phases.mts";
 import { isRecord } from "./runtime-values.mts";
 
 type SigningRole = "payload" | TufSigningRole;
 type ClockRole =
   | SigningRole
+  | CatalogControlPhase
   | "classification-writer"
   | "classification-observer"
   | "candidate-building"
@@ -43,6 +45,10 @@ function signingOriginalJobDeadline(
       "stable",
       "snapshot",
       "timestamp",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
       "classification-writer",
       "classification-observer",
       "candidate-building",
@@ -95,8 +101,9 @@ function signingOriginalJobDeadline(
           ? "Persist independently reviewed classification"
           : role === "classification-observer"
             ? "Observe release input protections"
-            : releaseControlPhaseProfile(role === "payload" ? "payload" : `tuf-${role}`)
-                .reader_name;
+            : releaseControlPhaseProfile(
+                role.startsWith("catalog-") ? role : role === "payload" ? "payload" : `tuf-${role}`,
+              ).reader_name;
   const matches = raw.jobs.filter((job: unknown) => isRecord(job) && job.name === name);
   const job: unknown = matches[0];
   if (
@@ -179,6 +186,22 @@ export function currentTufJobDeadline(role: unknown, ...args: CurrentArguments) 
 export function currentPayloadJobDeadline(...args: CurrentArguments) {
   return currentSigningJobDeadline("payload", ...args);
 }
+function catalogClockRole(raw: unknown): CatalogControlPhase {
+  if (
+    raw !== "catalog-definitions" &&
+    raw !== "catalog-policy" &&
+    raw !== "catalog-snapshot" &&
+    raw !== "catalog-timestamp"
+  )
+    throw new Error("fixed catalog signing clock role required");
+  return raw;
+}
+export function catalogOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
+  return signingOriginalJobDeadline(catalogClockRole(role), ...args);
+}
+export function currentCatalogJobDeadline(role: unknown, ...args: CurrentArguments) {
+  return currentSigningJobDeadline(catalogClockRole(role), ...args);
+}
 
 /** Clock metadata does not make either classification job a signing executor. */
 export function classificationOriginalJobDeadline(role: unknown, ...args: BudgetArguments) {
@@ -213,5 +236,7 @@ export function currentControllerJobDeadline(operation: unknown, ...args: Curren
     return currentSigningJobDeadline(role, ...args);
   if (typeof role === "string" && role.startsWith("tuf-"))
     return currentTufJobDeadline(role.slice(4), ...args);
+  if (typeof role === "string" && role.startsWith("catalog-"))
+    return currentCatalogJobDeadline(role, ...args);
   throw new Error("fixed controller job clock required");
 }

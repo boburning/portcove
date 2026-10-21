@@ -20,10 +20,14 @@ import {
   inspectSigningOutputArchive,
 } from "./release-signing-handoff.mts";
 import { inspectTufSigningRole } from "./release-tuf-signing.mts";
+import { inspectCatalogSigningRole, catalogRoleName } from "./release-catalog-signing-contract.mts";
+import type { CatalogSigningRole } from "./release-catalog-signing-contract.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import {
   requireReceivedSigningContext,
   requireRetainedSigningContext,
+  requireReceivedCatalogSigningContext,
+  requireRetainedCatalogSigningContext,
 } from "./release-signing-context-artifact.mts";
 import { isRecord } from "./runtime-values.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
@@ -31,6 +35,7 @@ import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 const base = "repos/boburning/portcove",
   hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export const tufRolePredicateType = "https://portcove.dev/attestations/tuf-role-output/v1";
+export const catalogRolePredicateType = "https://portcove.dev/attestations/catalog-role-output/v1";
 type Artifact = { id: number; sha256: string };
 export interface TufRoleArtifactExpected {
   role: TufSigningRole;
@@ -47,6 +52,10 @@ export interface TufRoleArtifactExpected {
   context_binding_sha256: string;
   context_facts_sha256: string;
 }
+export type CatalogRoleArtifactExpected = Omit<TufRoleArtifactExpected, "role"> & {
+  purpose: "catalog";
+  role: CatalogSigningRole;
+};
 function exact(raw: unknown, keys: string): asserts raw is Record<string, unknown> {
   if (!isRecord(raw) || Object.keys(raw).sort().join(",") !== keys)
     throw new Error("TUF role custody exact schema differs");
@@ -56,12 +65,23 @@ function sha(raw: unknown): asserts raw is string {
     throw new Error("TUF role digest differs");
 }
 export function inspectTufRoleArtifactExpected(raw: unknown): TufRoleArtifactExpected {
+  return inspectRoleArtifactExpected(raw, "application") as TufRoleArtifactExpected;
+}
+export function inspectCatalogRoleArtifactExpected(raw: unknown): CatalogRoleArtifactExpected {
+  return inspectRoleArtifactExpected(raw, "catalog") as CatalogRoleArtifactExpected;
+}
+function inspectRoleArtifactExpected(raw: unknown, purpose: "application" | "catalog") {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    "artifact,bundle,context_binding_sha256,context_facts_sha256,context_manifest_sha256,controller,role",
+    purpose === "catalog"
+      ? "artifact,bundle,context_binding_sha256,context_facts_sha256,context_manifest_sha256,controller,purpose,role"
+      : "artifact,bundle,context_binding_sha256,context_facts_sha256,context_manifest_sha256,controller,role",
   );
-  inspectTufSigningRole(value.role);
+  if (purpose === "catalog") {
+    if (value.purpose !== "catalog") throw new Error("explicit catalog role custody required");
+    inspectCatalogSigningRole(value.role);
+  } else inspectTufSigningRole(value.role);
   for (const name of ["context_binding_sha256", "context_facts_sha256", "context_manifest_sha256"])
     sha(value[name]);
   for (const item of [value.artifact, value.bundle]) {
@@ -85,7 +105,7 @@ export function inspectTufRoleArtifactExpected(raw: unknown): TufRoleArtifactExp
     value.controller.run_attempt !== 1
   )
     throw new Error("TUF role fixed producing source/run differs");
-  return value as unknown as TufRoleArtifactExpected;
+  return value as unknown as TufRoleArtifactExpected | CatalogRoleArtifactExpected;
 }
 function unpack(raw: Buffer, allowed: ReadonlySet<string>, maximum = 2 * 1024 * 1024) {
   if (raw.length > maximum) throw new Error("TUF role opaque ZIP exceeds bound");
@@ -118,18 +138,52 @@ function unpack(raw: Buffer, allowed: ReadonlySet<string>, maximum = 2 * 1024 * 
 /** Read-only public verification. Injected boundaries can never populate the
  * actual outer receiver's private map. No POST/retry/candidate execution. */
 const refreshReaders = new WeakMap<object, (phaseDeadline?: number) => void>();
+type RoleReaderOptions = {
+  api?: GitHubRestReader;
+  download?: typeof readGitHubArtifactArchive;
+  spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
+  archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
+};
 export async function readAttestedTufRoleArtifact(
   parent: string,
   raw: unknown,
   deadline: number,
-  options: {
-    api?: GitHubRestReader;
-    download?: typeof readGitHubArtifactArchive;
-    spawn?: NonNullable<Parameters<typeof createGitHubRunner>[0]>["spawn"];
-    archiveSpawn?: NonNullable<Parameters<typeof readGitHubArtifactArchive>[1]>["spawn"];
-  } = {},
+  options: RoleReaderOptions = {},
 ) {
-  const expected = inspectTufRoleArtifactExpected(raw),
+  return readAttestedRoleArtifact(
+    parent,
+    inspectTufRoleArtifactExpected(raw),
+    deadline,
+    options,
+    "application",
+  );
+}
+export async function readAttestedCatalogRoleArtifact(
+  parent: string,
+  raw: unknown,
+  deadline: number,
+  options: RoleReaderOptions = {},
+) {
+  return readAttestedRoleArtifact(
+    parent,
+    inspectCatalogRoleArtifactExpected(raw),
+    deadline,
+    options,
+    "catalog",
+  );
+}
+async function readAttestedRoleArtifact<
+  Expected extends TufRoleArtifactExpected | CatalogRoleArtifactExpected,
+>(
+  parent: string,
+  expected: Expected,
+  deadline: number,
+  options: RoleReaderOptions,
+  purpose: "application" | "catalog",
+) {
+  const wireRole = purpose === "catalog" ? catalogRoleName(expected.role) : expected.role,
+    producerRole = `${purpose === "catalog" ? "catalog" : "tuf"}-${expected.role}`,
+    predicateType = purpose === "catalog" ? catalogRolePredicateType : tufRolePredicateType,
     injected = !!(options.api || options.download || options.spawn || options.archiveSpawn),
     selected = { ...options };
   const remaining = (max = 15000) => {
@@ -175,7 +229,7 @@ export async function readAttestedTufRoleArtifact(
   };
   const artifact = (item: Artifact, bundle: boolean) => {
     const value = get(`actions/artifacts/${item.id}`);
-    const name = `trusted-tuf-${expected.role}-${bundle ? "attestation" : "output"}-${expected.controller.run_id}-1`;
+    const name = `trusted-${producerRole}-${bundle ? "attestation" : "output"}-${expected.controller.run_id}-1`;
     if (
       !isRecord(value) ||
       value.id !== item.id ||
@@ -232,10 +286,7 @@ export async function readAttestedTufRoleArtifact(
       flag: "wx",
       mode: 0o600,
     });
-    const rawFiles = unpack(
-      archive,
-      new Set([`${expected.role}.json`, "signing-output-manifest.json"]),
-    );
+    const rawFiles = unpack(archive, new Set([`${wireRole}.json`, "signing-output-manifest.json"]));
     const manifestBytes = rawFiles.get("signing-output-manifest.json")!;
     if (!Buffer.from(manifestBytes.toString("utf8")).equals(manifestBytes))
       throw new Error("TUF role manifest UTF-8 differs");
@@ -247,7 +298,7 @@ export async function readAttestedTufRoleArtifact(
       manifest.schema_version !== 1 ||
       manifest.authority !== "none" ||
       manifest.input_binding_sha256 !== expected.context_binding_sha256 ||
-      producer.role !== `tuf-${expected.role}` ||
+      producer.role !== producerRole ||
       producer.controller_revision !== expected.controller.controller_revision ||
       producer.execution_ref !== expected.controller.controller_ref ||
       producer.run_id !== expected.controller.run_id ||
@@ -261,15 +312,15 @@ export async function readAttestedTufRoleArtifact(
       throw new Error("TUF role envelope inventory differs");
     const item: unknown = manifest.files[0];
     exact(item, "bytes,filename,sha256");
-    const envelope = rawFiles.get(`${expected.role}.json`)!;
+    const envelope = rawFiles.get(`${wireRole}.json`)!;
     if (
-      item.filename !== `${expected.role}.json` ||
+      item.filename !== `${wireRole}.json` ||
       item.bytes !== envelope.length ||
       item.sha256 !== hash(envelope)
     )
       throw new Error("TUF role exact envelope differs");
     const files = [
-      { filename: `${expected.role}.json`, bytes: envelope.length, sha256: hash(envelope) },
+      { filename: `${wireRole}.json`, bytes: envelope.length, sha256: hash(envelope) },
       {
         filename: "signing-output-manifest.json",
         bytes: manifestBytes.length,
@@ -290,7 +341,7 @@ export async function readAttestedTufRoleArtifact(
       manifestPath,
       bundlePath,
       expected.controller,
-      tufRolePredicateType,
+      predicateType,
       {
         deadline,
         environment,
@@ -304,7 +355,7 @@ export async function readAttestedTufRoleArtifact(
     );
     const predicate = {
       schema_version: 1,
-      role: `tuf-${expected.role}`,
+      role: producerRole,
       controller: expected.controller,
       producer,
       artifact: before.artifact,
@@ -319,9 +370,15 @@ export async function readAttestedTufRoleArtifact(
     };
     if (
       statement._type !== "https://in-toto.io/Statement/v1" ||
-      statement.predicateType !== tufRolePredicateType ||
+      statement.predicateType !== predicateType ||
       digest(statement.subject) !==
-        digest([{ name: "tuf-role-output-manifest", digest: { sha256: hash(manifestBytes) } }]) ||
+        digest([
+          {
+            name:
+              purpose === "catalog" ? "catalog-role-output-manifest" : "tuf-role-output-manifest",
+            digest: { sha256: hash(manifestBytes) },
+          },
+        ]) ||
       digest(statement.predicate) !== digest(predicate)
     )
       throw new Error("TUF role attested predicate/context differs");
@@ -363,7 +420,7 @@ export async function readAttestedTufRoleArtifact(
           `https://api.github.com/repos/boburning/portcove/check-runs/${String(producer.check_run_id)}` ||
         job.status !== "completed" ||
         job.conclusion !== "success" ||
-        job.name !== releaseControlPhaseProfile(`tuf-${expected.role}`).reader_name
+        job.name !== releaseControlPhaseProfile(producerRole).reader_name
       )
         throw new Error("TUF role fixed completed job role differs");
       return job;
@@ -382,7 +439,7 @@ export async function readAttestedTufRoleArtifact(
     const result = Object.freeze({
       directory,
       expected,
-      envelope: { ...files[0]!, path: path.join(directory, "output", `${expected.role}.json`) },
+      envelope: { ...files[0]!, path: path.join(directory, "output", `${wireRole}.json`) },
       custody,
       predicate,
       evidence_scope: injected ? "injected-provider" : "github.com",
@@ -417,7 +474,8 @@ const received = new WeakMap<
   object,
   {
     context: object;
-    data: Awaited<ReturnType<typeof readAttestedTufRoleArtifact>>;
+    data: Awaited<ReturnType<typeof readAttestedRoleArtifact>>;
+    purpose: "application" | "catalog";
     files: { path: string; bytes: number; sha256: string }[];
     deadline: number;
   }
@@ -456,8 +514,31 @@ export async function receiveTufRoleArtifact(
   raw: unknown,
   deadline: number,
 ) {
-  const context = await requireReceivedSigningContext(contextReceipt, deadline),
-    expected = inspectTufRoleArtifactExpected(raw);
+  return receiveRoleArtifact(contextReceipt, parent, raw, deadline, "application");
+}
+export async function receiveCatalogRoleArtifact(
+  contextReceipt: object,
+  parent: string,
+  raw: unknown,
+  deadline: number,
+) {
+  return receiveRoleArtifact(contextReceipt, parent, raw, deadline, "catalog");
+}
+async function receiveRoleArtifact(
+  contextReceipt: object,
+  parent: string,
+  raw: unknown,
+  deadline: number,
+  purpose: "application" | "catalog",
+) {
+  const requireContext =
+    purpose === "catalog" ? requireReceivedCatalogSigningContext : requireReceivedSigningContext;
+  const context = await requireContext(contextReceipt, deadline),
+    expected =
+      purpose === "catalog"
+        ? inspectCatalogRoleArtifactExpected(raw)
+        : inspectTufRoleArtifactExpected(raw),
+    wireRole = purpose === "catalog" ? catalogRoleName(expected.role) : expected.role;
   exact(
     context.manifest.controller,
     "controller_ref,controller_revision,run_attempt,run_id,source_tree",
@@ -477,9 +558,9 @@ export async function receiveTufRoleArtifact(
     ) !== expected.context_manifest_sha256
   )
     throw new Error("TUF role differs from actual authenticated context");
-  const data = await readAttestedTufRoleArtifact(parent, expected, deadline);
+  const data = await readAttestedRoleArtifact(parent, expected, deadline, {}, purpose);
   if (data.evidence_scope !== "github.com") throw new Error("actual TUF role custody required");
-  await requireReceivedSigningContext(contextReceipt, deadline);
+  await requireContext(contextReceipt, deadline);
   const files = [];
   for (const name of [
     "provider-before.json",
@@ -494,7 +575,7 @@ export async function receiveTufRoleArtifact(
     "signing-output-provider-after.json",
     "signing-output.zip",
     "output/signing-output-manifest.json",
-    `output/${expected.role}.json`,
+    `output/${wireRole}.json`,
   ]) {
     const file = path.join(data.directory, name),
       bytes = await readControllerToolFile(file, 2 * 1024 * 1024);
@@ -502,19 +583,22 @@ export async function receiveTufRoleArtifact(
   }
   await assertRoleProofInventory(data.directory, files);
   const receipt = Object.freeze({
-    kind: "attested-TUF-role-output",
+    kind: purpose === "catalog" ? "attested-catalog-role-output" : "attested-TUF-role-output",
     role: expected.role,
     authority: "none",
   });
-  received.set(receipt, { context: contextReceipt, data, files, deadline });
+  received.set(receipt, { context: contextReceipt, data, files, deadline, purpose });
   return receipt;
 }
 async function readReceivedTufRoleArtifact(
   receipt: object,
   phaseDeadline: number | undefined,
   provider: "fresh" | "retained",
+  purpose: "application" | "catalog" = "application",
 ) {
   const actual = received.get(receipt);
+  if (actual && actual.purpose !== purpose)
+    throw new Error("role artifact component purpose differs");
   if (actual && phaseDeadline !== undefined) {
     if (!Number.isFinite(phaseDeadline) || phaseDeadline <= performance.now())
       throw new Error("TUF role phase deadline exhausted");
@@ -522,10 +606,15 @@ async function readReceivedTufRoleArtifact(
   }
   if (!actual || performance.now() >= actual.deadline)
     throw new Error("actual current TUF role custody required");
-  await (provider === "fresh" ? requireReceivedSigningContext : requireRetainedSigningContext)(
-    actual.context,
-    actual.deadline,
-  );
+  await (
+    purpose === "catalog"
+      ? provider === "fresh"
+        ? requireReceivedCatalogSigningContext
+        : requireRetainedCatalogSigningContext
+      : provider === "fresh"
+        ? requireReceivedSigningContext
+        : requireRetainedSigningContext
+  )(actual.context, actual.deadline);
   await assertRoleProofInventory(actual.data.directory, actual.files);
   for (const file of actual.files) {
     await assertOwnedUnlinkedPath(actual.data.directory, file.path, "TUF role retained evidence");
@@ -553,4 +642,10 @@ export function requireReceivedTufRoleArtifact(receipt: object, phaseDeadline?: 
  * pretending to observe the provider again. No imported report can enter it. */
 export function requireRetainedTufRoleArtifact(receipt: object, phaseDeadline?: number) {
   return readReceivedTufRoleArtifact(receipt, phaseDeadline, "retained");
+}
+export function requireReceivedCatalogRoleArtifact(receipt: object, phaseDeadline?: number) {
+  return readReceivedTufRoleArtifact(receipt, phaseDeadline, "fresh", "catalog");
+}
+export function requireRetainedCatalogRoleArtifact(receipt: object, phaseDeadline?: number) {
+  return readReceivedTufRoleArtifact(receipt, phaseDeadline, "retained", "catalog");
 }

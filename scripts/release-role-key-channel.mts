@@ -14,8 +14,23 @@ export type IsolatedSigningRole =
   | "preview"
   | "stable"
   | "snapshot"
-  | "timestamp";
-const roles = ["payload", "releases", "preview", "stable", "snapshot", "timestamp"] as const;
+  | "timestamp"
+  | "catalog-definitions"
+  | "catalog-policy"
+  | "catalog-snapshot"
+  | "catalog-timestamp";
+const roles = [
+  "payload",
+  "releases",
+  "preview",
+  "stable",
+  "snapshot",
+  "timestamp",
+  "catalog-definitions",
+  "catalog-policy",
+  "catalog-snapshot",
+  "catalog-timestamp",
+] as const;
 const maximum = 128 * 1024;
 function role(raw: unknown): IsolatedSigningRole {
   if (!roles.some((value) => value === raw))

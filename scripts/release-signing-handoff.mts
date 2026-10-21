@@ -271,6 +271,10 @@ export async function readSigningOutputArtifact(
       "tuf-stable",
       "tuf-snapshot",
       "tuf-timestamp",
+      "catalog-definitions",
+      "catalog-policy",
+      "catalog-snapshot",
+      "catalog-timestamp",
     ].includes(String(producer.role)) ||
     !Number.isSafeInteger(expected.artifact_id) ||
     expected.artifact_id < 1 ||
