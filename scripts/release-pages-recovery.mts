@@ -119,6 +119,7 @@ export async function recoverPendingPagesPublication(
   raw: Parameters<typeof recoverOwnedCapacityEffect>[1],
   privateParent: string,
   phaseDeadline: number,
+  beforeSettlement?: () => Promise<void>,
 ) {
   if (!Number.isFinite(phaseDeadline) || performance.now() >= phaseDeadline)
     throw new Error("Pages recovery deadline exhausted before observation");
@@ -139,6 +140,7 @@ export async function recoverPendingPagesPublication(
   const directory = await mkdtemp(path.join(privateParent, "pages-pending-readback-"));
   let observation: Awaited<ReturnType<typeof readPendingPagesPublication>> | undefined;
   try {
+    await beforeSettlement?.();
     const settled = await withCoordinatorDeadline(phaseDeadline, () =>
       recoverOwnedCapacityEffect(executor, raw, async (operation) => {
         observation = await readPendingPagesPublication(directory, operation, phaseDeadline);
@@ -150,6 +152,7 @@ export async function recoverPendingPagesPublication(
             mode: 0o600,
           },
         );
+        await beforeSettlement?.();
         return observation.resolution;
       }),
     );

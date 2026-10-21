@@ -282,6 +282,7 @@ const releaseSecurityFiles = withNodeTestCompanions([
 
   "scripts/release-pages-provider.mts",
   "scripts/release-pages-recovery.mts",
+  "scripts/release-pages-metadata-recovery.mts",
   "scripts/release-capacity-executor.mts",
 
   "scripts/release-publication-inventory.mts",
