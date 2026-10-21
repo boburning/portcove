@@ -48,7 +48,7 @@ and byte-custody evidence, not the private semantic/payload producer or an insta
 three-version correction journey.
 
 The ordinary-client A/B staged-withdrawal/forward-repair journey and any amendment
-to the selected #706 three-beta risk scope remain separate, ungranted acceptance
+of #706 for the proposed three-version proof remain separate, ungranted acceptance
 and setup matters. No candidate request file is installed by this change.
 
 The resource-admitted connected case passed at
