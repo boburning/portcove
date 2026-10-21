@@ -12,6 +12,18 @@ import { readReleaseCompilerReportArchive } from "./release-compiler-report-arch
 import { createAuditZip } from "./fixtures/audit-zip-fixture.mts";
 import { projectWindowsNsisExecutable } from "./release-compiler-desktop.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
+import { classifyChanges } from "./ordinary-validation.mts";
+import { validationOwnershipForPath } from "./validation-plan.mts";
+
+void test("shared compiler archive helper-only changes retain hosted/public consumers and release-security ownership", () => {
+  const file = "scripts/release-compiler-report-archive.mts";
+  const selection = classifyChanges([{ status: "M", path: file }]);
+  assert.ok(selection.nodeTests.has("scripts/release-compiler-evidence.test.mts"));
+  assert.ok(selection.nodeTests.has("scripts/release-native-public-compiler.test.mts"));
+  const ownership = validationOwnershipForPath(file);
+  assert.equal(ownership.qualificationRequired, true);
+  assert.ok(ownership.areas.includes("release-security"));
+});
 
 void test("public compiler verifier fixes retained file/workflow/ref/predicate without native or source mutation flags", () => {
   const directory = path.resolve("work/inert-public-compiler"),

@@ -5,14 +5,106 @@ import {
   inspectPublicJourneyAttemptMarker,
   inspectPublicJourneyProgress,
   inspectPublicJourneySettlement,
+  inspectLinuxPublicRetainedInventory,
+  inspectLinuxPublicProofOutcome,
 } from "./release-native-public-attempt-contract.mts";
 import {
   claimActualPublicJourneyInvocation,
   readActualPublicJourneyProgress,
   requireActualPublicJourneyInvocation,
+  recordActualWindowsPublicSettlement,
   readActualRetainedPublicCohort,
   requireActualRetainedPublicCohort,
+  recordActualLinuxPublicSettlement,
+  readActualPublicJourneyParentPhase,
 } from "./release-native-attempt.mts";
+
+void test("Linux settlement keeps every profile chunk at its original path while original wire covers atomic aliases", () => {
+  const entry = (name: string, bytes = 42) => ({ path: name, bytes, sha256: "a".repeat(64) });
+  const files = [
+    entry("public-journey/public-update-journey.json"),
+    entry("public-journey/profile-snapshot/profile.json"),
+    entry(`public-journey/preimage-store/${"c".repeat(64)}.bin`, 1024 * 1024),
+    entry("outer/.outer-json-" + "b".repeat(32)),
+  ];
+  assert.deepEqual(
+    inspectLinuxPublicRetainedInventory(files, "park-v0-with-v1"),
+    files.slice(0, 3).map((file) => ({ ...file, path: `guest-capture/${file.path}` })),
+  );
+  const original = fixture("linux-x86_64");
+  inspectPublicJourneySettlement(
+    {
+      ...original.settlement,
+      files: inspectLinuxPublicRetainedInventory(files, "park-v0-with-v1"),
+    },
+    original.inspected,
+  );
+  assert.throws(() =>
+    inspectLinuxPublicRetainedInventory(
+      files.filter((file) => !file.path.endsWith("profile.json")),
+      "park-v0-with-v1",
+    ),
+  );
+  assert.throws(() =>
+    inspectLinuxPublicRetainedInventory(
+      [...files, entry("ordinary.bin", 4 * 1024 * 1024 + 1)],
+      "initial-v0-v1",
+    ),
+  );
+  assert.throws(() =>
+    inspectLinuxPublicRetainedInventory([...files, entry("../outside")], "park-v0-with-v1"),
+  );
+  assert.throws(() =>
+    inspectLinuxPublicRetainedInventory(
+      [...files, entry("outer/.other-hidden")],
+      "park-v0-with-v1",
+    ),
+  );
+  assert.throws(() =>
+    inspectLinuxPublicRetainedInventory(
+      [...files, entry(files[0]!.path.toUpperCase())],
+      "park-v0-with-v1",
+    ),
+  );
+});
+
+void test("Linux phase success requires actual driver zero, no failure and exact observed or parked report outcome", () => {
+  for (const phase of ["initial-v0-v1", "park-v0-with-v1", "continue-with-v2"] as const) {
+    const report = {
+      schema_version: 1,
+      authority: "none",
+      native_acceptance: "not-established",
+      phase,
+      outcome: phase === "park-v0-with-v1" ? "parked" : "observed",
+    };
+    assert.equal(inspectLinuxPublicProofOutcome(report, phase, 0, null), "completed");
+    for (const status of [null, undefined, 1, "0"])
+      assert.equal(inspectLinuxPublicProofOutcome(report, phase, status, null), "refused");
+    assert.equal(inspectLinuxPublicProofOutcome(report, phase, 0, "unknown child"), "refused");
+    assert.equal(
+      inspectLinuxPublicProofOutcome({ ...report, outcome: "failed" }, phase, 0, null),
+      "refused",
+    );
+    assert.equal(
+      inspectLinuxPublicProofOutcome({ ...report, cleanup_failure: "unknown" }, phase, 0, null),
+      "refused",
+    );
+    assert.throws(() =>
+      inspectLinuxPublicProofOutcome({ ...report, phase: "other" }, phase, 0, null),
+    );
+  }
+});
+
+void test("copied Linux captures and parents cannot write settlement or select a fresh public phase", async () => {
+  await assert.rejects(
+    recordActualLinuxPublicSettlement({ authority: "none", driver_status: 0 }),
+    /actual installed Linux public capture required/,
+  );
+  await assert.rejects(
+    readActualPublicJourneyParentPhase({ authority: "none", public_journey: {} }),
+    /actual.*parent/i,
+  );
+});
 
 function fixture(platform_label = "windows-x86_64") {
   const request = {
@@ -231,6 +323,40 @@ void test("parsed and copied public records cannot mint actual parent, progress 
     /actual public progress/,
   );
   await assert.rejects(requireActualPublicJourneyInvocation(marker), /actual freshly claimed/);
-  await assert.rejects(readActualRetainedPublicCohort(marker), /actual installed native parent provenance/);
-  await assert.rejects(requireActualRetainedPublicCohort(marker), /actual retained public cohort custody/);
+  await assert.rejects(
+    readActualRetainedPublicCohort(marker),
+    /actual installed native parent provenance/,
+  );
+  await assert.rejects(
+    requireActualRetainedPublicCohort(marker),
+    /actual retained public cohort custody/,
+  );
+  await assert.rejects(
+    recordActualWindowsPublicSettlement(marker),
+    /actual fixed parent Windows public capture/,
+  );
+});
+
+void test("only existing fixed Windows raw-payload slots retain their512MiB preimage bound", () => {
+  const { settlement, inspected } = fixture();
+  settlement.files[0] = {
+    path: "ordinary-public-update/before-local-payload-tamper/staging-candidate-installer.exe",
+    bytes: 8 * 1024 * 1024,
+    sha256: "5".repeat(64),
+  };
+  assert.equal(
+    inspectPublicJourneySettlement(settlement, inspected).files[0]!.bytes,
+    8 * 1024 * 1024,
+  );
+  for (const path of [
+    "ordinary-public-update/before-startup-6/staging-candidate-installer.exe",
+    "ordinary-public-update/unappointed/staging-candidate-installer.exe",
+    "ordinary-public-update/before-local-payload-tamper/arbitrary.exe",
+  ]) {
+    const changed = structuredClone(settlement);
+    changed.files[0]!.path = path;
+    assert.throws(() => inspectPublicJourneySettlement(changed, inspected));
+  }
+  settlement.files[0].bytes = 512 * 1024 * 1024 + 1;
+  assert.throws(() => inspectPublicJourneySettlement(settlement, inspected));
 });

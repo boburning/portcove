@@ -28,6 +28,8 @@ import {
   inspectPublicJourneyAttemptMarker,
   inspectPublicJourneySettlement,
   inspectPublicJourneyProgress,
+  inspectLinuxPublicRetainedInventory,
+  inspectLinuxPublicProofOutcome,
 } from "./release-native-public-attempt-contract.mts";
 import { assertOwnedUnlinkedPath } from "./release-path-safety.mts";
 
@@ -575,6 +577,37 @@ export async function requireActualRetainedPublicCohort(receipt: object) {
   };
 }
 
+/** Routing only, after the complete setup-owned anchor is validated. Missing or
+ * contradictory retained attempts throw; callers must never exception-fallback
+ * to a fresh initial pair. The eventual claim repeats current policy/history. */
+export async function readActualPublicJourneyParentPhase(parentReceipt: object) {
+  const parent = await requireActualNativeParent(parentReceipt);
+  if (parent.descriptor.public_journey?.profile !== "ordinary-public-initial-cohort-v1")
+    throw new Error("actual protected initial public profile required");
+  const { history } = await readParentPublicHistory(parent);
+  const cohort = history[0]?.settled.cohort_sha256;
+  const phase = cohort
+    ? inspectPublicJourneyProgress(
+        history.map((item) => item.settled),
+        cohort,
+      )
+    : "initial-v0-v1";
+  const historical =
+    phase === "await-published-v2"
+      ? await readActualRetainedPublicCohort(parentReceipt)
+      : undefined;
+  await parent.recheck();
+  remainingNativeParentBudget();
+  return Object.freeze({
+    phase,
+    cohort_sha256: cohort ?? null,
+    ...(historical ? { historical_cohort_receipt: historical } : {}),
+    authority: "none" as const,
+    scope:
+      "actual protected local routing only; fresh public source and execution claim required" as const,
+  });
+}
+
 const publicProgress = new WeakMap<
   object,
   {
@@ -920,4 +953,128 @@ export async function requireActualPublicJourneyInvocation(receipt: object) {
     authority: "none" as const,
     scope: "actual parent/source/attempt custody; public native proof still required" as const,
   };
+}
+
+/** Only the actual supervised Windows capture getter supplies the technical
+ * result. There is deliberately no exported raw settlement constructor. */
+export async function recordActualWindowsPublicSettlement(captureReceipt: object) {
+  const { requireActualWindowsPublicCapture } =
+    await import("./release-native-windows-capture.mts");
+  const capture = await requireActualWindowsPublicCapture(captureReceipt);
+  const selected = await requireActualPublicJourneyInvocation(capture.claim);
+  const marker = inspectPublicJourneyAttemptMarker(
+    await publicJson(selected.capture_directory, "claim.json"),
+    {
+      invocation_id: selected.invocation_id,
+      descriptor_sha256: selected.parent.descriptor_sha256,
+      setup_grant_sha256: selected.parent.descriptor.setup_grant_sha256,
+    },
+  );
+  return retainPublicSettlement(selected, capture.settlement, marker);
+}
+
+/** Only the private actual Linux capture getter supplies these observations.
+ * The raw wire is separate from ordinary exported-file bounds. */
+export async function recordActualLinuxPublicSettlement(captureReceipt: object) {
+  const { requireActualLinuxPublicCapture } =
+    await import("./release-native-linux-public-capture.mts");
+  const capture = await requireActualLinuxPublicCapture(captureReceipt);
+  const selected = await requireActualPublicJourneyInvocation(capture.claim);
+  if (
+    selected.parent.descriptor.platform_label !== "linux-x86_64" ||
+    capture.directory !== selected.capture_directory ||
+    capture.retained.directory !== path.join(selected.capture_directory, "guest-capture")
+  )
+    throw new Error("actual Linux capture/claim directory differs");
+  const marker = inspectPublicJourneyAttemptMarker(
+    await publicJson(selected.capture_directory, "claim.json"),
+    {
+      invocation_id: selected.invocation_id,
+      descriptor_sha256: selected.parent.descriptor_sha256,
+      setup_grant_sha256: selected.parent.descriptor.setup_grant_sha256,
+    },
+  );
+  const files = inspectLinuxPublicRetainedInventory(capture.files, selected.phase);
+  for (const name of [
+    "claim.json",
+    "wsl-capture-summary.json",
+    "wsl-plan.json",
+    "wsl-request.json",
+    "wsl-driver-plan.json",
+    "wsl-registration-before.json",
+    "wsl-registration-after.json",
+    "guest-host-before.stdout.bin",
+    "guest-host-after.stdout.bin",
+  ]) {
+    const { hashNativeCapturedFile } = await import("./release-native-capture-files.mts");
+    files.push(
+      await hashNativeCapturedFile(
+        selected.capture_directory,
+        name,
+        4 * 1024 * 1024,
+        selected.original_deadline,
+      ),
+    );
+  }
+  const settlement = {
+    schema_version: 1,
+    kind: "ordinary-public-native-settlement",
+    authority: "none",
+    invocation_id: selected.invocation_id,
+    request_sha256: selected.request_sha256,
+    phase: selected.phase,
+    platform_label: "linux-x86_64",
+    proof_outcome: inspectLinuxPublicProofOutcome(
+      capture.report,
+      selected.phase,
+      capture.driver_status,
+      capture.driver_failure,
+    ),
+    group: capture.group,
+    roots: capture.roots,
+    files,
+    wire: capture.wire,
+  };
+  await requireActualLinuxPublicCapture(captureReceipt);
+  const result = await retainPublicSettlement(selected, settlement, marker);
+  await requireActualLinuxPublicCapture(captureReceipt);
+  await requireActualPublicJourneyInvocation(capture.claim);
+  remainingNativeParentBudget();
+  return result;
+}
+
+async function retainPublicSettlement(
+  selected: Awaited<ReturnType<typeof requireActualPublicJourneyInvocation>>,
+  settlement: unknown,
+  marker: ReturnType<typeof inspectPublicJourneyAttemptMarker>,
+) {
+  const validated = inspectPublicJourneySettlement(settlement, marker);
+  const file = path.join(selected.capture_directory, "public-settlement.json");
+  const bytes = Buffer.from(JSON.stringify(settlement));
+  if (bytes.length > 256 * 1024)
+    throw new Error("public settlement exceeds bounded technical manifest");
+  if (await absent(file)) {
+    const handle = await open(file, "wx", 0o600);
+    try {
+      await handle.writeFile(bytes);
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+  } else if (
+    digest(await publicJson(selected.capture_directory, "public-settlement.json")) !==
+    digest(settlement)
+  )
+    throw new Error("retained public settlement differs; never overwrite or replay");
+  await readPublicSettlement(selected.parent, selected.capture_directory, selected.invocation_id);
+  remainingNativeParentBudget();
+  return Object.freeze({
+    kind: "retained-public-technical-settlement",
+    invocation_id: selected.invocation_id,
+    phase: selected.phase,
+    proof_outcome: validated.proof_outcome,
+    authority: "none" as const,
+    scope:
+      "positive owned teardown and retained observation bytes; full public A/B V2 proof remains pending",
+  });
 }
