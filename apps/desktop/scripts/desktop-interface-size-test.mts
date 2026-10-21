@@ -34,6 +34,7 @@ export async function interfaceSizeScenario(context: Context) {
         preference: localStorage.getItem("portcove.appearance.interface-size"),
       }));
     const observations: (Awaited<ReturnType<typeof measure>> & { size: number })[] = [];
+    let attemptedSize = 100;
     const browser = context.browser();
     const originalWindow = await browser.manage().window().getRect();
     await browser.manage().window().setRect({ width: 960, height: 640 });
@@ -61,6 +62,7 @@ export async function interfaceSizeScenario(context: Context) {
       return state;
     };
     const select = async (size: number) => {
+      attemptedSize = size;
       const picker = await context
         .browser()
         .findElement(By.xpath('//*[@role="combobox"][contains(.,"Interface size")]'));
@@ -178,6 +180,21 @@ export async function interfaceSizeScenario(context: Context) {
         flag: "wx",
       });
       context.artifacts.push(file);
+    } catch (error) {
+      // Retain the actual failure state before reset/resize cleanup changes it.
+      const file = path.join(context.output, "native-interface-size-failure.json");
+      try {
+        await writeFile(
+          file,
+          JSON.stringify({ attemptedSize, state: await measure(), observations }, null, 2) + "\n",
+          { flag: "wx" },
+        );
+        context.artifacts.push(file);
+        await context.capture("native-interface-size-before-reset", true);
+      } catch (captureError) {
+        console.error("Could not retain interface-size failure diagnostics", captureError);
+      }
+      throw error;
     } finally {
       await shortcut("0");
       await context.browser().manage().window().setRect(originalWindow);
