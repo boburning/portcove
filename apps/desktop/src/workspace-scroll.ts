@@ -114,8 +114,8 @@ export function useWorkspaceReflow(workspace: RefObject<HTMLElement | null>) {
             // Browser anchoring already accounted for any compensated movement.
             // Correct only remaining displacement; never restore a launch baseline.
             if (owner && Math.abs(delta) > 0.5) owner.scrollTo({ top: owner.scrollTop + delta });
-            // Preserve the original window-resize reveal behavior. Feedback
-            // changes never focus or scrollIntoView the current control.
+            // Window resize and focused-card feedback reveal the current
+            // control. Leading-workspace feedback only preserves the anchor.
             if (revealFocus) {
               const active = document.activeElement;
               if (active instanceof HTMLElement && active !== element && element.contains(active))
