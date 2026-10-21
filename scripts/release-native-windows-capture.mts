@@ -2,7 +2,7 @@
  * remains distinct from successful stage/report/Check acceptance. */
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { writeFile, lstat, readdir } from "node:fs/promises";
+import { writeFile, lstat, readdir, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
 import path from "node:path";
 import {
@@ -20,13 +20,22 @@ import {
   runActualPublicSignatureControl,
   requireActualPublicSignatureControl,
 } from "./release-native-public-signature.mts";
-import { hashNativeCapturedFile } from "./release-native-capture-files.mts";
+import {
+  hashNativeCapturedFile,
+  readNativeCapturedStream,
+} from "./release-native-capture-files.mts";
 import {
   inspectPublicJourneyAttemptMarker,
   inspectPublicJourneySettlement,
 } from "./release-native-public-attempt-contract.mts";
 
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
+const componentFiles = [
+  "control.json",
+  "payload.json",
+  "verifier.stdout.json",
+  "verifier.stderr.bin",
+] as const;
 const captures = new WeakMap<
   object,
   { claim: object; directory: string; result: string; status: number }
@@ -80,6 +89,15 @@ export async function captureActualWindowsPublicJourney(claim: object) {
     selected.pair.directory,
     selected.original_deadline,
   );
+  const componentProof = await requireActualPublicSignatureControl(component);
+  const componentDirectory = path.join(selected.capture_directory, "signature-control");
+  await mkdir(componentDirectory, { mode: 0o700 });
+  for (const file of componentFiles) {
+    const bytes = await readNativeCapturedStream(componentProof.directory, file);
+    assert.ok(bytes.length <= 64 * 1024);
+    await writeFile(path.join(componentDirectory, file), bytes, { flag: "wx", mode: 0o600 });
+    remainingNativeParentBudget();
+  }
   await requireActualPublicSignatureControl(component);
   const plan = {
     schema_version: 2,
@@ -137,6 +155,18 @@ export async function requireActualWindowsPublicCapture(receipt: object) {
     selected.request_sha256,
   );
   const component = await requireActualPublicSignatureControl(retained.component);
+  for (const file of componentFiles) {
+    const original = await readNativeCapturedStream(component.directory, file);
+    const captured = await readNativeCapturedStream(
+      retained.directory,
+      `signature-control/${file}`,
+    );
+    assert.ok(
+      original.length <= 64 * 1024 && original.equals(captured),
+      "retained signature component evidence differs",
+    );
+    remainingNativeParentBudget();
+  }
   assert.equal(retained.status, 0);
   assert.equal(driver.failure, null);
   const readJson = async (file: string) =>

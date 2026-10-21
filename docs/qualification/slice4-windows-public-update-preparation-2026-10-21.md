@@ -340,3 +340,12 @@ getter continues to pin only the original A/B prefix. Sixteen data/refusal cases
 and five affected typed modules passed. Execution dispatch/capture continuation
 and the shared Windows registration rendezvous remain held; this claim is not
 an observation that a public updater ran.
+
+The fixed Windows capture also retains exact copies of the shipping signature
+component's config, registry, raw stdout and empty stderr under its own attempt
+root. The actual component getter remains mandatory; copied files are compared
+against its original retained bytes on every capture read and enter the existing
+complete settlement file inventory. This preserves explicit component evidence
+for a later wake rather than relying on a vanished private receipt. Nine scoped
+contract/refusal cases and two typed modules passed; they did not invoke a real
+parent or exercise a positive native signature subtype.
