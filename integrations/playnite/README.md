@@ -66,6 +66,51 @@ and a fresh owned directory. Do not share another running Playnite profile or
 overwrite its extension binary during a session. The tests never load into the
 user's ordinary Playnite library.
 
+## Build-package maintenance
+
+The two classic MSBuild projects and their sibling `packages.lock.json` files
+own the build-package declarations and resolved graphs. Keep updates in a
+reviewed pull request using the existing Windows Visual Studio 2022 MSBuild
+route. The production project excludes PlayniteSDK runtime assets, and packaging
+continues to admit only `Portcove.Playnite.dll` and `extension.yaml`. The contract
+test executable may use SDK assemblies in its separate test output.
+
+Renovate's NuGet manager remains intentionally disabled for these projects.
+The [bounded compatibility investigation](../../docs/qualification/playnite-nuget-renovate-2026-10-21.md)
+confirmed that its extractor detects both project/lock pairs. Its
+[documented .NET Framework support](https://docs.renovatebot.com/modules/manager/nuget/#additional-information)
+requires SDK-style projects, while this client retains classic projects. The
+existing custom NuGet datasource for PSScriptAnalyzer is separate coverage.
+
+For a selected package update, review compatibility and edit the shared
+`PackageReference` declarations coherently in the client and contract-test
+projects. From a Visual Studio Developer PowerShell at the repository root,
+regenerate both locks with the full `MSBuild.exe`:
+
+```powershell
+foreach ($project in @(
+    'integrations/playnite/Portcove.Playnite.csproj',
+    'integrations/playnite/tests/ContractTests.csproj'
+)) {
+    & MSBuild.exe $project /t:Restore /p:RestoreLockedMode=false /p:RestoreForceEvaluate=true /p:Configuration=Release /verbosity:minimal /nologo
+    if ($LASTEXITCODE -ne 0) { throw "Package restore failed: $project" }
+}
+```
+
+Review both regenerated dependency graphs and content hashes, then run
+`just playnite-check` for the existing locked restore/build, compiled contracts,
+lifecycle fixtures and package checks. Commit the reviewed declarations and locks
+together. Bare package versions are NuGet minimum ranges; the committed locks
+and locked restore establish the resolved versions. The
+[NuGet lock-file options](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#lock-file-extensibility)
+distinguish deliberate regeneration from ordinary locked validation.
+
+Revisit automation when Renovate documents and demonstrates artifact updates for
+this classic-project form, or when a separately justified project migration is
+authorized. Any adoption must first prove a narrowly scoped hosted proposal with
+both regenerated locks and the existing locked Windows checks, preserving the
+repository's dependency age, grouping, PR-limit and protected review rules.
+
 ## Compatibility and use
 
 This revision supports **Portcove API schemas 42–57, 60–63 or 65–77 and event schemas 2–3**. Schema
