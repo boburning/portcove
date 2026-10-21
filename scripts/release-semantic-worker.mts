@@ -1,12 +1,18 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import type { SpawnSyncOptionsWithStringEncoding } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, writeFile } from "node:fs/promises";
+import { lstat, mkdir, open, writeFile, readdir } from "node:fs/promises";
 import path from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import { createGitHubRunner, GitHubApiClient } from "./github-api.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
-import { inspectLinuxQualificationConfiguration } from "./qualify-semantic-linux.mts";
+import {
+  inspectLinuxQualificationConfiguration,
+  inspectLinuxQualificationSettlement,
+} from "./qualify-semantic-linux.mts";
+import { runResourceCommand } from "./resource-command.mts";
+import { semanticSupervisorEnvironment } from "./release-semantic-runtime.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
 import {
   recoverRemoteCoordinator,
@@ -29,6 +35,7 @@ import { capacityDigest } from "./release-capacity.mts";
 import { isRecord } from "./runtime-values.mts";
 import { claimSemanticTechnicalAttempt } from "./release-semantic-worker-recovery.mts";
 
+const entryStarted = performance.now();
 const digest = (value: Buffer) => createHash("sha256").update(value).digest("hex");
 const repository = "repos/boburning/portcove";
 const checkout = fileURLToPath(new URL("..", import.meta.url));
@@ -52,7 +59,7 @@ export function renderSemanticWorkerUnits(
   configurationSha256: string,
   workerCheckout: string,
 ) {
-  const config = inspectSemanticWorkerConfiguration(raw);
+  const config = inspectSemanticWorkerEntryConfiguration(raw);
   const paths = [
     config.runtime.node_executable,
     absolute(configurationPath),
@@ -63,19 +70,67 @@ export function renderSemanticWorkerUnits(
     !/^[a-f0-9]{64}$/u.test(configurationSha256)
   )
     throw new Error("fixed systemd unit paths/digest require literal safe configuration");
+  if (
+    "initial_setup_probe" in config &&
+    path.posix.basename(configurationPath) !== "semantic-setup-probe.json"
+  )
+    throw new Error("initial probe requires its fixed configuration basename");
   return {
     service: `[Unit]\nDescription=Portcove bounded semantic request worker\nAfter=network-online.target\n\n[Service]\nType=oneshot\nWorkingDirectory=${workerCheckout}\nExecStart=${config.runtime.node_executable} ${workerCheckout}/scripts/release-semantic-worker.mts ${configurationPath} ${configurationSha256}\nUMask=0077\nTimeoutStartSec=2700\nTimeoutStopSec=30\nKillMode=control-group\nRestart=no\nStandardOutput=journal\nStandardError=journal\n`,
     timer:
       "[Unit]\nDescription=Observe Portcove semantic requests automatically\n\n[Timer]\nOnBootSec=2min\nOnUnitInactiveSec=5min\nRandomizedDelaySec=30s\nUnit=portcove-semantic-worker.service\n\n[Install]\nWantedBy=timers.target\n",
     initial_state: {
       schema_version: 1,
-      kind: "portcove-semantic-worker-custody",
-      namespace: config.namespace,
+      kind:
+        "initial_setup_probe" in config
+          ? "portcove-semantic-setup-probe-custody"
+          : "portcove-semantic-worker-custody",
+      ...("initial_setup_probe" in config
+        ? { configuration_sha256: configurationSha256 }
+        : { namespace: config.namespace }),
       setup_grant_sha256: config.setup_grant_sha256,
       worker_revision: config.worker_revision,
     },
     authority: "none",
   };
+}
+
+/** Closed initial-only setup input. No credential, selector, outcome or native
+ * acceptance field can be added to this configuration. It is not a grant. */
+export function inspectSemanticSetupProbeConfiguration(raw: unknown) {
+  if (
+    !isRecord(raw) ||
+    Object.keys(raw).sort().join(",") !==
+      "initial_setup_probe,kind,output_parent,runtime,schema_version,setup_grant_sha256,source_git_sha256,worker_revision" ||
+    raw.schema_version !== 1 ||
+    raw.kind !== "portcove-initial-semantic-boundary-probe" ||
+    raw.initial_setup_probe !== true ||
+    typeof raw.worker_revision !== "string" ||
+    !/^[a-f0-9]{40}$/u.test(raw.worker_revision) ||
+    typeof raw.setup_grant_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(raw.setup_grant_sha256) ||
+    typeof raw.source_git_sha256 !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(raw.source_git_sha256)
+  )
+    throw new Error("fixed credential-free initial semantic probe schema differs");
+  const runtime = inspectLinuxQualificationConfiguration(raw.runtime);
+  const output = absolute(raw.output_parent);
+  if (runtime.output_parent !== output)
+    throw new Error("initial semantic probe output boundary differs");
+  return {
+    initial_setup_probe: true as const,
+    worker_revision: raw.worker_revision,
+    setup_grant_sha256: raw.setup_grant_sha256,
+    source_git_sha256: raw.source_git_sha256,
+    output_parent: output,
+    runtime,
+  };
+}
+
+export function inspectSemanticWorkerEntryConfiguration(raw: unknown) {
+  return isRecord(raw) && raw.kind === "portcove-initial-semantic-boundary-probe"
+    ? inspectSemanticSetupProbeConfiguration(raw)
+    : inspectSemanticWorkerConfiguration(raw);
 }
 
 /** Setup configuration only, never a supplied report, outcome or grant. The
@@ -178,12 +233,12 @@ async function requirePrivateOwnerPath(filename: string, file: boolean) {
     if (path.dirname(current) === current) break;
   }
 }
-function git(root: string, args: string[]) {
+function git(root: string, args: string[], executable = "git") {
   const env = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
   );
   return execFileSync(
-    "git",
+    executable,
     [
       "--no-optional-locks",
       "--no-replace-objects",
@@ -199,9 +254,178 @@ function git(root: string, args: string[]) {
       encoding: "utf8",
       timeout: 30000,
       maxBuffer: 128 * 1024,
-      env: { ...env, GIT_NO_LAZY_FETCH: "1", GIT_TERMINAL_PROMPT: "0" },
+      env: {
+        ...(executable === "/usr/bin/git"
+          ? {
+              PATH: "/usr/bin:/bin",
+              LANG: "C.UTF-8",
+              HOME: root,
+              GIT_CONFIG_NOSYSTEM: "1",
+              GIT_CONFIG_GLOBAL: "/dev/null",
+            }
+          : env),
+        GIT_NO_LAZY_FETCH: "1",
+        GIT_TERMINAL_PROMPT: "0",
+      },
     },
   ).trim();
+}
+
+async function retainProbeJson(directory: string, name: string, value: unknown) {
+  const file = await open(path.join(directory, name), "wx", 0o600);
+  try {
+    await file.writeFile(JSON.stringify(value) + "\n");
+    await file.sync();
+  } finally {
+    await file.close();
+  }
+}
+
+/** Atomic one-attempt exclusion only, not a runtime/semantic authority. */
+export async function claimSemanticSetupProbe(
+  output: string,
+  identity: { configuration_sha256: string; setup_grant_sha256: string; worker_revision: string },
+) {
+  if (
+    !path.isAbsolute(output) ||
+    path.resolve(output) !== output ||
+    Object.keys(identity).sort().join(",") !==
+      "configuration_sha256,setup_grant_sha256,worker_revision" ||
+    !/^[a-f0-9]{64}$/u.test(identity.configuration_sha256) ||
+    !/^[a-f0-9]{64}$/u.test(identity.setup_grant_sha256) ||
+    !/^[a-f0-9]{40}$/u.test(identity.worker_revision)
+  )
+    throw new Error("fixed initial probe claim identity required");
+  const directory = path.join(output, "initial-setup-probe");
+  await mkdir(directory, { mode: 0o700 }); // EEXIST always HOLD, including changed config or failed run.
+  await retainProbeJson(directory, "claim.json", {
+    schema_version: 1,
+    ...identity,
+    authority: "none",
+  });
+  return directory;
+}
+
+async function runInitialSemanticSetupProbe(
+  config: ReturnType<typeof inspectSemanticSetupProbeConfiguration>,
+  configurationPath: string,
+  configurationSha256: string,
+  readConfiguration: () => Promise<ReturnType<typeof inspectSemanticWorkerEntryConfiguration>>,
+) {
+  if (
+    path.posix.basename(configurationPath) !== "semantic-setup-probe.json" ||
+    process.env.NODE_OPTIONS ||
+    process.env.NODE_PATH
+  )
+    throw new Error("initial probe fixed path or Node environment differs");
+  await requirePrivateOwnerPath(config.output_parent, false);
+  const expectedState = {
+    schema_version: 1,
+    kind: "portcove-semantic-setup-probe-custody",
+    configuration_sha256: configurationSha256,
+    setup_grant_sha256: config.setup_grant_sha256,
+    worker_revision: config.worker_revision,
+  };
+  const state: unknown = JSON.parse(
+    (
+      await readBoundedPublicBuildInputFile(config.output_parent, "worker-state.json", 4096)
+    ).toString("utf8"),
+  );
+  if (capacityDigest(state) !== capacityDigest(expectedState))
+    throw new Error("initial probe custody differs; no claim or runtime");
+  const deadline = entryStarted + 2670000; // Existing45min service ceiling, preserving30s stop reserve.
+  const guard = async () => {
+    if (performance.now() >= deadline)
+      throw new Error("initial probe original service budget exhausted");
+    if (capacityDigest(await readConfiguration()) !== capacityDigest(config))
+      throw new Error("initial probe configuration changed");
+    if (
+      digest(await readBoundedPublicBuildInputFile("/usr/bin", "git", 32 * 1024 * 1024)) !==
+        config.source_git_sha256 ||
+      git(checkout, ["rev-parse", "HEAD"], "/usr/bin/git") !== config.worker_revision ||
+      git(checkout, ["status", "--porcelain", "--untracked-files=no"], "/usr/bin/git") !== ""
+    )
+      throw new Error("initial probe fixed source/Git differs");
+    if (
+      digest(
+        await readBoundedPublicBuildInputFile(
+          path.dirname(config.runtime.node_executable),
+          path.basename(config.runtime.node_executable),
+          128 * 1024 * 1024,
+        ),
+      ) !== config.runtime.node_sha256 ||
+      digest(
+        await readBoundedPublicBuildInputFile(
+          path.dirname(process.execPath),
+          path.basename(process.execPath),
+          128 * 1024 * 1024,
+        ),
+      ) !== config.runtime.node_sha256
+    )
+      throw new Error("initial probe running/configured Node differs");
+  };
+  await guard();
+  const directory = await claimSemanticSetupProbe(config.output_parent, {
+    configuration_sha256: configurationSha256,
+    setup_grant_sha256: config.setup_grant_sha256,
+    worker_revision: config.worker_revision,
+  });
+  try {
+    await requirePrivateOwnerPath(directory, false);
+    const qualification = { ...config.runtime, output_parent: directory };
+    await retainProbeJson(directory, "qualification.json", qualification);
+    const status = await runResourceCommand(
+      "analysis",
+      config.runtime.node_executable,
+      [
+        path.join(checkout, "scripts/qualify-semantic-linux.mts"),
+        "fixture",
+        path.join(directory, "qualification.json"),
+      ],
+      { cwd: checkout, queueDeadline: deadline, environment: semanticSupervisorEnvironment() },
+    );
+    await guard();
+    const entries = await readdir(directory, { withFileTypes: true });
+    const roots = entries.filter((entry) => entry.name.startsWith("q-"));
+    if (
+      roots.length !== 1 ||
+      !roots[0]!.isDirectory() ||
+      roots[0]!.isSymbolicLink() ||
+      !/^q-[A-Za-z0-9]+$/u.test(roots[0]!.name)
+    )
+      throw new Error("initial probe original capture root absent or ambiguous");
+    const capture = path.join(directory, roots[0]!.name, "capture");
+    const raw = await readBoundedPublicBuildInputFile(capture, "isolation.json", 128 * 1024);
+    const isolation: unknown = JSON.parse(raw.toString("utf8"));
+    inspectLinuxQualificationSettlement(status, isolation, "fixture");
+    await guard();
+    const result = {
+      schema_version: 1,
+      decision: "initial-setup-probe-settled",
+      scope:
+        "inert Linux fixture boundary only; outer Task/service settlement requires independent readback",
+      configuration_sha256: configurationSha256,
+      root: roots[0]!.name,
+      isolation_sha256: digest(raw),
+      authority: "none",
+      authenticated: false,
+      semantic_acceptance: false,
+      native_acceptance: false,
+    };
+    if (!raw.equals(await readBoundedPublicBuildInputFile(capture, "isolation.json", 128 * 1024)))
+      throw new Error("initial probe original settlement changed");
+    await retainProbeJson(directory, "probe-settlement.json", result);
+    return { ...result, directory };
+  } catch (error) {
+    await retainProbeJson(directory, "probe-refusal.json", {
+      schema_version: 1,
+      outcome: "refused-retain-original-no-retry",
+      authority: "none",
+      message: error instanceof Error ? error.message.slice(0, 4096) : "unknown",
+      semantic_acceptance: false,
+    });
+    throw error;
+  }
 }
 
 /** Fixed once-only user-unit entry, not an always-on release service. Every
@@ -219,9 +443,16 @@ export async function runSemanticWorkerOnce(configurationPath: string, expectedS
     );
     if (digest(bytes) !== expectedSha256)
       throw new Error("semantic setup configuration changed; refuse without credentials");
-    return inspectSemanticWorkerConfiguration(JSON.parse(bytes.toString("utf8")));
+    return inspectSemanticWorkerEntryConfiguration(JSON.parse(bytes.toString("utf8")));
   };
   const config = await readConfiguration();
+  if ("initial_setup_probe" in config)
+    return runInitialSemanticSetupProbe(
+      config,
+      configurationPath,
+      expectedSha256,
+      readConfiguration,
+    );
   await requirePrivateOwnerPath(config.output_parent, false);
   const setupState: unknown = JSON.parse(
     (

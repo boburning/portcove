@@ -1,13 +1,19 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtemp, rm, mkdir, writeFile } from "node:fs/promises";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtemp, rm, mkdir, writeFile, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
   inspectSemanticWorkerConfiguration,
+  inspectSemanticSetupProbeConfiguration,
+  inspectSemanticWorkerEntryConfiguration,
+  claimSemanticSetupProbe,
   renderSemanticWorkerUnits,
 } from "./release-semantic-worker.mts";
+import { inspectLinuxQualificationSettlement } from "./qualify-semantic-linux.mts";
+import { renderSemanticWslWorkerTask } from "./release-local-worker-tasks.mts";
+import { createHash } from "node:crypto";
 import { reviewFrozenCoordinatorRequest } from "./release-semantic-request-pipeline.mts";
 import { releaseSourceFixture } from "./fixtures/release-source-fixture.mts";
 import { inspectRemoteCommitObject } from "./release-coordinator-recovery.mts";
@@ -153,6 +159,166 @@ void test("worker setup excludes supplied outcomes/backends and separates the fi
     { ...raw, issuer: { ...raw.issuer, node_sha256: "d".repeat(64) } },
   ])
     assert.throws(() => inspectSemanticWorkerConfiguration(changed));
+});
+
+function probeConfiguration() {
+  const normal = configuration();
+  return {
+    schema_version: 1,
+    kind: "portcove-initial-semantic-boundary-probe",
+    initial_setup_probe: true,
+    worker_revision: normal.worker_revision,
+    setup_grant_sha256: normal.setup_grant_sha256,
+    source_git_sha256: normal.source_git_sha256,
+    output_parent: normal.output_parent,
+    runtime: normal.runtime,
+  };
+}
+void test("cold-start probe is a closed credential-free entry union through the same fixed Task and service", async () => {
+  const raw = probeConfiguration();
+  assert.equal(inspectSemanticSetupProbeConfiguration(raw).initial_setup_probe, true);
+  assert.ok("initial_setup_probe" in inspectSemanticWorkerEntryConfiguration(raw));
+  assert.ok(!("initial_setup_probe" in inspectSemanticWorkerEntryConfiguration(configuration())));
+  for (const extra of [
+    { issuer: configuration().issuer },
+    { auth_cache: configuration().auth_cache },
+    { source_read_token: configuration().source_read_token },
+    { mode: "codex-fixture" },
+    { accepted: true },
+    { initial_setup_probe: false },
+  ])
+    assert.throws(() => inspectSemanticSetupProbeConfiguration({ ...raw, ...extra }));
+  assert.throws(() =>
+    inspectSemanticWorkerEntryConfiguration({ ...configuration(), initial_setup_probe: true }),
+  );
+  const json = JSON.stringify(raw),
+    sha = createHash("sha256").update(json).digest("hex");
+  const task = await renderSemanticWslWorkerTask({
+    broker_sid: "S-1-5-21-1-2-3-1001",
+    system_root: "C:\\Windows",
+    distribution: "Ubuntu-24.04",
+    username: "portcove-review",
+    controller: "/owned/controller",
+    configuration: "/owned/semantic-setup-probe.json",
+    configuration_json: json,
+    configuration_sha256: sha,
+    start_utc: "2026-10-21T00:00:00.000Z",
+  });
+  assert.equal(
+    task.action.arguments,
+    "--distribution Ubuntu-24.04 --user portcove-review --exec /usr/bin/systemctl --user start --wait portcove-semantic-worker.service",
+  );
+  assert.match(
+    task.linux_service,
+    /release-semantic-worker[.]mts \/owned\/semantic-setup-probe[.]json/u,
+  );
+  assert.equal(task.linux_initial_state.kind, "portcove-semantic-setup-probe-custody");
+  assert.equal(task.timer_enabled, false);
+  assert.equal(task.initial_enabled, false);
+  assert.throws(
+    () => renderSemanticWorkerUnits(raw, "/owned/semantic.json", sha, "/owned/controller"),
+    /fixed configuration basename/u,
+  );
+});
+void test("one fixed setup-probe claim retains the original and refuses concurrent, changed or failed repeats", async (t) => {
+  const parent = await mkdtemp(path.join(os.tmpdir(), "semantic-probe-claim-"));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const identity = {
+    configuration_sha256: "a".repeat(64),
+    setup_grant_sha256: "b".repeat(64),
+    worker_revision: "c".repeat(40),
+  };
+  const results = await Promise.allSettled([
+    claimSemanticSetupProbe(parent, identity),
+    claimSemanticSetupProbe(parent, identity),
+  ]);
+  assert.equal(results.filter((item) => item.status === "fulfilled").length, 1);
+  const directory = path.join(parent, "initial-setup-probe");
+  const original = await readFile(path.join(directory, "claim.json"));
+  await writeFile(path.join(directory, "probe-refusal.json"), "retained refusal\n");
+  await assert.rejects(
+    claimSemanticSetupProbe(parent, { ...identity, configuration_sha256: "d".repeat(64) }),
+  );
+  assert.deepEqual(await readFile(path.join(directory, "claim.json")), original);
+});
+void test("probe settlement requires the existing positive fixture teardown and cannot establish semantic/native acceptance", () => {
+  const isolation = {
+    mode: "fixture",
+    authority: "none",
+    cgroup_verified: true,
+    namespaces_verified: true,
+    capture_complete: true,
+    cgroup_empty: true,
+    unit_settled: true,
+    network_settled: true,
+    network_refused: false,
+    forced_termination: false,
+    failure: null,
+    auth_refreshed: false,
+    exit_code: 0,
+    cleanup_errors: [],
+  };
+  assert.equal(
+    inspectLinuxQualificationSettlement(0, isolation, "fixture").semantic_acceptance,
+    false,
+  );
+  for (const changed of [
+    { mode: "codex" },
+    { cgroup_empty: false },
+    { unit_settled: false },
+    { network_settled: false },
+    { auth_refreshed: true },
+    { forced_termination: true },
+    { cleanup_errors: ["unknown"] },
+    { exit_code: null },
+  ])
+    assert.throws(() =>
+      inspectLinuxQualificationSettlement(0, { ...isolation, ...changed }, "fixture"),
+    );
+  assert.throws(() => inspectLinuxQualificationSettlement(1, isolation, "fixture"));
+});
+void test("actual worker entry dispatches the initial probe before all credential paths, under controlled modules only", () => {
+  const worker = new URL("./release-semantic-worker.mts", import.meta.url).href;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `
+    import assert from 'node:assert/strict'; import {registerHooks} from 'node:module'; import {createHash} from 'node:crypto';
+    const sha=x=>createHash('sha256').update(x).digest('hex');
+    const worker=${JSON.stringify(worker)};
+    const runtime={schema_version:1,output_parent:'/private/output',node_executable:'/private/node',codex_executable:'/private/codex',node_sha256:sha('node'),codex_sha256:'3'.repeat(64),supervisor_sha256:'4'.repeat(64),tools_sha256:{python:'5'.repeat(64),bwrap:'6'.repeat(64),systemd_run:'7'.repeat(64),systemctl:'8'.repeat(64)}};
+    const config={schema_version:1,kind:'portcove-initial-semantic-boundary-probe',initial_setup_probe:true,worker_revision:'a'.repeat(40),setup_grant_sha256:'b'.repeat(64),source_git_sha256:sha('git'),output_parent:runtime.output_parent,runtime};
+    const raw=Buffer.from(JSON.stringify(config)), hash=sha(raw), files=new Map(), dirs=new Set(); let launches=0;
+    const state={schema_version:1,kind:'portcove-semantic-setup-probe-custody',configuration_sha256:hash,setup_grant_sha256:config.setup_grant_sha256,worker_revision:config.worker_revision};
+    const isolation={mode:'fixture',authority:'none',cgroup_verified:true,namespaces_verified:true,capture_complete:true,cgroup_empty:true,unit_settled:true,network_settled:true,network_refused:false,forced_termination:false,failure:null,auth_refreshed:false,exit_code:0,cleanup_errors:[]};
+    globalThis.__probe={
+      async lstat(p){return {uid:1000,mode:p.endsWith('.json')?0o100600:0o40700,nlink:1,isSymbolicLink:()=>false,isFile:()=>true,isDirectory:()=>true};},
+      async mkdir(p){if(dirs.has(p))throw Object.assign(new Error('exists'),{code:'EEXIST'});dirs.add(p);},
+      async open(p,flags){assert.equal(flags,'wx');assert.ok(!files.has(p));return {async writeFile(v){files.set(p,String(v));},async sync(){},async close(){}};},
+      async readdir(){return [{name:'q-fixed1',isDirectory:()=>true,isSymbolicLink:()=>false}];},
+      async read(root,name){if(name==='semantic-setup-probe.json')return raw;if(name==='worker-state.json')return Buffer.from(JSON.stringify(state));if(root==='/usr/bin'&&name==='git')return Buffer.from('git');if(name==='isolation.json')return Buffer.from(JSON.stringify(isolation));if(name==='node'||name.endsWith('node.exe'))return Buffer.from('node');throw new Error('Unexpected read '+root+'/'+name);},
+      git(_name,args){return args.includes('rev-parse')?'a'.repeat(40):'';},
+      async resource(profile,node,args,options){launches++;assert.equal(profile,'analysis');assert.equal(node,runtime.node_executable);assert.equal(args[1],'fixture');assert.ok(args[0].endsWith('/scripts/qualify-semantic-linux.mts'));assert.ok(options.queueDeadline>performance.now());assert.equal(options.environment.GH_TOKEN,undefined);assert.equal(options.environment.OPENAI_API_KEY,undefined);return 0;}
+    };
+    const data=s=>'data:text/javascript,'+encodeURIComponent(s);
+    registerHooks({resolve(spec,context,next){if(context.parentURL===worker){
+      if(spec==='node:fs/promises')return {url:data('const p=globalThis.__probe; export const lstat=p.lstat,mkdir=p.mkdir,open=p.open,readdir=p.readdir; export const writeFile=()=>{throw new Error("no ordinary worker write");};'),shortCircuit:true};
+      if(spec==='node:child_process')return {url:data('export const execFileSync=(...a)=>globalThis.__probe.git(...a); export const spawnSync=()=>{throw new Error("no provider/issuer process");};'),shortCircuit:true};
+      if(spec==='node:path')return {url:data('import {posix} from "node:path";export default posix;'),shortCircuit:true};
+      if(spec==='./release-public-build-inputs.mts')return {url:data('export const readBoundedPublicBuildInputFile=(...a)=>globalThis.__probe.read(...a);'),shortCircuit:true};
+      if(spec==='./resource-command.mts')return {url:data('export const runResourceCommand=(...a)=>globalThis.__probe.resource(...a);'),shortCircuit:true};
+    }return next(spec,context);}});
+    const m=await import(worker); Object.defineProperty(process,'platform',{value:'linux'}); process.getuid=()=>1000; process.env.GH_TOKEN='MUST_NOT_REACH_CHILD';process.env.OPENAI_API_KEY='MUST_NOT_REACH_CHILD';
+    const output=await m.runSemanticWorkerOnce('/private/semantic-setup-probe.json',hash);
+    assert.equal(output.decision,'initial-setup-probe-settled');assert.equal(output.semantic_acceptance,false);assert.equal(launches,1);assert.ok(files.has('/private/output/initial-setup-probe/probe-settlement.json'));
+    await assert.rejects(m.runSemanticWorkerOnce('/private/semantic-setup-probe.json',hash),/exists/);assert.equal(launches,1);
+  `,
+    ],
+    { encoding: "utf8", timeout: 15000, windowsHide: true },
+  );
+  assert.equal(result.status, 0, result.stderr);
 });
 
 void test("actual proposal pipeline freezes real Git inputs then refuses an unqualified host/runtime before capture or issuer release", async (t) => {
