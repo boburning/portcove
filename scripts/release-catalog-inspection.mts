@@ -135,6 +135,9 @@ export async function inspectActualCatalogPublication(request: {
   output_parent: string;
   deadline: number;
 }) {
+  // Preserve the private tool receipt identity, while detaching all primitive
+  // arguments before the first await. A caller cannot extend this phase clock.
+  request = { ...request };
   remaining(request.deadline);
   const tools = await verifiedControllerToolPaths(request.tools);
   if (
@@ -274,6 +277,7 @@ export async function requireActualCatalogInspection(receipt: InspectionReceipt,
     ) !== actual.inspection_sha256
   )
     throw new Error("retained Core inspection changed");
+  remaining(deadline);
   return Object.freeze({
     source: Object.freeze({ ...actual.source }),
     bundle: actual.bundle,
