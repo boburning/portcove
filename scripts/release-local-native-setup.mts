@@ -4,7 +4,10 @@ import { lstat, realpath, readFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isRecord } from "./runtime-values.mts";
-import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
+import {
+  readBoundedPublicBuildInputFile,
+  inspectPublicBuildInputIdentity,
+} from "./release-public-build-inputs.mts";
 import { inspectReleaseAuthorityConfiguration } from "./release-authority-configuration.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { inspectCoordinatorRemoteNamespace } from "./release-coordinator-remote.mts";
@@ -40,10 +43,24 @@ export function inspectLocalNativeSetup(raw: unknown) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    "authority_configuration,capture_root,controller_revision,kind,namespace,native_boundary_configuration,platform_label,scheduler_identity,schema_version,setup_grant_sha256",
+    [
+      "authority_configuration",
+      "capture_root",
+      "controller_revision",
+      "kind",
+      "namespace",
+      "native_boundary_configuration",
+      "platform_label",
+      "scheduler_identity",
+      "schema_version",
+      "setup_grant_sha256",
+      ...(isRecord(value) && value.schema_version === 2 ? ["public_journey"] : []),
+    ]
+      .sort()
+      .join(","),
   );
   if (
-    value.schema_version !== 1 ||
+    (value.schema_version !== 1 && value.schema_version !== 2) ||
     value.kind !== "fixed-native-parent" ||
     typeof value.controller_revision !== "string" ||
     !/^[a-f0-9]{40}$/u.test(value.controller_revision) ||
@@ -71,8 +88,27 @@ export function inspectLocalNativeSetup(raw: unknown) {
     exact(input, "path,sha256");
     return { path: canonical(input.path, windows), sha256: digest(input.sha256) };
   };
+  let publicJourney;
+  if (value.schema_version === 2) {
+    exact(value.public_journey, "profile,public_build_inputs");
+    if (value.public_journey.profile !== "ordinary-public-initial-cohort-v1")
+      throw new Error("fixed public journey profile differs");
+    const publicInputs = value.public_journey.public_build_inputs;
+    exact(publicInputs, "configuration_revision,manifest_sha256");
+    const identity = inspectPublicBuildInputIdentity(
+      publicInputs.configuration_revision,
+      publicInputs.manifest_sha256,
+    );
+    publicJourney = {
+      profile: "ordinary-public-initial-cohort-v1" as const,
+      public_build_inputs: {
+        configuration_revision: identity.revision,
+        manifest_sha256: identity.digest,
+      },
+    };
+  }
   return {
-    schema_version: 1 as const,
+    schema_version: value.schema_version,
     kind: "fixed-native-parent" as const,
     controller_revision: value.controller_revision,
     setup_grant_sha256: digest(value.setup_grant_sha256),
@@ -85,6 +121,7 @@ export function inspectLocalNativeSetup(raw: unknown) {
       name: value.scheduler_identity.name,
     },
     capture_root: canonical(value.capture_root, windows),
+    ...(publicJourney ? { public_journey: publicJourney } : {}),
   };
 }
 

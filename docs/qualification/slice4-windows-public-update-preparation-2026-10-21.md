@@ -145,3 +145,37 @@ passed resource-admitted type-aware lint. Earlier resource-wrapper path failure
 ran no lint; subsequent typing failures exposed floating test promises and an
 untyped observation array, both repaired before this successful check. These
 feedback results confer no account, native-host or public-artifact acceptance.
+
+## Public-parent source custody in preparation
+
+A separate source checkpoint prepares the protected installed parent connection.
+An explicit schema-2 descriptor proposes the fixed initial-cohort profile plus
+one public-build configuration identity; schema 1 keeps its original behavior.
+The descriptor carries no version, tag, executable hash or accepted-result flag.
+Its actual installed task, source, protected bytes and setup-grant checks remain
+mandatory. No descriptor or host setup has been changed.
+
+The new actual-default source callable reuses the parent's existing pinned
+read-only GitHub transport. It recovers the current journal's published seed,
+materializes the complete exact public site, and invokes the maintained pinned
+Rust/Tough verifier. It binds Root, offline Targets and payload registry to the
+protected publication configuration. The first two namespace allocations must
+match exact prepared source/tree and retained release records; current eligible
+Preview must still equal V1, and both versions and package bytes must differ.
+Opaque package acquisition brackets a complete immutable Release/asset inventory
+and retains exact hashes. Imported JSON cannot enter these private custody maps.
+These are source/package facts, not native acceptance or compiler observations.
+
+This checkpoint is not a standalone delivery or the final parent connection.
+Local-parent compiler attestation collection, durable attempt custody, the hard
+outer supervisor, public capture/report handoff, installed setup renderer and
+worker routing are still being joined. The worker must preserve the existing
+native pre/post-sign path while a candidate is active, then select the public
+cohort automatically; replacing it at initial setup would prevent V0/V1 release.
+The V0-to-V1 route does not complete the later withdrawal/forward-repair proof.
+
+The focused source/association/refusal selection passed 20 cases, with the one
+existing optional keyless-tool fixture skipped on this invocation. Type-aware
+lint passed all five changed TypeScript files after four ordinary draft typing
+diagnostics were repaired; retained logs preserve the original result. These
+checks invoke no native account, installer, GUI, provider mutation or public feed.
