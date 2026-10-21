@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, open, rename, writeFile, readdir, readFile, chmod } from "node:fs/promises";
+import { lstat, mkdir, open, rename, writeFile, readdir, chmod } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
@@ -274,6 +274,17 @@ async function rawStoreBytes(filename: string, limit: number, deadline: number) 
     await handle.close();
   }
 }
+/** Stable held-file bytes with a fixed allocation and limit+1 growth refusal. */
+export function readBoundedPublicUpdateBytes(
+  filename: string,
+  maximumBytes: number,
+  deadline: number,
+) {
+  assert.ok(
+    Number.isSafeInteger(maximumBytes) && maximumBytes >= 0 && maximumBytes <= 192 * 1024 * 1024,
+  );
+  return rawStoreBytes(filename, maximumBytes, deadline);
+}
 /** Re-reads every actual raw preimage and rehashes any reused retained bytes.
  * Equal bytes share storage; observations and fault-byte preimages remain exact. */
 export async function retainDeduplicatedPublicUpdatePreimages(
@@ -517,7 +528,7 @@ export async function restorePublicUpdateProfile(
   const filename = path.join(snapshotDirectory, "profile.json");
   const identity = await readPublicUpdateFile(filename, 1024 * 1024);
   assert.equal(identity.sha256, manifestSha256);
-  const bytes = await readFile(filename);
+  const bytes = await rawStoreBytes(filename, 1024 * 1024, deadline);
   assert.equal(bytes.length, identity.bytes);
   assert.equal(createHash("sha256").update(bytes).digest("hex"), manifestSha256);
   const raw: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));

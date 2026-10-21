@@ -1,3 +1,5 @@
+import fsPromises from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import { createHash } from "node:crypto";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -11,6 +13,7 @@ import {
 } from "./native-linux-isolated-session.mts";
 import {
   createPublicUpdatePreimageStore,
+  readBoundedPublicUpdateBytes,
   retainPublicUpdateProfile,
   restorePublicUpdateProfile,
   retainDeduplicatedPublicUpdatePreimages,
@@ -306,3 +309,28 @@ void test(
     );
   },
 );
+
+void test("actual bounded reader refuses growth between metadata and open without an unbounded parse read", async (context) => {
+  const directory = await mkdtemp(path.join(tmpdir(), "portcove-public-growth-"));
+  context.after(() => rm(directory, { recursive: true, force: true }));
+  const filename = path.join(directory, "profile.json");
+  await writeFile(filename, "1234");
+  const originalOpen = fsPromises.open;
+  let intercepted = 0;
+  fsPromises.open = async (file, flags, mode) => {
+    if (file === filename && intercepted++ === 0)
+      await fsPromises.appendFile(filename, Buffer.alloc(2 * 1024 * 1024));
+    return originalOpen(file, flags, mode);
+  };
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(
+      readBoundedPublicUpdateBytes(filename, 1024 * 1024, performance.now() + 10000),
+      /grew during observation/u,
+    );
+    assert.equal(intercepted, 1);
+  } finally {
+    fsPromises.open = originalOpen;
+    syncBuiltinESMExports();
+  }
+});
