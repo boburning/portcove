@@ -4,7 +4,10 @@ import { lstat, mkdir, open, rename, writeFile, readdir, chmod } from "node:fs/p
 import type { FileHandle } from "node:fs/promises";
 import path from "node:path";
 import { errorCode, isRecord } from "../../../scripts/runtime-values.mts";
-import { retainNativeCaptureWire } from "../../../scripts/release-native-wsl-wire.mts";
+import {
+  retainNativeCaptureWire,
+  hashRetainedNativeCaptureFile,
+} from "../../../scripts/release-native-wsl-wire.mts";
 
 const fixedStateFiles = [
   ["update-schedule.json", 1024 * 1024],
@@ -308,6 +311,83 @@ export async function retainDeduplicatedPublicUpdatePreimages(
   deadline: number,
 ) {
   return retainRawSelections(runtime, output, storeReceipt, deadline, publicRawStateFiles);
+}
+
+/** Re-observe unchanged parked payload bytes while preserving their original
+ * complete wire/profile reference. Other raw files are freshly retained. This
+ * avoids a second full V1 copy alongside V2; the parent must authenticate the
+ * historical claim separately. Changed/current V2 bytes use the ordinary store. */
+export async function retainPublicContinuationPreimages(
+  runtime: string,
+  output: string,
+  storeReceipt: object,
+  deadline: number,
+  previous: {
+    invocation_id: string;
+    wire_sha256: string;
+    manifest_sha256: string;
+    package: { bytes: number; sha256: string };
+  },
+) {
+  previous = Object.freeze(structuredClone(previous));
+  assert.ok(
+    Number.isSafeInteger(previous.package.bytes) &&
+      previous.package.bytes > 0 &&
+      previous.package.bytes <= 192 * 1024 * 1024,
+  );
+  for (const value of [
+    previous.invocation_id,
+    previous.wire_sha256,
+    previous.manifest_sha256,
+    previous.package.sha256,
+  ])
+    assert.match(value, /^[a-f0-9]{64}$/u);
+  const name = "staging/candidate-installer.exe";
+  const observed = await regular(path.join(runtime, name), 192 * 1024 * 1024).catch(
+    (error: unknown) => {
+      if (errorCode(error) !== "ENOENT") throw error;
+      return null;
+    },
+  );
+  const observedSha = observed
+    ? await hashRetainedNativeCaptureFile(runtime, name, 192 * 1024 * 1024, observed.size, deadline)
+    : null;
+  if (
+    !observed ||
+    observed.size !== previous.package.bytes ||
+    observedSha !== previous.package.sha256
+  )
+    return retainDeduplicatedPublicUpdatePreimages(runtime, output, storeReceipt, deadline);
+  const retained = await retainRawSelections(
+    runtime,
+    output,
+    storeReceipt,
+    deadline,
+    publicRawStateFiles.filter(([filename]) => filename !== name),
+  );
+  assert.equal(
+    await hashRetainedNativeCaptureFile(runtime, name, 192 * 1024 * 1024, observed.size, deadline),
+    observedSha,
+  );
+  const historical_payload = {
+    path: name,
+    bytes: observed.size,
+    sha256: observedSha,
+    source: {
+      invocation_id: previous.invocation_id,
+      wire_sha256: previous.wire_sha256,
+      manifest_sha256: previous.manifest_sha256,
+      profile_path: "staging/candidate-installer.exe",
+    },
+    authority: "none" as const,
+  };
+  await writeFile(
+    path.join(output, "historical-payload.json"),
+    JSON.stringify(historical_payload) + "\n",
+    { flag: "wx", mode: 0o600 },
+  );
+  assert.ok(performance.now() < deadline);
+  return { ...retained, historical_payload };
 }
 async function retainRawSelections(
   runtime: string,

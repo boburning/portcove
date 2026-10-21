@@ -22,7 +22,49 @@ import {
   restorePublicUpdateProfile,
   restoreParkedPublicUpdateCapture,
   retainDeduplicatedPublicUpdatePreimages,
+  retainPublicContinuationPreimages,
 } from "./desktop-public-update-files.mts";
+void test("unchanged parked payload retains a new byte observation tied to original wire, while V2 is copied normally", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "public-old-payload-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const runtime = path.join(root, "runtime");
+  await mkdir(path.join(runtime, "staging"), { recursive: true });
+  const old = Buffer.from([1, 2, 3, 4]);
+  await writeFile(path.join(runtime, "staging/candidate-installer.exe"), old);
+  const store = await createPublicUpdatePreimageStore(path.join(root, "store")),
+    deadline = performance.now() + 10000;
+  const prior = {
+    invocation_id: "a".repeat(64),
+    wire_sha256: "b".repeat(64),
+    manifest_sha256: "c".repeat(64),
+    package: { bytes: old.length, sha256: createHash("sha256").update(old).digest("hex") },
+  };
+  const first = await retainPublicContinuationPreimages(
+    runtime,
+    path.join(root, "old-observation"),
+    store,
+    deadline,
+    prior,
+  );
+  assert.ok("historical_payload" in first);
+  assert.equal(first.retained_bytes, 0);
+  assert.equal(first.historical_payload.source.wire_sha256, prior.wire_sha256);
+  assert.deepEqual(await readFile(path.join(runtime, "staging/candidate-installer.exe")), old);
+  await writeFile(path.join(runtime, "staging/candidate-installer.exe"), Buffer.from([9, 8, 7, 6]));
+  const next = await retainPublicContinuationPreimages(
+    runtime,
+    path.join(root, "new-observation"),
+    store,
+    deadline,
+    prior,
+  );
+  assert.equal("historical_payload" in next, false);
+  assert.equal(next.retained_bytes, 4);
+  assert.equal(
+    next.files.find((file) => file.path === "staging/candidate-installer.exe")?.absent,
+    undefined,
+  );
+});
 
 void test("ordinary relaunch observation requires exact original opaque package and changed process generation", () => {
   const identity = { bytes: 12, sha256: "a".repeat(64) };

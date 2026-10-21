@@ -179,7 +179,7 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   const raw: unknown = structuredClone(value);
   assert.ok(
     isRecord(raw) &&
-      [1, 2, 3].includes(Number(raw.schema_version)) &&
+      [1, 2, 3, 4].includes(Number(raw.schema_version)) &&
       typeof raw.schema_version === "number",
   );
   const baseFields =
@@ -187,7 +187,8 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       ",",
     );
   if (raw.schema_version === 2) baseFields.push("predecessor");
-  if (raw.schema_version === 3) baseFields.push("candidate");
+  if (raw.schema_version === 3 || raw.schema_version === 4) baseFields.push("candidate");
+  if (raw.schema_version === 4) baseFields.push("parked_capture");
   assert.equal(Object.keys(raw).sort().join(","), baseFields.sort().join(","));
   for (const key of ["invocation_id", "request_sha256", "plan_sha256", "stage_request_sha256"])
     assert.ok(typeof raw[key] === "string" && /^[a-f0-9]{64}$/u.test(raw[key]));
@@ -216,8 +217,13 @@ export function inspectWslNativeDriverPlan(value: unknown) {
   assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
   let predecessor: { path: string; bytes: number; sha256: string } | null = null;
   let publicCandidate: { path: string; bytes: number; sha256: string } | null = null;
-  if ((raw.schema_version === 2 && raw.predecessor !== null) || raw.schema_version === 3) {
-    const value = raw.schema_version === 3 ? raw.candidate : raw.predecessor;
+  if (
+    (raw.schema_version === 2 && raw.predecessor !== null) ||
+    raw.schema_version === 3 ||
+    raw.schema_version === 4
+  ) {
+    const value =
+      raw.schema_version === 3 || raw.schema_version === 4 ? raw.candidate : raw.predecessor;
     assert.ok(
       isRecord(value) &&
         Object.keys(value).sort().join(",") === "bytes,path,sha256" &&
@@ -233,8 +239,28 @@ export function inspectWslNativeDriverPlan(value: unknown) {
     assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
     assert.notEqual(value.sha256, raw.package.sha256);
     const second = { path: value.path, bytes: Number(value.bytes), sha256: value.sha256 };
-    if (raw.schema_version === 3) publicCandidate = second;
+    if (raw.schema_version === 3 || raw.schema_version === 4) publicCandidate = second;
     else predecessor = second;
+  }
+  let parkedCapture: { path: string; bytes: number; sha256: string } | null = null;
+  if (raw.schema_version === 4) {
+    const value = raw.parked_capture;
+    assert.ok(
+      isRecord(value) &&
+        Object.keys(value).sort().join(",") === "bytes,path,sha256" &&
+        typeof value.path === "string" &&
+        path.win32.isAbsolute(value.path),
+    );
+    const relative = path.win32.relative(raw.capture_root, value.path);
+    assert.ok(relative && !relative.startsWith("..") && !path.win32.isAbsolute(relative));
+    assert.equal(path.win32.basename(value.path), "public-capture.stdout.bin");
+    assert.ok(
+      Number.isSafeInteger(value.bytes) &&
+        Number(value.bytes) > 0 &&
+        Number(value.bytes) <= 272 * 1024 * 1024,
+    );
+    assert.ok(typeof value.sha256 === "string" && /^[a-f0-9]{64}$/u.test(value.sha256));
+    parkedCapture = { path: value.path, bytes: Number(value.bytes), sha256: value.sha256 };
   }
   assert.ok(
     isRecord(raw.node) &&
@@ -272,11 +298,13 @@ export function inspectWslNativeDriverPlan(value: unknown) {
       minimum_os_version: raw.host_expected.minimum_os_version,
     },
     schema_version:
-      raw.schema_version === 3
-        ? (3 as const)
-        : raw.schema_version === 2
-          ? (2 as const)
-          : (1 as const),
+      raw.schema_version === 4
+        ? (4 as const)
+        : raw.schema_version === 3
+          ? (3 as const)
+          : raw.schema_version === 2
+            ? (2 as const)
+            : (1 as const),
     invocation_id: String(raw.invocation_id),
     request_sha256: String(raw.request_sha256),
     plan_sha256: String(raw.plan_sha256),
@@ -291,6 +319,7 @@ export function inspectWslNativeDriverPlan(value: unknown) {
     },
     predecessor,
     public_candidate: publicCandidate,
+    parked_capture: parkedCapture,
     node: { path: raw.node.path, sha256: raw.node.sha256 },
     parent_deadline_utc: raw.parent_deadline_utc,
     boundary,
@@ -373,6 +402,7 @@ async function runPreparedWslDriver(raw: unknown) {
     [prepared.schema_version === 2 ? "candidate" : "application", prepared.package],
     ...(prepared.predecessor ? [["predecessor", prepared.predecessor] as const] : []),
     ...(prepared.public_candidate ? [["candidate", prepared.public_candidate] as const] : []),
+    ...(prepared.parked_capture ? [["parked_capture", prepared.parked_capture] as const] : []),
   ] as const) {
     const packageInfo = await lstat(identity.path);
     assert.ok(
@@ -475,7 +505,9 @@ async function runPreparedWslDriver(raw: unknown) {
         commands.capture,
         null,
         directory,
-        prepared.schema_version === 3 ? "public-capture" : "guest-capture",
+        prepared.schema_version === 3 || prepared.schema_version === 4
+          ? "public-capture"
+          : "guest-capture",
         272 * 1024 * 1024,
         Math.min(60000, budget()),
       )

@@ -107,7 +107,11 @@ export function inspectNativeLinuxStagePlan(raw: unknown) {
 }
 /** Explicit ordinary-public plan; legacy native stage plans never select it. */
 export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
-  assert.ok(isRecord(raw) && raw.schema_version === 3 && raw.stage === "ordinary-public-update");
+  assert.ok(
+    isRecord(raw) &&
+      (raw.schema_version === 3 || raw.schema_version === 4) &&
+      raw.stage === "ordinary-public-update",
+  );
   assert.equal(
     Object.keys(raw).sort().join(","),
     "binding,invocation_id,public_journey,schema_version,stage,stage_request_sha256",
@@ -117,10 +121,12 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
   assert.ok(
     isRecord(journey) &&
       Object.keys(journey).sort().join(",") ===
-        "candidate,network,phase,profile_id,retained_state_bytes,source,versions",
+        (raw.schema_version === 4
+          ? "candidate,network,parked,phase,profile_id,retained_state_bytes,source,versions"
+          : "candidate,network,phase,profile_id,retained_state_bytes,source,versions"),
   );
   const binding = inspectPublicNativeLinuxBinding({
-    schema_version: 1,
+    schema_version: raw.schema_version === 4 ? 2 : 1,
     session: raw.binding,
     candidate: journey.candidate,
     network: journey.network,
@@ -128,6 +134,7 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
     profile_id: journey.profile_id,
     retained_state_bytes: journey.retained_state_bytes,
     source: journey.source,
+    ...(raw.schema_version === 4 ? { parked: journey.parked } : {}),
   });
   assert.equal(raw.invocation_id, binding.session.invocation_id);
   assert.ok(
@@ -149,7 +156,7 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
     binding,
     versions: { prior, candidate },
     raw_binding: structuredClone({
-      schema_version: 1,
+      schema_version: raw.schema_version === 4 ? 2 : 1,
       session: raw.binding,
       candidate: journey.candidate,
       network: journey.network,
@@ -157,6 +164,7 @@ export function inspectNativeLinuxPublicStagePlan(raw: unknown) {
       profile_id: journey.profile_id,
       retained_state_bytes: journey.retained_state_bytes,
       source: journey.source,
+      ...(raw.schema_version === 4 ? { parked: journey.parked } : {}),
     }),
   };
 }
@@ -197,7 +205,10 @@ export async function runNativeLinuxDriver(
   assert.equal(process.platform, "linux");
   const raw = await boundedJson(planPath, planSha256);
   assert.ok(isRecord(raw));
-  const publicPlan = raw.schema_version === 3 ? inspectNativeLinuxPublicStagePlan(raw) : null;
+  const publicPlan =
+    raw.schema_version === 3 || raw.schema_version === 4
+      ? inspectNativeLinuxPublicStagePlan(raw)
+      : null;
   const stagePlan = publicPlan ? null : inspectNativeLinuxStagePlan(raw);
   assert.ok(
     typeof raw.stage_request_sha256 === "string" &&

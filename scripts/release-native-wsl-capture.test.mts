@@ -296,3 +296,29 @@ void test("ordinary public Windows-to-guest transport stages distinct V0 and V1 
   ])
     assert.throws(() => inspectWslNativeDriverPlan(wrong));
 });
+void test("continuation capsule is a bounded fixed original capture input and cannot reinterpret schema3", () => {
+  const raw = fixture();
+  const input = {
+    ...raw,
+    schema_version: 4,
+    candidate: { ...raw.package, sha256: "8".repeat(64) },
+    parked_capture: {
+      path: raw.capture_root + String.raw`\native-attempt-original\public-capture.stdout.bin`,
+      bytes: 123,
+      sha256: "7".repeat(64),
+    },
+  };
+  const parsed = inspectWslNativeDriverPlan(input);
+  assert.equal(parsed.schema_version, 4);
+  assert.equal(parsed.parked_capture?.bytes, 123);
+  for (const changed of [
+    { ...input, schema_version: 3 },
+    { ...input, parked_capture: null },
+    { ...input, parked_capture: { ...input.parked_capture, bytes: 272 * 1024 * 1024 + 1 } },
+    {
+      ...input,
+      parked_capture: { ...input.parked_capture, path: raw.capture_root + String.raw`\other.bin` },
+    },
+  ])
+    assert.throws(() => inspectWslNativeDriverPlan(changed));
+});

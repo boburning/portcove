@@ -30,10 +30,13 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
   const value: unknown = structuredClone(raw);
   exact(
     value,
-    "candidate,network,phase,profile_id,retained_state_bytes,schema_version,session,source",
+    isRecord(value) && value.schema_version === 2
+      ? "candidate,network,parked,phase,profile_id,retained_state_bytes,schema_version,session,source"
+      : "candidate,network,phase,profile_id,retained_state_bytes,schema_version,session,source",
   );
-  assert.equal(value.schema_version, 1);
-  assert.ok(value.phase === "initial-v0-v1" || value.phase === "park-v0-with-v1");
+  assert.ok(value.schema_version === 1 || value.schema_version === 2);
+  if (value.schema_version === 2) assert.equal(value.phase, "continue-with-v2");
+  else assert.ok(value.phase === "initial-v0-v1" || value.phase === "park-v0-with-v1");
   assert.equal(value.profile_id, value.phase === "initial-v0-v1" ? "client-a" : "client-b");
   const session = inspectIsolatedNativeLinuxBinding(value.session);
   const attempt = `${session.linux_root}/invocations/${session.invocation_id}`;
@@ -47,6 +50,41 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
   };
   assert.ok(candidate.bytes > 0 && candidate.bytes <= 512 * MiB);
   assert.notEqual(candidate.sha256, session.application.sha256);
+  let parked: {
+    invocation_id: string;
+    wire_sha256: string;
+    manifest_sha256: string;
+    version: string;
+    package: { bytes: number; sha256: string };
+    wire_path: string;
+    retained_directory: string;
+  } | null = null;
+  if (value.schema_version === 2) {
+    exact(value.parked, "invocation_id,manifest_sha256,package,version,wire_sha256");
+    exact(value.parked.package, "bytes,sha256");
+    assert.ok(typeof value.parked.version === "string" && value.parked.version.length <= 128);
+    assert.match(value.parked.version, /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/u);
+    assert.ok(
+      Number.isSafeInteger(value.parked.package.bytes) &&
+        Number(value.parked.package.bytes) > 0 &&
+        Number(value.parked.package.bytes) <= 512 * MiB,
+    );
+    parked = {
+      invocation_id: sha(value.parked.invocation_id),
+      wire_sha256: sha(value.parked.wire_sha256),
+      manifest_sha256: sha(value.parked.manifest_sha256),
+      version: value.parked.version,
+      package: {
+        bytes: Number(value.parked.package.bytes),
+        sha256: sha(value.parked.package.sha256),
+      },
+      wire_path: `${attempt}/inputs/parked-public-capture.wire`,
+      retained_directory: `${attempt}/prior-public-capture`,
+    };
+    assert.notEqual(parked.invocation_id, session.invocation_id);
+    assert.notEqual(parked.package.sha256, candidate.sha256);
+    assert.notEqual(parked.package.sha256, session.application.sha256);
+  }
   assert.ok(Number.isSafeInteger(value.retained_state_bytes));
   const retainedStateBytes = Number(value.retained_state_bytes);
   assert.ok(retainedStateBytes >= 0 && retainedStateBytes <= 64 * MiB);
@@ -54,7 +92,10 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
   // SAME existing hard tmpfs as the user's retained state. This is a refusal
   // bound, never a reservation or evidence of currently available headroom.
   const requiredBytes =
-    session.application.bytes + 2 * candidate.bytes + retainedStateBytes + 16 * MiB;
+    session.application.bytes +
+    Math.max(2 * candidate.bytes, (parked?.package.bytes ?? 0) + candidate.bytes) +
+    retainedStateBytes +
+    16 * MiB;
   assert.ok(
     requiredBytes <= 512 * MiB,
     "ordinary update cannot fit the fixed writable-storage boundary",
@@ -89,9 +130,10 @@ export function inspectPublicNativeLinuxBinding(raw: unknown) {
     }),
   );
   return freeze({
-    schema_version: 1 as const,
+    schema_version: value.schema_version,
     session,
     candidate,
+    parked,
     source,
     retained_state_bytes: retainedStateBytes,
     required_writable_bytes: requiredBytes,

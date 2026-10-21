@@ -227,3 +227,45 @@ void test("parked B profile is an explicit finite phase and cannot impersonate c
   assert.throws(() => inspectPublicNativeLinuxBinding({ ...initial, phase: "park-v0-with-v1" }));
   assert.throws(() => inspectPublicNativeLinuxBinding({ ...initial, phase: "caller-accepted" }));
 });
+void test("continuation requires explicit new schema and exact original B capture, with old/new staging peak bounded", () => {
+  const initial = fixture();
+  const parked = {
+    invocation_id: "2".repeat(64),
+    wire_sha256: "3".repeat(64),
+    manifest_sha256: "4".repeat(64),
+    version: "0.1.1-beta.1",
+    package: { bytes: 300, sha256: "5".repeat(64) },
+  };
+  const raw = {
+    ...initial,
+    schema_version: 2,
+    phase: "continue-with-v2",
+    profile_id: "client-b",
+    parked,
+  };
+  const parsed = inspectPublicNativeLinuxBinding(raw);
+  assert.equal(
+    parsed.parked?.wire_path,
+    `${initial.session.linux_root}/invocations/${initial.session.invocation_id}/inputs/parked-public-capture.wire`,
+  );
+  assert.equal(
+    parsed.required_writable_bytes,
+    100 + Math.max(400, 500) + initial.retained_state_bytes + 16 * 1024 * 1024,
+  );
+  for (const changed of [
+    { ...raw, schema_version: 1 },
+    { ...raw, profile_id: "client-a" },
+    { ...raw, parked: null },
+    { ...raw, parked: { ...parked, invocation_id: initial.session.invocation_id } },
+    {
+      ...raw,
+      parked: { ...parked, package: { ...parked.package, sha256: initial.candidate.sha256 } },
+    },
+    {
+      ...raw,
+      candidate: { ...initial.candidate, bytes: 100 * 1024 * 1024 },
+      parked: { ...parked, package: { ...parked.package, bytes: 450 * 1024 * 1024 } },
+    },
+  ])
+    assert.throws(() => inspectPublicNativeLinuxBinding(changed));
+});
