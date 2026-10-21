@@ -86,6 +86,18 @@ before compilation and tests; complete selected and hosted obligations remain.
 
 ## Focused validation and bounded delivery reads
 
+Maintainer entrypoints expose task-specific `--help` with their purpose, required
+arguments, options and examples. This includes `check-fallow-report.mts`,
+`repository-settings.mts`, `quality-tools.mts`, `roadmap.mts`, `sign-catalog.mts`,
+`check-release-metadata.mts`, `check-retcomm-upstreams.mts`,
+`qualification-report.mts` and `dev-storage.mts` under `scripts/`. Top-level help exits
+without reading task inputs, contacting GitHub, installing tools, changing
+repository settings or cleaning storage. Roadmap field-specific help reads only
+the checked-in configuration to list canonical field values. The packaging, installer-test, release
+preflight and quality-bootstrap PowerShell entrypoints also accept `-Help`.
+Help describes the command; it does not establish qualification or authorize
+signing, publication or destructive operations.
+
 Use `just test-ui FILES` for literal test files. It validates every path before
 execution and reconciles requested files with Vitest's executed report. A successful
 partial match is a failure; skip counts are reported separately. Use

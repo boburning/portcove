@@ -11,6 +11,300 @@ import { evaluateCiResults } from "./ci-result-gate.mts";
 const sha = (character: string) => character.repeat(40);
 
 void test(
+  "release PowerShell help is inert and preserves the required installer input",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { spawnSync } = await import("node:child_process");
+    const { mkdtemp, mkdir, copyFile, readdir, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-release-help-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(path.join(root, "scripts"));
+    for (const name of [
+      "package-local.ps1",
+      "release-preflight.ps1",
+      "test-windows-installer.ps1",
+    ]) {
+      const script = path.join(root, "scripts", name);
+      await copyFile(new URL(`./${name}`, import.meta.url), script);
+      for (const help of ["-Help", "--help"]) {
+        const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", script, help], {
+          cwd: root,
+          encoding: "utf8",
+          windowsHide: true,
+          timeout: 10000,
+        });
+        assert.equal(result.status, 0, `${name} ${help}: ${result.stderr}`);
+        assert.match(result.stdout, /Usage:/u);
+        assert.match(result.stdout, /Example:/u);
+        assert.equal(result.stderr, "");
+      }
+    }
+    const installer = path.join(root, "scripts/test-windows-installer.ps1");
+    const required = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", installer], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10000,
+    });
+    assert.notEqual(required.status, 0);
+    assert.match(required.stderr, /InstallerPath/u);
+    const falseHelp = spawnSync(
+      "pwsh",
+      ["-NoProfile", "-NonInteractive", "-File", installer, "-Help:$false"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10000,
+      },
+    );
+    assert.notEqual(falseHelp.status, 0);
+    assert.match(falseHelp.stderr, /Provide -InstallerPath to run the test/u);
+    const bindingScript = `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${installer.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer parameters did not parse' }
+$probe = [scriptblock]::Create($ast.ParamBlock.Extent.Text + [Environment]::NewLine + '@{installer=$InstallerPath; predecessor=$UpgradeFromInstallerPath} | ConvertTo-Json -Compress')
+& $probe 'candidate.exe' 'predecessor.exe'
+`;
+    const binding = spawnSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(bindingScript, "utf16le").toString("base64"),
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10000,
+      },
+    );
+    assert.equal(binding.status, 0, binding.stderr);
+    assert.deepEqual(JSON.parse(binding.stdout), {
+      installer: "candidate.exe",
+      predecessor: "predecessor.exe",
+    });
+    assert.deepEqual(await readdir(root), ["scripts"]);
+  },
+);
+
+void test(
+  "packaging refusals name containment and a complete single forbidden entry while preserving prior output",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { spawnSync } = await import("node:child_process");
+    const { mkdtemp, mkdir, copyFile, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-package-copy-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(path.join(root, "scripts"));
+    await copyFile(
+      new URL("./package-local.ps1", import.meta.url),
+      path.join(root, "scripts/package-local.ps1"),
+    );
+    await writeFile(
+      path.join(root, "scripts/package-cli.ps1"),
+      `param([string]$PlatformLabel, [string]$ProjectRoot, [string]$TargetRoot, [switch]$Force)
+$archive = Join-Path $ProjectRoot 'fixture-cli.zip'
+[IO.File]::WriteAllText($archive, 'inert archive')
+$global:LASTEXITCODE = 0
+$archive
+`,
+    );
+    await writeFile(
+      path.join(root, "scripts/smoke-test-cli-archive.ps1"),
+      "param([string]$ArchivePath, [string]$PlatformLabel, [string]$Version)\n$global:LASTEXITCODE = 0\n",
+    );
+    const script = `
+$ErrorActionPreference = 'Stop'
+$script:output = $PSScriptRoot
+$target = Join-Path $PSScriptRoot 'target'
+$temporary = Join-Path $PSScriptRoot 'temporary'
+$store = Join-Path $PSScriptRoot 'store'
+function node {
+  $global:LASTEXITCODE = 0
+  if ($args[0] -like '*dev-storage.mts') {
+    @{output_root=$script:output; target_directory=$target; temporary_directory=$temporary; pnpm_store=$store} | ConvertTo-Json -Compress
+  }
+}
+function cargo { $global:LASTEXITCODE = 0 }
+function tar {
+  $global:LASTEXITCODE = 0
+  if ($args[0] -eq '-a') { [IO.File]::WriteAllText($args[2], 'inert temporary archive') }
+  elseif ($args[0] -eq '-tf') { './.git/private-state' }
+  else { throw 'Unexpected tar action' }
+}
+function Refusal([string]$expected) {
+  $message = $null
+  try { & (Join-Path $PSScriptRoot 'scripts/package-local.ps1') -Version 0.1.0 }
+  catch { $message = $_.Exception.Message }
+  if (-not $message -or $message -notlike "*$expected*") { throw "Expected '$expected'; received '$message'" }
+  $message
+}
+Refusal 'inside, but not equal to'
+$script:output = Join-Path $PSScriptRoot '../outside-packaging'
+Refusal 'PORTCOVE_OUTPUT_DIR'
+$script:output = Join-Path $PSScriptRoot 'packages'
+$null = [IO.Directory]::CreateDirectory($script:output)
+$null = [IO.Directory]::CreateDirectory((Join-Path $target 'release/bundle/nsis'))
+[IO.File]::WriteAllText((Join-Path $target 'release/bundle/nsis/Portcove_0.1.0_x64-setup.exe'), 'inert installer')
+$source = Join-Path $script:output 'portcove-0.1.0-source.zip'
+[IO.File]::WriteAllText($source, 'prior usable source archive')
+Refusal './.git/private-state'
+if ([IO.File]::ReadAllText($source) -cne 'prior usable source archive') { throw 'Prior source archive changed' }
+if ([IO.File]::Exists((Join-Path $script:output 'portcove-0.1.0-source.next.zip'))) { throw 'Rejected temporary archive remains' }
+`;
+    const fixture = path.join(root, "fixture.ps1");
+    await writeFile(fixture, script);
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", fixture], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 20000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /item that must not be packaged: \.\/\.git\/private-state\./u);
+    assert.match(result.stdout, /Check the configured storage paths and archive exclusions/u);
+  },
+);
+
+void test(
+  "release preflight failures preserve the child code, actual command, tag, and caller environment",
+  { skip: process.platform !== "win32" },
+  async (t) => {
+    const { spawnSync } = await import("node:child_process");
+    const { mkdtemp, mkdir, copyFile, writeFile, rm } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const root = await mkdtemp(path.join(tmpdir(), "portcove-preflight-copy-"));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "apps/desktop"), { recursive: true });
+    await copyFile(
+      new URL("./release-preflight.ps1", import.meta.url),
+      path.join(root, "scripts/release-preflight.ps1"),
+    );
+    await writeFile(
+      path.join(root, "package.json"),
+      JSON.stringify({ packageManager: "pnpm@1.0.0" }),
+    );
+    const script = `
+$ErrorActionPreference = 'Stop'
+$previousTemp = $env:TEMP
+$previousStore = $env:pnpm_config_store_dir
+$script:phase = 'metadata'
+function pnpm {
+  $global:LASTEXITCODE = 0
+  if ($args[0] -eq '--version') { '1.0.0' }
+}
+function node {
+  $global:LASTEXITCODE = 0
+  if ($args[0] -like '*dev-storage.mts') {
+    @{output_root=(Join-Path $PSScriptRoot 'packages'); target_directory=(Join-Path $PSScriptRoot 'target'); temporary_directory=(Join-Path $PSScriptRoot 'temporary'); pnpm_store=(Join-Path $PSScriptRoot 'store')} | ConvertTo-Json -Compress
+  }
+  elseif ($args[0] -eq '--test') {
+    if ($script:phase -eq 'tests') { $global:LASTEXITCODE = 17 }
+  }
+  elseif ($args[0] -like '*check-release-metadata.mts') {
+    if ($script:phase -eq 'metadata') { $global:LASTEXITCODE = 23 }
+  }
+  else { throw 'A later command ran after the failed gate' }
+}
+function just {
+  if ($script:phase -ne 'audit') { throw 'Audit ran after a failed gate' }
+  $global:LASTEXITCODE = 29
+}
+foreach ($phase in @('tests', 'metadata', 'audit')) {
+  $script:phase = $phase
+  $message = $null
+  try { & (Join-Path $PSScriptRoot 'scripts/release-preflight.ps1') -Tag v0.1.0 }
+  catch { $message = $_.Exception.Message }
+  if (-not $message) { throw 'Failed gate was accepted' }
+  if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStore) { throw 'Caller environment was not restored' }
+  $message
+}
+`;
+    const fixture = path.join(root, "fixture.ps1");
+    await writeFile(fixture, script);
+    const result = spawnSync("pwsh", ["-NoProfile", "-NonInteractive", "-File", fixture], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 20000,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /tests failed with exit code 17\. Command: node --test/u);
+    assert.match(
+      result.stdout,
+      /check failed with exit code 23\. Command: node '[^\r\n]+' --tag 'v0\.1\.0'\./u,
+    );
+    assert.match(result.stdout, /audit failed with exit code 29\. Command: just audit --fresh\./u);
+  },
+);
+
+void test(
+  "installer responsive-window refusal retains evidence and the forced-cleanup failure state",
+  { skip: process.platform !== "win32" },
+  async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { fileURLToPath } = await import("node:url");
+    const installer = fileURLToPath(new URL("./test-windows-installer.ps1", import.meta.url));
+    const script = `
+$ErrorActionPreference = 'Stop'
+$tokens = $null; $errors = $null
+$ast = [Management.Automation.Language.Parser]::ParseFile('${installer.replaceAll("'", "''")}', [ref]$tokens, [ref]$errors)
+if ($errors.Count) { throw 'Installer script did not parse' }
+$functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-ApplicationSmoke' }, $true))
+if ($functions.Count -ne 1) { throw 'Smoke function is absent or ambiguous' }
+Invoke-Expression $functions[0].Extent.Text
+$script:clock = 0
+$script:disposed = $false
+$script:stopped = $false
+$nativeAccount = $null
+$runRoot = 'retained-fixture-evidence'
+$evidence = @{phase='candidate_smoke'}
+$script:run = @{}
+$script:process = [pscustomobject]@{HasExited=$false; Responding=$false; MainWindowTitle=''; Id=123}
+$script:process | Add-Member ScriptMethod Refresh {}
+$script:process | Add-Member ScriptMethod Dispose {$script:disposed=$true}
+function Start-JournaledProcess { @{process=$script:process; run=$script:run} }
+function Start-Sleep {}
+function Get-Date { $script:clock += 31; [datetime]::new(2026, 1, 1).AddSeconds($script:clock) }
+function Stop-Process { $script:stopped=$true; $script:process.HasExited=$true }
+function Write-InstallerEvidence {}
+$message = $null
+try { Invoke-ApplicationSmoke 'inert-application' 'candidate_smoke' }
+catch { $message = $_.Exception.Message }
+if (-not $script:stopped -or -not $script:disposed -or $script:run.status -cne 'forced_termination') { throw 'Owned cleanup failure state changed' }
+$message
+`;
+    const output = execFileSync(
+      "pwsh",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-EncodedCommand",
+        Buffer.from(script, "utf16le").toString("base64"),
+      ],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 10000,
+      },
+    );
+    assert.match(output, /The installed app did not open a responsive Portcove window\./u);
+    assert.match(output, /retained-fixture-evidence before retrying/u);
+  },
+);
+
+void test(
   "next observation preserves marker bytes, partial effects and exclusive handoff",
   { skip: process.platform !== "win32" },
   async (t) => {

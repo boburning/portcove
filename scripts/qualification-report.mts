@@ -12,6 +12,34 @@ import { lstat, mkdir, writeFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
 import { promisify, parseArgs } from "node:util";
 
+const HELP = `Capture core diagnostics with an existing verified Portcove CLI and prepare an unassessed test checklist.
+
+Usage: node scripts/qualification-report.mts --cli FILE --library DIRECTORY --output DIRECTORY
+       node scripts/qualification-report.mts --help
+
+Required arguments:
+  --cli FILE           Existing regular CLI executable verified for this session.
+  --library DIRECTORY Initialized test library containing portcove.sqlite3.
+  --output DIRECTORY  New report directory; existing output is never replaced.
+
+Options:
+  --help               Show this help without executing the CLI or writing a report.
+
+The report retains the selected CLI SHA-256 and core evidence. Gameplay, audio,
+controllers or hardware controls, and save/load observations remain unassessed.
+This tool does not change catalog qualification flags. Keep reports private:
+they include local paths. Use the same reviewed source for the CLI and this tool.
+
+Example:
+  node scripts/qualification-report.mts --cli ./portcove.exe --library ./test-library --output ./report
+`;
+
+function unsupportedReport(detail: string) {
+  return new Error(
+    `The CLI returned a report format this tool does not support (${detail}). Use the CLI and qualification-report.mts from the same reviewed source.`,
+  );
+}
+
 export interface QualificationReportOptions {
   cli: string;
   library: string;
@@ -52,8 +80,8 @@ function reportRecords(statuses: unknown[]): RuntimeSnapshot[] {
   const identities = new Set();
   const records: RuntimeSnapshot[] = [];
   for (const status of statuses) {
-    const portId = requiredIdentity(isRecord(status) ? status.port_id : undefined, "port identity");
-    if (!isRecord(status)) throw new Error("Unsupported status shape");
+    if (!isRecord(status)) throw unsupportedReport("status is not an object");
+    const portId = requiredIdentity(status.port_id, "port identity");
     if (ports.has(portId)) throw new Error(`Duplicate port identity in core report: ${portId}`);
     ports.add(portId);
     if (status.active != null && status.external_runtime != null)
@@ -61,11 +89,8 @@ function reportRecords(statuses: unknown[]): RuntimeSnapshot[] {
     const record = status.active ?? status.external_runtime;
     if (record == null) continue;
     const kind = status.active != null ? "managed" : "external";
-    const id = requiredIdentity(
-      isRecord(record) ? record.id : undefined,
-      `${kind} record identity for ${portId}`,
-    );
-    if (!isRecord(record)) throw new Error("Unsupported runtime record shape");
+    if (!isRecord(record)) throw unsupportedReport("runtime record is not an object");
+    const id = requiredIdentity(record.id, `${kind} record identity for ${portId}`);
     if (record.port_id != null && record.port_id !== portId)
       throw new Error(`Runtime record owner differs from status owner for ${portId}`);
     const identity = `${kind}:${id}`;
@@ -135,12 +160,21 @@ export async function captureQualificationReport(
   const cli = resolve(options.cli);
   const library = resolve(options.library);
   const output = resolve(options.output);
-  if (
-    !(await lstat(cli)).isFile() ||
-    !(await lstat(library)).isDirectory() ||
-    !(await lstat(join(library, "portcove.sqlite3"))).isFile()
-  ) {
-    throw new Error("Use an existing CLI executable and initialized qualification library");
+  try {
+    if (
+      !(await lstat(cli)).isFile() ||
+      !(await lstat(library)).isDirectory() ||
+      !(await lstat(join(library, "portcove.sqlite3"))).isFile()
+    ) {
+      throw new Error(
+        "The CLI and library database must be regular files, and the library must be a directory.",
+      );
+    }
+  } catch (cause) {
+    throw new Error(
+      `Provide an existing Portcove CLI executable verified for this session and an initialized test library containing portcove.sqlite3. Received --cli ${JSON.stringify(cli)} and --library ${JSON.stringify(library)}.`,
+      { cause },
+    );
   }
   const cliSha256 = await cliDigest(cli);
   async function requireCliIdentity() {
@@ -165,12 +199,21 @@ export async function captureQualificationReport(
           timeout: 120_000,
         },
       );
-      const value: unknown = JSON.parse(stdout);
-      if (!isRecord(value)) throw new Error("Unsupported core response envelope");
-      if (value.ok !== true)
-        throw new Error(
-          `${args.join(" ")}: ${String(isRecord(value.error) ? value.error.message : undefined)}`,
-        );
+      let value: unknown;
+      try {
+        value = JSON.parse(stdout);
+      } catch (cause) {
+        throw new SyntaxError(unsupportedReport(`${args.join(" ")}: invalid JSON`).message, {
+          cause,
+        });
+      }
+      if (!isRecord(value))
+        throw unsupportedReport(`${args.join(" ")}: response envelope is not an object`);
+      if (value.ok !== true) {
+        if (value.ok === false && isRecord(value.error) && typeof value.error.message === "string")
+          throw new Error(`${args.join(" ")}: ${value.error.message}`);
+        throw unsupportedReport(`${args.join(" ")}: expected a success or failure envelope`);
+      }
       envelope = { ...value, ok: true };
     } catch (error) {
       commandFailed = true;
@@ -205,7 +248,7 @@ export async function captureQualificationReport(
   const catalog = evidence.catalog?.data;
   const statuses = evidence.status?.data;
   if (!Array.isArray(statuses) || !isRecord(catalog) || !Array.isArray(catalog.ports))
-    throw new Error("Unsupported core report shape");
+    throw unsupportedReport("expected a status array and a catalog with a ports array");
   const rawStatuses: unknown[] = statuses;
   const ports: unknown[] = catalog.ports;
   const records = reportRecords(rawStatuses);
@@ -275,10 +318,22 @@ See docs/CATALOG.md for platform qualification rules and the live Portcove Roadm
 
 if (import.meta.main) {
   const { values } = parseArgs({
-    options: { cli: { type: "string" }, library: { type: "string" }, output: { type: "string" } },
+    options: {
+      cli: { type: "string" },
+      library: { type: "string" },
+      output: { type: "string" },
+      help: { type: "boolean" },
+    },
   });
+  if (values.help) {
+    process.stdout.write(HELP);
+    process.exit(0);
+  }
   for (const name of ["cli", "library", "output"] as const) {
-    if (!values[name]) throw new Error(`--${name} is required`);
+    if (!values[name])
+      throw new Error(
+        `--${name} is required. Use --help for the verified CLI, initialized test library, and new report directory requirements.`,
+      );
   }
   if (!values.cli || !values.library || !values.output) throw new Error("Missing report paths");
   const result = await captureQualificationReport({

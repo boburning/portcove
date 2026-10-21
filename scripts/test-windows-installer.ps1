@@ -1,5 +1,6 @@
+[CmdletBinding(DefaultParameterSetName = "Run")]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $true, ParameterSetName = "Run")]
     [string]$InstallerPath,
     [string]$UpgradeFromInstallerPath,
     [string]$ExpectedExecutablePath,
@@ -37,8 +38,60 @@ param(
     [ValidateSet('official', 'embedded')]
     [string]$RendererTransport = 'official',
     [ValidateSet("", "post-spawn-verification")]
-    [string]$TestFault = ""
+    [string]$TestFault = "",
+    [Parameter(Mandatory = $true, ParameterSetName = "Help")]
+    [Alias("h", "-help")][switch]$Help
 )
+
+if ($PSCmdlet.ParameterSetName -eq "Help") {
+    if (-not $Help) {
+        throw "A false -Help value does not select help. Provide -InstallerPath to run the test, or use -Help without a value."
+    }
+    Write-Output @'
+Check an isolated Windows installer lifecycle and retain failed-run evidence.
+
+Usage: pwsh -File scripts/test-windows-installer.ps1 -InstallerPath FILE [options]
+       pwsh -File scripts/test-windows-installer.ps1 -Help
+       pwsh -File scripts/test-windows-installer.ps1 --help
+
+Required:
+  -InstallerPath FILE  Candidate NSIS executable; an existing registered installation is refused.
+
+Lifecycle options:
+  -UpgradeFromInstallerPath FILE  Retained predecessor installer for replacement checks.
+  -ExpectedExecutablePath FILE  Expected candidate desktop bytes.
+  -ExpectedVersion VERSION  Expected installed version.
+  -InstallMode Silent|Passive  Installer interaction mode (default: Silent).
+  -TestBase DIRECTORY  Isolated test parent; defaults to configured development scratch storage.
+  -RetainedLibraryRoot DIRECTORY  Empty isolated sibling library retained after the run.
+  -RetainExecutablePath FILE  Retain the installed executable for evidence.
+  -EvidencePath FILE  External lifecycle evidence destination.
+  -ProcessTimeoutSeconds SECONDS  Process budget, 1-600 (default: 120).
+  -CleanupTimeoutSeconds SECONDS  Cleanup budget, 1-60 (default: 15).
+
+Qualification modes (use their documented admitted parent commands):
+  -NormalPackageManifestPath FILE, -NormalPackageAdmissionPath FILE
+  -NativeAccountBindingPath FILE, -NativeAccountBindingSha256 SHA256, -NativeParentOwnsFinish
+  -OrdinaryPublicUpdateInputsPath FILE, -OrdinaryPublicUpdateInputsSha256 SHA256,
+    -OrdinaryPublicUpdateRemainingMilliseconds MILLISECONDS
+  -QualifyPackageRollback, -ExpectedPredecessorVersion VERSION
+  -RequireSigningAuthorityAbsent, -PayloadPrivateKeyPath FILE, -TufPrivateRootPath DIRECTORY
+  -InstalledUpdateTrustedRootPath FILE, -InstalledUpdateMetadataPath DIRECTORY,
+    -InstalledUpdateTargetsPath DIRECTORY, -InstalledUpdateCandidatePath FILE,
+    -InstalledUpdatePredecessorVersion VERSION
+  -RendererUpdate, -RendererTransport official|embedded
+  -TestFault post-spawn-verification  Isolated fault fixture only.
+  -Help, --help  Show this help before storage, Registry, or process operations.
+
+See docs/RELEASING.md for each mode's required inputs and trust boundaries. These
+flags do not grant signing/publication authority or establish gameplay observations.
+Failed runs retain their isolated directory; inspect the evidence before cleanup.
+
+Example:
+  pwsh -File scripts/test-windows-installer.ps1 -InstallerPath ./Portcove_0.1.0_x64-setup.exe
+'@
+    exit 0
+}
 
 $ErrorActionPreference = "Stop"
 $null = $ProcessTimeoutSeconds, $TestFault
@@ -223,7 +276,7 @@ function Invoke-ApplicationSmoke([string]$Application, [string]$Role) {
             }
         } while ((-not $process.Responding -or -not $process.MainWindowTitle) -and (Get-Date) -lt $deadline)
         if (-not $process.Responding -or -not $process.MainWindowTitle) {
-            throw "Installed application did not reach a responsive named window"
+            throw "The installed app did not open a responsive Portcove window. Inspect the retained installer test evidence at $runRoot before retrying."
         }
         $title = $process.MainWindowTitle
         $launch.run.close_request = [ordered]@{

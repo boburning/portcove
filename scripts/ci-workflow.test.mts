@@ -2506,7 +2506,7 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
     await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
     const valid = run("--offline");
     assert.equal(valid.status, 0, valid.stderr);
-    assert.match(valid.stdout, /live upstream checks were not run/);
+    assert.match(valid.stdout, /Live upstream checks were not run/);
     const live = run();
     assert.equal(live.status, 1);
     assert.match(live.stderr, /NETWORK_FORBIDDEN/);
@@ -2530,7 +2530,7 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
     await writeFile(catalogFile, JSON.stringify({ ports: [port, ...independent] }));
     const coexist = run("--offline");
     assert.equal(coexist.status, 0, coexist.stderr);
-    assert.match(coexist.stdout, /Verified 1 local PS1 mappings/);
+    assert.match(coexist.stdout, /Checked 1 local PlayStation upstream mapping\./);
     assert.equal(
       requiredFixture(coexist.stdout.match(/RetComM audit NOT_APPLICABLE:/gu)).length,
       2,
@@ -2645,14 +2645,18 @@ void test("offline RetComM validation rejects bad mappings without loading upstr
       assert.equal(rejected.status, 1, fixture.name);
       assert.match(rejected.stderr, fixture.error, fixture.name);
       assert.doesNotMatch(rejected.stderr, /TypeError|NETWORK_FORBIDDEN/, fixture.name);
-      assert.doesNotMatch(rejected.stdout, /Verified/, fixture.name);
+      assert.doesNotMatch(
+        rejected.stdout,
+        /Checked \d+ (?:local|direct) PlayStation/u,
+        fixture.name,
+      );
     }
     await writeFile(catalogFile, JSON.stringify({ ports: [port, direct] }));
     await writeFile(mappingFile, JSON.stringify({ fixture: "fixture-title" }));
     const renamed = run("--offline");
     assert.equal(renamed.status, 0, renamed.stderr);
     assert.match(renamed.stdout, /independent-fixture/);
-    assert.match(renamed.stdout, /Verified 1 local PS1 mappings/);
+    assert.match(renamed.stdout, /Checked 1 local PlayStation upstream mapping\./);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2820,9 +2824,9 @@ globalThis.fetch = async (url, options) => {
       }
       if (fixture.error) {
         assert.match(result.stderr, fixture.error, fixture.name);
-        assert.doesNotMatch(result.stdout, /Verified/);
+        assert.doesNotMatch(result.stdout, /Checked \d+ direct PlayStation/u);
       } else {
-        assert.match(result.stdout, /Verified 1 direct PS1 game upstreams/);
+        assert.match(result.stdout, /Checked 1 direct PlayStation upstream repository/);
         assert.equal(
           requiredFixture(result.stdout.match(/RetComM audit NOT_APPLICABLE:/gu)).length,
           2,
@@ -2836,6 +2840,81 @@ globalThis.fetch = async (url, options) => {
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+void test("upstream summaries report zero, one, and many selected repositories without overstating scope", async (t) => {
+  const { copyFile } = await import("node:fs/promises");
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-upstream-summary-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(path.join(root, "scripts"));
+  const script = path.join(root, "scripts/check-retcomm-upstreams.mts");
+  await copyFile(new URL("./check-retcomm-upstreams.mts", import.meta.url), script);
+  await copyFile(
+    new URL("./runtime-values.mts", import.meta.url),
+    path.join(root, "scripts/runtime-values.mts"),
+  );
+  const catalog = path.join(root, "crates/portcove-core/catalog");
+  const upstream = path.join(root, "upstream");
+  await mkdir(catalog, { recursive: true });
+  await mkdir(path.join(upstream, "titles/psx"), { recursive: true });
+  const ports = ["first", "second", "same-repository"].map((id) => ({
+    id,
+    adapter: "psx-recomp-managed",
+    release: { repository: `owner/${id === "same-repository" ? "first" : id}` },
+  }));
+  await writeFile(path.join(catalog, "catalog.json"), JSON.stringify({ ports }));
+  await writeFile(
+    path.join(root, "scripts/retcomm-psx-upstreams.json"),
+    JSON.stringify(Object.fromEntries(ports.map((port) => [port.id, port.id]))),
+  );
+  for (const port of ports)
+    await writeFile(
+      path.join(upstream, "titles/psx", `${port.id}.json`),
+      JSON.stringify({ release: { github: port.release.repository } }),
+    );
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, [script, ...args], {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      timeout: 10000,
+      env: { ...process.env, RETCOMM_CATALOG_DIR: upstream },
+    });
+  for (const [selection, expected] of [
+    ["", "0 direct PlayStation upstream repositories for 0 mapped ports"],
+    ["first", "1 direct PlayStation upstream repository for 1 mapped port"],
+    [
+      "first,second,same-repository",
+      "2 direct PlayStation upstream repositories for 3 mapped ports",
+    ],
+  ]) {
+    const result = run(`--port-ids=${selection}`);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes(`Checked ${expected} against ${upstream}.`), result.stdout);
+    assert.match(result.stdout, /RetComM-Launcher is not used as a release source\./u);
+    assert.match(result.stdout, /Unselected live identities remain unassessed\./u);
+  }
+  for (const count of [0, 1, 2]) {
+    const subset = ports.slice(0, count);
+    await writeFile(path.join(catalog, "catalog.json"), JSON.stringify({ ports: subset }));
+    await writeFile(
+      path.join(root, "scripts/retcomm-psx-upstreams.json"),
+      JSON.stringify(Object.fromEntries(subset.map((port) => [port.id, port.id]))),
+    );
+    const result = run("--offline");
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(
+      result.stdout.includes(
+        `Checked ${count} local PlayStation upstream mapping${count === 1 ? "" : "s"}.`,
+      ),
+    );
+    assert.match(result.stdout, /Live upstream checks were not run\./u);
+  }
+  await rm(path.join(upstream, "titles/psx/first.json"));
+  const unavailable = run("--port-ids=first");
+  assert.equal(unavailable.status, 1);
+  assert.match(unavailable.stderr, /no PSX title manifest/u);
+  assert.doesNotMatch(unavailable.stdout, /Checked/u);
 });
 
 void test("RetComM scoped live reads exclude unrelated manifests without narrowing offline validation", async () => {
@@ -2881,7 +2960,7 @@ void test("RetComM scoped live reads exclude unrelated manifests without narrowi
       });
     const scoped = run("--port-ids=selected");
     assert.equal(scoped.status, 0, scoped.stderr);
-    assert.match(scoped.stdout, /Verified 1 direct PS1 game upstreams/);
+    assert.match(scoped.stdout, /Checked 1 direct PlayStation upstream repository/);
     assert.match(scoped.stdout, /Unselected live identities remain unassessed/);
     const full = run();
     assert.equal(full.status, 1);
@@ -2950,7 +3029,7 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
     await writeFile(platform, "{");
     const malformed = run();
     assert.equal(malformed.status, 1);
-    assert.doesNotMatch(malformed.stdout, /Verified/);
+    assert.doesNotMatch(malformed.stdout, /Checked \d+ direct PlayStation/u);
     assert.doesNotMatch(malformed.stderr, /NETWORK_FORBIDDEN/);
     await rm(platform);
     await mkdir(platform);
@@ -2960,14 +3039,14 @@ void test("RetComM local manifests preserve platform precedence and refuse malfo
       1,
       "non-ENOENT read errors must not fall back to valid legacy",
     );
-    assert.doesNotMatch(inaccessible.stdout, /Verified/);
+    assert.doesNotMatch(inaccessible.stdout, /Checked \d+ direct PlayStation/u);
     assert.doesNotMatch(inaccessible.stderr, /NETWORK_FORBIDDEN/);
     await rm(platform, { recursive: true });
     await rm(legacy);
     const missing = run();
     assert.equal(missing.status, 1);
     assert.match(missing.stderr, /no PSX title manifest for fixture-title/);
-    assert.doesNotMatch(missing.stdout, /Verified/);
+    assert.doesNotMatch(missing.stdout, /Checked \d+ direct PlayStation/u);
     assert.doesNotMatch(missing.stderr, /NETWORK_FORBIDDEN/);
   } finally {
     await rm(root, { recursive: true, force: true });

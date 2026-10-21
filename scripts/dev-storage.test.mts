@@ -288,10 +288,57 @@ void test("resolves missing descendants through junctions and rejects files and 
     resolvePhysicalPath(path.join(link, "not/created")),
     path.join(destination, "not/created"),
   );
-  writeFileSync(path.join(root, "file"), "content");
-  assert.throws(() => resolvePhysicalPath(path.join(root, "file/child")), /directory|ENOTDIR/);
-  symlinkSync(path.join(root, "missing"), path.join(root, "dangling"), "junction");
-  assert.throws(() => resolvePhysicalPath(path.join(root, "dangling/child")), /ENOENT/);
+  const file = path.join(root, "file");
+  writeFileSync(file, "content");
+  for (const candidate of [file, path.join(file, "child")]) {
+    assert.throws(
+      () => resolvePhysicalPath(candidate),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.ok(error.message.includes(candidate), error.message);
+        assert.match(error.message, /Choose a (?:readable )?directory/);
+        return true;
+      },
+    );
+  }
+  assert.equal(readFileSync(file, "utf8"), "content");
+  const dangling = path.join(root, "dangling");
+  symlinkSync(path.join(root, "missing"), dangling, "junction");
+  assert.throws(
+    () => resolvePhysicalPath(path.join(dangling, "child")),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.ok(error.message.includes(dangling), error.message);
+      assert.match(error.message, /ENOENT.*repair the unavailable link destination/s);
+      return true;
+    },
+  );
+});
+
+void test("an unavailable storage root reports the original path and a safe recovery action", () => {
+  const candidate = path.join(path.parse(projectRoot).root, "unavailable-volume", "scratch");
+  const script = `
+    import assert from 'node:assert/strict';
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { resolvePhysicalPath } from ${JSON.stringify(new URL("./dev-storage.mts", import.meta.url).href)};
+    const previous = fs.lstatSync;
+    try {
+      fs.lstatSync = () => { throw Object.assign(new Error('fixture volume unavailable'), { code: 'ENOENT' }); };
+      syncBuiltinESMExports();
+      assert.throws(() => resolvePhysicalPath(${JSON.stringify(candidate)}), (error) => {
+        assert.ok(error.message.includes(${JSON.stringify(candidate)}));
+        assert.match(error.message, /No existing parent directory.*Connect the intended volume/);
+        return true;
+      });
+    } finally { fs.lstatSync = previous; syncBuiltinESMExports(); }
+  `;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], {
+    encoding: "utf8",
+    windowsHide: true,
+    timeout: 10_000,
+  });
+  assert.equal(result.status, 0, result.stderr);
 });
 
 void test(
@@ -456,10 +503,11 @@ void test("clean accepts only the default target and refuses linked ancestors", 
   }
   const real = path.join(root, "real");
   mkdirSync(real);
+  writeFileSync(path.join(real, "retained-evidence"), "preserve");
   symlinkSync(real, target, "junction");
   assert.throws(
     () => validateCleanTarget({ workspace: root, target_directory: target }),
-    /symlink, junction/,
+    /symlink, junction.*Leave that path and its contents unchanged/,
   );
   const alias = path.join(root, "alias");
   symlinkSync(real, alias, "junction");
@@ -469,8 +517,9 @@ void test("clean accepts only the default target and refuses linked ancestors", 
         workspace: alias,
         target_directory: path.join(alias, "target"),
       }),
-    /symlink, junction/,
+    /symlink, junction.*Leave that path and its contents unchanged/,
   );
+  assert.equal(readFileSync(path.join(real, "retained-evidence"), "utf8"), "preserve");
 });
 
 void test("incremental pruning accepts only an ordinary unlinked cache", (t) => {
@@ -482,11 +531,21 @@ void test("incremental pruning accepts only an ordinary unlinked cache", (t) => 
   mkdirSync(redirected);
   mkdirSync(path.join(root, "target"));
   symlinkSync(redirected, path.join(root, "target", "debug"), "junction");
-  assert.throws(() => validateIncrementalCache(paths), /symlink, junction/);
+  assert.throws(
+    () => validateIncrementalCache(paths),
+    /symlink, junction.*Leave that path and its contents unchanged/,
+  );
   rmSync(path.join(root, "target", "debug"));
   mkdirSync(path.join(root, "target", "debug"));
   writeFileSync(path.join(root, "target", "debug", "incremental"), "not a cache");
-  assert.throws(() => validateIncrementalCache(paths), /non-directory/);
+  assert.throws(
+    () => validateIncrementalCache(paths),
+    /non-directory.*prune only an ordinary target\/debug\/incremental/,
+  );
+  assert.equal(
+    readFileSync(path.join(root, "target", "debug", "incremental"), "utf8"),
+    "not a cache",
+  );
 });
 
 void test("rejects malformed invocations and invalid free-space margins", () => {
@@ -532,7 +591,7 @@ void test("storage help exits before tool discovery, path checks, preparation or
     const result = cli(root, args, overrides);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, "");
-    assert.match(result.stdout, /usage: node scripts\/dev-storage\.mts/);
+    assert.match(result.stdout, /Usage: node scripts\/dev-storage\.mts/);
     assert.match(result.stdout, /--minimum-free-gib/);
     assert.match(result.stdout, /PORTCOVE_MIN_FREE_GIB/);
     assert.match(result.stdout, /Examples:/);
@@ -560,7 +619,7 @@ void test("storage help after -- remains an argument to the child command", (t) 
   assert.deepEqual(JSON.parse(readFileSync(path.join(root, "child-arguments.json"), "utf8")), [
     "--help",
   ]);
-  assert.doesNotMatch(result.stdout, /usage: node scripts\/dev-storage\.mts/);
+  assert.doesNotMatch(result.stdout, /Usage: node scripts\/dev-storage\.mts/);
 });
 
 void test("invalid storage margins report the effective input and an actionable correction", (t) => {
@@ -615,6 +674,10 @@ void test("preflight is read-only and machine-readable, and low space prevents c
   ]);
   assert.equal(blocked.status, 1);
   assert.match(blocked.stderr, /needs at least/);
+  assert.match(
+    blocked.stderr,
+    /preserve source inputs, recovery material and verification evidence/,
+  );
   assert.equal(existsSync(path.join(root, "ran")), false);
 });
 
@@ -778,6 +841,9 @@ void test("clean remains available below the free-space margin and preserves sou
   });
   assert.equal(rejected.status, 1);
   assert.match(rejected.stderr, /except this workspace/);
+  assert.ok(rejected.stderr.includes(path.join(root, "src")), rejected.stderr);
+  assert.ok(rejected.stderr.includes(path.join(root, "target")), rejected.stderr);
+  assert.match(rejected.stderr, /Preserve the custom target and use its owning cleanup workflow/);
   assert.equal(existsSync(path.join(root, "src/lib.rs")), true);
 });
 

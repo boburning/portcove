@@ -35,7 +35,7 @@ const DEFAULT_MINIMUM_FREE_GIB = 20;
 const GIB = 1024 ** 3;
 const HELP = `Check development storage, run a command after preflight, or explicitly clean Cargo caches.
 
-usage: node scripts/dev-storage.mts [preflight] [options]
+Usage: node scripts/dev-storage.mts [preflight] [options]
        node scripts/dev-storage.mts run [options] -- command [arguments...]
        node scripts/dev-storage.mts clean
        node scripts/dev-storage.mts prune-incremental
@@ -100,7 +100,8 @@ function cargoMetadata() {
   if (result.error) throw result.error;
   if (result.status !== 0) {
     throw new Error(
-      `cargo metadata failed with exit code ${result.status}: ${result.stderr.trim()}`,
+      `Cargo metadata failed with exit code ${result.status}: ${result.stderr.trim()}. ` +
+        "Run cargo metadata --format-version 1 --no-deps in this checkout to diagnose the workspace before retrying.",
     );
   }
   const metadata: unknown = JSON.parse(result.stdout);
@@ -109,7 +110,9 @@ function cargoMetadata() {
     typeof metadata.workspace_root !== "string" ||
     typeof metadata.target_directory !== "string"
   )
-    throw new Error("cargo metadata omitted workspace storage paths");
+    throw new Error(
+      "Cargo metadata omitted workspace storage paths. Verify workspace_root and target_directory in cargo metadata --format-version 1 --no-deps before retrying.",
+    );
   return { workspace_root: metadata.workspace_root, target_directory: metadata.target_directory };
 }
 
@@ -145,7 +148,10 @@ export function readStoragePolicy({
     config = JSON.parse(readFileSync(configPath, "utf8").replace(/^\uFEFF/u, ""));
   } catch (error) {
     if (errorCode(error) !== "ENOENT")
-      throw new Error(`Cannot read machine storage policy ${configPath}: ${errorMessage(error)}`);
+      throw new Error(
+        `Cannot read machine storage policy ${configPath}: ${errorMessage(error)}. ` +
+          "Restore readable, valid JSON at that path; preserve the machine owner's storage restrictions.",
+      );
   }
   if (
     !isRecord(config) ||
@@ -153,10 +159,14 @@ export function readStoragePolicy({
     typeof config.blockSystemDrive !== "boolean" ||
     Object.keys(config).some((key) => !["format", "blockSystemDrive"].includes(key))
   )
-    throw new Error(`Invalid machine storage policy ${configPath}`);
+    throw new Error(
+      `Invalid machine storage policy ${configPath}. Use only format: 1 and a boolean blockSystemDrive field; preserve the machine owner's storage restrictions.`,
+    );
   const override = environment.PORTCOVE_BLOCK_SYSTEM_DRIVE;
   if (override !== undefined && !["0", "1"].includes(override))
-    throw new Error("PORTCOVE_BLOCK_SYSTEM_DRIVE must be 0 or 1");
+    throw new Error(
+      `PORTCOVE_BLOCK_SYSTEM_DRIVE must be 0 or 1; received ${JSON.stringify(override)}. Correct the environment value; 0 cannot relax a strict machine policy.`,
+    );
   // An environment override can tighten a machine policy, never relax it.
   return { blockSystemDrive: config.blockSystemDrive || override === "1" };
 }
@@ -166,7 +176,7 @@ export function getPaths(
   { metadataProvider = cargoMetadata }: { metadataProvider?: () => CargoStorageMetadata } = {},
 ) {
   if (!["all", "tooling", "frontend", "rust"].includes(scope))
-    throw new Error(`Unknown storage task scope: ${scope}`);
+    throw new Error(`Unknown storage task scope: ${scope}. Use all, tooling, frontend or rust.`);
   const paths: StoragePaths = {
     workspace: projectRoot,
     temporary_directory: resolveConfiguredPath(process.env.PORTCOVE_TEMP_DIR, "work/temp"),
@@ -177,7 +187,7 @@ export function getPaths(
     const metadataRoot = path.resolve(metadata.workspace_root);
     if (metadataRoot.toLowerCase() !== projectRoot.toLowerCase())
       throw new Error(
-        `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}`,
+        `Cargo workspace ${metadataRoot} does not match script workspace ${projectRoot}. Run this checkout's storage tool with its own Cargo workspace.`,
       );
     paths.target_directory = path.resolve(metadata.target_directory);
   }
@@ -202,9 +212,17 @@ function nearestExistingPath(candidate: string) {
       lstatSync(current);
       return current;
     } catch (error) {
-      if (errorCode(error) !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") {
+        throw new Error(
+          `Cannot inspect storage path ${current}: ${errorMessage(error)}. Choose a readable directory path or correct its parent-directory access before retrying.`,
+          { cause: error },
+        );
+      }
       const parent = path.dirname(current);
-      if (parent === current) throw new Error(`No existing ancestor for ${candidate}`);
+      if (parent === current)
+        throw new Error(
+          `No existing parent directory was found for ${candidate}. Connect the intended volume or choose a storage path below an existing directory.`,
+        );
       current = parent;
     }
   }
@@ -212,8 +230,19 @@ function nearestExistingPath(candidate: string) {
 
 export function resolvePhysicalPath(candidate: string) {
   const existing = nearestExistingPath(candidate);
-  if (!statSync(existing).isDirectory())
-    throw new Error(`Storage path is not a directory: ${existing}`);
+  let stats;
+  try {
+    stats = statSync(existing);
+  } catch (error) {
+    throw new Error(
+      `Cannot resolve storage path ${candidate} through ${existing}: ${errorMessage(error)}. Choose an existing directory or repair the unavailable link destination before retrying.`,
+      { cause: error },
+    );
+  }
+  if (!stats.isDirectory())
+    throw new Error(
+      `Storage path is not a directory: ${existing}. Choose a directory for ${candidate}; preserve the existing file.`,
+    );
   return path.resolve(
     realpathSync.native(existing),
     path.relative(existing, path.resolve(candidate)),
@@ -271,7 +300,7 @@ export function preflight<P extends object>(
       accessSync(nearestExistingPath(candidate), constants.W_OK);
     } catch (error) {
       throw new Error(
-        `Storage path is not writable: ${label}=${candidate}: ${errorMessage(error)}`,
+        `Storage path is not writable: ${label}=${candidate}: ${errorMessage(error)}. Choose a writable directory for ${label} or restore access to its existing parent.`,
       );
     }
   }
@@ -279,7 +308,7 @@ export function preflight<P extends object>(
     const violations = windowsSystemDriveViolations(physicalPaths, process.env.SystemDrive || "C:");
     if (violations.length) {
       throw new Error(
-        `Heavy Portcove work is blocked because these paths resolve to the Windows system drive: ${violations.join(", ")}`,
+        `Heavy Portcove work is blocked because these paths resolve to the Windows system drive: ${violations.join(", ")}. Move the affected workspace or configured storage paths to a volume allowed by the machine policy; see docs/DEVELOPMENT-STORAGE.md.`,
       );
     }
   }
@@ -291,7 +320,8 @@ export function preflight<P extends object>(
       `Portcove needs at least ${requiredFreeGiB.toFixed(1)} GiB free; ` +
         shortVolumes
           .map((volume) => `${volume.root} has ${(volume.free_bytes / GIB).toFixed(2)} GiB`)
-          .join(", "),
+          .join(", ") +
+        ". Free verified disposable build caches or choose a volume with enough space; preserve source inputs, recovery material and verification evidence. See docs/DEVELOPMENT-STORAGE.md.",
     );
   }
   return { paths: physicalPaths, volumes };
@@ -409,7 +439,9 @@ export function spawnCommand(
     // characters in both the executable and arguments before invoking the shell.
     const tokens = [command, ...args];
     if (tokens.some((token) => /["&|<>^%!()\r\n]/u.test(token))) {
-      throw new Error("Refusing shell metacharacters in a Windows command shim");
+      throw new Error(
+        "Refusing shell metacharacters in a Windows command shim. Use a native executable or arguments without shell expansion/control characters.",
+      );
     }
     const searchPath =
       Object.entries(options.env ?? process.env).find(
@@ -430,7 +462,9 @@ export function spawnCommand(
       .find((candidate) => statSync(candidate, { throwIfNoEntry: false })?.isFile());
     if (!shim) throw launchError;
     if (/["&|<>^%!()\r\n]/u.test(shim))
-      throw new Error("Refusing shell metacharacters in a Windows command shim path");
+      throw new Error(
+        `Refusing shell metacharacters in a Windows command shim path: ${shim}. Use a native executable or a shim path without shell expansion/control characters.`,
+      );
     const line = [shim, ...args].map((token) => `"${token}"`).join(" ");
     result = spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", `"${line}"`], {
       ...options,
@@ -467,12 +501,14 @@ function runChild(command: string, args: string[], paths: StoragePaths) {
 
 export function validateCleanTarget(paths: Pick<StoragePaths, "workspace" | "target_directory">) {
   if (typeof paths.target_directory !== "string")
-    throw new Error("Cargo target directory is unavailable");
+    throw new Error(
+      "Cargo target directory is unavailable. Run cargo metadata --format-version 1 --no-deps in this workspace and resolve target_directory before requesting cleanup.",
+    );
   const target = path.resolve(paths.target_directory);
   const workspace = path.resolve(paths.workspace);
   if (target !== path.join(workspace, "target")) {
     throw new Error(
-      `Refusing to clean anything except this workspace's target directory: ${target}`,
+      `Refusing to clean anything except this workspace's target directory: ${target}. This command accepts only ${path.join(workspace, "target")}. Preserve the custom target and use its owning cleanup workflow.`,
     );
   }
   let current = target;
@@ -481,7 +517,7 @@ export function validateCleanTarget(paths: Pick<StoragePaths, "workspace" | "tar
       const stats = lstatSync(current);
       if (stats.isSymbolicLink() || !stats.isDirectory()) {
         throw new Error(
-          `Refusing to clean through a symlink, junction, or non-directory: ${current}`,
+          `Refusing to clean through a symlink, junction, or non-directory: ${current}. Leave that path and its contents unchanged; use an ordinary workspace and target directory with no linked ancestors.`,
         );
       }
     } catch (error) {
@@ -518,7 +554,7 @@ export function validateIncrementalCache(
       const stats = lstatSync(candidate);
       if (stats.isSymbolicLink() || !stats.isDirectory()) {
         throw new Error(
-          `Refusing to prune through a symlink, junction, or non-directory: ${candidate}`,
+          `Refusing to prune through a symlink, junction, or non-directory: ${candidate}. Leave that path and its contents unchanged; prune only an ordinary target/debug/incremental directory with no linked ancestors.`,
         );
       }
     } catch (error) {
@@ -557,11 +593,15 @@ export function parseArguments(argv: string[]) {
     else if (option === "--scope") {
       scope = remaining.shift();
       if (!scope || !["all", "tooling", "frontend", "rust"].includes(scope))
-        throw new Error("--scope requires all, tooling, frontend or rust");
+        throw new Error(
+          "--scope requires all, tooling, frontend or rust. Supply one of those values before --.",
+        );
     } else if (option === "--minimum-free-gib") {
       requestedMinimum = remaining.shift();
       if (!requestedMinimum || requestedMinimum.startsWith("--")) {
-        throw new Error("--minimum-free-gib requires a positive GiB value");
+        throw new Error(
+          "--minimum-free-gib requires a positive GiB value. Supply a number greater than 0 before --.",
+        );
       }
     } else throw new Error(`Unknown option: ${option}. See node scripts/dev-storage.mts --help.`);
   }
@@ -572,11 +612,21 @@ export function parseArguments(argv: string[]) {
     );
   }
   if (action === "run" && !remaining.length && !help)
-    throw new Error("run requires a command after --");
-  if (action !== "run" && remaining.length) throw new Error(`${action} does not accept a command`);
-  if (asJson && action !== "preflight") throw new Error("--json is only supported by preflight");
+    throw new Error(
+      "run requires a command after --. Use node scripts/dev-storage.mts run [options] -- command [arguments...].",
+    );
+  if (action !== "run" && remaining.length)
+    throw new Error(
+      `${action} does not accept a command. Use run -- command [arguments...] to wrap a child command.`,
+    );
+  if (asJson && action !== "preflight")
+    throw new Error(
+      "--json is only supported by preflight. Use preflight --json to inspect storage without running a command.",
+    );
   if (scope && ["clean", "prune-incremental"].includes(action))
-    throw new Error("cleanup always resolves complete Cargo storage");
+    throw new Error(
+      "Cleanup always resolves complete Cargo storage. Omit --scope when using clean or prune-incremental.",
+    );
   return { action, asJson, requestedMinimum, scope, command: remaining, help };
 }
 

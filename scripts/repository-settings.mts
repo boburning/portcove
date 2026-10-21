@@ -367,10 +367,31 @@ async function loadDesired() {
 }
 
 async function main(argv: readonly string[]) {
+  if (argv.length === 1 && argv[0] === "--help") {
+    console.log(`Usage: node scripts/repository-settings.mts [--validate|--plan|--check|--apply|--help]
+
+Validate the checked-in repository protection and security contract, or compare it
+with GitHub. Live operations require an authenticated GitHub CLI with access to
+the configured repository.
+
+Options (choose one):
+  --validate  Validate local artifacts only; this is the default.
+  --plan      Read live settings and print the supported changes as JSON.
+  --check     Read live settings and fail if they differ from the checked-in contract.
+  --apply     Apply only the supported migration, then read back the live settings.
+  --help      Show this help without reading configuration or contacting GitHub.
+
+Applying protection or security changes requires explicit owner authorization.
+This command does not create replacement protection or bypass its migration guards.
+
+Example:
+  node scripts/repository-settings.mts --validate`);
+    return;
+  }
   const mode = argv[0] ?? "--validate";
   if (!["--validate", "--plan", "--check", "--apply"].includes(mode) || argv.length > 1) {
     throw new Error(
-      "usage: node scripts/repository-settings.mts [--validate|--plan|--check|--apply]",
+      "Usage: node scripts/repository-settings.mts [--validate|--plan|--check|--apply]. Run with --help for an example.",
     );
   }
   const { ruleset, security } = await loadDesired();

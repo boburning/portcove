@@ -2,6 +2,30 @@ import { errorMessage, errorCode, isRecord } from "./runtime-values.mts";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+if (process.argv.length === 3 && process.argv[2] === "--help") {
+  console.log(`Check direct PlayStation game upstream identities against RetComM catalog provenance.
+
+Usage: node scripts/check-retcomm-upstreams.mts [--offline | --port-ids=ID,ID]
+       node scripts/check-retcomm-upstreams.mts --help
+
+Options:
+  --offline          Check all local mappings without network reads; cannot be scoped.
+  --port-ids=ID,ID   Limit live catalog reads to unique existing port IDs.
+  --help             Show this help without reading the catalog or contacting upstreams.
+
+Environment:
+  RETCOMM_CATALOG_DIR  Read a local RetComM catalog instead of GitHub.
+  RETCOMM_CATALOG_REF  Remote catalog revision (default: main).
+
+RetComM-Launcher is not used as a release source. These checks do not establish
+gameplay observations or qualify independent pinned artifacts.
+
+Example:
+  node scripts/check-retcomm-upstreams.mts --offline
+`);
+  process.exit(0);
+}
+
 const catalogPath = new URL("../crates/portcove-core/catalog/catalog.json", import.meta.url);
 const mappingPath = new URL("./retcomm-psx-upstreams.json", import.meta.url);
 import type {
@@ -265,12 +289,17 @@ if (failures.length) {
 }
 
 if (offline) {
+  const count = psxPorts.length - outsideRetcomm.length;
   console.log(
-    `Verified ${psxPorts.length - outsideRetcomm.length} local PS1 mappings; live upstream checks were not run.`,
+    `Checked ${count} local PlayStation upstream mapping${count === 1 ? "" : "s"}. Live upstream checks were not run. RetComM-Launcher is not used as a release source.`,
   );
 } else {
   const source = localCatalogDir ? localCatalogDir : `TechnicallyComputers/retcomm-catalog@${ref}`;
+  const checkedPorts = psxPorts.filter(
+    (port) => mappedPortIds.has(port.id) && (selectedIds === null || selectedIds.includes(port.id)),
+  );
+  const repositories = new Set(checkedPorts.map((port) => port.release.repository)).size;
   console.log(
-    `Verified ${psxPorts.filter((port) => mappedPortIds.has(port.id) && (selectedIds === null || selectedIds.includes(port.id))).length} direct PS1 game upstreams against ${source}; RetComM-Launcher is not a runtime source.${selectedIds === null ? "" : " Unselected live identities remain unassessed."}`,
+    `Checked ${repositories} direct PlayStation upstream repositor${repositories === 1 ? "y" : "ies"} for ${checkedPorts.length} mapped port${checkedPorts.length === 1 ? "" : "s"} against ${source}. RetComM-Launcher is not used as a release source.${selectedIds === null ? "" : " Unselected live identities remain unassessed."}`,
   );
 }

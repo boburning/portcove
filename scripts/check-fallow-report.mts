@@ -132,7 +132,27 @@ export function evaluateFallowReport(value: unknown, { requireParseGate = false 
 
 async function main() {
   const [reportPath] = process.argv.slice(2);
-  if (!reportPath) throw new Error("usage: node check-fallow-report.mts <report.json>");
+  if (reportPath === "--help" && process.argv.length === 3) {
+    console.log(`Usage: node scripts/check-fallow-report.mts <report.json>
+
+Validate a retained Fallow report and enforce the repository's whole-Desktop
+qualification gates. This command reads an existing report; it does not run Fallow.
+
+Arguments:
+  <report.json>  Required combined JSON report from the repository-pinned Fallow version.
+  --help         Show this help without reading a report.
+
+Malformed, incomplete or incompatible reports fail. Dead-code/dependency findings,
+critical complexity and enforced native gates fail; duplication is advisory.
+
+Example:
+  node scripts/check-fallow-report.mts work/fallow-report.json`);
+    return;
+  }
+  if (!reportPath)
+    throw new Error(
+      "Usage: node scripts/check-fallow-report.mts <report.json>. Run with --help for an example.",
+    );
   const report: unknown = JSON.parse(await readFile(reportPath, "utf8"));
   const assessment = evaluateFallowReport(report, { requireParseGate: true });
   if (assessment.failures.length) {

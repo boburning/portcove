@@ -1,5 +1,5 @@
 name: New port / upstream candidate
-description: Capture a native port, decompilation, or recompilation for roadmap triage.
+description: Suggest a native port, decompilation, or recompilation for review and roadmap planning.
 title: "[Port] "
 projects:
   - boburning/1
@@ -52,23 +52,23 @@ body:
   - type: textarea
     id: source
     attributes:
-      label: Source contract observations
+      label: Required game files and setup
       description: Required lawful game data, exact revisions/hashes, setup interface, and what is still unknown.
   - type: textarea
     id: integrity
     attributes:
-      label: Release and artifact integrity
+      label: Release files and integrity checks
       description: Release URL, runnable assets, published SHA-256/digest/sidecar, and channel stability.
   - type: textarea
     id: persistence
     attributes:
-      label: Executable, persistence, and adapter observations
+      label: Launch, saves and settings, and implementation fit
       description: Entrypoint, setup, saves/config/mods, portable-root support, and reusable adapter fit.
   - type: textarea
     id: evidence
     attributes:
       label: Current evidence and exact resume condition
-      description: Distinguish verified facts from assumptions and state what would make the candidate actionable.
+      description: Distinguish verified facts from assumptions and state what would make the candidate actionable. Separate integration evidence from optional gameplay reports; leave untested claims unknown.
     validations:
       required: true
   - type: checkboxes

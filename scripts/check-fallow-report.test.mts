@@ -1,4 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { evaluateFallowReport } from "./check-fallow-report.mts";
@@ -9,6 +14,33 @@ function requiredFixture<T>(value: T | undefined): T {
   assert.ok(value !== undefined);
   return value;
 }
+
+void test("Fallow report help is inert and failed reports still produce a failing exit status", (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "portcove-fallow-help-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const script = fileURLToPath(new URL("./check-fallow-report.mts", import.meta.url));
+  const run = (...args: string[]) =>
+    spawnSync(process.execPath, [script, ...args], {
+      encoding: "utf8",
+      timeout: 5000,
+      env: { ...process.env, PATH: "" },
+      cwd: root,
+    });
+  const help = run("--help");
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /^Usage:/u);
+  assert.match(help.stdout, /reads an existing report/u);
+  assert.match(help.stdout, /Example:/u);
+  assert.equal(help.stderr, "");
+  const missing = run();
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Usage:/u);
+  const reportPath = path.join(root, "report.json");
+  writeFileSync(reportPath, JSON.stringify(report({ issues: 1 })));
+  const failed = run(reportPath);
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /Fallow quality gate failed:/u);
+});
 
 void test("accepts a clean report", () => {
   assert.deepEqual(evaluateFallowReport(report()).failures, []);
