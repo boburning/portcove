@@ -10,11 +10,18 @@ export type ReleaseControlPhase =
   | "tuf-preview"
   | "tuf-stable"
   | "tuf-snapshot"
-  | "tuf-timestamp";
+  | "tuf-timestamp"
+  | CatalogControlPhase;
+export type CatalogControlPhase =
+  | "catalog-definitions"
+  | "catalog-policy"
+  | "catalog-snapshot"
+  | "catalog-timestamp";
 export type TufSigningRole = "releases" | "preview" | "stable" | "snapshot" | "timestamp";
 export type MaintenanceReleaseControlPhase =
   | "coordinator"
   | "site-publication"
+  | CatalogControlPhase
   | `tuf-${TufSigningRole}`;
 const tufTitles = Object.freeze({
   releases: "Releases",
@@ -35,7 +42,23 @@ function metadataProfile(role: TufSigningRole) {
     observer_environment: "production-release-protection-observer",
   });
 }
+function catalogProfile(role: "definitions" | "policy" | "snapshot" | "timestamp") {
+  return Object.freeze({
+    reader_job: `catalog_${role}` as const,
+    reader_name: `Sign catalog ${role}` as const,
+    reader_audience: `portcove-catalog-${role}-signing-v1` as const,
+    reader_environment: `production-catalog-${role}` as const,
+    observer_job: "catalog_metadata_protection_observation",
+    observer_name: "Observe catalog metadata signing protections",
+    observer_audience: `portcove-release-catalog-${role}-protection-v1` as const,
+    observer_environment: "production-release-protection-observer",
+  });
+}
 const phases = Object.freeze({
+  "catalog-definitions": catalogProfile("definitions"),
+  "catalog-policy": catalogProfile("policy"),
+  "catalog-snapshot": catalogProfile("snapshot"),
+  "catalog-timestamp": catalogProfile("timestamp"),
   coordinator: Object.freeze({
     reader_job: "coordinator",
     reader_name: "Coordinate application release",
@@ -103,7 +126,11 @@ export function inspectReleaseControlPhase(raw: unknown = "admission"): ReleaseC
     raw !== "tuf-preview" &&
     raw !== "tuf-stable" &&
     raw !== "tuf-snapshot" &&
-    raw !== "tuf-timestamp"
+    raw !== "tuf-timestamp" &&
+    raw !== "catalog-definitions" &&
+    raw !== "catalog-policy" &&
+    raw !== "catalog-snapshot" &&
+    raw !== "catalog-timestamp"
   )
     throw new Error("only fixed admitted control phases are supported");
   return raw;
@@ -118,7 +145,11 @@ export function isMaintenanceReleaseControlPhase(
     raw === "tuf-preview" ||
     raw === "tuf-stable" ||
     raw === "tuf-snapshot" ||
-    raw === "tuf-timestamp"
+    raw === "tuf-timestamp" ||
+    raw === "catalog-definitions" ||
+    raw === "catalog-policy" ||
+    raw === "catalog-snapshot" ||
+    raw === "catalog-timestamp"
   );
 }
 export function releaseControlPhaseProfile(raw: unknown = "admission") {
