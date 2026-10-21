@@ -7,9 +7,13 @@ import { lstatSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
+import { EventEmitter } from "node:events";
 import { acquireReleaseAdmission } from "./acquire-release-admission.mts";
 import type { PreparedReleaseAdmissionFacts } from "./acquire-release-admission.mts";
-import { requireActualNativeParent } from "./release-native-parent.mts";
+import {
+  requireActualNativeParent,
+  remainingNativeParentBudget,
+} from "./release-native-parent.mts";
 import { GitHubApiClient, createGitHubRunner } from "./github-api.mts";
 import { readGitHubArtifactArchive } from "./github-binary.mts";
 import {
@@ -34,6 +38,11 @@ import {
   inspectNativePrepublicationAuthorities,
   inspectPublicationAuthorities,
 } from "./release-authority-configuration.mts";
+import { inspectNativeKeylessAssemblyPlan } from "./release-native-keyless-assembly.mts";
+import { runResourceCommand } from "./resource-command.mts";
+import { runRustTests } from "./run-rust-tests.mts";
+import { readBoundedReleaseContextFiles } from "./release-signing-context.mts";
+import { inspectTufPublicationFacts } from "./release-metadata-contract.mts";
 import { inspectCapacityOperation, inspectCompactCapacityOperations } from "./release-capacity.mts";
 import {
   prepareNativeQualificationCheck,
@@ -283,6 +292,7 @@ async function sourceTransport(parent: Parent, directory: string) {
   const fixed = parent.transport_configuration;
   const toolIdentity = toolBytes(fixed.github_cli.path, fixed.github_cli.sha256);
   const checkToolIdentity = () => {
+    remainingNativeParentBudget();
     const observed = lstatSync(fixed.github_cli.path);
     if (
       !observed.isFile() ||
@@ -676,7 +686,7 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     selected.parent.authority_configuration,
   );
   const publicPins = inspectPublicationAuthorities(authorities.publication);
-  const deadline = performance.now() + 300000;
+  const deadline = performance.now() + remainingNativeParentBudget(300000);
   const active = () => {
     if (performance.now() >= deadline)
       throw new Error("native public input acquisition deadline exhausted");
@@ -804,6 +814,126 @@ export async function readActualNativePostSignPublicInputs(controllerReceipt: ob
     authority: "none" as const,
     scope:
       "local parent-owned crypto/provider source; keyless Tough and native capture pending" as const,
+  });
+}
+
+/** Actual local parent owns the only child invocation. The utility's JSON is
+ * never treated as a hosted or native brand; original public proofs, fixed tool
+ * bytes, complete repository bytes and the current journal remain necessary. */
+export async function assembleActualNativePostSignRepository(controllerReceipt: object) {
+  const selected = await requireActualNativePostSignController(controllerReceipt);
+  const tool = selected.parent.transport_configuration.post_sign_verifier;
+  if (!tool) throw new Error("protected installation keyless native verifier pin absent");
+  toolBytes(tool.path, tool.sha256);
+  const inputs = await readActualNativePostSignPublicInputs(controllerReceipt);
+  const contextDirectory = path.join(inputs.context.directory, "context");
+  const plan = inspectNativeKeylessAssemblyPlan(
+    {
+      schema_version: 1,
+      context_directory: contextDirectory,
+      output_parent: inputs.directory,
+      tool,
+      signed_roles: inputs.roles.map((role) => role.envelope),
+    },
+    inputs.directory,
+  );
+  const wire = Buffer.from(JSON.stringify({ schema_version: 1, ...plan }));
+  const planPath = path.join(inputs.directory, "native-keyless-plan.json");
+  await writeFile(planPath, wire, { flag: "wx", mode: 0o600 });
+  const signal = new EventEmitter();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let status: number;
+  try {
+    status = await runResourceCommand(
+      "analysis",
+      process.execPath,
+      [
+        path.join(selected.parent.controller_root, "scripts/release-native-keyless-assembly.mts"),
+        planPath,
+        hash(wire),
+      ],
+      {
+        cwd: selected.parent.controller_root,
+        environment: {
+          SystemRoot: process.env.SystemRoot,
+          LANG: "C.UTF-8",
+          PATH: path.dirname(process.execPath),
+        },
+        exclusive: [`native-keyless:${selected.parent.descriptor.namespace}`],
+        supervise: (args, options) =>
+          runRustTests(args, {
+            ...options,
+            tempRoot: inputs.directory,
+            signalTarget: signal,
+            acquireLock: async (metadata, admission) => {
+              if (!options.acquireLock)
+                throw new Error("native keyless source-bound resource admission required");
+              const lease = await options.acquireLock(metadata, admission);
+              try {
+                await requireActualNativePostSignController(controllerReceipt);
+                toolBytes(tool.path, tool.sha256);
+                timer = setTimeout(
+                  () => signal.emit("SIGTERM"),
+                  remainingNativeParentBudget(180000),
+                );
+                return lease;
+              } catch (error) {
+                await lease.release();
+                throw error;
+              }
+            },
+          }),
+      },
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+  await requireActualNativePostSignController(controllerReceipt);
+  toolBytes(tool.path, tool.sha256);
+  if (status !== 0)
+    throw new Error("native keyless child failed; preserve original inputs and partial effects");
+  const resultBytes = await readBoundedPublicBuildInputFile(
+    inputs.directory,
+    "native-keyless-result.json",
+    1024 * 1024,
+  );
+  const result: unknown = JSON.parse(resultBytes.toString("utf8"));
+  if (
+    !isRecord(result) ||
+    Object.keys(result).sort().join(",") !==
+      "assembled,authority,plan_sha256,schema_version,scope" ||
+    result.schema_version !== 1 ||
+    result.authority !== "none" ||
+    result.plan_sha256 !== hash(wire) ||
+    !isRecord(result.assembled) ||
+    typeof result.assembled.directory !== "string" ||
+    typeof result.assembled.repository !== "string" ||
+    !releasePathContains(inputs.directory, result.assembled.directory) ||
+    result.assembled.repository !== path.join(result.assembled.directory, "repository")
+  )
+    throw new Error("native keyless child result does not match original source-bound plan");
+  const assembled = result.assembled;
+  const publication = inspectTufPublicationFacts(assembled.publication);
+  const files = await readBoundedReleaseContextFiles(result.assembled.repository);
+  const inventory = [...files]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, bytes]) => ({ path: name, bytes: bytes.length, sha256: hash(bytes) }));
+  const publicFiles = inventory.filter((file) => file.path !== "repository-manifest.json");
+  if (
+    digest(inventory) !== digest(assembled.files) ||
+    digest(publicFiles) !== publication.repository_sha256
+  )
+    throw new Error("native keyless repository changed after owned child completion");
+  await requireActualNativePostSignController(controllerReceipt);
+  return Object.freeze({
+    directory: inputs.directory,
+    inputs,
+    assembled: structuredClone(assembled),
+    publication,
+    repository: result.assembled.repository,
+    authority: "none" as const,
+    scope:
+      "local parent-owned keyless verification; native package capture still required" as const,
   });
 }
 

@@ -10,6 +10,7 @@ import { runRustTests } from "./run-rust-tests.mts";
 import { readBoundedPublicBuildInputFile } from "./release-public-build-inputs.mts";
 import { releaseCanonicalDigest as digest } from "./release-canonical.mts";
 import { isRecord } from "./runtime-values.mts";
+import { remainingNativeParentBudget } from "./release-native-parent.mts";
 
 const sha = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const captures = new WeakMap<
@@ -175,7 +176,10 @@ export async function captureActualWindowsNativeInvocation(claim: object) {
               const lease = await options.acquireLock(metadata, admission);
               try {
                 await requireActualNativeInvocation(claim);
-                timer = setTimeout(() => signal.emit("SIGTERM"), 1800000);
+                timer = setTimeout(
+                  () => signal.emit("SIGTERM"),
+                  remainingNativeParentBudget(1800000),
+                );
                 return lease;
               } catch (error) {
                 await lease.release();

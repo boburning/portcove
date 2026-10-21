@@ -13,12 +13,63 @@ import {
   inspectNativeControllerVerificationCommand,
   inspectNativePostSignArtifactInventory,
   readActualNativePostSignPublicInputs,
+  assembleActualNativePostSignRepository,
 } from "./release-native-candidate.mts";
 import { capacityDigest } from "./release-capacity.mts";
 import { prepareNativeStageRequest } from "./release-native-stage-capture.mts";
 import { nativeAuthorityConfigurationFixture } from "./fixtures/native-authority-configuration-fixture.mts";
 import { nativeQualificationFixture } from "./fixtures/native-qualification-fixture.mts";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { inspectNativeKeylessAssemblyPlan } from "./release-native-keyless-assembly.mts";
+
+void test("native keyless plan fixes owned public input paths and the maintained local tool without minting execution authority", async () => {
+  const root = path.resolve(fileURLToPath(new URL("..", import.meta.url))),
+    directory = path.join(root, "work/inert-native-keyless");
+  const plan = {
+    schema_version: 1,
+    context_directory: path.join(directory, "context"),
+    output_parent: directory,
+    tool: {
+      path: path.join(
+        root,
+        "tools",
+        process.platform === "win32" ? "portcove-release-tools.exe" : "portcove-release-tools",
+      ),
+      sha256: "a".repeat(64),
+    },
+    signed_roles: ["releases", "preview", "stable", "snapshot", "timestamp"].map((name) => ({
+      filename: `${name}.json`,
+      path: path.join(directory, name, `${name}.json`),
+      bytes: 2,
+      sha256: "b".repeat(64),
+    })),
+  };
+  const selected = inspectNativeKeylessAssemblyPlan(plan, directory);
+  assert.equal(selected.signed_roles.length, 5);
+  for (const mutation of [
+    { ...plan, accepted: true },
+    { ...plan, output_parent: root },
+    { ...plan, context_directory: root },
+    { ...plan, tool: { ...plan.tool, path: path.join(directory, "candidate.exe") } },
+    { ...plan, tool: { ...plan.tool, sha256: "unobserved" } },
+    { ...plan, signed_roles: plan.signed_roles.slice(0, 4) },
+    { ...plan, signed_roles: [...plan.signed_roles].reverse() },
+    {
+      ...plan,
+      signed_roles: plan.signed_roles.map((role, index) =>
+        index === 0 ? { ...role, path: path.join(root, role.filename) } : role,
+      ),
+    },
+  ])
+    assert.throws(() => inspectNativeKeylessAssemblyPlan(mutation, directory));
+  plan.tool.sha256 = "c".repeat(64);
+  assert.equal(selected.tool.sha256, "a".repeat(64));
+  await assert.rejects(
+    assembleActualNativePostSignRepository({}),
+    /actual native post-sign controller source/,
+  );
+});
 
 void test("post-sign run inventory selects the exact twelve opaque artifacts and refuses partial, duplicate or unrelated producer locators", async () => {
   const controller = { run_id: "12345", run_attempt: 1, controller_revision: "a".repeat(40) };

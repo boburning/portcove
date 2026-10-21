@@ -385,6 +385,7 @@ const explicitNodeTests = new Map<string, readonly string[]>([
   ["scripts/release-native-scheduler.mts", ["scripts/release-native-scheduler.test.mts"]],
   ["scripts/release-local-native-setup.mts", ["scripts/release-local-native-setup.test.mts"]],
   ["scripts/release-native-parent.mts", ["scripts/release-native-parent.test.mts"]],
+  ["scripts/release-native-keyless-assembly.mts", ["scripts/release-native-candidate.test.mts"]],
   [
     "scripts/release-native-candidate.mts",
     ["scripts/release-native-candidate.test.mts", "scripts/release-native-attempt.test.mts"],
