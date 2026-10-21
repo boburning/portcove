@@ -122,6 +122,57 @@ Detailed manifests, requests, stdout/stderr, original failed attempts and
 independent reviews remain in `H:/pc6-qualification-20261019-a3`. Retained build
 receipts are not signing, publication, installed-client or gameplay evidence.
 
+## Static CRT build and output trace — October 21, 2026
+
+The earlier exported-source executable directly imports `VCRUNTIME140.dll` and
+Universal CRT API sets. A fresh build of the same 437 postimages and exact
+dependency/SDK closure instead selects static CRT linkage with both configure
+arguments below, before the first `project()` call:
+
+```text
+-DCMAKE_POLICY_DEFAULT_CMP0091=NEW
+-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+```
+
+Both are necessary for this source's older CMake policy baseline: setting the
+runtime variable alone does not establish the selected policy. The selected
+[CMake policy](https://cmake.org/cmake/help/v3.31/policy/CMP0091.html) and
+[runtime setting](https://cmake.org/cmake/help/v3.31/variable/CMAKE_MSVC_RUNTIME_LIBRARY.html)
+describe that distinction. Configuration remains offline, with the explicit
+source roots, tool/SDK checks, two workers and finite bounds described above.
+This is a build-configuration change; the source patch and its manifest do not
+change.
+
+The actual Release x64 build passed, producing a 4,877,312-byte executable,
+SHA256 `7aaa9cdffb0e2bd28b0c4be3ed84d2daea86fb9cbd9cfdffaa4e7bf0bd46494f`.
+It was not run. The cache and all nine application/dependency compile projects
+select the static runtime; compiler-identification probes remain separate.
+Actual compilation uses `/MT` and reports 13 warnings and zero errors.
+The retained receipt is `evidence/arcanum-static-crt-build-a2/result.json`.
+The first attempt reached the host resource-queue deadline before starting any
+payload. Its log remains separate from the successful admitted retry.
+
+Inert Microsoft `dumpbin /DEPENDENTS` inspection of that exact executable lists
+eleven direct Windows imports: `KERNEL32.dll`, `USER32.dll`, `GDI32.dll`,
+`WINMM.dll`, `IMM32.dll`, `ole32.dll`, `OLEAUT32.dll`, `VERSION.dll`,
+`ADVAPI32.dll`, `SETUPAPI.dll` and `SHELL32.dll`. No direct VC runtime DLL or CRT
+API-set dependency appears in that output. The raw inspection and executable
+hash are retained in `evidence/arcanum-static-crt-pe-inspection-a1/`.
+Direct imports do not establish all dynamically loaded modules, companion
+admission, a minimum Windows environment or successful execution.
+
+A separate source-bound trace establishes that normal non-editor stock-module
+loading can regenerate mobile-object caches outside `Save`. `map_preprocess_mobile`
+derives a cache name with ROT13 followed by reversal, checks an existing module
+GUID and writes when regeneration is required. Original `*.mob` files are read
+as inputs. The relative cache path passes through TIG repository selection;
+its physical destination depends on the actual module representation and mount
+order. The trace is retained in `evidence/arcanum-map-output-trace-a1/result.json`.
+It is not a complete runtime write inventory. Save-only mutability is therefore
+insufficient, and blanket mutable `Modules` or `maps` declarations are unjustified.
+A narrow derived-cache classification or reviewed isolation treatment remains
+engineering work before the prepared route can be admitted.
+
 ## Preparation and return point
 
 The selected route uses a separately prepared **complete physical copy** of
