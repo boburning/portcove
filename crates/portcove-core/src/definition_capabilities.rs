@@ -31,6 +31,10 @@ impl EngineTemplateCapability {
             contract_version: 2,
         });
         supported.push(Self {
+            template: AdapterKind::N64RecompPortable,
+            contract_version: 3,
+        });
+        supported.push(Self {
             template: AdapterKind::StagedSourcePortable,
             contract_version: 2,
         });
@@ -287,6 +291,28 @@ mod tests {
     }
 
     #[test]
+    fn cvlod_source_recipe_refuses_a_reader_without_n64_version_three() {
+        let previous: Vec<_> = EngineTemplateCapability::current()
+            .into_iter()
+            .filter(|entry| {
+                entry.template != AdapterKind::N64RecompPortable || entry.contract_version < 3
+            })
+            .collect();
+        let required = request("n64-recomp-portable", 3, 3);
+        assert!(
+            !check_with_inventory(&required, &previous)
+                .unwrap()
+                .compatible
+        );
+        assert!(check_definition_capabilities(&required).unwrap().compatible);
+        assert!(
+            check_with_inventory(&request("n64-recomp-portable", 2, 2), &previous)
+                .unwrap()
+                .compatible
+        );
+    }
+
+    #[test]
     fn prepared_directory_version_does_not_widen_other_templates() {
         let previous: Vec<_> = EngineTemplateCapability::current()
             .into_iter()
@@ -304,9 +330,9 @@ mod tests {
             check_definition_capabilities(&request("staged-source-portable", 3, 3)).unwrap();
         assert!(staged.compatible);
         assert_eq!(staged.checks[0].installed_version, Some(3));
-        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 3, 3)).unwrap();
+        let n64 = check_definition_capabilities(&request("n64-recomp-portable", 4, 4)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(2));
+        assert_eq!(n64.checks[0].installed_version, Some(3));
         let future =
             check_definition_capabilities(&request("staged-source-portable", 18, 18)).unwrap();
         assert!(!future.compatible);

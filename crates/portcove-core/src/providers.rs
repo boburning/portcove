@@ -35,6 +35,11 @@ impl ReleaseProvider for CompositeReleaseProvider {
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
     ) -> Result<crate::ScopedResolvedRelease> {
+        if fixed_cvlod_source(port, platform)? && scope.is_some() {
+            return Err(PortcoveError::unsupported(
+                "the CVLoD Core-owned source recipe has no qualified publisher-scoped acquisition; its grant cannot authorize this source build",
+            ));
+        }
         match scope {
             Some(scope) if port.release.provider == ReleaseSource::Github => {
                 self.github
@@ -57,6 +62,9 @@ impl ReleaseProvider for CompositeReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
     ) -> Result<ResolvedRelease> {
+        if fixed_cvlod_source(port, platform)? {
+            return crate::cartridge_build::cvlod::resolve(channel);
+        }
         match port.release.provider {
             ReleaseSource::Github => self.github.resolve(port, channel, platform).await,
             ReleaseSource::Gitlab => self.gitlab.resolve(port, channel, platform).await,
@@ -67,6 +75,24 @@ impl ReleaseProvider for CompositeReleaseProvider {
             ))),
         }
     }
+}
+
+fn fixed_cvlod_source(port: &PortDefinition, platform: Platform) -> Result<bool> {
+    if platform != Platform::WindowsX86_64
+        || port.release.managed_build.get(&platform)
+            != Some(&crate::CartridgeBuildRecipe::CvlodSourceV1)
+    {
+        return Ok(false);
+    }
+    if port.id != "cvlod-recomp"
+        || port.release.repository != "fliperama86/cvlod_recomp"
+        || port.release.provider != ReleaseSource::Github
+    {
+        return Err(PortcoveError::verification(
+            "CVLoD fixed source resolver identity differs",
+        ));
+    }
+    Ok(true)
 }
 
 fn resolve_direct(

@@ -191,14 +191,7 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             .release
             .managed_build
             .values()
-            .map(|recipe| match recipe {
-                crate::CartridgeBuildRecipe::YoshisCookieNesCycle110 => 6,
-                crate::CartridgeBuildRecipe::DrMarioNesCycle130Usa => 7,
-                crate::CartridgeBuildRecipe::AdvanceWarsGbaSourceV1
-                | crate::CartridgeBuildRecipe::EarthBoundSnesSourceV1 => 9,
-                crate::CartridgeBuildRecipe::Render96UsSourceV1 => 13,
-                crate::CartridgeBuildRecipe::GundamWingSnesSourceV1 => 14,
-            })
+            .map(|recipe| recipe.minimum_template_version())
             .max()
         {
             version
@@ -231,8 +224,8 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         } else {
             1
         };
-        value["required_capabilities"][0]["minimum_version"] = json!(version);
-        value["required_capabilities"][0]["maximum_version"] = json!(version);
+        value["required_capabilities"] =
+            json!(crate::test_fixture::definition_requirements(port, version));
         let entry = inspect(&value).unwrap();
         assert_eq!(serde_json::to_value(entry.port()).unwrap(), value["port"]);
         assert!(entry.capabilities().compatible);

@@ -118,6 +118,33 @@ fn main() {
                 .unwrap();
             thread::sleep(Duration::from_secs(2));
         }
+        Some("--closure-fanout") => {
+            // Fixed first-party process workload; no shell, game or network.
+            fs::write("closure-root-pid", std::process::id().to_string()).unwrap();
+            let mut children = Vec::new();
+            for index in 0..34 {
+                children.push(Command::new(env::current_exe().unwrap())
+                    .args(["--closure-fanout-child", &index.to_string()])
+                    .spawn().unwrap());
+            }
+            fs::write("closure-child-pids", children.iter().map(|c| c.id().to_string()).collect::<Vec<_>>().join("\n")).unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            while !std::path::Path::new("closure-release").is_file() {
+                if std::time::Instant::now() >= deadline { std::process::exit(8); }
+                thread::sleep(Duration::from_millis(1));
+            }
+            // Root and descendants race to exit; deliberately do not wait here.
+        }
+        Some("--closure-fanout-child") => {
+            let index: usize = args[1].parse().unwrap();
+            assert!(index < 34);
+            fs::write(format!("closure-child-ready-{index}"), std::process::id().to_string()).unwrap();
+            let deadline = std::time::Instant::now() + Duration::from_secs(30);
+            while !std::path::Path::new("closure-release").is_file() {
+                if std::time::Instant::now() >= deadline { std::process::exit(8); }
+                thread::sleep(Duration::from_millis(1));
+            }
+        }
         Some("--setup-tree") => {
             let observed = args.get(2).is_some_and(|arg| arg.starts_with("observed-"));
             let mut command = Command::new(env::current_exe().unwrap());

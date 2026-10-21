@@ -1,5 +1,42 @@
 use super::*;
 
+#[test]
+fn execution_deadline_selects_only_the_cvlod_recipe_and_refuses_expiry() {
+    for recipe in [
+        CartridgeBuildRecipe::YoshisCookieNesCycle110,
+        CartridgeBuildRecipe::DrMarioNesCycle130Usa,
+        CartridgeBuildRecipe::AdvanceWarsGbaSourceV1,
+        CartridgeBuildRecipe::EarthBoundSnesSourceV1,
+        CartridgeBuildRecipe::GundamWingSnesSourceV1,
+        CartridgeBuildRecipe::Render96UsSourceV1,
+        CartridgeBuildRecipe::CvlodSourceV1,
+    ] {
+        let seconds = if recipe == CartridgeBuildRecipe::CvlodSourceV1 {
+            2400
+        } else {
+            1200
+        };
+        let budget = Duration::from_secs(seconds);
+        assert_eq!(recipe.execution_budget(), budget);
+        assert!(recipe.check_execution_deadline(Duration::ZERO).is_ok());
+        assert!(recipe.check_execution_deadline(budget).is_ok());
+        let error = recipe
+            .check_execution_deadline(budget + Duration::from_nanos(1))
+            .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Launch);
+        assert_eq!(
+            error.to_string(),
+            "cartridge build exceeded its finite execution deadline"
+        );
+        assert_eq!(
+            recipe
+                .check_execution_deadline(Duration::from_secs(1201))
+                .is_ok(),
+            recipe == CartridgeBuildRecipe::CvlodSourceV1
+        );
+    }
+}
+
 #[cfg(target_os = "windows")]
 struct PlanningRelease(ResolvedRelease);
 
