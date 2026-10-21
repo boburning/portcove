@@ -10,6 +10,8 @@ import {
 import type { ControllerToolArtifactExpected } from "./release-controller-tool-admission.mts";
 import { readControllerToolFile } from "./release-controller-tools.mts";
 import { isRecord } from "./runtime-values.mts";
+import { inspectAssemblerIdentityExpectation } from "./assembler-job-identity.mts";
+import { currentTufJobDeadline } from "./release-tuf-job-budget.mts";
 const started = performance.now(),
   hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 export async function launchFixedTufController(
@@ -17,11 +19,11 @@ export async function launchFixedTufController(
   parent: string,
   phaseDeadline?: number,
 ) {
-  const deadline = Math.min(started + 115000, phaseDeadline ?? Infinity),
-    active = () => {
-      if (!Number.isFinite(deadline) || performance.now() >= deadline)
-        throw new Error("fixed TUF launcher deadline exhausted");
-    };
+  let deadline = Math.min(started + 115000, phaseDeadline ?? Infinity);
+  const active = () => {
+    if (!Number.isFinite(deadline) || performance.now() >= deadline)
+      throw new Error("fixed TUF launcher deadline exhausted");
+  };
   active();
   const input: unknown = structuredClone(raw);
   if (
@@ -37,6 +39,12 @@ export async function launchFixedTufController(
     throw new Error("fixed TUF launcher fields differ");
   if (process.env.NODE_OPTIONS || process.env.NODE_PATH)
     throw new Error("fixed TUF launcher forbids ambient Node hooks");
+  deadline = currentTufJobDeadline(
+    input.role,
+    inspectAssemblerIdentityExpectation(input.identity),
+    parent,
+    deadline,
+  );
   const receipt = await receiveControllerTools(
       parent,
       input.tools.artifact as unknown as ControllerToolArtifactExpected,
@@ -63,7 +71,11 @@ export async function launchFixedTufController(
   active();
   return result;
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  /^release-tuf-launch\.(?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     if (process.argv.length !== 3) throw new Error("fixed TUF configuration required");
     const input: unknown = JSON.parse(

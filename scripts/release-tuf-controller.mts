@@ -50,6 +50,7 @@ import { requireReservedAggregate } from "./production-aggregate-steps.mts";
 import { receiveIsolatedRoleKey } from "./release-role-key-channel.mts";
 import { handoffSigningOutput } from "./release-signing-handoff.mts";
 import { isRecord } from "./runtime-values.mts";
+import { currentTufJobDeadline } from "./release-tuf-job-budget.mts";
 const hash = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
 export function tufRoleControllerDeadline(raw?: number) {
@@ -443,7 +444,7 @@ export async function runFixedTufRoleConfiguration(
   rawDeadline?: number,
 ) {
   const value: unknown = structuredClone(raw),
-    deadline = tufRoleControllerDeadline(rawDeadline);
+    processDeadline = tufRoleControllerDeadline(rawDeadline);
   if (
     !isRecord(value) ||
     Object.keys(value).sort().join(",") !== "context,dependencies,identity,role,tools" ||
@@ -459,6 +460,12 @@ export async function runFixedTufRoleConfiguration(
     dependencies = tufRoleDependencies(role);
   if (value.dependencies.length !== dependencies.length)
     throw new Error("exact role dependency locators required");
+  const deadline = currentTufJobDeadline(
+    role,
+    inspectAssemblerIdentityExpectation(value.identity),
+    parent,
+    processDeadline,
+  );
   const toolsReceipt = await receiveControllerTools(
     parent,
     value.tools.artifact as unknown as ControllerToolArtifactExpected,
@@ -487,7 +494,11 @@ export async function runFixedTufRoleConfiguration(
     deadline,
   );
 }
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  /^release-tuf-controller\.(?:mts|mjs)$/u.test(path.basename(process.argv[1])) &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     if (process.argv.length !== 3) throw new Error("fixed TUF configuration required");
     const raw: unknown = JSON.parse(

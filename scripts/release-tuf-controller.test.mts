@@ -12,6 +12,8 @@ import {
 } from "./release-tuf-controller.mts";
 import { launchFixedTufController } from "./release-tuf-launch.mts";
 import { controllerOidcSubject } from "./assembler-job-identity.mts";
+import { tufOriginalJobDeadline } from "./release-tuf-job-budget.mts";
+import { releaseControlPhaseProfile } from "./release-control-phases.mts";
 const ref = "refs/tags/portcove-production-controller-test",
   identity = {
     audience: "portcove-capacity-executor",
@@ -22,6 +24,36 @@ const ref = "refs/tags/portcove-production-controller-test",
     run_id: "12345",
     run_attempt: 1,
   };
+void test("fixed role job budget includes setup time and refuses partial, stale, duplicate or cross-role provider jobs", () => {
+  const started = Date.parse("2026-10-20T00:00:00Z");
+  for (const role of ["releases", "preview", "stable", "snapshot", "timestamp"] as const) {
+    const job = {
+      id: 501,
+      run_id: Number(identity.run_id),
+      run_attempt: 1,
+      head_sha: identity.controller_revision,
+      status: "in_progress",
+      started_at: new Date(started).toISOString(),
+      name: releaseControlPhaseProfile(`tuf-${role}`).reader_name,
+    };
+    const inventory = { total_count: 1, jobs: [job] };
+    assert.equal(tufOriginalJobDeadline(role, inventory, identity, started + 35000, 1000), 81000);
+    for (const bad of [
+      { ...inventory, total_count: 2 },
+      { total_count: 2, jobs: [job, job] },
+      { total_count: 2, jobs: [job, { ...job, id: 502 }] },
+      { total_count: 1, jobs: [{ ...job, run_attempt: 2 }] },
+      { total_count: 1, jobs: [{ ...job, head_sha: "b".repeat(40) }] },
+      { total_count: 1, jobs: [{ ...job, run_id: 777 }] },
+      { total_count: 1, jobs: [{ ...job, name: "caller-selected signer" }] },
+      { total_count: 1, jobs: [{ ...job, status: "completed" }] },
+    ])
+      assert.throws(() => tufOriginalJobDeadline(role, bad, identity, started + 35000, 1000));
+    for (const time of [started - 1, started + 115000])
+      assert.throws(() => tufOriginalJobDeadline(role, inventory, identity, time, 1000), /budget/);
+  }
+  assert.throws(() => tufOriginalJobDeadline("root", {}, identity), /role/);
+});
 void test("fixed TUF phase only tightens a live original deadline and keeps selected two-minute cleanup reserve", () => {
   const now = performance.now();
   assert.ok(tufRoleControllerDeadline() < now + 115010);
