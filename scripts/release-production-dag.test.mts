@@ -91,6 +91,19 @@ void test("held automatic wake uses only the bound dispatch App and its actual i
   );
   assert.ok(!JSON.stringify(wake).includes("SIGNING_PRIVATE_KEY"));
 });
+void test("actual coordinator outputs bind every fixed composite declaration", async () => {
+  const workflow = parse(
+    await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),
+  ) as { jobs: { coordinator: { outputs: Record<string, string> } } };
+  const action = parse(
+    await readFile(new URL(".github/actions/release-controller-job/action.yml", root), "utf8"),
+  ) as { outputs: Record<string, { value: string }> };
+  for (const [name, value] of Object.entries(workflow.jobs.coordinator.outputs)) {
+    const match = /^\$\{\{ steps\.job\.outputs\.([a-z0-9_]+) \}\}$/u.exec(value);
+    assert.ok(match, name);
+    assert.equal(action.outputs[match[1]!]!.value, `\${{ steps.output.outputs.${match[1]} }}`);
+  }
+});
 void test("actual held job conditions route retained custody without repeating signing and preserve renewal", async () => {
   const workflow = parse(
     await readFile(new URL(".github/workflows/application-update-production.yml", root), "utf8"),

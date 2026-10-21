@@ -20,6 +20,15 @@ outputs:
   signing_custody:
     description: Inert original signing-custody route; consumers reauthenticate
     value: ${{ steps.output.outputs.signing_custody }}
+  publication_custody:
+    description: Inert original publication route; site consumer reauthenticates
+    value: ${{ steps.output.outputs.publication_custody }}
+  report_only_repair:
+    description: Inert consumed report-only repair route
+    value: ${{ steps.output.outputs.report_only_repair }}
+  report_repair_sha256:
+    description: Existing journal repair descriptor digest; not admission authority
+    value: ${{ steps.output.outputs.report_repair_sha256 }}
   role_locators:
     description: Original five role locators; not accepted authority
     value: ${{ steps.output.outputs.role_locators }}

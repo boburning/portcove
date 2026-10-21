@@ -95,6 +95,8 @@ export function requireRetainedPublishCandidate(
       (attempt) =>
         attempt.transient_retries === originalCandidate.transient_retries &&
         attempt.substantive_repairs === originalCandidate.substantive_repairs &&
+        releaseCanonicalDigest(attempt.release_run) ===
+          releaseCanonicalDigest(candidate.release_run) &&
         isRecord(attempt.proof) &&
         Array.isArray(attempt.proof.locators) &&
         attempt.proof.locators.some(

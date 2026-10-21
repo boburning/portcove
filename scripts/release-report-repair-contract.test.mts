@@ -97,10 +97,15 @@ void test("new report custodian run remains distinct from original settled publi
   const current = {
     ...f.prepared,
     phase: "building",
-    release_run: { run_id: 1111, attempt: 1, revision: f.candidate.prepared_commit },
+    release_run: f.candidate.release_run,
   };
+  const custodian = { run_id: 1111, attempt: 1, revision: f.candidate.prepared_commit };
   requireRetainedPublishCandidate(current, f.published, f.release);
-  assert.equal(current.release_run.run_id, 1111);
+  assert.equal(current.release_run.run_id, 999);
+  assert.notEqual(custodian.run_id, current.release_run.run_id);
+  assert.throws(() =>
+    requireRetainedPublishCandidate({ ...current, release_run: custodian }, f.published, f.release),
+  );
   assert.equal(f.candidate.stage_evidence[0]!.attempts[0]!.release_run.run_id, 999);
   const replaced = structuredClone(current);
   replaced.stage_evidence[0]!.attempts[0]!.proof.locators[0]!.sha256 = "f".repeat(64);
