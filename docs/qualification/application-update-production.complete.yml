@@ -359,18 +359,7 @@ jobs:
     outputs:
       mode: ${{ steps.job.outputs.mode }}
       stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
       context_locator: ${{ steps.job.outputs.context_locator }}
-      role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -470,13 +459,8 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
       stage: ${{ steps.job.outputs.stage }}
       descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
-      role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
       artifact_id: ${{ steps.job.outputs.artifact_id }}
       artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
       subject_name: ${{ steps.job.outputs.subject_name }}
@@ -669,20 +653,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
       context_locator: ${{ steps.job.outputs.context_locator }}
-      role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -773,20 +744,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
       role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -850,20 +808,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
       role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -928,20 +873,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
       role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1007,20 +939,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
       role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1087,20 +1006,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
       role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1233,20 +1139,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
-      role_locator: ${{ steps.job.outputs.role_locator }}
       publication_locator: ${{ steps.job.outputs.publication_locator }}
-      decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -1358,20 +1251,7 @@ jobs:
     env:
       PORTCOVE_FIXED_NEEDS: ${{ toJSON(needs) }}
     outputs:
-      mode: ${{ steps.job.outputs.mode }}
-      stage: ${{ steps.job.outputs.stage }}
-      descriptor: ${{ steps.job.outputs.descriptor }}
-      context_locator: ${{ steps.job.outputs.context_locator }}
-      role_locator: ${{ steps.job.outputs.role_locator }}
-      publication_locator: ${{ steps.job.outputs.publication_locator }}
       decision: ${{ steps.job.outputs.decision }}
-      artifact_id: ${{ steps.job.outputs.artifact_id }}
-      artifact_sha256: ${{ steps.job.outputs.artifact_sha256 }}
-      subject_name: ${{ steps.job.outputs.subject_name }}
-      subject_digest: ${{ steps.job.outputs.subject_digest }}
-      predicate: ${{ steps.job.outputs.predicate }}
-      predicate_type: ${{ steps.job.outputs.predicate_type }}
-      original_upload: ${{ steps.job.outputs.original_upload }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
