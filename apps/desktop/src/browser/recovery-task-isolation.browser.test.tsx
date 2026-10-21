@@ -124,6 +124,7 @@ it("keeps another port's retained cleanup identity through cancelled review and 
     });
     await expect.element(dialog).toBeVisible();
     for (const fact of facts) expect(dialog.element().textContent).toContain(fact);
+    expect(dialog.element().textContent).toContain("1 file · 128 B");
     expect(preview.mock.lastCall).toEqual([retained.operation_id, 1]);
     expect(remove).not.toHaveBeenCalled();
     return dialog;
